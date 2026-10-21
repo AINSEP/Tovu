@@ -849,3 +849,33 @@ test("concurrent publishes preserve each run's route and asset bytes and clean b
   }
   assert.equal(dirs.every((dir) => !existsSync(dir)), true);
 });
+
+test("publishStaticSite: a form receiver that cannot be prepared stops the publish; a prepared one saves its key at the published URL, and a failed save only warns", async (t) => {
+  const deps: RouteDeps = testRouteDeps();
+  const credentialSource: PublishCredentialSource = { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } };
+  const input = { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
+    config: { target: "github-pages", owner: "octo", repo: "demo-repo" } as StaticPublishConfig, projectName: "demo" };
+  const port = (prepare: () => Promise<{ submitUrl?: string; save?: (required: { readonly url: string }) => Promise<void> }>) =>
+    ({ previewInput: async () => ({}), prepare }) as unknown as NonNullable<Parameters<typeof publishStaticSite>[0]["formDestination"]>;
+
+  for (const thrown of [new Error("relay is offline"), "relay is offline"]) {
+    const captured: { value: DeployFile[] | null } = { value: null };
+    const refused = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource, buildTarget: () => fakeDeployTarget(captured),
+      formDestination: port(async () => { throw thrown; }) }, input);
+    assert.deepEqual(refused, { ok: false, code: "EXPORT_FAILED", message: "form submissions could not be prepared: relay is offline. Check the site's forms, then publish again." });
+    assert.equal(captured.value, null, "nothing is published when the receiver cannot be prepared");
+  }
+
+  const savedAt: string[] = [];
+  const published = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource, buildTarget: () => fakeDeployTarget({ value: null }),
+    formDestination: port(async () => ({ submitUrl: "https://relay.example/in", save: async ({ url }) => { savedAt.push(url); } })) }, input);
+  assert.equal(published.ok, true);
+  assert.deepEqual(savedAt, ["https://example.test/published"]);
+
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  const stillPublished = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource, buildTarget: () => fakeDeployTarget({ value: null }),
+    formDestination: port(async () => ({ save: async () => { throw new Error("vault locked"); } })) }, input);
+  assert.equal(stillPublished.ok, true);
+  assert.ok(warnings.some(args => args[0] === "[static-publish] the form receiver key could not be saved; the next publish will replace it"));
+});
