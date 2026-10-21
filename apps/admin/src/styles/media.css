@@ -219,6 +219,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The name is the InfoTip trigger (full name on hover/focus), so it drops the ⓘ icon's look:
+   full width, plain text, a focus ring around the name. */
+.media-card-title .info-tip { display: flex; margin-left: 0; max-width: 100%; }
+.media-card-title .info-tip-icon--custom {
+  display: block; width: auto; height: auto; max-width: 100%; border-radius: var(--r-sm);
+  color: inherit; font-size: inherit; line-height: inherit; cursor: default;
+}
+.media-card-title .info-tip:hover .info-tip-icon--custom,
+.media-card-title .info-tip:focus-within .info-tip-icon--custom { color: inherit; }
+.media-card-title .info-tip-icon--custom:focus-visible { border-radius: var(--r-sm); }
+.media-card-title .jini-middle-truncate { display: flex; }
 
 .media-card-meta {
   display: flex;
@@ -341,4 +352,7 @@
   .media-grid { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
   .media-card-title,
   .media-card-body .media-card-details { white-space: normal; overflow-wrap: anywhere; }
+  /* Same owner call for the extension-keeping name: show it whole, wrapped, not cut in the middle. */
+  .media-card-title .jini-middle-truncate { display: inline; white-space: normal; }
+  .media-card-title .jini-middle-truncate__head { overflow: visible; }
 }

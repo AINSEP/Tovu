@@ -122,7 +122,7 @@ describe("addressing the media grid", () => {
   it("gives two cards distinct, id-derived expand-button handles", async () => {
     const items = [item({ id: "media-1", title: "Sunset" }), item({ id: "media-2", title: "Beach" })];
     const { container } = renderMedia({ media: items });
-    await screen.findByText("Sunset");
+    await screen.findByText((_, el) => el?.classList.contains("media-card-title") === true && el.textContent === "Sunset.png");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     const handles = await handlesOf(driver, { role: "button" });

@@ -211,14 +211,14 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
     const { container } = renderScreen();
-    await waitForCard(container, "Sunset Photo");
+    await waitForCard(container, "Sunset Photo.png");
     openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
     await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
     await user.type(screen.getByRole("textbox", { name: "Alt text (optional)" }), "  New photo alt  ");
     await user.click(screen.getByRole("button", { name: "Upload" }));
 
-    await waitForCard(container, "New Photo");
+    await waitForCard(container, "New Photo.png");
     expect(uploadedBody).toEqual({ filename: "new.png", contentType: "image/png", dataBase64: "AAEC/f7/", alt: "New photo alt" });
     await waitFor(() => expect(fileInput.files).toHaveLength(0));
     expect(fileInput).toHaveValue("");
@@ -293,7 +293,7 @@ describe("upload and import dialogs (owner item #9, 2026-10-13)", () => {
       return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
     });
     const { container } = renderScreen();
-    await waitForCard(container, "Sunset Photo");
+    await waitForCard(container, "Sunset Photo.png");
     openUploadDialog();
     await user.upload(screen.getByLabelText("File to upload") as HTMLInputElement, new File(["x"], "big.png", { type: "image/png" }));
     await user.click(screen.getByRole("button", { name: "Upload" }));
@@ -321,7 +321,7 @@ describe("preview fallback chain", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
 
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     const img = card.querySelector("img");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", api.mediaOriginalUrl("media-1"));
@@ -333,7 +333,7 @@ describe("preview fallback chain", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
 
-    const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
+    const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
     const img = card.querySelector("img");
     expect(img).toHaveAttribute("alt", "Trashed Clip");
   });
@@ -342,7 +342,7 @@ describe("preview fallback chain", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
 
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     const img = card.querySelector("img")!;
     fireEvent.error(img);
 
@@ -360,7 +360,7 @@ describe("preview fallback chain", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
 
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     // Drives the FULL chain — image fails, confirm it actually became a <video> (not stuck
     // "loading"), THEN fail that too — rather than jumping straight to asserting the end state,
     // since a fallback chain whose middle link never fires would otherwise look identical to one
@@ -395,7 +395,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     const dialog = document.querySelector("dialog.media-lightbox")!;
     expect(dialog.hasAttribute("open")).toBe(false);
@@ -414,7 +414,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
     const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
@@ -443,7 +443,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
     const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
@@ -467,7 +467,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     const expandButton = within(card).getByRole("button", { name: /view "sunset photo" larger/i });
 
     await user.click(expandButton);
@@ -484,7 +484,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
     const dialog = document.querySelector("dialog.media-lightbox")!;
@@ -501,7 +501,7 @@ describe("lightbox", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
     const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
@@ -528,7 +528,7 @@ describe("lightbox", () => {
   it("omits the expand trigger once an asset resolves as unsupported — nothing larger to show than the existing placeholder", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     fireEvent.error(card.querySelector("img")!);
     await waitFor(() => expect(card.querySelector("video")).toBeInTheDocument());
@@ -551,12 +551,12 @@ describe("lightbox", () => {
       const user = userEvent.setup();
       fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
       const { container } = renderScreen();
-      await waitForCard(container, "Sunset Photo");
-      await waitForCard(container, "Trashed Clip");
+      await waitForCard(container, "Sunset Photo.png");
+      await waitForCard(container, "Trashed Clip.mp4");
 
       expect(document.querySelectorAll("dialog.media-lightbox")).toHaveLength(1);
 
-      const card1 = cardFor(container, "Sunset Photo");
+      const card1 = cardFor(container, "Sunset Photo.png");
       await user.click(within(card1).getByRole("button", { name: /view "sunset photo" larger/i }));
       const dialog = document.querySelector("dialog.media-lightbox")!;
       await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
@@ -565,7 +565,7 @@ describe("lightbox", () => {
       fireEvent(dialog, new Event("cancel", { cancelable: true }));
       await waitFor(() => expect(dialog.hasAttribute("open")).toBe(false));
 
-      const card2 = cardFor(container, "Trashed Clip");
+      const card2 = cardFor(container, "Trashed Clip.mp4");
       await user.click(within(card2).getByRole("button", { name: /view "trashed clip" larger/i }));
       await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
 
@@ -593,7 +593,7 @@ describe("row actions via RowMenu", () => {
       ])
     );
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     expect(screen.queryByRole("menuitem", { name: /delete permanently/i })).not.toBeInTheDocument();
@@ -611,7 +611,7 @@ describe("row actions via RowMenu", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
+    const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
     expect(screen.queryByRole("menuitem", { name: "Trash" })).not.toBeInTheDocument();
@@ -644,7 +644,7 @@ describe("row actions via RowMenu", () => {
       ])
     );
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
+    const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete permanently/i }));
@@ -658,7 +658,7 @@ describe("row actions via RowMenu", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
+    const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete permanently/i }));
@@ -691,7 +691,7 @@ describe("metadata edit stays a partial patch", () => {
     });
 
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
@@ -719,7 +719,7 @@ describe("metadata edit stays a partial patch", () => {
     });
 
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
@@ -752,7 +752,7 @@ describe("metadata edit stays a partial patch", () => {
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
     await user.clear(await screen.findByLabelText("Width (px)"));
@@ -882,7 +882,7 @@ describe("EditMediaPanel — slug field", () => {
   async function openEditPanel() {
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
     await screen.findByRole("heading", { name: /editing "sunset photo"/i });
@@ -974,7 +974,7 @@ describe("EditMediaPanel — HTML attributes field", () => {
   async function openEditPanel() {
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
     await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
     await screen.findByRole("heading", { name: /editing "sunset photo"/i });
@@ -1082,7 +1082,7 @@ describe("EditMediaModal — eye-icon trigger", () => {
     })) }]));
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
     const dialog = document.querySelector("dialog.media-edit-dialog")! as HTMLElement;
     await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
@@ -1097,7 +1097,7 @@ describe("EditMediaModal — eye-icon trigger", () => {
     ]));
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
     const dialog = document.querySelector("dialog.media-edit-dialog")! as HTMLElement;
     expect(await within(dialog).findByText("leona")).toBeInTheDocument();
@@ -1107,7 +1107,7 @@ describe("EditMediaModal — eye-icon trigger", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
 
     const dialog = document.querySelector("dialog.media-edit-dialog")!;
     expect(dialog.hasAttribute("open")).toBe(false);
@@ -1129,12 +1129,12 @@ describe("EditMediaModal — eye-icon trigger", () => {
       fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
       const user = userEvent.setup();
       const { container } = renderScreen();
-      const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+      const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
       const dialog = document.querySelector("dialog.media-edit-dialog") as HTMLElement;
       await user.click(within(card).getByRole("button", { name: 'Actions for "Sunset Photo"' }));
       expect(dialog.hasAttribute("open")).toBe(false);
       await user.keyboard("{Escape}");
-      await user.click(within(card).getByRole("button", { name: "Edit metadata: Sunset Photo" }));
+      await user.click(within(card).getByRole("button", { name: "Edit metadata: Sunset Photo.png" }));
       await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
       expect(within(dialog).getByLabelText("Title")).toHaveValue("Sunset Photo");
       expect(within(dialog).getByRole("heading", { name: 'Editing "Sunset Photo"' }).textContent).toBe('Editing "Sunset Photo"');
@@ -1148,9 +1148,9 @@ describe("EditMediaModal — eye-icon trigger", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const user = userEvent.setup();
     const { container } = renderScreen();
-    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
-    expect(within(card).queryByRole("button", { name: "Edit metadata: Sunset Photo" })).toBeNull();
-    await user.click(within(card).getByText("Sunset Photo"));
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
+    expect(within(card).queryByRole("button", { name: "Edit metadata: Sunset Photo.png" })).toBeNull();
+    await user.click(card.querySelector(".media-card-title")!);
     expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
     expect(within(card).getByRole("button", { name: 'Edit "Sunset Photo"' })).toBeInTheDocument();
   });
@@ -1158,7 +1158,7 @@ describe("EditMediaModal — eye-icon trigger", () => {
   it("is a single shared <dialog>, not one per card", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();
-    await screen.findByText("Sunset Photo");
+    await waitForCard(document.body, "Sunset Photo.png");
 
     expect(document.querySelectorAll("dialog.media-edit-dialog")).toHaveLength(1);
   });
@@ -1166,6 +1166,11 @@ describe("EditMediaModal — eye-icon trigger", () => {
 
 /** Waits for the grid to have finished its initial load (the card for `title` exists), then
  *  returns the container for `cardFor` to re-scope against. */
+/** Every card's displayed file name, in grid order. */
+function cardTitles(): string[] {
+  return Array.from(document.querySelectorAll(".media-card-title")).map((el) => el.textContent ?? "");
+}
+
 async function waitForCard(container: HTMLElement, title: string): Promise<HTMLElement> {
   await waitFor(() => {
     const found = Array.from(container.querySelectorAll(".media-card-title")).some((el) => el.textContent === title);
@@ -1183,8 +1188,8 @@ describe("tab bar — useMediaTabsHook injection seam", () => {
     // `useMediaTabs()` directly.
     renderScreen({ useMediaTabsHook: () => ({ activeTab: "videos", setActiveTab: vi.fn() }) });
 
-    expect(await screen.findByText("Trashed Clip")).toBeInTheDocument();
-    expect(screen.queryByText("Sunset Photo")).not.toBeInTheDocument();
+    expect(await waitForCard(document.body, "Trashed Clip.mp4")).toBeInTheDocument();
+    expect(cardTitles()).not.toContain("Sunset Photo.png");
   });
 });
 
@@ -1193,22 +1198,22 @@ describe("?tab= deep linking", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen({ tabId: "videos" });
 
-    expect(await screen.findByText("Trashed Clip")).toBeInTheDocument();
-    expect(screen.queryByText("Sunset Photo")).not.toBeInTheDocument();
+    expect(await waitForCard(document.body, "Trashed Clip.mp4")).toBeInTheDocument();
+    expect(cardTitles()).not.toContain("Sunset Photo.png");
   });
 
   it("falls back to All for an id that names no real tab, instead of blanking the panel", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen({ tabId: "not-a-real-tab" });
 
-    expect(await screen.findByText("Sunset Photo")).toBeInTheDocument();
+    expect(await waitForCard(document.body, "Sunset Photo.png")).toBeInTheDocument();
   });
 
   it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const user = userEvent.setup();
     renderScreen({ tabId: "all" });
-    await screen.findByText("Sunset Photo");
+    await waitForCard(document.body, "Sunset Photo.png");
 
     // A regex, not an exact string (2026-09-26 tab-count dispatch): the Videos tab's accessible name
     // now includes its item-count badge with no separator (e.g. "Videos1" for this file's one

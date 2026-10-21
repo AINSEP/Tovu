@@ -29,7 +29,8 @@ import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsCo
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { Lightbox } from "@jini-ai/ui/admin-widgets";
+import { InfoTip, Lightbox, MiddleTruncate } from "@jini-ai/ui/admin-widgets";
+import { mediaFileName } from "@jini-ai/admin/media";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport } from "./RemoteImageImport";
@@ -1010,14 +1011,7 @@ function MediaGridOrEmpty({
             />
           </div>
           <div className="media-card-body">
-            <p className="media-card-title" title={item.title}>
-              {isPhone ? <button
-                type="button"
-                className="media-card-details"
-                aria-label={`${t("Edit metadata")}: ${item.title}`}
-                onClick={() => openDetails(item)}
-              >{item.title}</button> : item.title}
-            </p>
+            <MediaCardTitle item={item} isPhone={isPhone} onOpenDetails={openDetails} t={t} />
             <div className="media-card-meta">
               <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
               <RowMenu
@@ -1031,6 +1025,27 @@ function MediaGridOrEmpty({
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * The card's file name with its extension (owner, 2026-10-21), cut in the middle so the extension
+ * stays visible. Desktop hover/focus shows the full name in the shared InfoTip bubble; on a phone the
+ * name is the details button, whose label carries the full name.
+ */
+function MediaCardTitle({ item, isPhone, onOpenDetails, t }: {
+  item: AdminMedia; isPhone: boolean; onOpenDetails: (item: AdminMedia) => void; t: (key: string) => string;
+}) {
+  const fileName = mediaFileName({ title: item.title, contentType: item.contentType });
+  return (
+    <p className="media-card-title">
+      {isPhone ? <button
+        type="button"
+        className="media-card-details"
+        aria-label={`${t("Edit metadata")}: ${fileName}`}
+        onClick={() => onOpenDetails(item)}
+      ><MiddleTruncate text={fileName} /></button> : <InfoTip label={fileName} icon={<MiddleTruncate text={fileName} />} />}
+    </p>
   );
 }
 
