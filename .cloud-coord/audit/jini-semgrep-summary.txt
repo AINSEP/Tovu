@@ -1,0 +1,1 @@
+ERROR/EXIT: semgrep registry unreachable (semgrep.dev 403 from sandbox proxy); no scan performed. Semgrep 1.182.0 installed.

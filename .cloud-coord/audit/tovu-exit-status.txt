@@ -1,0 +1,4 @@
+depcruise EXIT=119 secs=33
+knip EXIT=2 secs=5
+sonar EXIT=0 secs=178
+semgrep EXIT=2 secs=99
