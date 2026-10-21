@@ -194,8 +194,12 @@ function renderRoute(route: Route, siteSection: SiteSectionAvailability, access:
   if (resolvePanelAccessGate({ panelId: route.panelId, panels: ADMIN_PANELS, permissions: access.permissions }) === "denied") {
     return <NoAccess locale={access.locale} />;
   }
-  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
-  return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
+  // Non-null by construction, so there is no `panel ? … : null` fallback: `parseRoute` (via
+  // `matchRoute` over this same `ADMIN_PANELS`) only ever yields a registered panel id, the root's
+  // `"dashboard"`, or `null` (mapped to `"dashboard"` here) — and `panels.tsx` registers
+  // `dashboard`. The legacy `/section/:id` branch returns early above for an unregistered id.
+  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard")!;
+  return panel.render({ view: route.view, params: route.params, query: route.query });
 }
 
 /**
