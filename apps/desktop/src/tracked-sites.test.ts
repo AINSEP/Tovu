@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
+import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites, readProjectsFile } from "./tracked-sites.ts";
 import { classifySiteDir } from "./site-dir-store.ts";
 
 function tempDir(): string {
@@ -308,6 +308,52 @@ test("migrateLegacyDismissals does not re-fire on an already-migrated file", () 
   assert.deepEqual(readDismissedSites(file), []);
   // A second run must not manufacture a tombstone for a dir the operator has simply never seen.
   assert.equal(seedDevFallbackSite(file, "/repo/sites/tovu-com", () => "site"), true);
+});
+
+test("a file whose projects is not a list is damaged, not empty: no rows, but its dismissals survive", () => {
+  const file = sitesFilePath(tempDir());
+  fs.writeFileSync(file, JSON.stringify({ projects: { "/sites/a": true }, dismissed: ["/sites/gone", 7] }));
+
+  const read = readProjectsFile(file);
+
+  assert.equal(read.state, "unreadable");
+  assert.deepEqual(read.rows, []);
+  assert.deepEqual(read.dismissed, ["/sites/gone"]);
+  assert.deepEqual(readDismissedSites(file), ["/sites/gone"]);
+});
+
+test("a torn file's null and scalar rows are dropped and a recovered row loses its provenance", () => {
+  const file = sitesFilePath(tempDir());
+  const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z", origin: "created", siteId: "id-a" };
+  // Cut mid-write: the closing brackets never reached the disk.
+  fs.writeFileSync(file, `{"projects":[null,5,${JSON.stringify(row)},{"siteDir":"/sites/b","crea`);
+
+  const read = readProjectsFile(file);
+
+  assert.equal(read.state, "unreadable");
+  assert.deepEqual(read.rows, [{ siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z", origin: SITE_ORIGIN.adopted }]);
+});
+
+test("discoverSiteDirs counts already-known folders against the candidate budget too", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discovery-known-"));
+  try {
+    fs.mkdirSync(path.join(root, "one"));
+    let classified = 0;
+    const input = { scanRoots: [root], knownDirs: ["/elsewhere/a", "/elsewhere/b"], classifySiteDir: () => { classified++; return "site" as const; } };
+    assert.throws(() => discoverSiteDirs(input, { maxCandidates: 2 }), {
+      message: "Sites discovery is limited to 2 entries. Choose smaller sites folders and try again.",
+    });
+    assert.equal(classified, 0, "an over-budget scan must not produce a partial result");
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("discoverSiteDirs refuses a non-positive or non-integer limit before touching the disk", () => {
+  let classified = 0;
+  const input = { scanRoots: ["/does/not/matter"], knownDirs: [], classifySiteDir: () => { classified++; return "site" as const; } };
+  for (const limits of [{ maxCandidates: 0 }, { maxCandidates: 1.5 }, { maxRoots: 0 }, { maxRoots: Number.NaN }]) {
+    assert.throws(() => discoverSiteDirs(input, limits), { message: "Sites discovery limits must be positive integers." }, JSON.stringify(limits));
+  }
+  assert.equal(classified, 0);
 });
 
 test("discoverSiteDirs finds a real site one level under a scan root", () => {
