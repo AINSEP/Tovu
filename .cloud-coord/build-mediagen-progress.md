@@ -6,3 +6,4 @@
   accept plugin vendors), tests `cbe7d4d6` `b061b537`, fix `7bb4f6c3` (no tombstone of plugin keys by admin
   whole-map save), fixtures `cd883782`, `0fd3e65f` (metadata-only construction keeps built-in enum).
 - 20:05 limit lifted; hard stop 23:00Z. Running broad regression + tests tsconfig.
+- 20:35 done; REPORT written.
