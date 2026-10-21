@@ -53,10 +53,11 @@ export function createServerReconnect(deps: ServerReconnectDeps, optional: Serve
   let inFlight: Promise<boolean> | null = null;
   const listeners = new Set<() => void>();
 
-  // Every call is a real change: only one poll runs at a time (`inFlight`), and each poll moves
-  // from a settled status ("online"/"unreachable") to "reconnecting" and back to a settled one, so
-  // listeners are only ever told about a transition without a same-status guard here.
+  // Listeners hear only real transitions. `waitUntilReachable` publishes the shared poll before it
+  // starts, so a listener that waits on "reconnecting" joins it instead of re-entering `poll`; this
+  // guard stays as the second line of defence against a listener being told the same status twice.
   function setStatus(next: ServerConnectionStatus): void {
+    if (next === status) return;
     status = next;
     for (const listener of listeners) listener();
   }
@@ -82,7 +83,11 @@ export function createServerReconnect(deps: ServerReconnectDeps, optional: Serve
       return () => listeners.delete(listener);
     },
     waitUntilReachable() {
-      inFlight ??= poll().finally(() => (inFlight = null));
+      if (inFlight) return inFlight;
+      // Assign the shared promise before `poll` runs: its first `setStatus` notifies synchronously.
+      let start!: (polled: Promise<boolean>) => void;
+      inFlight = new Promise<boolean>((resolve) => (start = resolve)).finally(() => (inFlight = null));
+      start(poll());
       return inFlight;
     },
   };

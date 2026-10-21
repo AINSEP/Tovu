@@ -51,6 +51,34 @@ describe("createServerReconnect", () => {
     await Promise.all([reconnect.waitUntilReachable(), reconnect.waitUntilReachable()]);
     expect(probes).toBe(1);
   });
+
+  it("a subscriber that waits on 'reconnecting' joins the running poll instead of re-entering it", async () => {
+    let probes = 0;
+    const reconnect = createServerReconnect({ probe: async () => (probes++, true), ...fakeClock() });
+    const seen: string[] = [];
+    const joined: Promise<boolean>[] = [];
+    reconnect.subscribe(() => {
+      seen.push(reconnect.getStatus());
+      if (reconnect.getStatus() === "reconnecting") joined.push(reconnect.waitUntilReachable());
+    });
+    const first = reconnect.waitUntilReachable();
+    expect(joined).toHaveLength(1);
+    expect(joined[0]).toBe(first);
+    expect(await first).toBe(true);
+    expect(probes).toBe(1);
+    expect(seen).toEqual(["reconnecting", "online"]);
+  });
+
+  it("does not re-announce 'reconnecting' when a poll whose probe threw is retried", async () => {
+    const answers: Array<() => Promise<boolean>> = [async () => { throw new Error("probe crashed"); }, async () => true];
+    const reconnect = createServerReconnect({ probe: () => answers.shift()!(), ...fakeClock() });
+    const seen: string[] = [];
+    reconnect.subscribe(() => seen.push(reconnect.getStatus()));
+    await expect(reconnect.waitUntilReachable()).rejects.toThrow("probe crashed");
+    expect(reconnect.getStatus()).toBe("reconnecting");
+    expect(await reconnect.waitUntilReachable()).toBe(true);
+    expect(seen).toEqual(["reconnecting", "online"]);
+  });
 });
 
 describe("shouldRetryAfterReconnect", () => {
