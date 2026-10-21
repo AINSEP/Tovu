@@ -92,36 +92,73 @@ function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; 
   return createAgentPluginUpdateEffects({ actor, deps: { agentPluginLayout, workspaceId, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring } });
 }
 
+type ArchiveUpdate = { pluginId: string; expectedOldDigest: string };
+type ArchiveInstallScope = { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext };
+type UploadArguments = { required: Parameters<typeof installUploadedAgentPlugin>[0]; optional: Parameters<typeof installUploadedAgentPlugin>[1] };
+type ArchiveBytes = UploadArguments["required"]["archive"];
+
+/** Reads, verifies and installs (or updates) a zip/folder source; each step lives in a helper below.
+ * Every lifecycle refusal reaches the model as a ToolInputError (`toInstallToolError`). */
 async function installArchivePlugin(
-  { deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext },
-  options: { update?: { pluginId: string; expectedOldDigest: string } } = {},
+  { deps, ctx }: ArchiveInstallScope,
+  options: { update?: ArchiveUpdate } = {},
 ) {
   const request = readPluginInstallRequest({ input: ctx.input });
   try {
-    const archive = request.kind === "folder"
-      ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
-      : await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
-    const required = { archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), workspaceId: deps.workspaceId, actor: ctx.principal.id, replace: request.replace, ...(options.update ? { update: options.update } : {}) };
-    const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}),
-      ...(options.update ? { snapshotSettings: deps.snapshotAgentPluginSettings, mcpProvisioning: updateMcpEffects({ deps, actor: ctx.principal.id }) } : {}) };
-    if (options.update) {
-      const result = await installUploadedAgentPlugin(required, optional);
-      return { updated: true, enabled: result.enabled, warnings: result.warnings ?? [], plugin: { id: result.plugin.pluginId, version: result.plugin.version }, note: "Memory is kept. Rollback restores package bytes, not state written by the candidate. Running chats retain captured guidance; in-flight MCP calls may fail." };
-    }
-    const preview = await previewUploadedAgentPlugin(required, optional);
-    const result = await installUploadedAgentPlugin({ ...required, expectedSha256: preview.digest }, optional);
-    // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
-    // package the operator already enabled; malformed activation remains explicitly unknown.
-    const verdict = result.alreadyInstalled
-      ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
-      : "inactive";
-    return uploadedInstallResult({ result, verdict, warning: preview.warning });
+    const archive = await readInstallArchiveBytes({ deps, ctx, request });
+    const upload = uploadArguments({ deps, ctx, archive, replace: request.replace }, options);
+    return options.update ? await updateArchivePlugin(upload) : await installFreshArchivePlugin({ deps, ...upload });
   } catch (error) {
-    if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
-    if (error instanceof FolderZipError) throw new ToolInputError({ message: error.message });
-    if (error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
-    throw error;
+    throw toInstallToolError({ error });
   }
+}
+
+/** A folder is packed like an admin folder upload; a zip comes from a path or a chat attachment. */
+async function readInstallArchiveBytes(
+  { deps, ctx, request }: ArchiveInstallScope & { request: ReturnType<typeof readPluginInstallRequest> },
+  _optional: Record<string, never> = {},
+): Promise<ArchiveBytes> {
+  return request.kind === "folder"
+    ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
+    : await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+}
+
+/** The upload service's arguments; an update also binds the settings snapshot owner and MCP effects. */
+function uploadArguments(
+  { deps, ctx, archive, replace }: ArchiveInstallScope & { archive: ArchiveBytes; replace: boolean | undefined },
+  options: { update?: ArchiveUpdate } = {},
+): UploadArguments {
+  const required = { archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), workspaceId: deps.workspaceId, actor: ctx.principal.id, replace, ...(options.update ? { update: options.update } : {}) };
+  const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}),
+    ...(options.update ? { snapshotSettings: deps.snapshotAgentPluginSettings, mcpProvisioning: updateMcpEffects({ deps, actor: ctx.principal.id }) } : {}) };
+  return { required, optional };
+}
+
+async function updateArchivePlugin({ required, optional }: UploadArguments, _optional: Record<string, never> = {}) {
+  const result = await installUploadedAgentPlugin(required, optional);
+  return { updated: true, enabled: result.enabled, warnings: result.warnings ?? [], plugin: { id: result.plugin.pluginId, version: result.plugin.version }, note: "Memory is kept. Rollback restores package bytes, not state written by the candidate. Running chats retain captured guidance; in-flight MCP calls may fail." };
+}
+
+async function installFreshArchivePlugin(
+  { deps, required, optional }: UploadArguments & { deps: AgentPluginsInstallToolDeps },
+  _optional: Record<string, never> = {},
+) {
+  const preview = await previewUploadedAgentPlugin(required, optional);
+  const result = await installUploadedAgentPlugin({ ...required, expectedSha256: preview.digest }, optional);
+  // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
+  // package the operator already enabled; malformed activation remains explicitly unknown.
+  const verdict = result.alreadyInstalled
+    ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
+    : "inactive";
+  return uploadedInstallResult({ result, verdict, warning: preview.warning });
+}
+
+/** Lifecycle refusals become caller-fixable tool errors (coded where the error has a code); anything else is unchanged. */
+function toInstallToolError({ error }: { error: unknown }, _optional: Record<string, never> = {}): unknown {
+  if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return new ToolInputError({ message: `${error.code}: ${error.message}` });
+  if (error instanceof FolderZipError) return new ToolInputError({ message: error.message });
+  if (error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError) return new ToolInputError({ message: `${error.code}: ${error.message}` });
+  return error;
 }
 
 function uploadedInstallResult(
