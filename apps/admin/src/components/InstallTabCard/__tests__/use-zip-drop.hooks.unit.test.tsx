@@ -61,3 +61,9 @@ it("delivers an empty list when a drop contains no files", () => {
   expect(fireEvent.drop(zone, { dataTransfer: { files: [] } })).toBe(false);
   expect(received).toEqual([[]]);
 });
+
+it("delivers an empty list when the drop's dataTransfer carries no files list at all", () => {
+  const { zone, received } = renderDropZone();
+  expect(fireEvent.drop(zone, { dataTransfer: {} })).toBe(false);
+  expect(received).toEqual([[]]);
+});
