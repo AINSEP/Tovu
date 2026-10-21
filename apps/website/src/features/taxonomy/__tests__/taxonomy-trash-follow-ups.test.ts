@@ -129,3 +129,22 @@ test("taxonomy purge follow-up: an empty (member-less) taxonomy still writes a r
   assert.deepEqual((revisions.rows[0] as { previousState: unknown }).previousState, { deletedTermIds: [] });
   assert.deepEqual((outbox.events[0] as { deletedTermIds: unknown }).deletedTermIds, []);
 });
+
+test("taxonomy purge follow-up: no Trash row found falls back to an 'unknown' actor in both the revision and the event", async () => {
+  const revisions = recordingRevisions();
+  const outbox = recordingOutbox();
+  const hooks = createTaxonomyPurgeFollowUp({
+    termRepo: { listIdsForPurgeAudit: async id => { assert.equal(id, "tax-1"); return ["term-1"]; } },
+    trash: trashLookup(null, "taxonomy", "tax-1"),
+    revisions,
+    outbox,
+    clock,
+  });
+
+  const priorState = await hooks.beforePurge({ workspaceId: "ws-1", entityId: "tax-1" });
+  await hooks.afterPurge({ workspaceId: "ws-1", entityId: "tax-1", priorState });
+
+  assert.deepEqual(priorState, { deletedTermIds: ["term-1"], actorId: "unknown" });
+  assert.equal((revisions.rows[0] as { actorId: unknown }).actorId, "unknown");
+  assert.equal(outbox.events[0]?.actorId, "unknown");
+});
