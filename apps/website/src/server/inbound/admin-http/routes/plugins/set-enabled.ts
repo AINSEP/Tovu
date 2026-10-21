@@ -98,12 +98,12 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  */
 export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const pluginId = String(req.params.pluginId ?? "");
+    const pluginId = String(req.params.pluginId);
     // Validated, not coerced (api.spec.md: malformed body is 400): `Boolean("false")` is `true`, so
     // coercion let a malformed body ENABLE a plugin and run its enable hook. Same rule as
     // `agent-plugins/set-enabled.ts`.

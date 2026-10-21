@@ -1,7 +1,18 @@
 import { authorizeSend, claimBatch, freezeAudience } from "#src/features/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
+import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
+
+/** Composition seams for {@link createAdminNewsletterSendCampaignRoute}. */
+export interface SendCampaignRouteOptions {
+  /**
+   * Builds the send pipeline's deps from the route deps. Production wires `deps.ts`'s
+   * `toSendPipelineDeps`, whose Launch Gate precondition (a) is hard-wired off; a caller that owns a
+   * real `sending_enabled` source (or a test) passes its own builder to reach the 202 path.
+   */
+  buildSendPipelineDeps?: (deps: NewsletterRouteDeps) => SendPipelineDeps;
+}
 
 /**
  * `SEND_CAMPAIGN` (api.spec.md §1/§5) — `POST .../campaigns/:id/send`. `admin.newsletter.
@@ -24,45 +35,51 @@ import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
  * `memory` driver always fails Launch Gate precondition (d)) — by design, not a gap this route can
  * or should close (see tasks.md's "Real Sending Is Inherently Blocked Today" flag).
  */
-export const registerAdminNewsletterSendCampaignRoute: RouteRegistrar = (app, routeDeps) => {
-  const deps = routeDeps as NewsletterRouteDeps;
+export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRouteOptions = {}): RouteRegistrar {
+  const { buildSendPipelineDeps = toSendPipelineDeps } = optional;
+  return (app, routeDeps) => {
+    const deps = routeDeps as NewsletterRouteDeps;
 
-  app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.send",
-        "newsletter_campaign",
-        res
-      );
-      if (!principal) return;
-
-      await deps.newsletterReady;
-      const sendPipelineDeps = toSendPipelineDeps(deps);
-      const { campaign } = await authorizeSend({
-        deps: sendPipelineDeps,
-        input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id) },
-      });
-      res.status(202).json(toDataResponse(campaign));
+    app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send", async (req, res) => {
+      if (String(req.params.workspaceId) !== deps.workspaceId) {
+        res.status(404).json({ error: "workspace was not found" });
+        return;
+      }
 
       try {
-        await freezeAudience({
+        const principal = await requireNewsletterPermissionOrRespond(
+          deps.authorize,
+          deps.workspaceId,
+          "admin.newsletter.campaign.send",
+          "newsletter_campaign",
+          res
+        );
+        if (!principal) return;
+
+        await deps.newsletterReady;
+        const sendPipelineDeps = buildSendPipelineDeps(deps);
+        const { campaign } = await authorizeSend({
           deps: sendPipelineDeps,
-          input: { workspaceId: deps.workspaceId, campaignId: campaign.id, listId: campaign.listId },
+          input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id) },
         });
-        await claimBatch({ deps: sendPipelineDeps });
-      } catch (freezeErr) {
-        // eslint-disable-next-line no-console
-        console.error(`freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}`);
+        res.status(202).json(toDataResponse(campaign));
+
+        try {
+          await freezeAudience({
+            deps: sendPipelineDeps,
+            input: { workspaceId: deps.workspaceId, campaignId: campaign.id, listId: campaign.listId },
+          });
+          await claimBatch({ deps: sendPipelineDeps });
+        } catch (freezeErr) {
+          // eslint-disable-next-line no-console
+          console.error(`freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}`);
+        }
+      } catch (err) {
+        mapNewsletterErrorToResponse(err, res);
       }
-    } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
-    }
-  });
-};
+    });
+  };
+}
+
+/** The production `SEND_CAMPAIGN` registrar — {@link createAdminNewsletterSendCampaignRoute} with its default seams. */
+export const registerAdminNewsletterSendCampaignRoute: RouteRegistrar = createAdminNewsletterSendCampaignRoute();

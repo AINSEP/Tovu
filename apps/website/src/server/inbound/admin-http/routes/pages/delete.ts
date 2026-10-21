@@ -31,12 +31,12 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const pageId = String(req.params.pageId ?? "");
+    const pageId = String(req.params.pageId);
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
     let priorPost: PostRecord | null = null;

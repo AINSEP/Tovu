@@ -146,7 +146,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId/html",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      if (String(req.params.workspaceId) !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
@@ -156,7 +156,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
         // about what this endpoint accepts — same ordering `pages/list.ts` uses.
         if (!(await allowedToWrite(deps, res))) return;
 
-        const pageId = String(req.params.pageId ?? "");
+        const pageId = String(req.params.pageId);
         const html = req.body?.html;
 
         if (typeof html !== "string") {
