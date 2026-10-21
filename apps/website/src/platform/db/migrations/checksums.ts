@@ -43,4 +43,6 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0024_domain_bindings": "cea288e4c976a8ddb3d504639671ce802dbe025762c5543964821be62244a791",
   "0025_mail_feedback_processed": "296fe07516f30c5404dc2147293bd498d84214c419902322995096212daea75b",
   "0026_domain_binding_version": "c21e7bc7eadfed3163cf4fb3c40a7b36a3b20ba3b6a72b86e55f1095a4ccf671",
+  "0027_search_index": "fb9ef990445cbc825ca90e1bd5e60aed5874b23a962e40e74a86041a120116e7",
+  "0028_search_index_retired": "f996ef75e19887474111b1d8d75d5f5e051786ff21e1a4d1f6a4d5bc418c5b54",
 };
