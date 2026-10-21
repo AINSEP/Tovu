@@ -406,14 +406,17 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // Fired immediately, no delay — the HTTP route's own real export against the hermetic fixture is
   // still mid-flight (same real-export-duration race window the sibling test above relies on). Drives
   // the assistant tool's registrations directly against `toolDeps` — a spread of the SAME `deps`
-  // object the app above is using, with only `authorize` overridden (this test is about the shared
+  // object the app above is using, with only `authorize` and `siteConsent` overridden (this test is about the shared
   // run-slot guard, not permission wiring, which `publish-agent-tools.unit.test.ts` already certifies
   // on its own). `getPublishRunSnapshot`/`startPublishRun`/`runPublishAndAwait` all read/write ONE
   // module-scope slot in `static-publish/publish-run.ts` regardless of which `deps` object a caller
   // passes in, so this still exercises the real shared state a single server process would have.
   await barrier.waitUntilEntered();
 
-  const toolDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  // why: the consent preflight (added with the consent tools) authorizes through its own port bound
+  // to the real store, so the permission-wiring bypass above has to cover it too; consent itself is
+  // certified by the consent-refusal tests below and in `publish-agent-tools.unit.test.ts`.
+  const toolDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }), siteConsent: { deploymentCheck: async () => null } };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = new Map(buildStaticPublishRegistrations(toolDeps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
   const executeTool = registrations.get("deployment_execute_static_publish");
