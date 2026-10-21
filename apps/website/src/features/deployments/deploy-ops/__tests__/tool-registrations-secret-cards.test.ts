@@ -23,9 +23,9 @@ async function harness(table: Record<string, Route>, onAuthorize: (permission: s
     return { status: route.status, headers: {}, bodyText: JSON.stringify(route.body) };
   } } as never;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const deps = { ...f.deps, readSiteKey: () => SITE_KEY, authorize: async ({ permission }: { permission: string }) => { onAuthorize(permission); return { allowed: true, reason: "matched" }; } };
-  const list = buildDeployOpsRegistrations(deps as typeof f.deps).find(r => r.descriptor.id === "deployment_ops_list_secrets")!;
-  const set = buildDeployOpsRegistrations(deps as typeof f.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
+  const deps: Parameters<typeof buildDeployOpsRegistrations>[0] = { ...f.deps, readSiteKey: () => SITE_KEY, authorize: async ({ permission }: { permission: string }) => { onAuthorize(permission); return { allowed: true, reason: "matched" }; } };
+  const list = buildDeployOpsRegistrations(deps).find(r => r.descriptor.id === "deployment_ops_list_secrets")!;
+  const set = buildDeployOpsRegistrations(deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
   return { calls, store, set, list };
 }
 const listed = (...names: string[]): Route => ({ status: 200, body: { secrets: names.map(name => ({ name, digest: `d-${name}`, updated_at: "2026-10-05T00:00:00Z" })) } });
@@ -75,8 +75,9 @@ test("contributeDeployOpsTools builds from the supplied registry, or from the de
   const narrowed = contributeDeployOpsTools({ registry: flyOnly });
   assert.equal(narrowed.domain, "deploy-ops");
   const status = (registrations: ReturnType<typeof buildDeployOpsRegistrations>) => (registrations.find(r => r.descriptor.id === "deployment_ops_status")!.descriptor.inputSchema as { properties: { platform: { enum: string[] } } }).properties.platform.enum;
-  assert.deepEqual(status(narrowed.build(f.deps as never, undefined) as never), ["fly"]);
-  assert.deepEqual(status(contributeDeployOpsTools().build(f.deps as never, undefined) as never), ["fly", "github-actions"]);
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  assert.deepEqual(status(narrowed.build(f.deps as never, surfaces)), ["fly"]);
+  assert.deepEqual(status(contributeDeployOpsTools().build(f.deps as never, surfaces)), ["fly", "github-actions"]);
 });
 
 test("copying from another secret on the target writes the source's value; list goes through the same handler", async () => {
