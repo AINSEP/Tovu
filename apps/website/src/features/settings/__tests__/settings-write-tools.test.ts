@@ -591,6 +591,8 @@ test("a confirmed agent write of delivery bindings with a secret in config is st
 
 for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot bypass cookie consent confirmation through legacy scalar settings`, async () => {
   const f = fixture('core.consent', 'enabled', { type: 'boolean' });
-  await assert.rejects(f.call(toolId, { namespace: 'core.consent', key: 'enabled', value: true }), /consent_update_settings|consent_publish_settings/);
+  // why: strict tool schemas — settings_clear_value takes no 'value', so only the setter sends one.
+  const input = toolId === 'settings_set_value' ? { namespace: 'core.consent', key: 'enabled', value: true } : { namespace: 'core.consent', key: 'enabled' };
+  await assert.rejects(f.call(toolId, input), /consent_update_settings|consent_publish_settings/);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
 });
