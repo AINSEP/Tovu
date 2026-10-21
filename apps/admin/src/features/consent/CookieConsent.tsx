@@ -73,8 +73,9 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   if (tab === "rules") {
     return (
       <div className="consent-editor">
-        <ConsentRulesFields {...fields} regionModes={page.editor?.regionModes} />
+        <div className="card"><ConsentRulesFields {...fields} regionModes={page.editor?.regionModes} /></div>
         <section className="card consent-card" aria-label={translation.t("Fixed rules")}>
+          <h2 className="card-title">{translation.t("Fixed rules")}</h2>
           <ul className="consent-fixed-rules">
             <li>{translation.t("Global Privacy Control always turns off analytics and marketing.")}</li>
             <li>{translation.t("Choices are kept for 180 days, then visitors are asked again.")}</li>
@@ -86,8 +87,8 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   }
   return (
     <div className="consent-editor consent-editor-with-preview">
-      {tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
-      <div className="consent-preview-pane">
+      <div className="card">{tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}</div>
+      <div className="card consent-preview-pane">
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
         <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
       </div>
