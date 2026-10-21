@@ -50,3 +50,21 @@ test('domain card rows include the form-submission consequence, a host without a
     { label: 'Form submissions', value: 'Two forms will be received here.' },
   ]);
 });
+
+test('domain card rows without a domain plan, with unnamed hosts, nested arrays/nulls and blank reasons still show every field', () => {
+  assert.deepEqual(domainPublishRows({ projectName: 'p', target: 't', inspection: { resourceName: 'r', targetId: 't', hostingChanges: [{ steps: ['create site', 3, null, { reason: 'Upload files.' }] }] } }), [
+    { label: 'Project', value: 'p' }, { label: 'Target', value: 't' },
+    { label: 'Hosting', value: 'steps: (create site; 3; null; Upload files.)' },
+    { label: 'Will change', value: 'No domain changes.' },
+  ]);
+  const rows = domainPublishRows({ projectName: 'p', target: 't', inspection: {
+    resourceName: 'r', targetId: 't', hostingChanges: [],
+    domains: { inventoryStatus: 'complete', message: 'm',
+      hostnames: [{ status: 'pending-validation', summary: '   ' }],
+      changes: [{ reason: '  ', step: 2, extra: null }] },
+  } });
+  assert.deepEqual(rows.slice(2), [
+    { label: 'Now on hostname', value: 'pending validation' },
+    { label: 'Will change', value: 'reason:   , step: 2, extra: null' },
+  ]);
+});
