@@ -100,7 +100,7 @@ test("admin forms PUT with a missing form id param answers the coded not-found 4
   assert.equal(capture.statusCode, 404);
   const body = capture.jsonBody as { error: string; code: string };
   assert.equal(body.code, "FORMS_DEFINITION_NOT_FOUND");
-  assert.match(body.error, /^form definition '.*' was not found$/);
+  assert.equal(body.error, "form definition 'undefined' was not found");
 });
 
 test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-02)", async (t) => {
