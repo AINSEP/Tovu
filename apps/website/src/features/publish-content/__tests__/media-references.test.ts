@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { collectReferencedMediaKeys } from "../media-references.js";
+import { collectMediaUrlKeys, collectReferencedMediaKeys } from "../media-references.js";
 
 /**
  * @file `collectReferencedMediaKeys` — which media a packed post/page state points at, so a scoped
@@ -125,4 +125,20 @@ test("TW2 pins placed-widget readability, missing entries, active modes and over
   }
   const bodyHtml = `<div data-embed-config='{"type":"Widget","id":"saved"}'></div><div data-embed-config='{"type":"media","id":"other"}'></div>`;
   assert.deepEqual(collectPlacedWidgetMediaKeys({ bodyHtml, savedWidgets: new Map([["saved", { mode: "html", html: '<img src="/m/saved/x">' }]]) }), { keys: new Set(["saved"]), readable: true });
+});
+
+test("placed widgets with no explicit mode scan their items, and a config with neither items nor html is scanned whole", () => {
+  const bodyJson = [{ type: "widgetEmbed", attrs: { widgetEntryId: "saved" } }];
+  const scan = (config: Record<string, unknown>) => collectPlacedWidgetMediaKeys({ bodyJson, savedWidgets: new Map([["saved", config]]) });
+  assert.deepEqual(scan({ items: [{ slug: "from-items" }], html: '<img data-media-slug="ignored">' }), { keys: new Set(["from-items"]), readable: true });
+  assert.deepEqual(scan({ content: { items: [{ slug: "legacy-nested" }] } }), { keys: new Set(["legacy-nested"]), readable: true });
+});
+
+test("data-media-slug references in raw HTML count, in body HTML and in free text", () => {
+  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: '<p><img data-media-slug="body-slug"></p>' })], ["body-slug"]);
+  assert.ok(collectMediaUrlKeys('Intro <img data-media-slug="text-slug"> and /m/url-key/file.png').has("text-slug"));
+});
+
+test("a gallery marker with no images array contributes nothing and does not throw", () => {
+  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: `<div data-embed-config='{"type":"gallery","layout":"grid"}'></div>` })], []);
 });

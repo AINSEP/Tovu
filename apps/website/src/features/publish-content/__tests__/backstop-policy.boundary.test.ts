@@ -20,6 +20,11 @@ describe("publish backstop hard boundaries", () => {
     assert.equal(checkRawTable({ table: "p_credentials", columns: ["id"] }), "Table 'p_credentials' holds private or per-install data and is never sent.");
     assert.equal(checkRawTable({ table: 'widgets; DROP TABLE posts', columns: ["id"] }), "The table name is not a valid database identifier.");
   });
+  it("refuses a column name that is not a plain identifier, including __proto__", () => {
+    for (const column of ["title; DROP TABLE posts", "1st", "__proto__"]) {
+      assert.equal(checkRawTable({ table: "p_widgets", columns: ["id", column] }), "The column name is not a valid database identifier.");
+    }
+  });
   for (const key of ["core.execution.model", "core.privacy.mode", "core.instructions.custom", "site.assistant.public_enabled"]) it(`blocks private setting ${key}`, () => {
     assert.equal(checkRawValues({ values: { key, value: "ordinary" }, table: "setting_values_workspace" }), `Setting '${key}' belongs to this installation and is never sent.`);
   });
