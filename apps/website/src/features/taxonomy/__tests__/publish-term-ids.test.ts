@@ -84,11 +84,15 @@ test("an unchanged wired assignment set needs no write authorization or outbox",
   assert.equal(await readTermIds(h.ports, "post", "untagged"), undefined);
 });
 
-test("preflight reads only added terms, in wanted order, and leaves retained trashed terms alone", async (t) => {
+// why: the 2026-10-20 pin assumed a trashed assignment stays "retained", but readTermIds (via the
+// live-only `listForContent`) never sees trashed terms, so a wanted trashed term is an addition and is
+// blocked — the "every wanted term exists and is live here" contract in prepareTermSync's doc. The
+// retained-skip invariant is pinned with a live retained term; the trashed case gets its own pin below.
+test("preflight reads only added terms, in wanted order, and leaves retained live terms alone", async (t) => {
   const h = fixture(t);
   await h.site.taxonomies.insert({ id: "tx", name: "Tags", hierarchical: false, status: "active", updatedAt: AT, version: 1 });
   for (const id of ["keep", "new-a", "new-b"]) {
-    await h.site.terms.insert({ id, taxonomyId: "tx", parentId: null, name: id, status: id === "keep" ? "trash" : "active", updatedAt: AT, version: 1 });
+    await h.site.terms.insert({ id, taxonomyId: "tx", parentId: null, name: id, status: "active", updatedAt: AT, version: 1 });
   }
   await h.site.entryTerms.upsert({ contentType: "post", contentId: "post-8", termId: "keep", addedAt: AT });
   const seen: string[] = [];
@@ -97,6 +101,18 @@ test("preflight reads only added terms, in wanted order, and leaves retained tra
   await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["new-b", "keep", "new-a"] });
   assert.deepEqual(seen, ["new-b", "new-a"]);
   assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep"]);
+});
+
+test("a wanted term already assigned but trashed at the destination is blocked, not silently retained", async (t) => {
+  const h = fixture(t);
+  await h.site.taxonomies.insert({ id: "tx", name: "Tags", hierarchical: false, status: "active", updatedAt: AT, version: 1 });
+  await h.site.terms.insert({ id: "keep", taxonomyId: "tx", parentId: null, name: "keep", status: "trash", updatedAt: AT, version: 1 });
+  await h.site.entryTerms.upsert({ contentType: "post", contentId: "post-8", termId: "keep", addedAt: AT });
+  await assert.rejects(prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["keep"] }), {
+    name: "PublishContentApplyRowError", rowOutcome: "blocked",
+    message: "post 'post-8' is tagged with term 'keep', which is in the trash at this destination — publish or restore that term first",
+  });
+  assert.equal((h.client.prepare("SELECT COUNT(*) AS n FROM entry_terms WHERE content_id = 'post-8'").get() as { n: number }).n, 1, "the trashed assignment row is left untouched");
 });
 
 test("preflight stops at the first invalid addition and authorization precedes term reads", async (t) => {
