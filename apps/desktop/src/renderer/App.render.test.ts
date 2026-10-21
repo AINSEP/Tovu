@@ -203,7 +203,10 @@ test('App: a site attached to another app\'s server says it is connecting, then 
 });
 
 test('App: Find opens its bar, Enter and Shift+Enter step through matches, and Escape closes it', async (t) => {
-  const app = await renderApp(t);
+  const finds: unknown[] = [];
+  const app = await renderApp(t, { findInPage: async (input) => { finds.push(input); } });
+  /** The find requests issued since the last call — so each interaction is checked on its own. */
+  const issued = () => finds.splice(0);
   assert.equal(app.container.querySelector('.findbar'), null);
   await act(async () => { for (const listener of app.listeners.find) listener(); });
   const input = app.container.querySelector<HTMLInputElement>('.findbar__input')!;
@@ -215,12 +218,19 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   });
   await settle();
   assert.equal(input.value, 'tovu');
+  assert.deepEqual(issued(), [], 'a typed query waits for typing to settle');
   app.key(input, { key: 'Enter' });
+  assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: true }], 'Enter runs the pending query as a new search');
   app.key(input, { key: 'Enter', shiftKey: true });
+  assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }], 'Shift+Enter steps back within the search');
+  app.key(input, { key: 'Enter' });
+  assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }], 'a later Enter steps forward within the search');
   app.key(input, { key: 'a' });
+  assert.deepEqual(issued(), [], 'any other key finds nothing');
   await app.click(app.byLabel('Next match'));
+  assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }]);
   await app.click(app.byLabel('Previous match'));
-  assert.ok(app.calls.filter((call) => call === 'find').length >= 1);
+  assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }]);
   app.key(input, { key: 'Escape' });
   await settle();
   assert.equal(app.container.querySelector('.findbar'), null);
