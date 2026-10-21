@@ -139,7 +139,9 @@ test("without the desktop toolchain env, the real spawn is unchanged: same comma
     assert.equal(report.env.npm_config_cache, undefined);
     assert.equal(report.env.PATH, root, "the explicit connection PATH must survive unchanged");
     const inheritedNames = ["API_KEY", "HOME", "PATH", "TMPDIR", ...(process.platform === "win32"
-      ? ["SystemRoot", "windir", "ComSpec", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"] : [])].map(key => key.toLowerCase());
+      ? ["SystemRoot", "windir", "ComSpec", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"] : []),
+      // why: under a coverage run Node's own child_process copies NODE_V8_COVERAGE into every child env; Tovu adds nothing.
+      ...(process.env.NODE_V8_COVERAGE ? ["NODE_V8_COVERAGE"] : [])].map(key => key.toLowerCase());
     for (const key of report.envKeys) {
       assert.ok(inheritedNames.includes(key.toLowerCase()) || key.startsWith("__CF"), `unexpected child env key ${key}`);
     }
