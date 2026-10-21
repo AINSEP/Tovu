@@ -767,3 +767,32 @@ test("mediawidget audio uses the existing gated, sniffed, range-capable original
     assert.deepEqual(new Uint8Array(await member.arrayBuffer()), bytes.slice(0, 12));
   });
 });
+
+// A saved widget that is deleted, trashed or unparseable never renders, so it cannot carry a gate.
+for (const variant of ['deleted', 'trashed', 'malformed'] as const) {
+  test(`mediawidget gate ignores a ${variant} saved widget: its media stays public`, async () => {
+    await withServer(async (baseUrl, deps) => {
+      const { media } = await uploadOne(deps, mp4Bytes(`inert-${variant}`), 'inert-clip.mp4', 'video/mp4');
+      const { buildWidgetInstanceFieldsJson } = await import('@jini-ai/cms/widgets');
+      const now = '2026-10-10T00:00:00.000Z';
+      const fieldsJson = variant === 'malformed' ? '{not json'
+        : buildWidgetInstanceFieldsJson({ payload: { widgetType: 'media', status: variant === 'trashed' ? 'trash' : 'active', config: { mode: 'media', items: [{ slug: media.slug }], layout: 'single' } } });
+      await deps.entryRepo.save({ id: 'inert-widget', workspaceId: deps.workspaceId, type: 'widget', slug: 'inert-media', title: 'Inert media', status: 'draft', bodyJson: null, fieldsJson, publishedAt: null, createdAt: now, updatedAt: now, version: 1, ...(variant === 'deleted' ? { deletedAt: now } : {}) });
+      const bodyJson = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { placementId: 'p', widgetEntryId: 'inert-widget' } }] };
+      await deps.postRepo.save(makePost({ id: `post-inert-${variant}`, slug: `post-inert-${variant}`, memberAccessJson: MEMBERS_ONLY, bodyJson }, deps.workspaceId));
+      const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
+      assert.equal(anonymous.status, 200, variant);
+      assert.deepEqual(new Uint8Array(await anonymous.arrayBuffer()), mp4Bytes(`inert-${variant}`));
+    });
+  });
+}
+
+test("media gate: a members-only post's featured image is gated with it, even with no body reference", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, mp4Bytes("featured-only"), "featured-clip.mp4", "video/mp4");
+    await deps.postRepo.save(makePost({ id: "post-featured-only", slug: "post-featured-only", memberAccessJson: MEMBERS_ONLY, featuredMediaId: media.id }, deps.workspaceId));
+    const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
+    assert.equal(anonymous.status, 404);
+    assert.equal(anonymous.headers.get("cache-control"), "private, no-store");
+  });
+});
