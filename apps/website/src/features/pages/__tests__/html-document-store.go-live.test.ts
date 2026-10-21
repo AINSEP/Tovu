@@ -21,6 +21,8 @@ const SAVED = "2026-10-21T10:00:00.000Z";
 const GO_LIVE = "2026-10-21T12:00:00.000Z";
 const LATER = "2026-10-21T13:00:00.000Z";
 const GO_LIVE_ID = `page-1-entry.published-at-${GO_LIVE}`;
+/** The published edit's own `entry.updated` (site-search reindex, c37e27e85), enqueued alongside the catch-up. */
+const UPDATED_ID = "page-1-entry.updated-2";
 
 function clockAt(iso: string) {
   let now = Date.parse(iso);
@@ -85,7 +87,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     await store.read();
     await store.write("<p>v2</p>");
     await sweep(repo, outbox, LATER);
-    assert.deepEqual(outbox.ids, [GO_LIVE_ID]);
+    assert.deepEqual(outbox.ids, [UPDATED_ID, GO_LIVE_ID]);
   });
 
   test("an HTML edit before go-live announces nothing; the sweep still announces at go-live", async () => {
@@ -95,9 +97,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt("2026-10-21T11:00:00.000Z"), revisions: repo, outbox });
     await store.read();
     await store.write("<p>v2</p>");
-    assert.deepEqual(outbox.ids, []);
+    assert.deepEqual(outbox.ids, [UPDATED_ID]);
     await sweep(repo, outbox, GO_LIVE);
-    assert.deepEqual(outbox.ids, [GO_LIVE_ID]);
+    assert.deepEqual(outbox.ids, [UPDATED_ID, GO_LIVE_ID]);
   });
 
   test("ensureHtmlFormat's conversion after go-live announces the pending go-live", async () => {
@@ -106,7 +108,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const outbox = recordingOutbox();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
     await store.ensureHtmlFormat("<p>seed</p>");
-    assert.deepEqual(outbox.ids, [GO_LIVE_ID]);
+    assert.deepEqual(outbox.ids, [UPDATED_ID, GO_LIVE_ID]);
   });
 
   test("a failed enqueue rolls the HTML write back, so the sweep still sees the page", async () => {
