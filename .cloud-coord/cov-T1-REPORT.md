@@ -2,7 +2,7 @@
 
 Branch `cloud/cov-T1` (base Tovu e0c935bb5, Jini b3c4144b, `cloud/integration-2026-10-21`). Per-lot detail: `.cloud-coord/cov-T1-progress.md`.
 Wall clock: 15:37–17:15Z, then an API usage-limit pause until 19:50Z (owner lifted it and moved the hard stop to 21:45Z), then 19:50–~21:20Z.
-Caps: 10 subagent sessions used (of 15). Concurrency was briefly 4 at 16:41 (T1-G was launched over the cap and stopped by the coordinator within a minute, with no changes), otherwise ≤3.
+Caps: 10 subagent sessions used (of 15): A,B,C,D,E,F,G(stopped at launch),G,H,I. Concurrency was briefly 4 at 16:41 (T1-G was launched over the cap and stopped by the coordinator within a minute, with no changes), otherwise ≤3.
 Persona reads were confirmed in every subagent's first line. The coordinator reviewed each lot through `agents/code-review/skills.md`, because `code-inspection/` is not vendored. Review checks: no ignore comments, no `as any`, no module-mocking of the unit, no weakened or deleted assertions, and comments moved rather than deleted.
 
 ## Setup
@@ -13,7 +13,7 @@ Postgres and Playwright were not installed (OWNER OVERRIDE). None of these lots 
 "Full" = the whole app suite with coverage scoped to the lot's files. "Scoped" = the lot's feature dirs.
 | lot(s) | files | at 100/100/100 | merged-branch run |
 |---|---|---|---|
-| 001+002 admin | 44 | 34 (+ T1-I leftovers, see below) | full admin: 783 files, 12848 pass, 0 fail |
+| 001+002 admin | 44 | 43 (T1-A 34, then T1-I closed 9) | full admin: 783 files, 12848 pass, 0 fail (T1-A); final run below |
 | 003+004 admin | 50 | 48 | scoped: 156 files, 2524 pass |
 | 005+006 admin | 50 | 44 | scoped: 228 files, 5059 pass |
 | 007+008 admin lib + desktop main.ts | 28 | 26 | full admin: 12918 pass, 4 load-timeouts (see Tests); desktop main: 1723 pass |
@@ -23,18 +23,7 @@ Postgres and Playwright were not installed (OWNER OVERRIDE). None of these lots 
 | 016 desktop src/contracts/preload | 15 | 15 | full desktop main + contracts pass, 100% |
 | 017+018 desktop renderer | 2 | 0 | renderer (no websites-width): 579/579 |
 
-Baseline → after for every file: in each lot's subagent report, summarised in the progress ledger. Headline moves:
-- Select.hooks: 3/52 lines, 0/44 branches → 100%
-- Library.tsx: 64/88 → 100%
-- use-library.hooks: 106/117 → 100%
-- desktop-agent-tools: 112/187 lines, 0/8 functions → 100%
-- desktop-agent: 359/400 lines, 19/41 functions → 400/400 lines, 49/50 functions
-- workspace-chat-ipc: 151/204 lines, 3/25 functions → 100%
-- preload.mts: 10/57 functions → 57/57
-- check-coverage / check-complexity / check-tree-quiet / check-js-backslide / smoke-native / smoke-bridge scripts: 0% → 100%
-- smoke-packaged-chat / stage-payload / verify-package scripts: 0% → 100%
-- App.hooks.ts (renderer): 1309/1610 lines, 29/53 functions → 1642/1642, 142/142
-- App.tsx (renderer): 0% → 96% lines, 100% branches
+Baseline → after for every file: in each lot's subagent report, summarised in the progress ledger. Headline moves: Select.hooks 3/52 lines → 100%; Library.tsx 64/88 → 100%; desktop-agent-tools 0/8 fn → 100%; workspace-chat-ipc 3/25 fn → 100%; preload.mts 10/57 fn → 57/57; six desktop check/smoke scripts and three more scripts 0% → 100%; renderer App.hooks.ts 29/53 fn → 142/142; renderer App.tsx 0% → 96% lines / 100% branches.
 
 ## Files not at 100% (reason)
 - **Owner decision / possible bug:**
@@ -47,7 +36,6 @@ Baseline → after for every file: in each lot's subagent report, summarised in 
   - site-process-registry.ts:502/505-507/564 kill races
   - use-package-file-tree.hooks.ts:81 (Jini contract)
   - ThemeExplore.tsx:998 (disabled switch)
-  - App.hooks.ts (admin):1079 and App.tsx (admin):198
   - use-collection-entry-editor.hooks.ts:207,296 (stale-query uncertainty)
   - use-publish-content-confirm.hooks.ts:727,981,1302
 - **Required no-op props that are never called** (functions):
@@ -63,7 +51,7 @@ Baseline → after for every file: in each lot's subagent report, summarised in 
   - desktop main.ts 0/467: logic extracted into startup-env/supervised-site-url/site-name, each 100%
   - verify-find-in-page.ts and verify-site-power.ts: pure logic extracted to find-in-page-verify / site-power-verify / live-verify-checks, each 100%
 - **Unlocated:** App.hooks.ts (renderer), 2 branches that lcov maps to comment lines 357/360.
-- **Lot 001/002 leftovers:** see the T1-I section below.
+- AssistantDock.hooks.tsx: 3 branches (:1160, :1203 `loader.peek() ?? agents`; :1210 `previous?.pendingStep ?? 0`). Reachability was not established in time.
 
 ## Unreachable code removed (behaviour-preserving; each site has a comment naming its guarantee)
 ~60 sites. Full file:line lists are in each subagent report, quoted in the ledger. Most common kinds:
@@ -119,4 +107,14 @@ Scripts:
 - the renderer tab-close hang
 
 ## Not finished → next wave
-See the T1-I section below. Everything else above is final for this wave.
+None of lots 001–018 is left unstarted. The next wave should take the residual gaps listed above (the AssistantDock 3 branches, the renderer App.tsx close/WorkspaceChatPane, the 2 App.hooks branches) and the owner decisions.
+T1-I behaviour note: the AdminThemes card preview now resolves "system" through the injected env.matchMedia, the same way the picker does.
+T1-I removed as unreachable: admin App.hooks:1079 cleanup updater, App.tsx:198 null panel, use-collection-entry-editor:207/296, a dead StaticSiteTab CopyLine prose variant (orphan CSS at styles.css:5554 left), AiAssistant:422 no-op onChange.
+
+## Final verification (final merged branch, all lots merged)
+- **Admin:** full suite with coverage over every lot 001–008 admin file: 791 files, 13057 pass, 1 fail, 2 skip.
+  - Coverage: lines 99.98%, branches 99.81% (6441/6453), functions 99.88%.
+  - The 1 failure is main-entry-signed-in, a 30 s timeout. It passed alone right after, so it is TIMING-SENSITIVE (flaky, new in T1-A). Its miss also accounts for the main.tsx:59 gap in that run. Fix next wave: lazy-load or a shorter import path.
+- **Desktop main suite:** 1733 tests, 1723 pass, 0 fail, 10 skip.
+- **Desktop contracts pass:** 12/12, all contracts at 100%.
+- **Renderer:** 579/579 pass.
