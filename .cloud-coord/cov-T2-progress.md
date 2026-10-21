@@ -1,6 +1,7 @@
 # cov-T2 progress (tovu lots 019..037)
 Start 2026-10-21 15:06 UTC. Base Tovu e0c935bb5, Jini b3c4144b (cloud/integration-2026-10-21). Hard stop for new work 18:46 UTC.
 Env: node24 OK; Postgres 5432 role la OK; Playwright download 403 → pre-installed /opt/pw-browsers/chromium.
+OWNER UPDATE (15:13): no Postgres or browser test runs in cloud; such tests are written but listed as LOCAL-RUN NEEDED.
 
 | session | lots | branch | status |
 |---|---|---|---|
