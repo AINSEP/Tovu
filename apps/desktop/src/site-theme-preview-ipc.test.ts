@@ -27,6 +27,25 @@ test('IPC claims are scoped to a trusted sender and tab; closing tabs or destroy
   dispose(); assert.deepEqual(removed, [channels.watch, channels.unwatch]);
 });
 
+test('disposing releases every live claim of every sender, unhooks their destroy listeners, and removes both handlers', () => {
+  const handlers = new Map<string, Function>(), removed: string[] = [], cleaned: string[] = [], unhooked: number[] = [];
+  const makeSender = (id: number) => ({ id, once: () => {}, removeListener: () => { unhooked.push(id); }, isDestroyed: () => false, send: () => {} });
+  const first = makeSender(1), second = makeSender(2);
+  const dispose = registerSiteThemePreviewIpc({
+    ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: (channel) => { removed.push(channel); } },
+    allowed: () => true,
+    subscriptions: { watch: ({ siteDir }) => () => { cleaned.push(siteDir); } },
+  });
+  const watch = handlers.get(channels.watch)!;
+  watch({ sender: first }, { siteDir: '/a', subscriptionId: 'tab-1' });
+  watch({ sender: first }, { siteDir: '/b', subscriptionId: 'tab-2' });
+  watch({ sender: second }, { siteDir: '/c', subscriptionId: 'tab-1' });
+  dispose();
+  assert.deepEqual(cleaned, ['/a', '/b', '/c']);
+  assert.deepEqual(unhooked, [1, 2]);
+  assert.deepEqual(removed, [channels.watch, channels.unwatch]);
+});
+
 test('IPC ignores untrusted, destroyed or malformed claims and never pushes to a destroyed sender', () => {
   const handlers = new Map<string, Function>(), deliveries: unknown[] = [], detached: string[] = [];
   let destroyed = false, claimed = 0, push!: (frame: { siteDir: string; revision: string }) => void;
