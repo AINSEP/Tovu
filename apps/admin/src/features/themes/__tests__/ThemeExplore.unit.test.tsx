@@ -1519,3 +1519,49 @@ describe("toolbar and status states", () => {
     expect(screen.getByText("Theme novice could not be read.")).toHaveClass("notice", "error");
   });
 });
+
+describe("Explore — remaining file-list and resolution states", () => {
+  it("shows the active-theme lookup failure as an error notice, still offering the Themes link", async () => {
+    const presentation = vi.spyOn(api, "getPresentation").mockRejectedValue(new Error("Presentation settings unavailable"));
+    try {
+      render(<ThemeExplore themeId="" useThemeExploreHook={() => controller()} />);
+      const message = await screen.findByText("Presentation settings unavailable");
+      expect(message.closest(".notice")).toHaveClass("error");
+      expect(screen.getByRole("link", { name: "Themes" })).toBeInTheDocument();
+    } finally {
+      presentation.mockRestore();
+    }
+  });
+
+  it("labels Copy as Copying… on the row whose copy is in flight", async () => {
+    const user = userEvent.setup();
+    renderExplore({ copyingPath: "pages/index.html" });
+    await user.click(screen.getByRole("button", { name: "More actions for index" }));
+    expect(screen.getByRole("menuitem", { name: "Copying…" })).toBeInTheDocument();
+  });
+
+  it("moves between file groups with the arrow keys", async () => {
+    const user = userEvent.setup();
+    renderExplore();
+    const tablist = screen.getByRole("tablist", { name: "File groups" });
+    const tabs = within(tablist).getAllByRole("tab");
+    const active = tabs.findIndex((tab) => tab.getAttribute("aria-selected") === "true");
+    tabs[active]!.focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(within(tablist).getAllByRole("tab")[(active + 1) % tabs.length]).toHaveAttribute("aria-selected", "true"));
+  });
+
+  it("selects no group tab and labels no panel for a theme with no files", () => {
+    renderExplore({ files: [], selected: null });
+    const tablist = screen.queryByRole("tablist", { name: "File groups" });
+    for (const tab of tablist ? within(tablist).queryAllByRole("tab") : []) expect(tab).toHaveAttribute("aria-selected", "false");
+    expect(document.getElementById("theme-explore-files-panel")).not.toHaveAttribute("aria-labelledby");
+  });
+});
+
+describe("Explore — Save with no file selected", () => {
+  it("offers a plain Save (no file name) when edits exist but no file is selected", () => {
+    renderExplore({ selected: null, dirty: true });
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+});

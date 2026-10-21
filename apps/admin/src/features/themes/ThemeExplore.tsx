@@ -118,12 +118,12 @@ export interface ThemeExploreProps {
  * Reads `navigator.platform` despite it being deprecated, because the replacement
  * (`navigator.userAgentData.platform`) is not in Safari or Firefox — the exact browsers where
  * getting this wrong is most likely. Wrong answer costs a slightly off tooltip, so the deprecated
- * property with a guard beats a feature-detection ladder. Guarded for jsdom/SSR, where `navigator`
- * may be absent entirely.
+ * property beats a feature-detection ladder. This only runs while rendering the Explore toolbar,
+ * i.e. in a browser (or jsdom), where `navigator` and its string-typed `platform` always exist, so
+ * no absence guard is needed.
  */
 function isApplePlatform(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform ?? "");
+  return /mac|iphone|ipad|ipod/i.test(navigator.platform);
 }
 
 const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
@@ -769,11 +769,12 @@ function themeExploreSaveLabel(
 /** Reset button label — same filename-qualified shape as {@link themeExploreSaveLabel}, for the same
  *  reason. @complexity O(1). */
 function themeExploreResetLabel(
-  state: { resetting: boolean; file: ThemeExploreFile | undefined },
+  state: { resetting: boolean; file: ThemeExploreFile },
   t: Translate
 ): string {
+  // Reset only renders for a file `canResetThemeFile` accepted, so there is always a file to name.
   if (state.resetting) return t("Resetting…");
-  return state.file ? `${t("Reset")} ${state.file.label}` : t("Reset");
+  return `${t("Reset")} ${state.file.label}`;
 }
 
 /**

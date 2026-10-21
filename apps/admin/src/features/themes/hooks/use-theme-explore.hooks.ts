@@ -457,7 +457,7 @@ export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
  *
  * @complexity O(1).
  */
-export function canResetThemeFile(file: ThemeExploreFile | undefined): boolean {
+export function canResetThemeFile(file: ThemeExploreFile | undefined): file is ThemeExploreFile {
   return file?.resettable === true && file.modified === true;
 }
 
