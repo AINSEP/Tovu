@@ -75,7 +75,7 @@ test("forms get-by-id: 500s (generic, message swallowed) when the repo explodes"
   assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });
 
-test("forms get-by-id: undefined workspaceId/formId params fall back via direct handler invocation (unreachable through real routing)", async (t) => {
+test("forms get-by-id: a direct handler invocation with undefined workspaceId/formId params never matches the site and is a 404 (unreachable through real routing)", async (t) => {
   const { app } = buildTestApp();
   await bootAuthenticated(app, t);
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/forms/:formId");
