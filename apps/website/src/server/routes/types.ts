@@ -939,7 +939,7 @@ export interface AnalyticsDeps {
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
-   * Resolves once the one-time `ensureAnalyticsSettingDefinitions()` boot call registers the 6
+   * Resolves once the one-time `ensureAnalyticsSettingDefinitions()` boot call registers the 7
    * `core.analytics.*` setting definitions backing `analyticsConfig`. Same shape/convention as
    * `settingsUiTabsReady`, chained after it in both composition roots for the identical
    * single-SQLite-connection-transaction reason every registration above documents.
