@@ -166,3 +166,19 @@ test("a bundled plugin that boot seeds OFF is reported as installed OFF with the
   assert.deepEqual(result, { installed: true, alreadyInstalled: false, enabled: false, plugin: { id: "plain-bundled" },
     note: "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested." });
 });
+
+test("a replacing upload reports the version it upgraded from; a manifest without a version reports none", async t => {
+  const f = await fixture(t);
+  const folder = path.join(f.root, "local");
+  await writePackage(folder, "upgrade-test", "1.0.0");
+  await f.install.handler(context({ source: { kind: "folder", path: folder } }), {});
+  await writePackage(folder, "upgrade-test", "2.0.0");
+  const upgraded = await f.install.handler(context({ source: { kind: "folder", path: folder }, replace: true }), {}) as { plugin: unknown };
+  assert.deepEqual(upgraded.plugin, { id: "upgrade-test", version: "2.0.0", upgradeFrom: ["1.0.0"] });
+
+  const unversioned = path.join(f.root, "unversioned");
+  await mkdir(unversioned, { recursive: true });
+  await writeFile(path.join(unversioned, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "no-version" }));
+  const result = await f.install.handler(context({ source: { kind: "folder", path: unversioned } }), {}) as { plugin: unknown };
+  assert.deepEqual(result.plugin, { id: "no-version" });
+});
