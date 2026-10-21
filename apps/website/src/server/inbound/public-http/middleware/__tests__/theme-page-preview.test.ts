@@ -7,7 +7,10 @@ import test from "node:test";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../../../runtime/composition/app.js";
+import express from "express";
 import { bootAuthenticated, loginAsBarePrincipal } from "../../../../__tests__/helpers/http-test-server.js";
+import { registerAuthRoutes, requireAdminSession } from "../../../admin-http/dev-auth.js";
+import { registerThemePagePreview } from "../theme-page-preview.js";
 import type { RouteDeps } from "../../../../routes/types.js";
 
 /**
@@ -127,4 +130,41 @@ test("templated route: unknown theme, a static theme, an unknown template and a 
   await expectText(await get("basic-2/template/home"), 422, "theme 'basic-2' is a 'static' theme; only templated themes preview this way");
   await expectText(await get("fashion-modern/template/no-such-template"), 404, "template 'no-such-template' was not found in theme 'fashion-modern'");
   await expectText(await get("fm-scratch/template/landing"), 422, "template 'landing' has no recognized route shape and cannot be previewed here");
+});
+
+test("templated route: home, products and product templates each render with their own route context, no-store", async (t) => {
+  const { baseUrl, cookie } = await bootSite(t);
+  for (const templateId of ["home", "products", "product"]) {
+    const res = await fetch(`${baseUrl}/theme-explore/fashion-modern/template/${templateId}`, { headers: { cookie } });
+    assert.equal(res.status, 200, `${templateId}: ${await res.clone().text()}`);
+    assert.equal(res.headers.get("cache-control"), "no-store", templateId);
+  }
+});
+
+test("templated route: a failure while gathering render data answers a plain 500 without the cause", async (t) => {
+  const { deps, baseUrl, cookie } = await bootSite(t);
+  t.mock.method(deps.postRepo, "list", async () => { throw new Error("content store offline"); });
+  await expectText(await fetch(`${baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie } }), 500, "preview render failed");
+});
+
+test("route-param guards: each preview handler reached without its params refuses an empty theme id instead of crashing", async (t) => {
+  const deps = createRouteDeps();
+  const routed = express();
+  registerThemePagePreview(routed, deps);
+  type Layer = { route?: { path: string; stack: Array<{ handle: express.RequestHandler }> } };
+  const finalHandler = (routePath: string): express.RequestHandler => {
+    const layer = (routed as unknown as { _router: { stack: Layer[] } })._router.stack.find((entry) => entry.route?.path === routePath);
+    assert.ok(layer?.route, routePath);
+    return layer.route.stack[layer.route.stack.length - 1]!.handle;
+  };
+  const bare = express();
+  bare.use(express.json());
+  registerAuthRoutes(bare, deps);
+  bare.get("/bare-page", finalHandler("/theme-explore/:themeId/:pageId"));
+  bare.get("/bare-partial", finalHandler("/theme-explore/:themeId/partial/:partialId"));
+  bare.get("/bare-template", requireAdminSession(deps), finalHandler("/theme-explore/:themeId/template/:templateId"));
+  const { baseUrl, cookie } = await bootAuthenticated(bare, t);
+  for (const route of ["/bare-page", "/bare-partial", "/bare-template"]) {
+    await expectText(await fetch(`${baseUrl}${route}`, { headers: { cookie } }), 404, "theme '' was not found");
+  }
 });
