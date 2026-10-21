@@ -23,6 +23,15 @@ describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"
     assert.deepEqual((await repo.list()).map((w) => w.id).sort(), ["ws-1", "ws-2"]);
   });
 
+  test("transaction returns the callback's value, commits its writes, and rolls them back when it throws", async () => {
+    const repo = makeRepo();
+    assert.ok(repo.transaction, "the SQL repo serializes roster changes in a kernel transaction");
+    const run = repo.transaction.bind(repo);
+    assert.equal(await run({ fn: async () => { await repo.insert(ACME); return "done"; } }), "done");
+    await assert.rejects(run({ fn: async () => { await repo.insert(GLOBEX); throw new Error("abort roster change"); } }), /abort roster change/);
+    assert.deepEqual((await repo.list()).map((w) => w.id), ["ws-1"]);
+  });
+
   test("update and delete touch only the targeted row", async () => {
     const repo = makeRepo();
     await repo.insert(ACME);
