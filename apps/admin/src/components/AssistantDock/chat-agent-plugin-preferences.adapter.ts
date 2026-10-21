@@ -14,7 +14,10 @@ export interface ChatAgentPluginsPreferenceDeps {
 }
 
 /** Builds the preference port over injected ledger/feed functions. Errors propagate like display saves. */
-export function createChatAgentPluginsPreferencePort({ loadValues, saveEntries, subscribe }: ChatAgentPluginsPreferenceDeps): ChatAgentPluginsPort {
+export function createChatAgentPluginsPreferencePort(
+  { loadValues, saveEntries, subscribe }: ChatAgentPluginsPreferenceDeps,
+  _optional: Record<string, never> = {},
+): ChatAgentPluginsPort {
   const ledger: ChatDisplayLedgerPort = {
     load: ({ namespace }) => loadValues(namespace),
     save: async ({ namespace, scope, candidates }) => { await saveEntries(namespace, scope, candidates); },

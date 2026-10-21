@@ -589,7 +589,7 @@ export function VisitorCredentialKeyActions({
   // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
   // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
   const testInfo = visitorCredentialKeyIdleMessage(t);
-  const saveInfo = visitorCredentialSaveIdleMessage(stored, t, storedKeyIsForOtherEndpoint);
+  const saveInfo = visitorCredentialSaveIdleMessage({ stored, t, storedKeyIsForOtherEndpoint });
   return (
     <>
       {/* An explicit "Test Key" control, in addition to the debounced automatic discovery. Two
