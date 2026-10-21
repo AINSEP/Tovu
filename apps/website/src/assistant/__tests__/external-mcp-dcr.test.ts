@@ -517,7 +517,8 @@ test("an operator-supplied client id with no endpoints discovers them but still 
 
 test("a client secret the server volunteers is sealed and never appears in a read model", async () => {
   const fixture = await startDiscoveryFixture({
-    registration: { json: { client_id: "minted-client-id", client_secret: "server-issued-secret", token_endpoint_auth_method: "client_secret_post" } },
+    // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+    registration: { json: { client_id: "minted-client-id", client_secret: "server-issued-secret", client_secret_expires_at: 0, token_endpoint_auth_method: "client_secret_post" } },
   });
   const store = makeStore();
   try {
@@ -642,7 +643,8 @@ test("disconnect forgets a SELF-REGISTERED client, so the next connect registers
 });
 
 test("disconnect also drops the self-registered client's sealed secret", async () => {
-  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "stale-client", client_secret: "stale-secret" }] });
+  // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "stale-client", client_secret: "stale-secret", client_secret_expires_at: 0 }] });
   const store = makeStore();
   try {
     await save(store, { url: fixture.resourceUrl });
@@ -680,8 +682,9 @@ test("a connect whose callback URL differs from the one the client was registere
 test("a self-registered row written before the client was tracked re-registers once (the stuck-row self-heal)", async () => {
   const fixture = await startDiscoveryFixture({
     registrations: [
-      { client_id: "legacy-client", client_secret: "legacy-secret" },
-      { client_id: "fresh-client", client_secret: "fresh-secret" },
+      // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+      { client_id: "legacy-client", client_secret: "legacy-secret", client_secret_expires_at: 0 },
+      { client_id: "fresh-client", client_secret: "fresh-secret", client_secret_expires_at: 0 },
     ],
   });
   const store = makeStore();
@@ -751,7 +754,8 @@ test("disconnect and a moved callback URL never touch a client id the OPERATOR t
 });
 
 test("an operator who types a client id over a self-registered one keeps it through disconnect", async () => {
-  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "minted-first", client_secret: "minted-secret" }] });
+  // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "minted-first", client_secret: "minted-secret", client_secret_expires_at: 0 }] });
   const store = makeStore();
   try {
     await save(store, { url: fixture.resourceUrl });
@@ -778,7 +782,8 @@ test("an operator who types a client id over a self-registered one keeps it thro
 test("a secret issued with no echoed method authenticates with client_secret_basic when the server advertises it", async () => {
   const fixture = await startDiscoveryFixture({
     metadata: { token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"] },
-    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret" }],
+    // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret", client_secret_expires_at: 0 }],
     token: { json: TOKEN_RESPONSE },
   });
   const store = makeStore();
@@ -788,7 +793,8 @@ test("a secret issued with no echoed method authenticates with client_secret_bas
 
     const tokenRequest = fixture.requests.find((request) => request.url.split("?")[0] === "/oauth2/token");
     assert.ok(tokenRequest, "expected a token request");
-    assert.equal(tokenRequest.headers.authorization, `Basic ${Buffer.from("confidential-client:issued-secret").toString("base64")}`);
+    // why: RFC 6749 §2.3.1 form-urlencodes id and secret before base64 ("-" → %2D), as openid-client now does.
+    assert.equal(tokenRequest.headers.authorization, `Basic ${Buffer.from("confidential%2Dclient:issued%2Dsecret").toString("base64")}`);
     assert.equal(new URLSearchParams(tokenRequest.body).get("client_secret"), null);
   } finally {
     await fixture.close();
@@ -798,7 +804,8 @@ test("a secret issued with no echoed method authenticates with client_secret_bas
 test("a secret issued with no echoed method is POSTed when client_secret_post is the only secret method advertised", async () => {
   const fixture = await startDiscoveryFixture({
     metadata: { token_endpoint_auth_methods_supported: ["client_secret_post"] },
-    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret" }],
+    // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+    registrations: [{ client_id: "confidential-client", client_secret: "issued-secret", client_secret_expires_at: 0 }],
     token: { json: TOKEN_RESPONSE },
   });
   const store = makeStore();
@@ -817,7 +824,8 @@ test("a secret issued with no echoed method is POSTed when client_secret_post is
 
 
 test("self-registration and disconnect both preserve a normalized vault OAuth payload", async () => {
-  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "legacy-client", client_secret: "legacy-secret" }] });
+  // why: RFC 7591 §3.2.1 client_secret_expires_at accompanies an issued secret; Jini DCR (openid-client) now enforces it.
+  const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "legacy-client", client_secret: "legacy-secret", client_secret_expires_at: 0 }] });
   const store = makeStore();
   const reseal = async () => {
     const row = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
