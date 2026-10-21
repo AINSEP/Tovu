@@ -2019,3 +2019,17 @@ test("deployment_execute_static_publish: a call cancelled while readiness is che
   assert.equal(resolves, 0);
   assert.equal(exports, 0);
 });
+
+test("hosts that declare no config or credential fields name that in their refusals", async () => {
+  const registry = await loadBundledDeployTargets();
+  const plain: LoadedDeployTarget = { pluginId: "plain", descriptor: { id: "plain-host", label: "Plain host", module: "targets/plain.mjs", configFields: [] },
+    module: { create: () => assert.fail("refused before any target is built"), hostingSetup: () => assert.fail("refused before setup runs") } };
+  const { deps } = fakeDeps();
+  deps.loadDeployTargets = async () => ({ ...registry, get: id => id === "plain-host" ? plain : registry.get(id), list: () => [...registry.list(), plain] });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  await assert.rejects(() => call(tool(registrations, "deployment_execute_static_publish"), { input: { target: "plain-host", projectName: "demo", region: "eu" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'region' is not a field of plain-host. It takes no config fields.");
+  await assert.rejects(() => call(tool(registrations, "deployment_generate_bucket_hosting_setup"), { input: { target: "plain-host", bucket: "b" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'bucket' is not a credential field of plain-host. It takes none.");
+});
