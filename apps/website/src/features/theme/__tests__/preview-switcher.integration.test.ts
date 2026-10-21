@@ -14,6 +14,7 @@ import { buildPreviewExportManifest } from "#src/features/site-export/theme-prev
 import { buildPreviewSwitcherRegistrations } from "../preview-switcher-tools.js";
 import { readPreviewSwitcher } from "../preview-switcher.js";
 import type { DiscoveredTheme } from "../theme.js";
+import { NO_THEME_ID } from "../active-theme.js";
 
 /** Owner dispatch 2026-10-20: the actual composed settings writer, HTTP renderer and exporter. */
 async function fixture(t: TestContext) {
@@ -157,4 +158,44 @@ test("static manifest and real export include themed pages/assets, noindex, cano
   assert.ok(result.themePreview!.htmlSizeMultiplier > 1);
   assert.ok(result.themePreview!.sizeMultiplier > 1);
   assert.equal(await resolveActiveThemeId(f.deps), "preview-one");
+});
+
+test("static-export variants: unknown theme 404s, a bare variant path renders the variant root, and queries survive the prefix strip", async t => {
+  const f = await fixture(t);
+  await f.save();
+  const url = await startTestServer(createApp(f.deps), t);
+  const exportHeaders = { "x-tovu-static-export": "1" };
+  const unknown = await fetch(`${url}/_themes/absent/about`, { headers: exportHeaders });
+  assert.equal(unknown.status, 404);
+  const bare = await fetch(`${url}/_themes/preview-two`, { headers: exportHeaders });
+  assert.equal(bare.status, 200);
+  assert.match(await bare.text(), /<h1>preview-two<\/h1>/);
+  assert.equal(bare.headers.get("set-cookie"), null, "static delivery never persists a choice");
+  const queried = await fetch(`${url}/_themes/preview-two/about?ref=export`, { headers: exportHeaders });
+  assert.equal(queried.status, 200);
+  assert.match(await queried.text(), /<h1>preview-two<\/h1>/);
+});
+
+test("an enabled switcher is inert when styling is off or no theme is installed, and a failing theme lookup reaches the error handler", async t => {
+  const f = await fixture(t);
+  await f.save();
+  const url = await startTestServer(createApp(f.deps), t);
+  const lookup = t.mock.method(f.deps.presentationRepo, "findByWorkspaceId", async () => { throw new Error("presentation store offline"); });
+  const failed = await fetch(`${url}/?theme=preview-two`);
+  assert.equal(failed.status, 500);
+  assert.doesNotMatch(await failed.text(), /tovu-theme-preview-host/);
+  lookup.mock.restore();
+
+  const presentation = await f.deps.presentationRepo.findByWorkspaceId({ workspaceId: f.deps.workspaceId });
+  assert.ok(presentation);
+  await f.deps.presentationRepo.save({ ...presentation, activeThemeId: NO_THEME_ID });
+  const unstyled = await fetch(`${url}/?theme=preview-two`);
+  assert.doesNotMatch(await unstyled.text(), /tovu-theme-preview-host/);
+  assert.equal(unstyled.headers.get("set-cookie"), null);
+
+  await f.deps.presentationRepo.save({ ...presentation, activeThemeId: "preview-one" });
+  f.deps.themes.splice(0, f.deps.themes.length);
+  const empty = await fetch(`${url}/?theme=preview-two`);
+  assert.doesNotMatch(await empty.text(), /tovu-theme-preview-host/);
+  assert.equal(empty.headers.get("set-cookie"), null);
 });
