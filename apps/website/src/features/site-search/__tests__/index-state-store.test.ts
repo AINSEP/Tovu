@@ -33,7 +33,7 @@ describeEachDialect("SqlSearchIndexStore", {
   tables: ["search_index_state", "search_index_watermarks", "search_index_targets"],
   make: (kernel) => {
     let clock = 1_000;
-    return { kernel, ...createSqlSearchIndexStore({ kernel, now: () => clock++ }) };
+    return { kernel, ...createSqlSearchIndexStore({ kernel, now: () => { clock += 1; return clock; } }) };
   },
 }, (make) => {
   test("put inserts then upserts one row per (target, key); get round-trips every field, incl. epoch-ms bigints", async () => {
@@ -125,7 +125,7 @@ describeEachDialect("SqlSearchIndexStore", {
     // The pointer row records when it last changed (injected clock, strictly increasing).
     const [stamp] = await kernel.run(db => tables(db)
       .selectFrom("search_index_targets").select("updated_at_ms").where("site_id", "=", "site-a").execute());
-    assert.ok(Number(stamp!.updated_at_ms) > 1_000);
+    assert.ok(Number(stamp?.updated_at_ms) > 1_000);
   });
 
   test("promote is a compare-and-swap on the active pointer too: a switch that raced in first wins", async () => {
@@ -133,16 +133,14 @@ describeEachDialect("SqlSearchIndexStore", {
     const raced = { siteId: "site-a", providerId: "meili", generation: 7 };
     await targets.setBuilding({ target: TARGET });
     // Between promote's read and its UPDATE another writer moves the active pointer; simulated by a
-    // kernel whose first read reports the pre-race state.
-    const racing = createSqlSearchIndexStore({
-      kernel: { ...kernel, run: async (fn) => {
-        const result = await kernel.run(fn);
-        await kernel.run(db => tables(db)
-          .updateTable("search_index_targets").set({ active_provider_id: raced.providerId, active_generation: raced.generation }).where("site_id", "=", "site-a").execute());
-        return result;
-      } },
-      now: () => 1,
-    });
+    // kernel that moves it right after each statement (so after the read, before the UPDATE).
+    const racingKernel: typeof kernel = { ...kernel, run: async (fn) => {
+      const result = await kernel.run(fn);
+      await kernel.run(db => tables(db)
+        .updateTable("search_index_targets").set({ active_provider_id: raced.providerId, active_generation: raced.generation }).where("site_id", "=", "site-a").execute());
+      return result;
+    } };
+    const racing = createSqlSearchIndexStore({ kernel: racingKernel, now: () => 1 });
     assert.equal(await racing.targets.promote({ siteId: "site-a", expected: TARGET }), false);
     assert.deepEqual(await targets.get({ siteId: "site-a" }), { active: raced, building: TARGET });
   });

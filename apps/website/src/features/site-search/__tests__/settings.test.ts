@@ -14,7 +14,7 @@ import {
 const WS = "ws-search-settings";
 const clock = { nowIso: () => "2026-10-21T12:00:00.000Z", nowMs: () => Date.parse("2026-10-21T12:00:00.000Z") };
 let counter = 0;
-const ids = { newId: () => `search-setting-${++counter}` };
+const ids = { newId: () => { counter += 1; return `search-setting-${counter}`; } };
 const allowAll: AuthorizeFn = async () => ({ allowed: true, reason: "test" });
 
 function ledger() {

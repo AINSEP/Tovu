@@ -5,6 +5,8 @@
  *
  * The two ports are returned as two objects because both name a `get` with different inputs.
  */
+import { sql } from "kysely";
+
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { encodeSearchKey } from "@jini-ai/search";
 import type {
@@ -136,6 +138,31 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
   };
 }
 
+/**
+ * ONE compare-and-swap statement: the building pointer must still be `expected` AND the active
+ * pointer still `active` (as just read), so the caller's `replaced` is exactly what this switch
+ * displaced. A concurrent promote, rebuild or clear changes one of them first and no row updates.
+ * @complexity O(1), one primary-key UPDATE.
+ */
+async function swapPointers(
+  kernel: StorageKernel<SearchIndexDatabase>,
+  required: { siteId: string; expected: SearchTarget; active: SearchTarget | null; nowMs: number },
+): Promise<boolean> {
+  const { siteId, expected, active, nowMs } = required;
+  const result = await kernel.run(db => db.updateTable("search_index_targets")
+    .set(({ ref }) => ({
+      active_provider_id: ref("building_provider_id"), active_generation: ref("building_generation"),
+      building_provider_id: null, building_generation: null, updated_at_ms: nowMs,
+    }))
+    .where("site_id", "=", siteId)
+    .where("building_provider_id", "=", expected.providerId).where("building_generation", "=", expected.generation)
+    .where(active === null
+      ? sql<boolean>`active_provider_id IS NULL`
+      : sql<boolean>`active_provider_id = ${active.providerId} AND active_generation = ${active.generation}`)
+    .executeTakeFirst());
+  return Number(result.numUpdatedRows) === 1;
+}
+
 /** The pointer half. `promote` is the atomic generation switch. @complexity O(1) per call. */
 function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => number): SearchTargetPort {
   const read = async (siteId: string): Promise<SearchSiteTargets> => {
@@ -156,21 +183,8 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
     },
     promote: ({ siteId, expected }) => kernel.transaction(async () => {
       const { active } = await read(siteId);
-      // ONE compare-and-swap statement: the building pointer must still be `expected` AND the active
-      // pointer still the one read above, so `replaced` is exactly what this switch displaced. A
-      // concurrent promote, rebuild or clear changes one of them first and this updates no row.
-      const result = await kernel.run(db => db.updateTable("search_index_targets")
-        .set(eb => ({
-          active_provider_id: eb.ref("building_provider_id"), active_generation: eb.ref("building_generation"),
-          building_provider_id: null, building_generation: null, updated_at_ms: now(),
-        }))
-        .where("site_id", "=", siteId)
-        .where("building_provider_id", "=", expected.providerId).where("building_generation", "=", expected.generation)
-        .where(eb => active === null
-          ? eb("active_provider_id", "is", null)
-          : eb.and([eb("active_provider_id", "=", active.providerId), eb("active_generation", "=", active.generation)]))
-        .executeTakeFirst());
-      return Number(result.numUpdatedRows) === 1 ? { replaced: active } : false;
+      const swapped = await swapPointers(kernel, { siteId, expected, active, nowMs: now() });
+      return swapped ? { replaced: active } : false;
     }),
     async clearBuilding({ siteId }) {
       await kernel.run(db => db.updateTable("search_index_targets")
