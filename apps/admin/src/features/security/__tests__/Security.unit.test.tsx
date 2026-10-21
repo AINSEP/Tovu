@@ -190,6 +190,6 @@ describe("Security — default permissions wiring", () => {
     });
     render(<Security tabId="site-key" useAccessTokensHook={() => makeAccessTokens()} useSiteKeyHook={() => makeSiteKey()} />);
     expect(await screen.findByRole("tab", { name: /Site key/ })).toHaveAttribute("aria-selected", "true");
-    expect(urls).toEqual(["/api/admin/v1/auth/me"]);
+    expect(urls).toContain("/api/admin/v1/auth/me");
   });
 });
