@@ -752,6 +752,37 @@ test("an unknown provider id is refused with the engine-canonical hint", async (
     'unknown media provider "xai-grok-imagine" — expected an engine-canonical id from @jini-ai/integrations/media-providers');
 });
 
+test("a registry-held plugin vendor id is accepted; an alias it would resolve is still refused", async () => {
+  // A fake registry: holds `acme-media` exactly, and resolves the alias `acme` to it (as aliases resolve).
+  const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" || id === "acme" ? { id: "acme-media" } : null) };
+  const { repo, deps } = makeDeps();
+  const saved = await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" } } });
+  assert.equal(saved["acme-media"]?.apiKeyConfigured, true);
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId), ["acme-media"]);
+  await assert.rejects(saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { acme: {} } }),
+    validation('unknown media provider "acme" — expected an engine-canonical id from @jini-ai/integrations/media-providers'));
+});
+
+test("a whole-map save that omits a plugin vendor keeps its key; omitted built-ins are still tombstoned", async () => {
+  const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" ? { id: "acme-media" } : null) };
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } } });
+  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: {} });
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId), ["acme-media"]);
+});
+
+test("a whole-map save after the plugin vendor left the registry still keeps its stored key", async () => {
+  // Disabled plugin, restart, or a loader fault: the registry no longer holds `acme-media`, yet the
+  // admin tab's built-in-only save must not delete the key saved for it (no data loss).
+  const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" ? { id: "acme-media" } : null) };
+  const emptyCatalog = { findProvider: () => null };
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } } });
+  await saveMediaProviderCredentials({ ...deps, providerCatalog: emptyCatalog }, { workspaceId: WORKSPACE, providers: { grok: { apiKey: "xai-grok-123456" } } });
+  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { grok: {} } });
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId).sort(), ["acme-media", "grok"]);
+});
+
 test("a primitive provider entry is refused as not-an-object", async () => {
   await saveRejects({ openai: "str" }, 'provider "openai" must be an object');
 });

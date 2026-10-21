@@ -63,11 +63,28 @@ export interface AgentToolDefinition {
  * `suno`/`udio`) is genuinely unwired anywhere in this codebase — so this filter is reading the
  * catalogue's own signal, not a guess.
  */
-export const IMAGE_MODEL_IDS: readonly string[] = IMAGE_MODELS.filter(
-  (model) => findProvider({ id: model.provider })?.integrated === true
-).map((model) => model.id);
+export const IMAGE_MODEL_IDS: readonly string[] = imageModelIdsFrom({ catalog: { modelsForSurface: () => IMAGE_MODELS, findProvider } });
 
-const GENERATE_SCHEMA = {
+/** The two catalogue reads the enum needs — structurally a `MediaModelCatalog` / `MediaProviderRegistry`
+ *  (declared locally so this file keeps importing only the dependency-free catalog subpath). */
+export interface ImageModelCatalog {
+  modelsForSurface(required: { surface: "image" }): readonly { readonly id: string; readonly provider: string }[];
+  findProvider(required: { id: string }): { readonly integrated: boolean } | null;
+}
+
+/**
+ * {@link IMAGE_MODEL_IDS}'s rule applied to any catalogue — the live media provider registry in
+ * production (2026-10-21), so a plugin-contributed vendor's image models are advertised and accepted.
+ * Catalogue order is kept: it is the default-model resolution order.
+ * @complexity O(m) image models.
+ */
+export function imageModelIdsFrom({ catalog }: { catalog: ImageModelCatalog }, _optional: Record<string, never> = {}): string[] {
+  return catalog.modelsForSurface({ surface: "image" })
+    .filter((model) => catalog.findProvider({ id: model.provider })?.integrated === true)
+    .map((model) => model.id);
+}
+
+const generateSchema = (imageModelIds: readonly string[]) => ({
   type: "object",
   additionalProperties: false,
   required: ["prompt"],
@@ -79,7 +96,7 @@ const GENERATE_SCHEMA = {
     },
     model: {
       type: "string",
-      enum: [...IMAGE_MODEL_IDS],
+      enum: [...imageModelIds],
       description:
         "Which image model to use — picking a model also picks its vendor; there is no separate provider field. " +
         "Defaults to 'gpt-image-2' (OpenAI) when omitted. Other options include 'gemini-3.1-flash-image-preview' " +
@@ -102,20 +119,25 @@ const GENERATE_SCHEMA = {
     caption: { type: "string", description: "Optional display caption for the uploaded asset." },
     credit: { type: "string", description: "Optional attribution/credit line for the uploaded asset." },
   },
-} as const;
+}) as const;
 
 /**
- * This domain's fixed agent-tool catalog.
+ * This domain's agent-tool catalog; `model`'s enum is whatever image models the caller's catalogue holds.
  *
- * @complexity O(1) — a fixed, statically-defined list.
+ * @complexity O(m) in `imageModelIds`.
  */
-export const mediaGenerationAgentToolCatalog: AgentToolDefinition[] = [
-  {
-    name: "media_generate_asset",
-    description:
-      "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Generates one image from `prompt` using whichever vendor the `model` field selects (see that field's own description — every registered vendor is supported, not just OpenAI), then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl, placeholder) is the SAME shape media_upload_asset/content_read.media_asset return plus one extra field: `placeholder` is true only on the rare deterministic-stub fallback (see the `allowStubFallback` field), false for a real generation. The same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Credentials are resolved per-vendor: a saved one from Admin -> Media -> 'Media providers' first, an environment variable second. A vendor with neither configured fails with a clear message pointing at the Media providers tab rather than a raw API error — call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved. Costs real money per call for a real (non-placeholder) generation — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "media.upload" },
-    inputSchema: GENERATE_SCHEMA,
-  },
-];
+export function buildMediaGenerationAgentToolCatalog({ imageModelIds }: { imageModelIds: readonly string[] }, _optional: Record<string, never> = {}): AgentToolDefinition[] {
+  return [
+    {
+      name: "media_generate_asset",
+      description:
+        "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Generates one image from `prompt` using whichever vendor the `model` field selects (see that field's own description — every registered vendor is supported, not just OpenAI), then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl, placeholder) is the SAME shape media_upload_asset/content_read.media_asset return plus one extra field: `placeholder` is true only on the rare deterministic-stub fallback (see the `allowStubFallback` field), false for a real generation. The same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Credentials are resolved per-vendor: a saved one from Admin -> Media -> 'Media providers' first, an environment variable second. A vendor with neither configured fails with a clear message pointing at the Media providers tab rather than a raw API error — call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved. Costs real money per call for a real (non-placeholder) generation — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: "media.upload" },
+      inputSchema: generateSchema(imageModelIds),
+    },
+  ];
+}
+
+/** The built-in-only projection, for code that runs with no deps (metadata, manifest checks). */
+export const mediaGenerationAgentToolCatalog: AgentToolDefinition[] = buildMediaGenerationAgentToolCatalog({ imageModelIds: IMAGE_MODEL_IDS });

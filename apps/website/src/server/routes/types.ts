@@ -519,6 +519,8 @@ export interface CredentialsDeps {
   outboundTestOrigins?: readonly string[];
   /** Canonical guard for media generation and all returned-asset downloads; private peers refused. */
   mediaGenerationHttpClient: import("@jini-ai/core/primitives").HttpClientPort;
+  /** Media-generation vendors (built-in + plugin-contributed), built once per composition root. */
+  mediaProviderRegistry: import("@jini-ai/integrations/media-providers").MediaProviderRegistry;
 }
 
 /**

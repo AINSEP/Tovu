@@ -3,14 +3,12 @@ import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts
 import type { Clock } from "@jini-ai/core/primitives";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import {
-  createBuiltinVendorAdapterRegistry,
   createMediaDispatchEngine,
-  findMediaModel,
-  findProvider,
   resolveProviderCredentialsFromEnv,
   PROVIDER_CREDENTIAL_ENV_VARS,
   type MediaGenerationRequest,
   type MediaGenerationResult,
+  type MediaProviderRegistry,
   type ProviderCredentials,
 } from "@jini-ai/integrations/media-providers";
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -33,7 +31,7 @@ import {
 } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
-import { mediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS } from "./agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFrom } from "./agent-tools.js";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for
@@ -77,6 +75,10 @@ export interface MediaGenerationToolDeps {
   authorize: AuthorizeFn;
   /** Host-bound guard applies equally to vendor requests and provider-returned asset downloads. */
   mediaGenerationHttpClient: HttpClientPort;
+  /** Built-in + plugin-contributed vendors, built ONCE at composition (`media-provider-registry.ts`'s
+   *  `loadMediaProviderRegistry`). The tool's `model` enum, validation and dispatch all read it, so a
+   *  plugin vendor is advertised, accepted and routed with no other change. */
+  mediaProviderRegistry: MediaProviderRegistry;
   workspaceId: string;
   clock: Clock;
   idGen: { newId(): string };
@@ -106,7 +108,7 @@ export interface MediaGenerationToolDeps {
   generateMedia?: (
     request: MediaGenerationRequest,
     credentials: ProviderCredentials,
-    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort }
+    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
   ) => Promise<MediaGenerationResult>;
   /**
    * The credential-env lookup table {@link resolveCredentialForProvider}'s env fallback reads from.
@@ -132,16 +134,18 @@ const DEFAULT_MODEL = "gpt-image-2";
 /** {@link MediaGenerationToolDeps.generateMedia}'s real, production implementation — a fresh engine
  *  per call because credentials are resolved fresh per call too (a rotated key must never reuse a
  *  stale boot-time singleton's credentials). `createMediaDispatchEngine` itself does no I/O to
- *  construct — only `.generate()` does. Each call owns a populated registry and uses the host's
- *  guarded HTTP client for both generation and asset downloads.
- *  @complexity O(A) setup time/space for the fixed builtin adapter count A, plus generation I/O. */
+ *  construct — only `.generate()` does. The registry is the composition-built one (no per-call
+ *  rebuild since 2026-10-21) and is also the engine's catalogue, so plugin models validate; the host's
+ *  guarded HTTP client serves both generation and asset downloads.
+ *  @complexity O(1) setup, plus generation I/O. */
 async function defaultGenerateMedia(
   request: MediaGenerationRequest,
   credentials: ProviderCredentials,
-  options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort }
+  options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
 ): Promise<MediaGenerationResult> {
-  const registry = createBuiltinVendorAdapterRegistry({}, {});
+  const { registry } = options;
   const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient }, {
+    catalog: registry,
     credentials: { [options.providerId]: credentials },
     allowStubFallback: options.allowStubFallback,
   });
@@ -178,7 +182,7 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
 
 /**
  * Resolves which image model to use as the DEFAULT when the caller omits `model` — the first
- * catalog model (in {@link IMAGE_MODEL_IDS} order) whose provider actually has a REACHABLE
+ * catalog model (in `imageModelIds` (`agent-tools.ts`'s `IMAGE_MODEL_IDS` rule over the live registry) order) whose provider actually has a REACHABLE
  * credential (saved row first, then env — same precedence {@link resolveCredentialForProvider}
  * itself applies), not simply the catalog's `default: true` entry regardless of whether anything
  * can actually generate with it. `IMAGE_MODEL_IDS` already starts with that `default: true` entry
@@ -195,11 +199,11 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
  * @complexity O(P) credential lookups, P = the number of distinct providers among
  *   `IMAGE_MODEL_IDS` — a fixed, catalog-bounded count, never caller-controlled.
  */
-async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps): Promise<string> {
+async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
   const checkedProviders = new Set<string>();
-  for (const modelId of IMAGE_MODEL_IDS) {
-    // Non-null: every id in IMAGE_MODEL_IDS is derived from IMAGE_MODELS itself (agent-tools.ts).
-    const providerId = findMediaModel({ id: modelId })!.provider;
+  for (const modelId of imageModelIds) {
+    // Non-null: every id in imageModelIds is derived from this same registry (agent-tools.ts).
+    const providerId = routeDeps.mediaProviderRegistry.findModel({ id: modelId })!.provider;
     if (checkedProviders.has(providerId)) continue;
     checkedProviders.add(providerId);
     const credential = await resolveCredentialForProvider(routeDeps, providerId);
@@ -207,8 +211,6 @@ async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps): Pro
   }
   return DEFAULT_MODEL;
 }
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: mediaGenerationAgentToolCatalog });
 
 const DOMAIN = "media-generation";
 
@@ -245,7 +247,7 @@ function buildGeneratedFilename(prompt: string): string {
 }
 
 /** The only rejection worth decorating with the published schema — a caller-supplied `model` outside
- *  {@link IMAGE_MODEL_IDS}, which a DIFFERENT input would fix. Everything else this handler can
+ *  `imageModelIds` (`agent-tools.ts`'s `IMAGE_MODEL_IDS` rule over the live registry), which a DIFFERENT input would fix. Everything else this handler can
  *  throw (no credential configured, a vendor/network failure, an upload validation failure) is not a
  *  shape problem and is deliberately NOT wrapped in this class. */
 export class MediaGenerationValidationError extends Error {}
@@ -262,11 +264,11 @@ export class MediaGenerationValidationError extends Error {}
  *   catalog-bounded set — a simple membership check, not worth a Set for a list this size); see
  *   {@link resolveDefaultImageModel}'s own complexity note for the omitted-`model` branch.
  */
-async function requireImageModel(raw: string | undefined, routeDeps: MediaGenerationToolDeps): Promise<string> {
-  if (raw === undefined) return resolveDefaultImageModel(routeDeps);
-  if (!IMAGE_MODEL_IDS.includes(raw)) {
+async function requireImageModel(raw: string | undefined, routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
+  if (raw === undefined) return resolveDefaultImageModel(routeDeps, imageModelIds);
+  if (!imageModelIds.includes(raw)) {
     throw new MediaGenerationValidationError(
-      `'model' must be a registered image model — got '${raw}'. See this tool's own schema for the full list of ${IMAGE_MODEL_IDS.length} supported ids across every configured vendor.`
+      `'model' must be a registered image model — got '${raw}'. See this tool's own schema for the full list of ${imageModelIds.length} supported ids across every configured vendor.`
     );
   }
   return raw;
@@ -281,8 +283,8 @@ async function requireImageModel(raw: string | undefined, routeDeps: MediaGenera
  *
  * @complexity O(1).
  */
-function buildNoCredentialError(providerId: string): Error {
-  const label = findProvider({ id: providerId })?.label ?? providerId;
+function buildNoCredentialError(providerId: string, registry: MediaProviderRegistry): Error {
+  const label = registry.findProvider({ id: providerId })?.label ?? providerId;
   const envCandidates = PROVIDER_CREDENTIAL_ENV_VARS[providerId] ?? [];
   const envNote = envCandidates.length > 0 ? ` (also checked ${envCandidates.join(", ")} in this process's environment — none were set)` : "";
   return new Error(
@@ -321,6 +323,12 @@ interface GeneratedMediaView {
 }
 
 export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
+  const registry = routeDeps.mediaProviderRegistry;
+  // Construction may run over metadata-only deps (catalog/approval checks build every domain with a
+  // bare fake); the published enum then falls back to the built-in projection. Every composition
+  // root supplies the registry, and the handler always reads it.
+  const imageModelIds = registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
+  const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds }) });
   const handlers: Record<string, ToolHandler> = {
     media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView } | { generated: false; message: string; credentialSetup: ToolFailureDiagnostic }> => {
       const input = requireInputRecord({ input: ctx.input });
@@ -329,20 +337,20 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
       return withSchemaOnRejection(
         { toolId: "media_generate_asset", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof MediaGenerationValidationError, fn: async () => {
-          const model = await requireImageModel(optionalString({ input: input, key: "model" }), routeDeps);
+          const model = await requireImageModel(optionalString({ input: input, key: "model" }), routeDeps, imageModelIds);
           const allowStubFallback = optionalBoolean({ input, key: "allowStubFallback" }) ?? false;
-          // Guaranteed non-null: `model` was just validated against `IMAGE_MODEL_IDS`, itself
-          // derived from this same catalogue (`agent-tools.ts`'s own doc for both).
-          const providerId = findMediaModel({ id: model })!.provider;
+          // Guaranteed non-null: `model` was just validated against `imageModelIds`, itself
+          // derived from this same registry (`agent-tools.ts`'s own doc for both).
+          const providerId = registry.findModel({ id: model })!.provider;
 
           const credential = await resolveCredentialForProvider(routeDeps, providerId);
           if (!credential && !allowStubFallback) {
-            return { generated: false, message: buildNoCredentialError(providerId).message,
+            return { generated: false, message: buildNoCredentialError(providerId, registry).message,
               credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
-          const generated = await generate({ surface: "image", model, prompt }, credential ?? {}, { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient });
+          const generated = await generate({ surface: "image", model, prompt }, credential ?? {}, { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry });
 
           // A best-effort initial guess, corrected immediately below by a real sniff of the actual
           // bytes — most registered vendors return PNG (`dispatch/stub.ts`'s placeholder included),

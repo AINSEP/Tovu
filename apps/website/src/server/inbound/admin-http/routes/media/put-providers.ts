@@ -55,6 +55,7 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
           sealer: deps.siteAssistantSecretSealer,
           keyring: deps.siteAssistantSecretKeyring,
           clock: deps.clock,
+          providerCatalog: deps.mediaProviderRegistry,
         },
         { workspaceId: deps.workspaceId, providers: (req.body ?? {}) as Record<string, never> }
       );
