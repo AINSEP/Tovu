@@ -1516,6 +1516,10 @@ for (const [label, input, field] of [
     oauth: { providerId: "example", grant: "authorization_code", clientId: "tovu-client", scopes: "read", tokenEnvName: "1BAD" } as never }), "oauth.tokenEnvName"],
   ["a remote URL that does not parse", oauthHttpInput({}, { authMode: "none", oauth: undefined, url: "not a url" }), "url"],
   ["a whitespace-only environment block", validInput({ env: "   " }), "env"],
+  ["an environment line whose value exceeds the token limit", validInput({ env: `GITHUB_TOKEN=${"x".repeat(8193)}` }), "env"],
+  ["a JSON environment block that is not valid JSON", validInput({ env: "{ not json" }), "env"],
+  ["a stdio access token with an invalid env var name", validInput({ authMode: "static_env", env: "",
+    accessToken: ["tok", "en", "-value"].join(""), accessTokenEnvName: "1BAD" } as never), "accessTokenEnvName"],
 ] as const) {
   test(`saving ${label} is refused naming '${field}', and writes nothing`, async () => {
     const { deps, repo } = makeDeps();
