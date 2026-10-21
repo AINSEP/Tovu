@@ -48,8 +48,9 @@ const client = createAssistantChatsClient({ ports: {
   requestRunPrefixes: ["byok:", "agui:"],
 } }, {});
 
-/** Adapt the existing host port; Jini owns all conversation state and retry behavior. */
-function sharedPort(port: AssistantChatsPort): SharedPort {
+/** Adapt the existing host port; Jini owns all conversation state and retry behavior.
+ *  Exported so the object-shaped-to-positional mapping is verified directly. */
+export function sharedPort(port: AssistantChatsPort): SharedPort {
   return {
     listConversations: () => port.listConversations(),
     createConversation: ({ firstMessage }) => firstMessage === undefined ? port.createConversation() : port.createConversation(firstMessage),
