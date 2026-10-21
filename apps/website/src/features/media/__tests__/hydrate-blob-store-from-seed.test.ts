@@ -81,7 +81,7 @@ class RaceInjectingBlobStore {
   }
 
   /** Mirrors the OLD hydrator's second half: an unconditional overwrite, exactly like
-   *  `LocalFsBlobStore`/`S3BlobStore`'s real `put()`. */
+   *  the local and s3-compatible object stores' real unconditional `put()`. */
   async put(input: PutBlobInput): Promise<{ storageKey: string }> {
     const storageKey = computeBlobStorageKey(input);
     this.bytesByKey.set(storageKey, input.bytes);
@@ -254,7 +254,7 @@ test("hydrateBlobStoreFromSeed: REGRESSION — a concurrent production write lan
 });
 
 /** A `BlobStorePort` double whose `putIfAbsent()` throws for one specific storage key — models a
- *  real backend failure (e.g. `S3BlobStore` hitting a transient write error) mid-run, distinct from
+ *  real backend failure (e.g. the s3-compatible object-store provider hitting a transient write error) mid-run, distinct from
  *  the "malformed path" failure mode covered above. */
 class ThrowingBlobStore extends InMemoryBlobStore {
   constructor(private readonly failingStorageKey: string) {

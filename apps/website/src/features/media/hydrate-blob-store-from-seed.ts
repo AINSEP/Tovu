@@ -48,8 +48,8 @@ import type { BlobStorePort } from "@jini-ai/cms/media";
  * This used to be a separate `exists()` check followed by a separate `put()` — a check-then-act
  * pair with a real TOCTOU gap: a real uploader's write landing in that gap got silently overwritten
  * by this function's stock seed bytes. `putIfAbsent()` collapses the two into one call the adapter
- * itself makes atomic (`LocalFsBlobStore`'s `"wx"` open flag; `S3BlobStore`'s conditional
- * `If-None-Match` PUT — see each adapter's own doc), closing the gap outright rather than narrowing
+ * itself makes atomic (the local store's `"wx"` open flag; the s3-compatible object-store provider's
+ * conditional `If-None-Match` PUT — see each provider's own doc), closing the gap outright rather than narrowing
  * it. Safe to do unconditionally specifically because this store is content-addressed: whichever
  * writer's bytes end up stored for a given key, they are — short of a sha256 collision — the same
  * bytes any other writer for that key would have written; `putIfAbsent` only needs to guarantee no
@@ -60,8 +60,9 @@ import type { BlobStorePort } from "@jini-ai/cms/media";
  * -----------------------------------------------------------------------------------------------
  * The SOURCE (the seed payload the image ships) is always a plain directory — that's how the
  * Dockerfile stages it, mirroring `content.seed.db`'s own extraction. The DESTINATION is whatever
- * `resolveBlobStore()` resolved for this deployment: `LocalFsBlobStore` today, or `S3BlobStore` for
- * any operator who sets `TOVU_MEDIA_BLOB_STORE=s3`. Writing straight to a filesystem path would
+ * `createMediaBlobStore()` (`features/object-storage`) resolved for this deployment: the local
+ * filesystem store by default, or the bundled s3-compatible object-store provider for any operator
+ * who sets `TOVU_MEDIA_BLOB_STORE=s3` (or picks a remote provider in the site's storage setting). Writing straight to a filesystem path would
  * silently stop working — with no error, just permanently-missing bytes on the very backend this
  * fix exists to protect against — the moment an operator makes that switch. Going through
  * `blobStore.putIfAbsent()` instead means this function needs no change at all if the backend
