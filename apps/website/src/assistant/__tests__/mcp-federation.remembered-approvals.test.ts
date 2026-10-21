@@ -83,7 +83,9 @@ interface Harness {
 
 function harness(
   stores: Stores,
-  options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean; tracker?: LiveRunTracker } = {},
+  options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean; tracker?: LiveRunTracker;
+    /** Approval deps to leave out (a host without that store), and an injected clock. */
+    approvals?: { omit?: readonly ("always" | "chat" | "conversationIdForRun")[]; now?: () => Date } } = {},
 ): Harness {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const sent: { name: string; args: Record<string, unknown> }[] = [];
@@ -106,16 +108,17 @@ function harness(
     workspaceId: WORKSPACE_ID,
     confirmCall: createFederatedCallConfirmer(
       { surfaceExchanges: store },
-      {
+      withoutOmitted({
         workspaceId: WORKSPACE_ID,
         authorize,
         always: stores.always,
         chat: stores.chat,
         // Run ids here are "<conversation>/<n>": the daemon maps a run to the conversation it started in.
         conversationIdForRun: options.tracker
-          ? (runId) => options.tracker!.conversationIdForRun({ runId: runId }, {})
-          : (runId) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
-      },
+          ? (runId: string) => options.tracker!.conversationIdForRun({ runId: runId }, {})
+          : (runId: string) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
+        ...(options.approvals?.now ? { now: options.approvals.now } : {}),
+      }, options.approvals?.omit ?? []),
     ),
   };
   const { registrations } = buildFederatedMcpRegistrations({ tools, session, config: options.config ?? CONFIG, deps, nativeToolIds: new Set() });
@@ -129,6 +132,11 @@ function harness(
       return found;
     },
   };
+}
+
+/** Drops the named optional approval deps, as a host that never wired that store would. */
+function withoutOmitted<T extends Record<string, unknown>>(approvals: T, omit: readonly string[]): T {
+  return Object.fromEntries(Object.entries(approvals).filter(([key]) => !omit.includes(key))) as T;
 }
 
 interface Card {
@@ -559,4 +567,37 @@ test("remembered chat approvals use the live tracker conversation lookup and sta
   assert.equal(await runsWithoutCard(h, "assistant_set_instructions", { conversation: "chat-tracker-a" }), true);
   assert.equal(await runsWithoutCard(h, "assistant_set_instructions", { conversation: "chat-tracker-b" }), false);
   assert.equal(h.sent.length, 2);
+});
+
+// ---------------------------------------------------------------------------
+// Hosts that wire fewer approval deps, an injected clock, and a non-Error persistence failure
+// ---------------------------------------------------------------------------
+
+test("G3 remembered: a host with no approval stores and no conversation lookup offers only Allow / Cancel", async () => {
+  const h = harness(memoryStores(), { approvals: { omit: ["always", "chat", "conversationIdForRun"] } });
+  const card = await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm" });
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "cancel"]);
+  assert.equal(h.sent.length, 1);
+});
+
+test("G3 remembered: an Allow for this chat is stamped with the injected approval clock", async () => {
+  const granted: string[] = [];
+  const memory = createInMemoryConversationToolApprovalStore();
+  const chat: ConversationToolApprovalStore = { has: (key) => memory.has(key),
+    grant: async (key, grantedAt) => { granted.push(grantedAt); await memory.grant(key, grantedAt); } };
+  const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat }, { approvals: { now: () => new Date("2026-03-04T05:06:07.000Z") } });
+  await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm", choice: "chat" });
+  assert.deepEqual(granted, ["2026-03-04T05:06:07.000Z"]);
+  assert.equal(await runsWithoutCard(h, "assistant_set_instructions"), true);
+});
+
+test("G3 remembered: a chat store failing with a non-Error value still runs the approved call and logs the raw reason", async (t) => {
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (line: unknown) => void warnings.push(String(line)));
+  const chat: ConversationToolApprovalStore = { has: async () => false, grant: () => Promise.reject("disk full") };
+  const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat });
+  await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm", choice: "chat" });
+  assert.equal(h.sent.length, 1);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /could not remember the "chat" approval for mcp__supabase__assistant_set_instructions; this call runs, the next one asks again — disk full$/);
 });
