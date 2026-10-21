@@ -879,3 +879,21 @@ test("publishStaticSite: a form receiver that cannot be prepared stops the publi
   assert.equal(stillPublished.ok, true);
   assert.ok(warnings.some(args => args[0] === "[static-publish] the form receiver key could not be saved; the next publish will replace it"));
 });
+
+test("publishStaticSite: a connection changed after domain review is refused before export, and registry refusals are logged", async (t) => {
+  const deps: RouteDeps = testRouteDeps();
+  const warnings: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
+  let exports = 0;
+  const registry = await hermeticDeployTargets(deps.workspaceId);
+  const result = await publishStaticSite({ loadDeployTargets: async () => ({ ...registry, refusals: ["deploy target 'ghost' was not loaded: fixture refusal"] }),
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => fakeDeployTarget({ value: null }) },
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen,
+      exportSiteBound: async (options) => { exports++; return deps.exportSiteBound(options); },
+      config: { target: "github-pages", owner: "octo", repo: "demo-repo" }, projectName: "demo",
+      domainApproval: { credentialBinding: "binding-of-an-older-connection", plan: { inventoryStatus: "complete", message: "m", hostnames: [], changes: [] }, authorize: async () => true } });
+  assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG", message: "CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing." });
+  assert.equal(exports, 0);
+  assert.ok(warnings.some(args => args[0] === "[static-publish] deploy target 'ghost' was not loaded: fixture refusal"));
+});

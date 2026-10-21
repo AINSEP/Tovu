@@ -21,7 +21,7 @@ const config = (fields: Record<string, string>) => ({ target: "fixture-host", ..
 test("planStaticPublish refuses an unknown host, a missing or blank required field, and the module's own validation", () => {
   assert.deepEqual(planStaticPublish(registryOf(), config({ bucket: "b" })), { ok: false, message: "publish target 'fixture-host' is not available: no publish targets are installed (turn on a hosting plugin under Agent Plugins)" });
   assert.deepEqual(planStaticPublish(registryOf(host()), { target: "elsewhere" } as StaticPublishConfig), { ok: false, message: "publish target 'elsewhere' is not available; choose one of: fixture-host" });
-  for (const fields of [{}, { bucket: "   " }]) {
+  for (const fields of [{}, { bucket: "   " }] as Record<string, string>[]) {
     assert.deepEqual(planStaticPublish(registryOf(host()), config(fields)), { ok: false, message: "'bucket' (non-empty string) is required for target 'fixture-host'" });
   }
   const validating = host({ validateConfig: cfg => (cfg.bucket === "Bad" ? "bucket must be lowercase" : null) });
