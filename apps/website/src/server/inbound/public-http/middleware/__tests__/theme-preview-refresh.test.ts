@@ -126,7 +126,8 @@ test("preview asset handler disables storage and validators while normal asset o
   assert.equal(headers["Cache-Control"], "no-store");
   assert.equal(sent, "fresh stylesheet");
   handler({ params: { themeId: "test" } }, res, () => assert.fail("unexpected fallthrough"));
-  assert.deepEqual(options, [{ cacheControl: false, etag: false, lastModified: false }, {}]);
+  // why: 23386827 (security) serves every theme asset with an explicit dotfiles "deny" policy, preview or not.
+  assert.deepEqual(options, [{ dotfiles: "deny", cacheControl: false, etag: false, lastModified: false }, { dotfiles: "deny" }]);
 });
 
 // "Reload once per durable change" moved to `syncThemeRoster`'s own suite

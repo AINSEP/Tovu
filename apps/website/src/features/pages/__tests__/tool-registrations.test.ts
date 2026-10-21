@@ -128,7 +128,8 @@ test("all four Pages tools are registered with the input schemas the model needs
   for (const [name, entry] of byName) {
     const schema = entry.descriptor.inputSchema as { type: string; required: string[]; properties: Record<string, { type: string; minimum?: number }> };
     assert.ok(schema, `${name} must publish an input schema`);
-    const required = name === "pages_read_html" ? ["id"] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "handle", "html"] : ["id", "handle"];
+    // why: N3 (42773ffa) made regionId the canonical region field; handle/region are executor-side aliases only.
+    const required = name === "pages_read_html" ? ["id"] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "regionId", "html"] : ["id", "regionId"];
     assert.equal(schema.type, "object");
     assert.deepEqual(schema.required, required);
     for (const field of required) assert.equal(schema.properties[field].type, "string", `${name}.${field}`);
@@ -457,10 +458,11 @@ test("page reads refresh theme vocabulary after an external theme edit", async (
 });
 
 const FAULT_PAGE = '<section data-agent-element="a">A</section><section data-agent-element="b">B</section>';
+// why: handlers are called directly (no executor alias hook), so region tools take canonical regionId (N3, 42773ffa).
 const WRITES = [
   ["pages_write_html", { id: "page-1", html: '<section data-agent-element="a">Updated</section>' }],
-  ["pages_write_region", { id: "page-1", handle: "a", html: "Updated" }],
-  ["pages_move_region", { id: "page-1", handle: "b", before: "a" }],
+  ["pages_write_region", { id: "page-1", regionId: "a", html: "Updated" }],
+  ["pages_move_region", { id: "page-1", regionId: "b", before: "a" }],
 ] as const;
 
 for (const [tool, input] of [["pages_read_html", { id: "page-1" }], ...WRITES] as const) {
@@ -527,7 +529,8 @@ test("a region edit on legacy HTML without handles explains that there are no re
   await store.ensureHtmlFormat("<p>Keep this legacy copy.</p>");
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
 
-  await assert.rejects(call("pages_write_region", { id: "legacy", handle: "hero", html: "Replacement" }), {
+  // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
+  await assert.rejects(call("pages_write_region", { id: "legacy", regionId: "hero", html: "Replacement" }), {
     name: "ToolInputError",
     message:
       'Nothing was written: page \'legacy\' has no region with data-agent-element="hero" — it has none at all. ' +
@@ -545,7 +548,8 @@ test("an unclosed region is refused with repair guidance and its stored HTML sur
   await store.ensureHtmlFormat('<section data-agent-element="hero"><p>Keep the unclosed section.</p>');
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
 
-  await assert.rejects(call("pages_write_region", { id: "unclosed", handle: "hero", html: "Replacement" }), {
+  // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
+  await assert.rejects(call("pages_write_region", { id: "unclosed", regionId: "hero", html: "Replacement" }), {
     name: "ToolInputError",
     message:
       'Nothing was written: the <section> carrying data-agent-element="hero" in page \'unclosed\' has no closing ' +

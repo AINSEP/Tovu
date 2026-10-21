@@ -418,7 +418,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     };
     const read = await call("pages_read_html", { id: "sql-tool" }) as { version: number };
     assert.equal(read.version, 5);
-    const result = await call("pages_write_region", { id: "sql-tool", handle: "hero", html: "<p>new</p>", expectedVersion: read.version }) as { written: boolean; version: number };
+    // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
+    const result = await call("pages_write_region", { id: "sql-tool", regionId: "hero", html: "<p>new</p>", expectedVersion: read.version }) as { written: boolean; version: number };
     assert.equal(result.written, true);
     assert.equal(result.version, 6);
     assert.deepEqual(await readRow(db, "sql-tool"), { bodyHtml: '<section data-agent-element="hero" data-agent-role="region"><p>new</p></section>', version: 6, bodyFormat: "html" });
