@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildComponentCatalogQuery, chartCatalogManifests } from "../component-catalog-query.js";
+import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
+
+import { buildComponentCatalogQuery, chartCatalogManifests, serverSideChartProviders } from "../component-catalog-query.js";
 
 /**
  * @file Tests this module's own wiring — scoring/ranking over `ALL_MANIFESTS` and converting a
@@ -79,4 +81,25 @@ test("describe returns the full entry, including a JSON-Schema propsSchema, for 
   // A JSON Schema object, not a live zod schema — the whole point of converting it here.
   assert.equal(typeof entry.propsSchema, "object");
   assert.ok(entry.propsSchema !== null);
+});
+
+test("server-side chart providers keep each id/kind but refuse to load provider code", async () => {
+  const providers = serverSideChartProviders({ snapshot: { generation: "1", siteProvider: "plugin.pie", providers: [
+    { id: "plugin.pie", kinds: ["pie"], javascript: "/pie.js" },
+  ] } });
+  assert.deepEqual(providers.map(({ id, kinds, enabled }) => ({ id, kinds, enabled })), [{ id: "plugin.pie", kinds: ["pie"], enabled: true }]);
+  await assert.rejects(providers[0]!.load(), /chart providers load in the browser only/);
+});
+
+test("a manifest with no description is searchable by its other fields and is projected without a description key", () => {
+  const base = ALL_MANIFESTS[0];
+  assert.ok(base);
+  const { description: _dropped, ...withoutDescription } = base;
+  const catalog = buildComponentCatalogQuery({ getManifests: () => [{ ...withoutDescription, id: "fixture.undescribed" }] });
+  const [hit] = catalog.search({ query: "undescribed" });
+  assert.equal(hit?.id, "fixture.undescribed");
+  assert.equal(Object.hasOwn(hit ?? {}, "description"), false);
+  const entry = catalog.describe({ id: "fixture.undescribed" });
+  assert.equal(entry?.id, "fixture.undescribed");
+  assert.equal(Object.hasOwn(entry ?? {}, "description"), false);
 });
