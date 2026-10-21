@@ -8,7 +8,7 @@ import { registerAdminMenuDeleteRoute } from '../delete.js';
 import { registerAdminMenuGetRoute } from '../get-by-id.js';
 import { registerAdminMenuListRoute } from '../list.js';
 import { MenuConflictError, MenuVersionConflictError } from '#src/features/navigation/index';
-import { WS, BASE, INTERNAL, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { WS, BASE, INTERNAL, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
   { name: 'menus assign', register: registerAdminMenuAssignLocationRoute, method: 'POST', path: `${BASE}/menus/menu/locations`, body: { locationKey: 'primary' } },
@@ -70,3 +70,23 @@ test('menu delete: a row that changed between the read and the trash move is a 4
   assert.equal(removals.length, 1);
   assert.equal((removals[0] as { expectedVersion: number }).expectedVersion, 3);
 });
+
+/**
+ * `String(req.params.menuId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:menuId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract. An empty id resolves no menu.
+ */
+for (const { name, register, method, path, body } of [
+  { name: 'menus assign', register: registerAdminMenuAssignLocationRoute, method: 'POST', path: `${BASE}/menus/menu/locations`, body: { locationKey: 'primary' } },
+  { name: 'menus delete', register: registerAdminMenuDeleteRoute, method: 'DELETE', path: `${BASE}/menus/menu`, body: {} },
+  { name: 'menus get', register: registerAdminMenuGetRoute, method: 'GET', path: `${BASE}/menus/menu`, body: {} },
+] as const) {
+  test(`${name}: \`req.params.menuId ?? ""\` fallback, forced via a direct handler call, resolves the empty id to the ordinary not-found`, async () => {
+    const { app } = fixture(register);
+    assert.deepEqual(await invokeRouteDirectly({ app, method, path, req: { params: { workspaceId: WS }, query: {}, body } }), {
+      statusCode: 404, jsonBody: { error: "menu '' was not found" },
+    });
+  });
+}
