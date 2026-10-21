@@ -62,7 +62,7 @@ test("an absent or foreign workspace 404s and a caller without theme.set gets 40
     await extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/themes")({ params }, res);
     return capture;
   };
-  for (const params of [{}, { workspaceId: "other" }]) {
+  for (const params of [{}, { workspaceId: "other" }] as Record<string, string>[]) {
     assert.deepEqual(await call(params), { statusCode: 404, jsonBody: { error: "workspace was not found" } });
   }
   assert.deepEqual(await call({ workspaceId: "ws-7" }), { statusCode: 403, jsonBody: {
