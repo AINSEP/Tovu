@@ -7,6 +7,7 @@ import { AdminUi } from "./features/admin-ui";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
 import { ImportExport } from "./features/import-export";
+import { CookieConsent } from "./features/consent";
 import { PostEditor, Posts } from "./features/posts";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
 import { PageEditor, Pages } from "./features/pages";
@@ -1045,6 +1046,19 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       label: "Settings",
       group: "Administration",
       icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
+    },
+  },
+  {
+    id: "consent",
+    anyOfPermissions: ["settings.read"],
+    // Administration, beside Settings (owner, 2026-10-21; the 2026-10-19 debate leaned Marketing, a
+    // one-line move). Same `?tab=` convention as `deployment`/`settings`: the deployment gate's
+    // "Fix now" choice links to `/consent?tab=overview` (`features/consent/service.ts`).
+    render: (ctx) => <CookieConsent tabId={ctx.query.get("tab")} />,
+    nav: {
+      label: "Cookie Consent",
+      group: "Administration",
+      icon: '<circle cx="9" cy="9" r="6.5"/><circle cx="7" cy="7.5" r="0.9"/><circle cx="11" cy="10.5" r="0.9"/><circle cx="7.5" cy="11.5" r="0.6"/>',
     },
   },
   {
