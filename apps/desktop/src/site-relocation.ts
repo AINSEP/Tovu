@@ -122,8 +122,9 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
  *
  * @complexity O(1).
  */
-function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string): WritableTrackedRow {
-  return { siteDir, createdAt: row.createdAt, origin: SITE_ORIGIN.adopted, relocationId };
+function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string | null | undefined): WritableTrackedRow {
+  const next: WritableTrackedRow = { siteDir, createdAt: row.createdAt, origin: SITE_ORIGIN.adopted };
+  return typeof relocationId === "string" ? { ...next, relocationId } : next;
 }
 
 /**

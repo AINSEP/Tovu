@@ -361,3 +361,12 @@ test("createRelocationGate with no injected clock uses the wall clock: the first
   assert.equal(gate.shouldRun(file), true);
   assert.equal(gate.shouldRun(file), false, "well inside one idle minute of real time");
 });
+
+test("repointTrackedSite (Locate) onto a site folder that carries no id records none", () => {
+  const root = tempDir();
+  const gone = path.join(root, "gone");
+  const file = projectsFile([{ siteDir: gone, createdAt: CREATED, origin: "adopted", relocationId: "old-id" }]);
+  const picked = makeSite(path.join(root, "picked"), {});
+  repointTrackedSite(file, gone, picked);
+  assert.deepEqual(readTrackedSites(file), [{ siteDir: picked, createdAt: CREATED, origin: "adopted" }], "no stale id is carried onto a folder that does not claim it");
+});
