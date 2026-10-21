@@ -1,9 +1,10 @@
-import { createAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
+import { createAgentPluginUpdateEffects, requireUpdateMcpDeps } from "#src/features/agent-plugins/update-effects";
 import type { Request, RequestHandler, Response } from "express";
 import { raw } from "express";
 
 import { maxAgentPluginInstallArchiveBytes } from "../../../../../features/agent-plugins/lifecycle.js";
-import { installUploadedAgentPlugin, isAgentPluginId } from "#src/features/agent-plugins/install-upload";
+import { installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
+import { isAgentPluginName } from "@jini-ai/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -81,7 +82,9 @@ async function readZipUpload(required: { req: Request; res: Response; parseZip: 
 function readUpdateTarget(req: Request): { update?: UpdateTarget } | InstallRefusal {
   if (req.params.pluginId === undefined) return {};
   const pluginId = req.params.pluginId;
-  if (!isAgentPluginId(pluginId)) return PLUGIN_ID_REFUSAL;
+  // The Agent Plugins name grammar (`plugin.json` `name`), owned by Jini's manifest parser: the URL id
+  // is checked against it before it names anything on disk.
+  if (!isAgentPluginName({ value: pluginId })) return PLUGIN_ID_REFUSAL;
   const expectedOldDigest = req.query.expectedOldDigest;
   if (typeof expectedOldDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedOldDigest)) return OLD_DIGEST_REFUSAL;
   return { update: { pluginId, expectedOldDigest } };
@@ -92,7 +95,7 @@ function installOptions(required: { deps: AgentPluginsRouteDeps; actor: string }
   const { deps, actor } = required;
   const base = { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost };
   if (!optional.update) return base;
-  return { ...base, mcpProvisioning: createAgentPluginUpdateEffects({ deps, actor }), snapshotSettings: deps.snapshotAgentPluginSettings };
+  return { ...base, mcpProvisioning: createAgentPluginUpdateEffects({ deps: requireUpdateMcpDeps({ deps }), actor }), snapshotSettings: deps.snapshotAgentPluginSettings };
 }
 
 export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {

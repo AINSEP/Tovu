@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
-import { installUploadedAgentPlugin, isAgentPluginId, previewUploadedAgentPlugin } from "../../install-upload.js";
+import { AgentPluginHostIncompatibleError, AgentPluginUpdateError, isAgentPluginName, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
+import { installUploadedAgentPlugin, previewUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { createTovuAgentPluginLifecycle } from "../../lifecycle.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
@@ -257,7 +257,21 @@ test("boot recovery: Tovu's lifecycle binding exposes the owner's update reconci
   });
 });
 
-test("isAgentPluginId: the Agent Plugins name grammar, capped at 64 characters", () => {
-  for (const id of ["notes", "acme-office", "a.b-c", "x1"]) assert.equal(isAgentPluginId(id), true, id);
-  for (const id of ["", "Notes", "-notes", "notes-", "a..b", "../etc", "a/b", "a".repeat(65), 7, undefined]) assert.equal(isAgentPluginId(id), false, String(id));
+test("isAgentPluginName (Jini's grammar, which the update route and tool check ids against): capped at 64 characters", () => {
+  for (const id of ["notes", "acme-office", "a.b-c", "x1"]) assert.equal(isAgentPluginName({ value: id }), true, id);
+  for (const id of ["", "Notes", "-notes", "notes-", "a..b", "../etc", "a/b", "a".repeat(65), 7, undefined]) assert.equal(isAgentPluginName({ value: id }), false, String(id));
+});
+
+test("install: an ordinary install or replacement is refused while an update journal is unfinished, so boot recovery never restores beside it", async () => {
+  await withLayout(async (layout) => {
+    const old = await installFirst(layout, await packageZip("1.0.0"));
+    // What an incomplete rollback leaves: an unfinished journal naming the installed revision.
+    const journal = { schemaVersion: 1, state: "published", transactionId: "tx-1", pluginId: PLUGIN, actor: "owner", enabled: false,
+      fromDigest: old.archiveDigest, toDigest: "f".repeat(64), settingsSnapshot: { keys: [] }, startedAt: new Date(0).toISOString() };
+    await writeFile(path.join(layout.forWorkspace(WORKSPACE).pluginRootDir({ pluginId: PLUGIN }), "update-journal.json"), JSON.stringify(journal));
+    const replacement = await packageZip("1.1.0");
+    await assert.rejects(installUploadedAgentPlugin({ archive: replacement, expectedSha256: sha(replacement), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout }),
+      (error: unknown) => error instanceof AgentPluginUpdateError && error.code === "PLUGIN_UPDATE_PENDING");
+    assert.deepEqual(await liveDigests(layout), [old.archiveDigest]);
+  });
 });

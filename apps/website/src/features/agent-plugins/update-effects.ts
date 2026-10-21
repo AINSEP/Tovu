@@ -1,5 +1,4 @@
 import { AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from '@jini-ai/agent-plugins/lifecycle';
-import { notifyExternalMcpRosterChanged } from '../../assistant/external-mcp-roster-change.js';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from './federate-mcp.js';
 import type { AgentPluginLayout } from "./layout.js";
 
@@ -8,7 +7,14 @@ export type UpdateMcpDeps = {
   workspaceId: string; agentPluginLayout: AgentPluginLayout;
   externalMcpServerRepo: ProvisionDeps["repo"]; siteAssistantSecretSealer: ProvisionDeps["sealer"];
   siteAssistantSecretKeyring: ProvisionDeps["keyring"]; clock: ProvisionDeps["clock"];
+  /** Announces the changed roster so live runtimes reload; the composition root binds
+   *  `notifyExternalMcpRosterChanged`. A port rather than a value import: a feature module may not
+   *  value-import `#src/assistant/` (`domain-no-direct-tool-registration.boundary.test.ts`), the
+   *  same seam `apply-tool-renames.ts` uses. */
+  notifyExternalMcpRosterChanged: () => Promise<void>;
 };
+/** What a host hands over: the scope always, the MCP store and roster ports only when it bound them. */
+export type UpdateMcpHostDeps = Pick<UpdateMcpDeps, "workspaceId" | "agentPluginLayout"> & Partial<UpdateMcpDeps>;
 
 /** Update provisioning uses the existing MCP owner and roster reload. It must succeed before
  * the update commits; existing credentials and reviewed permissions stay with that owner.
@@ -16,10 +22,9 @@ export type UpdateMcpDeps = {
  */
 export function createAgentPluginUpdateEffects(
   { deps, actor }: { deps: UpdateMcpDeps; actor: string },
-  { resolveServers = resolveAgentPluginMcpServers, provisionServers = provisionAgentPluginMcpServers, notify = notifyExternalMcpRosterChanged }: {
+  { resolveServers = resolveAgentPluginMcpServers, provisionServers = provisionAgentPluginMcpServers }: {
     resolveServers?: typeof resolveAgentPluginMcpServers;
     provisionServers?: typeof provisionAgentPluginMcpServers;
-    notify?: typeof notifyExternalMcpRosterChanged;
   } = {},
 ): AgentPluginMcpProvisioningPort {
   const unsupported = async (): Promise<never> => { throw new Error('Use the shared activation/removal owner.'); };
@@ -32,10 +37,19 @@ export function createAgentPluginUpdateEffects(
       // owner rolls the update back before it rethrows this, so the message can say so.
       if (result.failed.length) throw new AgentPluginUpdateError({ code: 'PLUGIN_MCP_PROVISION_FAILED', message: 'The new version\'s MCP servers could not be set up; the previous version was restored.' });
     },
-    notifyRosterChanged: async () => notify(),
+    notifyRosterChanged: async () => deps.notifyExternalMcpRosterChanged(),
     setEnabled: unsupported,
     remove: unsupported,
   };
+}
+
+/** The update's MCP deps from what the host bound. A missing one is a host wiring fault, not the
+ *  caller's, so this throws a plain error (redacted to the model and to HTTP clients).
+ *  @complexity O(1). */
+export function requireUpdateMcpDeps({ deps }: { deps: UpdateMcpHostDeps }, _optional: Record<string, never> = {}): UpdateMcpDeps {
+  const { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged } = deps;
+  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer || !siteAssistantSecretKeyring || !notifyExternalMcpRosterChanged) throw new Error("Agent Plugin update is unavailable: the host did not bind its MCP provisioning.");
+  return { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged };
 }
 
 /** Who boot recovery provisions as: no operator is signed in while the host starts. */
@@ -49,14 +63,15 @@ export const AGENT_PLUGIN_RECOVERY_ACTOR = "system:agent-plugin-update-recovery"
  * @complexity O(1) to build; each call as {@link createAgentPluginUpdateEffects}.
  */
 export function createDeferredAgentPluginUpdateEffects(
-  { resolveDeps }: { resolveDeps: () => UpdateMcpDeps },
+  { resolveDeps }: { resolveDeps: () => UpdateMcpHostDeps },
   optional: Parameters<typeof createAgentPluginUpdateEffects>[1] = {},
 ): AgentPluginMcpProvisioningPort {
-  const effects = () => createAgentPluginUpdateEffects({ deps: resolveDeps(), actor: AGENT_PLUGIN_RECOVERY_ACTOR }, optional);
+  const effects = () => createAgentPluginUpdateEffects({ deps: requireUpdateMcpDeps({ deps: resolveDeps() }), actor: AGENT_PLUGIN_RECOVERY_ACTOR }, optional);
   return {
-    provision: (input) => effects().provision(input),
-    notifyRosterChanged: (input) => effects().notifyRosterChanged(input),
-    setEnabled: (input) => effects().setEnabled(input),
-    remove: (input) => effects().remove(input),
+    // Async so a host missing a dep rejects the call (a failed provision) instead of throwing synchronously.
+    provision: async (input) => effects().provision(input),
+    notifyRosterChanged: async (input) => effects().notifyRosterChanged(input),
+    setEnabled: async (input) => effects().setEnabled(input),
+    remove: async (input) => effects().remove(input),
   };
 }

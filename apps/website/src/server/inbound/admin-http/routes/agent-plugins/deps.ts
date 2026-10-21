@@ -42,6 +42,8 @@ export interface AgentPluginsRouteDeps {
   externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];
   siteAssistantSecretSealer: RouteDeps["siteAssistantSecretSealer"];
   siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];
+  /** The roster-reload port an update announces through (`RouteDeps.notifyExternalMcpRosterChanged`). */
+  readonly notifyExternalMcpRosterChanged?: RouteDeps["notifyExternalMcpRosterChanged"];
   /** The shared lifecycle owner, optionally bound to host effects for this surface. */
   setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
   /** Admin surfaces (`admin-surfaces.ts`, 2026-10-20): admission and contained reads go through

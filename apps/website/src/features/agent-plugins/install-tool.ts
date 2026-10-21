@@ -1,5 +1,5 @@
-import { createAgentPluginUpdateEffects, type UpdateMcpDeps } from "./update-effects.js";
-import { AgentPluginUpdateError, AgentPluginHostIncompatibleError, type UpdateAgentPluginRequired } from "@jini-ai/agent-plugins/lifecycle";
+import { createAgentPluginUpdateEffects, requireUpdateMcpDeps, type UpdateMcpDeps } from "./update-effects.js";
+import { AgentPluginUpdateError, AgentPluginHostIncompatibleError, isAgentPluginName, type UpdateAgentPluginRequired } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { createHash } from "node:crypto";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -10,7 +10,7 @@ import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../../contracts/headless/plugin-install-source.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
-import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, isAgentPluginId, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
+import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { agentPluginActivations } from "./activation-effects.js";
 import { bundledAgentPluginsSourceRoot, listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
@@ -88,7 +88,8 @@ async function runInstallTool({ deps, ctx, operation }: { deps: AgentPluginsInst
 /** The update's target, checked before any file is read. @complexity O(1). */
 function readUpdateTarget({ input }: { input: Record<string, unknown> }, _optional: Record<string, never> = {}) {
   const pluginId = requireString({ input, key: "pluginId" });
-  if (!isAgentPluginId(pluginId)) throw new ToolInputError({ message: "pluginId is not a valid Agent Plugin id." });
+  // Jini's manifest grammar, checked before the id names anything on disk.
+  if (!isAgentPluginName({ value: pluginId })) throw new ToolInputError({ message: "pluginId is not a valid Agent Plugin id." });
   const expectedOldDigest = requireString({ input, key: "expectedOldDigest" });
   if (!/^[a-f0-9]{64}$/.test(expectedOldDigest)) throw new ToolInputError({ message: "expectedOldDigest must be the installed archiveDigest (lowercase hex SHA-256)." });
   return { pluginId, expectedOldDigest };
@@ -97,9 +98,7 @@ function readUpdateTarget({ input }: { input: Record<string, unknown> }, _option
 /** The MCP effects an update re-provisions through. Missing deps are a host wiring fault, so this
  *  throws a plain error (redacted to the model), not a caller-input error. @complexity O(1). */
 function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; actor: string }, _optional = {}) {
-  const { agentPluginLayout, workspaceId, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring } = deps;
-  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer || !siteAssistantSecretKeyring) throw new Error("Agent Plugin update is unavailable: the host did not bind its MCP provisioning.");
-  return createAgentPluginUpdateEffects({ actor, deps: { agentPluginLayout, workspaceId, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring } });
+  return createAgentPluginUpdateEffects({ actor, deps: requireUpdateMcpDeps({ deps }) });
 }
 
 /** The candidate's bytes from a folder, a local zip or a chat attachment, size-capped before reading. */

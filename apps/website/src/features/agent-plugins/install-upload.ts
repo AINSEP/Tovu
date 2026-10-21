@@ -135,13 +135,6 @@ async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint
   return { prefix, pluginId: parsed.manifest.name };
 }
 
-/** The Agent Plugins name grammar (`plugin.json` `name`, Jini `manifest.ts`): alnum runs joined by
- *  single `-`/`.`, at most 64 characters. Callers that take an id from a URL or a tool input check it
- *  here before it names anything on disk. @complexity O(n) in the id's length. */
-export function isAgentPluginId(value: unknown): value is string {
-  return typeof value === "string" && value.length <= 64 && /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(value);
-}
-
 export interface InstallUploadedAgentPluginRequired {
   readonly archive: Uint8Array;
   /** Lowercase hex SHA-256 the client computed from the file it chose; catches a corrupted upload. */

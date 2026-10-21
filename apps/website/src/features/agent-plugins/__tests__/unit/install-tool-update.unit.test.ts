@@ -36,7 +36,7 @@ const packageZip = (version: string, name = PLUGIN) =>
 function mcpDeps() {
   const keyring = new InMemoryKeyring();
   return { clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() }, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
+    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring, notifyExternalMcpRosterChanged: async () => {} };
 }
 
 async function withInstalled<T>(fn: (env: { dir: string; layout: ReturnType<typeof resolveAgentPluginLayout>; oldDigest: string }) => Promise<T>): Promise<T> {
