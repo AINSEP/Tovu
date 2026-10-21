@@ -77,7 +77,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }): Promise<PostRecord[]> {
     const { workspaceId, nowIso, afterIso } = required;
     return this.rows
-      .filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave(row, nowIso) && (afterIso === undefined || (row.publishAt as string) > afterIso))
+      .filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave({ post: row, nowIso }) && (afterIso === undefined || (row.publishAt as string) > afterIso))
       // Fixed-width ISO first, so the concatenation orders by go-live time, then `id` — the SQL order.
       .sort((a, b) => (`${a.publishAt}${a.id}` < `${b.publishAt}${b.id}` ? -1 : 1));
   }

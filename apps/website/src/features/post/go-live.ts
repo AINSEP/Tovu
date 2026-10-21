@@ -45,14 +45,16 @@ export interface GoLiveCandidatesPort {
 
 /** True when `post` was saved while scheduled and its go-live time has since passed, so the save
  *  that wrote it announced nothing and the sweep may not have run yet. @complexity O(1). */
-export function wentLiveSinceSave(post: PostRecord, nowIso: string): boolean {
+export function wentLiveSinceSave(required: { post: PostRecord; nowIso: string }, _optional: Record<string, never> = {}): boolean {
+  const { post, nowIso } = required;
   const { publishAt } = post;
   return post.status === "published" && !isTrashed(post) && typeof publishAt === "string" && publishAt > post.updatedAt && publishAt <= nowIso;
 }
 
 /** The `entry.published` a scheduled row emits when it goes live; `occurredAt` is the go-live
  *  instant itself, not whenever the sweep happened to notice it. @complexity O(1). */
-export function goLiveEvent(post: PostRecord): DomainEvent {
+export function goLiveEvent(required: { post: PostRecord }, _optional: Record<string, never> = {}): DomainEvent {
+  const { post } = required;
   return {
     id: `${post.id}-entry.published-${post.version}`,
     name: "entry.published",
@@ -80,7 +82,7 @@ export async function announceDueGoLives(
 ): Promise<{ announced: number }> {
   const { deps, input } = required;
   const due = await deps.repo.listGoLiveCandidates({ ...input, ...(optional.afterIso ? { afterIso: optional.afterIso } : {}) });
-  for (const post of due) await deps.outbox.enqueue(goLiveEvent(post));
+  for (const post of due) await deps.outbox.enqueue(goLiveEvent({ post }));
   return { announced: due.length };
 }
 

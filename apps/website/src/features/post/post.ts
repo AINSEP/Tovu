@@ -755,7 +755,7 @@ export async function deletePost(
     return appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
   });
 
-  await emitPublicTransitionEvent(deps.outbox, existing, post, now);
+  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }
@@ -895,7 +895,7 @@ export async function retirePostForReplacement(
     return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
   });
 
-  await emitPublicTransitionEvent(deps.outbox, existing, post, now);
+  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }
@@ -1477,7 +1477,7 @@ export async function createPost(
   // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
   // (no event) when the caller created a plain draft, same as it always has.
   if (deps.outbox) {
-    await emitPublicTransitionEvent(deps.outbox, null, post, now);
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now });
   }
   return { post, revisionId, previousRevisionId };
 }
@@ -1923,7 +1923,7 @@ export async function updatePost(
     const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
     return { post, revisionId, previousRevisionId };
   });
-  if (result.revisionId !== null) await emitPublicTransitionEvent(deps.outbox, existing, post, now);
+  if (result.revisionId !== null) await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return result;
 }
@@ -1933,8 +1933,8 @@ export async function updatePost(
  *  `isLiveAt` already decides for every public read. Feeding this, not the stored `status`, to
  *  {@link classifyStatusTransition} is what keeps a scheduled save from emitting `entry.published`
  *  before go-live (2026-10-21); `go-live.ts` announces it when it does go live. @complexity O(1). */
-function publicFacingStatus(post: PostRecord, nowIso: string): PostStatus {
-  return isLiveAt(post, nowIso) ? "published" : "draft";
+function publicFacingStatus(required: { post: PostRecord; nowIso: string }): PostStatus {
+  return isLiveAt(required.post, required.nowIso) ? "published" : "draft";
 }
 
 /**
@@ -2067,7 +2067,7 @@ export async function restorePostForward(
   });
   if (revisionId === null) return null;
 
-  await emitPublicTransitionEvent(deps.outbox, current, restored, restored.updatedAt);
+  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt });
 
   return { post: restored, revisionId };
 }
@@ -2108,15 +2108,11 @@ export function classifyStatusTransition(
  * write the sweep will no longer see it (its `updatedAt` passes `publishAt`), so its go-live event
  * is enqueued here first — the same id the sweep uses, which the outbox de-duplicates.
  */
-async function emitPublicTransitionEvent(
-  outbox: OutboxPort,
-  previous: PostRecord | null,
-  next: PostRecord,
-  nowIso: string
-): Promise<void> {
-  if (previous && wentLiveSinceSave(previous, nowIso)) await outbox.enqueue(goLiveEvent(previous));
-  const previousStatus = previous ? publicFacingStatus(previous, nowIso) : "draft";
-  await emitStatusTransitionEvent(outbox, previousStatus, publicFacingStatus(next, nowIso), next);
+async function emitPublicTransitionEvent(required: { outbox: OutboxPort; previous: PostRecord | null; next: PostRecord; nowIso: string }): Promise<void> {
+  const { outbox, previous, next, nowIso } = required;
+  if (previous && wentLiveSinceSave({ post: previous, nowIso })) await outbox.enqueue(goLiveEvent({ post: previous }));
+  const previousStatus = previous ? publicFacingStatus({ post: previous, nowIso }) : "draft";
+  await emitStatusTransitionEvent(outbox, previousStatus, publicFacingStatus({ post: next, nowIso }), next);
 }
 
 /**
@@ -2502,7 +2498,7 @@ export async function importPostEntity(required: {
 
   // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
   // must invalidate the destination's sitemap cache exactly like one published locally.
-  await emitPublicTransitionEvent(deps.outbox, existing ?? null, post, now);
+  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing ?? null, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }

@@ -61,17 +61,17 @@ function fakeTimers() {
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test("wentLiveSinceSave: only a published, untrashed row saved before a publishAt that has passed", () => {
-  assert.equal(wentLiveSinceSave(scheduled(), LATER), true);
-  assert.equal(wentLiveSinceSave(scheduled(), GO_LIVE), true, "inclusive at the instant");
-  assert.equal(wentLiveSinceSave(scheduled(), SAVED), false, "still scheduled");
-  assert.equal(wentLiveSinceSave(scheduled({ status: "draft" }), LATER), false);
-  assert.equal(wentLiveSinceSave(scheduled({ deletedAt: LATER }), LATER), false);
-  assert.equal(wentLiveSinceSave(scheduled({ publishAt: null }), LATER), false);
-  assert.equal(wentLiveSinceSave(scheduled({ updatedAt: LATER }), LATER), false, "saved after go-live: that save announced it");
+  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: LATER }), true);
+  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: GO_LIVE }), true, "inclusive at the instant");
+  assert.equal(wentLiveSinceSave({ post: scheduled(), nowIso: SAVED }), false, "still scheduled");
+  assert.equal(wentLiveSinceSave({ post: scheduled({ status: "draft" }), nowIso: LATER }), false);
+  assert.equal(wentLiveSinceSave({ post: scheduled({ deletedAt: LATER }), nowIso: LATER }), false);
+  assert.equal(wentLiveSinceSave({ post: scheduled({ publishAt: null }), nowIso: LATER }), false);
+  assert.equal(wentLiveSinceSave({ post: scheduled({ updatedAt: LATER }), nowIso: LATER }), false, "saved after go-live: that save announced it");
 });
 
 test("goLiveEvent: the id the save of that version would have used, occurring at the go-live instant", () => {
-  assert.deepEqual(goLiveEvent(scheduled({ kind: "page", workspaceId: "ws" })), {
+  assert.deepEqual(goLiveEvent({ post: scheduled({ kind: "page", workspaceId: "ws" }) }), {
     id: "p1-entry.published-3",
     name: "entry.published",
     occurredAt: GO_LIVE,
@@ -79,7 +79,7 @@ test("goLiveEvent: the id the save of that version would have used, occurring at
     workspaceId: "ws",
     payload: { entryId: "p1", contentType: "page" },
   });
-  assert.equal(goLiveEvent(scheduled({ publishAt: null })).occurredAt, SAVED);
+  assert.equal(goLiveEvent({ post: scheduled({ publishAt: null }) }).occurredAt, SAVED);
 });
 
 test("announceDueGoLives enqueues one event per candidate and passes the window through", async () => {
