@@ -25,7 +25,7 @@ import {
   type DesktopAgentRuntimeOptions,
 } from "./desktop-agent.ts";
 
-type ExecutorOptions = Parameters<typeof createAgentExecutor>[1];
+type ExecutorOptions = NonNullable<Parameters<typeof createAgentExecutor>[1]>;
 type RunRequired = { runId: string; agentId: string; prompt: string; cwd: string };
 
 test("bearerToken reads the token from an Authorization header, case-insensitively and trimmed", () => {
@@ -113,6 +113,7 @@ async function harness(t: TestContext, overrides: DesktopAgentRuntimeOptions & {
     log: { error: (...args: unknown[]) => errors.push(args), warn: () => {} },
     toolGapStore: { appendToolGap: ({ entry }) => { gaps.push(entry); }, listToolGaps: () => gaps as never },
     createAgentExecutor: ({ lifecycle }, options) => {
+      assert.ok(options, "the desktop always configures Jini's executor");
       captured = options;
       return { run: async (required: RunRequired, runOptions: Record<string, unknown> = {}) => {
         runs.push({ required, overlay: options.promptAugmenter!.systemOverlay!({} as never) as string, options: runOptions });
@@ -142,7 +143,7 @@ test("the runtime registers the built tools plus the owner gap list, and wires t
   assert.deepEqual(options.mcpJsonInjection!.env, { ELECTRON_RUN_AS_NODE: "1" });
   assert.match(String(options.mcpJsonInjection!.args![0]), /bin[\\/]serve\.js$/, "the default bridge is @jini-ai/mcp's own serve script");
   const augmenter = options.promptAugmenter!;
-  assert.deepEqual(augmenter.contextKinds!({} as never), []);
+  assert.deepEqual(augmenter.contextKinds!(), []);
   assert.equal(augmenter.augmentUserRequest!({ basePrompt: "as typed" } as never), "as typed");
 });
 

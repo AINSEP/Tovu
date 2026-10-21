@@ -2010,9 +2010,10 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
 test("handleStart with no injected classifier uses the real one and starts a real site folder", async () => {
   const siteDir = siteFixture("default-classifier");
   let started = 0;
-  const deps = baseDeps({ classifySiteDir: undefined, openSiteServer: async () => { started += 1; } });
+  // handleStart declares the classifier optional; omit it entirely rather than passing undefined.
+  const { classifySiteDir: _injected, ...deps } = baseDeps({ openSiteServer: async () => { started += 1; } });
   trackSite(deps.projectsPath, siteDir);
-  await handleStart(siteDir, deps as ProjectIpcDeps);
+  await handleStart(siteDir, deps);
   assert.equal(started, 1);
 });
 

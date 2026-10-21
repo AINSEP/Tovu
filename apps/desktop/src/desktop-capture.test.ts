@@ -111,7 +111,9 @@ test('the returned window adapts every Jini call onto the native window and page
   const seen: unknown[] = [];
   contents.session.webRequest.onBeforeRequest({ listener: (args) => seen.push(args) });
   const nativeCallback = () => {};
-  (requestFilter as (details: unknown, callback: unknown) => void)({ url: 'http://127.0.0.1/' }, nativeCallback);
+  // Read through a call so the earlier null assertion does not narrow the variable for the compiler.
+  const installedFilter = () => requestFilter as (details: unknown, callback: unknown) => void;
+  installedFilter()({ url: 'http://127.0.0.1/' }, nativeCallback);
   assert.deepEqual(seen, [{ details: { url: 'http://127.0.0.1/' }, callback: nativeCallback }]);
 
   // Load lifecycle: a failed load reports its code and description; a finished one reports nothing.
@@ -127,14 +129,15 @@ test('the returned window adapts every Jini call onto the native window and page
   assert.deepEqual(navigations, [{ event: 'nav-event', url: 'http://127.0.0.1/next' }]);
 
   assert.equal(await contents.loadURL({ url: 'http://127.0.0.1/a' }), 'page.loadURL-result');
-  assert.equal(await contents.printToPDF({ printBackground: true }), 'printToPDF-result');
-  await contents.capturePage({}, { rect: { x: 0, y: 0, width: 10, height: 20 } });
-  await contents.capturePage({});
-  assert.equal(contents.getURL(), 'getURL-result');
-  assert.equal(contents.getTitle(), 'getTitle-result');
-  await contents.executeJavaScript('document.title');
-  contents.debugger.attach('1.3');
-  await contents.debugger.sendCommand('Page.enable', { a: 1 });
+  // The optional native members are all present on this shell's adapter, which is what this asserts.
+  assert.equal(await contents.printToPDF!({ printBackground: true }), 'printToPDF-result');
+  await contents.capturePage!({}, { rect: { x: 0, y: 0, width: 10, height: 20 } });
+  await contents.capturePage!({});
+  assert.equal(contents.getURL!(), 'getURL-result');
+  assert.equal(contents.getTitle!(), 'getTitle-result');
+  await contents.executeJavaScript!('document.title');
+  contents.debugger!.attach('1.3');
+  await contents.debugger!.sendCommand('Page.enable', { a: 1 });
   await bound.loadURL({ url: 'http://127.0.0.1/b' });
   bound.show(); bound.hide(); bound.focus(); bound.close();
   assert.equal(bound.isDestroyed(), false);
