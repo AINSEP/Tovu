@@ -1,7 +1,8 @@
 /** @file Characterization of the pre-TW4 inventory projection, including traversal order. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { consentGateInventory } from '../readiness.js';
+import { consentDryRun, consentGateInventory } from '../readiness.js';
+import { SITE_CONSENT_DEFAULTS } from '../config.js';
 
 test('inventory projects only marked templates and deferred attributes in reverse tree order', () => {
   const html = `<!doctype html><!--ignored--><body>text
@@ -53,4 +54,25 @@ test('200 body items report truncation for the remaining empty head (reported, n
   const result = consentGateInventory({ html: `<body>${'<template data-jini-consent-script><script></script></template>'.repeat(200)}</body>` });
   assert.equal(result.items.length, 200);
   assert.equal(result.truncated, true);
+});
+
+test('a dry run whose engine gate throws is blocking evidence with every optional category still denied', () => {
+  const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } as Parameters<typeof consentDryRun>[0]['config'];
+  const seen: unknown[] = [];
+  const result = consentDryRun({ html: '<p>page</p>', config, necessaryScripts: [] }, { gate: (input) => { seen.push(input.config.enabled); throw new Error('cannot normalize'); } });
+  assert.deepEqual(seen, [true], 'the dry run always gates as if consent were enabled');
+  assert.deepEqual(result, {
+    items: [], gatedHtml: null, truncated: false,
+    categories: [{ id: 'necessary', required: true, editable: false }, { id: 'functional', required: false, editable: false }, { id: 'analytics', required: false, editable: false }, { id: 'marketing', required: false, editable: false }],
+    problems: [{ code: 'GATE_FAILED', message: 'The consent engine could not safely process this page. Optional content stays blocked.' }],
+  });
+});
+
+test('a dry run over more than 200 gated items reports a truncated inventory as a blocking problem', () => {
+  const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } as Parameters<typeof consentDryRun>[0]['config'];
+  const html = `<!doctype html><html><head></head><body>${'<button onclick="go()">Go</button>'.repeat(201)}</body></html>`;
+  const result = consentDryRun({ html, config, necessaryScripts: [] });
+  assert.equal(result.truncated, true);
+  assert.equal(result.items.length, 200);
+  assert.deepEqual(result.problems, [{ code: 'INVENTORY_TRUNCATED', message: 'More than 200 gated items. Inspect a smaller page sample.' }]);
 });

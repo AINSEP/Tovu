@@ -174,3 +174,40 @@ test('preview is read-only and local paths cannot address APIs, traverse or esca
   f.ports.renderPage = async () => ({ html: '', ok: false, truncated: false });
   await assert.rejects(f.service.preview({ principalId: 'owner' }));
 });
+
+test('the editor offers automatic region mode only when an operator configured a trusted region header', async t => {
+  const f = consentFixture({ t });
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'opt-out']);
+  f.ports.trustedRegion = true;
+  assert.deepEqual((await f.service.read({ principalId: 'owner' })).editor.regionModes, ['opt-in', 'opt-out', 'auto']);
+});
+
+test('readiness never invents a placement: a policy without one is refused, a named one is reported', async t => {
+  const f = consentFixture({ t });
+  const { placement: _placement, ...withoutPlacement } = f.config;
+  f.ports.readLegacy = async () => withoutPlacement as typeof f.config;
+  await assert.rejects(f.service.readiness({ principalId: 'owner' }), { message: 'Invalid consent field: placement.' });
+  f.ports.readLegacy = async () => ({ ...f.config, placement: 'top-bar' });
+  assert.equal((await f.service.readiness({ principalId: 'owner' })).placement, 'top-bar');
+});
+
+test('preview refuses to return HTML when the engine gate cannot process the page', async t => {
+  const f = consentFixture({ t });
+  f.ports.consentGate = () => { throw new Error('cannot normalize'); };
+  await assert.rejects(f.service.preview({ principalId: 'owner', config: f.config }), { message: 'The consent engine could not safely render the preview.' });
+  const readiness = await f.service.readiness({ principalId: 'owner', config: f.config });
+  assert.equal(readiness.ready, false);
+  assert.ok(readiness.blockingProblems.some(problem => problem.code === 'GATE_FAILED'));
+});
+
+test('the store refuses a head that points at a missing or oversized revision, and an oversized draft', async t => {
+  const f = consentFixture({ t });
+  const kernel = contentKernel(f.db);
+  await kernel.execute(sql`INSERT INTO site_consent_heads (workspace_id, draft_id, published_id) VALUES (${'ws'}, ${'ghost'}, NULL)`);
+  await assert.rejects(f.store.read({}), { message: 'Stored consent revision is unavailable.' });
+  await kernel.execute(sql`INSERT INTO site_consent_revisions (workspace_id, id, config_json, actor_id, created_at) VALUES (${'ws'}, ${'ghost'}, ${JSON.stringify({ title: 'x'.repeat(32_768) })}, ${'owner'}, ${'2026-10-20T12:00:00.000Z'})`);
+  await assert.rejects(f.store.read({}), { message: 'Stored consent revision is unavailable.' });
+  const other = createSiteConsentStore({ kernel, workspaceId: 'other' });
+  await assert.rejects(other.saveDraft({ revision: { id: 'big', config: { ...f.config, message: 'x'.repeat(32_768) }, actorId: 'owner', createdAt: '2026-10-20T12:00:00.000Z' }, expectedDraftId: null }), { message: 'Consent configuration exceeds 32 KiB.' });
+  assert.deepEqual(await other.read({}), { draft: null, published: null });
+});

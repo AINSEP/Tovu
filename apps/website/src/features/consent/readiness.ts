@@ -45,13 +45,18 @@ export function consentGateInventory({ html }: { html: string }, _options = {}):
   return { items, truncated };
 }
 
+/** The engine gate a dry run renders through (a seam so the fail-closed path is testable). */
+export type ConsentDryRunGate = typeof gateConsentHtml;
+
 /** A bounded rendered sample; failures are blocking evidence, never a green readiness result.
+ * @param options.gate the engine gate (default `gateConsentHtml`); injectable so the fail-closed path is testable.
  * @example consentDryRun({ html, config, necessaryScripts: [] })
  * @complexity O(n) time/space for at most 1 MB of rendered HTML. */
-export function consentDryRun({ html, config, necessaryScripts }: { html: string; config: ConsentConfig; necessaryScripts: readonly { content: string }[] }, _options = {}) {
+export function consentDryRun({ html, config, necessaryScripts }: { html: string; config: ConsentConfig; necessaryScripts: readonly { content: string }[] }, options: { gate?: ConsentDryRunGate } = {}) {
   const problems: ConsentProblem[] = [];
+  const gate = options.gate ?? gateConsentHtml;
   try {
-    const gated = gateConsentHtml({ html, config: { ...config, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }, { necessaryScripts });
+    const gated = gate({ html, config: { ...config, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }, { necessaryScripts });
     const inventory = consentGateInventory({ html: gated });
     if (inventory.truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 gated items. Inspect a smaller page sample.' });
     return { ...inventory, gatedHtml: gated, problems, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })) };
