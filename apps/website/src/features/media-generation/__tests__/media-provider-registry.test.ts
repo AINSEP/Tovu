@@ -78,8 +78,93 @@ test("a loader fault degrades to the built-in vendors plus one refusal line", as
   assert.equal(registry.findProvider({ id: "openai" })?.label, "OpenAI");
 });
 
+/** One fake installed plugin: its manifest read and its module import, each of which may fault. */
+interface FakePlugin {
+  readonly pluginId: string;
+  readonly providerId?: string;
+  readonly readFault?: boolean;
+  readonly importFault?: boolean;
+  readonly exported?: unknown;
+}
+
+/**
+ * A `LoadPluginContributions` fake with the shared loader's per-plugin semantics (read -> onReadError,
+ * parse, then one contained import per descriptor); a fault the definition does not recover from
+ * propagates, exactly as the real loader does.
+ */
+function fakeLoader(plugins: readonly FakePlugin[]): LoadPluginContributions {
+  type Definition = Parameters<typeof loadPluginContributionsFromSource>[0]["definition"];
+  return (async ({ definition }: { definition: Definition }) => {
+    const items: unknown[] = [];
+    const refusals: string[] = [];
+    for (const spec of plugins) {
+      const plugin = { pluginId: spec.pluginId, packageRoot: `/plugins/${spec.pluginId}` };
+      const registryId = (spec.providerId ?? `${spec.pluginId}-media`).replaceAll("-", "_");
+      if (spec.readFault) {
+        const recovered = definition.onReadError?.({ plugin, error: Object.assign(new Error("EIO: read"), { code: "EIO" }) });
+        if (recovered === undefined) throw new Error("EIO: read");
+        refusals.push(...recovered);
+        continue;
+      }
+      const parsed = definition.parse({ raw: manifest([{ id: registryId, module: "vendor.mjs" }]) });
+      assert.ok(parsed.ok);
+      for (const descriptor of parsed.descriptors) {
+        const importModule = async () => {
+          if (spec.importFault) throw new Error("EIO: containment");
+          return { exported: spec.exported ?? vendorExport(spec.providerId ?? `${spec.pluginId}-media`) };
+        };
+        const loaded = await definition.load({ plugin, descriptor, importModule });
+        if (typeof loaded === "string") refusals.push(loaded);
+        else items.push(loaded);
+      }
+    }
+    return { items, refusals };
+  }) as unknown as LoadPluginContributions;
+}
+
+/** {@link vendorModule}'s export as a value, one image model `<providerId>-1`. */
+function vendorExport(providerId: string): unknown {
+  return {
+    provider: { id: providerId, label: providerId, hint: "", integrated: true },
+    models: [{ id: `${providerId}-1`, label: providerId, hint: "", provider: providerId, caps: ["t2i"], surface: "image" }],
+    adapters: { image: { buildRequest: () => ({ url: "https://api.acme.example/v1", init: {}, meta: undefined }), parseResponse: async () => ({ bytes: new Uint8Array(), providerNote: "x" }) } },
+  };
+}
+
+test("an unreadable manifest or a module I/O fault refuses only that plugin; healthy plugins before and after still load", async () => {
+  const loadContributions = fakeLoader([
+    { pluginId: "alpha" }, { pluginId: "bravo", readFault: true }, { pluginId: "charlie", importFault: true }, { pluginId: "delta" },
+  ]);
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  assert.deepEqual(refusals, [
+    `media providers from 'bravo' were not loaded: ${MEDIA_PROVIDERS_FILENAME} could not be read`,
+    "media provider 'charlie_media' from 'charlie' was not loaded: module could not be read or imported",
+  ]);
+  assert.equal(registry.findProvider({ id: "alpha-media" })?.label, "alpha-media");
+  assert.equal(registry.findProvider({ id: "delta-media" })?.label, "delta-media");
+  assert.equal(registry.findProvider({ id: "charlie-media" }), null);
+});
+
+test("a contribution that throws inside the registry is one plugin's refusal; later plugins still load", async () => {
+  const exploding = { ...(vendorExport("bravo-media") as object), models: [{ provider: "bravo-media", get id(): string { throw new Error("boom"); } }] };
+  const loadContributions = fakeLoader([{ pluginId: "alpha" }, { pluginId: "bravo", exported: exploding }, { pluginId: "charlie" }]);
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  assert.deepEqual(refusals, ["media provider 'bravo_media' from 'bravo' was not loaded: its contribution could not be registered"]);
+  assert.equal(registry.findProvider({ id: "bravo-media" }), null);
+  assert.equal(registry.findProvider({ id: "alpha-media" })?.label, "alpha-media");
+  assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");
+});
+
+test("models: [undefined] is refused by the registry without failing boot", async () => {
+  const loadContributions = fakeLoader([{ pluginId: "bravo", exported: { ...(vendorExport("bravo-media") as object), models: [undefined] } }, { pluginId: "charlie" }]);
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  assert.equal(refusals.length, 1);
+  assert.match(refusals[0]!, /must have an id and belong to provider 'bravo-media'/);
+  assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");
+});
+
 test("parseMediaProvidersFile accepts a well-formed file and keeps an optional label", () => {
-  assert.deepEqual(parseMediaProvidersFile(manifest([{ id: "a", module: "a.mjs", extra: 1 }, { id: "b", module: "lib/b.mjs", label: "B" }])), {
+  assert.deepEqual(parseMediaProvidersFile({ raw: manifest([{ id: "a", module: "a.mjs", extra: 1 }, { id: "b", module: "lib/b.mjs", label: "B" }]) }), {
     ok: true, descriptors: [{ id: "a", module: "a.mjs" }, { id: "b", module: "lib/b.mjs", label: "B" }],
   });
 });
@@ -99,6 +184,6 @@ for (const [name, raw, reason] of [
   ["a duplicate id", manifest([{ id: "a", module: "a.mjs" }, { id: "a", module: "b.mjs" }]), "providers[1].id 'a' is declared twice"],
 ] as const) {
   test(`parseMediaProvidersFile refuses ${name}`, () => {
-    assert.deepEqual(parseMediaProvidersFile(raw), { ok: false, reason });
+    assert.deepEqual(parseMediaProvidersFile({ raw }), { ok: false, reason });
   });
 }

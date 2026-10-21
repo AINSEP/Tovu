@@ -78,7 +78,7 @@ export interface ImageModelCatalog {
  * Catalogue order is kept: it is the default-model resolution order.
  * @complexity O(m) image models.
  */
-export function imageModelIdsFrom({ catalog }: { catalog: ImageModelCatalog }): string[] {
+export function imageModelIdsFrom({ catalog }: { catalog: ImageModelCatalog }, _optional: Record<string, never> = {}): string[] {
   return catalog.modelsForSurface({ surface: "image" })
     .filter((model) => catalog.findProvider({ id: model.provider })?.integrated === true)
     .map((model) => model.id);
@@ -126,7 +126,7 @@ const generateSchema = (imageModelIds: readonly string[]) => ({
  *
  * @complexity O(m) in `imageModelIds`.
  */
-export function buildMediaGenerationAgentToolCatalog({ imageModelIds }: { imageModelIds: readonly string[] }): AgentToolDefinition[] {
+export function buildMediaGenerationAgentToolCatalog({ imageModelIds }: { imageModelIds: readonly string[] }, _optional: Record<string, never> = {}): AgentToolDefinition[] {
   return [
     {
       name: "media_generate_asset",

@@ -43,8 +43,14 @@ type ParseResult = { readonly ok: true; readonly descriptors: readonly ProviderC
 const mediaProviderContribution = defineProviderContribution<ProviderContributionDescriptor, MediaProviderContribution>({
   contract: MEDIA_PROVIDER_CONTRACT,
   filename: MEDIA_PROVIDERS_FILENAME,
-  parse: ({ raw }) => parseMediaProvidersFile(raw),
+  parse: ({ raw }) => parseMediaProvidersFile({ raw }),
   validate: ({ exported }) => asContribution(exported),
+}, {
+  // Per-plugin recovery: an unreadable manifest or a module/containment I/O fault costs only that
+  // plugin's vendors. Without these the fault reaches loadMediaProviderRegistry's outer catch, which
+  // drops every other plugin's otherwise valid vendors with it.
+  onReadError: ({ plugin }) => [`media providers from '${plugin.pluginId}' were not loaded: ${MEDIA_PROVIDERS_FILENAME} could not be read`],
+  importErrorReason: "module could not be read or imported",
 });
 
 /**
@@ -62,9 +68,26 @@ export async function loadMediaProviderRegistry(ctx: { readonly workspaceId: str
   } catch (error) {
     return { registry, refusals: [`plugin media providers were not loaded: ${(error as Error).message}`] };
   }
-  const matching = keepMatchingIds(loaded.items);
-  const { refusals } = contributeProviders({ registry: registry.providers, loaded: { items: matching.items, refusals: [...loaded.refusals, ...matching.refusals] } });
+  const refusals = [...loaded.refusals];
+  for (const item of loaded.items) refusals.push(...contributeOne({ registry, item }));
   return { registry, refusals };
+}
+
+/**
+ * Offers one plugin's vendor to the registry. A throw anywhere in that (a hostile getter in its
+ * module's data, a registry fault) is that vendor's refusal line, so later plugins still load.
+ * @complexity O(m) in the vendor's model count plus the registered models.
+ */
+function contributeOne(
+  { registry, item }: { readonly registry: MediaProviderRegistry; readonly item: LoadedProviderContribution<MediaProviderContribution> },
+  _optional: Record<string, never> = {},
+): readonly string[] {
+  try {
+    const matching = keepMatchingIds([item]);
+    return contributeProviders({ registry: registry.providers, loaded: matching }).refusals;
+  } catch {
+    return [`media provider '${item.definition.id}' from '${item.pluginId}' was not loaded: its contribution could not be registered`];
+  }
 }
 
 function loadPluginVendors(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }) {
@@ -95,7 +118,7 @@ function asContribution(candidate: unknown): MediaProviderContribution | string 
  *
  * @complexity O(a) in the declared vendor count.
  */
-export function parseMediaProvidersFile(raw: string): ParseResult {
+export function parseMediaProvidersFile({ raw }: { readonly raw: string }, _optional: Record<string, never> = {}): ParseResult {
   let value: unknown;
   try {
     value = JSON.parse(raw);
