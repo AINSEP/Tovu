@@ -28,7 +28,12 @@ import type { SiteSearchRuntime } from "./modules/site-search.js";
 export const SEARCH_REINDEX_TOOL_ID = "search_reindex";
 export const SEARCH_SET_PROVIDER_TOOL_ID = "search_set_provider";
 
-/** The slice of the assistant's route deps these tools read. */
+/**
+ * The slice of the assistant's route deps these tools read. Deliberately NOT added to
+ * `AssistantToolRegistryDeps`: that union lives in `assistant/`, and naming a `server/` type there is a
+ * back-edge into the composition root (`check:architecture` ratchets it). `siteSearch` is optional, so
+ * the registry deps (a `RouteDeps`, which declares it) satisfy this shape as they are.
+ */
 export interface SiteSearchToolHostDeps {
   readonly workspaceId: string;
   readonly authorize: AuthorizeFn;

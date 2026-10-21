@@ -203,6 +203,14 @@ test("plugin providers join after settingsReady; loader, reserved-id and registr
   assert.equal(h.logs.length, 3);
 });
 
+test("a failed settings chain still lets plugin providers load, and ready still resolves", async () => {
+  const h = harness({ loadPluginProviders: async () => loaded({ id: "vendor", pluginId: "meili", provider: vendor() }) });
+  const runtime = runtimeOf(h, { settingsReady: Promise.reject(new Error("settings boot failed")) });
+  await runtime.ready;
+  assert.equal(runtime.registry.has({ id: "vendor" }), true);
+  assert.deepEqual(h.logs, []);
+});
+
 test("a loader that throws is logged and leaves only the built-in; ready still resolves", async () => {
   const h = harness({ loadPluginProviders: async () => { throw new Error("disk gone"); } });
   const runtime = runtimeOf(h);

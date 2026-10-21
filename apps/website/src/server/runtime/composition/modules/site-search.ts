@@ -231,7 +231,9 @@ export function createSiteSearchRuntime(required: SiteSearchPorts, optional: Sit
   const contextFor = createSearchContextResolver({ ...required, registry, log }, { storage, timeoutMs });
 
   const ready = (async () => {
-    await settingsReady;
+    // `ready` must never reject (every consumer awaits it). The settings chain reports its own
+    // failure; plugin providers still load after it, whichever way it settled.
+    await Promise.resolve(settingsReady).catch(() => undefined);
     try {
       const { refusals } = contributeProviders({ registry, loaded: withoutReservedIds(await required.loadPluginProviders()) });
       for (const refusal of refusals) log(`[site-search] ${refusal}`);

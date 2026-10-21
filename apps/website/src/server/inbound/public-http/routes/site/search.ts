@@ -29,7 +29,7 @@ const MAX_CURSOR_LENGTH = 1024;
 const MAX_COLLECTIONS = 10;
 /** The collection grammar of `@jini-ai/search` document keys. */
 const COLLECTION = /^[a-z][a-z0-9_]{0,63}$/;
-const LIMIT = /^[0-9]{1,3}$/;
+const LIMIT = /^\d{1,3}$/;
 
 /** The narrow deps this route needs. Absent `siteSearch` = this composition has no search. */
 export interface SiteSearchRouteDeps {

@@ -237,6 +237,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "recovery",
     "redirects",
     "seo",
+    // 2026-10-21: site search (query, status, human-confirmed reindex and provider switch), a NEW
+    // domain composed in `server/runtime/composition/site-search-tools.ts` over `@jini-ai/search/tools`.
+    "search",
     "settings",
     "consent",
     "settings-ui-locales",
