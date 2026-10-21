@@ -13,7 +13,8 @@
  */
 import path from "node:path";
 import { Writable } from "node:stream";
-import type { ChildProcess, SpawnOptions, SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
+import type { ChildProcess, ChildProcessWithoutNullStreams, SpawnOptions, SpawnOptionsWithoutStdio,
+  SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 import type * as platformProcess from "@jini-ai/platform/process";
 
 import { PackagedGateIsolationError } from "./packaged-gate-isolation.ts";
@@ -52,7 +53,11 @@ interface ChatGateDeps {
   signal: AbortSignal;
   fs: GateFs;
   userInfo(): { homedir: string };
-  spawn(command: string, args: string[], options: SpawnOptions): ChildProcess;
+  /** `child_process.spawn`'s two shapes the gate uses: piped init children and the serve child. */
+  spawn: {
+    (command: string, args: string[], options: SpawnOptionsWithoutStdio): ChildProcessWithoutNullStreams;
+    (command: string, args: string[], options: SpawnOptions): ChildProcess;
+  };
   spawnSync(command: string, args: string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string>;
   kill: typeof process.kill;
   fetch: typeof fetch;

@@ -9,7 +9,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ChildProcess, spawnSync as realSpawnSync } from "node:child_process";
-import type { SpawnOptions, SpawnSyncReturns } from "node:child_process";
+import type { ChildProcessWithoutNullStreams, SpawnOptions, SpawnSyncReturns } from "node:child_process";
+import { PassThrough } from "node:stream";
 import { EventEmitter } from "node:events";
 import * as fsp from "node:fs/promises";
 import { existsSync, mkdirSync, mkdtempSync, readlinkSync, rmSync } from "node:fs";
@@ -40,8 +41,10 @@ function errno(code: string): Error {
   return Object.assign(new Error(code), { code });
 }
 
-function child(pid: number | undefined): ChildProcess {
-  const created = new ChildProcess();
+/** An unspawned, piped `ChildProcess` carrying only the pid the gate records. */
+function child(pid: number | undefined): ChildProcessWithoutNullStreams {
+  const [stdin, stdout, stderr] = [new PassThrough(), new PassThrough(), new PassThrough()];
+  const created = Object.assign(new ChildProcess(), { stdin, stdout, stderr, stdio: [stdin, stdout, stderr, undefined, undefined] as [PassThrough, PassThrough, PassThrough, undefined, undefined] });
   Object.defineProperty(created, "pid", { value: pid });
   return created;
 }
@@ -111,6 +114,25 @@ function base() {
   evidenceRows.push({ run_id: "run-1", run_status: "running", content: "", attempt_base_json: "[]", events_json: "[]" },
     { run_id: "run-1", run_status: "succeeded", content: "DONE", attempt_base_json: "[]", events_json: JSON.stringify([init, toolUse, toolResult]) });
 
+  /** The last scripted answer repeats once a queue is down to one. */
+  const next = <T,>(queue: T[]): T => (queue.length > 1 ? queue.shift()! : queue[0]!);
+  const bootSession = () => {
+    const response = new Response(router.bootBody ? "{}" : null, { status: 200 });
+    for (const cookie of router.bootCookie) response.headers.append("set-cookie", cookie);
+    return response;
+  };
+  const chats = () => {
+    if (router.chatStatus === 201) return Response.json({ conversation: { id: "conv-1" } }, { status: 201 });
+    return new Response(router.chatStatus === 403 ? JSON.stringify({ error: "raw server detail" }) : null, { status: router.chatStatus });
+  };
+  const routes: Record<string, () => Response> = {
+    "/api/admin/v1/auth/boot-session": bootSession,
+    "/api/agents": () => next(router.agents),
+    "/api/assistant/chats": chats,
+    "/api/runs": () => Response.json({ run: { id: "run-1" } }, { status: 201 }),
+  };
+  const runStatus = () => Response.json({ run: { state: next(router.runStates) } });
+  let uuid = 0;
   const fs: GateFs = {
     mkdir: (target, options) => fsp.mkdir(target, options),
     mkdtemp: async (prefix) => { siteDir = await fsp.mkdtemp(prefix); return siteDir; },
@@ -133,7 +155,7 @@ function base() {
     spawnSync(command, args) {
       if (command === "ps") return spawnResult({ status: s.psStatus, stdout: s.psOutput() });
       if (command === "chmod") { log.push(`chmod ${args.join(" ")}`); return spawnResult({ status: s.chmodStatus }); }
-      const row = evidenceRows.length > 1 ? evidenceRows.shift()! : evidenceRows[0]!;
+      const row = next(evidenceRows);
       if (row === "fail") return spawnResult({ status: 1 });
       if (row === "garbage") return spawnResult({ stdout: "{not json" });
       return spawnResult({ stdout: JSON.stringify(row) });
@@ -147,27 +169,14 @@ function base() {
     },
     async fetch(input, init = {}) {
       const url = new URL(String(input));
-      const method = init.method ?? "GET";
-      const headers = init.headers as Record<string, string>;
-      requests.push({ route: url.pathname, method, body: init.body as string | undefined, cookie: headers.cookie });
-      if (url.pathname === "/api/admin/v1/auth/boot-session") {
-        const response = new Response(router.bootBody ? "{}" : null, { status: 200 });
-        for (const cookie of router.bootCookie) response.headers.append("set-cookie", cookie);
-        return response;
-      }
-      if (url.pathname === "/api/agents") return router.agents.length > 1 ? router.agents.shift()! : router.agents[0]!;
-      if (url.pathname === "/api/assistant/chats") {
-        return router.chatStatus === 201 ? Response.json({ conversation: { id: "conv-1" } }, { status: 201 })
-          : new Response(router.chatStatus === 403 ? JSON.stringify({ error: "raw server detail" }) : null, { status: router.chatStatus });
-      }
-      if (url.pathname === "/api/runs") return Response.json({ run: { id: "run-1" } }, { status: 201 });
-      const state = router.runStates.length > 1 ? router.runStates.shift()! : router.runStates[0]!;
-      return Response.json({ run: { state } });
+      const headers = new Headers(init.headers);
+      requests.push({ route: url.pathname, method: init.method ?? "GET", body: init.body as string | undefined, cookie: headers.get("cookie") ?? undefined });
+      return (routes[url.pathname] ?? runStatus)();
     },
     async delay(ms, _value, options) { delays.push(ms); options?.signal?.throwIfAborted(); },
     setTimeout(callback, ms) { timers.push({ callback, ms }); return globalThis.setTimeout(() => {}, 0); },
     clearTimeout(handle) { cleared.push(handle); },
-    randomUUID: (() => { let n = 0; return () => `uuid-${++n}`; })(),
+    randomUUID: () => { uuid += 1; return `uuid-${uuid}`; },
     processes: {
       listProcessSnapshots: async () => s.snapshots,
       collectProcessTreePids: (_snapshots, roots) => roots.filter((pid): pid is number => typeof pid === "number"),
