@@ -597,3 +597,46 @@ test("admin redirects get-by-id route: missing :workspaceId and :id params fall 
   assert.equal(noId.capture.statusCode, 404);
   assert.deepEqual(noId.capture.jsonBody, { error: "redirect '' was not found", code: "REDIRECT_NOT_FOUND" });
 });
+
+/**
+ * Same narrow purpose as the import route's direct-call test above: Express always populates both
+ * route params and `express.json()` leaves `req.body` unset when a PATCH carries no JSON body, so
+ * the `?? ""` / `?? {}` fallbacks are driven with a hand-built `req` that omits them.
+ */
+async function ownerLocals(deps: RouteDeps) {
+  await deps.identityReady;
+  const owner = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE_ID, username: "admin" });
+  assert.ok(owner);
+  return owner.principalId;
+}
+
+test("admin redirects tombstone route: missing workspaceId/id params fall back to empty strings", async () => {
+  const { app, deps } = buildTestApp();
+  const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/redirects/:id");
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {} }, noWorkspace.res);
+  assert.deepEqual(noWorkspace.capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+
+  const noId = createCapturingResponse();
+  noId.res.locals.principal = { id: await ownerLocals(deps) };
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, noId.res);
+  assert.equal(noId.capture.statusCode, 404);
+  assert.equal((noId.capture.jsonBody as { code: string }).code, "REDIRECT_NOT_FOUND");
+});
+
+test("admin redirects update route: missing params and a missing body fall back to defaults", async () => {
+  const { app, deps } = buildTestApp();
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/redirects/:id");
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {}, body: {} }, noWorkspace.res);
+  assert.deepEqual(noWorkspace.capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+
+  const owner = await ownerLocals(deps);
+  const noId = createCapturingResponse();
+  noId.res.locals.principal = { id: owner };
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, noId.res);
+  assert.equal(noId.capture.statusCode, 404);
+  assert.equal((noId.capture.jsonBody as { code: string }).code, "REDIRECT_NOT_FOUND");
+});

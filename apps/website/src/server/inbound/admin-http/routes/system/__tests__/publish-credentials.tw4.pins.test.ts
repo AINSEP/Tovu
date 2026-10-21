@@ -31,7 +31,13 @@ async function fixture({ accountLabel }: { accountLabel?: string } = {}, _option
   const app = express();
   // PUT never uses contentKernel; the fake provider performs no outbound request/observability work.
   registerAdminPublishCredentialsRoutes(app, ports as AdminPublishCredentialsDeps);
-  return { saved, cache, repo, probes: () => probes, deny: () => { allowed = false; },
+  return { saved, cache, repo, ports, probes: () => probes, deny: () => { allowed = false; },
+    async call(method: "get" | "post" | "delete", routePath: string, { params = { workspaceId: "ws" }, body }: { params?: Record<string, string>; body?: unknown } = {}) {
+      const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
+      res.end = (() => res) as typeof res.end;
+      await extractRouteHandler(app, method, routePath)({ params, body }, res);
+      return capture;
+    },
     summary: () => describeCredential(writeDeps, { workspaceId: "ws", id: saved.id }),
     stored: () => repo.findById({ workspaceId: "ws", id: saved.id }),
     resolve: () => resolveForPublish(writeDeps, { workspaceId: "ws", id: saved.id }),
@@ -93,4 +99,44 @@ test("account-label healing failure returns 500 after saving and logs only a saf
   });
   assert.equal((await f.resolve())?.connection.token, token);
   assert.deepEqual(logs, [["[publish-credentials]", "INTERNAL_ERROR"]]);
+});
+
+const collection = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
+
+test("publish list and delete map an unexpected store failure to a fixed 500 that logs only a safe code", async t => {
+  const f = await fixture();
+  const logged = t.mock.method(console, "error", () => {});
+  const fault = async () => { throw new Error("vault unreachable at /private/vault.db"); };
+  t.mock.method(f.repo.vault, "list", fault);
+  assert.deepEqual(await f.call("get", collection), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.deepEqual(await f.call("delete", path, { params: { workspaceId: "ws", id: f.saved.id } }), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [["[publish-credentials]", "INTERNAL_ERROR"], ["[publish-credentials]", "INTERNAL_ERROR"]]);
+});
+
+test("publish list still answers when the after-response account-label heal cannot load deploy targets", async t => {
+  const f = await fixture();
+  const logged = t.mock.method(console, "error", () => {});
+  let loads = 0;
+  const loadFailure = new Error("deploy target plugins unavailable");
+  // The list reads targets through the read ports bound at registration; only the heal that runs
+  // after the response re-reads `deps.loadDeployTargets`, so this failure can reach the heal alone.
+  f.ports.loadDeployTargets = async () => { loads++; throw loadFailure; };
+  const listed = await f.call("get", collection);
+  assert.equal(listed.statusCode, 200);
+  assert.deepEqual((listed.jsonBody as { credentials: Array<{ id: string }> }).credentials.map(c => c.id), [f.saved.id]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(loads, 1);
+  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [["[publish-credentials] account-label heal skipped: deploy targets could not be loaded", loadFailure]]);
+});
+
+test("publish create reports no verification when the new row vanished before it could be verified", async t => {
+  const f = await fixture();
+  // The save's compatibility invalidation runs between the write and its verification; from that
+  // point on, simulate a concurrent delete by making the vault inventory come back empty.
+  t.mock.method(f.cache, "delete", () => { t.mock.method(f.repo.vault, "list", async () => []); });
+  const created = await f.call("post", collection, { body: { label: "Second", worksFor: ["fixture"], connection: { providerId: "fixture", token: ["fixture", "second"].join("-") } } });
+  assert.equal(created.statusCode, 201, JSON.stringify(created.jsonBody));
+  assert.equal(Object.hasOwn(created.jsonBody as object, "verification"), false);
+  assert.equal((created.jsonBody as { credential: { label: string } }).credential.label, "Second");
+  assert.equal(f.probes(), 0);
 });

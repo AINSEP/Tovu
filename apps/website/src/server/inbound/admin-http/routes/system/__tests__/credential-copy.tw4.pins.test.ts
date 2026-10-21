@@ -3,6 +3,7 @@ import test from "node:test";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminCredentialCopyRoutes } from "../credential-copy.js";
+import { LocalCredentialCopyError } from "#src/server/runtime/composition/local-credential-copy";
 
 type Deps = Parameters<typeof registerAdminCredentialCopyRoutes>[0]["deps"];
 const path = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
@@ -80,4 +81,17 @@ test("copy selection pins every shape and length check before the injected trans
     const f = fixture(); assert.deepEqual((await f.request({ method: "post", body })).jsonBody, { results: [] });
     assert.deepEqual(f.calls[2], { ...body, actorId: "owner" });
   }
+});
+
+test("a transfer refusal is a 409 carrying its own reason, and any other failure a fixed 500 that never echoes the cause", async () => {
+  const refused = fixture();
+  refused.deps.localCredentialCopy.copy = async () => { throw new LocalCredentialCopyError({ reasonCode: "source-locked", message: "The source site is open in another window." }); };
+  assert.deepEqual(await refused.request({ method: "post", body: selection }), {
+    statusCode: 409, jsonBody: { reasonCode: "source-locked", message: "The source site is open in another window." },
+  });
+  const crashed = fixture();
+  crashed.deps.localCredentialCopy.list = async () => { throw new Error("sqlite: cannot open /private/source/vault.db with key material"); };
+  assert.deepEqual(await crashed.request({ method: "get" }), {
+    statusCode: 500, jsonBody: { reasonCode: "copy-failed", message: "Copying keys failed. Try again." },
+  });
 });
