@@ -35,6 +35,7 @@ import { useAppVersion } from './use-app-version.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { SitesFolders, SitesFoldersDialog } from './SitesFolders.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
+import { useSiteFolders } from './use-site-folders.hooks.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
@@ -77,17 +78,26 @@ function createImportSiteAction(
  * `typeof` the real hook is the annotation on purpose. A stub with the wrong return shape, or the
  * wrong arity, fails `npm run typecheck` rather than at assertion time — that type safety is most
  * of what injection buys.
+ *
+ * `useFolders` (the Projects header's own `SitesFolders`) and `useSiteSettings` (the Settings menu's
+ * "Sites settings…" dialog) are the two seams onto the sites-settings preload state. Both defaults
+ * end in Jini's `useAsyncAction` and its dialog shell, which a test of this component cannot render
+ * against its own React; threading them as props keeps every other default real.
  */
 export function App({
   useProjects = useSitesPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
+  useFolders = useSiteFolders,
+  useSiteSettings = useSiteStorageSettings,
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
+  useFolders?: typeof useSiteFolders;
+  useSiteSettings?: typeof useSiteStorageSettings;
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
@@ -151,6 +161,7 @@ export function App({
         onThemeChange={setTheme}
         onOpenAppearance={openAppearance}
         onSelectSection={selectSection}
+        useSiteSettings={useSiteSettings}
       />
       )}
 
@@ -190,6 +201,7 @@ export function App({
           adding={adding}
           addError={addError}
           onImportSite={importSite}
+          useFolders={useFolders}
         />
 
         <CreateWebsiteHost
@@ -324,6 +336,7 @@ function TopNav({
   onThemeChange,
   onOpenAppearance,
   onSelectSection,
+  useSiteSettings,
 }: {
   activeId: RunnerSectionId;
   onSitesHome: boolean;
@@ -332,6 +345,7 @@ function TopNav({
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
+  useSiteSettings: typeof useSiteStorageSettings;
 }) {
   const { version, error } = useAppVersion({});
   return (
@@ -366,7 +380,7 @@ function TopNav({
       </div>
 
       <div className="topnav__tools">
-        <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} />
+        <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} useSiteSettings={useSiteSettings} />
       </div>
     </nav>
   );
@@ -422,14 +436,16 @@ function SettingsControl({
   theme,
   onThemeChange,
   onOpenAppearance,
+  useSiteSettings,
 }: {
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
+  useSiteSettings: typeof useSiteStorageSettings;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
-  const sitesSettings = useSiteStorageSettings({});
+  const sitesSettings = useSiteSettings({});
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   const disabled = false;
@@ -991,6 +1007,7 @@ function MainArea({
   adding,
   addError,
   onImportSite,
+  useFolders,
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
@@ -1015,6 +1032,8 @@ function MainArea({
   addError: string | null;
   /** Absent when there is no site to import into, which hides the button. */
   onImportSite?: () => void;
+  /** The header's `SitesFolders` settings hook — see `App`'s own `useFolders`. */
+  useFolders: typeof useSiteFolders;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -1032,6 +1051,7 @@ function MainArea({
         onAddSite={onAddSite}
         adding={adding}
         onImportSite={onImportSite}
+        useFolders={useFolders}
       />
       <MainContent
         activeId={activeId}
@@ -1063,6 +1083,7 @@ function MainHeader({
   onAddSite,
   adding,
   onImportSite,
+  useFolders,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
@@ -1073,6 +1094,7 @@ function MainHeader({
   onAddSite: () => Promise<void>;
   adding: boolean;
   onImportSite?: () => void;
+  useFolders: typeof useSiteFolders;
 }) {
   return (
     <header className="main__head">
@@ -1085,7 +1107,7 @@ function MainHeader({
           <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
             {rescanning ? 'Scanning…' : 'Rescan'}
           </button>
-          <SitesFolders />
+          <SitesFolders useSettings={useFolders} />
           {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
               for websites that already exist. The difference is who chooses: Rescan looks under the
               scan roots automatically, this one asks the operator for one folder. Styled solid on

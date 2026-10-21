@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRequire } from 'node:module';
-import { act, createElement, useState, type ReactNode } from 'react';
+import { act, createElement, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerSectionId } from '../contracts/sections.js';
@@ -260,7 +260,7 @@ test('useProjectTabs: opening adds once and selects, remembers an admin page, an
 
 // ── useApplySiteRecord, useProjectMutations ─────────────────────────────────────────────────────
 
-function useProjectsWith<T>(initial: readonly SiteRecord[], useRest: (setProjects: (next: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => void, projects: readonly SiteRecord[]) => T) {
+function useProjectsWith<T>(initial: readonly SiteRecord[], useRest: (setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>, projects: readonly SiteRecord[]) => T) {
   const [projects, setProjects] = useState<readonly SiteRecord[]>(initial);
   return { projects, ...useRest(setProjects, projects) };
 }
