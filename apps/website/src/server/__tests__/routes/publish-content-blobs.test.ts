@@ -385,7 +385,7 @@ test("PUT .../blobs/:sha (direct invoke): missing params fall back safely, a bod
   let writes = 0;
   deps.blobStore.putIfAbsent = async () => {
     writes++;
-    return { written: true };
+    return { storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha }), written: true };
   };
   const oversized = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1).toString("base64");
   const tooBig = await invoke({ params: { workspaceId: WORKSPACE, sha }, body: { dataBase64: oversized } });

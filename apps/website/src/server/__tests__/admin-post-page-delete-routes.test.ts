@@ -435,7 +435,7 @@ test("DELETE post: reusing an Idempotency-Key on the delete route itself returns
 test("DELETE post: losing the trash compare-and-set (the row moved mid-delete) is a 409 ENTRY_CONFLICT", async (t) => {
   const { baseUrl, cookie, deps } = await startServerWithDeps(t);
   const { id } = await createRow(baseUrl, cookie, "posts", { title: "Moving target" });
-  deps.removePost = async () => ({ ok: false, reason: "version-conflict" });
+  deps.removePost = async () => ({ ok: false, reason: "version-changed" });
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${id}`, { method: "DELETE", headers: { cookie } });
   assert.equal(res.status, 409);
