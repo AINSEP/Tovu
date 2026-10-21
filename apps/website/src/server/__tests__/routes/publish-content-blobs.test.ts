@@ -8,7 +8,9 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS } from "#src/features/publish-content/blob-staging";
-import { computeBlobStorageKey } from "#src/features/media/index";
+import { computeBlobStorageKey, TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
+import { lastRouteHandler } from "../helpers/last-route-handler.js";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -309,4 +311,128 @@ test("POST .../blobs/probe 400s on a non-array / oversized / malformed shas payl
   assert.equal(oversized.status, 400);
   assert.deepEqual(await oversized.json(), { error: `at most ${PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS} shas are allowed per request` });
   assert.equal(existenceChecks, 0, "reject oversized valid-hash payloads before probing storage");
+});
+
+const BLOB_PATH = "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha";
+const PROBE_PATH = "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe";
+
+/** The seeded owner's real principal — what `requireAdminSession` would have put on `res.locals`
+ *  — for the direct-invoke tests below, which bypass the session middleware. */
+async function seededOwnerPrincipal(deps: ReturnType<typeof createRouteDeps>): Promise<unknown> {
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: WORKSPACE, username: "admin" });
+  assert.ok(ownerUser);
+  const principal = await deps.principalRepo.findById({ workspaceId: WORKSPACE, id: ownerUser.principalId });
+  assert.ok(principal);
+  return principal;
+}
+
+test("PUT .../blobs/:sha 400s on a missing, empty or non-string dataBase64", async (t) => {
+  const { server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  const sha = sha256Of("anything");
+
+  for (const body of [{}, { dataBase64: "" }, { dataBase64: 42 }]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(body),
+    });
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.deepEqual(await res.json(), { error: "dataBase64 is required and must be valid base64" });
+  }
+});
+
+test("PUT .../blobs/:sha 500s generically (no internals) when the blob store write fails", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  deps.blobStore.putIfAbsent = async () => {
+    throw new Error("EACCES: /var/private/blobs");
+  };
+  const bytes = Buffer.from("store will fail");
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/blobs/${sha256OfBytes(bytes)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ dataBase64: bytes.toString("base64") }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+});
+
+/** Express guarantees matched params and body-parser always assigns `req.body` (and a body over
+ *  the global JSON limit never reaches the handler), so these branches are driven with a hand-built
+ *  `req` past auth (extractRouteHandler's own doc). */
+test("PUT .../blobs/:sha (direct invoke): missing params fall back safely, a body-less request 400s, and an over-limit blob is 413 before any write", async () => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const principal = await seededOwnerPrincipal(deps);
+  const handler = extractRouteHandler(app, "put", BLOB_PATH);
+  const invoke = async (req: unknown) => {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = principal;
+    await handler(req, res);
+    return capture;
+  };
+
+  assert.deepEqual(await invoke({ params: {} }), { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(await invoke({ params: { workspaceId: WORKSPACE } }), { statusCode: 400, jsonBody: { error: "sha must be a lowercase 64-character hex sha256 digest" } });
+
+  const sha = sha256Of("body-less");
+  assert.deepEqual(await invoke({ params: { workspaceId: WORKSPACE, sha } }), { statusCode: 400, jsonBody: { error: "dataBase64 is required and must be valid base64" } });
+
+  let writes = 0;
+  deps.blobStore.putIfAbsent = async () => {
+    writes++;
+    return { written: true };
+  };
+  const oversized = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1).toString("base64");
+  const tooBig = await invoke({ params: { workspaceId: WORKSPACE, sha }, body: { dataBase64: oversized } });
+  assert.equal(tooBig.statusCode, 413);
+  assert.deepEqual(tooBig.jsonBody, { error: `blob exceeds the ${TOVU_MAX_UPLOAD_BYTES}-byte upload limit`, code: "PAYLOAD_TOO_LARGE" });
+  assert.equal(writes, 0);
+});
+
+test("POST .../blobs/probe 404s a foreign workspace, 400s an empty shas array, and 500s generically when the store fails", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const cookie = await loginAsOwner(baseUrl);
+  const probe = (workspace: string, body: unknown) =>
+    fetch(`${baseUrl}/api/admin/v1/workspaces/${workspace}/publish-content/blobs/probe`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(body),
+    });
+
+  const foreign = await probe("other-workspace", { shas: [sha256Of("x")] });
+  assert.equal(foreign.status, 404);
+  assert.deepEqual(await foreign.json(), { error: "workspace was not found" });
+
+  const empty = await probe(WORKSPACE, { shas: [] });
+  assert.equal(empty.status, 400);
+  assert.deepEqual(await empty.json(), { error: "shas must be a non-empty array of sha256 hex digests" });
+
+  deps.blobStore.exists = async () => {
+    throw new Error("store offline");
+  };
+  const failed = await probe(WORKSPACE, { shas: [sha256Of("y")] });
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: "internal error" });
+});
+
+test("POST .../blobs/probe (direct invoke): a missing :workspaceId 404s and a body-less request is the shas 400", async () => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const principal = await seededOwnerPrincipal(deps);
+  const handler = lastRouteHandler(app, "post", PROBE_PATH);
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {} }, noWorkspace.res);
+  assert.deepEqual(noWorkspace.capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+
+  const noBody = createCapturingResponse();
+  noBody.res.locals.principal = principal;
+  await handler({ params: { workspaceId: WORKSPACE } }, noBody.res);
+  assert.deepEqual(noBody.capture, { statusCode: 400, jsonBody: { error: "shas must be a non-empty array of sha256 hex digests" } });
 });

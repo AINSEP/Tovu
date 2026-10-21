@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { lastRouteHandler } from "./route-handler.js";
+import { lastRouteHandler } from "#src/server/__tests__/helpers/last-route-handler";
 
 /**
  * @file `POST /api/admin/v1/workspaces/:workspaceId/posts` (`routes/posts/create.ts`) — the error
@@ -109,7 +109,7 @@ test("create post: replaying an Idempotency-Key is a 409 DUPLICATE_COMMAND namin
 
 /** Express guarantees a matched `:workspaceId` and body-parser always assigns `req.body`, so the
  *  `?? ""` / `req.body?.` fallbacks are only reachable via a hand-built `req` (see
- *  `route-handler.ts`). */
+ *  `helpers/last-route-handler.ts`). */
 test("create post (direct invoke): a missing :workspaceId 404s; a body-less request creates an \"Untitled\" draft", async () => {
   const deps = createRouteDeps();
   await deps.identityReady;

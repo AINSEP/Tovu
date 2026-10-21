@@ -9,7 +9,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { PostAutosaveSnapshot } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
-import { lastRouteHandler } from "./route-handler.js";
+import { lastRouteHandler } from "#src/server/__tests__/helpers/last-route-handler";
 
 /**
  * @file HTTP surface for standing-draft autosave (2026-09-06 dispatch) — PUT/GET/DELETE
