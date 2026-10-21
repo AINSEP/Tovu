@@ -69,3 +69,25 @@ test('an unregistered store still defaults safely, and native-clock writes persi
   await createCommentsSelectionStore(deps).compareAndSet({ siteId: 's', providerId: 'built-in', expectedRevision: 0, actorPrincipalId: 'owner' });
   assert.equal((await createCommentsSelectionStore(deps).read({ siteId: 's' })).providerId, 'built-in');
 });
+
+test('boot guard: a stored provider that is not registered reads as built-in without rewriting the row', async () => {
+  const f = await fixture();
+  const store = createCommentsSelectionStore(f.deps);
+  await store.compareAndSet({ siteId: 's', providerId: 'vendor-gone', expectedRevision: 0, actorPrincipalId: 'owner' });
+  const raw = await store.read({ siteId: 's' });
+  assert.equal(raw.providerId, 'vendor-gone');
+  const runtime = createCommentsCapability({ siteId: 's', module: f.module, commentsReady: Promise.resolve(), settingsReady: Promise.resolve(), settings: f.deps });
+  const active = await runtime.providers.active({ siteId: 's' });
+  assert.deepEqual([active.providerId, active.revision, active.adapter?.kind], ['built-in', raw.revision, 'stored']);
+  assert.equal((await store.read({ siteId: 's' })).providerId, 'vendor-gone', 'the guard never writes');
+  await runtime.providers.select({ siteId: 's', providerId: null, expectedRevision: raw.revision, actorPrincipalId: 'owner' });
+  assert.equal((await runtime.providers.active({ siteId: 's' })).providerId, null, 'an explicit disable is not overridden');
+});
+
+test('a stored value that is not a provider id string (cleared or malformed row) reads as built-in, keeping its revision', async () => {
+  const f = await fixture();
+  for (const row of [{ state: 'set', valueJson: 7, seq: 4 }, { state: 'unset', valueJson: null, seq: 5 }]) {
+    const settingsRepo = Object.assign(Object.create(f.deps.settingsRepo), { getWorkspaceValue: async () => row });
+    assert.deepEqual(await createCommentsSelectionStore({ ...f.deps, settingsRepo }).read({ siteId: 's' }), { providerId: 'built-in', revision: row.seq });
+  }
+});

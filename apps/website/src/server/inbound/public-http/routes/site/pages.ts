@@ -2631,7 +2631,7 @@ class ListingBatchNotFoundError extends Error {}
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch"> {
   const listingBatch = listingBatchRequests.get(req);
-  const commentsCursor = typeof req.query.commentCursor === 'string' ? req.query.commentCursor : undefined;
+  const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   return { ...deps, listingBatch, commentsCursor };
 }
 

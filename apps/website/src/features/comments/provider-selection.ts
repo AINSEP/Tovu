@@ -63,7 +63,17 @@ export function createCommentsCapability(required: {
   siteId: string; module: { commentRepo: CommentRepoPort; ingressPolicy: CommentIngressPolicy; writeService: CommentWriteService };
   commentsReady: Promise<void>; settingsReady: Promise<void>; settings: SetCommentsSettingsDeps;
 }, _options = {}) {
-  const providers = createCommentsProviderRegistry({ selections: createCommentsSelectionStore(required.settings) });
+  const store = createCommentsSelectionStore(required.settings);
+  // Boot guard: a stored choice naming a provider that is not registered in this process (a vendor
+  // plugin turned off or removed later) must not hide this site's stored comments or strand its queue,
+  // so it reads as built-in. Nothing is rewritten: the CAS revision is the stored row's, and selecting
+  // again records an explicit choice. An explicit disable (null) stays disabled.
+  const selections: CommentsSelectionStorePort = { ...store, async read(input) {
+    const current = await store.read(input);
+    return current.providerId !== null && !providers.has({ providerId: current.providerId })
+      ? { ...current, providerId: BUILTIN_COMMENTS_PROVIDER_ID } : current;
+  } };
+  const providers = createCommentsProviderRegistry({ selections });
   const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
   const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
     writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });

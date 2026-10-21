@@ -157,15 +157,17 @@ function seedComment(overrides: Partial<CommentRecord> = {}): CommentRecord {
 // 1. The catalog is complete and honest about what Comments can do
 // ---------------------------------------------------------------------------
 
-test("exactly the 8 designed Comments tools are wired — no invented purge tool", async () => {
+test("exactly the 8 designed Comments tools plus the provider pair are wired — no invented purge tool", async () => {
   const { deps } = await fakeRouteDeps();
   assert.deepEqual(
     [...commentsRegistrations(deps).keys()].sort(),
     [
       "comments_approve_comment",
+      "comments_get_provider",
       "comments_get_settings",
       "comments_mark_comment_spam",
       "comments_restore_comment",
+      "comments_set_provider",
       "comments_trash_comment",
       "comments_update_settings",
       "content_read.comment",

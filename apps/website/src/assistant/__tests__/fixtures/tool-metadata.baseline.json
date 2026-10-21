@@ -27,6 +27,8 @@
     "trash_empty": "empty clear trash bin recycle permanently purge everything all deleted items forever erase",
     "trash_purge_item": "purge one item trash trashed permanently delete deleted post page remove forever erase",
     "media_purge_asset": "permanently delete purge erase media asset assets image images photo photos picture pictures file files forever",
+    "comments_get_provider": "comments provider built-in active readiness pending",
+    "comments_set_provider": "comments provider select switch disable built-in",
     "comments_purge_comment": "permanently delete purge erase comment comments spam forever remove",
     "identity_user_delete": "permanently delete purge erase user users account accounts trashed forever remove",
     "external_mcp_delete": "delete permanently remove erase external mcp server servers connection connections integration integrations saved",
@@ -521,6 +523,12 @@
       "Erase the trashed photo forever.",
       "Purge a media asset from my library.",
       "Remove this image permanently after confirmation."
+    ],
+    "comments_get_provider": [
+      "Where do my comments live?"
+    ],
+    "comments_set_provider": [
+      "Switch my comments provider."
     ],
     "comments_purge_comment": [
       "Permanently delete this comment.",
@@ -2201,6 +2209,14 @@
       "class": "edit",
       "confirmation": "direct"
     },
+    "comments_get_provider": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "comments_set_provider": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
     "comments_approve_comment": {
       "class": "edit",
       "confirmation": "direct"
@@ -3357,7 +3373,8 @@
     "widgets_trash_instance",
     "plugin_source_delete",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "comments_set_provider"
   ],
   "secretForms": {
     "credential_save": {
@@ -3443,7 +3460,8 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "comments_set_provider"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3496,7 +3514,8 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "comments_set_provider"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,
