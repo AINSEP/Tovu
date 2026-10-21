@@ -156,7 +156,7 @@ describe("screen states", () => {
     const delivered: AdminWebhookSubscription = {
       ...SUBSCRIPTION,
       id: "sub2",
-      label: "Delivered",
+      label: "Release hook",
       lastDelivery: {
         id: "del1",
         status: "delivered",
@@ -168,10 +168,10 @@ describe("screen states", () => {
       },
     };
     renderWithPort(createFakeIntegrationsPort({ subscriptions: [SUBSCRIPTION, delivered] }));
-    await screen.findByText("Delivered");
+    await screen.findByRole("link", { name: "Release hook" });
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows[0]!.querySelector(".muted-cell")).toHaveTextContent("never");
-    expect(rows[1]!.querySelector(".status-delivery-delivered")).not.toBeNull();
+    expect(rows[1]!.querySelector(".status-delivery-delivered")).toHaveTextContent("Delivered");
   });
 });
 
