@@ -209,7 +209,9 @@ const PLUGINS_REMOVE_NOTE_IDS = {
 /** Installed: the enabled rows, or an honest empty note when none are. */
 function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
   const { t } = controller;
-  const installedPlugins = filterInstalledPlugins(plugins) ?? [];
+  // `plugins` is the loaded (non-null) list here, so `filterInstalledPlugins`' non-null overload
+  // applies — no `?? []` fallback for a null it can never return.
+  const installedPlugins = filterInstalledPlugins(plugins);
   if (installedPlugins.length === 0) {
     return (
       <div className="card">

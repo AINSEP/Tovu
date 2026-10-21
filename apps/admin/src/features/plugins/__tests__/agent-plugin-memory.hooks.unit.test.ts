@@ -120,3 +120,44 @@ test('a save status from a previous plugin is hidden while the next plugin loads
   await act(async () => { finish(listing('second', 'Second')); await pending; });
   await waitFor(() => expect(result.current.status).toBeNull());
 });
+
+test('choosing a note file loads that file into the editor, and a new path starts empty', async () => {
+  const state: PluginMemoryListing = { ...listing('example', 'Project text'), notes: [
+    { relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand text' }] };
+  const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async () => state };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await waitFor(() => expect(result.current.text).toBe('Project text'));
+  act(() => result.current.setPath('brand.md'));
+  expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Brand text' });
+  act(() => result.current.setPath('new-file.md'));
+  expect(result.current).toMatchObject({ entryPath: 'new-file.md', text: '' });
+});
+
+test('save does nothing before the first read has filled the editor', async () => {
+  const calls: unknown[] = [];
+  const port: AgentPluginMemoryPort = { read: () => new Promise(() => {}), saveNote: async (input) => { calls.push(input); return listing('example', ''); } };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await act(async () => { await result.current.save(); });
+  expect(calls).toEqual([]);
+  expect(result.current.editorDisabled).toBe(true);
+});
+
+test.each(['resolves', 'rejects'] as const)('a save that %s after switching plugins reports nothing on the new plugin', async (outcome) => {
+  let settle!: () => void;
+  const port: AgentPluginMemoryPort = {
+    read: async ({ pluginId }) => listing(pluginId, `${pluginId} note`),
+    saveNote: ({ pluginId }) => new Promise((resolve, reject) => {
+      settle = () => (outcome === 'resolves' ? resolve(listing(pluginId, 'saved')) : reject(new Error('disk full')));
+    }),
+  };
+  const { result, rerender } = renderHook(({ pluginId }) => useAgentPluginMemory({ pluginId, port, t }), { initialProps: { pluginId: 'first' } });
+  await waitFor(() => expect(result.current.text).toBe('first note'));
+  let saving!: Promise<void>;
+  act(() => { saving = result.current.save(); });
+  rerender({ pluginId: 'second' });
+  await waitFor(() => expect(result.current.text).toBe('second note'));
+  await act(async () => { settle(); await saving; });
+  expect(result.current.status).not.toBe('Note saved.');
+  expect(result.current.status).not.toBe('Could not save note.');
+  expect(result.current.text).toBe('second note');
+});
