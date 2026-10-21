@@ -221,7 +221,8 @@ test("READ-ONLY: the refusal is reported, not swallowed — the caller gets the 
   // The original failure survives in full: the loop's standing contract.
   const output = result.output as { status?: string; authDiagnostic?: { remedyToolId?: string }; credentialSetup?: { setupToolId?: string } };
   assert.equal(output.status, "invalid", "the verify result itself must come back untouched");
-  assert.equal(output.authDiagnostic?.remedyToolId, SET_USERNAME_TOOL_ID);
+  // why: 046886cd reduced authDiagnostic to auth facts (no username remedy pointer); credential setup is the remedy.
+  assert.deepEqual(Object.keys(output.authDiagnostic ?? {}).sort(), ["schemeSent", "usernameStored"]);
   assert.equal(output.credentialSetup?.setupToolId, SET_TOKEN_TOOL_ID);
 
   // ...and the caller is told the recovery was declined, and what to do instead.
