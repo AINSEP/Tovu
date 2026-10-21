@@ -4,7 +4,8 @@ import { readRequestConsentChoices } from "@jini-ai/cms/consent/express";
 
 import { loadAnalyticsProviders } from "#src/features/agent-plugins/analytics-provider-registry";
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
-import { cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "#src/features/analytics/forwarding";
+import type { AnalyticsForwarderCredential } from "@jini-ai/analytics";
+import { ANALYTICS_PROVIDERS_TTL_MS, cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "#src/features/analytics/forwarding";
 import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -19,7 +20,7 @@ import { createSiteConsentPorts } from "../../inbound/public-http/middleware/sit
  */
 
 /**
- * The real root's `analyticsProviders`: plugin providers (cached), vendor credentials from the
+ * The real root's `analyticsProviders`: plugin providers and vendor credentials (both cached per TTL) from the
  * custom-credential store, and the guarded egress client adapted to the engine's object-shaped port.
  * @complexity O(1) at build; loads are lazy and cached.
  */
@@ -35,13 +36,25 @@ export function buildAnalyticsProviders(
   _optional: Record<string, never> = {},
 ): NonNullable<RouteDeps["analyticsProviders"]> {
   const { workspaceId, loadContributions, clock, findCredential, httpClient } = required;
+  const resolve = async (label: string): Promise<AnalyticsForwarderCredential | null> => {
+    const resolved = await findCredential({ workspaceId, label });
+    if (!resolved) return null;
+    const { token, username } = resolved.connection;
+    return { token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+  };
+  // A beacon is high-volume: decrypt a vendor key at most once per TTL per label. A rotated key
+  // takes effect within the TTL; a failed lookup is not cached (the next beacon retries).
+  const credentials = new Map<string, { at: number; value: Promise<AnalyticsForwarderCredential | null> }>();
   return {
     load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId }, { loadContributions }), clock }),
-    resolveCredential: async ({ label }) => {
-      const resolved = await findCredential({ workspaceId, label });
-      if (!resolved) return null;
-      const { token, username } = resolved.connection;
-      return { token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+    resolveCredential: ({ label }) => {
+      const now = clock.nowMs();
+      const hit = credentials.get(label);
+      if (hit && now - hit.at < ANALYTICS_PROVIDERS_TTL_MS) return hit.value;
+      const value = resolve(label);
+      credentials.set(label, { at: now, value });
+      value.catch(() => { if (credentials.get(label)?.value === value) credentials.delete(label); });
+      return value;
     },
     httpClient: { send: ({ request }) => httpClient.send(request) },
   };

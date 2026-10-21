@@ -73,3 +73,48 @@ test("analyticsProviderRouteDeps: forwards to the selected vendor through the co
   const noRegion = analyticsProviderRouteDeps({ ...deps, consentTrustedRegionHeader: undefined } as never);
   assert.equal((await noRegion.forwarders!({ request })).length, 1);
 });
+
+test("buildAnalyticsProviders: credentials are cached per label for the TTL; failures are retried", async () => {
+  let now = 0;
+  let lookups = 0;
+  let fail = true;
+  const providers = buildAnalyticsProviders({
+    workspaceId: "ws-1", loadContributions: emptyLoad as never, clock: { nowMs: () => now },
+    findCredential: async () => { lookups++; if (fail) throw new Error("vault locked"); return { baseUrl: "https://v.example", connection: { token: "k" } }; },
+    httpClient: { send: async () => { throw new Error("unused"); } },
+  });
+  await assert.rejects(providers.resolveCredential({ label: "GA4" }), /vault locked/);
+  await Promise.resolve();
+  fail = false;
+  const first = await providers.resolveCredential({ label: "GA4" });
+  assert.equal(lookups, 2, "a failed lookup is not cached");
+  now = 59_999;
+  assert.equal(await providers.resolveCredential({ label: "GA4" }), first);
+  assert.equal(lookups, 2);
+  await providers.resolveCredential({ label: "other" });
+  assert.equal(lookups, 3, "cached per label");
+  now = 60_000;
+  await providers.resolveCredential({ label: "GA4" });
+  assert.equal(lookups, 4);
+});
+
+test("buildAnalyticsProviders: a late failure never evicts a newer cached credential", async () => {
+  let now = 0;
+  let calls = 0;
+  let rejectFirst!: (e: Error) => void;
+  const providers = buildAnalyticsProviders({
+    workspaceId: "ws-1", loadContributions: emptyLoad as never, clock: { nowMs: () => now },
+    findCredential: () => {
+      calls++;
+      return calls === 1 ? new Promise((_, reject) => { rejectFirst = reject; }) : Promise.resolve({ baseUrl: "https://v.example", connection: { token: "k" } });
+    },
+    httpClient: { send: async () => { throw new Error("unused"); } },
+  });
+  const stale = providers.resolveCredential({ label: "GA4" });
+  now = 70_000;
+  const fresh = await providers.resolveCredential({ label: "GA4" });
+  rejectFirst(new Error("late"));
+  await assert.rejects(stale, /late/);
+  assert.equal(await providers.resolveCredential({ label: "GA4" }), fresh);
+  assert.equal(calls, 2);
+});
