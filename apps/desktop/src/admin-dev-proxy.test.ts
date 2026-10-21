@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import type { TestContext } from "node:test";
 
-import { adminDevProxyCandidates, resolveAdminDevProxyUrl, DEFAULT_VITE_PORT } from "./admin-dev-proxy.ts";
+import { adminDevProxyCandidates, resolveAdminDevProxyUrl, DEFAULT_VITE_PORT, PROBE_TIMEOUT_MS } from "./admin-dev-proxy.ts";
 import { buildServeEnv } from "./tovu-server.ts";
 
 const REPO_ROOT = "/Users/someone/Programming/Tovu";
@@ -108,4 +108,41 @@ test("the dev proxy does not disturb the admin/site-chat dist variables the same
   assert.equal(env.TOVU_ADMIN_DIST, "/prebuilt/admin");
   assert.equal(env.TOVU_SITE_CHAT_DIST, "/prebuilt/site-chat");
   assert.equal(env.TOVU_ADMIN_DEV_PROXY_URL, "https://localhost:5173");
+});
+
+test("resolve returns null for an operator-set origin that is not a URL, without sending any request", async () => {
+  let probed = false;
+  const requestFn = () => {
+    probed = true;
+    throw new Error("an unparseable origin must never reach the request function");
+  };
+  assert.equal(await resolveAdminDevProxyUrl({ isPackaged: false, env: { TOVU_ADMIN_DEV_PROXY_URL: "not a url" }, requestFn }), null);
+  assert.equal(probed, false);
+});
+
+test("a probe that times out is destroyed and counts as not-ready, so a hung port cannot stall the launch", async () => {
+  let destroyed = 0;
+  let timeoutOption: unknown;
+  const requestFn = (options: { timeout?: number }) => {
+    timeoutOption = options.timeout;
+    const req = new EventEmitter();
+    return Object.assign(req, {
+      end() { queueMicrotask(() => req.emit("timeout")); },
+      destroy() {
+        destroyed += 1;
+        // A destroyed ClientRequest reports the abort as an error, which is what settles the probe.
+        queueMicrotask(() => req.emit("error", new Error("socket hang up")));
+      },
+    }) as unknown as ClientRequest;
+  };
+  const resolved = await resolveAdminDevProxyUrl({ isPackaged: false, env: { TOVU_ADMIN_DEV_PROXY_URL: "http://127.0.0.1:5173" }, requestFn });
+  assert.equal(resolved, null);
+  assert.equal(destroyed, 1);
+  assert.equal(timeoutOption, PROBE_TIMEOUT_MS);
+});
+
+test("an https origin is probed over TLS by default, so a plain-http listener on that port is not mistaken for Vite", async (t) => {
+  const port = await listeningServer(t);
+  const resolved = await resolveAdminDevProxyUrl({ isPackaged: false, env: { TOVU_ADMIN_DEV_PROXY_URL: `https://127.0.0.1:${port}` } });
+  assert.equal(resolved, null);
 });
