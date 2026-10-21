@@ -13,6 +13,7 @@
  */
 import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { processOutbox } from "../../contracts/core/events/index.js";
+import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { MailerPort } from "../../platform/mail/index.js";
 import { transitionCampaignStatus } from "./campaign.js";
 import {
@@ -280,13 +281,11 @@ export async function dispatchRow(required: {
   if (result.ok) {
     return { outcome: "sent", providerMessageId: result.providerMessageId, error: null };
   }
-  // A rate limit is back-pressure, not a failure: the row stays pending for the retried batch.
-  if (result.errorCode === MAIL_RATE_LIMITED) return { outcome: "deferred", providerMessageId: null, error: result.message, retryAfterMs: result.retryAfterMs ?? DEFAULT_DEFER_MS };
+  // A rate limit is back-pressure, not a failure: the row stays pending for the retried batch. The
+  // shared code covers the local token bucket AND provider throttling (adapters normalize a 429 to it).
+  if (isMailRateLimited({ result })) return { outcome: "deferred", providerMessageId: null, error: result.message, retryAfterMs: result.retryAfterMs ?? DEFAULT_DEFER_MS };
   return { outcome: "failed", providerMessageId: null, error: result.message };
 }
-
-/** Delivery policy refusal code for an exhausted provider token bucket (retryable). */
-const MAIL_RATE_LIMITED = "MAIL_RATE_LIMITED";
 
 /**
  * RFC 8058 one-click headers for one recipient: the signed, origin-anchored link from

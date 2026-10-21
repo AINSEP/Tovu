@@ -69,24 +69,43 @@ function isRetryableStatus(status) {
   return status === 429 || status === 409 || status >= 500;
 }
 
+/** Shared mail contract's throttling code (`@jini-ai/platform/mail` `MAIL_RATE_LIMITED`); a literal,
+ * since an installed plugin has no npm imports. Callers defer it instead of failing the recipient. */
+const MAIL_RATE_LIMITED = "MAIL_RATE_LIMITED";
+
+/** A non-empty string field of a parsed body, else the fallback. @param {unknown} value @param {string} fallback */
+function nonEmpty(value, fallback) {
+  return typeof value === "string" && value !== "" ? value : fallback;
+}
+
 /**
  * Resend's error body is `{statusCode, message, name}`; `name` becomes `errorCode`. A non-JSON body
  * (a proxy error page) still yields a usable result. Never throws.
- * A 429 carries Resend's `Retry-After` as `retryAfterMs` so the caller backs off for that long.
+ * @param {number} status @param {string} bodyText @returns {{ errorCode: string, message: string }}
+ */
+function parseErrorBody(status, bodyText) {
+  const fallback = { errorCode: `HTTP_${status}`, message: bodyText || `Resend responded with HTTP ${status}` };
+  try {
+    const parsed = JSON.parse(bodyText);
+    return { errorCode: nonEmpty(parsed?.name, fallback.errorCode), message: nonEmpty(parsed?.message, fallback.message) };
+  } catch {
+    // Non-JSON body: keep the raw text above.
+    return fallback;
+  }
+}
+
+/**
+ * Maps a non-2xx response to a send result. Never throws.
+ * A 429 carries Resend's `Retry-After` as `retryAfterMs` so the caller backs off for that long, and is
+ * normalized to {@link MAIL_RATE_LIMITED} (Resend's own name kept in the message) so it is deferred,
+ * not recorded as a failed recipient.
  * @param {number} status @param {string} bodyText @param {Readonly<Record<string, string>>} [headers] @returns {SendResult}
  */
 function classifyError(status, bodyText, headers) {
-  let errorCode = `HTTP_${status}`;
-  let message = bodyText || `Resend responded with HTTP ${status}`;
-  try {
-    const parsed = JSON.parse(bodyText);
-    if (typeof parsed?.name === "string" && parsed.name !== "") errorCode = parsed.name;
-    if (typeof parsed?.message === "string" && parsed.message !== "") message = parsed.message;
-  } catch {
-    // Non-JSON body: keep the raw text above.
-  }
-  const wait = status === 429 ? retryAfterMs(headers) : undefined;
-  return { ok: false, retryable: isRetryableStatus(status), errorCode, message, ...(wait === undefined ? {} : { retryAfterMs: wait }) };
+  const { errorCode, message } = parseErrorBody(status, bodyText);
+  if (status !== 429) return { ok: false, retryable: isRetryableStatus(status), errorCode, message };
+  const wait = retryAfterMs(headers);
+  return { ok: false, retryable: true, errorCode: MAIL_RATE_LIMITED, message: `${message} (${errorCode})`, ...(wait === undefined ? {} : { retryAfterMs: wait }) };
 }
 
 /** Builds the mailer from a saved credential. @param {CreateContext} context */

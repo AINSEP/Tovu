@@ -311,6 +311,19 @@ async function deferralRig(mailer: ReturnType<typeof makeMailer>) {
   return rig;
 }
 
+test("handleSendBatchClaimed: provider throttling (Resend 429, normalized by the adapter) is deferred with the provider's delay, not failed", async () => {
+  const { default: resend } = await import("../../../../../../content/agent-plugins/resend/adapters/resend.mjs" as string) as { default: { create: (context: unknown) => MailerPort } };
+  const httpClient = { send: async () => ({ status: 429, bodyText: '{"name":"rate_limit_exceeded","message":"Too many requests"}', headers: { "retry-after": "1" } }) };
+  const rig = await deferralRig(resend.create({ credential: { token: "t" }, kit: { httpClient } }) as ReturnType<typeof makeMailer>);
+  const slept: number[] = [];
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  assert.deepEqual(slept.slice(0, 2), [1000, 1000], "the provider's Retry-After is the wait");
+  const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
+  assert.equal(row?.status, "pending", "a throttled recipient is not a failed one");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.counters.failed, 0);
+  assert.equal(rig.outbox.records.length, 1, "rescheduled");
+});
+
 test("handleSendBatchClaimed: a quota hint longer than the row lease schedules the continuation at the hint", async () => {
   const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "429", retryAfterMs: 10 * 60 * 1000 })));
   await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async () => assert.fail("a 10 minute hint is never waited inline") }, job: makeJob() });

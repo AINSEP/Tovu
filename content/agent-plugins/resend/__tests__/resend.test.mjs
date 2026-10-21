@@ -211,7 +211,10 @@ test('send posts to /emails with the idempotency key and maps success, errors an
   assert.equal((await plain.send({ to: { email: 'a@x.test' }, from: { email: 's@x.test' }, subject: 'S' }, { idempotencyKey: 'k2', timeoutMs: 5 })).providerMessageId, 'k2');
 
   const limited = resend.create({ credential: { token: 't' }, kit: { httpClient: sendClient({ status: 429, bodyText: '{"name":"rate_limit_exceeded","message":"slow down"}', headers: { 'retry-after': '1' } }) } });
-  assert.deepEqual(await limited.send(MESSAGE, { idempotencyKey: 'k' }), { ok: false, retryable: true, errorCode: 'rate_limit_exceeded', message: 'slow down', retryAfterMs: 1000 });
+  // Throttling is normalized to the shared mail contract's code so every caller defers it; the provider's name stays in the message.
+  assert.deepEqual(await limited.send(MESSAGE, { idempotencyKey: 'k' }), { ok: false, retryable: true, errorCode: 'MAIL_RATE_LIMITED', message: 'slow down (rate_limit_exceeded)', retryAfterMs: 1000 });
+  const bare = resend.create({ credential: { token: 't' }, kit: { httpClient: sendClient({ status: 429, bodyText: '' }) } });
+  assert.deepEqual(await bare.send(MESSAGE, { idempotencyKey: 'k' }), { ok: false, retryable: true, errorCode: 'MAIL_RATE_LIMITED', message: 'Resend responded with HTTP 429 (HTTP_429)' });
   const invalid = resend.create({ credential: { token: 't' }, kit: { httpClient: sendClient({ status: 422, bodyText: '' }) } });
   assert.deepEqual(await invalid.send(MESSAGE, { idempotencyKey: 'k' }), { ok: false, retryable: false, errorCode: 'HTTP_422', message: 'Resend responded with HTTP 422' });
   const empty = resend.create({ credential: { token: 't' }, kit: { httpClient: sendClient({ status: 500, bodyText: '{"name":"","message":""}' }) } });
