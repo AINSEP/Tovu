@@ -20,7 +20,9 @@ const RETIRED = [...FOLDED, "oauth_pending_authorizations"];
 const COMMERCE = ["commerce_order_items", "commerce_orders", "commerce_prices", "commerce_product_images", "commerce_products", "commerce_webhook_events"];
 /** Later migrations' tables, pinned by name (a8bce53c8 0018, 6bee1800b 0019): three are copied; the receiver
  * pull lease is left out and joins the exclusion list (`database-transfer/exclusions.ts` says why). */
-const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submission_remote_receipts"];
+const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submission_remote_receipts",
+  // why: d2126748 0021 adds raw-SQL consent policy tables (no visitor data); a transfer copies them by introspection.
+  "site_consent_heads", "site_consent_revisions"];
 const LATER_EXCLUDED = ["form_receiver_pulls"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();

@@ -36,6 +36,15 @@ const SQLITE_ONLY: ReadonlyMap<string, string> = new Map([
   ["post_search_fts", "FTS5 virtual table"],
 ]);
 
+/** Tables a migration owns as raw SQL on both dialects, with no Drizzle declaration, so the
+ *  reference database (built from `schema.postgres.ts`) and the generated types never hold them.
+ *  Same list and reasons as `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`. */
+const RAW_SQL_MANAGED: ReadonlyMap<string, string> = new Map([
+  // why: d2126748 (ADR-066 step 0021) added these after this test; the consent SQL contract tests pin their columns.
+  ["site_consent_revisions", "ADR-066 step 0021: immutable consent policy snapshots"],
+  ["site_consent_heads", "ADR-066 step 0021: atomic draft/published pointers"],
+]);
+
 /** Which SQLite declared types can hold each generated TypeScript type. */
 function sqliteHolds(tsType: string, sqliteType: string): boolean {
   const base = tsType.replace(/^Generated<(.*)>$/, "$1").replace(/ \| null$/, "");
@@ -82,7 +91,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
   for (const table of tables) {
     const expected = generated.get(pascal(table));
     if (expected === undefined) {
-      if (!SQLITE_ONLY.has(table) && !table.startsWith("post_search_fts_")) problems.push(`${table}: SQLite only, not named in SQLITE_ONLY`);
+      if (!SQLITE_ONLY.has(table) && !RAW_SQL_MANAGED.has(table) && !table.startsWith("post_search_fts_")) problems.push(`${table}: SQLite only, not named in SQLITE_ONLY`);
       continue;
     }
     seen.add(pascal(table));
