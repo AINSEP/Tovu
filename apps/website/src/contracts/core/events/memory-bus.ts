@@ -52,7 +52,9 @@ export class InMemoryEventBus implements EventBusPort {
     this.handlers.set(eventName, list);
 
     return async () => {
-      const current = this.handlers.get(eventName) ?? [];
+      // `subscribe` set this key above and nothing ever deletes a key from `handlers` (unsubscribing
+      // replaces the list with a filtered copy), so the list is always present here.
+      const current = this.handlers.get(eventName) as Array<(event: DomainEvent) => Promise<void>>;
       this.handlers.set(
         eventName,
         current.filter((h) => h !== (handler as (event: DomainEvent) => Promise<void>))
