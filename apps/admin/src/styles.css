@@ -382,7 +382,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* D-31: the FAB also overlays list actions at 800px. A scrollable spacer lets the last row clear
    it without forcing a short flex pane taller than the viewport. Sheet-specific rules below
    override this on phones. Fixed-height settings panels need their own scroll clearance. Skills
-   is excluded: it reuses `.settings-ui-section` but sits in page flow at natural height
+   (and Agent Plugins, AP-3) is excluded: it reuses `.settings-ui-section` but sits in page flow at natural height
    (`skills.css`, D-32), so the spacer above already clears it — a second 88px pushed its footer
    note away from the list. The spacer stays when the dock is open: the FAB is gone then, but the
    scroll ↑/↓ pair still sits in the column's corner and would cover the last row. */
@@ -390,7 +390,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .admin-content::after {
     content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance);
   }
-  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page) .jini-tabbed-dialog-content {
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content {
     padding-bottom: var(--assistant-clearance);
   }
 }
@@ -1749,10 +1749,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     padding-bottom: calc(var(--assistant-clearance) + env(safe-area-inset-bottom, 0px));
   }
   .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content::after { display: none; }
-  /* Same clearance for the fixed-height tab panels that scroll on their own (Settings, Agent
-     plugins): their last rows sat under the FAB at the panel's own max scroll, which the spacer
+  /* Same clearance for the fixed-height tab panels that scroll on their own (Settings; Agent
+     Plugins is page flow since AP-3): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
-  .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page) .jini-tabbed-dialog-content { padding-bottom: 88px; }
+  .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page, .agent-plugins-section) .jini-tabbed-dialog-content { padding-bottom: 88px; }
 
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
@@ -3824,6 +3824,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .agent-plugins-section .jini-tabbed-dialog-content {
   padding-inline: 0;
 }
+
+/* AP-3, all widths (2026-10-21, owner report: the Installed list was cut off around "Render").
+   This was phone-only; on desktop the fixed-height shell kept its own nested scroller, which
+   showed the list cut mid-row at the panel's bottom edge with the page scrolling only its 88px
+   spacer — the two-scroller trap the `--page-flow` block documents. Same release Skills uses
+   (D-32): every shell layer takes its content height and `.admin-content` is the one scroller. */
+.settings-ui-section.agent-plugins-section,
+.agent-plugins-section .jini-tabbed-dialog,
+.agent-plugins-section .jini-tabbed-dialog-body,
+.agent-plugins-section .jini-tabbed-dialog-content {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+.agent-plugins-section .jini-tabbed-dialog,
+.agent-plugins-section .jini-tabbed-dialog-content { overflow: visible; overscroll-behavior: auto; }
 
 /* The "Add a plugin" and "Marketplace" tabs' "Soon" tags (`add-plugin-tab-soon.ts`), carried as each
    tab's `navHint` since `@jini-ai/ui`'s tab has no tag slot. This screen uses nav hints for nothing
@@ -6582,17 +6598,8 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
      `@container admin-content` block right after this one (2026-10-11) — they are "the pane is
      narrow" layout rules, not touch rules. */
 
-  /* AP-3: the page owns phone scrolling; release every fixed-height shell layer together. */
-  .settings-ui-section.agent-plugins-section,
-  .agent-plugins-section .jini-tabbed-dialog,
-  .agent-plugins-section .jini-tabbed-dialog-body,
-  .agent-plugins-section .jini-tabbed-dialog-content {
-    height: auto;
-    max-height: none;
-    min-height: 0;
-  }
-  .agent-plugins-section .jini-tabbed-dialog,
-  .agent-plugins-section .jini-tabbed-dialog-content { overflow: visible; overscroll-behavior: auto; }
+  /* AP-3 (the page owns scrolling on Agent Plugins) now applies at every width; see that screen's
+     block ("AP-3, all widths"). */
 
   /* The drawer's active indicator belongs inside its gutter, not against the screen edge. */
   .cms-nav .cms-item.active::before { left: -6px; border-radius: var(--r-pill); }
