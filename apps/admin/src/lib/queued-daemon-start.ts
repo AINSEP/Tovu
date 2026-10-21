@@ -18,13 +18,24 @@ export async function startQueuedDaemonRun(
   }
 }
 
-export function browserQueuedStartPorts(_required = {}, _optional = {}): QueuedStartPorts {
+/** Browser adapters for {@link startQueuedDaemonRun}. `request` and `schedule` are injectable so
+ * the POST shape and the 1s client-side backoff (including Stop during it) are verified with
+ * fakes; the defaults are the real browser `fetch` and `setTimeout`. */
+export function browserQueuedStartPorts(_required = {}, {
+  request = fetch,
+  schedule = ({ work, delayMs }: { work: () => void; delayMs: number }) => {
+    const timer = setTimeout(work, delayMs); return () => clearTimeout(timer);
+  },
+}: {
+  request?: typeof fetch;
+  schedule?: (required: { work: () => void; delayMs: number }) => () => void;
+} = {}): QueuedStartPorts {
   return {
-    post: ({ body }, _options) => fetch("/api/runs", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    post: ({ body }, _options) => request("/api/runs", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     wait: ({ signal }, _options) => new Promise((resolve, reject) => {
       if (signal?.aborted) { reject(new DOMException("The queued turn was stopped.", "AbortError")); return; }
-      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, 1_000);
-      function abort() { clearTimeout(timer); reject(new DOMException("The queued turn was stopped.", "AbortError")); }
+      const cancel = schedule({ work: () => { signal?.removeEventListener("abort", abort); resolve(); }, delayMs: 1_000 });
+      function abort() { cancel(); reject(new DOMException("The queued turn was stopped.", "AbortError")); }
       signal?.addEventListener("abort", abort, { once: true });
     }),
   };

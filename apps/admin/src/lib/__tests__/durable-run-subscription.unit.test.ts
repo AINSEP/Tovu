@@ -1,8 +1,9 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
-import { followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
-import { startQueuedDaemonRun } from "../queued-daemon-start";
+import { browserDurableSubscriptionPorts, followDurableRun, type DurableSubscriptionPorts } from "../durable-run-subscription";
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "../queued-daemon-start";
 import { withAcceptanceCancellation } from "../acceptance-cancellation";
+import { subscriptionEnded, type TrackedRunHandlers } from "../stream-activity";
 
 function harness() {
   let saved: ChatMessage | null = null;
@@ -92,4 +93,181 @@ test("Stop before a start response persists intent by message identity, includin
     cancel: async () => { actions.push("persist-stop"); },
   }, {})).rejects.toThrow("response lost");
   expect(actions).toEqual(["accepting", "persist-stop", "persist-stop"]);
+});
+
+test("a cancel that rejects while the stop beats acceptance is swallowed, and the start result still wins", async () => {
+  const abort = new AbortController();
+  const cancels: string[] = [];
+  const result = await withAcceptanceCancellation({ signal: abort.signal,
+    start: async () => { abort.abort(); return "accepted"; },
+    cancel: async () => { cancels.push("persist-stop"); throw new Error("daemon unreachable"); },
+  }, {});
+  await Promise.resolve();
+  expect(result).toBe("accepted"); expect(cancels).toEqual(["persist-stop", "persist-stop"]);
+});
+
+test("an accepted turn that is never stopped never asks the daemon to cancel it", async () => {
+  const abort = new AbortController();
+  let cancels = 0;
+  const result = await withAcceptanceCancellation({ signal: abort.signal, start: async () => 7, cancel: async () => { cancels++; } }, {});
+  abort.abort();
+  expect(result).toBe(7); expect(cancels).toBe(0);
+  expect(await withAcceptanceCancellation({ start: async () => "no signal", cancel: async () => { cancels++; } }, {})).toBe("no signal");
+  expect(cancels).toBe(0);
+});
+
+test("a 409 that is not CHAT_RUN_BUSY, or whose body is not JSON, is returned instead of retried", async () => {
+  for (const body of ['{"code":"VERSION_CONFLICT"}', "not json"]) {
+    let waits = 0;
+    const response = await startQueuedDaemonRun({ body: {}, ports: {
+      post: async () => new Response(body, { status: 409 }), wait: async () => { waits++; },
+    } }, {});
+    expect(response.status).toBe(409); expect(await response.text()).toBe(body); expect(waits).toBe(0);
+  }
+});
+
+test("a turn already stopped before dispatch never posts", async () => {
+  const abort = new AbortController(); abort.abort();
+  let posts = 0;
+  await expect(startQueuedDaemonRun({ body: {}, signal: abort.signal, ports: {
+    post: async () => { posts++; return new Response("{}", { status: 201 }); }, wait: async () => {},
+  } }, {})).rejects.toMatchObject({ name: "AbortError" });
+  expect(posts).toBe(0);
+});
+
+test("browser queued-start ports POST the same-origin JSON body to /api/runs", async () => {
+  const requests: [string, RequestInit][] = [];
+  const ports = browserQueuedStartPorts({}, { request: async (url, init) => { requests.push([String(url), init!]); return new Response("{}", { status: 201 }); } });
+  const response = await ports.post({ body: { assistantMessageId: "answer" } }, {});
+  expect(response.status).toBe(201);
+  expect(requests).toEqual([["/api/runs", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: '{"assistantMessageId":"answer"}' }]]);
+});
+
+test("browser queued-start backoff waits one second, and a Stop during it cancels the timer and rejects", async () => {
+  const timers: { work: () => void; delayMs: number; cancelled: boolean }[] = [];
+  const ports = browserQueuedStartPorts({}, { schedule: ({ work, delayMs }) => {
+    const timer = { work, delayMs, cancelled: false }; timers.push(timer); return () => { timer.cancelled = true; };
+  } });
+  const abort = new AbortController();
+  const waited = ports.wait({ signal: abort.signal }, {});
+  expect(timers.map((timer) => timer.delayMs)).toEqual([1_000]);
+  timers[0]!.work();
+  await expect(waited).resolves.toBeUndefined();
+  abort.abort();
+  expect(timers[0]!.cancelled).toBe(false);
+
+  const stopping = new AbortController();
+  const stopped = ports.wait({ signal: stopping.signal }, {});
+  stopping.abort();
+  await expect(stopped).rejects.toMatchObject({ name: "AbortError", message: "The queued turn was stopped." });
+  expect(timers[1]!.cancelled).toBe(true);
+
+  await expect(ports.wait({ signal: stopping.signal }, {})).rejects.toMatchObject({ name: "AbortError" });
+  expect(timers).toHaveLength(2);
+});
+
+test("default browser queued-start ports use the real one-second timer, cleared on Stop", async () => {
+  vi.useFakeTimers();
+  try {
+    let resolved = false;
+    const waited = browserQueuedStartPorts().wait({}, {}).then(() => { resolved = true; });
+    await vi.advanceTimersByTimeAsync(999); expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(1); await waited; expect(resolved).toBe(true);
+    const abort = new AbortController();
+    const stopped = browserQueuedStartPorts().wait({ signal: abort.signal }, {});
+    expect(vi.getTimerCount()).toBe(1);
+    abort.abort();
+    await expect(stopped).rejects.toMatchObject({ name: "AbortError" });
+    expect(vi.getTimerCount()).toBe(0);
+  } finally { vi.useRealTimers(); }
+});
+
+function fakeSource() {
+  const listeners = new Map<string, (event: Event) => void>();
+  let closed = 0;
+  const source = {
+    readyState: 1,
+    addEventListener: (kind: string, listener: (event: Event) => void) => { listeners.set(kind, listener); },
+    close: () => { closed++; },
+  } as unknown as Pick<EventSource, "addEventListener" | "close" | "readyState">;
+  return { source, listeners, closed: () => closed };
+}
+
+test("browser durable ports recover by message identity, read a checkpoint without recovery, and map 404 and failures", async () => {
+  const requests: [string, RequestInit][] = [];
+  const replies = [
+    new Response(JSON.stringify({ message: { id: "answer", role: "assistant", content: "saved" } }), { status: 200 }),
+    new Response("{}", { status: 404 }),
+    new Response("{}", { status: 503 }),
+    new Response(JSON.stringify({ message: { id: "plain", role: "assistant", content: "" } }), { status: 200 }),
+  ];
+  const ports = browserDurableSubscriptionPorts({}, { request: async (url, init) => { requests.push([String(url), init!]); return replies.shift()!; } });
+  expect(await ports.read({ runId: "run/1", messageId: "answer" }, {})).toEqual({ id: "answer", role: "assistant", content: "saved" });
+  expect(await ports.read({ runId: "run/1", messageId: "answer" }, { recover: false })).toBe("gone");
+  expect(await ports.read({ runId: "run/1", messageId: "a b" }, { recover: false })).toBeNull();
+  expect(await ports.read({ runId: "run/1" }, { recover: false })).toEqual({ id: "plain", role: "assistant", content: "" });
+  expect(requests).toEqual([
+    ["/api/runs/run%2F1/recover", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: '{"messageId":"answer"}' }],
+    ["/api/runs/run%2F1/checkpoint?messageId=answer", { method: "GET", credentials: "same-origin" }],
+    ["/api/runs/run%2F1/checkpoint?messageId=a%20b", { method: "GET", credentials: "same-origin" }],
+    ["/api/runs/run%2F1/checkpoint", { method: "GET", credentials: "same-origin" }],
+  ]);
+});
+
+test("browser durable ports stream frames after the cursor, and an empty native error closes and reports a drop", () => {
+  const opened: string[] = [];
+  const sources: ReturnType<typeof fakeSource>[] = [];
+  const ports = browserDurableSubscriptionPorts({}, { open: (url) => { opened.push(url); const fake = fakeSource(); sources.push(fake); return fake.source; } });
+  const frames: [string, string, string][] = [];
+  let drops = 0;
+  const stop = ports.stream({ runId: "run 1", cursor: "c/9", frame: (kind, data, id) => frames.push([kind, data, id]), dropped: () => { drops++; } }, {});
+  const [first] = sources;
+  expect([...first!.listeners.keys()]).toEqual(["agent", "stdout", "stderr", "end", "error"]);
+  first!.listeners.get("agent")!(new MessageEvent("agent", { data: '{"kind":"text"}', lastEventId: "10" }));
+  first!.listeners.get("error")!(new MessageEvent("error", { data: '{"message":"boom"}', lastEventId: "11" }));
+  expect(frames).toEqual([["agent", '{"kind":"text"}', "10"], ["error", '{"message":"boom"}', "11"]]);
+  expect(drops).toBe(0);
+  first!.listeners.get("error")!(new Event("error"));
+  expect(drops).toBe(1); expect(first!.closed()).toBe(1); expect(frames).toHaveLength(2);
+  stop(); expect(first!.closed()).toBe(2);
+  ports.stream({ runId: "run 1", cursor: "", frame: () => {}, dropped: () => {} }, {});
+  expect(opened).toEqual(["/api/runs/run%201/events?afterCursor=c%2F9", "/api/runs/run%201/events"]);
+});
+
+test("browser durable ports delegate scheduling, and the defaults use EventSource and a cancellable timer", () => {
+  const scheduled: number[] = [];
+  const cancel = () => {};
+  const injected = browserDurableSubscriptionPorts({}, { schedule: ({ delayMs }) => { scheduled.push(delayMs); return cancel; } });
+  expect(injected.schedule({ work: () => {}, delayMs: 250 }, {})).toBe(cancel);
+  expect(scheduled).toEqual([250]);
+
+  const constructed: string[] = [];
+  class FakeEventSource { readyState = 0; constructor(url: string) { constructed.push(url); } addEventListener() {} close() {} }
+  vi.stubGlobal("EventSource", FakeEventSource);
+  vi.useFakeTimers();
+  try {
+    const defaults = browserDurableSubscriptionPorts();
+    defaults.stream({ runId: "r", cursor: "", frame: () => {}, dropped: () => {} }, {});
+    expect(constructed).toEqual(["/api/runs/r/events"]);
+    let ran = 0;
+    defaults.schedule({ work: () => { ran++; }, delayMs: 100 }, {});
+    const stop = defaults.schedule({ work: () => { ran += 10; }, delayMs: 100 }, {});
+    stop();
+    vi.advanceTimersByTime(100);
+    expect(ran).toBe(1);
+  } finally { vi.useRealTimers(); vi.unstubAllGlobals(); }
+});
+
+test("a missing durable row releases the host's page-stream activity without onDone, and stopping releases it again", async () => {
+  let ended = 0;
+  const done: unknown[] = [];
+  const handlers: TrackedRunHandlers = { onEvent: () => {}, onDone: (events) => done.push(events), onError: () => {}, [subscriptionEnded]: () => { ended++; } };
+  let poll: (() => void) | undefined;
+  const stop = followDurableRun({ runId: "gone", binding: { messageId: "answer", conversationId: "chat" }, handlers, ports: {
+    read: async () => "gone", stream: () => () => {}, schedule: ({ work }) => { poll = work; return () => { poll = undefined; }; },
+  } }, {});
+  poll?.();
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  expect(ended).toBe(1); expect(done).toEqual([]);
+  stop(); expect(ended).toBe(2);
 });
