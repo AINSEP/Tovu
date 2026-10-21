@@ -78,7 +78,6 @@ export {
   registerDefinitions,
   type SetValueRequired,
   type ClearValueRequired,
-  clear,
   type ResetNamespaceRequired,
   resetNamespace,
   type RenameDefinitionRequired,
@@ -94,7 +93,8 @@ export {
 } from "@jini-ai/core/settings";
 
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
-export { set } from "./site-title-write.js";
+// Not the package's `clear` either: neither may restore the comments provider's default behind its card.
+export { set, clear, refuseCommentsProviderClear, refuseCommentsProviderReset, COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON } from "./site-title-write.js";
 // Renderers consume the title resolver through the settings public surface.
 export { resolveSiteTitle } from "./site-title.js";
 

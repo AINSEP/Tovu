@@ -175,3 +175,14 @@ test("core.comments/provider is refused at the chokepoint unless written by the 
     input: { ...target, scope: "workspace", workspaceId: WORKSPACE_ID, value: "", callerPrincipalId: OWNER_PRINCIPAL_ID, requiredPermissionOverride: "comments.configure" } });
   assert.equal(await storedValue(ledger, target), "");
 });
+
+test("core.theme/previewSwitcher fails closed when no theme write policy is composed", async () => {
+  const ledger = await makeLedger();
+  await ensureSettingDefinitions(ledger, {
+    namespace: "core.theme", systemPrincipalId: SYSTEM_PRINCIPAL_ID, definitions: [{ key: "previewSwitcher", schema: { type: "boolean" }, defaultValue: false }],
+  });
+  const before = await revisionCount(ledger);
+  await assert.rejects(ownerWrite(ledger, { namespace: "core.theme", key: "previewSwitcher" }, true),
+    (err: unknown) => err instanceof ValueValidationFailedError && err.message === "Theme preview write policy is unavailable.");
+  assert.equal(await revisionCount(ledger), before, "nothing reaches the ledger");
+});

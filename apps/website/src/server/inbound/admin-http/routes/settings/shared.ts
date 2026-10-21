@@ -5,7 +5,9 @@ import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/assistant-subagents-policy";
 
-import { createSettingsPrincipalLookup, set, type SettingScope, type SettingsWriteServiceDeps } from "#src/features/settings/index";
+import {
+  createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set, type SettingScope, type SettingsWriteServiceDeps,
+} from "#src/features/settings/index";
 import {
   createCmsSettingsService,
   resolveTargetWorkspaceId as resolveCmsTargetWorkspaceId,
@@ -163,7 +165,11 @@ const SETTINGS_PERMISSIONS: SettingsPermissions = {
 export function createTovuSettingsService(required: { deps: SettingsRouteDeps }): SettingsService {
   const deps = toWriteServiceDeps(required.deps);
   const service = createCmsSettingsService({ deps, permissions: SETTINGS_PERMISSIONS });
-  return { ...service, set: (input) => (required.deps.set ?? set)({ deps, input }) };
+  // Clear and reset keep the CMS service's own authorization; the comments provider is refused first
+  // because restoring its default re-enables comments behind `comments_set_provider`'s card.
+  return { ...service, set: (input) => (required.deps.set ?? set)({ deps, input }),
+    clear: async (input) => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); },
+    reset: async (input) => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); } };
 }
 
 /** Only deliberate HTTP rejections carry caller-visible text; other errors use CMS mappings. */

@@ -36,7 +36,7 @@ import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration, Reme
 import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps as CoreSettingsToolDeps, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { set } from "./site-title-write.js";
+import { COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON, set } from "./site-title-write.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "./admin-interface.js";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
 import type { AssistantAgentInventory } from "#src/assistant/agents";
@@ -78,7 +78,9 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
   // The chat-selection how-to lives in this tool's search metadata: descriptions stay the catalog's verbatim.
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
-    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent", reason: "Cookie consent changes require consent_update_settings and consent_publish_settings with a human confirmation card." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent", reason: "Cookie consent changes require consent_update_settings and consent_publish_settings with a human confirmation card." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON },
+      // `settings_clear_value` calls the package's `clear`, which would restore the built-in default.
+      { ...COMMENTS_PROVIDER_SETTING, reason: COMMENTS_PROVIDER_WRITE_REASON }],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
