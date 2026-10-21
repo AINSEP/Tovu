@@ -53,3 +53,9 @@ it("the fake rejects configured user-roster failures and counts the failed read"
   await expect(port.listUsers!()).rejects.toThrow("Users forbidden");
   expect(port.listUsersCalls).toBe(1);
 });
+
+it("an unseeded fake lists an empty trash page with no next cursor and records the query", async () => {
+  const port = createFakeTrashPort();
+  await expect(port.listTrash({ cursor: "page-2" })).resolves.toEqual({ items: [], nextCursor: null });
+  expect(port.listCalls).toEqual([{ cursor: "page-2" }]);
+});

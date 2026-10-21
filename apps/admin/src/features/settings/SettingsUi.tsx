@@ -262,6 +262,12 @@ export interface SettingsUiProps {
   tabId?: string | null;
 }
 
+/** Every action slot of the embedded Memory panel. That panel is display-only on this screen (no
+ *  memory store is wired here: entries and extractions are always the empty constants), so a
+ *  toggle, filter, refresh or clear changes nothing and calls nothing. One shared no-op instead of
+ *  nine inline ones, so the read-only intent is stated once. */
+const READ_ONLY_MEMORY_ACTION = (): void => {};
+
 /**
  * Resolves each of `SettingsUi`'s three seam/value props to its default when a caller passes
  * none — same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s
@@ -589,7 +595,7 @@ export function SettingsUi(props: SettingsUiProps) {
             >
             <MemorySettingsPanel
               enabled
-              onToggleEnabled={() => {}}
+              onToggleEnabled={READ_ONLY_MEMORY_ACTION}
               topTab={s.memoryTopTab}
               onTopTabChange={s.setMemoryTopTab}
               agentHandle="settings-memory"
@@ -598,23 +604,23 @@ export function SettingsUi(props: SettingsUiProps) {
                 filtered: EMPTY_MEMORY_ENTRIES,
                 visibleExtractions: EMPTY_MEMORY_EXTRACTIONS,
                 filter: "all",
-                onFilterChange: () => {},
+                onFilterChange: READ_ONLY_MEMORY_ACTION,
                 unifiedMemoryCount: 0,
-                onClearExtractions: () => {},
-                onRefreshExtractions: () => {},
+                onClearExtractions: READ_ONLY_MEMORY_ACTION,
+                onRefreshExtractions: READ_ONLY_MEMORY_ACTION,
                 isRefreshing: false,
                 previewId: null,
                 previewBody: null,
                 nowClock: Date.now(),
-                onOpenPreview: () => {},
-                onStartEdit: () => {},
-                onDeleteEntry: () => {},
-                onDeleteExtraction: () => {},
+                onOpenPreview: READ_ONLY_MEMORY_ACTION,
+                onStartEdit: READ_ONLY_MEMORY_ACTION,
+                onDeleteEntry: READ_ONLY_MEMORY_ACTION,
+                onDeleteExtraction: READ_ONLY_MEMORY_ACTION,
               }}
               howItWorks={{
                 enabled: true,
                 hookFlags: MEMORY_HOOK_FLAGS,
-                onToggleHook: () => {},
+                onToggleHook: READ_ONLY_MEMORY_ACTION,
               }}
             />
             </I18nProvider>

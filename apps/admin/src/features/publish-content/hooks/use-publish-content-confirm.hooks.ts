@@ -442,7 +442,9 @@ function buildCriteriaPublishResult(
       willPublish.push(row.entityLabel);
       if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
     } else if (row.disposition === "skipped") {
-      leftAlone.push({ label: row.entityLabel, reason: row.reason ?? "No reason recorded." });
+      // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
+      // peer sent none), so a skipped row's `reason` is never null here.
+      leftAlone.push({ label: row.entityLabel, reason: row.reason! });
     }
   }
   return {
@@ -752,8 +754,10 @@ export function usePublishContentConfirm(props: {
   // `peers`/`selectedPeerId` and moves on to planning immediately: the operator asked to publish,
   // not to "connect", so the one extra click stays inside the same flow rather than landing back on
   // a now-idle dialog they'd have to press Publish on again.
+  // Re-entry is already blocked one level up: `onConnect` is only reached through `onPrimary`, whose
+  // `primaryInFlightRef` holds until this promise settles (and `connecting` is reset before it does),
+  // so a second press can never land while a connect runs.
   const onConnect = useCallback(async () => {
-    if (connecting) return;
     setConnecting(true);
     setDestinationError(null);
     try {
@@ -777,7 +781,7 @@ export function usePublishContentConfirm(props: {
       setDestinationError(describeApiError(error, t("Could not connect.")));
       setConnecting(false);
     }
-  }, [connecting, port, requestPlan, t]);
+  }, [port, requestPlan, t]);
 
   const reportConfirmFailure = useCallback(
     ({ error, peerId }: { error: unknown; peerId: string }, _options: Record<string, never> = {}): void => {

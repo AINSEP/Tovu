@@ -187,9 +187,10 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
   const endHold = useCallback(() => {
     if (state.status === "recording") {
       setState((previous) => nextPushToTalkState(previous, { type: "stop" }));
-      const capture = captureRef.current;
+      // `"recording"` is only reached via `startHold`'s `mic-granted`, which runs after it stored
+      // the capture here; nothing clears `captureRef`, so it is always set at this point.
+      const capture = captureRef.current!;
       liveCaptureRef.current = null;
-      if (!capture) return;
       capture
         .stopAndTranscribe()
         .then((text) => {

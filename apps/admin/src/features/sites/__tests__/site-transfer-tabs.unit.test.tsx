@@ -77,6 +77,8 @@ describe("site transfer display rules", () => {
     expect(importStateView("needs-owner", t)).toEqual({ label: "Needs a password", className: "status status-warning" });
     expect(importStateView("verifying", t)).toEqual({ label: "Checking…", className: "status status-neutral" });
     expect(importStateView("creating", t)).toEqual({ label: "Creating…", className: "status status-neutral" });
+    // A state a newer server added reads as Failed, never as a blank pill.
+    expect(importStateView("archived" as Parameters<typeof importStateView>[0], t)).toEqual({ label: "Failed", className: "status status-error" });
   });
 
   it("shortens links to host and path, and names an uploaded zip without a path", () => {

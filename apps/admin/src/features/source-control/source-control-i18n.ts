@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
@@ -567,12 +568,7 @@ const ACCESS_TOKEN_LINK_TRANSLATIONS: Record<string, Record<string, string>> = {
   bn: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "একাধিক টোকেন সংরক্ষণ, কোনোটি পুনঃনামকরণ বা সব সংরক্ষিত পরিচয়পত্র এক জায়গায় পরিচালনা করতে চান?", "Create access token": "অ্যাক্সেস টোকেন তৈরি করুন" },
 };
 
-const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(SOURCE_CONTROL_TRANSLATIONS).map(([locale, entries]) => [
-    locale,
-    { ...entries, ...(ACCESS_TOKEN_LINK_TRANSLATIONS[locale] ?? {}) },
-  ]),
-);
+const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(SOURCE_CONTROL_TRANSLATIONS, ACCESS_TOKEN_LINK_TRANSLATIONS);
 
 export const t = createDictionaryTranslator({ featureDictionary: SOURCE_CONTROL_DICT }, { commonDictionary: COMMON_I18N });
 

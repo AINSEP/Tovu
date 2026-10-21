@@ -1,11 +1,11 @@
 import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ExternalMcpToolPicker } from "../ExternalMcpToolPicker";
-import { useToolRowHandles } from "../ExternalMcpToolPicker.hooks";
+import { useToolPickerFilter, useToolRowHandles } from "../ExternalMcpToolPicker.hooks";
 import { ExternalMcpToolsModal } from "../ExternalMcpToolsModal";
 import type { ToolPickerRow } from "../external-mcp-tool-picker-rules";
 
@@ -265,4 +265,22 @@ it("filters rows by name or description and selects all / none among the visible
   expect(screen.getAllByRole("listitem")).toHaveLength(4);
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onSave.mock.calls).toEqual([[{ allowedToolNames: "image_generate, list_models", writeAllowedToolNames: "" }]]);
+});
+
+describe("useToolPickerFilter", () => {
+  const pickerRow = (remoteName: string, enabled: boolean): ToolPickerRow => ({ remoteName, description: "", enabled, mayWrite: false, writeDeclared: false, destructiveDeclared: false, hintsAbsent: false, kind: "advertised" });
+
+  it("select all only flips the visible rows that are not already in that state", () => {
+    const setEnabled = vi.fn();
+    const rows = [pickerRow("already_on", true), pickerRow("still_off", false)];
+    const { result } = renderHook(() => useToolPickerFilter(rows, { handles: ["h-1", "h-2"], base: "srv", setEnabled }));
+    act(() => result.current.selectVisible(true));
+    expect(setEnabled.mock.calls).toEqual([["still_off", true]]);
+  });
+
+  it("gives a row the caller supplied no handle for a positional fallback handle", () => {
+    const rows = [pickerRow("first", false), pickerRow("second", false)];
+    const { result } = renderHook(() => useToolPickerFilter(rows, { handles: ["h-1"], base: "srv", setEnabled: vi.fn() }));
+    expect(result.current.visible.map((entry) => entry.handle)).toEqual(["h-1", "srv-tool-1"]);
+  });
 });

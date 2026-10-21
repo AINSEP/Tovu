@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
@@ -692,12 +693,7 @@ const MATCH_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
   "zh-TW": { exact: "精確", prefix: "前綴", wildcard: "萬用字元" },
 };
 
-const REDIRECTS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(REDIRECTS_TRANSLATIONS).map(([locale, entries]) => [
-    locale,
-    { ...entries, ...(MATCH_TYPE_TRANSLATIONS[locale] ?? {}) },
-  ]),
-);
+const REDIRECTS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(REDIRECTS_TRANSLATIONS, MATCH_TYPE_TRANSLATIONS);
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */

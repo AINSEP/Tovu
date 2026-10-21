@@ -93,7 +93,7 @@ function SiteKeyBody({ controller, recovery }: { controller: SiteKeyController; 
     <>
       <SiteKeyScopeNotice runtimeMode={controller.status.runtimeMode} t={translate} />
       {isSiteKeyLocked(controller.status, controller.generateError) || recovery.resultMessage ? <SiteKeyRecoveryCard recovery={recovery} /> : null}
-      <SiteKeyStatusCard controller={controller} />
+      <SiteKeyStatusCard controller={controller} status={controller.status} />
     </>
   );
 }
@@ -124,11 +124,10 @@ function SiteKeyScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "produ
 }
 
 /** The status card — badge + fingerprint + source-specific note + Reveal + Generate. Split out
- *  purely for the complexity gate. */
-function SiteKeyStatusCard({ controller }: { controller: SiteKeyController }) {
+ *  purely for the complexity gate. Only rendered once the status has loaded, so `status` is the
+ *  controller's own, already-narrowed value. */
+function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyController; status: NonNullable<SiteKeyController["status"]> }) {
   const translate = controller.t;
-  const status = controller.status;
-  if (!status) return null;
   return (
     <section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active site key's source, fingerprint, and reveal control" })}>
       <h3 className="site-key-status-heading">{translate("Site key")}</h3>
@@ -250,7 +249,7 @@ function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHi
  *  that state is a separate, deliberately NOT-built feature (this file's own header). Works in
  *  every runtime mode now (2026-09-09 durability fix) — no longer disabled in production.
  *  @complexity O(1). */
-function SiteKeyGenerateAction({ controller }: { controller: SiteKeyController }) {
+export function SiteKeyGenerateAction({ controller }: { controller: SiteKeyController }) {
   const translate = controller.t;
   const status = controller.status;
   if (!status || status.source !== "none") return null;

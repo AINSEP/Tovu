@@ -42,13 +42,15 @@ export function groupAlwaysAllow(
     .map(([serverId, tools]) => ({ serverId, label: labels.get(serverId) ?? serverId, tools }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const handles = buildAgentListHandles({ prefix: "always-allow-server", ids: sorted.map((group) => group.serverId) });
+  // `buildAgentListHandles` returns exactly one handle per id, positionally aligned, so both
+  // index reads below always hit.
   return sorted.map((group, index) => {
-    const handle = handles[index] ?? `always-allow-server-${index + 1}`;
+    const handle = handles[index]!;
     const revokeHandles = buildAgentListHandles({ prefix: `${handle}-revoke`, ids: group.tools.map((tool) => tool.toolName) });
     return {
       ...group,
       handle,
-      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex] ?? `${handle}-revoke-${toolIndex + 1}` })),
+      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex]! })),
     };
   });
 }

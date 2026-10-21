@@ -37,4 +37,22 @@ describe("Explore theme resolution", () => {
     const { result } = renderHook(() => useThemeExploreTheme({ themeId: "" }, { port }));
     await waitFor(() => expect(result.current).toEqual({ themeId: null, loading: false, error: "Presentation unavailable" }));
   });
+
+  it("names a non-Error lookup rejection with a generic message", async () => {
+    const port = { getPresentation: vi.fn().mockRejectedValue("offline") };
+    const { result } = renderHook(() => useThemeExploreTheme({ themeId: "" }, { port }));
+    await waitFor(() => expect(result.current).toEqual({ themeId: null, loading: false, error: "failed to load themes" }));
+  });
+
+  it("ignores a fallback lookup that fails after an explicit theme was selected", async () => {
+    let fail!: (reason: Error) => void;
+    const getPresentation = vi.fn(() => new Promise<never>((_resolve, reject) => { fail = reject; }));
+    const { result, rerender } = renderHook(
+      ({ themeId }) => useThemeExploreTheme({ themeId }, { port: { getPresentation } }),
+      { initialProps: { themeId: "" } },
+    );
+    rerender({ themeId: "novice" });
+    await act(async () => { fail(new Error("late failure")); });
+    expect(result.current).toEqual({ themeId: "novice", loading: false, error: null });
+  });
 });

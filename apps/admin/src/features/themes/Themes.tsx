@@ -402,7 +402,9 @@ function ThemeGrid({
   trash: ThemesController["trash"];
   t: Translate;
 }) {
-  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => trash ? trash(themeId) : Promise.resolve() });
+  // A delete can only be requested through `onRequestDelete`, which exists only when `trash` does,
+  // so the hook's `trash` is only ever called with `trash` defined.
+  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => trash!(themeId) });
   const onRequestDelete = trash ? (request: ThemeDeleteRequest) => void deletion.requestDelete(request) : undefined;
   if (visibleThemes.length === 0) {
     return (
@@ -590,7 +592,9 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
   // Active theme first, then A-Z by display name (`sortThemesForDisplay`).
   const visibleThemes = sortThemesForDisplay(
-    grouped[activeTab as ThemeTabGroup] ?? [],
+    // `groupThemesByTabGroup` seeds every tab group (empty when it has no themes) and `activeTab` is
+    // always a resolved, valid group, so this lookup always hits.
+    grouped[activeTab as ThemeTabGroup],
     settings.activeThemeId,
     themeNames,
   );

@@ -137,3 +137,15 @@ it("running and stopped cards no longer offer the retired nesting action (59a036
   expect(openMenu("beta")).not.toContain("Move into sites/");
   expect(actions).toEqual([]);
 });
+
+it("Trash reads an absent trash list as empty, and a card with no separate display name shows only its name", () => {
+  const base: AdminSitesSnapshot = { sites: [], switchingEnabled: false, localManagementEnabled: true,
+    persistedSiteName: null, currentSite: { name: "owner", dir: "/sites/owner", listed: true, dirOverridden: false } };
+  const controller = recordingController([]);
+  const { rerender } = render(<SiteTrashTab snapshot={base} controller={controller} t={(key) => key} />);
+  expect(screen.getByText("Site Trash is empty.")).toBeInTheDocument();
+  rerender(<SiteTrashTab snapshot={{ ...base, trash: [{ id: "id-b", name: "beta", displayName: "beta" }] }} controller={controller} t={(key) => key} />);
+  const card = screen.getByRole("group", { name: "Site Trash" });
+  expect(within(card).getByText("beta")).toBeInTheDocument();
+  expect(card.querySelector(".site-card-display-name")).toBeNull();
+});

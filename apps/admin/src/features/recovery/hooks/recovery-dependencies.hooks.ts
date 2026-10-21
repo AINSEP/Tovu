@@ -21,9 +21,12 @@ export const defaultRecoveryPort: RecoveryPort = {
   resolveRecoveryDeepLink: (envelope) => api.resolveRecoveryDeepLink(envelope),
 };
 
-function fakeRestorePointSummary(overrides: Partial<AdminRestorePointSummary> = {}): AdminRestorePointSummary {
+/** Every caller names the point's `id` (it is derived from the store size), so it is required. */
+function fakeRestorePointSummary(
+  overrides: Pick<AdminRestorePointSummary, "id"> & Partial<AdminRestorePointSummary>,
+): AdminRestorePointSummary {
   return {
-    id: overrides.id ?? "fake-rp-1",
+    id: overrides.id,
     costClass: overrides.costClass ?? "cheap",
     kind: overrides.kind ?? "full",
   };

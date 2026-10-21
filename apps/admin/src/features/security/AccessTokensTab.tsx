@@ -89,6 +89,9 @@ export interface AccessTokensTabProps {
   useAccessTokensHook?: typeof useWiredAccessTokens;
   useOtherCredentialsHook?: typeof useWiredOtherCredentials;
   useCopyKeysHook?: typeof useWiredCopyKeys;
+  /** Whether the "Copy keys from another project…" entry renders; defaults to
+   *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11). */
+  showCopyKeysEntry?: boolean;
 }
 
 function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
@@ -124,7 +127,7 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
       {/* Hidden per owner 2026-10-11 ("get rid of this button for now"). The dialog, hook and route
           stay wired, and the chat's copy-keys card is unaffected — flip `SHOW_COPY_KEYS_ENTRY` to
           restore the entry. */}
-      {SHOW_COPY_KEYS_ENTRY ? (
+      {(props.showCopyKeysEntry ?? SHOW_COPY_KEYS_ENTRY) ? (
         <>
           <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Copy keys from another project…")}</button>
           <CopyKeysDialog dialog={copyDialog} t={controller.t} />

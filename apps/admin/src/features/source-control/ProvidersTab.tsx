@@ -6,7 +6,6 @@ import { navigate } from "../../lib/router";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminSourceControlProviderId } from "../../lib/api";
-import { t } from "./source-control-i18n";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
@@ -93,8 +92,9 @@ function resolveSourceControlCredentialsHook(
 }
 
 export function ProvidersTab(props: ProvidersTabProps) {
-  const locale = useAdminLocale();
-  const translate = (key: string): string => t({ locale: locale, key: key });
+  // Subscribes to the admin locale so a language switch re-renders this tab; every string itself
+  // goes through the controller's own `t`.
+  useAdminLocale();
   const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook(props.useSourceControlCredentialsHook);
   const controller = useSourceControlCredentialsHook();
 

@@ -112,7 +112,9 @@ export function SourceControl(props: SourceControlProps) {
         onChange={handleTabChange}
         containerHandle="source-control-tab-bar"
       />
-      {activeTabId === "providers" ? <ProvidersTab useSourceControlCredentialsHook={props.useSourceControlCredentialsHook} /> : null}
+      {/* `providers` is the only tab (SOURCE_CONTROL_TAB_IDS) and `activeTabId` always resolves to
+          it, so its panel renders unconditionally; add a dispatch here alongside a second tab. */}
+      <ProvidersTab useSourceControlCredentialsHook={props.useSourceControlCredentialsHook} />
     </div>
   );
 }

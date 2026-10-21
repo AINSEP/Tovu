@@ -30,9 +30,10 @@ export const defaultUsersPort: UsersPort = {
 
 const FAKE_WORKSPACE_ID = "fake-ws";
 
-function fakeUser(overrides: Partial<AdminIdentityUser> = {}): AdminIdentityUser {
+/** Every caller names the row's `principalId` (it is derived from the store size), so it is
+ *  required here and comes from the trailing `...overrides` spread. */
+function fakeUser(overrides: Pick<AdminIdentityUser, "principalId"> & Partial<AdminIdentityUser>): AdminIdentityUser {
   return {
-    principalId: overrides.principalId ?? "fake-user-1",
     workspaceId: FAKE_WORKSPACE_ID,
     username: "fake",
     status: "active",

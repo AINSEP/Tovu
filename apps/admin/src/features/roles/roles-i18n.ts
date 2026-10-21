@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 /**
  * @file Spanish translation for the Roles & Permissions screen (`Roles.tsx`) — this feature's own
  * dictionary, not the shared `lib/admin-nav-i18n.ts` one, so parallel translation passes over
@@ -1280,12 +1281,7 @@ const ROLES_AUDIT_STRINGS: Record<string, Record<string, string>> = {
   bn: { Custom: "কাস্টম", Permission: "অনুমতি", Add: "যোগ করুন" },
 };
 
-const ROLES_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(ROLES_TRANSLATIONS).map(([locale, entries]) => [
-    locale,
-    { ...entries, ...(ROLES_AUDIT_STRINGS[locale] ?? {}) },
-  ]),
-);
+const ROLES_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(ROLES_TRANSLATIONS, ROLES_AUDIT_STRINGS);
 
 export const t = createDictionaryTranslator({ featureDictionary: ROLES_DICT }, { commonDictionary: COMMON_I18N });
 
