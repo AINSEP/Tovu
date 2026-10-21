@@ -6,8 +6,8 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
-import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { InMemoryPluginActivationRepo, PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
 import type { PluginsRouteDeps } from "../../deps.js";
@@ -298,4 +298,49 @@ test("set-enabled: the owner's enable records a site plugin's capability set as 
   const res = await fetch(`${baseUrl}${BASE}/plugins/site-rules`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ enabled: true }) });
   assert.equal(res.status, 200);
   assert.deepEqual(recorded, [{ id: "site-rules", capabilities: ["capability:hooks.attach", "hook:content.entry.beforeSave", "tier:tier-3"] }]);
+});
+
+test("set-enabled: an enable refused by the conflict gate (a name another plugin holds) is 409 PLUGIN_CONFLICT with the structured clash, and no enabled row is left behind", async (t) => {
+  const conflicts = [{ kind: "tool", key: "count_words", heldBy: "core", heldByName: "Core", heldKey: "count_words" }];
+  const { app, pluginDeps } = buildTestApp({
+    onPluginEnabled: async () => {
+      throw new PluginConflictError({ pluginId: "word-count", conflicts });
+    },
+  });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/plugins/word-count`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ enabled: true }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code?: string; error?: string; details?: { pluginId?: string; conflicts?: unknown } };
+  assert.equal(body.code, "PLUGIN_CONFLICT");
+  assert.equal(body.error, new PluginConflictError({ pluginId: "word-count", conflicts }).message);
+  assert.deepEqual(body.details, { pluginId: "word-count", conflicts });
+  const stored = await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" });
+  assert.notEqual(stored?.enabled, true, "a refused enable must not leave the plugin enabled");
+});
+
+/** Express always populates a matched `:param`; this directory's convention (see
+ *  `posts/__tests__/update.test.ts`'s 2026-09-03 note) exercises the `?? ""` guards with a hand-built `req`. */
+test("set-enabled: `req.params.workspaceId ?? \"\"` fallback, via a hand-built request with no params, is the workspace 404", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId");
+  const { res, capture } = createCapturingResponse();
+  await handler({ params: {}, body: { enabled: true } }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("set-enabled: `req.params.pluginId ?? \"\"` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND, with no row written", async () => {
+  const { app, pluginDeps } = buildTestApp({ authorize: async () => ({ allowed: true, reason: "matched" }) });
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "test-principal" };
+  await handler({ params: { workspaceId: WORKSPACE_ID }, body: { enabled: true } }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { code?: string }).code, "PLUGIN_NOT_FOUND");
+  assert.equal(await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "" }), null);
 });
