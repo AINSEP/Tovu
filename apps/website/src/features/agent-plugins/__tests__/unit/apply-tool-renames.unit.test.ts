@@ -1,5 +1,8 @@
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
@@ -10,6 +13,8 @@ import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-r
 import type { InstalledAgentPluginServers } from "../../import-access-token.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
  * @file `apply-tool-renames.ts` — a plugin's declared `tovuRenamedTools` rewrite the saved tool lists
@@ -262,4 +267,57 @@ test("tool renames still notify after a successful write when its info logger th
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
   assert.equal(notified, 1);
   assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': logger unavailable"]);
+});
+
+test("a non-Error thrown by the plugin listing is still reported as text", async () => {
+  const logs: string[] = [];
+  await applyAgentPluginToolRenames(
+    testSiteLayoutContext({
+      workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
+      listPlugins: async () => { throw "listing offline"; },
+      notifyRosterChanged: async () => assert.fail("must not notify"),
+    }),
+    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+  );
+  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: listing offline"]);
+});
+
+test("without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched", async (t) => {
+  const temporary = await mkdtemp(path.join(tmpdir(), "tool-renames-default-list-"));
+  t.after(() => forceRemove(temporary));
+  const logs: string[] = [];
+  await applyAgentPluginToolRenames(
+    { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
+      notifyRosterChanged: async () => assert.fail("must not notify"), agentPluginLayout: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) },
+    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+  );
+  assert.deepEqual(logs, []);
+});
+
+test("a row whose read list no longer names the old tool still has its write grant renamed, read list untouched", async () => {
+  const h = await makeHarness({ allowedToolNames: "list_projects" });
+  const saved = await h.read();
+  await h.repo.upsert({ ...saved, allowedToolNames: JSON.stringify(["list_projects"]), writeAllowedToolNames: JSON.stringify(["get_logs"]) });
+  await h.run();
+  const row = await h.read();
+  assert.deepEqual(JSON.parse(row.allowedToolNames ?? "null"), ["list_projects"]);
+  assert.deepEqual(JSON.parse(row.writeAllowedToolNames ?? "null"), ["query_logs"]);
+  assert.equal(row.writeGrantsUpdatedByPrincipalId, "system:tool-renames");
+});
+
+test("an empty stored read list counts as no tools, not as an unreadable list", async () => {
+  const h = await makeHarness({ allowedToolNames: "list_projects" });
+  const saved = await h.read();
+  await h.repo.upsert({ ...saved, allowedToolNames: "", writeAllowedToolNames: JSON.stringify(["get_logs"]) });
+  await h.run();
+  assert.deepEqual(JSON.parse((await h.read()).writeAllowedToolNames ?? "null"), ["query_logs"]);
+});
+
+test("a non-Error upsert failure is reported as text and the row is kept", async () => {
+  const h = await makeHarness({ allowedToolNames: "get_logs" });
+  const before = await h.read();
+  h.repo.upsert = async () => { throw "disk full"; };
+  await h.run();
+  assert.deepEqual(await h.read(), before);
+  assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': disk full"]);
 });

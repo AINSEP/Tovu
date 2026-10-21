@@ -8,7 +8,7 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
+import { buildCommentsRegistrations, commentsDerivedRisk, contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
 import { createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";
@@ -113,4 +113,30 @@ test("comments_update_settings ignores incorrectly typed optional fields when a 
   const expected = { ...before, enabled: false };
   assert.deepEqual(result, { settings: expected });
   assert.deepEqual(await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }), expected);
+});
+
+test("comments_get_settings returns the workspace's current comments settings after the permission check", async () => {
+  const deps = await makeDeps();
+  const permissions: string[] = [];
+  const registration = buildCommentsRegistrations({ ...deps, authorize: async (input) => { permissions.push(String((input as { permission?: unknown }).permission)); return { allowed: true, reason: "matched" }; } })
+    .find((r) => r.descriptor.id === "comments_get_settings");
+  assert.ok(registration);
+  const result = await registration.handler(ctxWithInput({}));
+  assert.deepEqual(result, { settings: await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: "ws-settings" }) });
+  assert.ok(permissions.includes("comments.configure"), permissions.join(","));
+});
+
+test("comments_update_settings passes a non-validation failure (a denied write) through unchanged", async () => {
+  const deps = await makeDeps();
+  const registration = buildCommentsRegistrations({ ...deps, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) })
+    .find((r) => r.descriptor.id === "comments_update_settings");
+  assert.ok(registration);
+  await assert.rejects(() => registration.handler(ctxWithInput({ enabled: false })), {
+    message: "COMMENTS_FORBIDDEN: principal 'p1' is not authorized for 'comments.configure' (insufficient_permission)",
+  });
+  assert.equal((await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: "ws-settings" })).enabled, (await getCommentsSettings({ settingsRepo: (await makeDeps()).settingsRepo }, { workspaceId: "ws-settings" })).enabled, "nothing was written");
+});
+
+test("contributeCommentsTools contributes the comments domain builder and its risk table", () => {
+  assert.deepEqual(contributeCommentsTools(), { domain: "comments", build: buildCommentsRegistrations, risk: commentsDerivedRisk });
 });

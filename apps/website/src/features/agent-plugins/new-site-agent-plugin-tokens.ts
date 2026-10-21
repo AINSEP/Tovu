@@ -127,9 +127,13 @@ export function resolveBundledAgentPlugin(sourceRoot: string): (pluginId: string
 
 /** The bundled plugins' source dir: `TOVU_BUNDLED_AGENT_PLUGINS_DIR`, else `<product>/content/agent-plugins`.
  *  Same resolution as `deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module pulls in the
- *  whole server composition graph for one path). @complexity O(1). */
-export function bundledAgentPluginsSourceRoot(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+ *  whole server composition graph for one path). `optional.env`/`optional.productRoot` default to the
+ *  process environment and the resolved product root. @complexity O(1). */
+export function bundledAgentPluginsSourceRoot(
+  optional: { env?: Readonly<Record<string, string | undefined>>; productRoot?: () => string } = {},
+): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join((optional.productRoot ?? resolveProductRoot)(), "content", "agent-plugins");
 }
 
 /**

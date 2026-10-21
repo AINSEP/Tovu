@@ -25,7 +25,9 @@ export interface TokenSignInPlugin {
  *  `agent_plugin_set_access_token` refuses on). */
 function soleTokenAuth(servers: Readonly<Record<string, McpServerConfig>>): AgentPluginTokenAuth | null {
   const declared = Object.values(servers).flatMap((config) => (config.type !== "stdio" && config.tovuTokenAuth ? [config.tovuTokenAuth] : []));
-  return declared.length === 1 ? (declared[0] ?? null) : null;
+  // Exactly one element was just checked, so `declared[0]` is present; the cast only narrows the
+  // index type (no fallback branch can ever run).
+  return declared.length === 1 ? (declared[0] as AgentPluginTokenAuth) : null;
 }
 
 /**

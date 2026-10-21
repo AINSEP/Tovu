@@ -197,3 +197,23 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
     ), { ok: true, providerMessageId: "fixture:survived", acceptedAt: "2026-09-29T00:00:00.000Z" });
   });
 });
+
+test("parseMailAdaptersFile refuses every malformed top-level shape and descriptor field", () => {
+  for (const raw of ["null", "[]", "\"x\"", JSON.stringify({ adapters: [] })]) {
+    assert.deepEqual(parseMailAdaptersFile(raw), { ok: false, reason: "schemaVersion must be 1" }, raw);
+  }
+  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: {} })), { ok: false, reason: "adapters must be an array" });
+  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: ["entry"] })), { ok: false, reason: "adapters[0] must be an object" });
+  const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
+  for (const id of [7, "a".repeat(65), "Not-Lower", "double--dash"]) {
+    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, id }])), { ok: false, reason: "adapters[0].id must be a lowercase hyphenated id" }, String(id));
+  }
+  for (const label of [undefined, "   ", "x".repeat(101)]) {
+    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, label }])), { ok: false, reason: "adapters[0].label must be a non-empty string" });
+  }
+  for (const module of [3, "/abs/a.mjs"]) {
+    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, module }])), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" }, String(module));
+  }
+  assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, credentialLabel: 5 }])), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
+  assert.deepEqual(parseMailAdaptersFile(descriptorJson([entry, { ...entry, id: "b" }])), { ok: true, descriptors: [entry, { ...entry, id: "b" }] });
+});

@@ -152,3 +152,25 @@ test("forWorkspace rejects every shape that could escape or split the path segme
     );
   }
 });
+
+test("pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that could escape the workspace tree", () => {
+  const ws = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} }).forWorkspace(WORKSPACE_ID);
+  for (const pluginId of ["../escape", "a".repeat(200), "Upper"]) {
+    const message = `'${pluginId}' is not a valid Agent Plugin id`;
+    assert.throws(() => ws.pluginRootDir({ pluginId }), { message }, pluginId);
+    assert.throws(() => ws.pluginPackagesDir({ pluginId }), { message }, pluginId);
+    assert.throws(() => ws.pluginMemoryDir({ pluginId, kind: "notes" }), { message }, pluginId);
+  }
+});
+
+test("pluginMemoryDir resolves only the learned/notes kinds and refuses any other kind", () => {
+  const ws = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} }).forWorkspace(WORKSPACE_ID);
+  assert.equal(ws.pluginMemoryDir({ pluginId: "github", kind: "learned" }), path.join(ws.pluginRootDir({ pluginId: "github" }), "memory", "learned"));
+  assert.equal(ws.pluginMemoryDir({ pluginId: "github", kind: "notes" }), path.join(ws.pluginRootDir({ pluginId: "github" }), "memory", "notes"));
+  const untrustedKind = "../secrets" as "notes";
+  assert.throws(() => ws.pluginMemoryDir({ pluginId: "github", kind: untrustedKind }), { message: "Invalid plugin memory kind" });
+});
+
+test("with no arguments the layout is wired to the real process cwd and environment", () => {
+  assert.equal(resolveAgentPluginLayout().root, resolveAgentPluginLayout({ cwd: process.cwd(), env: process.env }).root);
+});

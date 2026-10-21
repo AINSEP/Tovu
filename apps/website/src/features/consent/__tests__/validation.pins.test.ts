@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_TEXT_LIMITS } from '../config.js';
-import { parseConsentConfig } from '../validation.js';
+import { consentConfigProblems, parseConsentConfig } from '../validation.js';
 
 for (const [key, max] of Object.entries(SITE_CONSENT_TEXT_LIMITS)) {
   test(`${key} preserves its exact bound, whitespace rule and optional empty secondary label`, () => {
@@ -39,3 +39,24 @@ for (const key of ['privacyPolicyUrl', 'secondaryLinkUrl']) {
     assert.throws(() => parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, [key]: 'x'.repeat(2001), title: '' } }), { message: 'title must contain 1–120 characters.' });
   });
 }
+
+test('only a plain JSON object is a consent configuration', () => {
+  for (const value of [null, undefined, 'config', 7, [], [SITE_CONSENT_DEFAULTS]]) {
+    assert.throws(() => parseConsentConfig({ value }), { message: 'config must be a JSON object.' }, JSON.stringify(value));
+  }
+});
+
+test('a configuration whose serialized size exceeds 32 KiB is refused even when every field is within its own bound', () => {
+  const value = { ...SITE_CONSENT_DEFAULTS, customCss: 'x'.repeat(16_000), appearance: { background: 'y'.repeat(17_000) } };
+  assert.throws(() => parseConsentConfig({ value }), { message: 'Consent configuration exceeds 32 KiB.' });
+});
+
+test('a secondary link needs both its label and a local or https URL', () => {
+  const base = parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS } });
+  const secondary = (patch: Partial<typeof SITE_CONSENT_DEFAULTS>) => consentConfigProblems({ config: { ...base, ...patch }, trustedRegion: false }).filter(problem => problem.code === 'SECONDARY_LINK_INVALID');
+  assert.deepEqual(secondary({}), []);
+  assert.deepEqual(secondary({ secondaryLinkLabel: 'Imprint', secondaryLinkUrl: '/imprint' }), []);
+  for (const patch of [{ secondaryLinkLabel: 'Imprint' }, { secondaryLinkUrl: '/imprint' }, { secondaryLinkLabel: 'Imprint', secondaryLinkUrl: 'http://example.com/imprint' }]) {
+    assert.deepEqual(secondary(patch).map(problem => problem.field), ['secondaryLinkUrl'], JSON.stringify(patch));
+  }
+});
