@@ -39,6 +39,19 @@ fs.mkdirSync(pgDir);
 fs.writeFileSync(path.join(pgDir, ".site-meta.json"), JSON.stringify({ schemaVersion: 2, schemaTag: "ccc" }));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
+/** The real kernel, except that a `query` whose SQL text matches `pattern` rejects. */
+function failingQueries({ kernel, pattern }: { kernel: ContentKernel; pattern: RegExp }): ContentKernel {
+  return new Proxy(kernel, {
+    get(target, property, receiver) {
+      if (property !== "query") return Reflect.get(target, property, receiver);
+      return (query: Parameters<ContentKernel["query"]>[0]) => {
+        const text = query.toOperationNode().sqlFragments.join("?");
+        return pattern.test(text) ? Promise.reject(new Error(`injected failure: ${text}`)) : target.query(query);
+      };
+    },
+  });
+}
+
 async function dropMigrationsTable(kernel: ContentKernel): Promise<void> {
   // Since ba5a8508a an adopted SQLite database uses the content ledger for pending detection.
   // These cases deliberately model pre-adoption files, including the no-history case.
@@ -64,6 +77,27 @@ describeEachDialect<ContentKernel>("SqliteDatabaseIntrospectionAdapter", { table
         runtime: { version: 1, tag: "bbb" },
       });
       assert.deepEqual(await adapter.listPendingMigrations(), { items: [{ index: 2, tag: "ccc" }] });
+    } finally {
+      await dropMigrationsTable(kernel);
+    }
+  });
+
+  test("a ledger whose reads fail degrades to unreadable/unknown/no-pending instead of throwing", async () => {
+    const kernel = makeKernel();
+    await dropMigrationsTable(kernel);
+    try {
+      await kernel.execute(sql`CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at BIGINT)`);
+      await kernel.execute(sql`INSERT INTO __drizzle_migrations (id, hash, created_at) VALUES (1, 'h0', 1000), (2, 'h1', 2000)`);
+      const countFails = new SqliteDatabaseIntrospectionAdapter({ db: failingQueries({ kernel, pattern: /COUNT\(\*\)/ }), dbPath, journalPath });
+      assert.deepEqual(await countFails.getHealth(), { canOpenDb: true, migrationsTableReadable: false, driftStatus: "in-sync" });
+
+      const historyFails = new SqliteDatabaseIntrospectionAdapter({ db: failingQueries({ kernel, pattern: /created_at FROM/ }), dbPath, journalPath });
+      assert.deepEqual(await historyFails.getSchemaState(), { status: "unknown", siteMeta: { version: 1, tag: "bbb" }, runtime: null });
+      assert.equal((await historyFails.listPendingMigrations()).items.length, 3, "unreadable history: every journal entry pending");
+
+      const catalogFails = new SqliteDatabaseIntrospectionAdapter({ db: failingQueries({ kernel, pattern: /pragma_table_info/ }), dbPath, journalPath });
+      assert.deepEqual(await catalogFails.getHealth(), { canOpenDb: true, migrationsTableReadable: false, driftStatus: "unknown" });
+      assert.equal((await catalogFails.listPendingMigrations()).items.length, 3);
     } finally {
       await dropMigrationsTable(kernel);
     }
@@ -106,6 +140,11 @@ function postgresLedgerTests(makeKernel: () => ContentKernel): void {
       await kernel.execute(sql`INSERT INTO tovu_migrations SELECT * FROM ledger_row_aside`);
       await kernel.execute(sql`DROP TABLE ledger_row_aside`);
     }
+  });
+
+  test("a migrated database with no readable bundled journal has an unknown schema state", async () => {
+    const adapter = new SqliteDatabaseIntrospectionAdapter({ db: makeKernel(), dbPath: pgDbPath, journalPath: path.join(dir, "missing-journal.json") });
+    assert.deepEqual(await adapter.getSchemaState(), { status: "unknown", siteMeta: { version: 2, tag: "ccc" }, runtime: null });
   });
 
   test("no tovu_migrations ledger: readable false, state unknown, every step pending", async () => {

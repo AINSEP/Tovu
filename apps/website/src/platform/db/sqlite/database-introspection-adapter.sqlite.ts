@@ -135,16 +135,18 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    */
   async getSchemaState(): Promise<SchemaStateSummary> {
     const siteMeta = this.readSiteMetaSnapshot();
-    const runtime = await this.readAppliedSnapshot();
+    // One journal read serves both sides, so the applied identity and the fallback head agree.
+    const journal = this.readJournal();
+    const runtime = await this.readAppliedSnapshot(journal);
 
     if (!runtime) {
       // No real applied identity to compare; the bundled identity cannot stand in for it.
       return { status: "unknown", siteMeta, runtime };
     }
-    // No stamp: compare against this runtime's bundled journal head (the injected journal).
-    const head = this.readJournal()?.entries.at(-1);
-    const expected = siteMeta ?? (head ? { version: head.idx, tag: head.tag } : null);
-    if (!expected) return { status: "unknown", siteMeta, runtime };
+    // No stamp: compare against this runtime's bundled journal head (the injected journal). A
+    // runtime identity is only ever matched within this same journal, so that journal has a head.
+    const head = journal!.entries.at(-1)!;
+    const expected = siteMeta ?? { version: head.idx, tag: head.tag };
     return { status: getDriftStatus({ siteMeta: expected, runtime }), siteMeta, runtime };
   }
 
@@ -225,8 +227,8 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
    * Returns `null` when the table is unreadable, empty, or its latest row's `created_at` matches no
    * entry in the bundled journal (a divergent-lineage case this adapter refuses to guess at, rather
    * than fabricating a snapshot). */
-  private async readAppliedSnapshot(): Promise<SchemaSnapshot | null> {
-    if (this.kernel.dialect === "postgres") return this.readAppliedPostgresSnapshot();
+  private async readAppliedSnapshot(journal: DrizzleJournal | null): Promise<SchemaSnapshot | null> {
+    if (this.kernel.dialect === "postgres") return this.readAppliedPostgresSnapshot(journal);
     if (!(await this.migrationsTableExists())) return null;
 
     let latest: { hash: string; created_at: number | string } | undefined;
@@ -241,16 +243,15 @@ export class SqliteDatabaseIntrospectionAdapter implements DatabaseIntrospection
 
     // Postgres returns a bigint column as a string.
     const createdAt = Number(latest.created_at);
-    const journal = this.readJournal();
     const matchingEntry = journal?.entries.find((entry) => entry.when === createdAt);
     return matchingEntry ? { version: matchingEntry.idx, tag: matchingEntry.tag } : null;
   }
 
   /** Postgres/PGlite: the bundled journal's head once `0000_legacy_baseline` is in `tovu_migrations`
    * (the baseline is the whole frozen drizzle chain), else `null` (no ledger, or no baseline yet). */
-  private async readAppliedPostgresSnapshot(): Promise<SchemaSnapshot | null> {
+  private async readAppliedPostgresSnapshot(journal: DrizzleJournal | null): Promise<SchemaSnapshot | null> {
     if (!(await this.readLedgerIds()).has(LEGACY_BASELINE_ID)) return null;
-    const head = this.readJournal()?.entries.at(-1);
+    const head = journal?.entries.at(-1);
     return head ? { version: head.idx, tag: head.tag } : null;
   }
 
