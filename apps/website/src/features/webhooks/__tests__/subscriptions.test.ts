@@ -182,3 +182,14 @@ test("deleteSubscription soft-disables rather than removing the row", async () =
   assert.ok(stillThere, "row must still exist after 'delete'");
   assert.equal(stillThere?.status, "disabled");
 });
+
+test("createSubscription records the creating plugin when createdByPluginId is supplied, and null otherwise", async () => {
+  const deps = makeDeps();
+
+  const { subscription: pluginMade } = await createSubscription({ deps, input: { ...baseInput, createdByPluginId: "plugin-forms" } });
+  const { subscription: userMade } = await createSubscription({ deps, input: baseInput });
+
+  assert.equal(pluginMade.createdByPluginId, "plugin-forms");
+  assert.equal((await deps.repo.findById({ workspaceId: "workspace-1", id: pluginMade.id }))?.createdByPluginId, "plugin-forms");
+  assert.equal(userMade.createdByPluginId ?? null, null);
+});
