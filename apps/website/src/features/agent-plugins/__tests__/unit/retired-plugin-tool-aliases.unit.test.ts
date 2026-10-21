@@ -78,3 +78,12 @@ test('Cloudflare alias never overrides a retained old package; disabled successo
     assert.equal(registry.byId.get('agent_plugin_cloudflare_pages'), retained);
   }
 });
+
+test("a successor registered without a description still yields a clean former-name description", () => {
+  const registry = recordingRegistry();
+  const aliases = createRetiredPluginToolAliases({ registry });
+  const fly = registration("agent_plugin_fly");
+  aliases.registry.register({ ...fly, descriptor: { id: "agent_plugin_fly" } } as unknown as ToolRegistration);
+  aliases.registerAliases();
+  assert.equal(registry.byId.get("agent_plugin_deploy")?.descriptor.description, "Former name of agent_plugin_fly; returns the same guidance.");
+});
