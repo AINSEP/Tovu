@@ -428,6 +428,11 @@
       "Is my site ready to publish yet?",
       "Can I publish my site yet, or is hosting not set up?"
     ],
+    "deployment_preview_static_publish": [
+      "Check what gets published before I deploy the site.",
+      "Dry-run publishing my site without uploading anything.",
+      "Which hosting and domain changes would a publish make?"
+    ],
     "source_control_get_capabilities": [
       "Is GitHub connected for source control?",
       "Is git set up for this site yet?",
