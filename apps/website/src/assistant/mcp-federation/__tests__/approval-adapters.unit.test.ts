@@ -30,3 +30,28 @@ test("conversation adapters keep grants bound to the person and chat", async () 
     assert.equal(await store.has(changed), false);
   }
 });
+
+test("the workspace adapter's upsert and listByScope stay inside the bound workspace", async () => {
+  const repo = new InMemoryExternalMcpToolApprovalRepo();
+  const scoped = toJiniToolApprovalRepo({ repo, workspaceId: "workspace-a" });
+  const shared = { serverId: "service", toolName: "send", fingerprint: "a", grantedByPrincipalId: "person", grantedAt: "2026-01-01T00:00:00.000Z" };
+  await scoped.upsert(shared as Parameters<typeof scoped.upsert>[0]);
+  await repo.upsert({ ...shared, workspaceId: "workspace-b", toolName: "other" });
+  assert.deepEqual(await scoped.listByScope({}), [{ ...shared, workspaceId: "workspace-a" }]);
+});
+
+test("the conversation adapter forwards identity grants only when the host store supports them", async () => {
+  const host = createInMemoryConversationToolApprovalStore();
+  const withIdentity = toJiniConversationApprovalStore({ store: host });
+  const key = { conversationId: "chat-a", principalId: "person", connectionId: "service", toolName: "send", fingerprint: "v1" };
+  const { conversationId: _chat, ...identity } = key;
+  assert.equal(typeof withIdentity.hasIdentity, "function");
+  assert.equal(await withIdentity.hasIdentity!(identity), false);
+  await withIdentity.grant({ key, grantedAt: "2026-01-01T00:00:00.000Z" });
+  assert.equal(await withIdentity.hasIdentity!(identity), await host.hasIdentity!(identity));
+
+  // A host store with no identity grants yields an adapter with no hasIdentity at all, not a stub.
+  const withoutIdentity = toJiniConversationApprovalStore({ store: { has: host.has, grant: host.grant } });
+  assert.equal(Object.hasOwn(withoutIdentity, "hasIdentity"), false);
+  assert.equal(await withoutIdentity.has(key), true);
+});
