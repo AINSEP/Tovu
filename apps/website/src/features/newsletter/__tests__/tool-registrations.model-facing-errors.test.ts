@@ -27,7 +27,7 @@ import {
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
 } from "../repo.memory.js";
-import { buildNewsletterRegistrations, type NewsletterToolDeps } from "../tool-registrations.js";
+import { buildNewsletterRegistrations, contributeNewsletterTools, newsletterDerivedRisk, type NewsletterToolDeps } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-newsletter-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -84,6 +84,28 @@ test("newsletter_get_campaign for an unknown campaign is BAD_REQUEST with the re
     code: "BAD_REQUEST",
     message: "NEWSLETTER_CAMPAIGN_NOT_FOUND: campaign nope was not found",
   });
+});
+
+test("newsletter_update_campaign for an unknown campaign is BAD_REQUEST naming the id, and writes nothing", async () => {
+  const deps = makeRouteDeps();
+  const harness = await buildHarness(deps);
+
+  const result = await call(harness, "newsletter_update_campaign", { campaignId: "missing-campaign", subject: "New" });
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.deepEqual(result.error, {
+    code: "BAD_REQUEST",
+    message: "NEWSLETTER_CAMPAIGN_NOT_FOUND: campaign missing-campaign was not found",
+  });
+  assert.equal(await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: "missing-campaign" }), null);
+});
+
+test("the newsletter catalog contributor installs this module's builder and risk map under the newsletter domain", () => {
+  const contributor = contributeNewsletterTools();
+  assert.equal(contributor.domain, "newsletter");
+  assert.equal(contributor.build, buildNewsletterRegistrations);
+  assert.equal(contributor.risk, newsletterDerivedRisk);
 });
 
 test("newsletter_list_send_log for an unknown campaign says so rather than 'an internal error occurred'", async () => {
