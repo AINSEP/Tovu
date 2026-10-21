@@ -33,7 +33,7 @@ function sessionAnswering(workspaceId: string, calls: unknown[]) {
 test("an unknown destination id is refused as not found before any handshake", async () => {
   const calls: unknown[] = [];
   await assert.rejects(
-    resolvePublishDestinationCredential(depsWith(null), { workspaceId: WS, id: "nope" }, { openSession: sessionAnswering("dest-ws", calls) }),
+    resolvePublishDestinationCredential({ deps: depsWith(null), input: { workspaceId: WS, id: "nope" } }, { openSession: sessionAnswering("dest-ws", calls) }),
     (error: unknown) => error instanceof PublishContentPeerNotFoundError && error.message === "peer 'nope' was not found",
   );
   assert.deepEqual(calls, []);
@@ -41,9 +41,9 @@ test("an unknown destination id is refused as not found before any handshake", a
 
 test("a connected destination resolves to a session token, and a backstop request asks the handshake for backstop scope", async () => {
   const calls: unknown[] = [];
-  const credential = await resolvePublishDestinationCredential(depsWith(connectedRecord()), { workspaceId: WS, id: "dest-1", backstop: true }, { openSession: sessionAnswering("dest-ws", calls) });
+  const credential = await resolvePublishDestinationCredential({ deps: depsWith(connectedRecord()), input: { workspaceId: WS, id: "dest-1", backstop: true } }, { openSession: sessionAnswering("dest-ws", calls) });
   assert.deepEqual(credential, { id: "dest-1", label: "destination.test", baseUrl: "https://destination.test", remoteWorkspaceId: "dest-ws", apiKey: "session-token" });
-  await resolvePublishDestinationCredential(depsWith(connectedRecord()), { workspaceId: WS, id: "dest-1" }, { openSession: sessionAnswering("dest-ws", calls) });
+  await resolvePublishDestinationCredential({ deps: depsWith(connectedRecord()), input: { workspaceId: WS, id: "dest-1" } }, { openSession: sessionAnswering("dest-ws", calls) });
   assert.deepEqual(calls, [
     { baseUrl: "https://destination.test", workspaceId: WS, backstop: true },
     { baseUrl: "https://destination.test", workspaceId: WS },
@@ -52,7 +52,7 @@ test("a connected destination resolves to a session token, and a backstop reques
 
 test("a destination now answering for a different workspace is refused — publishing there would be a misdelivery", async () => {
   await assert.rejects(
-    resolvePublishDestinationCredential(depsWith(connectedRecord()), { workspaceId: WS, id: "dest-1" }, { openSession: sessionAnswering("rebuilt-ws", []) }),
+    resolvePublishDestinationCredential({ deps: depsWith(connectedRecord()), input: { workspaceId: WS, id: "dest-1" } }, { openSession: sessionAnswering("rebuilt-ws", []) }),
     (error: unknown) => error instanceof PublishTrustHandshakeError && error.failure === "refused"
       && error.message === "destination.test is not the site this computer was connected to. Connect it again to confirm.",
   );

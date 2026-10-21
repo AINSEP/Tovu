@@ -155,9 +155,9 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   workspaceRepo: { findById(required: { id: string }): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
   publishHistoryStore?: PublishHistoryStore;
-  publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["httpClient"];
-  siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["sealer"];
-  siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["keyring"];
+  publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];
+  siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["sealer"];
+  siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["keyring"];
   /** Test seam. Absent in production, where the committed-config port is composed below. */
   publishTrustProvisioning?: PublishTrustProvisioningPort;
   /** Test seam. Absent in production, where the repo's own deploy config is read. */

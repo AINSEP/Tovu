@@ -48,7 +48,7 @@ export interface PublishDestinationCredentialDeps {
 /**
  * Resolves whatever credential a destination is due, for the lifetime of one outbound request.
  *
- * @param input.workspaceId - THIS install's workspace. It scopes the row AND selects the site key
+ * @param required.input.workspaceId - THIS install's workspace. It scopes the row AND selects the site key
  * the publishing key is derived from; those are deliberately the same value.
  * @returns A credential the transport driver can use unchanged.
  * @throws {PublishContentPeerNotFoundError} when no row exists.
@@ -59,13 +59,11 @@ export interface PublishDestinationCredentialDeps {
  * HKDFs for a connected destination.
  */
 export async function resolvePublishDestinationCredential(
-  deps: PublishDestinationCredentialDeps,
-  input: { workspaceId: string; id: string; backstop?: boolean },
+  { deps, input }: { deps: PublishDestinationCredentialDeps; input: { workspaceId: string; id: string; backstop?: boolean } },
   // The handshake is a port so the workspace re-check below is testable without three live round
   // trips; production always uses the real `openPublishSession`.
-  optional: { openSession?: typeof openPublishSession } = {}
+  { openSession = openPublishSession }: { openSession?: typeof openPublishSession } = {}
 ): Promise<ResolvedPeerCredential> {
-  const { openSession = openPublishSession } = optional;
   const record = await deps.repo.findById(input);
   if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
 

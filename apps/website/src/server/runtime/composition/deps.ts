@@ -2751,9 +2751,9 @@ async function composeSiteRouteDeps(
               const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
               const connected = selectConnectedDestination(rows);
               if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
-              const credential = await resolvePublishDestinationCredential({ repo: routeDeps.publishContentPeerRepo,
+              const credential = await resolvePublishDestinationCredential({ deps: { repo: routeDeps.publishContentPeerRepo,
                 sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },
-              { workspaceId, id: connected.id });
+              input: { workspaceId, id: connected.id } });
               return { credential, httpClient: publishContentPeerHttpClient };
             },
             ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {

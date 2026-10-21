@@ -43,12 +43,12 @@ export async function pullAndStageFromPeer(
   deps: PublishContentPullDeps,
   input: { peerId: string; principalId: string },
 ): Promise<StagedPeerPull> {
-  const credential = await resolvePublishDestinationCredential({
+  const credential = await resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo,
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,
     httpClient: deps.publishContentPeerHttpClient,
-  }, { workspaceId: deps.workspaceId, id: input.peerId });
+  }, input: { workspaceId: deps.workspaceId, id: input.peerId } });
   const peer = { credential, httpClient: deps.publishContentPeerHttpClient };
   const envelope = await pullBundleFromPeer(peer);
   // Fetch blobs before staging: planImport blocks rows with missing local bytes, so bytes arriving
