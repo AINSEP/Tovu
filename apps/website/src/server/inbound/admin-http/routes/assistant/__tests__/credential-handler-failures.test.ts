@@ -285,3 +285,38 @@ test("site credential PUT with a null body keeps the stored metadata and writes 
   assert.deepEqual({ isSet: data.isSet, provider: data.provider, baseUrl: data.baseUrl, model: data.model },
     { isSet: false, provider: "openai", baseUrl: "https://example.org/v1", model: "kept-model" });
 });
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract. The empty fallback never equals the
+ * deployment's workspace, so each route answers the ordinary foreign-workspace 404 before authorizing.
+ */
+for (const { label, register, method, suffix } of [
+  { label: "execution GET", register: registerAdminAssistantGetExecutionCredentialRoute, method: "get", suffix: "execution-credential" },
+  { label: "execution PUT", register: registerAdminAssistantPutExecutionCredentialRoute, method: "put", suffix: "execution-credential" },
+  { label: "execution DELETE", register: registerAdminAssistantDeleteExecutionCredentialRoute, method: "delete", suffix: "execution-credential" },
+  { label: "site credential GET", register: registerAdminAssistantGetSiteCredentialRoute, method: "get", suffix: "site-credential" },
+  { label: "site credential PUT", register: registerAdminAssistantPutSiteCredentialRoute, method: "put", suffix: "site-credential" },
+  { label: "site credential DELETE", register: registerAdminAssistantDeleteSiteCredentialRoute, method: "delete", suffix: "site-credential" },
+  { label: "settings GET", register: registerAdminAssistantGetSettingsRoute, method: "get", suffix: "settings" },
+  { label: "settings PUT", register: registerAdminAssistantPutSettingsRoute, method: "put", suffix: "settings" },
+] as const) {
+  test(`${label}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is a 404 before any authorization`, async () => {
+    const deps = depsForHandler();
+    const authorizations: unknown[] = [];
+    deps.authorize = async (params) => { authorizations.push(params); return { allowed: true, reason: "test_grant" }; };
+    const app = express();
+    register(app, deps);
+    const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "admin-9" };
+
+    await handler({ params: {}, body: {} }, res);
+
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+    assert.deepEqual(authorizations, []);
+  });
+}

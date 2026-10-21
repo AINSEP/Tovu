@@ -11,7 +11,7 @@ import { registerAdminFormsListSubmissionsRoute } from '../list-submissions.js';
 import { registerAdminFormsListRoute } from '../list.js';
 import { registerAdminFormsUpdateRoute } from '../update.js';
 import { DuplicateCommandError } from '@jini-ai/cms/core';
-import { WS, BASE, INTERNAL_CODE, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { WS, BASE, INTERNAL_CODE, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
   { name: 'forms authoring', register: registerAdminFormsAuthoringRoute, method: 'PUT', path: `${BASE}/forms/form/authoring`, coded: true },
@@ -162,3 +162,34 @@ test('forms submissions: non-string cursor is rejected without listing submissio
   });
   assert.equal(reads, 0);
 });
+
+/**
+ * `String(req.params.X ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): Express
+ * guarantees a matched `:param` is always populated, so the right side of each `??` below is unreachable
+ * through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as "unreachable dead
+ * code" -- the repo's established answer is to KEEP the guard and exercise it with a hand-built `req`
+ * that deliberately violates that contract. An empty id resolves nothing: the ordinary not-found path.
+ */
+test('forms create: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization', async () => {
+  let calls = 0;
+  const { app } = fixture(registerAdminFormsCreateRoute, { authorize: async () => { calls++; return { allowed: true }; } });
+  assert.deepEqual(await invokeRouteDirectly({ app, method: 'POST', path: `${BASE}/forms`, req: { params: {}, query: {}, body: { name: 'Contact', slug: 'contact' } } }), {
+    statusCode: 404, jsonBody: { error: 'workspace was not found' },
+  });
+  assert.equal(calls, 0);
+});
+
+for (const { name, register, method, path, body } of [
+  { name: 'forms get: `req.params.formId ?? ""`', register: registerAdminFormsGetRoute, method: 'GET', path: `${BASE}/forms/form`, body: undefined },
+  { name: 'forms update: `req.params.formId ?? ""`', register: registerAdminFormsUpdateRoute, method: 'PUT', path: `${BASE}/forms/form`, body: { name: 'Renamed' } },
+  { name: 'forms submissions list: `req.params.formId ?? ""`', register: registerAdminFormsListSubmissionsRoute, method: 'GET', path: `${BASE}/forms/form/submissions`, body: undefined },
+  { name: 'forms submissions get: `req.params.formId ?? ""` / `req.params.submissionId ?? ""`', register: registerAdminFormsGetSubmissionRoute, method: 'GET', path: `${BASE}/forms/form/submissions/sub`, body: undefined },
+  { name: 'forms submissions delete: `req.params.formId ?? ""` / `req.params.submissionId ?? ""`', register: registerAdminFormsDeleteSubmissionRoute, method: 'DELETE', path: `${BASE}/forms/form/submissions/sub`, body: undefined },
+]) {
+  test(`${name} fallback, forced via a direct handler call, looks up the empty id and answers not-found`, async () => {
+    const { app } = fixture(register);
+    assert.deepEqual(await invokeRouteDirectly({ app, method, path, req: { params: { workspaceId: WS }, query: {}, body } }), {
+      statusCode: 404, jsonBody: { error: "form definition '' was not found", code: 'FORMS_DEFINITION_NOT_FOUND' },
+    });
+  });
+}

@@ -2,7 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 import express from "express";
 
@@ -243,4 +243,25 @@ test("T001b/INV-R2: mismatched :workspaceId 404s before authorize() runs, even f
   });
   // Workspace-check-first precedent: a 404 even for a principal that would pass authorize().
   assert.equal(res.status, 404);
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+test("recent hits: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is the NOT_FOUND envelope before authorize()", async () => {
+  const { app, deps } = buildTestApp();
+  const authorizations: unknown[] = [];
+  const realAuthorize = deps.authorize;
+  deps.authorize = async (params) => { authorizations.push(params); return realAuthorize(params); };
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, query: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: { code: "NOT_FOUND", message: "workspace was not found" } } });
+  assert.deepEqual(authorizations, []);
 });
