@@ -244,6 +244,22 @@ describe("useAccessTokens: setExistingField", () => {
     expect(findRow(result.current.controller.groups, "custom-1")?.name).toBe("fly.io deploy");
   });
 
+  it.each(["publish", "custom"] as const)("sends nothing for a %s replacement that was never edited, keeping the saved row's prefill", async (kind) => {
+    const update = vi.fn();
+    const saved = kind === "publish" ? publishCredential() : customCredential();
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: kind === "publish" ? [publishCredential()] : [], executionMode: "self-hosted-cli" }), update },
+      custom: { list: async () => ({ credentials: kind === "custom" ? [customCredential()] : [] }), update },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(findRow(result.current.groups, saved.id)).toBeDefined());
+    // A row as an older read might hand it over: no saved username, no Works-for list.
+    const row = { ...findRow(result.current.groups, saved.id)!.row, username: undefined, worksFor: undefined };
+    await act(() => result.current.replaceToken(row));
+    expect(update).not.toHaveBeenCalled();
+    expect(findRow(result.current.groups, saved.id)).toMatchObject({ token: "", name: saved.label, username: "", worksFor: [], saving: false, error: null });
+  });
+
   it.each(["publish", "custom"] as const)("rejects an invalid %s replacement and clears the error when its draft is corrected", async (kind) => {
     const update = vi.fn();
     const saved = kind === "publish" ? publishCredential() : customCredential();
@@ -586,6 +602,22 @@ describe("useAccessTokens — content refresh bus", () => {
    * would pass for the wrong reason (an unhandled rejection does not throw synchronously) — this
    * asserts the rejection actually surfaces as visible state.
    */
+  it("a background reload keeps the publish and source-control inventories it could not re-read, while applying the custom one", async () => {
+    const port = fakePort({
+      publish: { list: async () => ({ credentials: [publishCredential()], executionMode: "self-hosted-cli" }) },
+      custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.totalCount).toBe(2));
+    port.publish.list = () => Promise.reject(new Error("publish store down"));
+    port.sourceControl.list = () => Promise.reject(new Error("source store down"));
+    port.custom.list = () => Promise.resolve({ credentials: [customCredential(), customCredential({ id: "custom-2", label: "Second host" })] });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(result.current.totalCount).toBe(3));
+    expect(result.current.loadError).toContain("publish store down");
+    expect(findRow(result.current.groups, publishCredential().id)).toBeDefined();
+  });
+
   it("a rejected background reload surfaces a visible load error instead of failing silently", async () => {
     const port = fakePort({
       custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
