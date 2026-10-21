@@ -493,6 +493,25 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     }
   });
 
+  it("an unparsable model-catalog expiry falls back to the inventory's own deadline instead of poisoning it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const agent: ChatPaneAgent = {
+      id: "codex", name: "Codex", discoveryPending: false,
+      modelCatalog: { source: "cli", freshness: "fresh", coverage: "account", fetchedAt: new Date(base).toISOString(),
+        expiresAt: "not-a-timestamp", launchFingerprint: "test" },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ agents: [agent] }), { headers: { "Content-Type": "application/json" } })));
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([agent]);
+      expect(result.current.getAgentsRefreshAt?.()).toBe(base + 15 * 60_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("identical pending responses retain their backoff across immediate TanStack reads", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const base = Date.parse("2026-10-18T12:00:00Z");
