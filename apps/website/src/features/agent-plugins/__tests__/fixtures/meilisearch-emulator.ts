@@ -8,7 +8,8 @@ import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
  * It implements exactly the endpoints the provider calls, with Meilisearch's real semantics where the
  * provider depends on them:
  * - every write (`POST /indexes`, `PATCH .../settings`, `DELETE /indexes/{uid}`, `POST .../documents`)
- *   answers `202 {taskUid}` and changes NOTHING until the task runs; tasks run in enqueue order, all
+ *   answers `202 {taskUid}` and changes NOTHING until the task runs; `GET /tasks` lists tasks newest
+ *   first, filtered by `indexUids` and `statuses`; tasks run in enqueue order, all
  *   pending ones up to the polled uid, when `GET /tasks/{uid}` is called (optionally only after
  *   `pollsBeforeDone` earlier polls answered `processing`);
  * - `POST .../documents` REPLACES whole documents (no field of an older version survives);
@@ -38,6 +39,7 @@ interface Index {
 
 interface Task {
   readonly taskUid: number;
+  readonly indexUid: string;
   status: "enqueued" | "processing" | "succeeded" | "failed";
   error?: { code: string; type: string };
   polls: number;
@@ -218,8 +220,8 @@ export function createMeilisearchEmulator(required: { readonly host: string; rea
     return created;
   };
 
-  const enqueue = (run: Task["run"]): HttpResponse => {
-    const task: Task = { taskUid: tasks.length, status: "enqueued", polls: 0, run };
+  const enqueue = (indexUid: string, run: Task["run"]): HttpResponse => {
+    const task: Task = { taskUid: tasks.length, indexUid, status: "enqueued", polls: 0, run };
     tasks.push(task);
     return reply(202, { taskUid: task.taskUid, status: "enqueued", enqueuedAt: "2026-10-21T00:00:00Z" });
   };
@@ -242,29 +244,39 @@ export function createMeilisearchEmulator(required: { readonly host: string; rea
     return reply(200, { uid: task.taskUid, status: task.status, ...(task.error ? { error: { message: "emulated", ...task.error } } : {}) });
   };
 
+  /** `GET /tasks?indexUids=&statuses=&limit=`: newest first, as the server lists them. */
+  const listTasks = (query: URLSearchParams): HttpResponse => {
+    const uids = query.get("indexUids")?.split(",");
+    const statuses = query.get("statuses")?.split(",");
+    const limit = Number(query.get("limit") ?? 20);
+    const matching = tasks.filter((task) => (uids === undefined || uids.includes(task.indexUid)) && (statuses === undefined || statuses.includes(task.status)));
+    const results = matching.reverse().slice(0, limit).map((task) => ({ uid: task.taskUid, indexUid: task.indexUid, status: task.status }));
+    return reply(200, { results, limit, total: matching.length });
+  };
+
   const createIndex = (body: Doc): HttpResponse => {
     const uid = String(body.uid ?? "");
     if (!/^[A-Za-z0-9_-]{1,400}$/.test(uid)) return error(400, "invalid_index_uid");
-    return enqueue(() => {
+    return enqueue(uid, () => {
       if (indexes.has(uid)) return { code: "index_already_exists", type: "invalid_request" };
       indexOf(uid);
       return undefined;
     });
   };
 
-  const updateSettings = (uid: string, body: Doc): HttpResponse => enqueue(() => {
+  const updateSettings = (uid: string, body: Doc): HttpResponse => enqueue(uid, () => {
     const index = indexOf(uid);
     if (Array.isArray(body.filterableAttributes)) index.filterable = body.filterableAttributes.map(String);
     if (Array.isArray(body.searchableAttributes)) index.searchable = body.searchableAttributes.map(String);
     return undefined;
   });
 
-  const deleteIndex = (uid: string): HttpResponse => enqueue(() => (indexes.delete(uid) ? undefined : { code: "index_not_found", type: "invalid_request" }));
+  const deleteIndex = (uid: string): HttpResponse => enqueue(uid, () => (indexes.delete(uid) ? undefined : { code: "index_not_found", type: "invalid_request" }));
 
   const addDocuments = (uid: string, body: Json): HttpResponse => {
     if (!Array.isArray(body)) return error(400, "malformed_payload");
     const docs = body as Doc[];
-    return enqueue(() => {
+    return enqueue(uid, () => {
       if (docs.some((doc) => typeof doc.id !== "string" || !/^[A-Za-z0-9_-]{1,511}$/.test(doc.id))) return { code: "invalid_document_id", type: "invalid_request" };
       const index = indexOf(uid);
       // POST replaces whole documents: nothing of an older version survives.
@@ -322,6 +334,7 @@ export function createMeilisearchEmulator(required: { readonly host: string; rea
   /** Route table keyed by `METHOD shape`, the index uid (or task uid) segment written `:uid`. */
   const routes: Record<string, (uid: string, body: Json | undefined, query: URLSearchParams) => HttpResponse> = {
     "GET tasks/:uid": (uid) => getTask(uid),
+    "GET tasks": (_uid, _body, query) => listTasks(query),
     "POST indexes": (_uid, body) => createIndex((body ?? {}) as Doc),
     "DELETE indexes/:uid": (uid) => deleteIndex(uid),
     "PATCH indexes/:uid/settings": (uid, body) => updateSettings(uid, (body ?? {}) as Doc),

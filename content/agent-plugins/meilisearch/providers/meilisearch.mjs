@@ -266,7 +266,8 @@ const taskUidOf = (json) => (Number.isSafeInteger(json?.taskUid) ? String(json.t
 
 /**
  * Why a real timer: the contract has no sleep port, and only `ensureIndex`/`dropIndex` wait (their
- * contract is "done when ok"); writes never wait, they answer `pending` and the indexer settles them.
+ * contract is "done when ok"), plus a write's queue drain (an EARLIER task, see `drainQueue`); a
+ * write never waits for its own task, it answers `pending` and the indexer settles it.
  * @param {number} ms
  */
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -329,6 +330,51 @@ function enqueuedTask(response, what) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Write serialization (revision decisions never overlap)
+// ---------------------------------------------------------------------------------------------
+
+/** @type {Map<string, Promise<void>>} The tail of each index's write lane in this process. */
+const lanes = new Map();
+
+const settledQuietly = () => undefined;
+
+/**
+ * Runs `step` after every earlier write of this process to the same index has enqueued its task.
+ * Coordination only, no data: a lane holds a promise and is removed once it drains.
+ * @template T @param {string} index @param {() => Promise<T>} step @returns {Promise<T>}
+ */
+async function inLane(index, step) {
+  const run = (lanes.get(index) ?? Promise.resolve()).then(step);
+  const tail = run.then(settledQuietly, settledQuietly);
+  lanes.set(index, tail);
+  try {
+    return await run;
+  } finally {
+    if (lanes.get(index) === tail) lanes.delete(index);
+  }
+}
+
+/**
+ * Waits until no task of this index is still queued, so a revision read afterwards sees every
+ * earlier write applied, also one queued by another process or before a restart (the durable
+ * coordination is Meilisearch's own task queue). Tasks run in enqueue order, so the newest unfinished
+ * task settling means every earlier one did. A failed task is settled too; only an indeterminate wait
+ * is returned (as `unknown`: the write is not attempted, and the indexer reconciles it).
+ * @param {Connection} conn @returns {Promise<ProviderResult | undefined>}
+ */
+async function drainQueue(conn) {
+  const response = await call(conn, "GET", `/tasks?indexUids=${conn.index}&statuses=enqueued,processing&limit=1`);
+  if (!response.ok) return response.result;
+  const results = response.json?.results;
+  if (!Array.isArray(results)) return unknown("unexpected_response", "Meilisearch listed tasks without a results array");
+  if (results.length === 0) return undefined;
+  const uid = results[0]?.uid;
+  if (!Number.isSafeInteger(uid)) return unknown("unexpected_response", "Meilisearch listed a task without a uid");
+  const settled = await waitForTask(conn, String(uid), []);
+  return settled.status === "unknown" ? settled : undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Revisions (the stale check and revisionOf)
 // ---------------------------------------------------------------------------------------------
 
@@ -372,9 +418,11 @@ function refusalOf(item) {
 /**
  * Per-key outcome of the stale check. Revisions strictly increase per key, so an equal or lower
  * incoming revision (also against a tombstone, also against an earlier item of the same batch) is
- * `stale`. Why reading then writing is race-free: the indexer is the ONE writer of an index and never
- * sends a key a revision at or below the one its own state already recorded, so nothing else can
- * change a stored revision between this read and the queued write landing.
+ * `stale`. Why reading then writing is race-free: the read only ever runs inside the index's write
+ * lane AFTER every earlier document task of the index has settled (`drainQueue`), and the queued
+ * write is enqueued before the lane is released, so no write can land between this read and the
+ * write it decides. Being the indexer's ONE writer alone is not enough: two overlapping indexer
+ * calls (an event and a reconcile retry) would otherwise both read before either task ran.
  * @template {{ key: SearchDocumentKey, revision: number, visibility?: SearchVisibility }} I
  * @param {readonly I[]} items @param {Map<string, StoredRevision>} stored @param {(item: I) => object} toDocument
  */
@@ -407,7 +455,20 @@ async function write(ctx, items, toDocument) {
   const conn = connect(ctx);
   if (isResult(conn)) return conn;
   if (items.length > MAX_BATCH) return rejected("invalid_request", `Meilisearch accepts at most ${MAX_BATCH} documents per write`);
-  const stored = await fetchRevisions(conn, writableIds(items));
+  return inLane(conn.index, () => decideAndWrite(conn, items, toDocument));
+}
+
+/**
+ * The serialized half of a write: wait for the index's queue, read revisions, enqueue the write.
+ * @template {{ key: SearchDocumentKey, revision: number, visibility?: SearchVisibility }} I
+ * @param {Connection} conn @param {readonly I[]} items @param {(item: I) => object} toDocument @returns {Promise<ProviderResult>}
+ */
+async function decideAndWrite(conn, items, toDocument) {
+  const ids = writableIds(items);
+  // Nothing writable (every key refused): no revision decision to protect, so no request at all.
+  const blocked = ids.length === 0 ? undefined : await drainQueue(conn);
+  if (blocked !== undefined) return blocked;
+  const stored = await fetchRevisions(conn, ids);
   if (!(stored instanceof Map)) return stored;
   const { outcomes, documents } = planWrites(items, stored, toDocument);
   if (documents.length === 0) return ok({ outcomes });

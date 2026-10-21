@@ -77,6 +77,8 @@ function expectError(result: ProviderResult<unknown>, status: "rejected" | "unkn
 
 const bodyOf = (request: HttpRequest | undefined): unknown => JSON.parse(String(request?.body));
 const emptyFetch = json(200, { results: [], offset: 0, limit: 1, total: 0 });
+/** `GET /tasks` with nothing queued for the index: the write may decide right away. */
+const noTasks = json(200, { results: [], limit: 1, total: 0 });
 
 // ---------------------------------------------------------------------------------------------
 // Shape and configuration
@@ -242,11 +244,12 @@ test("dropIndex deletes the index and waits; an absent index (sync 404 or failed
 // ---------------------------------------------------------------------------------------------
 
 test("upsert fetches current revisions, sends whole documents keyed by base64url(encodeSearchKey) and answers pending with the task id", async () => {
-  const client = scripted(emptyFetch, accepted(12));
+  const client = scripted(noTasks, emptyFetch, accepted(12));
   const document = docOf("hello/world", 3, { locale: "en", fields: { color: "red", size: 3, sale: true, tags: ["a", "b"] } });
   const result = safe(await provider.upsert(ctxWith(client), { documents: [document] }));
   assert.deepEqual(result, { status: "ok", value: { outcomes: [{ key: document.key, revision: 3, status: "pending" }], taskId: "12" } });
-  const [fetch, write] = client.requests;
+  const [drain, fetch, write] = client.requests;
+  assert.deepEqual([drain?.method, drain?.url], ["GET", `${HOST}/tasks?indexUids=${INDEX}&statuses=enqueued,processing&limit=1`]);
   assert.deepEqual([fetch?.method, fetch?.url], ["POST", `${HOST}/indexes/${INDEX}/documents/fetch`]);
   assert.deepEqual(bodyOf(fetch), { filter: `id IN ["${idOf(document.key)}"]`, fields: ["id", "revision", "deleted"], limit: 1 });
   assert.deepEqual([write?.method, write?.url], ["POST", `${HOST}/indexes/${INDEX}/documents?primaryKey=id`]);
@@ -259,29 +262,29 @@ test("upsert fetches current revisions, sends whole documents keyed by base64url
 });
 
 test("a document without locale or fields stores locale null and no field tokens", async () => {
-  const client = scripted(emptyFetch, accepted(1));
+  const client = scripted(noTasks, emptyFetch, accepted(1));
   await provider.upsert(ctxWith(client), { documents: [docOf("plain", 1)] });
-  const [stored] = bodyOf(client.requests[1]) as Record<string, unknown>[];
+  const [stored] = bodyOf(client.requests[2]) as Record<string, unknown>[];
   assert.deepEqual([stored?.locale, stored?.f_fields], [null, []]);
 });
 
 test("the stale check: an equal or lower revision than the stored one (document or tombstone) or an earlier item of the batch is stale and not sent", async () => {
   const [kept, gone, fresh] = [keyOf("kept"), keyOf("gone"), keyOf("fresh")];
   const stored = json(200, { results: [{ id: idOf(kept), revision: 5, deleted: false }, { id: idOf(gone), revision: 4, deleted: true }] });
-  const client = scripted(stored, accepted(2));
+  const client = scripted(noTasks, stored, accepted(2));
   const result = safe(await provider.upsert(ctxWith(client), { documents: [docOf("kept", 5), docOf("gone", 3), docOf("fresh", 2), docOf("fresh", 2), docOf("kept", 6), docOf("fresh", 4)] }));
   assert.deepEqual(result.status === "ok" && result.value.outcomes.map((outcome) => [outcome.key.documentId, outcome.revision, outcome.status]), [
     ["kept", 5, "stale"], ["gone", 3, "stale"], ["fresh", 2, "pending"], ["fresh", 2, "stale"], ["kept", 6, "pending"], ["fresh", 4, "pending"],
   ]);
-  const sent = bodyOf(client.requests[1]) as { id: string; revision: number }[];
+  const sent = bodyOf(client.requests[2]) as { id: string; revision: number }[];
   assert.deepEqual(sent.map((doc) => [doc.id, doc.revision]), [[idOf(fresh), 4], [idOf(kept), 6]], "one document per key, the highest accepted revision");
 });
 
 test("a write whose every item is stale or refused sends nothing and answers without a task id", async () => {
-  const client = scripted(json(200, { results: [{ id: idOf(keyOf("a")), revision: 9 }] }));
+  const client = scripted(noTasks, json(200, { results: [{ id: idOf(keyOf("a")), revision: 9 }] }));
   const result = safe(await provider.upsert(ctxWith(client), { documents: [docOf("a", 2)] }));
   assert.deepEqual(result, { status: "ok", value: { outcomes: [{ key: keyOf("a"), revision: 2, status: "stale" }] } });
-  assert.equal(client.requests.length, 1);
+  assert.equal(client.requests.length, 2);
 });
 
 test("restricted documents, bad revisions and over-long keys are refused per key and never reach any request body", async () => {
@@ -297,7 +300,7 @@ test("restricted documents, bad revisions and over-long keys are refused per key
   ]);
   assert.equal(client.requests.length, 0, "nothing writable, so not even the revision fetch is sent");
 
-  const mixed = scripted(emptyFetch, accepted(3));
+  const mixed = scripted(noTasks, emptyFetch, accepted(3));
   await provider.upsert(ctxWith(mixed), { documents: [restricted, docOf("open", 1)] });
   const bodies = mixed.requests.map((request) => String(request.body));
   assert.ok(bodies.some((body) => body.includes("Body of open")));
@@ -305,10 +308,10 @@ test("restricted documents, bad revisions and over-long keys are refused per key
 });
 
 test("remove writes tombstones that carry no content, through the same stale check", async () => {
-  const client = scripted(emptyFetch, accepted(5));
+  const client = scripted(noTasks, emptyFetch, accepted(5));
   const result = safe(await provider.remove(ctxWith(client), { tombstones: [{ key: keyOf("a"), revision: 2 }] }));
   assert.deepEqual(result, { status: "ok", value: { outcomes: [{ key: keyOf("a"), revision: 2, status: "pending" }], taskId: "5" } });
-  assert.deepEqual(bodyOf(client.requests[1]), [{
+  assert.deepEqual(bodyOf(client.requests[2]), [{
     id: idOf(keyOf("a")), site_id: "site_1", workspace_id: "ws_1", collection: "post", document_id: "a", revision: 2, deleted: true,
     url: "", title: "", body: "", locale: null, f_fields: [],
   }]);
@@ -319,20 +322,58 @@ test("writes refuse more than maxBatch items, and surface revision-fetch and doc
   const client = scripted();
   expectError(await provider.upsert(ctxWith(client), { documents: many }), "rejected", "invalid_request");
   assert.equal(client.requests.length, 0);
-  expectError(await provider.upsert(ctxWith(scripted(meiliError(401, "invalid_api_key", "auth"))), { documents: [docOf("a", 1)] }), "rejected", "unauthorized");
-  expectError(await provider.upsert(ctxWith(scripted(json(200, { results: "nope" }))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
-  expectError(await provider.upsert(ctxWith(scripted(json(200, { results: [{ id: "x" }] }))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
-  expectError(await provider.upsert(ctxWith(scripted(json(200, {}))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
-  expectError(await provider.upsert(ctxWith(scripted(emptyFetch, meiliError(429, "too_many_requests"))), { documents: [docOf("a", 1)] }), "rejected", "rate_limited");
-  expectError(await provider.remove(ctxWith(scripted(emptyFetch, json(202, {}))), { tombstones: [{ key: keyOf("a"), revision: 1 }] }), "unknown", "unexpected_response");
-  expectError(await provider.upsert(ctxWith(scripted(emptyFetch, new Error("reset"))), { documents: [docOf("a", 1)] }), "unknown", "network");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, meiliError(401, "invalid_api_key", "auth"))), { documents: [docOf("a", 1)] }), "rejected", "unauthorized");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, json(200, { results: "nope" }))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, json(200, { results: [{ id: "x" }] }))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, json(200, {}))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, emptyFetch, meiliError(429, "too_many_requests"))), { documents: [docOf("a", 1)] }), "rejected", "rate_limited");
+  expectError(await provider.remove(ctxWith(scripted(noTasks, emptyFetch, json(202, {}))), { tombstones: [{ key: keyOf("a"), revision: 1 }] }), "unknown", "unexpected_response");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, emptyFetch, new Error("reset"))), { documents: [docOf("a", 1)] }), "unknown", "network");
 });
 
 test("a write to an index that does not exist yet treats every key as never written", async () => {
-  const client = scripted(meiliError(404, "index_not_found"), accepted(1));
+  const client = scripted(noTasks, meiliError(404, "index_not_found"), accepted(1));
   const result = safe(await provider.upsert(ctxWith(client), { documents: [docOf("a", 1)] }));
   assert.equal(result.status === "ok" && result.value.outcomes[0]?.status, "pending");
-  expectError(await provider.upsert(ctxWith(scripted(meiliError(404, "not_found"))), { documents: [docOf("a", 1)] }), "rejected", "not_found");
+  expectError(await provider.upsert(ctxWith(scripted(noTasks, meiliError(404, "not_found"))), { documents: [docOf("a", 1)] }), "rejected", "not_found");
+});
+
+const queuedTask = (uid: unknown): HttpResponse => json(200, { results: [{ uid, indexUid: INDEX, status: "enqueued" }], limit: 1, total: 1 });
+
+test("a write first waits for the index's newest queued task, so its revision read sees every earlier write", async () => {
+  const tombstoned = json(200, { results: [{ id: idOf(keyOf("a")), revision: 5, deleted: true }] });
+  const client = scripted(queuedTask(7), task("succeeded"), tombstoned);
+  const result = safe(await provider.upsert(ctxWith(client), { documents: [docOf("a", 3)] }));
+  assert.deepEqual(result, { status: "ok", value: { outcomes: [{ key: keyOf("a"), revision: 3, status: "stale" }] } }, "the queued tombstone 5 blocks revision 3");
+  assert.deepEqual(client.requests.map((request) => `${request.method} ${request.url}`), [
+    `GET ${HOST}/tasks?indexUids=${INDEX}&statuses=enqueued,processing&limit=1`, `GET ${HOST}/tasks/7`, `POST ${HOST}/indexes/${INDEX}/documents/fetch`,
+  ]);
+  // A failed earlier task has settled too: the write goes ahead.
+  const afterFailure = safe(await provider.upsert(ctxWith(scripted(queuedTask(7), task("failed"), emptyFetch, accepted(8))), { documents: [docOf("a", 3)] }));
+  assert.equal(afterFailure.status === "ok" && afterFailure.value.taskId, "8");
+});
+
+test("a write whose queue wait is indeterminate is not attempted and answers unknown", async () => {
+  expectError(await provider.upsert(ctxWith(scripted(meiliError(500, "internal"))), { documents: [docOf("a", 1)] }), "unknown", "provider_unavailable");
+  expectError(await provider.upsert(ctxWith(scripted(json(200, {}))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
+  expectError(await provider.upsert(ctxWith(scripted(queuedTask("7"))), { documents: [docOf("a", 1)] }), "unknown", "unexpected_response");
+  let clock = 0;
+  const stuck = scripted(queuedTask(7), task("processing"), task("processing"));
+  expectError(await provider.remove(ctxWith(stuck, { now: () => (clock += 600) }), { tombstones: [{ key: keyOf("a"), revision: 1 }] }), "unknown", "timeout");
+  assert.equal(stuck.requests.length, 3, "no revision fetch and no write after an unsettled wait");
+});
+
+test("overlapping writes to one index are serialized: the second decides only after the first was queued and ran", async () => {
+  const emulator = createMeilisearchEmulator({ host: HOST, apiKey: API_KEY });
+  const ctx = ctxWith(createFakeHttpClient({ handle: emulator.handle }));
+  assert.equal(safe(await provider.ensureIndex(ctx)).status, "ok");
+  const [tombstone, upsert] = await Promise.all([
+    provider.remove(ctx, { tombstones: [{ key: keyOf("a"), revision: 5 }] }),
+    provider.upsert(ctx, { documents: [docOf("a", 3)] }),
+  ]);
+  assert.equal(safe(tombstone).status === "ok" && tombstone.value.outcomes[0]?.status, "pending");
+  assert.deepEqual(safe(upsert).status === "ok" && upsert.value, { outcomes: [{ key: keyOf("a"), revision: 3, status: "stale" }] });
+  assert.deepEqual(emulator.documents(INDEX)?.map((doc) => [doc.revision, doc.deleted]), [[5, true]]);
 });
 
 // ---------------------------------------------------------------------------------------------
