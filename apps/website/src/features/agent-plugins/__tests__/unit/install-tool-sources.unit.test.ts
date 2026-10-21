@@ -158,3 +158,11 @@ test("L025b identical uploads preserve an undetermined activation as null", asyn
   assert.equal(result.alreadyInstalled, true);
   assert.equal(result.note, "These exact bytes are already installed; activation was not changed.");
 });
+
+test("a bundled plugin that boot seeds OFF is reported as installed OFF with the enable hint", async t => {
+  const f = await fixture(t);
+  await writePackage(path.join(f.sourceRoot, "plain-bundled"), "plain-bundled");
+  const result = await f.install.handler(context({ source: { kind: "bundled", bundledId: "plain-bundled" } }), {});
+  assert.deepEqual(result, { installed: true, alreadyInstalled: false, enabled: false, plugin: { id: "plain-bundled" },
+    note: "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested." });
+});
