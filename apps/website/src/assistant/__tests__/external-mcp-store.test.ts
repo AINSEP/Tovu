@@ -1530,3 +1530,16 @@ for (const [label, input, field] of [
     assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
   });
 }
+
+test("a save from a caller that predates writeAllowedToolNames degrades to no write grants, not a throw", async () => {
+  const { deps, repo } = makeDeps();
+  const { writeAllowedToolNames: _omitted, ...legacy } = validInput();
+  await saveExternalMcpServer(deps, legacy as Parameters<typeof saveExternalMcpServer>[1]);
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(record);
+  const { readExternalMcpToolGrants } = await import("../external-mcp-store.js");
+  assert.deepEqual(readExternalMcpToolGrants(record), {
+    allowedToolNames: ["search_repositories", "get_file_contents"],
+    writeAllowedToolNames: [],
+  });
+});
