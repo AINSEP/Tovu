@@ -44,8 +44,10 @@ export function startVisibleInterval(
   timers: IntervalTimers = WINDOW_TIMERS,
 ): () => void {
   let handle: unknown = null;
+  // Only ever called with no timer running: at start (nothing scheduled yet) and from
+  // `onVisibility` after its own `handle !== null` early return, so no second timer can stack.
   const run = () => {
-    if (handle === null) handle = timers.setInterval(tick, periodMs);
+    handle = timers.setInterval(tick, periodMs);
   };
   const halt = () => {
     if (handle !== null) timers.clearInterval(handle);
