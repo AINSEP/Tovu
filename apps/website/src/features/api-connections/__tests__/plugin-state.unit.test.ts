@@ -12,7 +12,7 @@ import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo, VaultError, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import type { AdminSurfaceStateValue } from "@jini-ai/agent-plugins/admin-surfaces";
 
-import { createAgentPluginStateStore } from "../plugin-state.js";
+import { createAgentPluginStateStore, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";
 import { createApiConnectionVault } from "../vault-stores.js";
 
 const SCOPE = { workspaceId: "ws-1", pluginId: "acme-office" };
@@ -77,4 +77,44 @@ test("delete: a saved key is gone after delete", async () => {
   await state.set({ key: "products", value: ["tables"] });
   await state.delete({ key: "products" });
   assert.equal(await state.get({ key: "products" }), null);
+});
+
+function storeAndVault() {
+  const keyring = new InMemoryKeyring({ hkdfSalt: "plugin-state-describe" });
+  const vault = createApiConnectionVault({ repo: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer({ keyring }), clock: { nowMs: () => Date.now() }, workspaceId: "ws-1" });
+  return { vault, store: createAgentPluginStateStore({ vault, workspaceId: "ws-1" }) };
+}
+
+test("describe: lists only this plugin's keys with their revisions, sorted, and never a value", async () => {
+  const { store } = storeAndVault();
+  const mine = store.forPlugin(SCOPE);
+  await mine.set({ key: "resource", value: "secret-looking-value" });
+  await mine.set({ key: "products", value: ["tables"] });
+  await mine.set({ key: "products", value: ["tables", "files"] });
+  // A plugin whose id shares the prefix text must not leak into this plugin's summary.
+  await store.forPlugin({ workspaceId: "ws-1", pluginId: "acme-office-extra" }).set({ key: "other", value: 1 });
+
+  const summary = await store.describe(SCOPE);
+  assert.deepEqual(summary, { keys: [{ key: "products", revision: 2 }, { key: "resource", revision: 1 }] });
+  assert.equal(JSON.stringify(summary).includes("secret-looking-value"), false);
+});
+
+test("describe: a plugin with no saved settings has an empty summary", async () => {
+  const { store } = storeAndVault();
+  assert.deepEqual(await store.describe(SCOPE), { keys: [] });
+});
+
+test("describe: a foreign workspace or malformed plugin id is refused before the vault is read", async () => {
+  const { vault, store } = storeAndVault();
+  let listed = 0;
+  const list = vault.list.bind(vault);
+  vault.list = (async (...args: Parameters<typeof list>) => { listed += 1; return list(...args); }) as typeof vault.list;
+  await assert.rejects(store.describe({ workspaceId: "ws-2", pluginId: "acme-office" }), { message: PLUGIN_STATE_UNAVAILABLE_MESSAGE });
+  await assert.rejects(store.describe({ workspaceId: "ws-1", pluginId: "Acme_Office" }), { message: PLUGIN_STATE_UNAVAILABLE_MESSAGE });
+  assert.equal(listed, 0);
+});
+
+test("get: a malformed setting key is refused before the vault is read", async () => {
+  const { store } = storeAndVault();
+  await assert.rejects(store.readerFor(SCOPE).get({ key: "../escape" }), { message: /A plugin setting key must be 1-128 letters/ });
 });

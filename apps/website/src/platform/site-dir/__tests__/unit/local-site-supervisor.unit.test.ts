@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertLocalSiteName, createLocalSiteSupervisor, LocalSiteError, type LocalSiteProcess, type LocalSiteProcessPort, type LocalSiteState } from "../../local-site-supervisor.js";
+import { assertLocalSiteName, createLocalSiteSupervisor, LocalSiteError, startLocalSiteWhenRunning, type LocalSiteProcess, type LocalSiteProcessPort, type LocalSiteState } from "../../local-site-supervisor.js";
 
 function fixture(cap = 3) {
   const children: Array<{ exit: () => void; stopped: boolean }> = [];
@@ -290,4 +290,29 @@ test("host shutdown while ports are being allocated refuses to launch", async ()
   await assert.rejects(starting, { message: "SITE_HOST_STOPPING" });
   await stopped;
   assert.equal(f.children.length, 0);
+});
+
+test("startLocalSiteWhenRunning waits for the probe to report running before handing back adminUrl", async () => {
+  const f = fixture();
+  const sleeps: number[] = [];
+  const state = await startLocalSiteWhenRunning({ supervisor: f.supervisor, name: "a" }, { intervalMs: 7, sleep: async (ms) => { sleeps.push(ms); await f.tick(); } });
+  assert.equal(state.status, "running");
+  assert.equal(state.adminUrl, "https://localhost:3102/admin/");
+  assert.deepEqual(sleeps, [7]);
+});
+
+test("startLocalSiteWhenRunning stops waiting after its attempts and returns the still-starting state", async () => {
+  const started: LocalSiteState = { name: "a", status: "starting", pid: 1, port: 3102, daemonPort: 3103, adminUrl: "http://localhost:3102/admin/" };
+  let sleeps = 0;
+  const state = await startLocalSiteWhenRunning({ supervisor: { start: async () => started, list: () => [] }, name: "a" }, { attempts: 2, sleep: async () => { sleeps++; } });
+  assert.equal(state, started);
+  assert.equal(sleeps, 2);
+});
+
+test("startLocalSiteWhenRunning returns a crash without a link and uses the real timer by default", async () => {
+  const crashed: LocalSiteState = { name: "a", status: "crashed", pid: null, port: null, daemonPort: null, adminUrl: null };
+  const starting: LocalSiteState = { ...crashed, status: "starting" };
+  const state = await startLocalSiteWhenRunning({ supervisor: { start: async () => starting, list: () => [crashed] }, name: "a" }, { intervalMs: 1 });
+  assert.equal(state.adminUrl, null);
+  assert.equal(state.status, "crashed");
 });

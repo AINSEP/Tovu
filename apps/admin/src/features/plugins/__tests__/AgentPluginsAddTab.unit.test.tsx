@@ -111,6 +111,7 @@ describe("AgentPlugins — Add a plugin", () => {
     await openAddTab();
     const replace = screen.getByRole("checkbox", { name: "Replace existing version" });
     expect(replace).not.toBeChecked();
+    expect(screen.getByText("Replaces the installed version with a newer one. Older versions are refused.")).toBeInTheDocument();
     await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip("upgrade.zip"));
     await userEvent.click(replace);
     await userEvent.click(installButton());

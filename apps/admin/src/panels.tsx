@@ -6,6 +6,7 @@ import { Themes, ThemeExplore } from "./features/themes";
 import { AdminUi } from "./features/admin-ui";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
+import { ImportExport } from "./features/import-export";
 import { PostEditor, Posts } from "./features/posts";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
 import { PageEditor, Pages } from "./features/pages";
@@ -1019,11 +1020,12 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // are Database, Recovery, and Integrations — not the design surface (Studio) and not this
     // site's own configuration (Administration). It is also the one section that is as much about
     // getting data OUT as in, which is an operational guarantee rather than an authoring feature.
-    render: () => <Placeholder sectionId="import-export" agentHandle="import-export" />,
+    // A hub of links to the screens that already move a site (Sites → Export/Import, Deployment →
+    // Static Site), not a second copy of any of them.
+    render: () => <ImportExport />,
     nav: {
       label: "Import & Export",
       group: "Operations",
-      soon: true,
       icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
     },
   },

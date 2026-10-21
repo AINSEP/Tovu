@@ -177,6 +177,34 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       },
     },
     {
+      // Finishes or rolls back an Agent Plugin update a crash interrupted, then removes retained
+      // rollback bytes. It runs here, in array order: before the bundled seed touches any package and
+      // before the listener serves a run, since no run can hold those paths yet.
+      //
+      // OPTIONAL, like the seed below: one bad plugin must not stop the server. An unrecovered plugin
+      // is switched OFF (the update transaction switches it off before moving any bytes; recovery of
+      // an unreadable journal switches it off and rethrows; a restored revision whose MCP servers
+      // could not be re-provisioned stays off with an event), and its retained journal refuses any
+      // change to it (`PLUGIN_UPDATE_PENDING`, 409) until a later boot recovers it. Refusing to boot
+      // the whole site would also lock the operator out of the admin that could fix it. The composed
+      // lifecycle binds the real MCP port (`createDeferredAgentPluginUpdateEffects`), so recovery
+      // re-provisions a restored revision's servers.
+      name: "agent-plugin-update-recovery",
+      owner: "features/agent-plugins",
+      criticality: "optional",
+      prepare: async () => {
+        try {
+          await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error(`[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}`);
+          throw error;
+        }
+      },
+      start: noop,
+      stop: noop,
+    },
+    {
       // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
       // records each INACTIVE until an operator enables it (see
       // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).

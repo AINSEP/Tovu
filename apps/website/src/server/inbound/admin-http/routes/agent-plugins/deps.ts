@@ -33,6 +33,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  * `RouteDeps` and passes it straight through, so this widening needs no composition-root change.
  */
 export interface AgentPluginsRouteDeps {
+  readonly snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
   readonly pluginHost?: import("#src/contracts/headless/plugin-host").PluginHostPort;
   workspaceId: UUID;
   agentPluginLayout: RouteDeps["agentPluginLayout"];
@@ -41,6 +42,8 @@ export interface AgentPluginsRouteDeps {
   externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];
   siteAssistantSecretSealer: RouteDeps["siteAssistantSecretSealer"];
   siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];
+  /** The roster-reload port an update announces through (`RouteDeps.notifyExternalMcpRosterChanged`). */
+  readonly notifyExternalMcpRosterChanged?: RouteDeps["notifyExternalMcpRosterChanged"];
   /** The shared lifecycle owner, optionally bound to host effects for this surface. */
   setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
   /** Admin surfaces (`admin-surfaces.ts`, 2026-10-20): admission and contained reads go through

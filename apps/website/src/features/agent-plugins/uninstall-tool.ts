@@ -4,7 +4,7 @@ import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { resolveOperatorLocale } from "./operator-locale.js";
 import {
@@ -68,6 +68,33 @@ function toModelFacingUninstallError(error: unknown): unknown {
   return error;
 }
 
+/** An interrupted update of this plugin is still waiting for boot recovery (`PLUGIN_UPDATE_PENDING`),
+ *  or its recovery record is unreadable: removing it now would let recovery resurrect the old revision.
+ *  Nothing was removed, so this is the same ADR-055 Decision 6 result as the refusals below.
+ *  @complexity O(1). */
+function updateJournalRefusedResult(required: { pluginId: string; error: AgentPluginUpdateError }, _optional: Record<string, never> = {}): unknown {
+  const { pluginId, error } = required;
+  return {
+    uninstalled: false,
+    cancelled: false,
+    pluginId,
+    restartRequired: false,
+    reason: "update-pending",
+    code: error.code,
+    note: `Nothing was removed: an interrupted update of '${pluginId}' is still waiting to be recovered, so it was NOT ` +
+      `uninstalled. ${updateJournalNextStep({ error })}`,
+  };
+}
+
+/** Only a pending update recovers at start. Any other journal refusal (an unreadable record, an
+ *  unsafe recorded path) survives a restart, so telling the user to restart would loop them.
+ *  @complexity O(1). */
+function updateJournalNextStep({ error }: { error: AgentPluginUpdateError }, _optional: Record<string, never> = {}): string {
+  return error.code === "PLUGIN_UPDATE_PENDING"
+    ? "Tell the user to restart Tovu (recovery runs at start) and then try again."
+    : `Its update recovery record needs manual repair (${error.code}); restarting Tovu will not fix it. Tell the user an operator has to repair it first.`;
+}
+
 /**
  * The model-facing outcome of an `uninstall.ts` rejection: a RESULT when this workspace's activation record could
  * not be read, or could not be locked, otherwise `toModelFacingUninstallError`'s classification, thrown.
@@ -82,6 +109,7 @@ function toModelFacingUninstallError(error: unknown): unknown {
  * @complexity O(1).
  */
 function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
+  if (error instanceof AgentPluginUpdateError) return updateJournalRefusedResult({ pluginId, error });
   if (error instanceof AgentPluginActivationsBusyError) {
     console.warn(`[agent-plugins] '${pluginId}': plugins_uninstall (family agent-plugin) refused — ${error.message}`);
     return {

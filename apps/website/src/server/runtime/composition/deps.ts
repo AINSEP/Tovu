@@ -1,3 +1,4 @@
+import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
@@ -6,6 +7,7 @@ import { createSiteShareBackend } from "#src/features/site-backup/share-backend"
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
 import { rebuildImportDatabase } from "#src/platform/db/sqlite/import-database";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
+import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import * as importYauzl from "yauzl";
@@ -68,6 +70,7 @@ import {
 } from "#src/features/post/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -1101,6 +1104,9 @@ async function composeSiteRouteDeps(
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+    // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
+    // lazily because that store is composed below.
+    mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });
@@ -1269,7 +1275,10 @@ async function composeSiteRouteDeps(
     ensureCommentsSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
+    ).then(() => ensureCommentsProviderDefinition({
+      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+    }))
   );
 
   // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
@@ -1822,6 +1831,11 @@ async function composeSiteRouteDeps(
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
   }, {});
+  const commentsCapability = createCommentsCapability({
+    siteId: workspaceId, module: commentsModule, commentsReady: commentsReady, settingsReady: commentsSettingsReady,
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+  });
+
 
   // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
   // second `resolveRuntimeMode()` call used to sit) so `newsletterKeyring`'s own construction below
@@ -2557,7 +2571,8 @@ async function composeSiteRouteDeps(
     },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
-    commentWriteService: commentsModule.writeService,
+    commentWriteService: commentsCapability.writeService,
+    commentsProviders: commentsCapability.providers,
     commentsReady,
     commentsSettingsReady,
     widgetBindingRepo,
@@ -2848,7 +2863,8 @@ async function composeSiteRouteDeps(
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
       routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
-        startSite: input => importSupervisor.start(input),
+        // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
+        startSite: input => startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }),
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
       }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
     }

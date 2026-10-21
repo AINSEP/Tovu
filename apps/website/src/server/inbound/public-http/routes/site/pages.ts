@@ -1,3 +1,4 @@
+import { renderCommentsMarkers } from '#src/features/comments/public-markers';
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
@@ -1195,7 +1196,7 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">> & {
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor">> & {
   /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
   readonly listingBatch?: ListingBatchRequest;
 };
@@ -1604,7 +1605,10 @@ export async function renderViaTemplate(
     featuredImage: await resolveFeaturedImageForRender(deps, pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post),
     postAuthor: post,
   });
-  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
+  return renderCommentsMarkers({ html: injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled),
+    providers: deps.commentsProviders, siteId: deps.workspaceId,
+    entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
+  }, { cursor: deps.commentsCursor });
 }
 
 /**
@@ -2138,7 +2142,7 @@ export async function renderGenericPostPage(
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
     resolveAssignedTermsForRender(deps, post),
   ]);
-  return renderSite({
+  const html = renderSite({
     theme,
     route: "post",
     siteTitle,
@@ -2152,6 +2156,9 @@ export async function renderGenericPostPage(
     extraHead,
     siteAssistantEnabled,
   });
+  return renderCommentsMarkers({ html, providers: deps.commentsProviders, siteId: deps.workspaceId,
+    entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
+  }, { cursor: deps.commentsCursor });
 }
 
 /**
@@ -2624,7 +2631,8 @@ class ListingBatchNotFoundError extends Error {}
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch"> {
   const listingBatch = listingBatchRequests.get(req);
-  return listingBatch === undefined ? deps : { ...deps, listingBatch };
+  const commentsCursor = typeof req.query.commentCursor === 'string' ? req.query.commentCursor : undefined;
+  return { ...deps, listingBatch, commentsCursor };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404. */
@@ -2643,7 +2651,9 @@ type PostPreviewsAccess = { resolver: MemberAccessResolver; context: MemberConte
 async function sendPublicPage({ req, res, deps, html, perVisitor }: {
   req: Request; res: Response; deps: RouteDeps; html: string; perVisitor: PerVisitorResponse;
 }): Promise<void> {
-  res.set("Cache-Control", perVisitor.cacheControl).type("html").send(await finalizePublicPageHtml(req, html, perVisitor.result, deps));
+  // Live comments never enter browser/CDN caches; approval, selection and disable take effect on the next request.
+  const cacheControl = html.includes('data-comments-surface') ? 'private, no-store' : perVisitor.cacheControl;
+  res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml(req, html, perVisitor.result, deps));
 }
 
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,

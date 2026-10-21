@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
 
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.js";
+import { agentPluginLifecycleFields } from "./install-response.js";
 
 /**
  * @file `AGENT_PLUGIN_SET_ENABLED` — `PATCH /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId`
@@ -112,14 +113,17 @@ function sendUpdatedRow(
   res: Response,
   candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number],
   enabled: boolean,
+  warnings: readonly string[] = [],
 ): void {
   res.json({
+    warnings,
     agentPlugin: {
       pluginId: candidate.pluginId,
       version: candidate.version ?? null,
       description: candidate.description ?? null,
       keywords: candidate.keywords,
       enabled,
+      ...agentPluginLifecycleFields({ candidate }),
       skills: candidate.skills,
       mcpServerIds: candidate.mcpServerIds,
     },
@@ -174,6 +178,12 @@ async function provisionAgentPluginMcpServersBestEffort(
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
 function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+  // Not for this host (enable only), or an interrupted update awaits boot recovery
+  // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
+  if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
+    res.status(409).json({ code: error.code, error: error.message });
+    return;
+  }
   if (error instanceof AgentPluginNotInstalledError) {
     res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
     return;
@@ -263,7 +273,7 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
       }
 
-      sendUpdatedRow(res, candidate, written.enabled);
+      sendUpdatedRow(res, candidate, written.enabled, written.warnings);
     } catch (error) {
       sendSetEnabledError(res, pluginId, error);
     }

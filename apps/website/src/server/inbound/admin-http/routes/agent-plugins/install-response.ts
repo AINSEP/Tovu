@@ -1,4 +1,4 @@
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
 
@@ -70,9 +70,13 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
 
 /**
  * Maps a thrown install error to its HTTP refusal. Anything unrecognised is a redacted 500.
+ * Every update refusal (changed since the operator looked, bundled, downgrade, a pending recovery,
+ * another plugin's package) and an incompatible host are conflicts with the installed state: 409
+ * with the lifecycle owner's own code and plain message, which never carries a host path.
  * @complexity O(1).
  */
 export function installErrorResponse(error: unknown): InstallRefusal {
+  if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return { status: 409, body: { code: error.code, error: error.message } };
   if (error instanceof AgentPluginUploadError) return uploadErrorRefusal(error);
   if (error instanceof AgentPluginInstallError) return installErrorRefusal(error);
   if (error instanceof AgentPluginActivationsUnreadableError || error instanceof AgentPluginActivationsBusyError) {
@@ -85,8 +89,32 @@ export function installErrorResponse(error: unknown): InstallRefusal {
   return { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } };
 }
 
+/**
+ * The lifecycle fields every Agent Plugin row carries (`list.ts`, install/update, `set-enabled.ts`):
+ * `origin` (bundled rows are managed by Tovu: no Update, no Uninstall), `hostOk` (false: this host
+ * refuses to enable it), `missingRequires` (advisory capabilities no other enabled plugin provides),
+ * `requiredBy` (enabled plugins that would lose a capability if this one were switched off) and
+ * `archiveDigest` (the installed revision an update must name). One projection, so the three
+ * responses cannot drift.
+ * @complexity O(1).
+ */
+export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate }, _optional: Record<string, never> = {}) {
+  return {
+    origin: candidate.origin,
+    hostOk: candidate.hostOk,
+    missingRequires: candidate.missingRequires ?? [],
+    requiredBy: candidate.requiredBy ?? [],
+    archiveDigest: candidate.archiveDigest,
+  };
+}
+
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */
 export interface InstalledAgentPluginRow {
+  readonly origin?: AgentPluginSearchCandidate["origin"];
+  readonly hostOk?: boolean;
+  readonly missingRequires?: readonly string[];
+  readonly requiredBy?: readonly string[];
+  readonly archiveDigest?: string;
   readonly pluginId: string;
   readonly displayName: string | null;
   readonly summary: string | null;
@@ -112,6 +140,7 @@ export function installedAgentPluginRow(candidate: AgentPluginSearchCandidate | 
     description: candidate.description ?? null,
     keywords: candidate.keywords,
     enabled: candidate.enabled,
+    ...agentPluginLifecycleFields({ candidate }),
     skills: candidate.skills,
     mcpServerIds: candidate.mcpServerIds,
   };

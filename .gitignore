@@ -220,3 +220,6 @@ development/.jini-local-backup/
 # the investor list is still reachable in git history (commits 7363fd4a, 1b3bee71, baa4ea1e) and
 # requires a history rewrite before this repo can be published.
 docs/business/
+
+# Trashed sites (site-trash.ts:38-49) hold a whole site + its database; never commit them.
+site-trash/

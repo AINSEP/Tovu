@@ -106,6 +106,17 @@ const NO_INPUT_SCHEMA = {
 /** Comments' fixed agent-tool catalog. */
 export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: 'comments_get_provider', description: 'Read the active site comments provider, readiness, revision and pending stored count. Existing stored comments remain recoverable when disabled.',
+    sideEffects: 'none', authorization: { permission: 'comments.configure' }, inputSchema: NO_INPUT_SCHEMA,
+  },
+  {
+    name: 'comments_set_provider', description: 'Select built-in comments or disable public comments with null after a human confirmation card. Read comments_get_provider first for expectedRevision. Stored comments, settings and history are preserved.',
+    sideEffects: 'mutates-durable-state', authorization: { permission: 'comments.configure' },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['providerId', 'expectedRevision'], properties: {
+      providerId: { type: ['string', 'null'], enum: ['built-in', null] }, expectedRevision: { type: 'integer', minimum: 0 },
+    } },
+  },
+  {
     name: "comments_get_comment",
     description: "Reads one comment by id in any moderation status, including approved, spam and trash. Call when a queue page does not contain the comment you need. Returns {comment} with the same moderation view and version as the queue. Unknown ids and denied comments.read permission are refused.",
     sideEffects: "none", authorization: { permission: "comments.read" },

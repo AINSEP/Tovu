@@ -2,6 +2,7 @@ import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/too
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";
+import { agentPluginLifecycleFields } from "./install-response.js";
 
 /**
  * @file `AGENT_PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/agent-plugins` (2026-09-09).
@@ -63,6 +64,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
           provides: candidate.provides ?? [],
           keywords: candidate.keywords,
           enabled: candidate.enabled,
+          ...agentPluginLifecycleFields({ candidate }),
           skills: candidate.skills,
           mcpServerIds: candidate.mcpServerIds,
         })),

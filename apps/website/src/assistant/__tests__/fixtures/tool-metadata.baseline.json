@@ -236,6 +236,7 @@
     "plugins_list": "plugin plugins extensions installed available list have installed my",
     "plugins_uninstall": "plugin plugins uninstall remove delete trash extension get rid of agent plugin agent-plugin agent-plugins skill skills package packages permanently",
     "agent_plugins_install": "agent plugin plugins install add upload attachment zip folder bundled bundledId ui-ux-design package agent-plugins plugin.json upgrade replace version",
+    "agent_plugins_update": "agent plugin update upgrade replace zip folder version digest",
     "plugins_install": "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",
     "skills_install": "skill skills install add new github repo repository url agent skill SKILL.md from github",
     "search_agent_plugin_local": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
@@ -2138,6 +2139,10 @@
       "confirmation": "direct"
     },
     "agent_plugins_install": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "agent_plugins_update": {
       "class": "edit",
       "confirmation": "direct"
     },

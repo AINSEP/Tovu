@@ -12,18 +12,25 @@ import type { AgentPluginInstallController } from "./hooks/use-agent-plugin-inst
  * `use-agent-plugin-install.hooks.ts`; the card is the shared `InstallTabCard` Skills and Plugins
  * use too.
  */
-export function AddAgentPluginPanel({ controller: c }: { controller: AgentPluginInstallController }) {
+export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-add", title }: {
+  controller: AgentPluginInstallController;
+  /** Agent-handle and id prefix. A row's Update panel passes its own, so it never collides with
+   *  the Add tab's (or another row's) handles and heading id. */
+  handleBase?: string;
+  /** Heading override; the Update panel names the plugin it updates. */
+  title?: string;
+}) {
   const { t } = c;
   return (
     <InstallTabCard
-      titleId="agent-plugin-add-title"
-      title={t("Add a plugin")}
-      lede={t("Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed.")}
+      titleId={`${handleBase}-title`}
+      title={title ?? t("Add a plugin")}
+      lede={c.labels.lede}
     >
       <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
-          dropProps={agentHandle({ handle: "agent-plugin-add-dropzone" }, { role: "region", label: t("Drop a .zip here") })}
-          fileProps={agentHandle({ handle: "agent-plugin-add-file-input" }, { role: "field", label: t("Upload a .zip") })}
+          dropProps={agentHandle({ handle: `${handleBase}-dropzone` }, { role: "region", label: t("Drop a .zip here") })}
+          fileProps={agentHandle({ handle: `${handleBase}-file-input` }, { role: "field", label: t("Upload a .zip") })}
           drop={c.drop}
           glyph={<UploadIcon size={24} />}
           title={c.file ? c.file.name : t("Drop a .zip here")}
@@ -34,56 +41,80 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
           inputRef={c.inputRef}
           inputLabel={t("Upload a .zip")}
           onFileChange={c.onFileChange}
-          chooseProps={agentHandle({ handle: "agent-plugin-add-choose" }, { role: "button", label: "Choose an Agent Plugin .zip" })}
+          chooseProps={agentHandle({ handle: `${handleBase}-choose` }, { role: "button", label: "Choose an Agent Plugin .zip" })}
           folder={{
-            inputProps: agentHandle({ handle: "agent-plugin-add-folder-input" }, { role: "field", label: t("Choose a plugin folder") }),
+            inputProps: agentHandle({ handle: `${handleBase}-folder-input` }, { role: "field", label: t("Choose a plugin folder") }),
             label: t("Choose a folder"),
             inputLabel: t("Choose a plugin folder"),
             onChoose: c.folderUpload.onChoose,
             inputRef: c.folderUpload.inputRef,
             onFilesChange: c.folderUpload.onChange,
-            chooseProps: agentHandle({ handle: "agent-plugin-add-choose-folder" }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
+            chooseProps: agentHandle({ handle: `${handleBase}-choose-folder` }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
           }}
         />
-        <label className="install-tab-check">
-          <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
-            {...agentHandle({ handle: "agent-plugin-add-replace" }, { role: "field", label: t("Replace existing version") })} />
-          {t("Replace existing version")}
-        </label>
-        {c.error ? (
-          <p className="install-tab-alert" role="alert">
-            {c.error}
-          </p>
-        ) : null}
-        {c.installedMessage ? (
-          <p className="install-tab-success" role="status">
-            {c.installedMessage}
-          </p>
-        ) : null}
-        <div className="install-tab-actions">
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={c.installDisabled}
-            onClick={c.install}
-            {...agentHandle({ handle: "agent-plugin-add-install" }, { role: "button", label: "Install the chosen Agent Plugin (stays off)" })}
-          >
-            {c.busy ? t("Installing…") : t("Install (stays off)")}
-          </button>
-        </div>
+        {!c.updating ? <>
+          <label className="install-tab-check">
+            <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
+              {...agentHandle({ handle: `${handleBase}-replace` }, { role: "field", label: t("Replace existing version") })} />
+            {t("Replace existing version")}
+          </label>
+          <p className="field-hint">{t("Replaces the installed version with a newer one. Older versions are refused.")}</p>
+        </> : null}
+        <AgentPluginUploadStatus controller={c} />
+        <AgentPluginUploadActions controller={c} handleBase={handleBase} />
       </InstallTabOption>
 
-      <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
+      {!c.updating ? <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
         <InstallTabFieldRow
           inputId="agent-plugin-add-url"
           type="url"
           disabled
           placeholder="https://github.com/owner/plugin"
-          inputProps={{ "aria-label": t("Plugin URL"), ...agentHandle({ handle: "agent-plugin-add-url" }, { role: "field", label: t("Plugin URL") }) }}
-          actionProps={agentHandle({ handle: "agent-plugin-add-from-url" }, { role: "button", label: t("Add from URL") })}
+          inputProps={{ "aria-label": t("Plugin URL"), ...agentHandle({ handle: `${handleBase}-url` }, { role: "field", label: t("Plugin URL") }) }}
+          actionProps={agentHandle({ handle: `${handleBase}-from-url` }, { role: "button", label: t("Add from URL") })}
           action={{ label: t("Add from URL"), disabled: true }}
         />
-      </InstallTabOption>
+      </InstallTabOption> : null}
     </InstallTabCard>
+  );
+}
+
+/** The upload's outcome lines: lifecycle warnings, the refusal, and the success line. */
+function AgentPluginUploadStatus({ controller: c }: { controller: AgentPluginInstallController }) {
+  return (
+    <>
+      {c.warnings.length > 0 ? (
+        <div className="install-tab-review" role="status">
+          {c.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+        </div>
+      ) : null}
+      {c.error ? (
+        <p className="install-tab-alert" role="alert">
+          {c.error}
+        </p>
+      ) : null}
+      {c.installedMessage ? (
+        <p className="install-tab-success" role="status">
+          {c.installedMessage}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** The install/update button; its mode-specific words come from the controller's `labels`. */
+function AgentPluginUploadActions({ controller: c, handleBase }: { controller: AgentPluginInstallController; handleBase: string }) {
+  return (
+    <div className="install-tab-actions">
+      <button
+        type="button"
+        className="btn-primary"
+        disabled={c.installDisabled}
+        onClick={c.install}
+        {...agentHandle({ handle: `${handleBase}-install` }, { role: "button", label: c.labels.actionAgentLabel })}
+      >
+        {c.busy ? c.labels.busyAction : c.labels.action}
+      </button>
+    </div>
   );
 }

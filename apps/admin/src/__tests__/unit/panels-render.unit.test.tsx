@@ -31,6 +31,7 @@ import { Taxonomy } from "../../features/taxonomy";
 import { Trash } from "../../features/trash";
 import { Database } from "../../features/database";
 import { Recovery } from "../../features/recovery";
+import { ImportExport } from "../../features/import-export";
 import { Deployment } from "../../features/deployment";
 import { SourceControl } from "../../features/source-control";
 import { Security } from "../../features/security";
@@ -108,7 +109,7 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "recovery", component: Recovery },
   { id: "observability", component: Observability },
   { id: "activity-log", component: Placeholder, extraProps: { sectionId: "activity-log" } },
-  { id: "import-export", component: Placeholder, extraProps: { sectionId: "import-export" } },
+  { id: "import-export", component: ImportExport },
   // 2026-09-10: retired as a nav row (folded into a Settings tab — see `panels.tsx`'s own comment
   // on this panel), so its render is now the redirect, not the real `Workspace` screen. `Workspace`
   // itself is exercised where it actually mounts now: `SettingsUi.unit.test.tsx`'s "Workspace tab".

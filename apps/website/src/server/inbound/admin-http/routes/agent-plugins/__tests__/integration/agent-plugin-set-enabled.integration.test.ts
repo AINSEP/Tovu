@@ -14,6 +14,7 @@ import test from "node:test";
 import express from "express";
 
 import { saveExternalMcpServer } from "#src/assistant/index";
+import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
@@ -572,3 +573,78 @@ for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
     });
   });
 }
+
+test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin this host cannot run is 409 PLUGIN_HOST_INCOMPATIBLE and writes nothing", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("future-only", "seed-host-incompatible", { version: "1.0.0", extensions: { tovu: { hostRange: ">=99" } } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "future-only", enabled: false, actor: "test" });
+
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "future-only", { enabled: true });
+
+    assert.equal(response.status, 409);
+    const body = (await response.json()) as { code: string; error: string };
+    assert.equal(body.code, "PLUGIN_HOST_INCOMPATIBLE");
+    assert.equal(body.error.includes(workspaceRoot), false, "no host path leaks");
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["future-only"]?.enabled, false);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: a requirement no enabled plugin provides still enables, with a warning", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("needs-xy", "seed-missing-requires", { version: "1.0.0", extensions: { tovu: { requires: ["x:y"] } } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "needs-xy", enabled: false, actor: "test" });
+
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "needs-xy", { enabled: true });
+
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { warnings: string[]; agentPlugin: { enabled: boolean; hostOk: boolean; missingRequires: string[] } };
+    assert.deepEqual(body.warnings, ["Needs x:y"]);
+    assert.equal(body.agentPlugin.enabled, true);
+    assert.equal(body.agentPlugin.hostOk, true);
+    assert.deepEqual(body.agentPlugin.missingRequires, ["x:y"]);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["needs-xy"]?.enabled, true);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: disabling a provider another enabled plugin needs warns, and still disables", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("mailer", "seed-provider", { version: "1.0.0", extensions: { tovu: { provides: ["mail:send"] } } });
+    await installReal("consumer", "seed-consumer", { version: "1.0.0", extensions: { tovu: { requires: ["mail:send"] } } });
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "mailer", { enabled: false });
+
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { warnings: string[]; agentPlugin: { enabled: boolean; requiredBy: string[] } };
+    assert.deepEqual(body.warnings, ["consumer needs mail:send"]);
+    assert.deepEqual(body.agentPlugin.requiredBy, ["consumer needs mail:send"]);
+    assert.equal(body.agentPlugin.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.mailer?.enabled, false);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: a plain toggle carries no warnings", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("plain", "seed-plain");
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
+    const response = await patch(baseUrl, cookie, "plain", { enabled: true });
+    assert.equal(response.status, 200);
+    assert.deepEqual(((await response.json()) as { warnings: string[] }).warnings, []);
+  });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: an interrupted update waiting for boot recovery is 409 PLUGIN_UPDATE_PENDING, not a 500", async (t) => {
+  await withAgentPluginsDir(async () => {
+    await installReal("pending-plugin", "seed-update-pending");
+    const pending = new AgentPluginUpdateError({ code: "PLUGIN_UPDATE_PENDING", message: "Restart the host to recover the interrupted update." });
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp({ setAgentPluginEnabled: async () => { throw pending; } }).app, t);
+    const response = await patch(baseUrl, cookie, "pending-plugin", { enabled: false });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { code: "PLUGIN_UPDATE_PENDING", error: "Restart the host to recover the interrupted update." });
+  });
+});

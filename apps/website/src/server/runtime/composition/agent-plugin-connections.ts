@@ -1,4 +1,5 @@
 import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
@@ -80,6 +81,13 @@ export interface AgentPluginConnectionsComposition {
   readonly agentPluginTools: AgentPluginExecutableToolHost;
   /** `AgentPluginsRouteDeps.adminSurfaceHost` (call `refresh` once at boot). */
   readonly adminSurfaceHost: AgentPluginAdminSurfaceHandlers;
+  /** The Agent Plugin update's settings-snapshot owner (`UpdateAgentPluginRequired.snapshotSettings`):
+   *  the plugin's setting keys and vault revisions, never values, because the update journal that
+   *  records it is a plaintext file on disk. */
+  readonly snapshotAgentPluginSettings: (required: { workspaceId: string; pluginId: string }, optional: Record<string, never>) => Promise<unknown>;
+  /** The update's roster-reload port (`UpdateMcpDeps.notifyExternalMcpRosterChanged`), bound here so
+   *  the HTTP route and the assistant tool, which both read `RouteDeps`, get the same one. */
+  readonly notifyExternalMcpRosterChanged: () => Promise<void>;
 }
 
 /** What the admin-surface `deliveryBindings` port writes through: the site's settings ledger and its forms. */
@@ -171,5 +179,7 @@ export function composeAgentPluginConnections(
       } },
     },
     adminSurfaceHost,
+    snapshotAgentPluginSettings: ({ workspaceId: scopeWorkspaceId, pluginId }) => host.pluginState.describe({ workspaceId: scopeWorkspaceId, pluginId }),
+    notifyExternalMcpRosterChanged: () => notifyExternalMcpRosterChanged(),
   };
 }

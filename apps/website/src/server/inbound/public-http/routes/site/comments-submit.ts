@@ -1,4 +1,5 @@
-import type { Express, RequestHandler } from "express";
+import { urlencoded, type Express, type RequestHandler } from "express";
+import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -25,6 +26,14 @@ export interface CommentsSubmitDeps {
   /** The composition root's resolved IP-hash salt. A promise because the site-key derivation is
    *  async while route registration is not; requests wait for it (it settles during boot). */
   ipHashSalt: Promise<string>;
+  providers?: CommentsProviderRegistry;
+}
+
+/** Only local paths can be used for the no-JS PRG response; never trust a Referer redirect. */
+export function commentFormReturnTo({ value }: { value: unknown }, _options = {}): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) return '/';
+  const url = new URL(value, 'https://comments.invalid');
+  return url.origin === 'https://comments.invalid' ? url.pathname + url.search : '/';
 }
 
 /** Mounts Jini's handler with the site's ingress, request budget, salt and proxy policy.
@@ -40,16 +49,29 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     throw new TypeError("registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)");
   }
   const handler = deps.ipHashSalt.then((ipHashSalt) => createCommentSubmitHandler({
-    ingressPolicy: deps.ingressPolicy,
+    ingressPolicy: deps.providers ? { submit: async submission => {
+      const { adapter } = await deps.providers!.active({ siteId: deps.workspaceId });
+      if (!adapter || adapter.kind !== 'stored') return { ok: false, reason: 'comments-disabled' };
+      const result = await adapter.submission.submit({ siteId: deps.workspaceId, entryId: submission.entryId, parentId: submission.parentId,
+        authorName: submission.authorName, authorEmail: submission.authorEmail, authorUrl: submission.authorUrl, bodyRaw: submission.bodyRaw,
+        authorIpHash: String(submission.ingressContext.authorIpHash), honeypotValue: String(submission.ingressContext.honeypotValue) });
+      return result.ok ? { ok: true, comment: { id: result.id, status: result.status } } : result;
+    } } : deps.ingressPolicy,
     workspaceId: deps.workspaceId,
     ipHashSalt,
     rateLimiter: deps.rateLimiter,
     clientIp: ({ request }) => resolveClientIp(request),
-  }, {}));
+  }, { formRedirect: ({ request }) => request.is('application/x-www-form-urlencoded')
+    ? commentFormReturnTo({ value: request.body?.returnTo }) : undefined }));
   // Observed here so a construction failure is not an unhandled rejection at boot; each request
   // below re-awaits the same promise and hands that failure to Express's error path instead.
   handler.catch(() => undefined);
   const submit: RequestHandler = async (request, response, next) => {
+    // Host and protocol come from Express's configured trust-proxy policy, never raw forwarded headers.
+    if (request.get('origin') !== `${request.protocol}://${request.get('host')}`) {
+      response.status(403).json({ error: 'A same-origin comment submission is required' });
+      return;
+    }
     let built: RequestHandler;
     try {
       built = await handler;
@@ -59,5 +81,5 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     }
     return built(request, response, next);
   };
-  app.post("/api/site/comments", submit);
+  app.post("/api/site/comments", urlencoded({ extended: false, limit: '32kb', parameterLimit: 16 }), submit);
 }

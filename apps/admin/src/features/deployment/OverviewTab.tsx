@@ -117,10 +117,11 @@ function OverviewPathCard({
 
 /** The two-path comparison — see this file's header for why it leads the tab.
  *
- *  Both availability pills are `status-neutral`, deliberately. "Available from a terminal" is not a
- *  success state and "Not wired up yet" is not a failure, so neither earns `status-ok`/`status-
- *  warning`; the words carry the difference, which is also what keeps the distinction legible
- *  without color perception. */
+ *  Both availability pills are `status-neutral`, deliberately. "Available here" is not a success
+ *  state and "Not wired up yet" is not a failure, so neither earns `status-ok`/`status-warning`;
+ *  the words carry the difference, which is also what keeps the distinction legible without color
+ *  perception. "Available here" (was "Available from a terminal") because the Static Site tab's
+ *  Build static export button runs the export from this admin; the terminal is no longer the only way. */
 function OverviewPathChoice({ t }: { t: Translate }) {
   // Full Site tab retired; Dockerfile remains the live server packaging surface.
   return (
@@ -128,7 +129,7 @@ function OverviewPathChoice({ t }: { t: Translate }) {
       <OverviewPathCard
         icon={<StaticSiteIcon />}
         heading={t("Static Site")}
-        statusLabel={t("Available from a terminal")}
+        statusLabel={t("Available here")}
         getLine={t("A fast, read-only copy of this site's published pages — no server behind it.")}
         capabilities={STATIC_SITE_CAPABILITIES}
         costLine={t("Runs on any static host, including free ones. Nothing dynamic survives the export.")}

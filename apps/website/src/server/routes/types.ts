@@ -1,3 +1,4 @@
+import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express } from "express";
 import type { RememberedApprovalPort } from "@jini-ai/core";
@@ -604,6 +605,9 @@ export interface ContentTaxonomyDeps {
  * a back-edge into the composition root.
  */
 export interface CommentsDeps {
+  commentsProviders?: CommentsProviderRegistry;
+  /** Request-scoped keyset position; never persisted onto the site runtime. */
+  commentsCursor?: string;
   /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
    * (`Jini/packages/cms/src/comments/module.ts#createCommentsModule`). */
   commentRepo: CommentRepoPort;
@@ -1448,6 +1452,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   apiConnections?: import("#src/features/api-connections/connect").ApiConnectionConnectDeps;
   agentPluginTools?: import("#src/features/agent-plugins/executable-tools/register").AgentPluginExecutableToolHost;
   adminSurfaceHost?: import("#src/features/agent-plugins/admin-surfaces/handlers").AgentPluginAdminSurfaceHandlers;
+  /** Same composition: the Agent Plugin update's non-secret settings snapshot (keys and revisions).
+   *  Absent, an update is refused before anything changes. */
+  snapshotAgentPluginSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
+  /** Same composition (`agent-plugin-connections.ts`): `notifyExternalMcpRosterChanged` as a port, so
+   *  the Agent Plugin update's MCP effects (`features/agent-plugins/update-effects.ts`) reload live
+   *  runtimes without a feature module value-importing `#src/assistant/`. Absent, an update is refused. */
+  notifyExternalMcpRosterChanged?: () => Promise<void>;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
    * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`

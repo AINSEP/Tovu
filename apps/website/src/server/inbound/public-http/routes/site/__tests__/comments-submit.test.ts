@@ -3,10 +3,19 @@ import test from "node:test";
 
 import express from "express";
 
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { registerHooks } from 'node:module';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
-import { registerCommentsSubmitRoute } from "../comments-submit.js";
+// Exercise workspace source without building or installing the new Jini entry.
+const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
+  return specifier === '@jini-ai/cms/comments/express'
+    ? { url: pathToFileURL(resolve('../jini-int/packages/cms/src/comments/express/index.ts')).href, shortCircuit: true }
+    : nextResolve(specifier, context);
+} });
+const { registerCommentsSubmitRoute, commentFormReturnTo } = await import('../comments-submit.js');
+hooks.deregister();
 
 /**
  * @file Unit-tier coverage for `POST /api/site/comments` (`registerCommentsSubmitRoute`) — this
@@ -65,12 +74,27 @@ function extractHandler(app: express.Express, path: string): (req: unknown, res:
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
   const layer = stack.find((l) => l.route?.path === path);
   if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
-  return layer.route.stack[0].handle;
+  const handle = layer.route.stack.at(-1)!.handle as (req: unknown, res: unknown, next?: (error?: unknown) => void) => unknown;
+  return ((req: unknown, res: unknown, next?: (error?: unknown) => void) => handle({
+    protocol: 'http', get: (key: string) => key === 'origin' ? 'http://site.test' : 'site.test', is: () => false,
+    ...(req as object),
+  }, res, next)) as (req: unknown, res: unknown) => unknown;
+}
+
+/** Runs the mounted boundary on an already parsed body; Express owns JSON/urlencoded decoding. */
+function directFetch(app: express.Express) {
+  return async (_url: string, options: { body?: string; headers?: Record<string, string>; method?: string; signal?: AbortSignal }) => {
+    let status = 200; let payload: unknown;
+    const response = { status(code: number) { status = code; return response; }, json(value: unknown) { payload = value; return response; } };
+    await extractHandler(app, '/api/site/comments')({ body: JSON.parse(options.body ?? '{}'), ip: '203.0.113.1', socket: {} }, response);
+    return new Response(JSON.stringify(payload), { status, headers: { 'content-type': 'application/json' } });
+  };
 }
 
 test("comments-submit: parentId/authorEmail/authorUrl present and entryId/authorName/body absent are normalized, the honeypot field is captured, and a 422 ingress rejection is surfaced verbatim", async (t) => {
   const { app, calls } = buildApp(async () => ({ ok: false, reason: "entry-not-found" }));
-  const baseUrl = await startTestServer(app, t);
+  const baseUrl = 'http://site.test';
+  const fetch = directFetch(app);
 
   const res = await fetch(`${baseUrl}/api/site/comments`, {
     method: "POST",
@@ -143,7 +167,8 @@ test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` doubl
 
 test("comments-submit: unexpected ingress and body-conversion failures finish with a secret-free 500", async (t) => {
   const { app } = buildApp(async () => { throw new Error("private database credentials"); });
-  const baseUrl = await startTestServer(app, t);
+  const baseUrl = 'http://site.test';
+  const fetch = directFetch(app);
   const failed = await fetch(`${baseUrl}/api/site/comments`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ entryId: "entry-1", body: "hello" }), signal: AbortSignal.timeout(3000),
@@ -152,8 +177,9 @@ test("comments-submit: unexpected ingress and body-conversion failures finish wi
   assert.deepEqual(await failed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
   // Valid JSON with a non-coercible body value fails before ingress is called.
   const { app: malformedApp, calls } = buildApp(async () => ({ ok: false, reason: "entry-not-found" }));
-  const malformedBaseUrl = await startTestServer(malformedApp, t);
-  const malformed = await fetch(`${malformedBaseUrl}/api/site/comments`, {
+  const malformedBaseUrl = 'http://site.test';
+  const malformedFetch = directFetch(malformedApp);
+  const malformed = await malformedFetch(`${malformedBaseUrl}/api/site/comments`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: '{"body":{"toString":null,"valueOf":null}}', signal: AbortSignal.timeout(3000),
   });
@@ -207,4 +233,54 @@ test("comments-submit: registering without ipHashSalt refuses with a named TypeE
     } as unknown as Parameters<typeof registerCommentsSubmitRoute>[1]),
     { name: "TypeError", message: "registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)" }
   );
+});
+
+test('no-JS form uses urlencoded parsing and safe 303 destinations for accepted and rejected comments', async () => {
+  for (const accepted of [true, false]) {
+    const { app, calls } = buildApp(async () => accepted
+      ? { ok: true, comment: { id: 'held', status: 'pending' }, autoClassified: 'pending' } as CommentIngressResult
+      : { ok: false, reason: 'honeypot-tripped' });
+    const route = (app as unknown as ExpressAppWithRouter)._router.stack.find(layer => layer.route?.path === '/api/site/comments')!.route!;
+    assert.equal(route.stack.length, 2, 'native urlencoded parser precedes the submission handler');
+    let redirected: unknown;
+    await extractHandler(app, '/api/site/comments')({ body: { entryId: 'e', returnTo: '/post?lang=en', website: 'honeypot' },
+      ip: '203.0.113.1', socket: {}, is: () => 'application/x-www-form-urlencoded' }, {
+      redirect: (status: number, url: string) => { redirected = { status, url }; },
+    });
+    assert.deepEqual(redirected, { status: 303, url: `/post?lang=en#${accepted ? 'comment-pending' : 'comment-error'}` });
+    assert.equal(calls[0].ingressContext.honeypotValue, 'honeypot');
+  }
+  for (const value of [undefined, 1, '//evil.test', '/\\evil.test', '/post\r\nLocation: evil']) assert.equal(commentFormReturnTo({ value }), '/');
+  assert.equal(commentFormReturnTo({ value: '/post?x=1#old' }, {}), '/post?x=1');
+});
+
+test('origin is required and forged or cross-site origins never reach hashing, budgets or ingress', async () => {
+  const { app, calls } = buildApp(async () => ({ ok: false, reason: 'invalid' }));
+  for (const origin of [undefined, 'null', 'https://evil.test', 'http://site.test.evil.test']) {
+    let status: unknown;
+    const res = { status(code: number) { status = code; return res; }, json() { return res; } };
+    await extractHandler(app, '/api/site/comments')({ get: (key: string) => key === 'origin' ? origin : 'site.test' }, res);
+    assert.equal(status, 403);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test('provider submission dispatch preserves hashes and refuses disabled/embedded providers', async () => {
+  const inputs: unknown[] = [];
+  for (const kind of ['stored', 'embedded', 'disabled', 'rejected']) {
+    const app = express();
+    const active = { kind: kind === 'rejected' ? 'stored' : kind,
+      submission: { submit: async (input: unknown) => { inputs.push(input); return kind === 'rejected'
+        ? { ok: false, reason: 'honeypot-tripped' } : { ok: true, id: 'c', status: 'pending' }; } } };
+    registerCommentsSubmitRoute(app, { workspaceId: 's', ingressPolicy: { submit: async () => { throw new Error('must dispatch provider'); } },
+      ipHashSalt: Promise.resolve('salt'), rateLimiter: { check: async () => ({ allowed: true }) },
+      providers: { active: async () => ({ adapter: kind === 'disabled' ? undefined : active }) } as unknown as NonNullable<Parameters<typeof registerCommentsSubmitRoute>[1]['providers']>,
+    });
+    const response = await directFetch(app)('http://site.test', { body: JSON.stringify({ entryId: 'e', authorName: 'Name', body: 'Text', website: '' }) });
+    assert.equal(response.status, kind === 'stored' ? 201 : 422);
+    assert.deepEqual(await response.json(), kind === 'stored' ? { id: 'c', status: 'pending' }
+      : { error: 'comment was not accepted', reason: kind === 'rejected' ? 'honeypot-tripped' : 'comments-disabled' });
+  }
+  assert.equal(inputs.length, 2);
+  assert.match((inputs[0] as { authorIpHash: string }).authorIpHash, /^[a-f0-9]{64}$/);
 });

@@ -1,3 +1,5 @@
+import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
+import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "./identity.js";
 import type { PluginHostPort } from "../../contracts/headless/plugin-host.js";
 /**
@@ -142,10 +144,13 @@ export interface InstallUploadedAgentPluginRequired {
   /** The authenticated principal, recorded as the activation record's `updatedBy`. */
   readonly actor: string;
   readonly replace?: boolean;
+  readonly update?: { readonly pluginId: string; readonly expectedOldDigest: string };
 }
 
 export interface InstallUploadedAgentPluginOptional {
   readonly pluginHost?: PluginHostPort;
+  readonly mcpProvisioning?: AgentPluginMcpProvisioningPort;
+  readonly snapshotSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
   readonly archiveReader?: AgentPluginArchiveReaderPort;
   readonly layout: AgentPluginLayout;
 }
@@ -154,6 +159,8 @@ export interface InstalledUploadedAgentPlugin {
   readonly plugin: InstalledAgentPlugin;
   /** True when these exact bytes were already installed; nothing was written. */
   readonly alreadyInstalled: boolean;
+  readonly enabled?: boolean;
+  readonly warnings?: readonly string[];
   readonly upgradeFrom?: readonly string[];
 }
 
@@ -174,6 +181,9 @@ export async function installUploadedAgentPlugin(
   const digest = validateUploadedBytes({ archive, expectedSha256 });
 
   const { prefix, pluginId } = await locatePackage(reader, archive);
+  if (required.update) {
+    return updateUploadedAgentPlugin({ ...required, update: required.update, expectedSha256: digest, archiveReader: withinPrefix(reader, prefix), candidateId: pluginId }, optional);
+  }
   const workspaceLayout = layout.forWorkspace(workspaceId);
   let alreadyInstalled = false;
   let upgradeFrom: string[] = [];
@@ -183,7 +193,7 @@ export async function installUploadedAgentPlugin(
     // both pass and publish ambiguous digests. Keep check, disabled activation, and swap together.
     publishGuard: async ({ plugin: indexed, publish }) => {
       const run = async () => {
-        const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
+        const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true, candidate: indexed });
         const same = existing.find(entry => entry.archiveDigest === digest);
         if (same) { alreadyInstalled = true; return same; }
         upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
@@ -212,16 +222,57 @@ export async function installUploadedAgentPlugin(
   return { plugin, alreadyInstalled, ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}) };
 }
 
+/**
+ * The explicit update: the candidate must carry the plugin id being updated, and the host must have
+ * bound the settings-snapshot owner. Both are checked before the lifecycle owner opens its
+ * transaction, so a refusal here changes nothing. The owner then re-checks the id, the installed
+ * digest, bundled provenance and downgrades under the plugin lock.
+ * @throws {AgentPluginUpdateError} PLUGIN_ID_MISMATCH, and every refusal of the lifecycle owner.
+ * @throws {Error} A host that did not bind `snapshotSettings` (a wiring fault, not the caller's).
+ * @complexity O(e + b), as the install it delegates to.
+ */
+async function updateUploadedAgentPlugin(
+  required: InstallUploadedAgentPluginRequired & { readonly update: NonNullable<InstallUploadedAgentPluginRequired["update"]>; readonly archiveReader: AgentPluginArchiveReaderPort; readonly candidateId: string },
+  optional: InstallUploadedAgentPluginOptional,
+): Promise<InstalledUploadedAgentPlugin> {
+  if (required.candidateId !== required.update.pluginId) throw new AgentPluginUpdateError({ code: "PLUGIN_ID_MISMATCH", message: "This package is a different plugin. Choose a package for the plugin you are updating." });
+  const snapshotSettings = optional.snapshotSettings;
+  if (!snapshotSettings) throw new Error("Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.");
+  const pluginHost = optional.pluginHost;
+  const lifecycle = createTovuAgentPluginLifecycle({ layout: optional.layout }, {
+    ...(optional.mcpProvisioning ? { mcpProvisioning: optional.mcpProvisioning } : {}),
+    ...(pluginHost ? { identityAdmission: ({ id, localId, run }) => pluginHost.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }) } : {}),
+  });
+  return lifecycle.updateAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256, archiveReader: required.archiveReader,
+    layout: optional.layout, workspaceId: required.workspaceId, actor: required.actor, ...required.update, snapshotSettings });
+}
+
+type UpdateRevision = Parameters<typeof planAgentPluginUpdate>[0]["candidate"];
+
 /** Same id is the upgrade identity; different bytes alone are not evidence of a different plugin.
- * Bundled provenance and active/undetermined records are checked strictly before a replacement. */
-async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
+ * Bundled provenance and active/undetermined records are checked strictly before a replacement.
+ * Downgrades are refused here, the path preview and install share, so preview never offers a
+ * replacement that install would then refuse. */
+async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean; candidate: UpdateRevision }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
   const existing = (await listInstalledPlugins(required.workspaceRoot)).filter(plugin => plugin.pluginId === required.pluginId);
-  if (existing.some(plugin => plugin.archiveDigest === required.digest) || existing.length === 0) return existing;
+  if (!existing.some(plugin => plugin.archiveDigest === required.digest) && existing.length > 0) await assertReplaceable(required);
+  for (const previous of existing) {
+    if (planAgentPluginUpdate({ installed: previous, candidate: required.candidate }).action === "downgrade-refused") throw new AgentPluginUpdateError({ code: "PLUGIN_DOWNGRADE_REFUSED", message: "Plugin downgrades are refused." });
+  }
+  return existing;
+}
+
+/** A different package under an installed id replaces it only when asked, never a bundled plugin,
+ * and only while the installed one is switched off. */
+async function assertReplaceable(required: { workspaceRoot: string; pluginId: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<void> {
   if (!required.replace) throw new AgentPluginUploadError("PLUGIN_ID_TAKEN", "This plugin ID is already installed. Choose Replace existing version to upgrade it.");
   if (await isAgentPluginRecordedAsBundled({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })) throw new AgentPluginUploadError("PLUGIN_BUNDLED", "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin.");
   if ((await resolveAgentPluginActivation({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })).verdict !== "inactive") throw new AgentPluginUploadError("PLUGIN_ENABLED", "Switch off the installed plugin before replacing its version.");
-  return existing;
 }
+
+/** Every uploaded package carries this, install and update alike; only install adds that it stays OFF,
+ *  since an update keeps the installed plugin's on/off state. */
+export const UPLOADED_AGENT_PLUGIN_TRUST_WARNING = "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant.";
 
 export interface AgentPluginUploadPreview {
   readonly pluginId: string;
@@ -241,11 +292,11 @@ export async function previewUploadedAgentPlugin(required: InstallUploadedAgentP
   const { prefix, pluginId } = await locatePackage(reader, required.archive);
   const plugin = await installAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256,
     archiveReader: withinPrefix(reader, prefix), layout, workspaceId: required.workspaceId }, { previewOnly: true });
-  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true });
+  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true, candidate: plugin });
   const upgradeFrom = existing.filter(entry => entry.archiveDigest !== plugin.archiveDigest).flatMap(entry => entry.version ? [entry.version] : []);
   return { pluginId, ...(plugin.version ? { version: plugin.version } : {}), digest: plugin.archiveDigest,
     skills: plugin.skills.map(skill => skill.name), ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}),
-    warning: "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant. It stays OFF until you enable it.",
+    warning: `${UPLOADED_AGENT_PLUGIN_TRUST_WARNING} It stays OFF until you enable it.`,
   };
 }
 

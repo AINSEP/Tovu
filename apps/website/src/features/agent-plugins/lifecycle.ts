@@ -86,7 +86,7 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"] } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
@@ -115,7 +115,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     retiredBundledPlugins: RETIRED_BUNDLED_AGENT_PLUGINS,
     deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,
     fetch: unbound, outboundGuard: { assertAllowed: unbound },
-    mcpProvisioning: { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
+    mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
   }, policy);
   return {
     ...owner,
@@ -140,6 +140,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
       } });
     },
     installAgentPlugin: (input: InstallAgentPluginRequired, options: Parameters<typeof owner.installAgentPlugin>[1] = {}) => owner.installAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }, options),
+    updateAgentPlugin: (input: Omit<import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired, "layout" | "archiveReader"> & { layout: AgentPluginLayout; archiveReader: AgentPluginArchiveReaderPort }) => owner.updateAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }),
     uninstallAgentPlugin: (input: UninstallAgentPluginRequired, options: Parameters<typeof owner.uninstallAgentPlugin>[1] = {}) => owner.uninstallAgentPlugin({ ...input, layout: ownerLayout(input.layout) }, options),
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),
     seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
