@@ -13,7 +13,7 @@ Postgres and Playwright were not installed (OWNER OVERRIDE). None of these lots 
 "Full" = the whole app suite with coverage scoped to the lot's files. "Scoped" = the lot's feature dirs.
 | lot(s) | files | at 100/100/100 | merged-branch run |
 |---|---|---|---|
-| 001+002 admin | 44 | 43 (T1-A 34, then T1-I closed 9) | full admin: 783 files, 12848 pass, 0 fail (T1-A); final run below |
+| 001+002 admin | 44 | 43 (T1-A 34, T1-I +9; AssistantDock.hooks has 3 br left) | full admin: 783 files, 12848 pass, 0 fail (T1-A); final run below |
 | 003+004 admin | 50 | 48 | scoped: 156 files, 2524 pass |
 | 005+006 admin | 50 | 44 | scoped: 228 files, 5059 pass |
 | 007+008 admin lib + desktop main.ts | 28 | 26 | full admin: 12918 pass, 4 load-timeouts (see Tests); desktop main: 1723 pass |
@@ -36,13 +36,11 @@ Baseline → after for every file: in each lot's subagent report, summarised in 
   - site-process-registry.ts:502/505-507/564 kill races
   - use-package-file-tree.hooks.ts:81 (Jini contract)
   - ThemeExplore.tsx:998 (disabled switch)
-  - use-collection-entry-editor.hooks.ts:207,296 (stale-query uncertainty)
   - use-publish-content-confirm.hooks.ts:727,981,1302
 - **Required no-op props that are never called** (functions):
   - ExternalMcpSettingsPanel.tsx:168,223
   - UsersPanel.tsx:33
   - use-theme-explore.hooks.ts:902
-  - AiAssistant.tsx:422 (T1-I)
 - **Platform/environment:**
   - site-process-registry.ts:565-568: macOS-only orphan reaping
   - page-lifecycle.ts SSR branch: only a subprocess test reaches it, and v8 cannot see subprocess coverage
