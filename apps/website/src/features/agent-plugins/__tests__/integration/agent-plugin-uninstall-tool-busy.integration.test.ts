@@ -284,3 +284,73 @@ test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT 
     }
   });
 });
+
+test("an unexpected failure of the confirmed delete propagates unchanged instead of being relabelled as bad input", async () => {
+  await withAgentPluginsDir(async () => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-unexpected-failure");
+    const failure = new Error("disk failure while removing the package");
+    const deps = testSiteLayoutContext({
+      workspaceId: WORKSPACE_A,
+      authorize: async () => ({ allowed: true, reason: "matched" }),
+      uninstallAgentPlugin: async () => { throw failure; },
+    }) as AgentPluginUninstallToolDeps;
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const recorder = surfaceRecorder();
+    const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
+    const surface = await waitForDialog(recorder.first, pending);
+    assert.equal(surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID }).ok, true);
+    await assert.rejects(pending, (error: unknown) => error === failure);
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "the package must still be installed");
+  });
+});
+
+test("a run aborted while the human was confirming removes nothing and reports the uninstall as abandoned", async () => {
+  await withAgentPluginsDir(async () => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-aborted-confirm");
+    let uninstallCalls = 0;
+    const deps = testSiteLayoutContext({
+      workspaceId: WORKSPACE_A,
+      authorize: async () => ({ allowed: true, reason: "matched" }),
+      uninstallAgentPlugin: async (...args: Parameters<typeof lifecycle.uninstallAgentPlugin>) => { uninstallCalls++; return lifecycle.uninstallAgentPlugin(...args); },
+    }) as AgentPluginUninstallToolDeps;
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const recorder = surfaceRecorder();
+    const controller = new AbortController();
+    const ctx = { ...fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), signal: controller.signal };
+    const pending = findRegistration(deps, surfaceExchanges).handler(ctx, { emitSurface: recorder.emitSurface });
+    const surface = await waitForDialog(recorder.first, pending);
+    const exchangeId = exchangeIdFromSurface(surface);
+    surfaceExchanges.deliver({ exchangeId, params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
+    controller.abort();
+    const result = await pending as { uninstalled: boolean };
+    assert.equal(result.uninstalled, false);
+    assert.equal(uninstallCalls, 0, "an aborted run must not reach the delete");
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "the package must still be installed");
+  });
+});
+
+test("a run aborted during the post-confirmation permission re-check removes nothing and reports it abandoned", async () => {
+  await withAgentPluginsDir(async () => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-aborted-recheck");
+    const controller = new AbortController();
+    let authorizeCalls = 0;
+    let uninstallCalls = 0;
+    const deps = testSiteLayoutContext({
+      workspaceId: WORKSPACE_A,
+      // The second check is the one `run` makes after the human confirmed; the run is cancelled meanwhile.
+      authorize: async () => { if (++authorizeCalls === 2) controller.abort(); return { allowed: true, reason: "matched" }; },
+      uninstallAgentPlugin: async (...args: Parameters<typeof lifecycle.uninstallAgentPlugin>) => { uninstallCalls++; return lifecycle.uninstallAgentPlugin(...args); },
+    }) as AgentPluginUninstallToolDeps;
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const recorder = surfaceRecorder();
+    const ctx = { ...fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), signal: controller.signal };
+    const pending = findRegistration(deps, surfaceExchanges).handler(ctx, { emitSurface: recorder.emitSurface });
+    const surface = await waitForDialog(recorder.first, pending);
+    surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
+    const result = await pending as { uninstalled: boolean; confirmed?: boolean; reason?: string };
+    assert.equal(result.uninstalled, false);
+    assert.equal(result.reason, "abandoned");
+    assert.equal(uninstallCalls, 0);
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "the package must still be installed");
+  });
+});
