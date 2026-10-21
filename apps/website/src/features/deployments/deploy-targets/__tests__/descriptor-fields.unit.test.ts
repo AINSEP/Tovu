@@ -229,3 +229,28 @@ test("the shipped hosting plugins declare the credential fields and vendors core
     fields: ["endpoint", "region*", "bucket*", "accessKeyId*", "secretAccessKey*!", "publicUrl*"],
   });
 });
+
+test("the targets file refuses invalid JSON, a missing targets array and duplicate ids; projectName copy may omit help", () => {
+  assert.deepEqual(parseDeployTargetsFile("{"), { ok: false, reason: "not valid JSON" });
+  assert.deepEqual(parseDeployTargetsFile(JSON.stringify({ schemaVersion: 1 })), { ok: false, reason: "targets must be an array" });
+  assert.deepEqual(parseDeployTargetsFile(file([BASE, BASE])), { ok: false, reason: `targets[1].id '${BASE.id}' is declared twice` });
+  assert.deepEqual(parseDeployTargetsFile(file([{ ...BASE, projectName: { label: "Release" } }])), { ok: true, descriptors: [{ ...BASE, configFields: [], projectName: { label: "Release" } }] });
+});
+
+test("a source directory's targets load through loadDeployTargetRegistryFromSource, with a non-object module refused", async () => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const pathModule = await import("node:path");
+  const { loadDeployTargetRegistryFromSource } = await import("../registry.js");
+  const root = await mkdtemp(pathModule.join(tmpdir(), "tovu-targets-source-"));
+  try {
+    await mkdir(pathModule.join(root, "targets"));
+    await writeFile(pathModule.join(root, "tovu-deploy-targets.json"), file([{ ...BASE, module: "targets/ok.mjs" }, { ...BASE, id: "other-host", module: "targets/bad.mjs" }]));
+    await writeFile(pathModule.join(root, "targets", "ok.mjs"), "export default { create() { return {}; } };\n");
+    await writeFile(pathModule.join(root, "targets", "bad.mjs"), "export default 7;\n");
+    const registry = await loadDeployTargetRegistryFromSource({ pluginId: "source-plugin", packageRoot: root }, {});
+    assert.deepEqual(registry.list().map(target => target.descriptor.id), [BASE.id]);
+    assert.equal(registry.refusals.length, 1);
+    assert.match(registry.refusals[0]!, /other-host/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
