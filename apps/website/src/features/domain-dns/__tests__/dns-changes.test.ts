@@ -182,3 +182,22 @@ test("due sweep: only bindings whose next check is due are re-verified, earliest
   assert.deepEqual(bindings.writes.map(write => write.hostname), ["a.example.com", "b.example.com"]);
   assert.deepEqual(await verifyDueDomainBindings({ limit: 1 }, { ...ports, now: () => T0 + 1 }), ["later.example.com"]);
 });
+
+test("include mail: plan merges the provider's SPF into the existing one; verify saves the mail records with the binding", async () => {
+  const resolver = fakeAuthoritative({ zones: { "example.com": NS }, records: { "example.com|TXT": ['"v=spf1 include:old.test -all"'] } });
+  const bindings = memoryBindings();
+  const asked: string[] = [];
+  const mailRequirements = async ({ workspaceId }: { workspaceId: string }) => { asked.push(workspaceId); return mailRequirement; };
+  const ports = { ...portsFor(resolver, { bindings }), mailRequirements };
+  const planned = await planDomainDns({ hostname: "example.com", include: ["mail"] }, ports);
+  const txt = planned.plan.changes.filter(change => change.after?.type === "TXT").map(change => [change.op, change.after?.name, change.after?.values]);
+  assert.deepEqual(txt, [
+    ["update", "example.com", ["v=spf1 include:old.test include:mailer.test -all"]],
+    ["create", "_dmarc.example.com", ["v=DMARC1; p=none"]],
+  ], "one SPF, merged; DMARC only as a hint because none exists");
+  const { binding: saved } = await verifyDomainDns({ hostname: "example.com", include: ["mail"] }, { ...ports, bindings, now: () => T0 });
+  assert.deepEqual(saved.requirements.map(requirement => requirement.providerId), ["mailer", "dmarc-hint"]);
+  assert.deepEqual(asked, ["ws", "ws"]);
+  const again = await planDomainDns({ hostname: "example.com" }, ports);
+  assert.equal(again.plan.fingerprint, planned.plan.fingerprint, "the saved requirements replan identically without include");
+});

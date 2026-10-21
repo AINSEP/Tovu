@@ -1,4 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
+import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
   computeMailStatus,
   initialMailProviderSetting,
@@ -7,6 +8,7 @@ import {
   type MailDeliveryLane,
   type MailAdapterCredential,
   type MailDomainState,
+  type MailProviderCallContext,
   type MailProviderModule,
   type MailProviderSetting,
 } from "@jini-ai/platform/mail";
@@ -119,6 +121,14 @@ export interface ResolvedMailer {
   status: () => Promise<MailStatusReport>;
   /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
   checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
+  /**
+   * The DNS records the active transactional provider needs before it sends as the configured
+   * sender's domain — the port the DNS tools read (requirements reach DNS only through ports).
+   * `null` when no transactional provider is selected, it cannot verify domains, no sender is
+   * configured, its key is missing, or `workspaceId` is not this mailer's workspace.
+   * @throws Error when the provider answered with a failure (caller-safe message).
+   */
+  domainRequirements: (required: { workspaceId: string }) => Promise<DomainRequirement | null>;
 }
 
 export type MailProviderCheck = { ok: true; label: string } | { ok: false; reason: string };
@@ -271,7 +281,39 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const found = await providerCredential(catalog, id);
     return found.credential ? { ok: true, label: provider.label } : { ok: false, reason: `'${id}' ${found.reason}` };
   };
-  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status, checkProvider };
+  const domainRequirements = async ({ workspaceId }: { workspaceId: string }): Promise<DomainRequirement | null> => {
+    if (workspaceId !== deps.workspaceId) return null;
+    const [setting, catalog, domain] = await Promise.all([currentSetting(), loadMailProviderCatalog(deps), readSenderDomain(deps)]);
+    const id = setting.transactional;
+    const provider = id === null ? undefined : catalog.registry.get({ id })?.provider;
+    if (!domain || !provider?.capabilities.domainVerification) return null;
+    const { credential } = await providerCredential(catalog, id!);
+    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }) : null;
+  };
+  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status, checkProvider, domainRequirements };
+}
+
+/** The configured sender's domain, lower-cased; undefined when unset or unreadable. */
+async function readSenderDomain(deps: ResolveMailerDeps): Promise<string | undefined> {
+  const email = await deps.readSenderEmail?.().catch(() => undefined);
+  return email?.split("@")[1]?.trim().toLowerCase() || undefined;
+}
+
+/** A provider call acting for this workspace with its resolved key and Tovu's guarded client. */
+function callContext(deps: ResolveMailerDeps, credential: MailAdapterCredential): MailProviderCallContext {
+  const httpClient = deps.httpClient as unknown as MailProviderCallContext["httpClient"];
+  return { workspaceId: deps.workspaceId, mode: "live", credential, httpClient };
+}
+
+/** One provider call; a provider-reported failure becomes a caller-safe error. @complexity One call. */
+async function requestDomainRequirements(
+  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string }
+): Promise<DomainRequirement> {
+  const { ctx, providerId, provider, domain } = required;
+  // `domainVerification` is true exactly when the module implements domainRequirements (registry-validated).
+  const result = await provider.domainRequirements!(ctx, { domain });
+  if (result.status === "ok") return result.value;
+  throw new Error(`the mail provider '${providerId}' could not list the DNS records ${domain} needs (${result.error.message})`);
 }
 
 /** Lane providers whose credential resolves. @complexity O(lanes) lookups. */
@@ -295,14 +337,12 @@ async function senderDomainState(
   required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; providerId: string | null; credentialed: Set<string> }
 ): Promise<MailDomainState | null | undefined> {
   const { deps, catalog, providerId } = required;
-  const email = await deps.readSenderEmail?.().catch(() => undefined);
-  const domain = email?.split("@")[1]?.trim().toLowerCase();
+  const domain = await readSenderDomain(deps);
   if (!domain) return null;
   const provider = providerId === null ? undefined : catalog.registry.get({ id: providerId })?.provider;
   if (!provider?.domainStatus || !required.credentialed.has(providerId!)) return undefined;
   const credential = await resolveMailCredential({ deps, catalog, id: providerId! });
-  const httpClient = deps.httpClient as unknown as Parameters<NonNullable<MailProviderModule["domainStatus"]>>[0]["httpClient"];
-  const result = await provider.domainStatus({ workspaceId: deps.workspaceId, mode: "live", credential: credential!, httpClient }, { domain }).catch(() => undefined);
+  const result = await provider.domainStatus(callContext(deps, credential!), { domain }).catch(() => undefined);
   return result?.status === "ok" ? result.value.state : undefined;
 }
 

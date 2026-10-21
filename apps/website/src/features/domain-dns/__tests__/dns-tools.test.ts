@@ -17,7 +17,7 @@ const T0 = Date.parse("2026-10-21T12:00:00.000Z");
 const ctx = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "p" }, run: { id: "r" }, input, signal: new AbortController().signal });
 const site = { purpose: "site", records: [{ type: "A", name: "www.example.com", value: "203.0.113.10" }] };
 
-function harness(optional: { denied?: string; bindings?: boolean; zones?: Record<string, string[]>; records?: Record<string, string[]> } = {}) {
+function harness(optional: { denied?: string; bindings?: boolean; zones?: Record<string, string[]>; records?: Record<string, string[]>; mailRequirements?: DnsChangeToolDeps["mailRequirements"] } = {}) {
   const calls: string[] = [];
   const resolver = fakeAuthoritative({ zones: optional.zones ?? { "example.com": NS }, records: optional.records ?? {} });
   const bindings = memoryBindings();
@@ -30,6 +30,7 @@ function harness(optional: { denied?: string; bindings?: boolean; zones?: Record
     },
     registry: createDnsProviderRegistry({ resolver }), resolver, context,
     ...(optional.bindings === false ? {} : { bindings }),
+    ...(optional.mailRequirements ? { mailRequirements: optional.mailRequirements } : {}),
     now: () => T0,
   };
   const registrations = buildDnsChangeRegistrations(deps);
@@ -166,4 +167,21 @@ test("one domain-dns contributor builds the diagnostics and the DNS change tools
   const ids = contributor.build({} as never, {} as never).map(registration => registration.descriptor.id);
   assert.deepEqual(ids, ["domain_lookup_dns", "domain_check_dns", "domain_tls_status", "dns_plan", "dns_instructions", "dns_verify"]);
   assert.deepEqual([...contributor.risk.keys()], ids);
+});
+
+test("input: include must be exactly [\"mail\"]; requirements stay optional beside it", () => {
+  assert.deepEqual(readDnsChangeInput({ input: { hostname: "example.com", include: ["mail"] }, errorPrefix: "dns_plan" }), { hostname: "example.com", include: ["mail"] });
+  for (const include of ["mail", [], ["mail", "mail"], ["site"], [1]]) {
+    assert.throws(() => readDnsChangeInput({ input: { hostname: "example.com", include }, errorPrefix: "dns_verify" }), { name: "ToolInputError", message: 'dns_verify: include must be ["mail"].' });
+  }
+});
+
+test("include mail: dns_plan adds the mail port's records and dns_verify saves them; without the port it refuses", async () => {
+  const mail = { purpose: "mail" as const, domain: "example.com", providerId: "resend", records: [{ type: "TXT" as const, name: "example.com", value: "v=spf1 include:resend.test ~all" }] };
+  const h = harness({ mailRequirements: async () => mail, records: { "_dmarc.example.com|TXT": ['"v=DMARC1; p=reject"'] } });
+  const planned = await h.call("dns_plan", { hostname: "example.com", include: ["mail"] });
+  assert.deepEqual((planned.changes as Array<{ op: string; after: { name: string; values: string[] } }>).map(change => [change.op, change.after.name, change.after.values]), [["create", "example.com", ["v=spf1 include:resend.test ~all"]]]);
+  await h.call("dns_verify", { hostname: "example.com", include: ["mail"] });
+  assert.deepEqual(h.bindings.rows.get("example.com")?.requirements, [mail], "the site's own DMARC is kept, so no hint is saved");
+  await assert.rejects(harness().call("dns_plan", { hostname: "example.com", include: ["mail"] }), { name: "ToolInputError", message: "dns_plan: this site cannot report its mail provider's DNS records." });
 });

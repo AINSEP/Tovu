@@ -541,3 +541,34 @@ test("checkProvider: a hosted provider with a usable key passes; unknown, local-
   const keyless = createResolvedMailer(makeResolveDeps({ loadMailAdapters: async () => fixtureRegistry({ create: () => FIXTURE_MAILER }, { credentialKeys: [] }) }));
   assert.deepEqual(await keyless.checkProvider({ id: "postal" }), { ok: true, label: "Postal" });
 });
+
+test("domainRequirements: the active transactional provider's records for the sender domain, or null when any part is missing", async () => {
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
+  const asked: Array<{ domain: string; token: string; workspaceId: string }> = [];
+  let answer: unknown = { status: "ok", value: { purpose: "mail", domain: "example.com", providerId: "postal", records: [{ type: "TXT", name: "send.example.com", value: "v=spf1 include:postal.test ~all" }] } };
+  const postal = fixtureRegistry({
+    capabilities: { hosted: true, feedback: false, domainVerification: true },
+    domainRequirements: async (ctx: { credential: { token: string }; workspaceId: string }, { domain }: { domain: string }) => { asked.push({ domain, token: ctx.credential.token, workspaceId: ctx.workspaceId }); return answer; },
+    domainStatus: async () => ({ status: "ok", value: { domain: "example.com", state: "verified" } }),
+    create: () => FIXTURE_MAILER,
+  });
+  const keyed = { customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, loadMailAdapters: async () => postal };
+  const make = (overrides: Partial<ResolveMailerDeps>) => createResolvedMailer(makeResolveDeps({ ...keyed, readSenderEmail: async () => "News@Example.com", providerSetting: memorySetting({ transactional: "postal", bulk: null }), ...overrides }));
+
+  const requirement = await make({}).domainRequirements({ workspaceId: WORKSPACE });
+  assert.equal(requirement?.providerId, "postal");
+  assert.deepEqual(asked, [{ domain: "example.com", token: "pk", workspaceId: WORKSPACE }]);
+
+  assert.equal(await make({}).domainRequirements({ workspaceId: "another-site" }), null, "a mailer answers only for its own workspace");
+  assert.equal(await make({ readSenderEmail: async () => "news@" }).domainRequirements({ workspaceId: WORKSPACE }), null, "no sender domain");
+  assert.equal(await make({ readSenderEmail: async () => undefined }).domainRequirements({ workspaceId: WORKSPACE }), null, "no sender configured");
+  assert.equal(await make({ providerSetting: memorySetting({ transactional: null, bulk: "postal" }) }).domainRequirements({ workspaceId: WORKSPACE }), null, "no transactional provider");
+  assert.equal(await make({ providerSetting: memorySetting({ transactional: "gone", bulk: null }) }).domainRequirements({ workspaceId: WORKSPACE }), null, "provider not installed");
+  assert.equal(await make({ loadMailAdapters: async () => fixtureRegistry({ create: () => FIXTURE_MAILER }) }).domainRequirements({ workspaceId: WORKSPACE }), null, "provider cannot verify domains");
+  assert.equal(await make({ customCredentialRepo: new InMemoryCustomCredentialSetRepo() as never }).domainRequirements({ workspaceId: WORKSPACE }), null, "provider key missing");
+  assert.equal(asked.length, 1, "only the configured case reaches the provider");
+
+  answer = { status: "rejected", error: { code: "unauthorized", message: "bad key" } };
+  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), /the mail provider 'postal' could not list the DNS records example\.com needs \(bad key\)/);
+});

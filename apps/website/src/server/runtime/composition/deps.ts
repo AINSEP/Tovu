@@ -99,6 +99,8 @@ import {
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
 import { createSiteMailer } from "./site-mailer.js";
+import { createDomainBindingSweep } from "./dns-change-deps.js";
+import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
@@ -2419,6 +2421,8 @@ async function composeSiteRouteDeps(
     settleMailer: resolvedMailer.settle,
     mailStatus: resolvedMailer.status,
     mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider },
+    // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
+    mailDomainRequirements: resolvedMailer.domainRequirements,
     mailSenderIdentity,
     menuRepo,
     navLocationBindingRepo,
@@ -2533,6 +2537,8 @@ async function composeSiteRouteDeps(
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     contentKernel: kernel,
+    // The due-bindings sweep; `createServingApp` owns its timer (only a serving process re-checks DNS).
+    verifyDueDomainBindings: createDomainBindingSweep({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability }), workspaceId, contentKernel: kernel }),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition

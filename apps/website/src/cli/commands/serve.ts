@@ -340,9 +340,9 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   await ensureAgentDaemonPortResolved();
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
   // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the
-  // automatic form pull and the webhook delivery loop. All stop in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, webhookDeliveryWorker, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker);
+  // automatic form pull, the webhook delivery loop and the due-bindings DNS sweep. All stop in `shutdown` below.
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper);
   owned.bootWork.push(...bootWork);
 
   await new Promise<void>((resolve, reject) => {
@@ -448,7 +448,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker,
+          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

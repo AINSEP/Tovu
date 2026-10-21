@@ -33,6 +33,7 @@ import {
   type DnsVerification,
 } from "@jini-ai/devops/dns";
 import type { DomainBinding, DomainBindingStatus, DomainBindingStore } from "./binding.repo.js";
+import { withMailRequirements, type DnsRequirementInclude, type MailRequirementsPort } from "./mail-requirements.js";
 
 /** Kernel blockers plus the host-level ones found before a plan can be trusted. */
 export interface DomainDnsBlocker {
@@ -59,6 +60,15 @@ export interface DnsChangePorts {
   resolver: AuthoritativeDnsPort;
   context: DnsProviderContext;
   bindings?: DomainBindingStore;
+  /** The resolved mailer's `domainRequirements`, read for `include: ["mail"]`. Absent: that include refuses. */
+  mailRequirements?: MailRequirementsPort;
+}
+
+/** A hostname, optionally its requirements, and what to add to them. */
+export interface DnsChangeRequest {
+  hostname: string;
+  requirements?: DnsPlanRequirement[];
+  include?: DnsRequirementInclude[];
 }
 
 interface Target {
@@ -78,15 +88,20 @@ function providerFor(required: { providerId: string; hostname: string; errorPref
   return provider;
 }
 
-/** Caller requirements win; otherwise the binding's persisted ones. No requirements is a caller error. */
-async function resolveTarget(required: { hostname: string; requirements?: DnsPlanRequirement[]; errorPrefix: string }, ports: DnsChangePorts): Promise<Target> {
+/**
+ * Caller requirements win; otherwise the binding's persisted ones. `include: ["mail"]` then adds the
+ * active mail provider's records (through the port). No requirements is a caller error.
+ */
+async function resolveTarget(required: DnsChangeRequest & { errorPrefix: string }, ports: DnsChangePorts): Promise<Target> {
   const binding = (await ports.bindings?.get({ hostname: required.hostname })) ?? null;
-  const requirements = required.requirements ?? binding?.requirements ?? [];
+  const providerId = binding?.providerId ?? MANUAL_DNS_PROVIDER_ID;
+  const provider = providerFor({ ...required, providerId }, ports);
+  const base = required.requirements ?? binding?.requirements ?? [];
+  const requirements = required.include?.includes("mail") ? await withMailRequirements({ ...required, requirements: base }, { ...ports, provider }) : base;
   if (requirements.length === 0) {
     throw new ToolInputError({ message: `${required.errorPrefix}: no DNS requirements are saved for ${required.hostname}; pass requirements (the records the host or mail provider asked for).` });
   }
-  const providerId = binding?.providerId ?? MANUAL_DNS_PROVIDER_ID;
-  return { hostname: required.hostname, providerId, provider: providerFor({ ...required, providerId }, ports), requirements, binding };
+  return { hostname: required.hostname, providerId, provider, requirements, binding };
 }
 
 /** The provider's zone for the hostname; the saved zone (or the hostname) when none answers. */
@@ -130,12 +145,12 @@ async function planTarget(target: Target, ports: DnsChangePorts): Promise<Domain
  * Plan the record changes that would satisfy the hostname's requirements. Read-only.
  * @complexity O(names · types) DNS reads for the manual provider, then the kernel's O(r·c) plan.
  */
-export async function planDomainDns(required: { hostname: string; requirements?: DnsPlanRequirement[] }, ports: DnsChangePorts): Promise<DomainDnsPlan> {
+export async function planDomainDns(required: DnsChangeRequest, ports: DnsChangePorts): Promise<DomainDnsPlan> {
   return planTarget(await resolveTarget({ ...required, errorPrefix: "dns_plan" }, ports), ports);
 }
 
 /** Copyable rows for a person to enter at their DNS host. A blocked plan still lists what is required. */
-export async function domainDnsInstructions(required: { hostname: string; requirements?: DnsPlanRequirement[] }, ports: DnsChangePorts): Promise<{ planned: DomainDnsPlan; instructions: DnsInstructions }> {
+export async function domainDnsInstructions(required: DnsChangeRequest, ports: DnsChangePorts): Promise<{ planned: DomainDnsPlan; instructions: DnsInstructions }> {
   const target = await resolveTarget({ ...required, errorPrefix: "dns_instructions" }, ports);
   const planned = await planTarget(target, ports);
   const input = [{ plan: planned.plan }, { requirements: target.requirements }] as const;
@@ -192,7 +207,7 @@ export interface DomainDnsVerifyResult {
  * @complexity O(records · nameservers) DNS queries plus one keyed upsert.
  */
 export async function verifyDomainDns(
-  required: { hostname: string; requirements?: DnsPlanRequirement[] },
+  required: DnsChangeRequest,
   ports: DnsChangePorts & { bindings: DomainBindingStore; now: () => number },
 ): Promise<DomainDnsVerifyResult> {
   const target = await resolveTarget({ ...required, errorPrefix: "dns_verify" }, ports);
