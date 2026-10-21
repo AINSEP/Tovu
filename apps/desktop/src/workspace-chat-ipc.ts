@@ -147,7 +147,9 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
         if (!subscriptions.has(subscriptionId)) subscriptions.set(subscriptionId, result.unsubscribe);
         return;
       }
-      push({ subscriptionId, kind: "closed", reason: "replay-gap" });
+      // Jini answers an evicted / never-started run with `unknown-run`; every other refusal
+      // (`replay-gap`, `invalid-cursor`) means the cursor cannot be replayed, so the turn restarts.
+      push({ subscriptionId, kind: "closed", reason: result.kind === "unknown-run" ? "unknown-run" : "replay-gap" });
     } catch {
       push({ subscriptionId, kind: "closed", reason: "unknown-run" });
     }

@@ -29,9 +29,11 @@ import { RUNNER_AGENT_INVENTORY_CHANNELS } from "./contracts/runtime-inventory.t
 import { WORKSPACE_CONVERSATION_CHANNELS } from "./contracts/workspace-conversations.ts";
 import { RUNNER_WORKING_DIRECTORY_CHANNELS } from "./contracts/working-directory.ts";
 import type { WorkspaceChatEventMessage } from "./contracts/workspace-chat.ts";
+import type { StreamSubscribeResult } from "@jini-ai/daemon";
 
 type Handler = (event: { sender: EventSink }, ...args: unknown[]) => unknown;
-type StreamResult = { kind: "ok"; unsubscribe: () => void } | { kind: "replay-gap" };
+/** Jini's real `RunLifecycle.stream` result, so a fake cannot model an outcome the daemon never returns. */
+type StreamResult = StreamSubscribeResult;
 
 /** A sender that records every push; `destroyed` flips what `isDestroyed` reports. */
 function fakeSender() {
@@ -51,7 +53,7 @@ const ev = (kind: string): RunProtocolEvent => ({ kind } as unknown as RunProtoc
 
 /**
  * The whole fixture. `streamBehaviour` decides what `lifecycle.stream` does for a run: replay some
- * events synchronously, then answer `ok`, `replay-gap`, or throw (an unknown run).
+ * events synchronously, then answer one of Jini's real `StreamSubscribeResult`s, or throw.
  */
 function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: RunProtocolEvent) => void }, options: { afterCursor: string | null }) => Promise<StreamResult> } = {}) {
   const handlers = new Map<string, Handler>();
@@ -179,8 +181,10 @@ test("a replayed end delivered before stream() returns does not leave a stale su
 
 test("reattach passes the cursor through (null when absent) and reports a replay gap or an unknown run as closed", async () => {
   const outcomes: Array<() => Promise<StreamResult>> = [
-    async () => ({ kind: "replay-gap" }),
-    async () => { throw new Error("no such run"); },
+    async () => ({ kind: "replay-gap", requestedCursor: "c3", oldestAvailableCursor: "c5" }),
+    async () => ({ kind: "unknown-run" }),
+    async () => ({ kind: "invalid-cursor", requestedCursor: "zz" }),
+    async () => { throw new Error("lifecycle crashed"); },
     async () => ({ kind: "ok", unsubscribe: () => undefined }),
   ];
   const { invoke, calls, activeSubscriptions } = setup({ stream: () => outcomes.shift()!() });
@@ -188,12 +192,22 @@ test("reattach passes the cursor through (null when absent) and reports a replay
 
   await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "gap", runId: "r1", afterCursor: "c3" });
   await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "lost", runId: "r2" });
-  await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "live", runId: "r3" });
+  await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "bad-cursor", runId: "r3", afterCursor: "zz" });
+  await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "broken", runId: "r4" });
+  await invoke(WORKSPACE_CHAT_IPC.reattach, sender, { subscriptionId: "live", runId: "r5" });
 
-  assert.deepEqual(calls.stream, [{ runId: "r1", afterCursor: "c3" }, { runId: "r2", afterCursor: null }, { runId: "r3", afterCursor: null }]);
+  assert.deepEqual(calls.stream, [
+    { runId: "r1", afterCursor: "c3" },
+    { runId: "r2", afterCursor: null },
+    { runId: "r3", afterCursor: "zz" },
+    { runId: "r4", afterCursor: null },
+    { runId: "r5", afterCursor: null },
+  ]);
   assert.deepEqual(sent, [
     { subscriptionId: "gap", kind: "closed", reason: "replay-gap" },
     { subscriptionId: "lost", kind: "closed", reason: "unknown-run" },
+    { subscriptionId: "bad-cursor", kind: "closed", reason: "replay-gap" },
+    { subscriptionId: "broken", kind: "closed", reason: "unknown-run" },
   ]);
   assert.equal(activeSubscriptions(), 1);
 });
