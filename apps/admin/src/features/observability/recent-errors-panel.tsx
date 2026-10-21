@@ -123,9 +123,11 @@ function RecentErrorMeta({ row, t }: { row: RecentServerErrorRow; t: Translate }
 function RecentErrorDetail({ row, id, hidden, t }: { row: RecentServerErrorRow; id: string; hidden: boolean; t: Translate }) {
   return (
     <div id={id} className="observability-error-detail" hidden={hidden}>
-      {row.firstWhen ? (
+      {/* Keyed on `firstAt`: the hook sets `firstAt` and `firstWhen` together (both only when the
+          error repeated), so testing the ISO time leaves no unreachable `firstAt ?? undefined`. */}
+      {row.firstAt ? (
         <p className="observability-error-first-seen">
-          {t("First seen")}: <time dateTime={row.firstAt ?? undefined}>{row.firstWhen}</time>
+          {t("First seen")}: <time dateTime={row.firstAt}>{row.firstWhen}</time>
         </p>
       ) : null}
       <pre className="observability-error-message">

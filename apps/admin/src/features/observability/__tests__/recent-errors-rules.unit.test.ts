@@ -48,6 +48,13 @@ function entry(seq: number, message: string, overrides: Partial<AdminServerLogEn
 }
 
 describe("summarizeErrorMessage", () => {
+  it("skips plain context lines between the headline and the thrown error", () => {
+    expect(summarizeErrorMessage({ message: "[cms] publish failed\nwhile writing site-a\nRangeError: out of space\n    at write (x.ts:1:1)" })).toEqual({
+      scope: "cms",
+      summary: "publish failed — out of space",
+    });
+  });
+
   it("joins the first line and the thrown error's text, and lifts the [tag] out", () => {
     expect(summarizeErrorMessage({ message: DAEMON_ERROR })).toEqual({
       scope: "assistant",
