@@ -1,5 +1,5 @@
 import {
-  composeBeforeIngestHooks, selectAnalyticsForwarder,
+  cacheAnalyticsProviderLoad, composeBeforeIngestHooks, DEFAULT_ANALYTICS_PROVIDERS_TTL_MS, LOCAL_ANALYTICS_SINK_ID, selectAnalyticsForwarder,
   type AnalyticsForwarderCredential, type AnalyticsForwarderModule, type AnalyticsHooks as EngineAnalyticsHooks,
   type BoundAnalyticsForwarder,
 } from "@jini-ai/analytics";
@@ -25,12 +25,12 @@ export interface AnalyticsProviderSet {
   readonly refusals: readonly string[];
 }
 
-/** Plugin providers are re-read at most this often: a beacon is high-volume, a plugin change is not. */
-export const ANALYTICS_PROVIDERS_TTL_MS = 60_000;
+/** Re-read cadence for plugin providers; the rationale lives with the engine default. */
+export const ANALYTICS_PROVIDERS_TTL_MS = DEFAULT_ANALYTICS_PROVIDERS_TTL_MS;
 
 /**
- * Memoises the provider load for `ttlMs`. A failed load is not cached (the next beacon retries);
- * refusals are reported once per successful load.
+ * Host binding of the engine's `cacheAnalyticsProviderLoad` (TTL memo; a failed load is not
+ * cached): refusals are reported once per successful load, through the host's warn.
  * @complexity O(1) per call; one plugin load per TTL window.
  */
 export function cacheAnalyticsProviders(
@@ -39,18 +39,10 @@ export function cacheAnalyticsProviders(
 ): () => Promise<AnalyticsProviderSet> {
   const { load, clock } = required;
   const { ttlMs = ANALYTICS_PROVIDERS_TTL_MS, warn = (message: string) => console.warn(message) } = optional;
-  let cached: { at: number; value: Promise<AnalyticsProviderSet> } | undefined;
-  return () => {
-    const now = clock.nowMs();
-    if (cached && now - cached.at < ttlMs) return cached.value;
-    const value = load().then((set) => {
-      for (const refusal of set.refusals) warn(`[analytics] ${refusal}`);
-      return set;
-    });
-    cached = { at: now, value };
-    value.catch(() => { if (cached?.value === value) cached = undefined; });
-    return value;
-  };
+  return cacheAnalyticsProviderLoad({ load, clock }, {
+    ttlMs,
+    onLoad: (set) => { for (const refusal of set.refusals) warn(`[analytics] ${refusal}`); },
+  });
 }
 
 export interface AnalyticsForwardingRequired<R> {
@@ -67,6 +59,8 @@ export interface AnalyticsForwardingRequired<R> {
 /** The forwarder this site names and this visitor allows, or none. @complexity O(1) + I/O. */
 async function resolveForwarders<R>(required: AnalyticsForwardingRequired<R>, request: R, warn: (message: string) => void): Promise<BoundAnalyticsForwarder[]> {
   const { sink } = await required.config.get({ workspaceId: required.workspaceId });
+  // "local" (or unset) is decided before any plugin load: the built-in-only path costs nothing.
+  if (sink === "" || sink === LOCAL_ANALYTICS_SINK_ID) return [];
   const { forwarders } = await required.loadProviders();
   const { entry, warning } = selectAnalyticsForwarder({ registry: forwarders, sinkId: sink });
   if (warning) warn(`[analytics] ${warning}`);
@@ -95,8 +89,9 @@ export function createAnalyticsForwarding<R>(
   return async ({ request }) => {
     try {
       return await resolveForwarders(required, request, warn);
-    } catch (error) {
-      warn(`[analytics] vendor forwarding skipped: ${error instanceof Error ? error.message : String(error)}`);
+    } catch {
+      // Fixed text: a vendor constructor or credential read may throw with the key in its message.
+      warn("[analytics] vendor forwarding skipped: resolution failed");
       return [];
     }
   };

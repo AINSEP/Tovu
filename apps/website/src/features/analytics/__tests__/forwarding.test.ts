@@ -53,6 +53,10 @@ test("\"local\" forwards nowhere without loading plugins or reading consent", as
   assert.deepEqual(await resolve({ request: "req" }), []);
   assert.deepEqual(warnings, []);
   assert.equal(calls.consent, 0);
+  assert.equal(calls.load, 0);
+  const empty = forwarding({ sink: "" });
+  assert.deepEqual(await empty.resolve({ request: "req" }), []);
+  assert.equal(empty.calls.load, 0);
 });
 
 test("a selected, consented, credential-free vendor is bound with a live context", async () => {
@@ -107,8 +111,12 @@ test("any failure (config, load, consent, credential, create) forwards nothing a
     const { resolve, warnings } = forwarding(overrides as never);
     assert.deepEqual(await resolve({ request: "r" }), []);
     assert.equal(warnings.length, 1);
-    assert.match(warnings[0]!, /^\[analytics\] vendor forwarding skipped: (ledger down|plugins unreadable)$/);
+    assert.equal(warnings[0], "[analytics] vendor forwarding skipped: resolution failed");
   }
+  const v = { credentialLabel: "GA4 key", create: () => { throw new Error("bad key SECRET-TOKEN-1"); } };
+  const leaky = forwarding({ sink: "ga4", loadProviders: async () => providerSet({ ga4: v as never }), resolveCredential: async () => ({ token: "SECRET-TOKEN-1", baseUrl: "https://x" }) });
+  assert.deepEqual(await leaky.resolve({ request: "r" }), []);
+  assert.doesNotMatch(leaky.warnings.join("\n"), /SECRET/);
 });
 
 test("default warn goes to console.warn", async () => {
@@ -130,7 +138,7 @@ test("default warn goes to console.warn", async () => {
   }
   assert.deepEqual(logged, [
     "[analytics] analytics sink 'x' is not installed; hits stay in the built-in sink only",
-    "[analytics] beforeIngest hook #0 failed and was skipped: h",
+    "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",
     "[analytics] refused one",
   ]);
 });
@@ -190,7 +198,7 @@ test("createPluginAnalyticsHooks: no handlers or a failed load pass the hit unch
   assert.equal((await hooks.beforeIngest(hit("/a")))?.path, "/a/tagged");
   assert.equal(await hooks.beforeIngest(hit("/internal")), null);
   assert.deepEqual(warnings, [
-    "[analytics] beforeIngest hook #0 failed and was skipped: broken",
-    "[analytics] beforeIngest hook #0 failed and was skipped: broken",
+    "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",
+    "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",
   ]);
 });
