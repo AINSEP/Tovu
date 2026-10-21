@@ -253,7 +253,7 @@ test("custom_credential_set_username refuses a smuggled token field by NAME, and
   assert.deepEqual(result.error, {
     code: "BAD_REQUEST",
     message:
-      "Unknown input 'token'. Use only the declared properties; declare target and permission fields in the tool schema before using them.",
+      "Unknown input 'token'. Declared inputs: label (required), username (required). Resend with the declared name.",
   });
   assert.ok(!JSON.stringify(result).includes("smuggled-token-value-123"), "the smuggled VALUE must never be echoed");
 });
@@ -269,7 +269,7 @@ test("custom_credential_set_token refuses a smuggled token field by NAME, and ne
   assert.deepEqual(result.error, {
     code: "BAD_REQUEST",
     message:
-      "Unknown input 'token'. Use only the declared properties; declare target and permission fields in the tool schema before using them.",
+      "Unknown input 'token'. Declared inputs: kind (required), target (optional), label (optional), baseUrl (optional), worksFor (optional), category (optional), reason (optional), prefill (optional). Resend with the declared name.",
   });
   const wire = JSON.stringify(result);
   assert.ok(!wire.includes("smuggled-token-value-456"), "the smuggled VALUE must never be echoed");

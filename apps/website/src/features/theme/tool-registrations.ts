@@ -795,7 +795,7 @@ export function buildThemesRegistrations(
       const themeId = requireString({ input: input, key: "themeId" });
       const relativePath = requireString({ input: input, key: "path" });
       const oldString = requireString({ input: input, key: "oldString" });
-      const newString = requireString({ input: input, key: "newString" });
+      const newString = requireString({ input: input, key: "newString" }, { allowEmpty: true });
       const replaceAll = input.replaceAll === true;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 

@@ -235,8 +235,8 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
 
 async function validateCurrentRecord({ input, record }: { input: VaultBootInput; record: VaultRecord }, _options = {}): Promise<void> {
   // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
+  try { input.registry.metaParsers[record.kind]({ meta: record.meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
   const { normalization: _flag, ...meta } = record.meta;
-  try { input.registry.metaParsers[record.kind]({ meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
   if (record.sealed) {
     try { await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
     try {

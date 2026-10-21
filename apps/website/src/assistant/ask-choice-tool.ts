@@ -101,17 +101,6 @@ interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-/** One option in either select field — the smallest unit the model supplies. */
-const OPTION_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["value", "label"],
-  properties: {
-    value: { type: "string", description: "The value returned when this option is chosen." },
-    label: { type: "string", description: "The human-readable text shown for this option." },
-  },
-} as const;
-
 export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: ASK_CHOICE_TOOL_ID,
@@ -124,50 +113,11 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +
       "Do not add a second confirmation question before those cards. " +
       "Do not describe the options in prose and wait for a reply instead: the " +
-      "administrator has no reliable way to notice a question was asked that way. Supply the title " +
+      "administrator has no reliable way to notice a question was asked that way. Supply {question, options: [{label, value?, description?}], multiple?: boolean}; value defaults to label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
       "and every option yourself — nothing here is pre-filled.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
-    inputSchema: {
-      ...ASK_CHOICE_INPUT_SCHEMA,
-      type: "object",
-      additionalProperties: false,
-      required: ["title"],
-      anyOf: [{ required: ["singleSelect"] }, { required: ["multiSelect"] }],
-      properties: {
-        title: { type: "string", description: "The form's heading — the decision or question being asked." },
-        description: { type: "string", description: "Optional context shown under the title." },
-        submitLabel: { type: "string", description: "Optional label for the submit button. Defaults to \"Submit\"." },
-        singleSelect: {
-          type: "object",
-          additionalProperties: false,
-          required: ["label", "options"],
-          properties: {
-            label: { type: "string", description: "Label shown above the pick-one control." },
-            options: { type: "array", minItems: 1, items: OPTION_SCHEMA },
-          },
-          description: "A radio-button pick-one field. Omit if this question has no single choice.",
-        },
-        multiSelect: {
-          type: "object",
-          additionalProperties: false,
-          required: ["label", "options"],
-          properties: {
-            label: { type: "string", description: "Label shown above the checklist." },
-            hint: { type: "string", description: "Optional help text under the label." },
-            options: { type: "array", minItems: 1, items: OPTION_SCHEMA },
-          },
-          description: "A checkbox pick-any-number field. Omit if this question has no multi-select.",
-        },
-        choice: { type: "string", description: "Set by the rendered form on submission. Never set this directly." },
-        [ASK_CHOICE_ANSWER_TICKET_PARAM]: { type: "string", description: "Human form callback ticket. Set only by the rendered form; never invent this value." },
-        selections: {
-          type: "array",
-          items: { type: "string" },
-          description: "Set by the rendered form on submission. Never set this directly.",
-        },
-      },
-    },
+    inputSchema: ASK_CHOICE_INPUT_SCHEMA,
   },
 ];
 
@@ -328,7 +278,7 @@ export function buildAskChoiceRegistrations(
     handlers,
     inputNormalizers: {
       [ASK_CHOICE_TOOL_ID]: ({ input }) => {
-        if (!Object.hasOwn(input, "options")) return { input, notes: [] };
+        if (Object.hasOwn(input, "question") || !Object.hasOwn(input, "options")) return { input, notes: [] };
         if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
           throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
         }
@@ -337,7 +287,7 @@ export function buildAskChoiceRegistrations(
       },
     },
     derivedRisk: askChoiceDerivedRisk,
-  });
+  }).map(registration => ({ ...registration, invocationSchema: tool.invocationSchema }));
 }
 
 /** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions

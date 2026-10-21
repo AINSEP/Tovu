@@ -77,7 +77,7 @@ test("a batch runs every item in order with defaults < shared fields < the item'
     { maxChars: 99, themeId: "own", path: "b.css" },
   ]);
   assert.deepEqual(result, {
-    batch: true, total: 2, succeeded: 2, failed: 0,
+    batch: true, outcome: "completed", total: 2, succeeded: 2, failed: 0,
     results: [{ index: 0, ok: true, result: { read: "a.css" } }, { index: 1, ok: true, result: { read: "b.css" } }],
   } satisfies BatchResult);
 });
@@ -87,7 +87,7 @@ test("a failing item does not stop the rest, and its error drops the appended sc
   const wrapped = withBatchInput({ registration: fakeRegistration("tool_x", recorder.handler), tool: { toolId: "tool_x" } });
   const result = await invokeRegistration(wrapped, executionContext({ themeId: "t", items: [{ path: "boom" }, { path: "c.css" }] }));
   assert.deepEqual(result, {
-    batch: true, total: 2, succeeded: 1, failed: 1,
+    batch: true, outcome: "partial_failure", total: 2, succeeded: 1, failed: 1,
     results: [{ index: 0, ok: false, error: "path 'boom' was not found. Retrying is futile." }, { index: 1, ok: true, result: { read: "c.css" } }],
   });
 });
@@ -125,7 +125,7 @@ test("the published descriptor adds items and moves the top-level required list 
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(Object.keys(schema.properties), ["themeId", "path", "maxChars", "items"]);
   assert.equal(schema.properties.items?.maxItems, DEFAULT_MAX_BATCH_ITEMS);
-  assert.match(schema.properties.items?.description ?? "", /Each item needs themeId, path \(here or once at the top level\)\./);
+  assert.match(schema.properties.items?.description ?? "", /Each item needs themeId, path \(inside each item\)\./);
   assert.match(descriptor.description ?? "", /^tool_x does one thing\. Batch: to do several at once, pass items: /);
   assert.equal(descriptor.readOnly, true, "a read-only tool stays read-only when batched");
 });

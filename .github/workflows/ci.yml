@@ -335,6 +335,16 @@ jobs:
         continue-on-error: true
         run: npm run admin:build
 
+      - name: Knip unused code report (informational)
+        # Report-only rollout: intentionally absent from the gate summary.
+        continue-on-error: true
+        run: npm run quality:knip
+
+      - name: SonarJS rule counts (informational, no Docker)
+        # Report-only: deliberately excluded from the blocking gate summary.
+        continue-on-error: true
+        run: npm run quality:sonar
+
       # THIS is what makes this job blocking. Every gate above is `continue-on-error: true` so all
       # of them get to run; this step reads their recorded outcomes and fails the job if any of
       # them failed. `if: always()` so it still runs after a gate failure -- without it, this step

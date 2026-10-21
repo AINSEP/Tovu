@@ -1,7 +1,17 @@
 # SonarQube for Tovu
 
-Local-only setup. There is no CI wiring here — see "The CI reality" below for why, and treat the
-steps in this file as the primary (currently *only*) way to run this.
+Owner decision (2026-10-20): use **`npm run quality:sonar`** as the active no-Docker
+path. It runs the installed SonarJS ESLint plugin and prints counts per rule, report-only
+in CI. See [SonarJS policy, exclusions, and limitations](../sonarjs/README.md).
+SonarQube Cloud is deferred until the repositories are public.
+
+The local Docker configuration below is retained for reference; it has not been run.
+There is no SonarQube server/scanner CI wiring — the SonarJS report needs neither.
+
+For the other quality signals, see [development scripts](../scripts/README.md#quality-reports-and-property-tests):
+`quality:knip` reports unused code and dependencies (informational in CI), and
+`quality:properties` uses fast-check with the existing Node test runner for endpoint,
+consent, forms, and Google Workspace helper invariants.
 
 ## What's in this directory
 

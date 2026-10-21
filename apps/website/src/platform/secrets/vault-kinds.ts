@@ -85,7 +85,7 @@ export function createTovuStoreVault(required: {
 const storeMetaParsers = createHostMetaParsers({ policy: { validateMeta: ({ meta }) => meta } });
 
 /** Parse complete feature metadata through the same registration used by the vault service. */
-export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; meta: unknown; provider?: string | null | undefined }, _options = {}): VaultMeta {
+export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution" | "api-connection"; meta: unknown; provider?: string | null | undefined }, _options = {}): VaultMeta {
   return storeMetaParsers[input.kind](input);
 }
 

@@ -153,8 +153,9 @@ async function resealRecord(input: {
     return;
   }
   const parsers = Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind, ({ meta, provider }: { meta: unknown; provider?: string | null | undefined }) => {
-    const { normalization: _flag, ...plain } = meta as VaultRecord["meta"];
-    return recoveryKinds.metaParsers[kind]({ meta: plain, provider });
+    const parsed = recoveryKinds.metaParsers[kind]({ meta, provider });
+    const { normalization: _flag, ...plain } = parsed;
+    return plain;
   }])) as VaultMetaParsers;
   const service = new SecretsVaultService({
     repo: new SqlSecretsVaultRepo({ kernel: input.kernel as unknown as StorageKernel<SecretsVaultDatabase> }),

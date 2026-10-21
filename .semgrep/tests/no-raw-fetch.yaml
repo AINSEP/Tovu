@@ -1,0 +1,57 @@
+rules:
+  - id: no-raw-fetch
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Raw server HTTP bypasses SSRF/DNS/redirect guards. Use the injected guarded HttpClientPort.
+    paths:
+      exclude:
+        # Tovu's thin adapter; the actual pinned transport is owned by Jini.
+        - apps/website/src/platform/http/client.ts
+        - apps/website/src/platform/oauth/endpoint-safety.ts
+        # Exact platform-owner paths for reuse when these rules move to Jini.
+        - packages/platform/src/http/guarded/transport.fetch.ts
+        - packages/oauth/src/dns-pinned-transport.ts
+        # Browser fetch is not a server SSRF boundary.
+        - apps/admin/**
+        - apps/site-chat/**
+        - apps/desktop/src/renderer/**
+    pattern-either:
+      - pattern: fetch(...)
+      - pattern: globalThis.fetch(...)
+      - pattern: global.fetch(...)
+      - pattern: undici.request(...)
+      - pattern: http.request(...)
+      - pattern: https.request(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  import * as $HTTP from "node:http";
+                  ...
+              - pattern-inside: |
+                  import * as $HTTP from "node:https";
+                  ...
+              - pattern-inside: |
+                  import $HTTP from "node:http";
+                  ...
+              - pattern-inside: |
+                  import $HTTP from "node:https";
+                  ...
+          - pattern: $HTTP.request(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  import { request as $REQUEST } from "undici";
+                  ...
+              - pattern-inside: |
+                  import { request as $REQUEST } from "http";
+                  ...
+              - pattern-inside: |
+                  import { request as $REQUEST } from "https";
+                  ...
+              - pattern-inside: |
+                  import { request as $REQUEST } from "node:http";
+                  ...
+              - pattern-inside: |
+                  import { request as $REQUEST } from "node:https";
+                  ...
+          - pattern: $REQUEST(...)

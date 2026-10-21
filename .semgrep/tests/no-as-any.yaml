@@ -1,0 +1,6 @@
+rules:
+  - id: no-as-any
+    languages: [typescript]
+    severity: WARNING
+    message: Use a specific type or narrow unknown instead of bypassing type checking with as any.
+    pattern: $EXPR as any

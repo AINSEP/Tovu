@@ -1,0 +1,72 @@
+rules:
+  - id: no-provider-error-echo
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Caught integration error text can contain credentials. Return fixed public copy; redact operator diagnostics with the existing helper.
+    mode: taint
+    # CE cannot infer exception provenance across calls. Restrict to integration owners;
+    # within them, treat any caught message/body as untrusted, irrespective of variable name.
+    paths: &integration_paths
+      include:
+        - '**/providers/**'
+        - '**/*provider*.*'
+        - '**/importers/**'
+        - '**/*import*.*'
+        - '**/oauth/**'
+        - '**/external-mcp/**'
+        - '**/api-connections/**'
+        - '**/assistant/**'
+        - content/agent-plugins/**
+    pattern-sources: &caught_error_sources
+      - patterns:
+          - pattern-inside: |
+              try { ... } catch ($ERR) { ... }
+          - pattern-either:
+              - pattern: $ERR.message
+              - pattern: $ERR.body
+              - pattern: $ERR.bodyText
+              - pattern: $ERR.response.body
+              - pattern: $ERR.response.data
+              - pattern: String($ERR)
+              - pattern: $ERR.toString()
+        exact: true
+    pattern-sanitizers: &error_redactors
+      - pattern: redactSecrets(...)
+        exact: true
+      - pattern: redactSecretShapes(...).text
+        exact: true
+      - pattern: redactDiagnosticSecrets(...).text
+        exact: true
+      - pattern: redactText(...)
+        exact: true
+      - pattern: redactUserText(...).text
+        exact: true
+      - pattern: deps.redact(...)
+        exact: true
+    pattern-sinks:
+      - pattern: throw $TEXT;
+      - pattern: return $TEXT;
+      - patterns:
+          - pattern: new $ERROR(...)
+          - metavariable-regex:
+              metavariable: $ERROR
+              regex: '^(?:Error|[A-Za-z0-9_]*Error)$'
+      - patterns:
+          - pattern: $OUTPUT.$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(?:json|send|end|log|error|warn|info|debug|trace|fatal)$'
+  - id: log-raw-error
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: Redact caught provider/importer error text before logging; use redactSecrets or redactSecretShapes(...).text.
+    paths: *integration_paths
+    mode: taint
+    pattern-sources: *caught_error_sources
+    pattern-sanitizers: *error_redactors
+    pattern-sinks:
+      - patterns:
+          - pattern: $LOGGER.$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(?:log|error|warn|info|debug|trace|fatal)$'

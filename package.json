@@ -94,7 +94,13 @@
     "e2e:journeys": "playwright test --config=development/playwright.journeys.config.ts",
     "e2e:journeys:real": "TOVU_E2E_REAL_SERVICES=1 playwright test --config=development/playwright.journeys.config.ts",
     "e2e:desktop": "env -u TOVU_DESKTOP_E2E_APP -u TOVU_E2E_DESKTOP_APP playwright test --config=development/playwright.desktop-journeys.config.ts",
-    "e2e:desktop:app": "node development/e2e/support/run-packaged-desktop.mjs"
+    "e2e:desktop:app": "node development/e2e/support/run-packaged-desktop.mjs",
+    "quality:semgrep": "node development/scripts/quality-semgrep.mjs",
+    "quality:semgrep:test": "node development/scripts/quality-semgrep.mjs --test",
+    "quality:knip": "knip --config knip.json --no-progress",
+    "quality:properties": "node --import tsx --test \"apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts\" \"apps/website/src/features/consent/__tests__/unit/validation.property.unit.test.ts\" \"apps/website/src/features/forms/__tests__/unit/field-validation.property.unit.test.ts\" \"content/agent-plugins/google-workspace/__tests__/sheets-helpers.property.unit.test.mjs\"",
+    "quality:sonar": "eslint --no-config-lookup --config development/sonarjs/eslint.config.mjs --format ./development/sonarjs/formatter.mjs \"apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\" \"content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
+    "complexity:strict": "eslint --no-error-on-unmatched-pattern --rule 'complexity: [\"error\", 10]' --rule 'sonarjs/cognitive-complexity: [\"error\", 10]'"
   },
   "overrides": {
     "@jini-ai/chat@^0.6.6": {
@@ -191,6 +197,8 @@
     "drizzle-kit": "^0.30.6",
     "eslint": "^10.8.0",
     "eslint-plugin-sonarjs": "^4.2.0",
+    "fast-check": "4.3.0",
+    "knip": "5.64.1",
     "ts-morph": "^28.0.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",

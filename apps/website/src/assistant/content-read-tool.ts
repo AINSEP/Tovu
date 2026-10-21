@@ -379,7 +379,7 @@ function listLookupIdSchema(required: { resource: string; lookup: ListLookup; li
 
 /**
  * A card's model-visible description: every member tool's OWN plain description, concatenated,
- * followed by ONE {@link KEYWORD_MARKER} boundary and every member's combined keyword/doc2query
+ * plus the exact id parameter guidance, followed by ONE {@link KEYWORD_MARKER} boundary and every member's combined keyword/doc2query
  * vocabulary (via `indexedDescriptionFor(id, "")`, which returns exactly that tail with no marker of
  * its own — see that function's own doc).
  *
@@ -397,13 +397,39 @@ function listLookupIdSchema(required: { resource: string; lookup: ListLookup; li
  *
  * @complexity O(m) in member count (at most 2).
  */
-function cardDescription(memberIds: readonly string[], byId: ReadonlyMap<string, ToolRegistration>): string {
-  const plain = memberIds.map((id) => sourceRegistration(byId, id).descriptor.description).join(" ");
+function cardDescription(
+  { memberIds, byId, idDescription }: { memberIds: readonly string[]; byId: ReadonlyMap<string, ToolRegistration>; idDescription: string },
+  _optional: Record<string, never> = {},
+): string {
+  const plain = [...memberIds.map((id) => sourceRegistration(byId, id).descriptor.description), idDescription].filter(Boolean).join(" ");
   const tail = memberIds
     .map((id) => indexedDescriptionFor(id, ""))
     .filter((part) => part.length > 0)
     .join(" ");
   return tail.length > 0 ? `${plain}${KEYWORD_MARKER}${tail}` : plain;
+}
+
+/** Put the exact id parameter name in both model-visible surfaces so generic "id" prose cannot
+ * obscure it. Copies only the id property's description; validation and dispatch stay unchanged.
+ * @complexity O(p) time and space for p schema properties; no I/O or input mutation.
+ */
+function describeCardIdInput(
+  { card, inputSchema }: { card: ContentReadCard; inputSchema: Readonly<Record<string, unknown>> },
+  _optional: Record<string, never> = {},
+): { inputSchema: Readonly<Record<string, unknown>>; idDescription: string } {
+  const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
+  if (!idProperty || idProperty === "id") return { inputSchema, idDescription: "" };
+  const idDescription = `${idProperty}: the ${card.resource.replace(/_/g, " ")}'s id (use this name, not 'id').`;
+  const properties = (inputSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
+  const idSchema = properties[idProperty] as Readonly<Record<string, unknown>> | undefined;
+  if (!idSchema) return { inputSchema, idDescription };
+  return {
+    idDescription,
+    inputSchema: { ...inputSchema, properties: { ...properties, [idProperty]: {
+      ...idSchema,
+      description: `${idDescription} ${(idSchema.description as string | undefined) ?? ""}`.trim(),
+    } } },
+  };
 }
 
 /**
@@ -491,12 +517,13 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       ? { permission: card.permission, orPermission: card.orPermission }
       : { permission: card.permission };
 
+    const described = describeCardIdInput({ card, inputSchema });
     catalog.set(id, {
       name: id,
-      description: cardDescription(memberIds, byId),
+      description: cardDescription({ memberIds, byId, idDescription: described.idDescription }),
       sideEffects: "none",
       authorization,
-      inputSchema,
+      inputSchema: described.inputSchema,
     });
     handlers[id] = handler;
     derivedRisk.set(id, "none");

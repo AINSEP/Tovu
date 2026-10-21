@@ -1,6 +1,7 @@
 import { VaultError, type VaultJson, type VaultKind, type VaultMeta, type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/features/custom-credentials/types";
+import { parseApiConnectionMeta } from "./vault-api-connection-meta.js";
 
 /** Tovu's host rules for vault metadata, run inside Jini's complete-shape parsers by `createTovuVaultKinds`.
  * Every rule is pure and throws on the first problem; callers rely on the order documented per function. */
@@ -25,7 +26,7 @@ function invalidMeta(): VaultError {
 export function assertRecoveryMeta({ meta }: { meta: VaultMeta }, _optional = {}): void {
   if (Object.hasOwn(meta, "legacyAad")) throw invalidMeta();
   const { migration, normalization } = meta;
-  if (normalization !== undefined && !NORMALIZATION_STATUSES.includes(String(normalization))) throw invalidMeta();
+  if (normalization !== undefined && (typeof normalization !== "string" || !NORMALIZATION_STATUSES.includes(normalization))) throw invalidMeta();
   if (migration !== undefined) assertMigrationProvenance({ migration });
 }
 
@@ -37,14 +38,15 @@ function assertMigrationProvenance({ migration }: { migration: VaultJson }, _opt
   }
 }
 
-/** Run Jini's structural parser for one kind, carrying a database destination's `savedAt` past it.
- * @throws VaultError invalid-meta from the structural parser, or for a non-string `savedAt`.
+/** Dispatch Tovu's api-connection formats or Jini's kind parser, retaining a destination's `savedAt`.
+ * @throws VaultError invalid-meta from structural parsing or a non-string `savedAt`; Jini's OAuth error for invalid token metadata.
  * @complexity O(metadata size); one structural parse, no I/O.
  */
 export function parseStructuralMeta(
   { kind, meta, provider, base }: { kind: VaultKind; meta: VaultMeta; provider: string | null | undefined; base: VaultMetaParsers },
   _optional = {},
 ): VaultMeta {
+  if (kind === "api-connection") return parseApiConnectionMeta({ meta });
   if (kind !== "database-destination") return base[kind]({ meta, provider });
   // savedAt describes the destination save, not the last metadata patch. Old migrated rows
   // omit it and use createdAt; it must survive later lastRun updates without changing.
