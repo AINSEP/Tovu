@@ -200,3 +200,19 @@ test("test-connection forwards Azure's explicit API version to the provider", as
   assert.deepEqual(body, { ok: true, message: "valid completion" });
   dispatcher.assertNoPendingInterceptors();
 });
+
+test("list-models answers Azure honestly even when an explicit API version is supplied", async () => {
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://127.0.0.1:4321", {}, {
+    body: { protocol: "azure", baseUrl: "http://127.0.0.1:4321", apiKey: "fake-key", apiVersion: "2025-01-01-preview" }, expectedStatus: 200,
+  });
+  assert.deepEqual(body, { ok: false, models: [], message: "Azure OpenAI deployment discovery is not supported from the inference endpoint." });
+});
+
+test("list-models redacts an authorization-store failure as a generic 500 before any probe", async () => {
+  const before = { transportCalls, lookups: lookups.length };
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://provider.invalid", {
+    authorize: async () => { throw new Error("policy store at /private/policies.db is down"); },
+  }, { body: { protocol: "openai", baseUrl: "http://provider.invalid", apiKey: "sk-fake" }, expectedStatus: 500 });
+  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual({ transportCalls, lookups: lookups.length }, before, "a failed permission check must never reach DNS or the provider");
+});
