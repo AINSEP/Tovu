@@ -78,10 +78,14 @@ for (const normalization of ["invalid-meta", ["conflict"]]) {
     const source = keyed(A);
     record.sealed = await source.sealer.seal({ plaintext: JSON.stringify({ value: ["files"] }), key: await source.keyring.activeKey(), aad: buildVaultAad(record) });
     await repo.put({ record, expectedRevision: null });
+    // why: the vault repo makes the first row of its kind/owner group the default on put, so the
+    // rollback is compared against the row as stored, not against the pre-put input.
+    const stored = await repo.find(record);
+    assert.deepEqual(stored, { ...record, isDefault: true });
     const recover = () => siteKeyRecovery.resealFrom({ siteDir: dir, contentKernel: kernel, hex: B, previousHex: A });
     if (typeof normalization !== "string") {
       await assert.rejects(recover(), { code: "invalid-meta" });
-      assert.deepEqual(await repo.find(record), record);
+      assert.deepEqual(await repo.find(record), stored);
       assert.deepEqual(await repo.find(media), media, "failed recovery rolls back other rotations too");
       return;
     }
