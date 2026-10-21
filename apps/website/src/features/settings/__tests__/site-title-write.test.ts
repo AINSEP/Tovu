@@ -164,7 +164,7 @@ for (const policy of ["missing", "deny", "allow", "throw"] as const) {
 
 test("the theme preview switcher write is refused without its policy and goes through the policy's prepared write", async () => {
   const ledger = await makeLedger();
-  await ensureSettingDefinitions(ledger, { namespace: "core.theme", ownerKind: "core", workspaceId: WORKSPACE_ID,
+  await ensureSettingDefinitions(ledger, { namespace: "core.theme", ownerKind: "core",
     definitions: [{ key: "previewSwitcher", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }],
     systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   const target = { namespace: "core.theme", key: "previewSwitcher" };
@@ -190,7 +190,7 @@ test("enabling an unrelated boolean (another site.assistant key, or a global set
   await ensureSettingDefinitions(ledger, { namespace: "site.assistant", ownerKind: "site", workspaceId: WORKSPACE_ID,
     definitions: [{ key: "show_badge", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }],
     systemPrincipalId: SYSTEM_PRINCIPAL_ID });
-  await ensureSettingDefinitions(ledger, { namespace: "core.flags", ownerKind: "core", workspaceId: null,
+  await ensureSettingDefinitions(ledger, { namespace: "core.flags", ownerKind: "core",
     definitions: [{ key: "beta", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.global }],
     systemPrincipalId: SYSTEM_PRINCIPAL_ID });
   const refuse = { canEnablePublicAssistant: async () => { throw new Error("must not be consulted"); } };
