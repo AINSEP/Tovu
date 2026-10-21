@@ -161,3 +161,43 @@ for (const policy of ["missing", "deny", "allow", "throw"] as const) {
     assert.equal(calls, policy === "missing" ? 0 : 1, "missing workspace fails before policy");
   });
 }
+
+test("the theme preview switcher write is refused without its policy and goes through the policy's prepared write", async () => {
+  const ledger = await makeLedger();
+  await ensureSettingDefinitions(ledger, { namespace: "core.theme", ownerKind: "core", workspaceId: WORKSPACE_ID,
+    definitions: [{ key: "previewSwitcher", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }],
+    systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  const target = { namespace: "core.theme", key: "previewSwitcher" };
+  const before = await revisionCount(ledger);
+  await assert.rejects(ownerWrite(ledger, target, true), (err: unknown) =>
+    err instanceof ValueValidationFailedError && err.message === "Theme preview write policy is unavailable.");
+  assert.equal(await revisionCount(ledger), before);
+
+  const prepared: string[] = [];
+  const required = { deps: { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals },
+    input: { ...target, scope: "workspace" as const, workspaceId: WORKSPACE_ID, value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } };
+  const result = await set(required, { preparePreviewSwitcherWrite: async (write) => {
+    prepared.push(String(write.input.value));
+    return { ...write, input: { ...write.input, value: false } };
+  } });
+  assert.deepEqual(prepared, ["true"]);
+  assert.equal(result.value, false, "the policy's prepared input is what is stored");
+  assert.equal(await storedValue(ledger, target), false);
+});
+
+test("enabling an unrelated boolean (another site.assistant key, or a global setting) never consults the assistant policy", async () => {
+  const ledger = await makeLedger();
+  await ensureSettingDefinitions(ledger, { namespace: "site.assistant", ownerKind: "site", workspaceId: WORKSPACE_ID,
+    definitions: [{ key: "show_badge", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.workspace }],
+    systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  await ensureSettingDefinitions(ledger, { namespace: "core.flags", ownerKind: "core", workspaceId: null,
+    definitions: [{ key: "beta", schema: { type: "boolean" }, defaultValue: false, scopes: SCOPE_BIT.global }],
+    systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  const refuse = { canEnablePublicAssistant: async () => { throw new Error("must not be consulted"); } };
+  const deps = { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals };
+
+  assert.equal((await set({ deps, input: { namespace: "site.assistant", key: "show_badge", scope: "workspace", workspaceId: WORKSPACE_ID,
+    value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } }, refuse)).value, true);
+  assert.equal((await set({ deps, input: { namespace: "core.flags", key: "beta", scope: "global",
+    value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } }, refuse)).value, true);
+});
