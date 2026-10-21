@@ -2224,6 +2224,7 @@ async function composeSiteRouteDeps(
     registry: trashRegistry,
     db: sqliteTrashDb,
     postRepo,
+    postGoLiveCandidates: postRepo,
     postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
     // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.

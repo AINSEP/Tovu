@@ -43,6 +43,18 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
     ]);
   });
 
+  test(`[${label}] enqueue() of an id already in the outbox is a no-op, even once delivered`, async () => {
+    const outbox = makeOutbox();
+    const event = makeEvent();
+    await outbox.enqueue(event);
+    await outbox.enqueue({ ...event, payload: { changeSetId: "a later copy" } });
+    const [claimed] = await outbox.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
+    assert.deepEqual(claimed?.event, event);
+    await outbox.markDelivered({ id: event.id });
+    await outbox.enqueue(event);
+    assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
+  });
+
   test(`[${label}] enqueue() then claimPending() returns the event as pending->processing`, async () => {
     const outbox = makeOutbox();
     await outbox.enqueue(makeEvent());

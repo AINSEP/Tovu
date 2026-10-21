@@ -1,5 +1,5 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { Kysely, Updateable } from "kysely";
+import type { Kysely, Selectable, Updateable } from "kysely";
 
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
 import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
@@ -13,7 +13,8 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
-import { SYSTEM_ACTOR_ID, type PostRepoPort } from "../post/post.js";
+import { SYSTEM_ACTOR_ID, type PostKind, type PostRepoPort, type PostStatus } from "../post/post.js";
+import { announcePendingGoLive } from "../post/go-live.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's implementation of `@jini-ai/vibecoding/html`'s
@@ -135,10 +136,21 @@ export interface PagesHtmlDocumentStoreDeps {
    * When supplied, every successful content write of a PUBLISHED page enqueues the same
    * `entry.updated` event `post.ts` emits for a published edit. Without it a bespoke HTML edit was
    * invisible to every event consumer: site search kept serving the removed text, because its
-   * backfill watermark is complete after the first pass and never rescans. A `Pick`: enqueue only.
+   * backfill watermark is complete after the first pass and never rescans.
+   *
+   * Review fix 2026-10-21 — also, a write that lands on a scheduled page whose `publishAt`
+   * has passed since its last save, but which the go-live sweep (`post/go-live.ts`) has not
+   * announced yet, enqueues that page's go-live `entry.published` in the same transaction. This
+   * write moves `updated_at` past `publish_at`, after which the sweep no longer sees the row, so
+   * without it the announcement would be lost for good. Optional for the same reason as the two
+   * above; real composition roots supply the outbox `updatePost` already writes to.
    */
-  outbox?: Pick<OutboxPort, "enqueue">;
+  outbox?: OutboxPort;
 }
+
+/** The `posts` columns a go-live catch-up reads off a write's own SELECT. */
+const GO_LIVE_COLUMNS = ["id", "workspace_id", "kind", "status", "publish_at", "updated_at", "deleted_at"] as const;
+type GoLiveColumns = Pick<Selectable<PostsTable>, (typeof GO_LIVE_COLUMNS)[number]>;
 
 /** Scopes one store instance to one Page row — mirrors every other adapter in this feature area
  * being workspace-scoped, so a store built for workspace A can never touch workspace B's row even
@@ -248,6 +260,38 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * @returns The number of rows changed — 0 or 1.
    * @complexity O(1) — one indexed, version-conditioned row update.
    */
+  /**
+   * Runs one write path's statements as one transaction: through `revisions.transaction` when the
+   * ledger is wired (the transaction its appends already join), else the kernel's own — so the
+   * go-live catch-up commits or rolls back with the row even without a ledger (2026-10-21).
+   *
+   * @complexity O(1) besides `fn`.
+   */
+  private inTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.deps.revisions ? this.deps.revisions.transaction(fn) : this.deps.kernel.transaction(fn);
+  }
+
+  /**
+   * The go-live catch-up of {@link PagesHtmlDocumentStoreDeps.outbox}: `row` as it stood BEFORE this
+   * write, `nowIso` the write's instant. Call it inside the write's transaction, after the UPDATE
+   * matched. A no-op without an outbox.
+   *
+   * @complexity O(1) — at most one enqueue.
+   */
+  private async catchUpGoLive(row: GoLiveColumns, nowIso: string): Promise<void> {
+    if (!this.deps.outbox) return;
+    const post = {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      kind: row.kind as PostKind,
+      status: row.status as PostStatus,
+      publishAt: row.publish_at,
+      updatedAt: row.updated_at,
+      deletedAt: row.deleted_at,
+    };
+    await announcePendingGoLive({ outbox: this.deps.outbox, post, nowIso });
+  }
+
   private async updateThisRow(set: Updateable<PostsTable>, guard: { version: number; liveHtmlOnly?: boolean }): Promise<number> {
     const result = await this.deps.kernel.run((db) => {
       let update = db
@@ -325,7 +369,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
-      this.thisRow(db).select(["kind", "body_format", "version", "deleted_at", "status"]).limit(1).executeTakeFirst()
+      this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_format", "version"]).limit(1).executeTakeFirst()
     );
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
@@ -386,9 +430,10 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       // The POST-conversion snapshot — the row's first ever html-format state.
       await this.appendRevision(nextVersion, updatedAt);
       await this.emitUpdated({ status: row.status, version: nextVersion, occurredAt: updatedAt });
+      await this.catchUpGoLive(row, updatedAt);
     };
 
-    await (this.deps.revisions ? this.deps.revisions.transaction(runConversion) : runConversion());
+    await this.inTransaction(runConversion);
 
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
@@ -497,7 +542,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
     const runWrite = async () => {
       const current = await this.deps.kernel.run((db) =>
-        this.thisRow(db).select(["body_html", "body_format", "version", "deleted_at", "status"]).limit(1).executeTakeFirst()
+        this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_html", "body_format", "version"]).limit(1).executeTakeFirst()
       );
       // Check freshness before equality: matching HTML must never hide a stale captured version.
       if (!current || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
@@ -513,11 +558,12 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       if (changes > 0) {
         await this.appendRevision(nextVersion, updatedAt);
         await this.emitUpdated({ status: current.status, version: nextVersion, occurredAt: updatedAt });
+        await this.catchUpGoLive(current, updatedAt);
       }
       return changes;
     };
 
-    const changes = this.deps.revisions ? await this.deps.revisions.transaction(runWrite) : await runWrite();
+    const changes = await this.inTransaction(runWrite);
     if (changes === null) return;
 
     if (changes === 0) {

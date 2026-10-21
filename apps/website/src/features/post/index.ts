@@ -65,6 +65,7 @@ export {
   type PostSearchQuery,
 } from "./search.js";
 export { extractPlainTextFromHtml } from "./html-plain-text.js";
+export { startPostGoLiveSweep, type GoLiveCandidatesPort } from "./go-live.js";
 export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";

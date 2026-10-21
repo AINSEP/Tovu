@@ -8,6 +8,7 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+import { announcePendingGoLive } from "./go-live.js";
 import { toSlug } from "#src/platform/html/slug";
 import { postPublicPath } from "#src/platform/routing/adapter";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
@@ -751,10 +752,11 @@ export async function deletePost(
       if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
       throw new PostConflictError(`post '${input.id}' changed while it was being deleted`);
     }
-    return appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
+    // Inside the transaction (2026-10-21): an enqueue failure rolls the trash back with it.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
+    return revision;
   });
-
-  await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
 
   return { post, revisionId, previousRevisionId };
 }
@@ -891,10 +893,9 @@ export async function retirePostForReplacement(
 
     const trashed: PostRecord = { ...renamed, deletedAt: renamed.updatedAt, version: renamed.version + 1 };
     const deleteRevision = await appendPostRevision({ repo: deps.repo, post: trashed, op: "delete", attribution: input });
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: trashed, nowIso: now });
     return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
   });
-
-  await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
 
   return { post, revisionId, previousRevisionId };
 }
@@ -1469,15 +1470,15 @@ export async function createPost(
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await deps.repo.save(post);
-    return appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
+    // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
+    // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
+    // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
+    // (no event) when the caller created a plain draft, same as it always has. Inside the
+    // transaction (2026-10-21), so the row and its event commit or roll back together.
+    if (deps.outbox) await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now });
+    return revision;
   });
-  // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
-  // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
-  // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
-  // (no event) when the caller created a plain draft, same as it always has.
-  if (deps.outbox) {
-    await emitStatusTransitionEvent(deps.outbox, "draft", post.status, post);
-  }
   return { post, revisionId, previousRevisionId };
 }
 
@@ -1903,14 +1904,15 @@ export async function updatePost(
   });
   const ext = withCoverPresentation({ ext: mergeExt(existing.ext, extPatch), hideCoverImageInBody: input.hideCoverImageInBody });
 
-  const post = buildUpdatedPost(existing, input, { title, slug }, ext, clockNowIso({ clock: deps.clock }));
+  const now = clockNowIso({ clock: deps.clock });
+  const post = buildUpdatedPost(existing, input, { title, slug }, ext, now);
 
   // The record write and its revision-ledger append are one atomic unit (see
   // `PostRepoPort.transaction`'s own doc). A conflict rejection from `persistUpdatedPost` (nothing
   // written) still propagates out of this `transaction()` call correctly — its `catch` rolls back
   // (a no-op when nothing landed) and rethrows unchanged, so `PostVersionConflictError`/
   // `PostNotFoundError` reach the caller exactly as they did before this change.
-  const result = await deps.repo.transaction(async () => {
+  return deps.repo.transaction(async () => {
     if (isDeepStrictEqual(savedPostContent(existing), savedPostContent(post))) {
       const current = await unchangedLiveRow({ repo: deps.repo, input, post });
       if (current) return { post: current, revisionId: null, previousRevisionId: null };
@@ -1919,17 +1921,20 @@ export async function updatePost(
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
     await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
     const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
+    // Inside the transaction (2026-10-21): committing the edit without its event (a crash, a failed
+    // enqueue) would push `updatedAt` past a pending go-live and lose that announcement for good.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
     return { post, revisionId, previousRevisionId };
   });
-  if (result.revisionId !== null) await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
-
-  return result;
 }
 
-/** A trashed row is "not public" whatever its stored `status` still says — the same framing
- *  {@link deletePost} applies when it classifies a trash as a move to `"draft"`. @complexity O(1). */
-function publicFacingStatus(post: PostRecord): PostStatus {
-  return isTrashed(post) ? "draft" : post.status;
+/** The status the public sees at `nowIso`: a trashed row is "not public" whatever its stored
+ *  `status` still says, and so is a published row still SCHEDULED (`publishAt` ahead) — what
+ *  `isLiveAt` already decides for every public read. Feeding this, not the stored `status`, to
+ *  {@link classifyStatusTransition} is what keeps a scheduled save from emitting `entry.published`
+ *  before go-live (2026-10-21); `go-live.ts` announces it when it does go live. @complexity O(1). */
+function publicFacingStatus(required: { post: PostRecord; nowIso: string }): PostStatus {
+  return isLiveAt(required.post, required.nowIso) ? "published" : "draft";
 }
 
 /**
@@ -2058,16 +2063,11 @@ export async function restorePostForward(
     // transaction already opened, so the marker and the index row move together or not at all. A
     // compensation that can itself half-fail is not a compensation.
     if (undoesATrash) await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
+    // Same transaction for the event (2026-10-21), for the same all-or-nothing reason.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt });
     return appended.id;
   });
   if (revisionId === null) return null;
-
-  await emitStatusTransitionEvent(
-    deps.outbox,
-    publicFacingStatus(current),
-    publicFacingStatus(restored),
-    restored
-  );
 
   return { post: restored, revisionId };
 }
@@ -2098,6 +2098,29 @@ export function classifyStatusTransition(
   if (wasPublished && isPublished) return "entry.updated";
   if (wasPublished && !isPublished) return "entry.unpublished";
   return null;
+}
+
+/**
+ * Every write path's event step: classifies `previous` -> `next` by what the public sees at
+ * `nowIso` ({@link publicFacingStatus}); `previous` is `null` for a brand-new row (classified as
+ * never-published). A `previous` row saved while scheduled that has gone live since
+ * (`go-live.ts`'s `wentLiveSinceSave`) may not have been announced by the go-live sweep yet, and after this
+ * write the sweep will no longer see it (its `updatedAt` passes `publishAt`), so its go-live event
+ * is enqueued here first ({@link announcePendingGoLive}) — the same id the sweep uses, which the
+ * outbox de-duplicates.
+ *
+ * Exported for `reverters.ts` (2026-10-21): an undo writes through `repo.save` directly (no
+ * before-save hooks, BR-08) but its event must be the same schedule-aware one every save emits.
+ * Call it inside the write's transaction, so the row and its events commit or roll back together.
+ */
+export async function emitPublicTransitionEvent(
+  required: { outbox: OutboxPort; previous: PostRecord | null; next: PostRecord; nowIso: string },
+  _optional: Record<string, never> = {}
+): Promise<void> {
+  const { outbox, previous, next, nowIso } = required;
+  if (previous) await announcePendingGoLive({ outbox, post: previous, nowIso });
+  const previousStatus = previous ? publicFacingStatus({ post: previous, nowIso }) : "draft";
+  await emitStatusTransitionEvent(outbox, previousStatus, publicFacingStatus({ post: next, nowIso }), next);
 }
 
 /**
@@ -2461,10 +2484,11 @@ export async function importPostEntity(required: {
   const ext = mergeExt(record.ext, extPatch);
 
   const { ext: _incomingExt, ...carriedOver } = record;
+  const now = clockNowIso({ clock: deps.clock });
   const post: PostRecord = {
     ...carriedOver,
     workspaceId,
-    updatedAt: clockNowIso({ clock: deps.clock }),
+    updatedAt: now,
     version: (existing?.version ?? 0) + 1,
     // Write-once authorship, same convention `importMediaEntity` applies to `media.createdAt`: an
     // existing row keeps its own, a brand-new row takes the source's. `repo.sqlite.ts`'s
@@ -2477,12 +2501,13 @@ export async function importPostEntity(required: {
 
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
-    return appendPostRevision({ repo: deps.repo, post, op: existing ? "update" : "create", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: existing ? "update" : "create", attribution: input });
+    // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
+    // must invalidate the destination's sitemap cache exactly like one published locally. Inside
+    // the transaction (2026-10-21), so the row never commits without its event.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing ?? null, next: post, nowIso: now });
+    return revision;
   });
-
-  // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
-  // must invalidate the destination's sitemap cache exactly like one published locally.
-  await emitStatusTransitionEvent(deps.outbox, existing?.status ?? "draft", post.status, post);
 
   return { post, revisionId, previousRevisionId };
 }

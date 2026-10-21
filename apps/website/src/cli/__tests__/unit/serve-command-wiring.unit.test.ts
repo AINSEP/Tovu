@@ -214,6 +214,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       trashSweeper: { stop: async () => { stopped.push("trash"); } },
       themeWatcher: { stop: async () => { stopped.push("themes"); } },
       formPullTrigger: { stop: async () => { stopped.push("form-pull"); } },
+      postGoLiveSweep: { stop: async () => { stopped.push("go-live"); } },
       webhookDeliveryWorker: { stop: async () => { stopped.push("webhooks"); } },
       domainBindingSweeper: { stop: async () => { stopped.push("dns-sweep"); } },
       siteSearchMaintenance: { stop: async () => { stopped.push("site-search"); } },
@@ -318,7 +319,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       assert.ok(signals.has("SIGINT"));
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks", "dns-sweep", "site-search"], "shutdown must stop all workers before closing storage");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "shutdown must stop all workers before closing storage");
       assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
       legacyWork.resolve();
       await new Promise(resolve => setImmediate(resolve));
@@ -330,7 +331,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks", "dns-sweep", "site-search"], "each worker stops exactly once");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"], "each worker stops exactly once");
     }
 
     // Refusals after the boot: nothing keeps serving, and what the boot opened is closed again.

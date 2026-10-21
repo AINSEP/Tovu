@@ -91,8 +91,10 @@ export class InMemoryOutbox implements OutboxPort {
     this.claimLeaseMs = optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS;
   }
 
-  /** Enqueue a domain event as a pending outbox row, preserving the full envelope. */
+  /** Enqueue a domain event as a pending outbox row, preserving the full envelope. A repeated
+   *  `event.id` is a no-op, like `SqlOutboxAdapter.enqueue`. */
   async enqueue(event: DomainEvent): Promise<void> {
+    if (this.records.some((record) => record.id === event.id)) return;
     this.records.push({
       id: event.id,
       event,

@@ -1,5 +1,6 @@
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
 import { startThemeWatcher } from "#src/features/theme/theme-watcher";
+import { startPostGoLiveSweep } from "#src/features/post/go-live";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
@@ -32,6 +33,10 @@ import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./module
  * then does the drainer start. A drainer started first could mark rows delivered with no handlers
  * attached, the same loss this fix closes in the daemon.
  *
+ * The post go-live sweep (2026-10-21, `features/post/go-live.ts`) follows the drainer's rules for the
+ * same reason: it enqueues `entry.published` for scheduled posts whose time has come, so it starts
+ * after `createApp` and only here. It runs only when `routeDeps.postGoLiveCandidates` is bound.
+ *
  * The automatic form pull (`form-pull-triggers.ts`) follows the same two rules: it imports
  * submissions and enqueues their events, so its startup pull runs only after `createApp` attached
  * the subscribers, and only a serving process pulls — at startup and on owner/admin sign-in.
@@ -63,7 +68,7 @@ import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./module
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
@@ -86,6 +91,10 @@ export function createServingApp(
       onError: ({ error }) => console.error("[trash-sweeper] sweep failed; retrying after the idle interval", error)
     }
   );
+  const candidates = routeDeps.postGoLiveCandidates;
+  const postGoLiveSweep = candidates
+    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId })
+    : { stop: async () => {} };
   const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
   const webhookDeliveryWorker = startServingWebhookDeliveryWorker(
     { deps: routeDeps },
@@ -101,5 +110,5 @@ export function createServingApp(
   // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
   // the process serving the site may do. A no-op handle when the composition has no search runtime.
   const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
 }

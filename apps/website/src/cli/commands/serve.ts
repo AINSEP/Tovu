@@ -340,10 +340,10 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   await ensureAgentDaemonPortResolved();
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
   // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the
-  // automatic form pull, the webhook delivery loop, the due-bindings DNS sweep and the site-search
-  // maintenance loop. All stop in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
+  // automatic form pull, the post go-live sweep, the webhook delivery loop, the due-bindings DNS
+  // sweep and the site-search maintenance loop. All stop in `shutdown` below.
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
   owned.bootWork.push(...bootWork);
 
   await new Promise<void>((resolve, reject) => {
@@ -449,7 +449,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
+          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

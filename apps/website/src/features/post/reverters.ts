@@ -3,7 +3,7 @@ import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
 import {
-  classifyStatusTransition,
+  emitPublicTransitionEvent,
   isTrashed,
   presentScheduleFields,
   type ForgetRemovedPostFn,
@@ -160,23 +160,18 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
           : {}),
       };
 
-      await deps.postRepo.save(restored);
+      await deps.postRepo.transaction(async () => {
+        await deps.postRepo.save(restored);
 
-      // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
-      // re-firing the plugin hook, not the status-transition event. SEO's sitemap-cache
-      // invalidation (SPEC-008 INV-010) subscribes to these, so dropping them would leave a stale
-      // sitemap after a revert that publishes or unpublishes an entry.
-      const transitionEventName = classifyStatusTransition(existing.status, restored.status);
-      if (transitionEventName) {
-        await deps.outbox.enqueue({
-          id: `${restored.id}-${transitionEventName}-${restored.version}`,
-          name: transitionEventName,
-          occurredAt: restored.updatedAt,
-          aggregateId: restored.id,
-          workspaceId: restored.workspaceId,
-          payload: { entryId: restored.id, contentType: restored.kind },
-        });
-      }
+        // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
+        // re-firing the plugin hook, not the status-transition event. SEO's sitemap-cache
+        // invalidation (SPEC-008 INV-010) subscribes to these, so dropping them would leave a stale
+        // sitemap after a revert that publishes or unpublishes an entry. The shared schedule-aware
+        // emitter (2026-10-21), not the stored `status`: restoring a still-scheduled pre-image is not
+        // a publication yet (the go-live sweep announces it), and a pending go-live of `existing` is
+        // announced before this save moves `updatedAt` past it. Same transaction as the save.
+        await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
+      });
     },
   };
 }
@@ -240,30 +235,24 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         version: existing.version + 1,
       };
 
-      await deps.postRepo.save(restored);
+      await deps.postRepo.transaction(async () => {
+        await deps.postRepo.save(restored);
 
-      // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
-      // tests: only a row that WAS trashed has an index row to forget. A revert of a change set
-      // whose delete some other path already undid must not delete an index row a later, unrelated
-      // trash legitimately owns.
-      if (isTrashed(existing)) {
-        await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
-      }
+        // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
+        // tests: only a row that WAS trashed has an index row to forget. A revert of a change set
+        // whose delete some other path already undid must not delete an index row a later, unrelated
+        // trash legitimately owns.
+        if (isTrashed(existing)) {
+          await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
+        }
 
-      // Symmetric to `deletePost`'s own emission: trashing a published entry emitted
-      // `entry.unpublished`, so restoring one must emit `entry.published` or SEO's sitemap cache
-      // stays stale. A restored draft emits nothing, exactly as trashing one did.
-      const transitionEventName = classifyStatusTransition("draft", restored.status);
-      if (transitionEventName) {
-        await deps.outbox.enqueue({
-          id: `${restored.id}-${transitionEventName}-${restored.version}`,
-          name: transitionEventName,
-          occurredAt: restored.updatedAt,
-          aggregateId: restored.id,
-          workspaceId: restored.workspaceId,
-          payload: { entryId: restored.id, contentType: restored.kind },
-        });
-      }
+        // Symmetric to `deletePost`'s own emission: trashing a published entry emitted
+        // `entry.unpublished`, so restoring one must emit `entry.published` or SEO's sitemap cache
+        // stays stale. A restored draft emits nothing, exactly as trashing one did. Through the
+        // shared schedule-aware emitter (2026-10-21): a trashed row reads as not public, and a
+        // restored row still scheduled stays not public until the go-live sweep announces it.
+        await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
+      });
     },
   };
 }

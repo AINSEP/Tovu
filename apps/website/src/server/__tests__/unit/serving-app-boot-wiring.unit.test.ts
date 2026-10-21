@@ -195,3 +195,24 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
     assert.match(source, /workers: \[[^\]]*\bdomainBindingSweeper\b[^\]]*\]/);
   });
 }
+
+/**
+ * The post go-live sweep (2026-10-21) enqueues `entry.published` for scheduled posts, so it has the
+ * drainer's ownership rule: started only by `createServingApp`, after `createApp` subscribed the
+ * handlers, and stopped by both serving boot paths before the store closes.
+ */
+test("the post go-live sweep is started only by createServingApp, after createApp", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartPostGoLiveSweep\(/), ["server/runtime/composition/serving-app.ts"]);
+  const lines = readCodeLines("server/runtime/composition/serving-app.ts");
+  const created = lines.findIndex((line) => /\bcreateApp\(routeDeps,/.test(line));
+  const started = lines.findIndex((line) => /\bstartPostGoLiveSweep\(/.test(line));
+  assert.ok(created >= 0 && started > created, "the sweep must start after createApp");
+});
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} stops the post go-live sweep at shutdown`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const \{[^}]*\bpostGoLiveSweep\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /workers: \[[^\]]*\bpostGoLiveSweep\b[^\]]*\]/);
+  });
+}
