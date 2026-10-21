@@ -188,7 +188,8 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
 
 test("a full handshake connects, and no response anywhere carries a token or the client secret", async (t) => {
   const { app, http } = await buildTestApp({
-    script: [{ json: { access_token: "at-wire", refresh_token: "rt-wire", expires_in: 3600 } }],
+    // why: RFC 6749 §5.1 token_type is REQUIRED; Jini token exchange (openid-client) now refuses a response without it.
+    script: [{ json: { access_token: "at-wire", token_type: "Bearer", refresh_token: "rt-wire", expires_in: 3600 } }],
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -252,7 +253,8 @@ test("sealed-state callback rejects tampering, expiry and oversize before provid
 });
 
 test("callback checks its exact URI and a replayed code is refused by the provider fake", async (t) => {
-  const { app, http } = await buildTestApp({ rejectReplayedCodes: true, script: [{ json: { access_token: "at-wire" } }] });
+  // why: RFC 6749 §5.1 token_type is REQUIRED; Jini token exchange (openid-client) now refuses a response without it.
+  const { app, http } = await buildTestApp({ rejectReplayedCodes: true, script: [{ json: { access_token: "at-wire", token_type: "Bearer" } }] });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
@@ -356,7 +358,8 @@ test("the device grant returns a user code over the wire and keeps the device co
       },
       { status: 400, json: { error: "authorization_pending" } },
       { status: 400, json: { error: "slow_down", interval: 10 } },
-      { json: { access_token: "device-access-token", refresh_token: "device-refresh-token", expires_in: 3600 } },
+      // why: RFC 6749 §5.1 token_type is REQUIRED; Jini token exchange (openid-client) now refuses a response without it.
+      { json: { access_token: "device-access-token", token_type: "Bearer", refresh_token: "device-refresh-token", expires_in: 3600 } },
     ],
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -466,7 +469,8 @@ test("connecting a server that is not OAuth-authenticated is a 400 naming the fi
 
 test("disconnect clears the authorization but keeps the server row", async (t) => {
   const { app } = await buildTestApp({
-    script: [{ json: { access_token: "at-wire", refresh_token: "rt-wire", expires_in: 3600 } }],
+    // why: RFC 6749 §5.1 token_type is REQUIRED; Jini token exchange (openid-client) now refuses a response without it.
+    script: [{ json: { access_token: "at-wire", token_type: "Bearer", refresh_token: "rt-wire", expires_in: 3600 } }],
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });

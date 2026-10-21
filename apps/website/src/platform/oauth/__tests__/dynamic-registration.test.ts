@@ -446,7 +446,8 @@ for (const [supported, expected] of [
   [["none", "private_key_jwt"], "none"],
 ] as const) {
   test(`secret without an echoed method resolves ${JSON.stringify(supported)} to ${expected}`, async () => {
-    const http = createFetchDouble([{ json: { client_id: "issued-id", client_secret: "issued-secret" } }]);
+    // why: RFC 7591 §3.2.1 (201 + client_secret_expires_at with a secret) is enforced since Jini moved DCR onto openid-client.
+    const http = createFetchDouble([{ status: 201, json: { client_id: "issued-id", client_secret: "issued-secret", client_secret_expires_at: 0 } }]);
     const registered = await registerOAuthClientDynamically(
       {
         ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
