@@ -3,6 +3,7 @@ import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts
 import type { Clock } from "@jini-ai/core/primitives";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import {
+  createBuiltinVendorAdapterRegistry,
   createMediaDispatchEngine,
   findMediaModel,
   findProvider,
@@ -131,16 +132,18 @@ const DEFAULT_MODEL = "gpt-image-2";
 /** {@link MediaGenerationToolDeps.generateMedia}'s real, production implementation — a fresh engine
  *  per call because credentials are resolved fresh per call too (a rotated key must never reuse a
  *  stale boot-time singleton's credentials). `createMediaDispatchEngine` itself does no I/O to
- *  construct — only `.generate()` does — so building one per call costs nothing measurable. */
+ *  construct — only `.generate()` does. Each call owns a populated registry and uses the host's
+ *  guarded HTTP client for both generation and asset downloads.
+ *  @complexity O(A) setup time/space for the fixed builtin adapter count A, plus generation I/O. */
 async function defaultGenerateMedia(
   request: MediaGenerationRequest,
   credentials: ProviderCredentials,
   options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort }
 ): Promise<MediaGenerationResult> {
-  const engine = createMediaDispatchEngine({}, {
+  const registry = createBuiltinVendorAdapterRegistry({}, {});
+  const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient }, {
     credentials: { [options.providerId]: credentials },
     allowStubFallback: options.allowStubFallback,
-    httpClient: options.httpClient,
   });
   const { surface, model, ...optionalRequest } = request;
   return engine.generate({ surface, model }, optionalRequest);

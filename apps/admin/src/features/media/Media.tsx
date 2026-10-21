@@ -4,6 +4,7 @@ import type { AdminMedia } from "../../lib/api";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
+import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -1309,7 +1310,7 @@ function ExternalProvidersPanel({ locale }: { locale: string }) {
       syncDocumentAttributes={false}
     >
       <div className="media-providers-panel" {...themeBoundary}>
-        <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
+        <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} catalogPolicy={mediaProviderCatalogPolicy} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
       </div>
     </I18nProvider>
   );

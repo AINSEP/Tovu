@@ -124,6 +124,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS } from "../../lib/settings-tabs";
 import { navigate } from "../../lib/router";
 import { Workspace } from "../workspace";
@@ -382,6 +383,7 @@ export function SettingsUi(props: SettingsUiProps) {
           {agentPresentation.warning && <p className="notice warning" role="status" aria-live="polite">{agentPresentation.warning}</p>}
           {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
           <ExecutionTab
+            presets={DEFAULT_PROVIDER_PRESETS}
             config={executionPolicy.config}
             onConfigChange={executionPolicy.onConfigChange}
             localCliUnavailableReason={executionPolicy.unavailableReason}

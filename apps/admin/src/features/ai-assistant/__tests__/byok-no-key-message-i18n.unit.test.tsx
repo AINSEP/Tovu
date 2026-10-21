@@ -1,3 +1,4 @@
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { ByokProviderForm, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
@@ -34,6 +35,7 @@ function renderLikeAiAssistant(locale: string) {
       syncDocumentAttributes={false}
     >
       <ByokProviderForm
+        presets={DEFAULT_PROVIDER_PRESETS}
         config={{ protocol: "openai", providerId: "custom", apiKey: "", baseUrl: "https://example.test/v1", model: "m" }}
         onConfigChange={vi.fn()}
         preset={null}

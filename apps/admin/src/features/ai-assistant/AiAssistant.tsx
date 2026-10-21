@@ -14,6 +14,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { agentHandle } from "@jini-ai/agentic";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
@@ -312,6 +313,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
       <AdminByokMigrationPrompt controller={adminCredential} agentHandle="ai-assistant-admin-byok-migration" />
       {executionPolicy.note && <p className="muted-cell" role="status">{executionPolicy.note}</p>}
       <ExecutionTab
+        presets={DEFAULT_PROVIDER_PRESETS}
         config={executionPolicy.config}
         onConfigChange={executionPolicy.onConfigChange}
         localCliUnavailableReason={executionPolicy.unavailableReason}
@@ -783,6 +785,7 @@ export function VisitorCredentialForm({
           under it (owner, 2026-10-09); their results go directly under that; "Save model settings" sits directly under Model;
           Base URL and Max tokens (rarely changed) fold behind "Advanced" after Model. */}
       <ByokProviderForm
+        presets={DEFAULT_PROVIDER_PRESETS}
         config={config}
         onConfigChange={editConfig}
         preset={preset}

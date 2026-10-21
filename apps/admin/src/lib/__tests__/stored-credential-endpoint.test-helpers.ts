@@ -1,6 +1,7 @@
 import { act } from "@testing-library/react";
 import { vi } from "vitest";
-import { DEFAULT_PROVIDER_PRESETS, type ByokConfig, type ExecutionPort } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+import { type ByokConfig, type ExecutionPort } from "@jini-ai/ui";
 
 import { ApiError, type AdminExecutionCredential } from "../api";
 

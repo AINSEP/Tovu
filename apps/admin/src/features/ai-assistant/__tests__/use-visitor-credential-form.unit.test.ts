@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_PROVIDER_PRESETS, createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+import { createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@jini-ai/ui";
 
 import {
   api,

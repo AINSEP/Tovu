@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import {
-  DEFAULT_PROVIDER_PRESETS,
   nextConfigForPresetSelect,
   resolveSelectedPreset,
   type ByokConfig,

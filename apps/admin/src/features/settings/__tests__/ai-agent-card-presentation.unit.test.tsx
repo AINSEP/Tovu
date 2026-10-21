@@ -1,3 +1,4 @@
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ExecutionTab, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from '@jini-ai/ui';
@@ -16,7 +17,7 @@ describe('D-21 shared agent card integration', () => {
     });
     const { container } = render(
       <I18nProvider initialLocale="en" dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES })} syncDocumentAttributes={false}>
-        <ExecutionTab config={{ ...DEFAULT_EXECUTION_CONFIG, mode: 'local-cli' }} onConfigChange={() => {}} port={port} ariaLabel="AI agent" agentHandle="settings-ai-agent" />
+        <ExecutionTab presets={DEFAULT_PROVIDER_PRESETS} config={{ ...DEFAULT_EXECUTION_CONFIG, mode: 'local-cli' }} onConfigChange={() => {}} port={port} ariaLabel="AI agent" agentHandle="settings-ai-agent" />
       </I18nProvider>,
     );
     await waitFor(() => expect(screen.getByText('DeepSeek Reasonix')).toBeInTheDocument());

@@ -144,6 +144,19 @@ afterEach(() => {
 });
 
 describe("Media screen — tab counts", () => {
+  it("opens the real provider tab with catalog policy and recognizes legacy provider ids", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes("/locale")) return Promise.resolve(jsonResponse({ locale: "en" }));
+      if (url.includes("/media/providers")) return Promise.resolve(jsonResponse({ "nano-banana": { apiKeyConfigured: true, apiKeyTail: "4321" } }));
+      return Promise.resolve(jsonResponse({ media: [] }));
+    });
+    renderScreen({ tabId: "external-providers" });
+    const key = await screen.findByLabelText("Nano Banana API key");
+    await waitFor(() => expect(key).toHaveAttribute("placeholder", expect.stringContaining("4321")));
+    expect(key).toHaveValue("");
+  });
+
   it("shows each content tab's real item count, and External Providers' fixed catalog size", async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;

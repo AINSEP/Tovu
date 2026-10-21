@@ -32,7 +32,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeMediaGenerationTools } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
-import type { MediaGenerationRequest, MediaGenerationResult, ProviderCredentials } from "@jini-ai/integrations/media-providers";
+import { mediaVendorRegistry, type MediaGenerationRequest, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
@@ -604,7 +604,8 @@ test("the production credential environment is used when the optional environmen
 
 // REGRESSION: fails if defaultGenerateMedia stops forwarding the host's guarded HTTP client.
 for (const scenario of ["private", "redirect", "public"] as const) {
-  test(`media generation enforces host egress policy for a provider-returned ${scenario} asset`, async () => {
+  test(`media generation enforces host egress policy for a provider-returned ${scenario} asset`, async (t) => {
+    t.mock.method(mediaVendorRegistry, "get", () => { throw new Error("deprecated registry must not be consulted"); });
     const transported: string[] = [];
     const assetUrl = scenario === "private" ? "http://127.0.0.1/private.png" : "https://assets.example/generated.png";
     const httpClient = createHttpClient({

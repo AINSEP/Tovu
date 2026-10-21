@@ -1,7 +1,7 @@
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -364,4 +364,14 @@ describe("VisitorCredentialForm", () => {
     expect(saveModel).toBeInTheDocument();
     expect(saveModel.compareDocumentPosition(screen.getByText("Advanced")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+});
+
+// The standalone form needs the same host catalog as ExecutionTab for foreign-key hints.
+it("warns when an Anthropic key is pasted into the standalone OpenAI form", () => {
+  const preset = DEFAULT_PROVIDER_PRESETS.find((entry) => entry.id === "openai")!;
+  render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+    preset,
+    config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: preset.preferredModels[0], apiKey: "sk-ant-" + "x".repeat(40) },
+  })} />);
+  expect(screen.getByText(/looks like.*Anthropic/i)).toBeInTheDocument();
 });

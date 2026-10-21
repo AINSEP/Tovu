@@ -18,7 +18,8 @@ import {
   type I18nAdapter,
 } from "@jini-ai/chat/react";
 import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
-import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";

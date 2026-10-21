@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { fireEvent, render, waitFor } from "@testing-library/react";
+import { DEFAULT_PROVIDER_PRESETS, mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
@@ -265,7 +266,7 @@ describe.skipIf(!HAS_JINI_UI_SRC)("Jini UI credential inputs the admin renders (
   it("finds the four credential components", () => {
     const files = new Set(findings.filter((f) => f.passwordType).map((f) => path.basename(f.file)));
     expect([...files].sort()).toEqual(
-      expect.arrayContaining(["AgentCliEnvFields.tsx", "ByokProviderForm.tsx", "MediaProvidersTab.tsx", "SourceConfigField.tsx"]),
+      expect.arrayContaining(["AgentCliEnvFields.tsx", "ByokProviderForm.tsx", "MediaProviderCard.tsx", "SourceConfigField.tsx"]),
     );
   });
 
@@ -280,7 +281,7 @@ describe("installed Jini credential components (source checkout not required)", 
   const components = [
     ["ByokProviderForm", () => createElement(ByokProviderForm, {
       config: { protocol: "openai", providerId: null, apiKey: "", baseUrl: "https://example.test/v1", model: "fixture" },
-      onConfigChange: noop, preset: null, modelDiscovery: { status: "idle" }, connectionTest: { status: "idle" }, onTestConnection: noop,
+      presets: DEFAULT_PROVIDER_PRESETS, onConfigChange: noop, preset: null, modelDiscovery: { status: "idle" }, connectionTest: { status: "idle" }, onTestConnection: noop,
     })],
     ["AgentCliEnvFields", () => createElement(AgentCliEnvFields, {
       agentId: "fixture", fields: [{ agentId: "fixture", envKey: "API_KEY", label: "API key", secret: true }],
@@ -290,7 +291,7 @@ describe("installed Jini credential components (source checkout not required)", 
       spec: { key: "apiKey", label: "API key", kind: "password" }, value: "", onChange: noop,
     })],
     ["MediaProvidersTab", () => createElement(MediaProvidersTab, {
-      catalog: [{ id: "fixture", label: "Fixture" }], initialProviders: {},
+      catalog: [{ id: "fixture", label: "Fixture" }], catalogPolicy: mediaProviderCatalogPolicy, initialProviders: {},
       port: {
         fetchMediaProviders: async () => { throw new Error("static credential render must not fetch"); },
         saveMediaProviders: async () => { throw new Error("static credential render must not save"); },
