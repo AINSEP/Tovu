@@ -72,3 +72,11 @@ test("peerHostname returns the bracket-stripped hostname devHostAllowlist is mat
   // them — this is the exact string an operator must add.
   assert.equal(peerHostname("https://[fd00::1]:3000"), "fd00::1");
 });
+
+test("normalizePeerBaseUrl refuses a host that is only the root dot, which strips to nothing", () => {
+  assert.deepEqual(normalizePeerBaseUrl("https://./"), { error: "baseUrl was refused because its host is empty" });
+});
+
+test("peerHostname hands back an unparseable value unchanged rather than throwing inside a diagnosis", () => {
+  assert.equal(peerHostname("not a url"), "not a url");
+});

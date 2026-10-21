@@ -48,3 +48,24 @@ test("missing audit storage stops before any outbound write", async () => {
     work: async () => { called = true; return {}; } }), /audit storage/);
   assert.equal(called, false);
 });
+
+test("a built-in owner role also qualifies; a built-in role with another name does not", async () => {
+  assert.equal(await mayUseBackstop({ actorId: "co-owner", ownerId: "owner", roles: { list: async () => [{ isBuiltin: true, name: "owner" }] } }), true);
+  assert.equal(await mayUseBackstop({ actorId: "editor", ownerId: "owner", roles: { list: async () => [{ isBuiltin: true, name: "editor" }] } }), false);
+});
+
+test("audit keeps the planned run id when the work returns none, and records a non-Error failure with fixed text", async () => {
+  const records = new Map<string, BackstopAuditRecord>();
+  const audit: BackstopAuditPort = {
+    ready: async () => true, save: async ({ record }) => { records.set(record.id, record); },
+    get: async ({ id }) => records.get(id) ?? null, gaps: async () => [],
+  };
+  const record: BackstopAuditRecord = { id: "send-3", workspaceId: "ws", direction: "source", actorId: "admin", destination: "live.example", reason: "Emergency footer fix",
+    at: "2026-10-04T00:00:00.000Z", items: [], gapLabels: [], result: "pending", runId: "run-planned", details: {}, inverses: [] };
+  await runAuditedBackstop({ audit, record, work: async () => ({ planned: true }), successResult: "planned" });
+  assert.equal(records.get("send-3")?.result, "planned");
+  assert.equal(records.get("send-3")?.runId, "run-planned");
+  const thrown = { code: "NOT_AN_ERROR" };
+  await assert.rejects(runAuditedBackstop({ audit, record: { ...record, id: "send-4" }, work: async () => { throw thrown; } }), (error: unknown) => error === thrown);
+  assert.equal(records.get("send-4")?.details.error, "This send failed.");
+});

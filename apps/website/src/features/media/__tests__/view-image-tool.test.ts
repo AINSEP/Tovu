@@ -11,6 +11,7 @@ import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, I
 import {
   MEDIA_VIEW_IMAGE_TOOL_ID,
   buildMediaViewImageRegistrations,
+  contributeMediaViewImageTools,
   mediaViewImageDerivedRisk,
   type MediaViewImageToolDeps,
 } from "../view-image-tool.js";
@@ -318,4 +319,43 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
   const routed = imageBlockOf(envelope.output);
   assert.equal(routed.mimeType, "image/webp");
   assert.equal(routed.data, direct.data, "the routed image bytes must be byte-identical to the handler's own");
+});
+
+/** A JPEG whose stored pixels are `width`x`height` but whose EXIF Orientation tag is `orientation`. */
+async function orientedJpeg(width: number, height: number, orientation: number): Promise<Uint8Array> {
+  const buffer = await sharp({ create: { width, height, channels: 3, background: { r: 30, g: 160, b: 30 } } })
+    .jpeg()
+    .withMetadata({ orientation })
+    .toBuffer();
+  return new Uint8Array(buffer);
+}
+
+test("an EXIF quarter-turn photo (orientation 6) is returned upright, and its original dimensions are reported as the viewer sees them", async () => {
+  const harness = makeHarness();
+  const asset = await seed(harness, { bytes: await orientedJpeg(120, 40, 6), filename: "rotated.jpg", contentType: "image/jpeg" });
+
+  const output = await call(viewTool(harness), { mediaId: asset.id });
+  const decoded = await sharp(Buffer.from(imageBlockOf(output).data, "base64")).metadata();
+  assert.equal(decoded.width, 40);
+  assert.equal(decoded.height, 120);
+  const metadata = metadataOf(output);
+  assert.deepEqual(metadata.original, { contentType: "image/jpeg", width: 40, height: 120 });
+  assert.deepEqual(metadata.returned, { mimeType: "image/webp", width: 40, height: 120, downscaled: false });
+});
+
+test("an EXIF orientation below the quarter turns (orientation 1) keeps the stored width and height", async () => {
+  const harness = makeHarness();
+  const asset = await seed(harness, { bytes: await orientedJpeg(120, 40, 1), filename: "upright.jpg", contentType: "image/jpeg" });
+
+  const output = await call(viewTool(harness), { mediaId: asset.id });
+  const metadata = metadataOf(output);
+  assert.deepEqual(metadata.original, { contentType: "image/jpeg", width: 120, height: 40 });
+  assert.deepEqual(metadata.returned, { mimeType: "image/webp", width: 120, height: 40, downscaled: false });
+});
+
+test("the catalog contributor installs this tool's own builder and risk map under the media-view domain", () => {
+  const contributor = contributeMediaViewImageTools();
+  assert.equal(contributor.domain, "media-view");
+  assert.equal(contributor.build, buildMediaViewImageRegistrations);
+  assert.equal(contributor.risk, mediaViewImageDerivedRisk);
 });

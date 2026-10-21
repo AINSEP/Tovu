@@ -59,11 +59,28 @@ export interface PackAuthorizedEntitiesDeps {
  * `e` the allowed types pack. Memory is O(1) in the corpus: entities are yielded, never collected.
  */
 export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps): AsyncGenerator<PackedEntity> {
-  for (const handler of buildPublishContentCatalog(deps.publishContentDeps).handlers) {
-    const typeAuth = await deps.authorize({
-      principalId: deps.principalId,
+  yield* packHandlerEntities({ ...deps, handlers: buildPublishContentCatalog(deps.publishContentDeps).handlers });
+}
+
+/**
+ * {@link packAuthorizedEntities}' loop over an already-resolved `handlers` list — the same seam
+ * {@link collectSkippedEntities} takes, so the per-type gate and the packed-metadata check are
+ * testable without the real registered-contributor graph.
+ *
+ * @throws Error when a handler packs an entity whose `entityType`/`schemaVersion` is not its own.
+ * @complexity O(t + e), as {@link packAuthorizedEntities}.
+ */
+export async function* packHandlerEntities(input: {
+  readonly handlers: readonly PublishContentHandler[];
+  readonly authorize: PublishContentAuthorize;
+  readonly workspaceId: string;
+  readonly principalId: string;
+}): AsyncGenerator<PackedEntity> {
+  for (const handler of input.handlers) {
+    const typeAuth = await input.authorize({
+      principalId: input.principalId,
       permission: handler.permission,
-      workspaceId: deps.workspaceId,
+      workspaceId: input.workspaceId,
     });
     if (!typeAuth.allowed) continue;
 

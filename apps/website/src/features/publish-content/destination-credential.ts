@@ -60,8 +60,12 @@ export interface PublishDestinationCredentialDeps {
  */
 export async function resolvePublishDestinationCredential(
   deps: PublishDestinationCredentialDeps,
-  input: { workspaceId: string; id: string; backstop?: boolean }
+  input: { workspaceId: string; id: string; backstop?: boolean },
+  // The handshake is a port so the workspace re-check below is testable without three live round
+  // trips; production always uses the real `openPublishSession`.
+  optional: { openSession?: typeof openPublishSession } = {}
 ): Promise<ResolvedPeerCredential> {
+  const { openSession = openPublishSession } = optional;
   const record = await deps.repo.findById(input);
   if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
 
@@ -72,7 +76,7 @@ export async function resolvePublishDestinationCredential(
     return resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, input);
   }
 
-  const session = await openPublishSession(
+  const session = await openSession(
     { httpClient: deps.httpClient, keyring: deps.keyring },
     { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) }
   );

@@ -22,7 +22,7 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/comm
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPost, isTrashed, ROOT_SLUG, type ForgetRemovedPostFn, type PostRecord } from "../post.js";
+import { createPost, isTrashed, PostConflictError, PostNotFoundError, ROOT_SLUG, type ForgetRemovedPostFn, type PostRecord } from "../post.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
@@ -725,4 +725,69 @@ test("apply() refuses a post entity whose packed kind is 'page'", async () => {
     { message: "post entity 'smuggled' is packed as a 'page' — a post publish writes only posts" }
   );
   assert.equal(await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "smuggled" }), null);
+});
+
+// ---------------------------------------------------------------------------
+// Remaining handler edges: featured-image references, trashed destinations, retire guards
+// ---------------------------------------------------------------------------
+
+function packedState(state: Record<string, unknown>, id = "post-2") {
+  return { entityType: "post" as const, id, schemaVersion: 1, contentHash: "irrelevant", hashVersion: 1, requiredBlobs: [], state };
+}
+
+test("references() adds the featured image once, and adds nothing for a missing or empty featuredMediaId", async () => {
+  const handler = contributePostPublish().build(makeDeps([]));
+  const bodyWithMedia = { type: "doc", content: [{ type: "image", attrs: { assetId: "asset-1" } }] };
+  const base = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }));
+  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" })), base);
+  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "hero" })), [...base, { entityType: "media", key: "hero" }]);
+  assert.ok(base.some((ref) => ref.entityType === "media" && ref.key === "asset-1"), "the body's own image is a reference");
+  const withSameFeatured = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "asset-1" }));
+  assert.deepEqual(withSameFeatured, base, "a featured image the body already references is not listed twice");
+});
+
+test("precheck() blocks publishing over a destination row that is in the Trash, even when that row is the other kind", async () => {
+  const handler = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", deletedAt: "2026-09-10T00:00:00.000Z" })]));
+  const expected = "post 'post-2' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content";
+  assert.equal(await handler.precheck(packedState({ kind: "post", slug: "fresh-slug" })), expected);
+  // A trashed PAGE with this id is invisible to the post handler's kind-filtered lookup, so the
+  // unfiltered slug/trash read in its own validation is what refuses it.
+  const otherKind = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", kind: "page", deletedAt: "2026-09-10T00:00:00.000Z" })]));
+  assert.equal(await otherKind.precheck(packedState({ kind: "post", slug: "fresh-slug" })), expected);
+});
+
+test("planRetire() returns null for a free slug, a slug the entity itself holds, a missing slug, and a handler with no post repo", async () => {
+  const own = makePost({ id: "post-2", slug: "mine" });
+  const handler = contributePostPublish().build(makeDeps([own]));
+  assert.equal(await handler.planRetire!(packedState({ slug: "free" })), null);
+  assert.equal(await handler.planRetire!(packedState({ slug: "mine" })), null);
+  assert.equal(await handler.planRetire!(packedState({})), null);
+  const noRepo = contributePostPublish().build({ ...makeDeps([own]), ports: {} });
+  assert.equal(await noRepo.planRetire!(packedState({ slug: "mine" }, "post-3")), null);
+});
+
+test("retire() of a target that no longer exists refuses with not-found and records nothing", async () => {
+  const deps = makeApplyDeps([]);
+  const handler = contributePostPublish().build(deps);
+  await assert.rejects(
+    () => handler.retire!({ target: { entityType: "post", entityId: "vanished", entityLabel: "Vanished", hash: "h" }, principalId: "operator-1", idempotencyKey: "retire-vanished" }),
+    { message: "post 'vanished' was not found" },
+  );
+  assert.deepEqual(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("apply() throws when ports.post.forgetRemoved is not wired even though the gateway deps are", async () => {
+  const base = makeApplyDeps([]);
+  const handler = contributePostPublish().build({ ...base, ports: { post: { ...base.ports.post, forgetRemoved: undefined } } });
+  await assert.rejects(
+    () => handler.apply({ entity: packedState({ kind: "post", slug: "x" }, "x"), expectedVersion: undefined, principalId: "p1", idempotencyKey: "apply-no-forget" }),
+    /requires PublishContentDeps\.changeSets\/authorize\/outbox and ports\.post\.repo\/forgetRemoved/,
+  );
+});
+
+test("isApplyConflict() treats the post domain's conflict and not-found errors as apply conflicts, and nothing else", () => {
+  const handler = contributePostPublish().build(makeDeps([]));
+  assert.equal(handler.isApplyConflict!(new PostConflictError("moved on")), true);
+  assert.equal(handler.isApplyConflict!(new PostNotFoundError("gone")), true);
+  assert.equal(handler.isApplyConflict!(new Error("disk full")), false);
 });

@@ -63,6 +63,14 @@ test("scroll-reveal library attributes and classes are reported; look-alike clas
   assert.match(findings[3]!, /<div>.*data-sr-id/);
 });
 
+test("a bare (valueless) reveal attribute is reported, and a bare class attribute is not mistaken for a reveal class", () => {
+  const findings = findScriptRevealedContent({ html: `<section data-aos>a</section><p class>b</p><div data-sal=slide-up>c</div>` });
+  assert.deepEqual(findings, [
+    "<section> has data-aos (a scroll-reveal library attribute)",
+    "<div> has data-sal (a scroll-reveal library attribute)",
+  ]);
+});
+
 test("a <style> rule that hides a reveal-named selector is reported; keyframes and ordinary hidden overlays are not", () => {
   const findings = findScriptRevealedContent({
     html:
