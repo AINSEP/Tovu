@@ -9,10 +9,11 @@ import test from 'node:test';
 import { parseAdminSurfacesFile, type LoadedAdminSurface } from '@jini-ai/agent-plugins/admin-surfaces';
 import type { LoadPluginContributionsOptional, PluginContributionDefinition, TrustedPluginPackage } from '@jini-ai/agent-plugins/lifecycle';
 
+import { createIssuedSignInCollector } from '../../issued-sign-ins.js';
 import type { TovuAgentPluginLifecycle } from '#src/features/agent-plugins/lifecycle';
 import {
   ADMIN_SURFACES_FILENAME, ADMIN_SURFACE_FILES_PREFIX, NO_ADMIN_SURFACE_HOST,
-  adminSurfaceFileUrl, createAgentPluginAdminSurfaceSource, findAdminSurface, readSurfaceFile, type AdminSurfaceSource,
+  withAdminSurfaceSignIns, adminSurfaceFileUrl, createAgentPluginAdminSurfaceSource, findAdminSurface, readSurfaceFile, type AdminSurfaceSource,
 } from '../../surfaces.js';
 
 type Lifecycle = Pick<TovuAgentPluginLifecycle, 'loadPluginContributions' | 'readTrustedPluginFile'>;
@@ -98,4 +99,26 @@ test('readSurfaceFile serves a declared file through the source and refuses an u
   const undeclared = await readSurfaceFile({ source, surface: loaded, path: 'secrets.json' });
   assert.equal(undeclared.ok, false);
   assert.deepEqual(reads.map((read) => read.filename), ['surface/app.mjs']);
+});
+
+
+test('screen and assistant actions return host-issued sign-in URLs without opening a browser', async () => {
+  const signIns = createIssuedSignInCollector();
+  const link = { authorizationUrl: 'https://auth.example.test/start', expiresAt: '2026-10-20T00:10:00Z' };
+  const result = await withAdminSurfaceSignIns({ host: { ...NO_ADMIN_SURFACE_HOST, signIns }, run: async () => {
+    signIns.record(link);
+    return { ok: true, result: { expiresAt: link.expiresAt } };
+  } });
+  assert.deepEqual(result, { ok: true, result: { expiresAt: link.expiresAt }, hostSignIns: [link] });
+});
+
+test('failed actions never expose a collected sign-in URL, and hosts without collectors preserve the outcome', async () => {
+  const signIns = createIssuedSignInCollector();
+  const outcome = { ok: false, error: { code: 'refused', message: 'Refused', retryable: false } } as const;
+  const result = await withAdminSurfaceSignIns({ host: { ...NO_ADMIN_SURFACE_HOST, signIns }, run: async () => {
+    signIns.record({ authorizationUrl: 'https://auth.example.test/start', expiresAt: '2026-10-20T00:10:00Z' });
+    return outcome;
+  } });
+  assert.equal(result, outcome);
+  assert.equal(await withAdminSurfaceSignIns({ host: NO_ADMIN_SURFACE_HOST, run: async () => outcome }), outcome);
 });

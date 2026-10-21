@@ -4,12 +4,13 @@ import {
   adminSurfaceBootstrapHeaders,
   createAdminSurfaceActionDispatcher,
   createAdminSurfaceBootstrap,
-  type AdminSurfaceActionOutcome,
   type LoadedAdminSurface,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import {
   NO_ADMIN_SURFACE_HOST,
+  ADMIN_SURFACE_ACTION_PERMISSION,
+  withAdminSurfaceSignIns,
   adminSurfaceFileUrl,
   createAgentPluginAdminSurfaceSource,
   findAdminSurface,
@@ -17,7 +18,6 @@ import {
   type AdminSurfaceRequestContext,
   type AdminSurfaceSource,
 } from "#src/features/agent-plugins/admin-surfaces/surfaces";
-import type { HostSignInLink } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { isSameOriginAdminWrite } from "#src/features/agent-plugins/admin-surfaces/same-origin";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -51,7 +51,7 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
 // Route params need no fallback: Express sets every named param of a matched route to a non-empty
 // string (an empty segment never matches), and `requireAdminSession` always runs a JSON body parser
 // before these handlers, so `req.body` is at least `{}` (both pinned in the routes integration test).
-const WRITE_PERMISSION = "admin.plugins.enable";
+const WRITE_PERMISSION = ADMIN_SURFACE_ACTION_PERMISSION;
 const SURFACE_PATH = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/surfaces";
 
 function sourceFor(deps: AgentPluginsRouteDeps): AdminSurfaceSource {
@@ -93,13 +93,6 @@ async function guarded(res: Response, body: () => Promise<void>): Promise<void> 
   try { await body(); } catch { res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" }); }
 }
 
-/** Runs one action and adds the sign-in links this host issued during it, only when it succeeded. */
-async function withSignIns(host: AdminSurfaceHost, run: () => Promise<AdminSurfaceActionOutcome>): Promise<AdminSurfaceActionOutcome & { readonly hostSignIns?: readonly HostSignInLink[] }> {
-  if (!host.signIns) return run();
-  const { value: outcome, signIns } = await host.signIns.collect({ run });
-  return outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome;
-}
-
 export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {
   app.get(SURFACE_PATH, (req, res) => guarded(res, async () => {
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
@@ -132,6 +125,6 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
       onHandlerError: ({ surfaceId, action, error }) => console.error("[admin-surfaces] action handler failed", { pluginId: surface.plugin.pluginId, surfaceId, action, error: error instanceof Error ? error.name : typeof error }),
     });
     const { action, payload } = body;
-    res.set("Cache-Control", "no-store").json(await withSignIns(host, () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) })));
+    res.set("Cache-Control", "no-store").json(await withAdminSurfaceSignIns({ host, run: () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) }) }));
   }));
 };

@@ -13,10 +13,13 @@
  * confirmation transport, so that flag would park the call forever), and confirming tools carry no
  * executor deadline (the deadline would expire while the human reads the card, as for native tools).
  */
-import { createToolRegistrationScope, type ToolExecutionContext, type ToolRegistration, type ToolRegistry } from '@jini-ai/core';
+import { createToolRegistrationScope, type ToolExecutionContext, type ToolAuthorizationContext, type ToolRegistration, type ToolRegistry } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
 import { createAgentPluginToolProjection, defineAgentPluginToolContribution, type AgentPluginToolEffect, type IssuedTokenMemories, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
+import { buildAdminSurfaceActionTools } from '@jini-ai/agent-plugins/admin-surfaces';
+import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSurfaceSource } from '../admin-surfaces/surfaces.js';
+import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { EXTENSION_TOOL_APPROVAL_POLICY, withExtensionApprovalPolicy } from '../../../contracts/headless/assistant-tool-approval-policy.js';
@@ -33,6 +36,8 @@ const toolContribution = defineAgentPluginToolContribution({ filename: AGENT_PLU
 
 /** Host ports the composition root binds once per site (see this folder's README). */
 export interface AgentPluginExecutableToolHost {
+  /** Same active/trusted source and handler host used by the sandboxed admin screen. */
+  readonly adminSurfaces?: { readonly source: Pick<AdminSurfaceSource, 'list'>; readonly host: AgentPluginAdminSurfaceHandlers };
   /** The lifecycle's `loadPluginContributions`, narrowed to this contribution. */
   readonly loadContributions: (
     required: { readonly workspaceId: string; readonly definition: typeof toolContribution },
@@ -76,7 +81,7 @@ function ownersById(contributions: ReturnType<typeof createPluginContributionReg
  * @param required.isActive - Fresh activation read for one plugin; must deny on any fault.
  * @param required.authorize - The workspace RBAC evaluator; callers need `admin.assistant.use`.
  * @param required.applyApproval - The approval owner, applied to write and destructive tools.
- * @returns The loader's and projection's refusal lines, plus `dispose` to remove every tool.
+ * @returns Refusal lines, `refresh` to reload the active set, and `dispose` to remove every tool.
  * @complexity O(t) tools plus one contained import per tool module (cached by Node).
  */
 export async function registerAgentPluginExecutableTools(
@@ -86,15 +91,41 @@ export async function registerAgentPluginExecutableTools(
     readonly authorize: AuthorizeFn; readonly applyApproval: ApplyAgentPluginApproval;
   },
   _optional: Record<string, never> = {},
-): Promise<{ readonly refusals: readonly string[]; dispose(): void }> {
+): Promise<{ readonly refusals: readonly string[]; refresh(): Promise<{ readonly refusals: readonly string[] }>; dispose(): void }> {
   const { registry, workspaceId, host } = required;
   const frozen = createFrozenConnectionAccounts();
   const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state, apiOrigins: host.apiOrigins }, host.artifacts ? { artifacts: host.artifacts } : {});
   const contributions = createPluginContributionRegistry({});
   const projection = createAgentPluginToolProjection({ registry: contributions, toolIdFor: pluginToolIdFor, capabilities, issuedTokens: host.issuedTokens });
   const disclose = createAgentPluginDisclosure({ source: projection, connections: host.connections, frozen });
-  const load = await host.loadContributions({ workspaceId, definition: toolContribution }, { orderByPluginId: true });
-  const { refusals } = projection.sync({ loaded: load.items, refusals: load.refusals });
+  const authorize = adaptLegacyAuthorize({ authorize: required.authorize });
+  /** One fresh trust/activation load. Each generation's closures retain its own declaration. */
+  async function loadTools() {
+    const load = await host.loadContributions({ workspaceId, definition: toolContribution }, { orderByPluginId: true });
+    const admin = host.adminSurfaces;
+    const surfaces = admin ? await admin.source.list({ workspaceId }) : [];
+    if (admin) await admin.host.refresh();
+    const additionalTools = admin ? buildAdminSurfaceActionTools({
+      surfaces: surfaces.map(({ plugin, descriptor }) => ({ pluginId: plugin.pluginId, descriptor })),
+      handlersFor: (input) => admin.host.handlersFor(input),
+      authorize: async ({ context }) => {
+        if (context.workspaceId !== workspaceId || !context.principalId) throw new Error('Admin surface caller is unavailable.');
+        await requireToolPermission({ authorize, workspaceId, principalId: context.principalId, permission: ADMIN_SURFACE_ACTION_PERMISSION });
+        // Re-read the trust gate after the human's confirmation, just as the screen action route does.
+        const latest = await admin.source.list({ workspaceId });
+        const original = surfaces.find(surface => surface.plugin.pluginId === context.pluginId && surface.descriptor.id === context.surfaceId);
+        if (!original || !latest.some(surface => surface.plugin.pluginId === context.pluginId && surface.descriptor.id === context.surfaceId
+          && JSON.stringify(surface.descriptor) === JSON.stringify(original.descriptor))) throw new Error('This admin surface is no longer available.');
+        await admin.host.refresh();
+      },
+    }, {
+      run: ({ dispatch }) => withAdminSurfaceSignIns({ host: admin.host, run: dispatch }),
+    }) : [];
+    return { loaded: load.items, refusals: load.refusals, additionalTools };
+  }
+  const initial = await loadTools();
+  let adminToolIds = new Set(initial.additionalTools.map(entry => pluginToolIdFor({ pluginId: entry.pluginId, name: entry.tool.name })));
+  const { refusals } = projection.sync(initial);
 
   const ports = {
     contributions, isEnabled: required.isActive,
@@ -110,7 +141,14 @@ export async function registerAgentPluginExecutableTools(
     // park forever, so the approval owner's card below confirms instead (never less friction).
     const { requiresConfirmation: _parked, timeoutMs, ...descriptor } = registration.descriptor;
     const asks = owner.effect !== 'read';
-    const classified = withExtensionApprovalPolicy({ registration: { ...registration, descriptor: { ...descriptor, ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
+    const gated = adminToolIds.has(toolId) ? { ...registration, policy: { ...registration.policy, authorize: async (ctx: ToolAuthorizationContext) => {
+      if (await registration.policy.authorize(ctx) !== 'allow') return 'deny' as const;
+      try {
+        await requireToolPermission({ authorize, workspaceId, principalId: ctx.principal.id, permission: ADMIN_SURFACE_ACTION_PERMISSION });
+        return 'allow' as const;
+      } catch { return 'deny' as const; }
+    } } } : registration;
+    const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects: owner.effect === 'destructive' ? 'deletes-durable-state' : asks ? 'mutates-durable-state' : 'none', ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
     return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }) }) : classified;
   };
   const scope = createToolRegistrationScope({ registry });
@@ -125,5 +163,15 @@ export async function registerAgentPluginExecutableTools(
   };
   refresh();
   const unsubscribe = contributions.subscribe({ onChanged: refresh });
-  return { refusals, dispose() { unsubscribe(); scope.replace({ registrations: [] }); } };
+  let disposed = false;
+  return {
+    refusals,
+    async refresh() {
+      const next = await loadTools();
+      if (disposed) throw new Error('Plugin tool registration was disposed.');
+      adminToolIds = new Set(next.additionalTools.map(entry => pluginToolIdFor({ pluginId: entry.pluginId, name: entry.tool.name })));
+      return projection.sync(next);
+    },
+    dispose() { disposed = true; unsubscribe(); scope.replace({ registrations: [] }); },
+  };
 }

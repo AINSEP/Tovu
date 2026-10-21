@@ -1,3 +1,5 @@
+import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
+import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
@@ -159,9 +161,15 @@ export function composeAgentPluginConnections(
       forms: delivery.forms, authorize: delivery.settings.authorize,
     }),
   } : {});
+  const adminSurfaceHost = createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities, issuedTokens, hostKind: runtime }, { signIns });
+  const surfaceDefinition = defineAdminSurfaceContribution({ filename: ADMIN_SURFACES_FILENAME });
   return {
     apiConnections: { host },
-    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens },
-    adminSurfaceHost: createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities, issuedTokens, hostKind: runtime }, { signIns }),
+    agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens,
+      adminSurfaces: { host: adminSurfaceHost, source: {
+        list: async ({ workspaceId: scopeWorkspaceId }) => (await loadContributions({ workspaceId: scopeWorkspaceId, definition: surfaceDefinition }, { requireActive: true, orderByPluginId: true })).items,
+      } },
+    },
+    adminSurfaceHost,
   };
 }

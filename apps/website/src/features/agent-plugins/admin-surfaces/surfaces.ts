@@ -2,12 +2,13 @@ import {
   defineAdminSurfaceContribution,
   readAdminSurfaceFile,
   type AdminSurfaceActionHandler,
+  type AdminSurfaceActionOutcome,
   type LoadedAdminSurface,
 } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { TrustedPluginPackage } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import type { IssuedSignInCollector } from "./issued-sign-ins.js";
+import type { HostSignInLink, IssuedSignInCollector } from "./issued-sign-ins.js";
 
 /**
  * @file Tovu's adapter over Jini's admin-surface seam (`@jini-ai/agent-plugins/admin-surfaces`):
@@ -22,6 +23,8 @@ import type { IssuedSignInCollector } from "./issued-sign-ins.js";
 
 /** The contribution file a plugin ships at its package root. Host-named, as for every seam. */
 export const ADMIN_SURFACES_FILENAME = "tovu-admin-surfaces.json";
+/** The screen route and assistant adapter enforce the same workspace permission. */
+export const ADMIN_SURFACE_ACTION_PERMISSION = "admin.plugins.enable";
 
 /** Where the public files route (`public-http/routes/agent-plugin-surfaces/files.ts`) serves surfaces. */
 export const ADMIN_SURFACE_FILES_PREFIX = "/api/agent-plugin-surfaces/v1";
@@ -100,4 +103,15 @@ export function readSurfaceFile(
   _optional: Record<string, never> = {},
 ) {
   return readAdminSurfaceFile({ surface: required.surface, path: required.path, readFile: (input) => required.source.readFile(input) });
+}
+
+/** Runs one screen/tool action and adds only the sign-in URLs this host issued on success.
+ * @complexity O(l) issued links plus the action. No link is opened here. */
+export async function withAdminSurfaceSignIns(required: {
+  readonly host: AdminSurfaceHost;
+  readonly run: () => Promise<AdminSurfaceActionOutcome>;
+}, _optional: Record<string, never> = {}): Promise<AdminSurfaceActionOutcome & { readonly hostSignIns?: readonly HostSignInLink[] }> {
+  if (!required.host.signIns) return required.run();
+  const { value: outcome, signIns } = await required.host.signIns.collect({ run: required.run });
+  return outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome;
 }
