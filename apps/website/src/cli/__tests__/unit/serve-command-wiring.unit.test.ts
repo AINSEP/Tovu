@@ -371,7 +371,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     await assert.rejects(runServeCommand({ dir: refusalTarget, port: "4567" }), (error: unknown) => error === leaseReadyError);
     assert.equal(serverCloses, closesBefore + 1, "the just-bound listener is closed again");
     // The closed listener's own "close" hook stops the theme watcher first; the release then stops every worker.
-    assert.deepEqual(stopped, ["themes", "outbox", "trash", "themes", "form-pull", "webhooks"]);
+    assert.deepEqual(stopped, ["themes", "outbox", "trash", "themes", "form-pull", "go-live", "webhooks", "dns-sweep", "site-search"]);
     assert.equal(closeStarted, true);
     leaseReadyError = undefined;
   } finally {
