@@ -38,7 +38,7 @@ test("SiteCard imports and calls useSitePreview with the project's own id and pr
   // The hook is an injectable prop (`SiteGrid.jsdom.test.ts` renders a capture through it) whose
   // default is the real `useSitePreview`, so production still calls the bridge-backed hook.
   assert.match(cardBody(), /usePreview = useSitePreview,/);
-  assert.match(cardBody(), /usePreview\(project\.id, project\.previewVersion\)/);
+  assert.match(cardBody(), /usePreview\(\{ id: project\.id, previewVersion: project\.previewVersion \}\)/);
 });
 
 // REGRESSION: owner 2026-10-13 — "where it says 3000" there should be a preview, never the port.

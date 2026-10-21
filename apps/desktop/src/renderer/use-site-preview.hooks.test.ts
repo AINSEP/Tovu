@@ -41,7 +41,7 @@ for (const staleOutcome of ['resolve', 'reject'] as const) {
       ...harness.bindings, previewFetchPlan, nextPreviewUrl, runnerInventoryBridge: () => bridge,
     });
     let id = 'site-a';
-    const render = () => harness.render(() => hook(id, 7));
+    const render = () => harness.render(() => hook({ id, previewVersion: 7 }));
     const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
     try {
       assert.equal(render(), null);

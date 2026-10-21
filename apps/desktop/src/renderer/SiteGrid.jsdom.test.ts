@@ -105,7 +105,7 @@ function fakeHooks() {
       errorOf: (id) => state.locateErrors[id] ?? null,
       locate: async (id) => { calls.push(`locate ${id}`); },
     }),
-    usePreview: (id: string) => state.previews[id] ?? null,
+    usePreview: ({ id }: { id: string }) => state.previews[id] ?? null,
   };
   return { calls, state, hooks };
 }

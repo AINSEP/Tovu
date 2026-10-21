@@ -190,7 +190,7 @@ function SiteCard({
   const copy = deleteActionCopy(project);
   // `null` until main has actually captured this site once (or the fetch is still in flight) — see
   // `use-site-preview.hooks.ts`.
-  const previewUrl = usePreview(project.id, project.previewVersion);
+  const previewUrl = usePreview({ id: project.id, previewVersion: project.previewVersion });
   // The polled status, or the transition THIS window started and is still waiting on — see
   // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
   const status = power.statusOf(project);

@@ -77,8 +77,7 @@ export function nextPreviewUrl(
  * @complexity O(1) plus one IPC round trip per distinct `previewVersion`.
  */
 export function useSitePreview(
-  id: string,
-  previewVersion: number | null,
+  { id, previewVersion }: { id: string; previewVersion: number | null },
   { getBridge = runnerInventoryBridge }: {
     /** The bridge port; defaults to the preload's `window.tovuRunner`. Keep it stable: it is an
      *  effect dependency, so a new function each render would refetch each render. */
