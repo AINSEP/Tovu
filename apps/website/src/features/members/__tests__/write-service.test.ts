@@ -22,6 +22,7 @@ import {
 import {
   compSubscription,
   completeSignIn,
+  createMember,
   disableMember,
   requestSignInLink,
   setSubscriptionStatus,
@@ -840,4 +841,66 @@ test("requestSignInLink's missing-sender refusal is the same for a disabled memb
     requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "disabled@example.com" } }),
     SenderIdentityNotConfiguredError
   );
+});
+
+test("completeSignIn refuses with MemberNotFoundError when the token's member row is gone, and opens no session", async () => {
+  // Defensive path: `requestSignInLink` always pre-creates the member, so only a row lost after the
+  // link was minted reaches it. The token is consumed first (single-use holds even here).
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "vanished@example.test" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+  const tokenHash = hashToken(rawToken);
+  const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+  assert.ok(issued);
+  const members = deps.members;
+  const lostRowDeps: MembersWriteServiceDeps = { ...deps, members: {
+    findById: async () => null,
+    findByEmail: required => members.findByEmail(required),
+    list: required => members.list(required),
+    save: record => members.save(record),
+  } };
+  await assert.rejects(
+    completeSignIn({ deps: lostRowDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
+    (error: unknown) => {
+      assert.ok(error instanceof MemberNotFoundError);
+      assert.equal(error.message, `member '${issued.memberId}' was not found`);
+      return true;
+    },
+  );
+  assert.ok((await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }))?.consumedAt, "the token stays consumed");
+  assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);
+});
+
+test("createMember refuses as a conflict when a disabled row with the same email appears between its check and its create", async () => {
+  // Race: the first lookup sees no row, a concurrent writer saves a disabled member, and the
+  // sign-up creation owner then declines to reuse it. No second member or principal is written.
+  const { deps, principals } = makeDeps();
+  const members = deps.members;
+  let lookups = 0;
+  const racingDeps: MembersWriteServiceDeps = { ...deps, members: {
+    findById: required => members.findById(required),
+    findByEmail: async (required) => {
+      lookups += 1;
+      if (lookups === 2) {
+        await members.save({
+          id: "member-raced", workspaceId: WORKSPACE_ID, email: required.email, status: "disabled",
+          createdAt: "2026-07-10T00:00:00.000Z", updatedAt: "2026-07-10T00:00:00.000Z", version: 1,
+        });
+      }
+      return members.findByEmail(required);
+    },
+    list: required => members.list(required),
+    save: record => members.save(record),
+  } };
+  await assert.rejects(
+    createMember({ deps: racingDeps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.test" } }, { name: "Raced" }),
+    (error: unknown) => {
+      assert.ok(error instanceof MemberConflictError);
+      assert.equal(error.message, "member with email 'raced@example.test' already exists");
+      return true;
+    },
+  );
+  assert.equal(lookups, 2);
+  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).map(m => m.id), ["member-raced"]);
+  assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
 });
