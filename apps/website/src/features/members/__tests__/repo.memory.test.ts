@@ -103,7 +103,7 @@ test("InMemoryMemberRepo.save never lets a write clear or roll back a recorded c
 });
 
 test("InMemoryMemberSubscriptionRepo.listByMember orders newest start first and keeps same-start rows in insertion order", async () => {
-  const base = { workspaceId: WORKSPACE_ID, memberId: "member-1", tierId: "tier-1", status: "active" as const, source: "comp" as const, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
+  const base = { workspaceId: WORKSPACE_ID, memberId: "member-1", tierId: "tier-1", status: "active" as const, source: "comp" as const, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 };
   const repo = new InMemoryMemberSubscriptionRepo([
     { ...base, id: "sub-a", startedAt: "2026-03-01T00:00:00.000Z" },
     { ...base, id: "sub-old", startedAt: "2026-01-01T00:00:00.000Z" },
