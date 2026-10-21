@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  adaptWebhookHttpClient,
   computeBackoffMs,
   enqueueDelivery,
   MAX_DELIVERY_ATTEMPTS,
@@ -722,4 +723,27 @@ test("a claimed row with no recorded envelope fails (envelope-store gap)", async
     id: "delivery-no-envelope",
   });
   assert.match(delivery?.lastError ?? "", /no envelope recorded/);
+});
+
+test("the HTTP adapter forwards the exact request (signed body bytes intact) and returns the client's response", async () => {
+  const http = new RecordingHttpClient({ responses: [{ status: 202, headers: {}, bodyText: "accepted" }] });
+  const request = { method: "POST" as const, url: "https://example.com/hooks", headers: { "tovu-signature": "t=1,v1=abc" }, timeoutMs: 5000, body: '{"a":1}' };
+  const adapted = adaptWebhookHttpClient({ httpClient: http });
+
+  const response = await adapted.send({ request });
+  const responseWithEmptyOptions = await adapted.send({ request }, {});
+
+  assert.equal(response.status, 202);
+  assert.equal(responseWithEmptyOptions.status, 202);
+  assert.equal(http.calls.length, 2);
+  assert.equal(http.calls[0]!.request, request, "the adapter must not rebuild (and so re-serialize) the signed request");
+});
+
+test("the HTTP adapter fails closed on a per-request redirect control, without dispatching", async () => {
+  const http = new RecordingHttpClient();
+  const adapted = adaptWebhookHttpClient({ httpClient: http });
+  const request = { method: "POST" as const, url: "https://example.com/hooks", headers: {}, body: "{}" };
+
+  assert.throws(() => adapted.send({ request }, { redirect: "follow" }), /does not support per-request redirect controls/);
+  assert.equal(http.calls.length, 0);
 });
