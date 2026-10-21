@@ -43,7 +43,7 @@ type ParseResult = { readonly ok: true; readonly descriptors: readonly ProviderC
 
 const objectStoreContribution = defineProviderContribution<ProviderContributionDescriptor, TovuObjectStoreProvider>({
   contract: OBJECT_STORE_CONTRACT, filename: OBJECT_STORES_FILENAME,
-  parse: ({ raw }) => parseObjectStoresFile(raw),
+  parse: ({ raw }) => parseObjectStoresFile({ raw }),
   validate: ({ exported }) => objectStoreProviderFault({ provider: exported }) ?? exported as TovuObjectStoreProvider,
 });
 
@@ -93,10 +93,10 @@ export async function loadBundledObjectStoreRegistry(
  * are checked against the shared grammar by the loader before any module is imported.
  * @complexity O(n) entries.
  */
-export function parseObjectStoresFile(raw: string): ParseResult {
+export function parseObjectStoresFile(required: { readonly raw: string }, _optional: Record<string, never> = {}): ParseResult {
   let value: unknown;
   try {
-    value = JSON.parse(raw);
+    value = JSON.parse(required.raw);
   } catch {
     return { ok: false, reason: "not valid JSON" };
   }

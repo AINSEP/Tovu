@@ -18,7 +18,7 @@ import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_
 
 const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins");
 
-const manifest = (value: unknown) => parseObjectStoresFile(JSON.stringify(value));
+const manifest = (value: unknown) => parseObjectStoresFile({ raw: JSON.stringify(value) });
 
 // ---------------------------------------------------------------------------
 // parseObjectStoresFile
@@ -44,7 +44,7 @@ test("parseObjectStoresFile: a label of exactly 100 characters is accepted, 101 
 });
 
 test("parseObjectStoresFile: refuses text that is not JSON", () => {
-  assert.deepEqual(parseObjectStoresFile("{ not json"), { ok: false, reason: "not valid JSON" });
+  assert.deepEqual(parseObjectStoresFile({ raw: "{ not json" }), { ok: false, reason: "not valid JSON" });
 });
 
 test("parseObjectStoresFile: refuses a non-object root or any schemaVersion other than 1", () => {
