@@ -93,6 +93,11 @@ function isUnreadableTokenRecord(error: unknown): boolean {
   return error instanceof Error && error.name === "OAuthTokenStoreError" && (code === "owner-mismatch" || code === "invalid-record");
 }
 
+/** True when Jini's service already turned an unreadable token record into its generic reconnect-required refusal. */
+function wrapsUnreadableTokenRecord(error: unknown): boolean {
+  return error instanceof ApiConnectionError && isUnreadableTokenRecord(error.cause);
+}
+
 function clientChanged(cause: unknown): ApiConnectionError {
   return new ApiConnectionError({ code: "reconnect-required", message: "This connection's sign-in client changed, so its stored sign-in can no longer be used. Reconnect the account in the connection settings." }, { cause });
 }
@@ -291,7 +296,7 @@ export function createApiConnectionHost(
         if (!connection) throw notAvailable();
         await budgets.charge({ workspaceId: required.workspaceId, pluginId: scope.pluginId, connectionId: connection.descriptor.connectionId, connectionRef: input.connectionRef, budgets: connection.budgets });
         return serviceFor({ connection }).getAccessToken({ connectionRef: input.connectionRef, workspaceId: required.workspaceId }, options).catch(async (error: unknown) => {
-          if (!isUnreadableTokenRecord(error)) throw error;
+          if (!isUnreadableTokenRecord(error) && !wrapsUnreadableTokenRecord(error)) throw error;
           const record = await records.read({ key: input.connectionRef });
           if (record?.status === "connected") await markReconnectRequired(record);
           throw clientChanged(error);
