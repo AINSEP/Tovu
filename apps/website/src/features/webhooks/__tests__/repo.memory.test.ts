@@ -151,3 +151,13 @@ test("InMemoryDeliveryEnvelopeStore round-trips save/find and returns null for u
   const missing = await store.find({ deliveryId: "unknown" });
   assert.equal(missing, null);
 });
+
+test("InMemoryWebhookSubscriptionRepo seeds initial rows and findMatching filters them by workspace and status", async () => {
+  const repo = new InMemoryWebhookSubscriptionRepo([
+    makeSubscription(),
+    makeSubscription({ id: "sub-other", workspaceId: "workspace-2" }),
+    makeSubscription({ id: "sub-paused", status: "paused" }),
+  ]);
+  assert.deepEqual((await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" })).map((row) => row.id), ["sub-1"]);
+  assert.equal((await repo.findById({ workspaceId: "workspace-2", id: "sub-other" }))?.id, "sub-other");
+});

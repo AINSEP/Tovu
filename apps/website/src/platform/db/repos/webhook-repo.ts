@@ -214,17 +214,23 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     );
   }
 
+  /** With `claimLeaseMs`, a `delivering` row whose lease (`next_attempt_at`, no new column) has
+   * expired is claimable again, and each claim writes nowIso + claimLeaseMs as its lease: a claimer
+   * that crashed or was abandoned at shutdown no longer strands its rows in `delivering`. */
   async claimPending(required: {
     batchSize: number;
     nowIso: string;
-  }): Promise<WebhookDeliveryRecord[]> {
+  }, optional: { claimLeaseMs?: number } = {}): Promise<WebhookDeliveryRecord[]> {
+    const { claimLeaseMs } = optional;
+    const statuses = claimLeaseMs === undefined ? ["pending"] : ["pending", "delivering"];
+    const lease = claimLeaseMs === undefined ? {} : { next_attempt_at: new Date(Date.parse(required.nowIso) + claimLeaseMs).toISOString() };
     return this.kernel.transaction(async () => {
       await this.kernel.lockKey("webhook_deliveries:claim");
       const due = await this.kernel.run((db) =>
         db
           .selectFrom("webhook_deliveries")
           .selectAll()
-          .where("status", "=", "pending")
+          .where("status", "in", statuses)
           .where("next_attempt_at", "<=", required.nowIso)
           .orderBy("next_attempt_at", "asc")
           .limit(required.batchSize)
@@ -234,13 +240,33 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         await this.kernel.run((db) =>
           db
             .updateTable("webhook_deliveries")
-            .set({ status: "delivering", attempts: row.attempts + 1 })
+            .set({ status: "delivering", attempts: row.attempts + 1, ...lease })
             .where("id", "=", row.id)
             .execute()
         );
       }
-      return due.map((row) => toDeliveryRecord({ ...row, status: "delivering", attempts: row.attempts + 1 }));
+      return due.map((row) => toDeliveryRecord({ ...row, status: "delivering", attempts: row.attempts + 1, ...lease }));
     });
+  }
+
+  /** Returns a never-attempted claim to `pending` with its attempt undone. Fenced on the claim's
+   * attempts and on `delivering`, so a row reclaimed or settled since is left alone. */
+  async releaseClaim(required: {
+    workspaceId: string;
+    id: IntegrationId;
+    claimedAttempts: number;
+    nextAttemptAt: string;
+  }, _optional: Record<string, never> = {}): Promise<void> {
+    await this.kernel.run((db) =>
+      db
+        .updateTable("webhook_deliveries")
+        .set({ status: "pending", attempts: required.claimedAttempts - 1, next_attempt_at: required.nextAttemptAt })
+        .where("workspace_id", "=", required.workspaceId)
+        .where("id", "=", required.id)
+        .where("status", "=", "delivering")
+        .where("attempts", "=", required.claimedAttempts)
+        .execute()
+    );
   }
 
   async markDelivered(required: {
@@ -248,7 +274,8 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     id: IntegrationId;
     responseStatus: number;
     deliveredAtIso: string;
-  }): Promise<void> {
+  }, optional: { claimedAttempts?: number } = {}): Promise<void> {
+    const { claimedAttempts } = optional;
     await this.kernel.run((db) =>
       db
         .updateTable("webhook_deliveries")
@@ -260,6 +287,8 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
+        // Ownership fence: a stale claimer's outcome must not overwrite a newer claim.
+        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
         .execute()
     );
   }
@@ -273,8 +302,9 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     responseStatus: number | null;
     nextStatus: Extract<WebhookDeliveryStatus, "failed" | "dead">;
     nextAttemptAt: string;
-  }, optional: { deadAtIso?: string } = {}): Promise<void> {
+  }, optional: { deadAtIso?: string; claimedAttempts?: number } = {}): Promise<void> {
     const dead = required.nextStatus === "dead";
+    const { claimedAttempts } = optional;
     await this.kernel.run((db) =>
       db
         .updateTable("webhook_deliveries")
@@ -288,6 +318,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
+        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
         .execute()
     );
   }

@@ -288,6 +288,55 @@ function runContractSuite(
     await repo.enqueue({ record: makeDelivery() });
     assert.equal(await repo.find({ deliveryId: "delivery-1" }), null);
   });
+
+  test(`[${adapterName}] with a claim lease, claimPending persists the lease and reclaims only expired delivering rows`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue({ record: makeDelivery() });
+    await repo.enqueue({ record: makeDelivery({ id: "delivery-2", eventId: "event-2" }) });
+    const [first] = await repo.claimPending({ batchSize: 1, nowIso: "2026-07-10T00:00:01.000Z" }, { claimLeaseMs: 60_000 });
+    assert.deepEqual(first, makeDelivery({ status: "delivering", attempts: 1, nextAttemptAt: "2026-07-10T00:01:01.000Z" }));
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), first);
+
+    // Inside the lease only the still-pending row is claimable; without a lease delivering rows never are.
+    const live = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:01:00.999Z" }, { claimLeaseMs: 60_000 });
+    assert.deepEqual(live.map((row) => row.id), ["delivery-2"]);
+    assert.deepEqual(await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:05:00.000Z" }), []);
+
+    const recovered = await repo.claimPending({ batchSize: 1, nowIso: "2026-07-10T00:01:01.000Z" }, { claimLeaseMs: 60_000 });
+    assert.deepEqual(recovered, [makeDelivery({ status: "delivering", attempts: 2, nextAttemptAt: "2026-07-10T00:02:01.000Z" })]);
+  });
+
+  test(`[${adapterName}] outcomes fenced on claimedAttempts leave a newer claim alone`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue({ record: makeDelivery({ status: "delivering", attempts: 2 }) });
+    await repo.markDelivered({ workspaceId: "workspace-1", id: "delivery-1", responseStatus: 200, deliveredAtIso: "2026-07-10T00:00:02.000Z" }, { claimedAttempts: 1 });
+    await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "stale", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:00:02.000Z" }, { claimedAttempts: 1, deadAtIso: "2026-07-10T00:00:02.000Z" });
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery({ status: "delivering", attempts: 2 }));
+
+    await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "boom", responseStatus: 500, nextStatus: "failed", nextAttemptAt: "2026-07-10T00:10:00.000Z" }, { claimedAttempts: 2 });
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery({ status: "pending", attempts: 2, lastError: "boom", lastResponseStatus: 500, nextAttemptAt: "2026-07-10T00:10:00.000Z" }));
+    await repo.markDelivered({ workspaceId: "workspace-1", id: "delivery-1", responseStatus: 204, deliveredAtIso: "2026-07-10T00:11:00.000Z" }, { claimedAttempts: 2 });
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }))?.status, "delivered");
+  });
+
+  test(`[${adapterName}] releaseClaim returns an unattempted claim to pending with its attempt undone, fenced`, async () => {
+    const repo = makeRepo();
+    assert.ok(repo.releaseClaim);
+    await repo.enqueue({ record: makeDelivery({ attempts: 3 }) });
+    await repo.enqueue({ record: makeDelivery({ id: "delivery-done", eventId: "event-done", status: "delivered", attempts: 1 }) });
+    await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" }, { claimLeaseMs: 60_000 });
+
+    await repo.releaseClaim({ workspaceId: "workspace-1", id: "delivery-1", claimedAttempts: 3, nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }))?.status, "delivering", "a stale fence releases nothing");
+    await repo.releaseClaim({ workspaceId: "workspace-1", id: "delivery-done", claimedAttempts: 1, nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "delivery-done" }))?.status, "delivered", "only a delivering row is released");
+    await repo.releaseClaim({ workspaceId: "workspace-2", id: "delivery-1", claimedAttempts: 4, nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+    await repo.releaseClaim({ workspaceId: "workspace-1", id: "missing", claimedAttempts: 4, nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+    assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }))?.status, "delivering", "another workspace's release is refused");
+
+    await repo.releaseClaim({ workspaceId: "workspace-1", id: "delivery-1", claimedAttempts: 4, nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery({ attempts: 3, nextAttemptAt: "2026-07-10T00:00:01.000Z" }));
+  });
 }
 
 runContractSuite("InMemory", () => {
