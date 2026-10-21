@@ -32,6 +32,7 @@ import type {
   SubscriberDirectoryPort,
 } from "./ports.js";
 import type { AudienceSnapshotRow, CampaignRecord, SendRow } from "./types.js";
+import { buildUnsubscribeLink, type UnsubscribeDeps } from "./unsubscribe.js";
 
 const TEST_SEND_MIN = 1;
 const TEST_SEND_MAX = 10;
@@ -57,6 +58,9 @@ export interface SendPipelineDeps {
   hooks: HookRegistry;
   mailer: MailerPort;
   launchGateDeps: LaunchGateDeps;
+  /** Mints each recipient's signed one-click unsubscribe URL (RFC 8058 `List-Unsubscribe`). Absent,
+   *  campaign mail carries no unsubscribe headers and the delivery policy refuses it as bulk. */
+  unsubscribe?: UnsubscribeDeps;
   outbox: OutboxPort;
   bus: EventBusPort;
   clock: { nowIso(): string };
@@ -209,7 +213,9 @@ export async function dispatchRow(required: {
   listId: string;
   status: "subscribed" | "unsubscribed" | "pending" | "bounced" | "complained";
   message: { subject: string; text?: string; html?: string; fromName: string; fromEmail: string; replyTo: string };
-}): Promise<{ outcome: "sent" | "suppressed" | "failed"; providerMessageId: string | null; error: string | null }> {
+  /** The subscription's consent revision, bound into the unsubscribe token (INV-04). */
+  consentRevisionId?: string | null;
+}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null }> {
   const { deps, row } = required;
 
   // REQ-10: crash-recovery / redelivery idempotency (INV-10, EC-04) — a row already terminal is
@@ -245,16 +251,41 @@ export async function dispatchRow(required: {
     return { outcome: "suppressed", providerMessageId: null, error: hookResult.reason };
   }
 
-  const result = await deps.mailer.send(hookResult.message, {
+  const headers = await unsubscribeHeaders({ deps, row, listId: required.listId, campaignId: required.campaignId, consentRevisionId: required.consentRevisionId ?? null });
+  const result = await deps.mailer.send({ ...hookResult.message, headers: { ...hookResult.message.headers, ...headers } }, {
     idempotencyKey: row.idempotencyKey,
     workspaceId: row.workspaceId,
     sourceContext: { module: "newsletter", ref: row.id },
+    // The bulk lane: suppression honours complaints, the provider's reserved transactional capacity
+    // is never consumed, and the policy refuses a message without the unsubscribe headers above.
+    purpose: "bulk",
   });
 
   if (result.ok) {
     return { outcome: "sent", providerMessageId: result.providerMessageId, error: null };
   }
+  // A rate limit is back-pressure, not a failure: the row stays pending for the retried batch.
+  if (result.errorCode === MAIL_RATE_LIMITED) return { outcome: "deferred", providerMessageId: null, error: result.message };
   return { outcome: "failed", providerMessageId: null, error: result.message };
+}
+
+/** Delivery policy refusal code for an exhausted provider token bucket (retryable). */
+const MAIL_RATE_LIMITED = "MAIL_RATE_LIMITED";
+
+/**
+ * RFC 8058 one-click headers for one recipient: the signed, origin-anchored link from
+ * `buildUnsubscribeLink` (REQ-30/INV-09), answered by the public `POST /newsletter/unsubscribe`.
+ * @complexity One key derivation and one origin read.
+ */
+async function unsubscribeHeaders(required: {
+  deps: SendPipelineDeps; row: SendRow; listId: string; campaignId: string; consentRevisionId: string | null;
+}): Promise<Record<string, string>> {
+  const { deps, row } = required;
+  if (!deps.unsubscribe) return {};
+  const url = await buildUnsubscribeLink({ deps: deps.unsubscribe, claims: {
+    workspaceId: row.workspaceId, subscriberId: row.subscriberId, listId: required.listId, campaignId: required.campaignId, consentRevisionId: required.consentRevisionId,
+  } });
+  return { "List-Unsubscribe": `<${url}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
 }
 
 /**
@@ -434,7 +465,7 @@ async function claimSendRow(required: { deps: SendPipelineDeps; workspaceId: str
  *
  * @complexity O(1) beyond the hook chain, the mailer call, and `recordResult`.
  */
-async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow }): Promise<void> {
+async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow }): Promise<"recorded" | "deferred"> {
   const { deps, job, campaign, row } = required;
   const subscription = await deps.subscriptionRepo.findBySubscriberAndList({
     workspaceId: job.workspaceId,
@@ -449,7 +480,10 @@ async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBa
     listId: campaign.listId,
     status,
     message: { subject: campaign.subject, text: campaign.preheader ?? undefined, fromName: campaign.fromName, fromEmail: campaign.fromEmail, replyTo: campaign.replyTo },
+    consentRevisionId: subscription?.consentRevisionIdAtSubscribe ?? null,
   });
+  // Rate limited: leave the row pending (its lease expires) so the retried batch sends it later.
+  if (dispatchResult.outcome === "deferred") return "deferred";
   // BUG FIX: `recordResult` is the ONLY place a send row's status ever leaves "pending" --
   // `dispatchRow` above never writes. Previously this call was skipped for a "suppressed"
   // outcome, which left the row at "pending" forever: `countPendingByCampaign` could never reach
@@ -468,6 +502,7 @@ async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBa
       error: dispatchResult.error,
     },
   });
+  return "recorded";
 }
 
 /**
@@ -499,7 +534,11 @@ export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps;
       continue;
     }
     if (!row) continue;
-    await dispatchAndRecord({ deps, job, campaign, row });
+    if ((await dispatchAndRecord({ deps, job, campaign, row })) === "deferred") {
+      // The provider's bucket is empty: further rows would only be deferred too. Fail the batch so
+      // the outbox retries it after its backoff instead of marking anyone failed.
+      throw new Error(`campaign ${job.campaignId} is rate limited by the mail provider; the batch will be retried`);
+    }
   }
 
   await completeIfDrained({ deps, input: { workspaceId: job.workspaceId, campaignId: job.campaignId } });

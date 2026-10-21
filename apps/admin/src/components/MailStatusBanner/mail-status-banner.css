@@ -1,0 +1,10 @@
+/* Same warning tokens as `server-restarting-banner.css`, but in flow above the page content. */
+.mail-status-banner {
+  margin: 8px 16px 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  box-shadow: var(--jini-panel-shadow-banner);
+}

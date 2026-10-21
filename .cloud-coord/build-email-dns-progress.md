@@ -8,3 +8,4 @@ Start 16:51 UTC. Branch cloud/build-email-dns-2026-10-21 (Tovu e0c935bb, Jini b3
 - 17:17 selection slice partial back; continued (tests/coverage/tools). NOTE: newsletter delivery-tools.test.ts 2 fails (L299 resend pending + 'resend runs directly') regress on provfix 9ea45028 itself (pass at e0c935bb) — not ours.
 - 17:20–19:55 paused: session usage limit (all 3 agents stopped mid-work; state saved to wip-snapshot branch be0d7b9d). 19:56 owner lifted limit, new hard stop 23:00Z; agents resumed.
 - 19:58 merged provfix c25f08ff (fixes the delivery-tools regression noted above).
+- 20:17 all slices back; tsc = baseline (10 pre-existing errors), 449+284 touched tests green, admin banner 5/5. Committing lots.

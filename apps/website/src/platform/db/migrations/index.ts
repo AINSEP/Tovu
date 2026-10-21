@@ -1,5 +1,7 @@
 import { siteConsentRevisions } from './0021_site_consent_revisions.js';
 import { workspaceMcpCascade } from "./0022_workspace_mcp_cascade.js";
+import { mailLedgers } from "./0023_mail_ledgers.js";
+import { domainBindings } from "./0024_domain_bindings.js";
 import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
 import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
@@ -72,6 +74,8 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   vaultApiConnectionKind({ checksum: pinned("0020_vault_api_connection_kind") }),
   siteConsentRevisions({ checksum: pinned("0021_site_consent_revisions") }),
   workspaceMcpCascade({ checksum: pinned("0022_workspace_mcp_cascade") }),
+  mailLedgers({ checksum: pinned("0023_mail_ledgers") }),
+  domainBindings({ checksum: pinned("0024_domain_bindings") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

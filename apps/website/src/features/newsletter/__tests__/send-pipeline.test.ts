@@ -34,6 +34,7 @@ import {
 import { computeOutboxBackoffMs, InMemoryEventBus, InMemoryOutbox, MAX_OUTBOX_ATTEMPTS } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { installNewsletterDataModule } from "../data-module-manifest.js";
+import { processUnsubscribe } from "../unsubscribe.js";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
 import type { MailerPort } from "#src/platform/mail/index";
@@ -250,6 +251,52 @@ test("handleSendBatchClaimed: a configured preheader reaches the subscriber emai
   assert.equal(mailer.calls.length, 1);
   assert.equal(mailer.calls[0].message.text, "Subscriber announcement");
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "delivered");
+});
+
+/** Unsubscribe link deps over a fixed keyring and the rig's subscription repo. */
+function unsubscribeDeps(rig: Rig): NonNullable<SendPipelineDeps["unsubscribe"]> {
+  return {
+    subscriptionRepo: rig.subscriptionRepo,
+    keyring: { derive: async ({ info }: { info: string }) => new TextEncoder().encode(`k:${info}`) } as unknown as NonNullable<SendPipelineDeps["unsubscribe"]>["keyring"],
+    originRegistry: { canonicalOrigin: async () => ({ scheme: "https" as const, host: "acme.test", verifiedAt: clock.nowIso(), source: "workspace-setting" as const }) } as unknown as NonNullable<SendPipelineDeps["unsubscribe"]>["originRegistry"],
+    consentCapability: null,
+    clock,
+  };
+}
+
+test("handleSendBatchClaimed: campaign mail is bulk with per-recipient one-click unsubscribe headers that processUnsubscribe accepts", async () => {
+  const mailer = makeMailer();
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], mailer });
+  await rig.subscriptionRepo.save({ id: "subscription-1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: null, subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await rig.sendRepo.save(makeSendRow());
+  const unsubscribe = unsubscribeDeps(rig);
+
+  await handleSendBatchClaimed({ deps: { ...rig.deps, unsubscribe }, job: makeJob() });
+
+  assert.equal(mailer.calls[0].options.purpose, "bulk");
+  const headers = mailer.calls[0].message.headers!;
+  assert.equal(headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+  const link = /^<(https:\/\/acme\.test\/newsletter\/unsubscribe\?token=([^>]+))>$/.exec(headers["List-Unsubscribe"]!);
+  assert.ok(link, headers["List-Unsubscribe"]);
+  // A null consent revision stays null in the token, so the subscriber's own one-click POST verifies.
+  assert.deepEqual(await processUnsubscribe({ deps: unsubscribe, input: { rawToken: link[2]! } }), { outcome: "unsubscribed" });
+});
+
+test("handleSendBatchClaimed: a rate-limited send leaves the row pending and fails the batch for an outbox retry", async () => {
+  const mailer = makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "bulk lane is rate limited", retryAfterMs: 500 }));
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], mailer });
+  for (const subscriberId of ["sub-1", "sub-2"]) {
+    await rig.subscriptionRepo.save({ id: `subscription-${subscriberId}`, workspaceId: WS, listId: "list-1", subscriberId, status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  }
+  await rig.sendRepo.save(makeSendRow());
+  await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", idempotencyKey: "idem-2" }));
+
+  await assert.rejects(handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ sendIds: ["send-1", "send-2"] }) }), /rate limited by the mail provider/);
+
+  assert.equal(mailer.calls.length, 1, "the batch stops at the first rate-limited row");
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "pending");
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.counters.failed, 0);
 });
 
 test("handleSendBatchClaimed: a terminal row in a still-sending campaign is skipped without recounting", async () => {
@@ -514,7 +561,7 @@ test("dispatchRow: happy path -- sends via the mailer, outcome 'sent'", async ()
   assert.equal(result.providerMessageId, "pm-1");
   assert.equal(result.error, null);
   assert.deepEqual(mailer.sentTo, ["a@test.com"]);
-  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: row.recipientEmail }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: dispatchMessage.subject, text: dispatchMessage.text, html: undefined });
+  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: row.recipientEmail }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: dispatchMessage.subject, text: dispatchMessage.text, html: undefined, headers: {} });
 });
 
 test("dispatchRow: each row supplies its own provider idempotency key and source identity", async () => {
@@ -522,7 +569,7 @@ test("dispatchRow: each row supplies its own provider idempotency key and source
   const rig = makeRig({ mailer });
   const rows = [makeSendRow(), makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", idempotencyKey: "key-2" })];
   for (const row of rows) await dispatchRow({ deps: rig.deps, row, campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
-  assert.deepEqual(mailer.calls.map((c) => c.options), rows.map((row) => ({ idempotencyKey: row.idempotencyKey, workspaceId: WS, sourceContext: { module: "newsletter", ref: row.id } })));
+  assert.deepEqual(mailer.calls.map((c) => c.options), rows.map((row) => ({ idempotencyKey: row.idempotencyKey, workspaceId: WS, sourceContext: { module: "newsletter", ref: row.id }, purpose: "bulk" })));
   assert.equal(new Set(mailer.calls.map((c) => c.options.idempotencyKey)).size, 2);
 });
 
@@ -535,7 +582,7 @@ test("dispatchRow: beforeSend transformations reach the mailer", async () => {
   const mailer = makeMailer();
   const rig = makeRig({ mailer, hooks });
   await dispatchRow({ deps: rig.deps, row: makeSendRow(), campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
-  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: "a@test.com" }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: "Transformed subject", text: "body footer", html: "<p>unsubscribe marker</p>" });
+  assert.deepEqual(mailer.calls[0].message, { workspaceId: WS, to: { email: "a@test.com" }, from: { email: dispatchMessage.fromEmail, name: dispatchMessage.fromName }, replyTo: { email: dispatchMessage.replyTo }, subject: "Transformed subject", text: "body footer", html: "<p>unsubscribe marker</p>", headers: {} });
 });
 
 test("dispatchRow: mailer failure -- outcome 'failed', error passed through", async () => {

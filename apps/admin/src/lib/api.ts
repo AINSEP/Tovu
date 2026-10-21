@@ -503,6 +503,11 @@ export interface AdminServerLogsQuery {
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
   mailDeliveryAvailable: boolean;
+  /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
+   *  admin's blocking banner. */
+  state?: "ready" | "unconfigured" | "degraded";
+  lanes?: readonly { lane: "transactional" | "bulk"; providerId: string | null; state: string }[];
+  warnings?: readonly ("sender_unverified" | "sender_unknown")[];
 }
 
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in

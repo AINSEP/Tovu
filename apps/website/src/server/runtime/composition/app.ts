@@ -276,6 +276,7 @@ import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
 import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
+import { registerMailFeedbackRoute } from "../../inbound/public-http/routes/mail-feedback.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
@@ -1875,6 +1876,8 @@ function applyPublicMiddleware(
   // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
+  // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
+  if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
   app.use(parsePublicJsonBody);
 }
 

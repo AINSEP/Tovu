@@ -1,4 +1,6 @@
 // @ts-check
+import { domainRequirements, domainStatus, retryAfterMs } from '../lib/domains.mjs';
+import { feedback } from '../lib/feedback.mjs';
 
 /**
  * @file Resend mail adapter for the Tovu `resend` plugin.
@@ -17,15 +19,20 @@
  * per-message results with partial failure allowed, and Resend's batch endpoint reports success or
  * failure for the whole request only. `maxBatchSize` is `1` accordingly.
  *
+ * The default export is a full Jini `MailProviderModule` (2026-10-21): id, credential keys,
+ * capabilities (Resend's documented 2 requests/second default), the Svix feedback parser
+ * (`../lib/feedback.mjs`) and sending-domain verification (`../lib/domains.mjs`). `create()` keeps its
+ * original call shape (`send(message, opts)`), which the host's mailer still uses.
+ *
  * @typedef {{ email: string, name?: string }} EmailAddress
  * @typedef {{ filename: string, contentType: string, contentBase64: string }} EmailAttachment
  * @typedef {{ to: EmailAddress, from: EmailAddress, replyTo?: EmailAddress, subject: string, html?: string,
  *   text?: string, headers?: Readonly<Record<string, string>>, attachments?: readonly EmailAttachment[] }} OutboundEmail
  * @typedef {{ idempotencyKey: string, timeoutMs?: number }} SendOptions
  * @typedef {{ ok: true, providerMessageId: string, acceptedAt: string }
- *   | { ok: false, retryable: boolean, errorCode: string, message: string }} SendResult
+ *   | { ok: false, retryable: boolean, errorCode: string, message: string, retryAfterMs?: number }} SendResult
  * @typedef {{ send(request: { method: string, url: string, headers: Record<string, string>, body?: string,
- *   timeoutMs: number }): Promise<{ status: number, bodyText: string }> }} HttpClient
+ *   timeoutMs: number }): Promise<{ status: number, bodyText: string, headers?: Readonly<Record<string, string>> }> }} HttpClient
  * @typedef {{ credential: { token: string, baseUrl?: string }, kit: { httpClient: HttpClient } }} CreateContext
  */
 
@@ -65,9 +72,10 @@ function isRetryableStatus(status) {
 /**
  * Resend's error body is `{statusCode, message, name}`; `name` becomes `errorCode`. A non-JSON body
  * (a proxy error page) still yields a usable result. Never throws.
- * @param {number} status @param {string} bodyText @returns {SendResult}
+ * A 429 carries Resend's `Retry-After` as `retryAfterMs` so the caller backs off for that long.
+ * @param {number} status @param {string} bodyText @param {Readonly<Record<string, string>>} [headers] @returns {SendResult}
  */
-function classifyError(status, bodyText) {
+function classifyError(status, bodyText, headers) {
   let errorCode = `HTTP_${status}`;
   let message = bodyText || `Resend responded with HTTP ${status}`;
   try {
@@ -77,7 +85,8 @@ function classifyError(status, bodyText) {
   } catch {
     // Non-JSON body: keep the raw text above.
   }
-  return { ok: false, retryable: isRetryableStatus(status), errorCode, message };
+  const wait = status === 429 ? retryAfterMs(headers) : undefined;
+  return { ok: false, retryable: isRetryableStatus(status), errorCode, message, ...(wait === undefined ? {} : { retryAfterMs: wait }) };
 }
 
 /** Builds the mailer from a saved credential. @param {CreateContext} context */
@@ -105,7 +114,7 @@ function create({ credential, kit }) {
       // the mail port.
       return { ok: false, retryable: true, errorCode: "TRANSPORT_ERROR", message: err instanceof Error ? err.message : String(err) };
     }
-    if (response.status < 200 || response.status >= 300) return classifyError(response.status, response.bodyText);
+    if (response.status < 200 || response.status >= 300) return classifyError(response.status, response.bodyText, response.headers);
 
     let parsed;
     try {
@@ -138,4 +147,14 @@ function create({ credential, kit }) {
   };
 }
 
-export default { create };
+export default {
+  id: 'resend',
+  label: 'Resend',
+  credentialKeys: ['token'],
+  webhookSecretKey: 'webhookSecret',
+  capabilities: { hosted: true, feedback: true, domainVerification: true, rateLimit: { perSecond: 2, burst: 2 } },
+  create,
+  feedback,
+  domainRequirements,
+  domainStatus,
+};

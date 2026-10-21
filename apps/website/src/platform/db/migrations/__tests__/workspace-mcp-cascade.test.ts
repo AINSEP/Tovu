@@ -39,7 +39,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         assert.deepEqual(await snapshot({ kernel }), before, "the failed 0021 delete is atomic");
       }
 
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS)).applied, [WORKSPACE_MCP_CASCADE_ID]);
+      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [WORKSPACE_MCP_CASCADE_ID]);
       assert.deepEqual(await snapshot({ kernel }), before, "0022 must preserve every stored column");
       for (const pointer of [server.env_secret_id, server.oauth_secret_id]) {
         await assert.rejects(kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id = 'ws' AND id = ${String(pointer)}`),
@@ -56,7 +56,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       for (const key of ["vault", "servers", "approvals"] as const) {
         assert.deepEqual(after[key], before[key].filter(row => row.workspace_id !== "ws"), key);
       }
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS)).applied, [], "rerun is a no-op");
+      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [], "rerun is a no-op");
     } finally {
       await kernel.close();
     }
