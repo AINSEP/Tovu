@@ -1,6 +1,6 @@
 /**
  * @file `useAddSite` and `useCreateSitePluginTokens` rendered from their REAL modules under jsdom,
- * with the preload bridge injected through each hook's `bridge` option — no module mocks.
+ * with the preload bridge injected through each hook's `getBridge` option — no module mocks.
  *
  * Their sibling tests (`use-add-site.hooks.test.ts`, `use-create-site-plugin-tokens.hooks.test.ts`)
  * execute the hook SOURCE through `sourceFunction`, which the coverage report cannot attribute to
@@ -40,6 +40,16 @@ function renderHook<T>(t: TestContext, useHook: () => T) {
   return { current: () => latest, rerender, unmount };
 }
 
+/**
+ * A STABLE bridge reader, made once per bridge. The hooks key their effects on the reader's
+ * identity (as `useSiteFolders` does), so a fresh lambda per render would re-request every render.
+ */
+const readers = new WeakMap<object, () => unknown>();
+function reader<T extends object>(bridge: T): () => T {
+  if (!readers.has(bridge)) readers.set(bridge, () => bridge);
+  return readers.get(bridge) as () => T;
+}
+
 const settle = () => act(async () => { await new Promise<void>((resolve) => setImmediate(resolve)); });
 
 function siteRecord(id: string, extra: Partial<SiteRecord & { alreadyTracked: boolean }> = {}) {
@@ -59,7 +69,7 @@ test('useAddSite: pending while the picker is open, then the new card first and 
   const list = projectList([siteRecord('/sites/old')]);
   let finish!: (record: SiteRecord) => void;
   const bridge = { addSite: () => new Promise<SiteRecord | null>((resolve) => { finish = resolve; }) };
-  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { bridge }));
+  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
   assert.deepEqual([hook.current().adding, hook.current().addError, hook.current().addNotice], [false, null, null]);
 
   let pending!: Promise<void>;
@@ -76,7 +86,7 @@ test('useAddSite: a duplicate keeps one card, says so for that site, and opens i
   const list = projectList([siteRecord('/sites/a'), siteRecord('/sites/b')]);
   const opened: string[] = [];
   const bridge = { addSite: async () => siteRecord('/sites/a', { alreadyTracked: true }) };
-  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { bridge, onAlreadyTracked: (id) => opened.push(id) }));
+  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge), onAlreadyTracked: (id) => opened.push(id) }));
   await act(() => hook.current().addSite());
   assert.equal(hook.current().addError, 'a is already in your list.');
   assert.deepEqual(hook.current().addNotice, { siteId: '/sites/a', message: 'a is already in your list.' });
@@ -91,7 +101,7 @@ test('useAddSite: a duplicate keeps one card, says so for that site, and opens i
 test('useAddSite: a duplicate without a tab opener still reports it', async (t) => {
   const list = projectList([]);
   const bridge = { addSite: async () => siteRecord('/sites/a', { alreadyTracked: true }) };
-  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { bridge }));
+  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
   await act(() => hook.current().addSite());
   assert.equal(hook.current().addNotice?.siteId, '/sites/a');
 });
@@ -99,7 +109,8 @@ test('useAddSite: a duplicate without a tab opener still reports it', async (t) 
 test('useAddSite: cancelling the picker changes nothing and says nothing, either way main reports it', async (t) => {
   for (const addSite of [async () => null, async () => { throw new Error(CANCELLED_MESSAGE); }]) {
     const list = projectList([siteRecord('/sites/a')]);
-    const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { bridge: { addSite } }));
+    const bridge = { addSite };
+    const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
     await act(() => hook.current().addSite());
     assert.equal(hook.current().addError, null);
     assert.equal(hook.current().adding, false);
@@ -114,7 +125,7 @@ test('useAddSite: a refusal is shown as recovery text, and the next attempt clea
     if (refuse) throw new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet.");
     return siteRecord('/sites/x');
   } };
-  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { bridge }));
+  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
   await act(() => hook.current().addSite());
   assert.equal(hook.current().addError, 'No Tovu website was found in this folder. Choose an existing website or use Create website.');
   refuse = false;
@@ -125,7 +136,7 @@ test('useAddSite: a refusal is shown as recovery text, and the next attempt clea
 
 test('useAddSite: outside the desktop app the button explains itself instead of doing nothing', async (t) => {
   const list = projectList([]);
-  // No `bridge`: the default reads `window.tovuRunner`, which a plain DOM does not have.
+  // No `getBridge`: the default reads `window.tovuRunner`, which a plain DOM does not have.
   const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }));
   await act(() => hook.current().addSite());
   assert.equal(hook.current().addError, NO_BRIDGE_MESSAGE);
@@ -146,7 +157,7 @@ function tokenField(value: string) {
 test('useCreateSitePluginTokens: offers the services Tovu lists, and sends trimmed typed tokens once', async (t) => {
   const requests: number[] = [];
   const bridge = { listTokenSignInPlugins: async () => { requests.push(1); return [supabase]; } };
-  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { bridge }));
+  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { getBridge: reader(bridge) }));
   assert.deepEqual(hook.current().plugins, []);
   await settle();
   assert.deepEqual(hook.current().plugins, [supabase]);
@@ -172,7 +183,7 @@ test('useCreateSitePluginTokens: offers the services Tovu lists, and sends trimm
 test('useCreateSitePluginTokens: hidden services are never requested and never send a token', async (t) => {
   const requests: number[] = [];
   const bridge = { listTokenSignInPlugins: async () => { requests.push(1); return [supabase]; } };
-  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { enabled: false, bridge }));
+  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { enabled: false, getBridge: reader(bridge) }));
   await settle();
   assert.deepEqual(requests, []);
   assert.deepEqual(hook.current().plugins, []);
@@ -185,13 +196,16 @@ test('useCreateSitePluginTokens: hidden services are never requested and never s
 });
 
 test('useCreateSitePluginTokens: no bridge method, a rejecting bridge, or a late reply all offer nothing', async (t) => {
-  const none = renderHook(t, () => useCreateSitePluginTokens({}, { bridge: {} }));
+  const empty = {};
+  const rejecting = { listTokenSignInPlugins: async (): Promise<readonly TokenSignInPlugin[]> => { throw new Error('IPC down'); } };
+  const none = renderHook(t, () => useCreateSitePluginTokens({}, { getBridge: reader(empty) }));
   const offline = renderHook(t, () => useCreateSitePluginTokens());
-  const failing = renderHook(t, () => useCreateSitePluginTokens({}, { bridge: { listTokenSignInPlugins: async () => { throw new Error('IPC down'); } } }));
+  const failing = renderHook(t, () => useCreateSitePluginTokens({}, { getBridge: reader(rejecting) }));
   let reply!: (plugins: readonly TokenSignInPlugin[]) => void;
   let enabled = true;
   const lateBridge = { listTokenSignInPlugins: () => new Promise<readonly TokenSignInPlugin[]>((resolve) => { reply = resolve; }) };
-  const late = renderHook(t, () => useCreateSitePluginTokens({}, { enabled, bridge: lateBridge }));
+  const getBridge = () => lateBridge;
+  const late = renderHook(t, () => useCreateSitePluginTokens({}, { enabled, getBridge }));
   enabled = false;
   late.rerender(); // hiding the section before the reply arrives
   await act(async () => { reply([supabase]); });

@@ -40,10 +40,10 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * @complexity O(n) in the current project count, for the duplicate check.
  */
 export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
-  { onAlreadyTracked, bridge = runnerInventoryBridge() }: {
+  { onAlreadyTracked, getBridge = runnerInventoryBridge }: {
     onAlreadyTracked?: (id: string) => void;
-    /** Defaults to this window's preload bridge; absent outside a real desktop window. */
-    bridge?: Pick<RunnerInventoryBridge, 'addSite'>;
+    /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
+    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite'> | undefined;
   } = {},
 ): {
   adding: boolean;
@@ -60,6 +60,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 
   const addSite = useCallback(async () => {
     setAddNotice(null);
+    const bridge = getBridge();
     if (bridge === undefined) {
       setAddError(NO_BRIDGE_MESSAGE);
       return;
@@ -79,7 +80,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     } finally {
       setAdding(false);
     }
-  }, [setProjects, onAlreadyTracked, bridge]);
+  }, [setProjects, onAlreadyTracked, getBridge]);
 
   return { adding, addError, addNotice, addSite, clearAddError };
 }

@@ -70,3 +70,28 @@ test('delivery checks the actual guest URL even before React observes its naviga
   url = 'http://127.0.0.1:4300/about'; receive({ siteDir: '/a', revision: 'own-site' });
   assert.equal(calls, 1); off?.();
 });
+
+test('a malformed escape in a tool path, or an unparseable guest URL, is refused rather than navigated', () => {
+  let receive!: (frame: SiteThemePreviewRefresh) => void;
+  const calls: unknown[] = [];
+  let liveUrl = 'http://127.0.0.1:4300/';
+  const off = subscribeWorkspaceThemePreview({
+    bridge: { watchSitePreview: ({ listener }) => { receive = listener; return () => {}; } },
+    siteDir: '/a', port: 4300, running: true, url: 'http://127.0.0.1:4300/',
+    guest: { reloadIgnoringCache: () => { calls.push('reload'); }, loadURL: async (url) => { calls.push(url); }, getURL: () => liveUrl },
+    dispatch: (action) => calls.push(action),
+  });
+  // `decodeURIComponent('/%E0%A4%A')` throws: a path that cannot be decoded is never public.
+  receive({ siteDir: '/a', revision: 'bad-escape', path: '/%E0%A4%A' });
+  assert.deepEqual(calls, []);
+  // The guest has navigated somewhere `new URL` cannot parse: leave it alone.
+  liveUrl = 'not a url';
+  receive({ siteDir: '/a', revision: 'after-navigation' });
+  assert.deepEqual(calls, []);
+  off?.();
+  assert.equal(subscribeWorkspaceThemePreview({
+    bridge: { watchSitePreview: () => assert.fail('an unparseable tab URL must not subscribe') },
+    siteDir: '/a', port: 4300, running: true, url: '::not a url::',
+    guest: { reloadIgnoringCache: () => {}, loadURL: async () => {} }, dispatch: () => {},
+  }), undefined);
+});

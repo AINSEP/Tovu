@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { cardOpenClass, cardOpenProps, closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
+import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
@@ -137,4 +137,12 @@ test("the open-affordance class is absent for every inert card", () => {
     const project = { status, folderMissing } as SiteRecord;
     assert.equal(cardOpenClass({ openable: isCardOpenable(project, overlay) }), expected);
   }
+});
+
+test("databaseLabel names the provisioned database, an operator's own label, or the custom category", () => {
+  const withDatabase = (database: SiteRecord["database"]) => ({ database }) as SiteRecord;
+  assert.equal(databaseLabel(withDatabase({ kind: "sqlite" } as SiteRecord["database"])), "SQLite");
+  assert.equal(databaseLabel(withDatabase({ kind: "supabase" } as SiteRecord["database"])), "Supabase");
+  assert.equal(databaseLabel(withDatabase({ kind: "custom", label: "Neon" } as SiteRecord["database"])), "Neon");
+  assert.equal(databaseLabel(withDatabase({ kind: "custom" } as SiteRecord["database"])), "Custom DB provider");
 });

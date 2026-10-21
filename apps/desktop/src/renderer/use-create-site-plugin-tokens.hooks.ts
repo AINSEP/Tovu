@@ -60,14 +60,15 @@ export function createdTokensNote(record: Pick<CreatedSiteRecord, 'agentPluginTo
 
 /**
  * `enabled` follows onboarding availability: hidden fields never contribute tokens to create.
- * `bridge` defaults to this window's preload bridge (absent outside a real desktop window); a test
- * passes a fake of the one method used.
+ * `getBridge` reads this window's preload bridge (absent outside a real desktop window) when the
+ * effect runs, never during render, so the form still renders where there is no `window`; a test
+ * passes a reader returning a fake of the one method used.
  */
 export function useCreateSitePluginTokens(
   _requiredArgs: Record<string, never> = {},
-  { enabled = true, bridge = runnerInventoryBridge() }: {
+  { enabled = true, getBridge = runnerInventoryBridge }: {
     enabled?: boolean;
-    bridge?: Pick<RunnerInventoryBridge, 'listTokenSignInPlugins'>;
+    getBridge?: () => Pick<RunnerInventoryBridge, 'listTokenSignInPlugins'> | undefined;
   } = {},
 ): CreateSitePluginTokens {
   const [plugins, setPlugins] = useState<readonly TokenSignInPlugin[]>([]);
@@ -77,7 +78,7 @@ export function useCreateSitePluginTokens(
     // Owner 2026-10-06: hidden — do not offer tokens while the service section is unavailable.
     if (!enabled) return;
     let live = true;
-    const list = bridge?.listTokenSignInPlugins;
+    const list = getBridge()?.listTokenSignInPlugins;
     if (!list) return;
     list()
       .then((found) => {
@@ -88,7 +89,7 @@ export function useCreateSitePluginTokens(
     return () => {
       live = false;
     };
-  }, [enabled, bridge]);
+  }, [enabled, getBridge]);
 
   const inputRef = useCallback(
     (pluginId: string) => (element: HTMLInputElement | null) => {
