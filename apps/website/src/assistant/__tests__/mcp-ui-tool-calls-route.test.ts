@@ -366,3 +366,45 @@ test("a different allowlisted tool cannot answer another tool's exchange", async
     exchange.close({});
   }
 });
+
+const LEGACY_HEADERS = { [RUN_PRINCIPAL_HEADER]: "principal-1" };
+
+for (const [result, status, body] of [
+  [{ executionId: "x", status: "completed" }, 200, {}],
+  [{ executionId: "x", status: "denied" }, 403, { error: "principal 'principal-1' is not authorized to call 'content_post_search'", code: "FORBIDDEN" }],
+  [{ executionId: "x", status: "confirmation-denied" }, 409, { error: "'content_post_search' declined to run without a further confirmation this endpoint cannot supply", code: "CONFLICT" }],
+  [{ executionId: "x", status: "timed-out" }, 504, { error: "'content_post_search' timed out", code: "GATEWAY_TIMEOUT" }],
+  [{ executionId: "x", status: "cancelled" }, 500, { error: "'content_post_search' was cancelled before it completed", code: "INTERNAL_ERROR" }],
+  [{ executionId: "x", status: "failed" }, 400, { error: "'content_post_search' failed", code: "TOOL_CALL_FAILED" }],
+] as Array<[ToolExecutionResult, number, unknown]>) {
+  test(`maps a legacy redemption that ends ${result.status}${"output" in result ? "" : " (no output/error)"} to HTTP ${status}`, async (t) => {
+    const { executor, calls } = createFakeToolExecutor(() => result);
+    const baseUrl = await startTestServer(buildApp(executor), t);
+    const res = await postToolCall(baseUrl, { toolName: "content_post_search", params: { query: "x" } }, LEGACY_HEADERS);
+    assert.equal(res.status, status);
+    assert.deepEqual(await res.json(), body);
+    assert.equal(calls.length, 1);
+  });
+}
+
+test("an executor that throws is reported as a 500 with its message, never a crash", async (t) => {
+  for (const thrown of [new Error("tool not registered: content_post_search"), "string failure"]) {
+    const executor: ToolExecutor = {
+      execute: async () => { throw thrown; },
+      resumeConfirmation: () => undefined, cancel: () => undefined, getAuditRecord: () => null,
+    };
+    const baseUrl = await startTestServer(buildApp(executor), t);
+    const res = await postToolCall(baseUrl, { toolName: "content_post_search", params: {} }, LEGACY_HEADERS);
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: thrown instanceof Error ? thrown.message : thrown, code: "INTERNAL_ERROR" });
+  }
+});
+
+test("a request with no JSON body is a 400 validation error, and the executor is never invoked", async (t) => {
+  const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
+  const baseUrl = await startTestServer(buildApp(executor), t);
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, { method: "POST", headers: LEGACY_HEADERS });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
+  assert.equal(calls.length, 0);
+});

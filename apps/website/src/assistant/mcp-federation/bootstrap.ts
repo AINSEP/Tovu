@@ -262,7 +262,3 @@ export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchRes
   });
   return connection => connect({ connection });
 }
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

@@ -83,3 +83,35 @@ test("federation.start() does not read the roster until installed-extension regi
   assert.deepEqual(events, ["discoverPlugins", "resolveConnections"]);
   assert.equal(extensions.federation.started, true);
 });
+
+test("an injected federation connect is the one the boot pass uses for each resolved connection", async () => {
+  const { FEDERATED_CONNECTION_DEFAULTS } = await import("@jini-ai/mcp/federation");
+  const connected: string[] = [];
+  const connection = {
+    config: { connectionId: "conn-injected", label: "Injected", allowedToolNames: [], writeAllowedToolNames: [],
+      connectTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs, callTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs,
+      maxResultBytes: FEDERATED_CONNECTION_DEFAULTS.maxResultBytes, maxTools: FEDERATED_CONNECTION_DEFAULTS.maxTools },
+    launch: { url: "https://example.invalid/conn-injected", headers: {} },
+  };
+  const deps = testSiteLayoutContext({
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    workspaceId: randomUUID(),
+    postRepo: {},
+    pluginActivationRepo: {},
+    discoverPlugins: async () => [],
+    registerInstalled: registerInstalledExtensionTools,
+    federation: {
+      deps: testSiteLayoutContext({ authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-connect" }),
+      resolveConnections: async () => [connection],
+      connect: async (resolved: { config: { connectionId: string } }) => {
+        connected.push(resolved.config.connectionId);
+        throw new Error("injected connect refuses");
+      },
+    },
+  }) as unknown as AttachAssistantToolExtensionsDeps;
+
+  const extensions = attachAssistantToolExtensions(fakeRegistry(), deps, "[connect-test]");
+  await extensions.installed;
+  await extensions.federation.start();
+  assert.deepEqual(connected, ["conn-injected"]);
+});

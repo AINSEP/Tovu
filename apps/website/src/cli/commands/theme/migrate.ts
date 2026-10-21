@@ -26,6 +26,21 @@ function formatFailedSummary(id: string, result: MigrateThemeResult): string {
   return `${lines.join("\n")}\n`;
 }
 
+/** Injectable effects of {@link runThemeMigrateCommand}. */
+export interface RunThemeMigrateCommandPorts {
+  migrate?: typeof migrateThemeToV2;
+  output?: (message: string) => void;
+  setExitCode?: (code: number) => void;
+}
+
+function writeStdout(message: string): void {
+  process.stdout.write(message);
+}
+
+function setProcessExitCode(code: number): void {
+  process.exitCode = code;
+}
+
 function formatSummary(id: string, result: MigrateThemeResult): string {
   switch (result.status) {
     case "already-migrated":
@@ -44,18 +59,19 @@ function formatSummary(id: string, result: MigrateThemeResult): string {
  *
  * @complexity O(1) beyond `migrateThemeToV2`'s own bounded cost.
  */
-export async function runThemeMigrateCommand(input: RunThemeMigrateCommandInput): Promise<void> {
+export async function runThemeMigrateCommand(
+  input: RunThemeMigrateCommandInput,
+  optional: RunThemeMigrateCommandPorts = {}
+): Promise<void> {
+  // Default ports are wired here, at the command edge; tests inject their own.
+  const { migrate = migrateThemeToV2, output = writeStdout, setExitCode = setProcessExitCode } = optional;
   const dir = path.resolve(input.dir);
   const id = path.basename(dir);
-  const result = migrateThemeToV2({ themeDir: dir, id }, { dryRun: input.dryRun });
+  const result = migrate({ themeDir: dir, id }, { dryRun: input.dryRun });
 
-  if (input.json) {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  } else {
-    process.stdout.write(formatSummary(id, result));
-  }
+  output(input.json ? `${JSON.stringify(result, null, 2)}\n` : formatSummary(id, result));
 
   if (result.status === "failed") {
-    process.exitCode = 1;
+    setExitCode(1);
   }
 }

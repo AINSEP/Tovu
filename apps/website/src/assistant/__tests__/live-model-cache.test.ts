@@ -8,7 +8,7 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
-import { getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache.js";
+import { fetchLiveClaudeModels, getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache.js";
 
 /**
  * @file `live-model-cache.ts` — the two properties the design doc's Local CLI live-discovery
@@ -371,6 +371,43 @@ test("a failed live call logs one warning naming the failure kind — the case a
   } finally {
     await new Promise((resolve) => provider.server.close(() => resolve(undefined)));
   }
+});
+
+test("a failed live call with an empty error body names only the failure kind, with no empty detail suffix", async () => {
+  resetLiveModelCacheForTesting();
+  const { deps, repo, sealer } = makeDeps();
+  const server = createServer((_req, res) => { res.writeHead(503); res.end(); });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  try {
+    await setExecutionCredential(deps, {
+      workspaceId: WORKSPACE,
+      principalId: ADMIN_A,
+      apiKey: "sk-ant-test-key",
+      protocol: "anthropic",
+      baseUrl: `http://127.0.0.1:${port}`,
+    });
+
+    const { result, warnings } = await captureWarnings(() =>
+      getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }),
+    );
+
+    assert.equal(result, null);
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0][0]), /live Claude model discovery failed \(upstream_unavailable\) — falling back/);
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve(undefined)));
+  }
+});
+
+test("a successful listing that carries no models array resolves to null rather than an empty catalog", async () => {
+  const calls: unknown[] = [];
+  const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9" }, {
+    listModels: async (input) => { calls.push(input); return { ok: true, kind: "success", latencyMs: 1 }; },
+  });
+  assert.equal(models, null);
+  assert.deepEqual(calls, [{ protocol: "anthropic", baseUrl: "http://127.0.0.1:9", apiKey: "sk-ant-test-key" }]);
 });
 
 test("the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention", async () => {

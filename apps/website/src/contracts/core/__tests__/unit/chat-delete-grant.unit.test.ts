@@ -66,3 +66,10 @@ for (const toolId of ["workspace_delete", "collections_execute_cleanup"]) {
 test("ordinary tools stay visible when permanent deletes are disabled", () => {
   assert.equal(isChatToolAllowed({ toolId: "trash_list_items", policy: { enabled: false, allowedToolIds: [] } }), true);
 });
+
+test("eligible deletes forward the acting principal to the grant reader when one is known", async () => {
+  const reads: Array<{ toolId: string; principalId?: string }> = [];
+  const surfaces = { assertChatDeleteAllowed: async (required: { toolId: string; principalId?: string }) => { reads.push(required); } } as ChatDeleteSurfaceDeps;
+  await requireChatDeleteGrant({ surfaces, toolId: "trash_empty", principalId: "user-42" });
+  assert.deepEqual(reads, [{ toolId: "trash_empty", principalId: "user-42" }]);
+});
