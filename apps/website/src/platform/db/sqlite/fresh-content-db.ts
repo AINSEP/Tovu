@@ -1,5 +1,6 @@
 import { SITE_CONSENT_REVISION_STATEMENTS } from '../migrations/0021_site_consent_revisions.js';
 import { WORKSPACE_MCP_CASCADE_SQLITE } from "../migrations/0022_workspace_mcp_cascade.js";
+import { SEARCH_INDEX_STATEMENTS } from "../migrations/0023_search_index.js";
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
@@ -155,6 +156,9 @@ export function bootstrapFreshContentDb(
       for (const statement of SITE_CONSENT_REVISION_STATEMENTS) client.exec(statement);
     },
     "0022_workspace_mcp_cascade": () => client.exec(WORKSPACE_MCP_CASCADE_SQLITE),
+    "0023_search_index": () => {
+      for (const statement of SEARCH_INDEX_STATEMENTS) client.exec(statement);
+    },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

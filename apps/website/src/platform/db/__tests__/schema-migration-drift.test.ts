@@ -113,6 +113,9 @@ const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
 const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
   site_consent_revisions: 'ADR-066 step 0021 owns immutable policy snapshots; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
   site_consent_heads: 'ADR-066 step 0021 owns atomic draft/published pointers; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_state: 'ADR-066 step 0023 owns site-search index bookkeeping; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_watermarks: 'ADR-066 step 0023 owns resumable search backfill cursors; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_targets: 'ADR-066 step 0023 owns the per-site active/building search target pointer; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
 };
 
 function fts5ShadowPrefixes(): string[] {
