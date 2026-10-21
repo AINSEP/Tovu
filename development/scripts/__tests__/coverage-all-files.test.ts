@@ -140,3 +140,17 @@ test('--root limits the denominator to the named directories', () => {
   }, { roots: ['packages/'] });
   assert.deepEqual(report.files.map(row => row.file), ['packages/a/src/run.ts']);
 });
+
+test('a malformed LCOV record is skipped with a warning instead of failing the report', () => {
+  const lcov = ['SF:/elsewhere/linked.ts', 'DA:1,1', 'LF:1', 'LH:0', 'end_of_record', 'SF:/x/packages/a/src/run.ts', 'DA:1,1', 'LF:1', 'LH:1', 'end_of_record', ''].join('\n');
+  const report = runReport({
+    repo: '/x', coverage: ['/cov.info'], out: '/out',
+    ports: {
+      listFiles: () => ['packages/a/src/run.ts'],
+      readText: ({ file }) => (file === '/cov.info' ? lcov : 'export const run = () => 1;\n'),
+      writeText: () => {},
+    },
+  });
+  assert.equal(report.neverLoaded, 0);
+  assert.ok(report.warnings.some(w => w.includes('skipped malformed LCOV record')));
+});

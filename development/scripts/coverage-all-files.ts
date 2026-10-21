@@ -113,11 +113,11 @@ function ordinalKey({ line, counts }: { line: number | null; counts: Map<number 
   counts.set(line, ordinal + 1);
   return `${line}:${ordinal}`;
 }
-function parseLcovImages({ text }: { text: string }, _options: Options = {}): Image[] {
+function parseLcovImages({ text }: { text: string }, { onMalformed }: { onMalformed?: (message: string) => void } = {}): Image[] {
   const images: Image[] = [];
   // Parse each record separately: the shared parser's duplicate-layout warnings are scope-specific.
   const blocks = text.replaceAll('\r\n', '\n').split(/(?<=^end_of_record\s*$)/m);
-  for (const block of blocks) for (const record of mergeLcov({ text: block, normalizePath: file => file }).values()) {
+  for (const block of blocks) for (const record of parseLcovBlock({ block, onMalformed })) {
     const image: Image = { file: record.file, lines: Object.fromEntries(record.lines), branches: {}, functions: {} };
     const branches = new Map<number | null, number>(), functions = new Map<number | null, number>();
     for (const [key, hits] of record.branches) image.branches[ordinalKey({ line: Number(key.split(',')[0]), counts: branches })] = hits;
@@ -125,6 +125,15 @@ function parseLcovImages({ text }: { text: string }, _options: Options = {}): Im
     images.push(image);
   }
   return images;
+}
+/** One record whose summary counters disagree with its detail lines (node:test lcov does this for
+ * symlinked files outside the repo, 2026-10-21 cloud canary) must not sink the whole report: skip it
+ * and say so. */
+function parseLcovBlock({ block, onMalformed }: { block: string; onMalformed?: (message: string) => void }) {
+  try { return [...mergeLcov({ text: block, normalizePath: file => file }).values()]; } catch (error) {
+    onMalformed?.(error instanceof Error ? error.message : String(error));
+    return [];
+  }
 }
 interface Location { start: { line: number }; end: { line: number } }
 interface IstanbulFile {
@@ -188,8 +197,9 @@ export function buildReport({ sources, inputs }: { sources: ReadonlyMap<string, 
   const index = suffixIndex({ files: [...sources.keys()] });
   const coverage = new Map<string, Image>();
   const unmatched: AllFilesReport['unmatched'] = [], excludedCoverage: AllFilesReport['excludedCoverage'] = [];
+  const malformed: string[] = [];
   for (const input of inputs) {
-    const images = input.text.trimStart().startsWith('{') ? parseJsonImages({ text: input.text }) : parseLcovImages({ text: input.text });
+    const images = input.text.trimStart().startsWith('{') ? parseJsonImages({ text: input.text }) : parseLcovImages({ text: input.text }, { onMalformed: message => malformed.push(`${input.name}: skipped malformed LCOV record — ${message}`) });
     for (const image of images) {
       const file = matchPath({ file: image.file, index });
       if (!file) { unmatched.push({ input: input.name, file: image.file }); continue; }
@@ -216,7 +226,7 @@ export function buildReport({ sources, inputs }: { sources: ReadonlyMap<string, 
   return { files, totals: totals({ rows: files }), runnerTotals: totals({ rows: files.filter(row => row.status === 'LOADED') }),
     neverLoaded: files.filter(row => row.status === 'NEVER-LOADED').length, areas,
     exclusions: [...excluded].map(([group, paths]) => ({ group, count: paths.length, examples: paths.sort().slice(0, 5) })), unmatched, excludedCoverage,
-    warnings: ['NEVER-LOADED denominators are AST estimates (distinct executable statement start lines, function bodies, branch arms).', 'LCOV lacks columns: functions/branches merge by source line and ordinal; different instrumentation layouts may not correspond.', 'LOADED means a coverage record exists, including zero-hit include records.'] };
+    warnings: ['NEVER-LOADED denominators are AST estimates (distinct executable statement start lines, function bodies, branch arms).', 'LCOV lacks columns: functions/branches merge by source line and ordinal; different instrumentation layouts may not correspond.', 'LOADED means a coverage record exists, including zero-hit include records.', ...malformed] };
 }
 function display({ metric }: { metric: Metric }, _options: Options = {}): string { return `${metric.covered}/${metric.total} (${metric.pct.toFixed(2)}%)`; }
 function escapeCell({ text }: { text: string }, _options: Options = {}): string { return text.replaceAll('|', '\\|').replaceAll('\n', ' '); }
