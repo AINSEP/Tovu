@@ -559,7 +559,11 @@ export function createAssistantByokModule(
 
     system = await preparePluginGuidance({ req, res, run, principal, messages, abort, system });
 
-    // Dispatches against the META-tool set, not the raw catalog: `call.name` is one of
+    // Older injected surfaces retain their wrapper contract; production creates one exposure per run.
+    const toolRun = resolvedToolSurface.createRun?.({ principal, run });
+
+    // Starts with the meta-tool set and promotes concrete definitions after describe_tool.
+    // The legacy dispatch below is owned by the same surface: `call.name` is one of
     // `search_tools`/`describe_tool`/`execute_delegated_tool`, and a real tool id arrives as the
     // third one's `toolId` argument. The unwrap, the status mapping, and the "model named something
     // that isn't callable" case all live in `byok-tool-surface.ts` beside the descriptors that
@@ -574,6 +578,7 @@ export function createAssistantByokModule(
       const emitSurface: SurfaceEmitter = async (emission) => {
         sse(res, "agent", toWireSurfacePayload(emission, call.id));
       };
+      if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
       return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
     };
 
@@ -594,9 +599,13 @@ export function createAssistantByokModule(
         system,
         messages,
         // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
-        // re-sent on EVERY message; the meta-set is under 1 KB and reaches the same tools through
+        // re-sent on EVERY message; the meta-set is under 1 KB and initially reaches the same tools through
         // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
-        tools: resolvedToolSurface.metaTools,
+        tools: toolRun?.getToolSnapshot() ?? resolvedToolSurface.metaTools,
+        getToolSnapshot: toolRun?.getToolSnapshot,
+        onSchemaFallback: ({ toolId, protocol, reason }) => {
+          console.warn("[assistant-byok] tool schema fallback", { toolId, protocol, reason });
+        },
         executeTool,
         signal: abort.signal,
         // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the

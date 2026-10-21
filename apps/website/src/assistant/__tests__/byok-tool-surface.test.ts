@@ -1283,3 +1283,243 @@ test("BYOK: the installed-extension registrar gets this surface's own exchange s
   assert.equal(seen.length, 1);
   assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");
 });
+
+// PLAN-structural-FINAL T2: request-owned exposure extends the existing registry/executor.
+const T2_SCHEMA = { type: "object", additionalProperties: false, properties: { id: { type: "string" } }, required: ["id"] };
+
+test("T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity", async () => {
+  const s = surface();
+  const seen: Array<{ principal: string; run: string; input: unknown }> = [];
+  s.registry.register({
+    descriptor: { id: "t2.inspect_record", description: "Inspect quartz records", readOnly: true, inputSchema: T2_SCHEMA },
+    policy: { authorize: () => "allow" },
+    handler: async ctx => {
+      seen.push({ principal: ctx.principal.id, run: ctx.run.id, input: ctx.input });
+      return { inspected: ctx.input };
+    },
+  });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  const initial = turn.getToolSnapshot();
+  const unexposed = await turn.executeTool(call("t2.inspect_record", { id: "one" }));
+  assert.equal(unexposed.isError, true);
+  assert.equal(seen.length, 0);
+  const search = await turn.executeTool(call("search_tools", { query: "Inspect quartz records" }));
+  assert.ok(JSON.parse(textOf(search)).hits.some((hit: { id: string }) => hit.id === "t2.inspect_record"));
+  assert.deepEqual(turn.getToolSnapshot(), initial, "search alone never promotes");
+  const described = await turn.executeTool(call("describe_tool", { id: "t2.inspect_record" }));
+  const definition = JSON.parse(textOf(described));
+  assert.match(definition.callableName, /^[A-Za-z_][A-Za-z0-9_]{0,63}$/);
+  assert.deepEqual(definition.inputSchema, T2_SCHEMA);
+  const published = turn.getToolSnapshot().find(tool => tool.id === "t2.inspect_record");
+  assert.equal(published?.wireName, definition.callableName);
+  assert.deepEqual(published?.inputSchema, T2_SCHEMA);
+  assert.equal(initial.length, 3, "previous snapshots do not acquire new tools");
+  const typed = await turn.executeTool(call(definition.callableName, { id: "one" }));
+  const canonical = await turn.executeTool(call("t2.inspect_record", { id: "one" }));
+  const legacy = await turn.executeTool(call("execute_delegated_tool", { toolId: "t2.inspect_record", input: '{"id":"one"}' }));
+  const oldIngress = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "t2.inspect_record", input: { id: "one" } }));
+  assert.deepEqual(typed, { content: JSON.stringify({ inspected: { id: "one" } }) });
+  assert.deepEqual(canonical, typed);
+  assert.deepEqual(legacy, typed);
+  assert.deepEqual(oldIngress, typed);
+  assert.deepEqual(seen, Array.from({ length: 4 }, () => ({ principal: PRINCIPAL.id, run: RUN.id, input: { id: "one" } })));
+});
+
+test("T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions", async () => {
+  const s = surface();
+  registerOutputTool(s, "t2_alpha", "alpha");
+  registerOutputTool(s, "t2_beta", "beta");
+  const a = s.createRun({ principal: PRINCIPAL, run: { id: "a" } });
+  const b = s.createRun({ principal: { id: "other" }, run: { id: "b" } });
+  await Promise.all([
+    a.executeTool(call("describe_tool", { id: "t2_alpha" })),
+    a.executeTool(call("describe_tool", { id: "t2_alpha" })),
+    b.executeTool(call("describe_tool", { id: "t2_beta" })),
+  ]);
+  assert.deepEqual(a.getToolSnapshot().slice(3).map(tool => tool.id), ["t2_alpha"]);
+  assert.deepEqual(b.getToolSnapshot().slice(3).map(tool => tool.id), ["t2_beta"]);
+  assert.equal((await b.executeTool(call("t2_alpha", {}))).isError, true);
+  assert.equal((await a.executeTool(call("t2_beta", {}))).isError, true);
+  assert.deepEqual(await a.executeTool(call("t2_alpha", {})), { content: "alpha" });
+  assert.deepEqual(await b.executeTool(call("t2_beta", {})), { content: "beta" });
+});
+
+test("T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable", async () => {
+  const s = surface();
+  registerOutputTool(s, "t2_capped", "still callable");
+  for (const limits of [{ maxTools: 0 }, { maxSchemaBytes: 0 }]) {
+    const turn = s.createRun({ principal: PRINCIPAL, run: RUN }, limits);
+    const missing = await turn.executeTool(call("describe_tool", { id: "t2_absent" }));
+    assert.equal(missing.isError, true);
+    const described = await turn.executeTool(call("describe_tool", { id: "t2_capped" }));
+    assert.notEqual(described.isError, true);
+    const definition = JSON.parse(textOf(described));
+    assert.equal(definition.callableName, undefined);
+    assert.equal(definition.exposureSkipped.length, 1);
+    assert.equal(turn.getToolSnapshot().length, 3);
+    assert.equal((await turn.executeTool(call("t2_capped", {}))).isError, true);
+    assert.deepEqual(await turn.executeTool(call("execute_delegated_tool", { toolId: "t2_capped" })), { content: "still callable" });
+  }
+});
+
+test("T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal", async () => {
+  const s = surface();
+  let permitted = true;
+  let executions = 0;
+  s.registry.register({
+    descriptor: { id: "t2_revocable", readOnly: false, inputSchema: T2_SCHEMA },
+    policy: { authorize: () => permitted ? "allow" : "deny" },
+    handler: async () => { executions++; return "wrote"; },
+  });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  const described = await turn.executeTool(call("describe_tool", { id: "t2_revocable" }));
+  assert.notEqual(described.isError, true);
+  permitted = false;
+  const typed = await turn.executeTool(call("t2_revocable", { id: "one" }));
+  const legacy = await turn.executeTool(call("execute_delegated_tool", { toolId: "t2_revocable", input: { id: "one" } }));
+  assert.deepEqual(typed, legacy);
+  assert.equal(typed.isError, true);
+  assert.equal(executions, 0);
+  const constrained = s.createRun({ principal: constrainPrincipalToReadOnlyTools(PRINCIPAL), run: RUN });
+  assert.equal((await constrained.executeTool(call("describe_tool", { id: "t2_revocable" }))).isError, true);
+  assert.equal(constrained.getToolSnapshot().length, 3);
+  assert.equal((await constrained.executeTool(call("describe_tool", { id: "trash_empty" }))).isError, true);
+});
+
+test("T2 typed reads attenuate nested writes through the existing executor", async () => {
+  const s = surface();
+  let writes = 0;
+  s.registry.register({
+    descriptor: { id: "t2_nested_write", readOnly: false }, policy: { authorize: () => "allow" },
+    handler: async () => { writes++; return "unsafe"; },
+  });
+  s.registry.register({
+    descriptor: { id: "t2_nested_read", readOnly: true }, policy: { authorize: () => "allow" },
+    handler: async ctx => s.executor.execute({ principal: ctx.principal, run: ctx.run, toolId: "t2_nested_write", input: {} }),
+  });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  await turn.executeTool(call("describe_tool", { id: "t2_nested_read" }));
+  const result = await turn.executeTool(call("t2_nested_read", {}));
+  assert.equal(JSON.parse(textOf(result)).status, "denied");
+  assert.equal(writes, 0);
+});
+
+test("T2 typed calls preserve images, batches, failures and cancellation through the shared mapper", async () => {
+  const s = surface();
+  const image = { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }] };
+  const batch = { results: [{ ok: true }, { ok: false, error: "item failed" }] };
+  registerOutputTool(s, "t2_image", image);
+  registerOutputTool(s, "t2_batch", batch);
+  s.registry.register(fakeAllowedRegistration("t2_failure", async () => { throw new Error("T2 expected failure"); }));
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  for (const id of ["t2_image", "t2_batch", "t2_failure"]) {
+    await turn.executeTool(call("describe_tool", { id }));
+    const typed = await turn.executeTool(call(id, {}));
+    const legacy = await turn.executeTool(call("execute_delegated_tool", { toolId: id, input: {} }));
+    if (id === "t2_failure") {
+      // Each invocation owns a fresh diagnostic ID; compare the retained error after that ID.
+      assert.equal(typed.isError, true);
+      assert.equal(legacy.isError, true);
+      assert.match(textOf(typed), TOOL_ERROR_ID_PATTERN);
+      assert.match(textOf(legacy), TOOL_ERROR_ID_PATTERN);
+      assert.equal(textOf(typed).replace(TOOL_ERROR_ID_PATTERN, "ERR-ID"), "Error ERR-ID: T2 expected failure");
+      assert.equal(textOf(legacy).replace(TOOL_ERROR_ID_PATTERN, "ERR-ID"), "Error ERR-ID: T2 expected failure");
+    } else {
+      assert.deepEqual(typed, legacy);
+    }
+    if (id === "t2_image") assert.deepEqual(typed.content, image.content);
+    if (id === "t2_batch") assert.deepEqual(JSON.parse(textOf(typed)), batch);
+  }
+  const signal = AbortSignal.abort();
+  const typed = await turn.executeTool(call("t2_batch", {}), { signal });
+  const legacy = await turn.executeTool(call("execute_delegated_tool", { toolId: "t2_batch", input: {} }), { signal });
+  assert.deepEqual(typed, legacy);
+  assert.match(textOf(typed), /cancelled/);
+});
+
+test("T2 typed permanent deletes retain the existing held-open surface and confirmation", async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  await saveEchoServerRow(repo, sealer, keyring);
+  const s = createByokToolSurface({ ...fakeRouteDeps(), workspaceId: FEDERATION_WORKSPACE,
+    ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
+  }, { installExtensions: false, contributions });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  await turn.executeTool(call("describe_tool", { id: "external_mcp_delete" }));
+  let cards = 0;
+  const result = await turn.executeTool(call("external_mcp_delete", { serverId: "echo-server" }), { emitSurface: async () => {
+    cards++;
+    assert.ok(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: "echo-server" }));
+    const exchangeId = s.surfaceExchanges.findTypedAnswerTarget({ principalId: PRINCIPAL.id, toolId: "external_mcp_delete" })!;
+    assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: "confirm" } }, { toolId: "external_mcp_delete" }), { ok: true });
+  } });
+  assert.notEqual(result.isError, true, textOf(result));
+  assert.equal(cards, 1);
+  assert.equal(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: "echo-server" }), null);
+  assert.equal(s.surfaceExchanges.size(), 0);
+});
+
+test("T2 a previously published delete loses visibility before execution when its owner grant changes", async () => {
+  const deps = { ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) };
+  const s = createByokToolSurface(deps, { installExtensions: false, contributions });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  const described = await turn.executeTool(call("describe_tool", { id: "trash_empty" }));
+  assert.notEqual(described.isError, true);
+  assert.ok(turn.getToolSnapshot().some(tool => tool.id === "trash_empty"));
+  deps.ownerPrincipalId = Promise.resolve("new-owner");
+  const result = await turn.executeTool(call("trash_empty", {}), { emitSurface: async () => assert.fail("revocation must precede confirmation") });
+  assert.equal(result.isError, true);
+  assert.match(textOf(result), /no longer available/);
+  assert.equal(s.surfaceExchanges.size(), 0);
+});
+
+test("T2 a typed confirmation park cancels without running its handler", async () => {
+  const s = surface();
+  let executed = false;
+  s.registry.register({ descriptor: { id: "t2_confirm_cancel", requiresConfirmation: true },
+    policy: { authorize: () => "allow" }, handler: async () => { executed = true; return "unexpected"; } });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  await turn.executeTool(call("describe_tool", { id: "t2_confirm_cancel" }));
+  const controller = new AbortController();
+  const timer = setImmediate(() => controller.abort());
+  try {
+    const result = await turn.executeTool(call("t2_confirm_cancel", {}), { signal: controller.signal });
+    assert.equal(result.isError, true);
+    assert.match(textOf(result), /cancelled/);
+    assert.equal(executed, false);
+  } finally { clearImmediate(timer); }
+});
+
+test("T2 real surface and shared provider mapper complete discovery and typed execution in one turn", async () => {
+  const { runProviderToolTurn, providerTurnAdapters } = await import("@jini-ai/agent-runtime/providers/tool-turn");
+  const s = surface();
+  let executions = 0;
+  s.registry.register({ descriptor: { id: "t2.provider_read", description: "Read sapphire record", readOnly: true, inputSchema: T2_SCHEMA },
+    policy: { authorize: () => "allow" }, handler: async ctx => { executions++; return { sapphire: ctx.input }; } });
+  const turn = s.createRun({ principal: PRINCIPAL, run: RUN });
+  const result = await runProviderToolTurn({
+    protocol: "openai", apiKey: "test", model: "test", system: "test", messages: [], tools: turn.getToolSnapshot(),
+    executeTool: call => turn.executeTool(call), onEvent: () => {},
+    adapters: { ...providerTurnAdapters, openai: async (_required, options) => {
+      assert.ok(options?.executeTool);
+      assert.ok(options.getTools);
+      assert.equal(options.getTools({ strict: true }).length, 3);
+      const search = await options.executeTool({ id: "search", name: "search_tools", input: { query: "Read sapphire record" } });
+      assert.match(String(search.content), /t2\.provider_read/);
+      assert.equal(options.getTools({ strict: true }).length, 3);
+      const describe = await options.executeTool({ id: "describe", name: "describe_tool", input: { id: "t2.provider_read" } });
+      const definition = JSON.parse(String(describe.content));
+      const tools = options.getTools({ strict: true });
+      assert.equal(tools.length, 4);
+      const concrete = tools.find(tool => tool.function.name === definition.callableName);
+      assert.ok(concrete);
+      assert.equal(concrete.function.strict, true);
+      const executed = await options.executeTool({ id: "execute", name: definition.callableName, input: { id: "sapphire-1" } });
+      assert.deepEqual(JSON.parse(String(executed.content)), { sapphire: { id: "sapphire-1" } });
+      return { finishReason: "stop", toolTurns: 3 };
+    } },
+  }, { getToolSnapshot: turn.getToolSnapshot });
+  assert.deepEqual(result, { stopReason: "stop", toolTurns: 3 });
+  assert.equal(executions, 1);
+});

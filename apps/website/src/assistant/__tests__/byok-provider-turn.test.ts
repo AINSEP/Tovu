@@ -77,9 +77,9 @@ test("the adopted provider mapper preserves an adapter-reported tool error witho
  *    evidence).
  * 3. End to end, through `runByokProviderTurn`: a tool schema carrying `additionalProperties` at
  *    top level AND nested reaches Gemini's outbound request body fully stripped, while the exact
- *    same schema reaches Anthropic's outbound request body byte-identical — proving the fix is
- *    scoped to the Google protocol adapter only, not a global schema rewrite that would also
- *    silently change what Anthropic/OpenAI/Azure receive.
+ *    source schema now reaches Anthropic/OpenAI through the approved strict projection, while
+ *    the authoritative descriptor stays unchanged. Google alone strips its unsupported keywords;
+ *    strict omission decoding belongs to the shared provider mapper.
  */
 
 test("sanitizeGoogleSchema strips additionalProperties/$schema/$ref/$defs at the top level", () => {
@@ -395,6 +395,18 @@ const TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES: ToolDescriptor = {
   },
 };
 
+/** Fixed wire contract under the approved strict-prefer policy; the source remains optional. */
+const STRICT_NESTED_PARAMETERS = {
+  type: "object", additionalProperties: false,
+  properties: {
+    filter: { anyOf: [
+      { type: "object", additionalProperties: false, properties: { slug: { anyOf: [{ type: "string" }, { type: "null" }] } }, required: ["slug"] },
+      { type: "null" },
+    ] },
+  },
+  required: ["filter"],
+};
+
 /**
  * Boots a real loopback stub in place of the outbound provider call (see `stub-provider-server.ts`'s
  * doc: `@jini-ai/agent-runtime`'s adapters now dial `pinnedFetch` — `node:https`/`node:http` directly
@@ -484,26 +496,31 @@ test("runByokProviderTurn(google): the outbound Gemini request has additionalPro
   assert.deepEqual(parameters, {
     type: "object",
     properties: {
-      filter: { type: "object", properties: { slug: { type: "string" } } },
+      filter: { anyOf: [
+        { type: "object", properties: { slug: { anyOf: [{ type: "string" }, { type: "null" }] } }, required: ["slug"] },
+        { type: "null" },
+      ] },
     },
-    required: [],
+    required: ["filter"],
   });
+  assert.deepEqual(body.toolConfig, { functionCallingConfig: { mode: "VALIDATED" } });
   // Defense against a future edit accidentally reintroducing the stripped keys anywhere in the
   // outbound payload, not just at the two positions asserted above by shape.
   assert.ok(!JSON.stringify(parameters).includes("additionalProperties"));
   assert.ok(!JSON.stringify(parameters).includes("$schema"));
 });
 
-test("runByokProviderTurn(anthropic): the SAME tool schema reaches the outbound request untouched — additionalProperties/$schema preserved", async (t) => {
+test("runByokProviderTurn(anthropic): strict projection closes nested fields and preserves the authoritative schema", async (t) => {
   const capture = await captureOutboundRequest(t);
   await runByokProviderTurn(baseInput("anthropic", capture.baseUrl));
   assertOutboundIdentity("anthropic", capture);
 
   const body = capture.body();
-  const tools = body.tools as Array<{ input_schema: Record<string, unknown> }>;
+  const tools = body.tools as Array<{ input_schema: Record<string, unknown>; strict?: boolean }>;
 
-  assert.deepEqual(tools[0].input_schema, TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES.inputSchema);
-  assert.ok(JSON.stringify(tools[0].input_schema).includes("additionalProperties"));
+  assert.deepEqual(tools[0].input_schema, STRICT_NESTED_PARAMETERS);
+  assert.equal(tools[0].strict, true);
+  assert.deepEqual((TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES.inputSchema as { required: string[] }).required, []);
 });
 
 /** Real Gemini `streamGenerateContent` SSE framing (data-only, no `event:` line — matches
@@ -629,15 +646,16 @@ test("runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUr
   ]);
 });
 
-test("runByokProviderTurn(openai): the outbound request carries the tool schema untouched, same as anthropic — the Google-only sanitizer must not leak into this protocol", async (t) => {
+test("runByokProviderTurn(openai): strict projection closes nested fields and retains required nullable omission guidance", async (t) => {
   const capture = await captureOutboundRequest(t);
   await runByokProviderTurn(baseInput("openai", capture.baseUrl));
   assertOutboundIdentity("openai", capture);
 
   const body = capture.body();
-  const tools = body.tools as Array<{ function: { parameters: Record<string, unknown> } }>;
-  assert.deepEqual(tools[0].function.parameters, TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES.inputSchema);
-  assert.ok(JSON.stringify(tools[0].function.parameters).includes("additionalProperties"));
+  const tools = body.tools as Array<{ function: { parameters: Record<string, unknown>; strict?: boolean } }>;
+  assert.deepEqual(tools[0].function.parameters, STRICT_NESTED_PARAMETERS);
+  assert.equal(tools[0].function.strict, true);
+  assert.deepEqual((TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES.inputSchema as { required: string[] }).required, []);
 });
 
 test("runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field", async (t) => {
@@ -814,3 +832,95 @@ for (const protocol of ["anthropic", "google"] as const) {
     }
   });
 }
+
+// PLAN-structural-FINAL T2: keep the real shared mapper; replace only its provider I/O port.
+test("T2 BYOK forwards the live snapshot: search → describe → strict typed call within one turn", async (t) => {
+  const { createToolExposure, createToolRegistry } = await import("@jini-ai/core");
+  const registry = createToolRegistry({});
+  const descriptor: ToolDescriptor = {
+    id: "t2.inspect_record", description: "Inspect a record", readOnly: true,
+    inputSchema: { type: "object", additionalProperties: false, properties: { id: { type: "string" }, note: { type: "string" } }, required: ["id"] },
+  };
+  registry.register({ descriptor, policy: { authorize: () => "allow" }, handler: async () => "unused" });
+  const exposure = createToolExposure({ registry }, { reservedNames: ["search_tools", "describe_tool"] });
+  const initial: readonly ToolDescriptor[] = ["search_tools", "describe_tool"].map(id => ({ id, inputSchema: { type: "object", additionalProperties: true } }));
+  const calls: Array<{ name: string; input: unknown }> = [];
+  const snapshots: string[][] = [];
+  const fallback: unknown[] = [];
+  t.mock.module("@jini-ai/agent-runtime/providers/tool-turn", { namedExports: {
+    runProviderToolTurn,
+    providerTurnAdapters: {
+      ...providerTurnAdapters,
+      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], options: NonNullable<Parameters<typeof providerTurnAdapters.openai>[1]>) => {
+        assert.ok(options.getTools);
+        assert.ok(options.executeTool);
+        for (const name of ["search_tools", "describe_tool"]) {
+          const tools = options.getTools({ strict: true });
+          snapshots.push(tools.map(tool => tool.function.name));
+          assert.equal(tools.some(tool => tool.function.name.includes("inspect")), false);
+          await options.executeTool({ id: name, name, input: name === "search_tools" ? { query: "inspect a record" } : { id: descriptor.id } });
+        }
+        const tools = options.getTools({ strict: true });
+        snapshots.push(tools.map(tool => tool.function.name));
+        const concrete = tools.find(tool => tool.function.name.includes("inspect"));
+        assert.ok(concrete);
+        assert.equal(concrete.function.strict, true);
+        assert.deepEqual((concrete.function.parameters as { required: string[] }).required, ["id", "note"]);
+        await options.executeTool({ id: "typed", name: concrete.function.name, input: { id: "record-1", note: null } });
+        return { finishReason: "stop", toolTurns: 3 };
+      },
+    },
+  } });
+  const entry = "../byok-provider-turn.js?t2=refresh";
+  const { runByokProviderTurn: run } = await import(entry) as typeof import("../byok-provider-turn.js");
+  const result = await run({
+    ...baseInput("openai", "http://127.0.0.1:1"), tools: initial,
+    getToolSnapshot: () => [...initial, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
+    onSchemaFallback: event => fallback.push(event),
+    executeTool: async call => {
+      calls.push({ name: call.name, input: call.input });
+      if (call.name === "describe_tool") exposure.promote({ toolIds: [descriptor.id] });
+      return { content: "ok" };
+    },
+  });
+  assert.deepEqual(result, { stopReason: "stop", toolTurns: 3 });
+  assert.deepEqual(snapshots.map(snapshot => snapshot.length), [2, 2, 3]);
+  assert.deepEqual(calls, [
+    { name: "search_tools", input: { query: "inspect a record" } },
+    { name: "describe_tool", input: { id: "t2.inspect_record" } },
+    { name: "t2.inspect_record", input: { id: "record-1" } },
+  ]);
+  assert.ok(fallback.some(event => (event as { reason: string }).reason === "open-map"));
+  assert.doesNotMatch(JSON.stringify(fallback), /record-1|inspect a record/);
+});
+
+test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free reasons", async (t) => {
+  const descriptor: ToolDescriptor = { id: "t2_open_map", inputSchema: { type: "object", additionalProperties: true } };
+  const fallbacks: unknown[] = [];
+  const received: unknown[] = [];
+  t.mock.module("@jini-ai/agent-runtime/providers/tool-turn", { namedExports: {
+    runProviderToolTurn,
+    providerTurnAdapters: {
+      ...providerTurnAdapters,
+      openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], options: NonNullable<Parameters<typeof providerTurnAdapters.openai>[1]>) => {
+        assert.ok(options.getTools);
+        assert.ok(options.executeTool);
+        const tools = options.getTools({ strict: true });
+        assert.equal(tools[0].function.strict, undefined);
+        assert.deepEqual(tools[0].function.parameters, descriptor.inputSchema);
+        const result = await options.executeTool({ id: "open-map", name: "t2_open_map", input: { secret: "value-not-for-telemetry", arbitrary: { retained: true } } });
+        assert.match(String(result.content), /host validation rejected/);
+        return { finishReason: "stop", toolTurns: 1 };
+      },
+    },
+  } });
+  const entry = "../byok-provider-turn.js?t2=fallback";
+  const { runByokProviderTurn: run } = await import(entry) as typeof import("../byok-provider-turn.js");
+  await run({
+    ...baseInput("openai", "http://127.0.0.1:1"), tools: [descriptor],
+    getToolSnapshot: () => [descriptor], onSchemaFallback: event => fallbacks.push(event),
+    executeTool: async call => { received.push(call.input); return { content: "host validation rejected", isError: true }; },
+  });
+  assert.deepEqual(received, [{ secret: "value-not-for-telemetry", arbitrary: { retained: true } }]);
+  assert.deepEqual(fallbacks, [{ toolId: "t2_open_map", protocol: "openai", reason: "open-map" }]);
+});

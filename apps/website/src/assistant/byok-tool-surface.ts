@@ -10,6 +10,9 @@
 import type { AssistantToolContributions } from "./tool-contribution-registry.js";
 import {
   createToolRegistry,
+  createToolExposure,
+  isReadOnlyTool,
+  type ToolExposure,
   type Principal,
   type RunRef,
   type SurfaceEmitter,
@@ -17,7 +20,7 @@ import {
   type ToolRegistry,
 } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
-import { filterReadOnlyToolCatalog } from "@jini-ai/daemon/read-only-tools";
+import { constrainPrincipalToReadOnlyTools, filterReadOnlyToolCatalog } from "@jini-ai/daemon/read-only-tools";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -43,11 +46,27 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 export type { ByokMetaToolResult } from "./byok-meta-tool-result.js";
 
+/** A request-owned exposure; releasing it at turn completion releases its pinned descriptors. */
+export interface ByokToolRun {
+  /** Meta-tools plus successfully described definitions, with core-owned wire names. */
+  readonly getToolSnapshot: () => readonly (ToolDescriptor & { readonly wireName?: string })[];
+  /** Calls retain the identity captured at creation, never a model-supplied run or principal. */
+  readonly executeTool: (
+    required: { readonly name: string; readonly input: unknown },
+    optional?: { readonly signal?: AbortSignal; readonly emitSurface?: SurfaceEmitter },
+  ) => Promise<ByokMetaToolResult>;
+}
+
 export interface ByokToolSurface {
+  /** Create one isolated provider turn. Example: surface.createRun({ principal, run }). */
+  readonly createRun: (
+    required: { readonly principal: Principal; readonly run: RunRef },
+    optional?: { readonly maxTools?: number; readonly maxSchemaBytes?: number },
+  ) => ByokToolRun;
   /** Discovery view only; use this surface's executor/meta calls for execution against the inner registry. */
   readonly registry: ToolRegistry;
   readonly executor: ToolExecutor;
-  /** The 3 descriptors actually sent to the provider — see {@link META_TOOL_DESCRIPTORS}. */
+  /** The initial staged-discovery descriptors — see {@link META_TOOL_DESCRIPTORS}. */
   readonly metaTools: readonly ToolDescriptor[];
   /**
    * Backs the held-open-call return path for a BYOK-mode tool call (mirrors `agent-daemon-server.ts`'s
@@ -117,7 +136,7 @@ const SEARCH_LIMIT_MAX = 25;
 const SEARCH_LIMIT_DEFAULT = 10;
 
 /**
- * The 3 tools a BYOK turn actually publishes to the provider, in place of all 131 real ones.
+ * The 3 tools a BYOK turn initially publishes, before successful descriptions add concrete schemas.
  *
  * Why: a `ToolDescriptor` carries its full `inputSchema`, so publishing the real catalog costs
  * ~119 KB (~30 k tokens) on EVERY message of every conversation — measured, not estimated, against
@@ -145,7 +164,7 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     id: "search_tools",
     description:
-      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right before calling execute_delegated_tool. If nothing in the results fits, re-search with a higher limit or different phrasing rather than assuming the tool does not exist.",
+      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right, then invoke the published callableName with its concrete input. execute_delegated_tool remains available for compatibility. If nothing in the results fits, re-search with a higher limit or different phrasing rather than assuming the tool does not exist.",
     inputSchema: {
       type: "object",
       properties: {
@@ -173,7 +192,7 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     id: "describe_tool",
     description:
-      "Get the full descriptor for one tool id found via search_tools — its description and its input schema. Paid for only on the candidates that survive search, per the tool catalog's staged-discovery design.",
+      "Get the full descriptor for one tool id found via search_tools — its description and its input schema. Successful descriptions publish a typed callableName for this turn; use execute_delegated_tool if the exposure budget is full. Paid for only on the candidates that survive search, per the tool catalog's staged-discovery design.",
     inputSchema: {
       type: "object",
       properties: {
@@ -256,8 +275,15 @@ function runSearchTools(
   return ok({ hits });
 }
 
-/** `describe_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
-function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown>, audit: MetaToolCatalogAudit | undefined): ByokMetaToolResult {
+/** `describe_tool` branch — see {@link runSearchTools}'s doc for why this is split out.
+ * Publish only after visible discovery succeeds; budgets preserve the usable legacy wrapper.
+ * @returns The authored entry with its pinned callable name, or a model-readable discovery error.
+ * @complexity O(r log r + b) promotion time/space for r registry IDs and bounded schema bytes b.
+ */
+function runDescribeTool(
+  { catalog, args, audit }: { catalog: ToolCatalogQuery; args: Record<string, unknown>; audit: MetaToolCatalogAudit | undefined },
+  { exposure }: { exposure?: ToolExposure } = {},
+): ByokMetaToolResult {
   const id = typeof args.id === "string" ? args.id.trim() : "";
   if (id.length === 0) return err("'id' is required and must be a non-empty string.");
   const entry = catalog.describe({ id });
@@ -271,7 +297,10 @@ function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown
     } }, {});
   }
   if (!entry) return err(`No tool with id "${id}". Use search_tools to find a valid id.`);
-  return ok(entry);
+  if (!exposure) return ok(entry);
+  const promotion = exposure.promote({ toolIds: [id] });
+  const published = promotion.snapshot.tools.find(tool => tool.descriptor.id === id);
+  return ok({ ...entry, callableName: published?.wireName, exposureSkipped: promotion.skipped });
 }
 
 /** `execute_delegated_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
@@ -302,6 +331,31 @@ async function runExecuteDelegatedTool(
     const message = error instanceof Error ? error.message : String(error);
     return err(`${message}. Use search_tools to find a valid tool id.`);
   }
+}
+
+/** Resolve only this turn's published names, then recheck live visibility and read classification.
+ * The existing executor validates, authorizes and handles confirmation/cancellation and surfaces.
+ * Read attenuation also covers any nested recovery dispatch; it must never retry as a writer.
+ * @param required - This run's exposure, current catalog/registry and existing executor/identity.
+ * @param optional - Cancellation and the live surface emitter, forwarded unchanged.
+ * @returns A mapped executor result or a model-readable refusal, with no unexposed dispatch.
+ * @complexity O(r + e) time/space for r registrations and at most e bounded exposed definitions.
+ */
+async function runTypedTool(
+  { exposure, catalog, registry, executor, principal, run, call }: {
+    exposure: ToolExposure; catalog: ToolCatalogQuery; registry: ToolRegistry; executor: ToolExecutor;
+    principal: Principal; run: RunRef; call: { readonly name: string; readonly input: unknown };
+  },
+  { signal, emitSurface }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter } = {},
+): Promise<ByokMetaToolResult> {
+  const tools = exposure.getSnapshot({}).tools;
+  const published = tools.find(tool => tool.wireName === call.name || tool.descriptor.id === call.name);
+  if (!published) return err(`"${call.name}" is not exposed in this turn. Use describe_tool first, or execute_delegated_tool.`);
+  const toolId = published.descriptor.id;
+  const descriptor = registry.list({}).find(tool => tool.id === toolId);
+  if (!descriptor || !catalog.describe({ id: toolId })) return err(`Tool "${toolId}" is no longer available to this caller.`);
+  const caller = isReadOnlyTool({ descriptor }) ? constrainPrincipalToReadOnlyTools({ principal }) : principal;
+  return runExecuteDelegatedTool(executor, caller, run, { toolId, input: call.input }, signal, emitSurface);
 }
 
 /** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
@@ -583,13 +637,14 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     call: { readonly name: string; readonly input: unknown },
     signal?: AbortSignal,
     emitSurface?: SurfaceEmitter,
+    exposure?: ToolExposure,
   ): Promise<ByokMetaToolResult> {
     await ready;
     const skillsRegistry = registry as ToolRegistry & { refreshInstalledSkills?: () => Promise<boolean> };
     if (await skillsRegistry.refreshInstalledSkills?.()) catalog = buildToolCatalogQuery(registry);
     const args = isRecord(call.input) ? call.input : {};
 
-    if (!META_TOOL_IDS.has(call.name)) {
+    if (!META_TOOL_IDS.has(call.name) && !exposure) {
       // Reachable in practice: a model that has seen a real tool id (from a search hit, or from its
       // own prior turn) can try to call it directly as a tool name, since the meta-set is the only
       // thing it was actually offered. Say so, rather than returning a bare "unknown tool".
@@ -611,12 +666,33 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     return deleteScope.fresh({ principalId: principal.id, run: () => {
       const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog }) });
       if (call.name === "search_tools") return runSearchTools(visibleCatalog, visibleRegistry, args, catalogAudit);
-      if (call.name === "describe_tool") return runDescribeTool(visibleCatalog, args, catalogAudit);
-      return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
+      if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
+      if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
+      return runTypedTool({ exposure: exposure!, catalog: visibleCatalog, registry: visibleRegistry, executor, principal, run, call }, { signal, emitSurface });
     } });
   }
 
+  /** Bind one run without retaining it in a process-wide map. Core owns naming, pinning and caps.
+   * Successful descriptions alone promote; searches stay cheap and do not change exposure.
+   * @param required - Trusted principal and run, held only for this turn's lifetime.
+   * @param limits - Optional publication budgets; exhausted budgets leave wrappers callable.
+   * @returns A live getter and dispatcher sharing exactly one bounded exposure.
+   * @throws ToolExposureError if a publication budget is invalid.
+   * @complexity O(1) creation; snapshots O(e) time/space in bounded exposed definitions.
+   */
+  function createRun(
+    { principal, run }: { principal: Principal; run: RunRef },
+    limits: { maxTools?: number; maxSchemaBytes?: number } = {},
+  ): ByokToolRun {
+    const exposure = createToolExposure({ registry: visibleRegistry }, { ...limits, reservedNames: [...META_TOOL_IDS] });
+    return {
+      getToolSnapshot: () => [...META_TOOL_DESCRIPTORS, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
+      executeTool: (call, { signal, emitSurface } = {}) => executeMetaTool(principal, run, call, signal, emitSurface, exposure),
+    };
+  }
+
   return {
+    createRun,
     registry: visibleRegistry,
     executor,
     metaTools: META_TOOL_DESCRIPTORS,

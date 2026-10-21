@@ -6,7 +6,7 @@
  * so the BYOK route can send events without provider-specific branches in the browser transport.
  */
 import type { ToolDescriptor } from "@jini-ai/core";
-import { providerTurnAdapters, runProviderToolTurn } from "@jini-ai/agent-runtime/providers/tool-turn";
+import { providerTurnAdapters, runProviderToolTurn, type ProviderToolTurnOptions } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 /** The four protocols `apps/admin/src/lib/execution-settings.ts`'s `ByokConfig.protocol` supports —
  *  re-declared here (not imported from `@jini-ai/ui`) so this module has no dependency on a UI
@@ -93,6 +93,10 @@ export interface ByokProviderTurnInput {
    *  (`@jini-ai/core`'s own "handlers never publicly retrievable" invariant, see that package's
    *  `tool-registry.ts` module doc). Mapped into each protocol's own tool-def shape below. */
   readonly tools: readonly ToolDescriptor[];
+  /** Read by Jini immediately before each request so descriptions become callable in this turn. */
+  readonly getToolSnapshot?: ProviderToolTurnOptions["getToolSnapshot"];
+  /** Value-free strict-prefer diagnostics; unsupported schemas still use host validation. */
+  readonly onSchemaFallback?: ProviderToolTurnOptions["onSchemaFallback"];
   readonly executeTool: ByokToolExecutor;
   readonly onEvent: (event: ByokTurnEvent) => void;
   readonly signal?: AbortSignal;
@@ -162,13 +166,15 @@ export interface ByokProviderTurnResult {
  * stop. Anthropic alone requires a max-token default when omitted, so the shared mapping supplies it.
  * Provider-internal fabricated-role-marker diagnostics are filtered because the client has no event case.
  *
- * @complexity Provider request/tool-loop cost dominates; descriptors are mapped once per turn and
+ * @complexity Provider request/tool-loop cost dominates; descriptors are refreshed before each request and
  * tool-result mapping is linear in content parts. Numeric-path discovery is linear in schema nodes;
  * coercion is proportional to path count and depth. Reference expansion is bounded by the hop cap.
  */
-export async function runByokProviderTurn(input: ByokProviderTurnInput): Promise<ByokProviderTurnResult> {
-  const { baseUrl, maxTokens, maxToolTurns, signal, ...required } = input;
+export async function runByokProviderTurn(input: ByokProviderTurnInput, _optional = {}): Promise<ByokProviderTurnResult> {
+  const { baseUrl, maxTokens, maxToolTurns, signal, getToolSnapshot, onSchemaFallback, ...required } = input;
   return runProviderToolTurn({ ...required, adapters: providerTurnAdapters }, {
+    ...(getToolSnapshot !== undefined ? { getToolSnapshot } : {}),
+    ...(onSchemaFallback !== undefined ? { onSchemaFallback } : {}),
     ...(baseUrl !== undefined ? { baseUrl } : {}),
     ...(maxTokens !== undefined ? { maxTokens } : {}),
     ...(maxToolTurns !== undefined ? { maxToolTurns } : {}),
