@@ -104,6 +104,8 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'component-catalog': 'UI component inventory is site-agnostic.',
   'admin-screen-link': 'Links refer to the active admin UI.',
   'external-mcp-reauth': 'Reauthentication belongs to the active UI and credentials.',
+  consent: 'Consent readiness diagnoses the active site middleware and deploy gate; peer composition supplies no consent service.',
+  'theme-preview-switcher': 'The switcher syncs the active installation\'s theme roster from its themes directory.',
 };
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */

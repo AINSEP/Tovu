@@ -1,6 +1,6 @@
 /** Folder and bundled input contracts for the existing gated Agent Plugin install tool. */
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -133,10 +133,17 @@ test("L025b bundled source pins malformed ids, extra keys and failed seeding", a
     await assert.rejects(() => f.install.handler(context({ source }), {}), { message: "Bundled source requires only kind:'bundled' and a bundledId; no path or attachmentRef." });
   }
   await writePackage(path.join(f.sourceRoot, "ui-ux-design"), "ui-ux-design");
-  // Discovery accepts the manifest; extraction must still refuse its symbolic link.
   await symlink(path.join(f.sourceRoot, "ui-ux-design", "plugin.json"), path.join(f.sourceRoot, "ui-ux-design", "link"));
+  // why: the bundled source archive skips (never follows) symlinks by contract, so seeding fails via an
+  // unreadable activation record instead; discovery still accepts the manifest.
+  await mkdir(f.workspaceRoot, { recursive: true });
+  await writeFile(path.join(f.workspaceRoot, "activations.json"), "{");
   await assert.rejects(() => f.install.handler(context(bundledInput), {}), /could not be installed:/);
   assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+  await unlink(path.join(f.workspaceRoot, "activations.json"));
+  await f.install.handler(context(bundledInput), {});
+  const [installed] = await listInstalledPlugins(f.workspaceRoot);
+  assert.deepEqual(await readdir(installed!.packageRoot), ["plugin.json"], "the symbolic link is skipped, never followed into the package");
 });
 
 test("L025b identical uploads preserve an undetermined activation as null", async t => {

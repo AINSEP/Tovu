@@ -151,7 +151,9 @@ test("L041 closed tool inputs retain source shapes, selectors and setup diagnost
   }
   await assert.rejects(set.handler(execution({ ...input, dryRun: "yes" })), { message: "dryRun must be a boolean." });
   for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_list_targets", "deployment_ops_wait", "deployment_ops_deploy"]) {
-    await assert.rejects(tools.get(id)!.handler(execution({ platform: "fly", target: "shop", unexpected: true })), { message: "Unexpected deployment ops input 'unexpected'." });
+    // why: list_targets never accepted `target` (its closed keys are platform/credentialLabel/org), so only the others send one.
+    const selector = id === "deployment_ops_list_targets" ? {} : { target: "shop" };
+    await assert.rejects(tools.get(id)!.handler(execution({ platform: "fly", ...selector, unexpected: true })), { message: "Unexpected deployment ops input 'unexpected'." });
   }
   const missing = await fixture([]);
   const status = buildDeployOpsRegistrations(missing.deps).find(tool => tool.descriptor.id === "deployment_ops_status")!;

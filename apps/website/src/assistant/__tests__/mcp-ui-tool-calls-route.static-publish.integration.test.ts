@@ -9,6 +9,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { applyToolApprovalPolicy } from "../tool-approval-policy.js";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { bindSiteConsentService } from "#src/server/runtime/composition/site-consent";
 import { buildStaticPublishRegistrations, type StaticPublishToolDeps } from "#src/features/deployments/publish-agent-tools";
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 import type { PublishCredentialSource } from "#src/features/deployments/static-publish/index";
@@ -78,10 +79,11 @@ function buildRealStaticPublishToolExecutor(
   options: { credentialSource?: PublishCredentialSource; captured?: { value: DeployFile[] | null } } = {},
 ) {
   const captured = options.captured ?? { value: null };
+  const routeDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true as const, reason: "matched" }), workspaceId: WORKSPACE_ID };
   const deps: StaticPublishToolDeps = {
-    ...createRouteDeps(),
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    workspaceId: WORKSPACE_ID,
+    ...routeDeps,
+    // why: the consent preflight (d2126748) authorizes through its own bound deps; bind it to this fixture's authorize.
+    siteConsent: bindSiteConsentService({ deps: routeDeps }),
     credentialSource: options.credentialSource ?? CONFIGURED_CREDENTIAL_SOURCE,
     buildTarget: () => fakeDeployTarget(captured),
     loadDeployTargets: loadBundledDeployTargets,
