@@ -127,3 +127,33 @@ describe("usePublishContentConfirm — primary action after the plan stops being
     expect(result.current.phase.kind).toBe("done");
   });
 });
+
+describe("usePublishContentConfirm — overwrite toggles and criteria results", () => {
+  const WITH_CONFLICT: PublishContentReport = {
+    refused: false,
+    refusalReason: null,
+    applyOrder: ["post"],
+    rows: [
+      { entityType: "post", entityId: "post-a", entityLabel: "post-a", outcome: "created", writes: true, reason: null },
+      { entityType: "post", entityId: "post-edited", entityLabel: "post-edited", outcome: "conflict", writes: false, reason: null, canOverwrite: true },
+    ],
+  } as PublishContentReport;
+
+  it("Overwrite all ticks every offered row, and a second press clears them again", async () => {
+    const { result } = await planned(createFakePublishContentPort({ peers: [peer], report: WITH_CONFLICT }));
+    expect(result.current.overwriteOfferKeys.size).toBeGreaterThan(0);
+    act(() => result.current.onToggleAllOverwrite());
+    await waitFor(() => expect(result.current.allOverwriteTicked).toBe(true));
+    act(() => result.current.onToggleAllOverwrite());
+    await waitFor(() => expect(result.current.overwriteKeys.size).toBe(0));
+  });
+
+  it("reports a criteria plan's left-alone row that came back with no reason", async () => {
+    const onPlanned = vi.fn();
+    const port = createFakePublishContentPort({ peers: [peer], report: WITH_CONFLICT });
+    renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, criteria: {}, onPlanned }));
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
+    const result = onPlanned.mock.calls[0]![0] as { leftAlone?: { label: string; reason: string }[] };
+    expect(JSON.stringify(result)).toMatch(/"label":"post-edited","reason":"[^"]+"/);
+  });
+});
