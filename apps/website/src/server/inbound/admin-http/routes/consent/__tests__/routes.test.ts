@@ -5,7 +5,8 @@ import test from 'node:test';
 import express from 'express';
 import { registerAdminConsentRoutes } from '../routes.js';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { startTestServer, loginAsBarePrincipal, bootAuthenticated } from '#src/server/__tests__/helpers/http-test-server';
+import { startTestServer, loginAsBarePrincipal, bootAuthenticated, createCapturingResponse } from '#src/server/__tests__/helpers/http-test-server';
+import { lastRouteHandler } from '#src/server/__tests__/helpers/last-route-handler';
 import { createApp, createRouteDeps } from '#src/server/runtime/composition/app';
 
 const cases = [
@@ -100,4 +101,18 @@ test('publish without a draft id is a 400 naming the missing draft, and nothing 
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { code: 'CONSENT_VALIDATION_FAILED', error: 'draftId must name a saved draft.' });
   assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});
+
+test('a hand-built request with no :workspaceId is 404 before authorization (direct invoke)', async t => {
+  const f = consentFixture({ t }); const app = express();
+  let authorized = 0;
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: async () => { authorized++; return { allowed: true, reason: 'matched' }; } }, service: f.service });
+  const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/consent/settings');
+  const { res, capture } = createCapturingResponse();
+  const headers: Record<string, string> = {};
+  Object.assign(res, { set: (name: string, value: string) => { headers[name] = value; return res; } });
+  await handler({ params: {} }, res);
+  assert.equal(headers['Cache-Control'], 'no-store');
+  assert.deepEqual({ statusCode: capture.statusCode, jsonBody: capture.jsonBody }, { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
+  assert.equal(authorized, 0);
 });

@@ -14,7 +14,8 @@ import { registerAdminMediaUploadRoute } from '../upload.js';
 import { registerAdminMediaWhereUsedRoute } from '../where-used.js';
 import { EgressRefusedError } from '#src/platform/http/index';
 import { MAX_DOCUMENT_BYTES } from '@jini-ai/cms/media';
-import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { createCapturingResponse, startTestServer } from '#src/server/__tests__/helpers/http-test-server';
+import { lastRouteHandler } from '#src/server/__tests__/helpers/last-route-handler';
 import { WS, BASE, INTERNAL, allowed, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
@@ -267,4 +268,20 @@ test('media usage: unknown asset is 404 and no reference information is queried'
   });
   assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/where-used`), { status: 404, body: { error: 'media was not found' } });
   assert.equal(queries, 0);
+});
+
+test('media usage (direct invoke): missing :workspaceId 404s and a missing :mediaId is looked up as "", never "undefined"', async () => {
+  const lookedUp: string[] = [];
+  const { app } = fixture((app, deps) => registerAdminMediaWhereUsedRoute({ app, deps }), {
+    mediaRepo: { findById: async ({ id }: { id: string }) => { lookedUp.push(id); return null; } },
+  });
+  const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used');
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {} }, noWorkspace.res);
+  assert.deepEqual(noWorkspace.capture, { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
+  const noMedia = createCapturingResponse();
+  noMedia.res.locals.principal = { id: 'owner' };
+  await handler({ params: { workspaceId: WS } }, noMedia.res);
+  assert.deepEqual(noMedia.capture, { statusCode: 404, jsonBody: { error: 'media was not found' } });
+  assert.deepEqual(lookedUp, ['']);
 });
