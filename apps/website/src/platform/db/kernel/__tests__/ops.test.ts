@@ -11,7 +11,8 @@ import { closeSqliteConnection, openSqliteFileKernel, sqliteKernel } from "../dr
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { OWNER_LOCK_FILE, startPgliteOwner } from "../drivers/pglite-owner.js";
 import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
-import { StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
+import { openPostgresKernel } from "../drivers/postgres.js";
+import { copyServedPgliteTo, StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
 import type { StorageKernel } from "../port.js";
 
 /**
@@ -175,4 +176,52 @@ test("PGlite socket client: copyTo goes through the owner's exclusive window, an
   assert.equal(fs.existsSync(path.join(dataDir, OWNER_LOCK_FILE)), false);
   assert.equal(await countT(target), 30);
   assert.equal(fs.existsSync(path.join(target, OWNER_LOCK_FILE)), false);
+});
+
+test("PGlite socket client: copyTo inside a transaction surfaces the outside-transaction refusal unchanged", async () => {
+  const owner = await startPgliteOwner({ dataDir: path.join(tmp, "owned-tx") }, { socketDir: fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ops-")) });
+  const client = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
+  try {
+    await assert.rejects(client.transaction(async () => storageOps(client).copyTo(path.join(tmp, "never-tx"))), (err: unknown) => {
+      assert.ok(!(err instanceof StorageOpNotSupportedError));
+      assert.equal((err as Error).message, "storage op copyTo must be called outside a transaction");
+      return true;
+    });
+  } finally {
+    await client.close();
+    await owner.close();
+  }
+});
+
+test("copyServedPgliteTo restores a served owner's rows into a new data dir without its owner lock", async () => {
+  const owner = await startPgliteOwner({ dataDir: path.join(tmp, "served") }, { socketDir: fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ops-")) });
+  const client = openPgliteSocketKernel<unknown>({ socketPath: owner.socketPath });
+  const target = path.join(tmp, "served-copy");
+  try {
+    await seedPg(client, 12);
+    await copyServedPgliteTo(owner, target);
+    await assert.rejects(copyServedPgliteTo(owner, target), /already exists/);
+  } finally {
+    await client.close();
+    await owner.close();
+  }
+  assert.equal(await countT(target), 12);
+  assert.equal(fs.existsSync(path.join(target, OWNER_LOCK_FILE)), false);
+});
+
+test("Postgres copyTo is refused with the provider-backup guidance before any connection is opened", async () => {
+  // Port 1 on loopback is never a Postgres server: the refusal must not need one.
+  const kernel = openPostgresKernel<unknown>({ connectionString: ["postgres://nobody", "127.0.0.1:1/none"].join("@") });
+  try {
+    await assert.rejects(storageOps(kernel).copyTo(path.join(tmp, "never-pg")), (err: unknown) => {
+      assert.ok(err instanceof StorageOpNotSupportedError);
+      assert.equal(
+        err.message,
+        "storage op copyTo is not supported on the node-postgres driver: a Postgres site is backed up by its provider; use the move/transfer tools to copy it"
+      );
+      return true;
+    });
+  } finally {
+    await kernel.close();
+  }
 });
