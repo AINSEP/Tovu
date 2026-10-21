@@ -596,3 +596,17 @@ for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${too
   await assert.rejects(f.call(toolId, input), /consent_update_settings|consent_publish_settings/);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
 });
+
+test("a host's extra denied namespace is refused, and with no injected writer the host settings chokepoint stores the value", async () => {
+  const f = fixture("core.site", "title");
+  const { set: _injected, ...withoutWriter } = f.deps;
+  const deps = { ...withoutWriter, extraDeniedSettings: [{ namespace: "core.locked", reason: "Locked by the host for this test." }] } as SettingsToolDeps;
+  const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges: f.surfaceExchanges });
+  const handler = (toolId: string, input: Record<string, unknown>) =>
+    registrations.find((r) => r.descriptor.id === toolId)!.handler({ executionId: "exec-2", principal: { id: "caller" }, run: { id: "run-2" }, signal: new AbortController().signal, input }, {});
+
+  await assert.rejects(handler("settings_set_value", { namespace: "core.locked", key: "anything", value: "x" }),
+    (error: Error) => error.message.includes("Locked by the host for this test."));
+  assert.deepEqual(await handler("settings_set_value", { namespace: "core.site", key: "title", value: "  Trimmed title  " }),
+    { key: "core.site.title", scope: "workspace", previous: null, value: "Trimmed title", revisionSeq: 1 });
+});

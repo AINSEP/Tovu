@@ -338,3 +338,39 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
     assert.deepEqual(await writeDeps.repo.findById({ workspaceId: WORKSPACE_ID, id: seed.id }), before);
   }
 });
+
+test("precheck() names a malformed natural key instead of validating fields", async () => {
+  const handler = contributeRedirectPublish().build(makePublishDeps(makeWriteDeps()));
+  const reason = await handler.precheck(packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }));
+  assert.match(reason ?? "", /no-colon/);
+  assert.match(reason ?? "", /matchType:fromPattern/);
+});
+
+test("apply() refuses a malformed natural key loudly before any write", async () => {
+  const writeDeps = makeWriteDeps();
+  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+  await assert.rejects(
+    () => handler.apply({ entity: packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }),
+      expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "idem-bad" }),
+    /malformed natural key 'no-colon'/,
+  );
+  assert.deepEqual(await writeDeps.repo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
+test("apply() updating a row from a bundle with no status keeps the redirect active", async () => {
+  const writeDeps = makeWriteDeps();
+  const { record: seed } = await createRedirect({
+    deps: writeDeps,
+    input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/old-faq", toTarget: "/faq", statusCode: 301, actorId: ACTOR_ID },
+  });
+  const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
+
+  await handler.apply({
+    entity: packedEntity("exact:/old-faq", { matchType: "exact", fromPattern: "/old-faq", toTarget: "/help", statusCode: 301, override: false, priority: 0 }),
+    expectedVersion: seed.version, principalId: "operator-1", idempotencyKey: "idem-nostatus",
+  });
+
+  const landed = await writeDeps.repo.findById({ workspaceId: WORKSPACE_ID, id: seed.id });
+  assert.equal(landed?.toTarget, "/help");
+  assert.equal(landed?.status, "active");
+});

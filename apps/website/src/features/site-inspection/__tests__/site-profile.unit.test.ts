@@ -508,3 +508,13 @@ test("theme switches are visible immediately and the obsolete boot mirror is nev
   assert.equal(after.sections.theme?.data?.activeThemeId, "new-theme");
   assert.equal(after.sections.settings?.data?.some(row => row.namespace === "core.presentation"), false);
 });
+
+test("site profile: a site with no configured theme id reports no active theme and is not themeless", async () => {
+  const unset: SiteProfileDeps = { ...makeDeps(), readActiveThemeId: async () => null };
+
+  const profile = await buildSiteProfile(unset, { principalId: PRINCIPAL_ID }, { sections: ["theme"] });
+
+  assert.equal(profile.sections.theme?.data?.activeThemeId, null);
+  assert.equal(profile.sections.theme?.data?.active, null);
+  assert.equal(profile.sections.theme?.data?.themeDisabled, false);
+});

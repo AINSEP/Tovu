@@ -312,3 +312,18 @@ test("an authorization-service rejection affects only its section and performs n
   assert.equal(result.completeness, "partial");
   assert.equal(JSON.stringify(result).includes("PRIVATE_AUTH_SERVICE_FAILURE"), false);
 });
+
+test("summarizeToolDescription: one enormous token is cut mid-word at the cap", () => {
+  const token = "x".repeat(MAX_TOOL_SUMMARY_CHARS * 2);
+  assert.equal(summarizeToolDescription(`Run ${token}.`), `${`Run ${token}`.slice(0, MAX_TOOL_SUMMARY_CHARS - 1)}…`);
+});
+
+test("tools section: rows sharing one id stay listed side by side in a stable sorted domain", async () => {
+  const rows = [
+    { id: "site_b", source: "site", description: "Second." },
+    { id: "site_a", source: "site", description: "First copy." },
+    { id: "site_a", source: "site", description: "First again." },
+  ];
+  const result = await buildSiteCapabilities(makeDeps({ tools: rows }), { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
+  assert.deepEqual(result.sections.tools?.data?.domains[0]?.tools.map((tool) => tool.id), ["site_a", "site_a", "site_b"]);
+});

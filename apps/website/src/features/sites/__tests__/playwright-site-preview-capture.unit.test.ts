@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
 
-import { createPlaywrightSitePreviewCapture, type PreviewBrowser, type PreviewBrowserLauncher } from "../site-preview/playwright-site-preview-capture.js";
+import { createPlaywrightSitePreviewCapture, createSitePreviewCaptureForHost, type PreviewBrowser, type PreviewBrowserLauncher } from "../site-preview/playwright-site-preview-capture.js";
 import { importPlaywrightChromium } from "../../../platform/headless-browser/lazy-browser.js";
 import { playwrightModuleLoader } from "../../../platform/headless-browser/playwright-loader.js";
 
@@ -119,4 +119,45 @@ test("a missing browser is a null capture and close does not throw; the next dra
     "[site-preview] could not capture http://localhost:3101/: Executable doesn't exist",
     "[site-preview] could not capture http://localhost:3101/: Executable doesn't exist",
   ]);
+});
+
+test("with no injected launcher the adapter launches Chromium from the host module loader with the loopback-only flags", async t => {
+  const { launcher, calls } = fakeLauncher();
+  const load = t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium: launcher }));
+  const port = createPlaywrightSitePreviewCapture({}, { resize: async ({ width }) => Buffer.from(`jpeg:${width}`), log: () => assert.fail("no failure expected") });
+
+  assert.equal((await port.capture({ url: "https://localhost:3101/" }))?.toString(), "jpeg:640");
+  await port.close();
+
+  assert.equal(load.mock.callCount(), 1);
+  assert.equal(calls[0], "launch:true:--no-sandbox --disable-dev-shm-usage");
+  assert.equal(calls.at(-1), "browser-close");
+});
+
+test("a host with no desktop render bridge configured captures through headless Chromium", async () => {
+  const { launcher, calls } = fakeLauncher();
+  const port = createSitePreviewCaptureForHost({}, { env: {}, loadLauncher: async () => launcher, resize: async () => Buffer.from("jpeg") });
+
+  assert.equal((await port.capture({ url: "https://localhost:3102/" }))?.toString(), "jpeg");
+  assert.ok(calls.includes("goto:https://localhost:3102/:load:15000"), "the Chromium page loaded the site");
+  await port.close();
+  assert.equal(calls.at(-1), "browser-close");
+});
+
+test("a native capture failure with no injected logger warns on the console", async t => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const port = createSitePreviewCaptureForHost({}, { capture: { async captureUrl() { throw new Error("bridge down"); } } });
+  assert.equal(await port.capture({ url: "http://127.0.0.1:4200/" }), null);
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [["[site-preview] native capture failed"]]);
+});
+
+test("a native capture with no injected resize stores a 640px JPEG via Sharp", async () => {
+  const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: "#336699" } }).png().toBuffer();
+  const port = createSitePreviewCaptureForHost({}, { capture: { async captureUrl(input) {
+    return { png, finalUrl: input.url, title: "", status: null, pageHeight: 800, capturedHeight: 800, blockedRequests: 0 };
+  } } });
+  const jpeg = await port.capture({ url: "http://127.0.0.1:4200/" });
+  assert.ok(jpeg);
+  const meta = await sharp(jpeg).metadata();
+  assert.deepEqual({ format: meta.format, width: meta.width }, { format: "jpeg", width: 640 });
 });

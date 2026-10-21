@@ -249,3 +249,35 @@ test("parsePublishContentToolInput rejects a non-boolean overwrite with the exac
     /^Error: admin\.publish_content: 'overwrite' must be a boolean$/
   );
 });
+
+test("items match a row's source names, and excludeItems deselects a row the other criteria matched", () => {
+  const [about, contact] = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" }),
+      row({ outcome: "created", entityType: "page", entityId: "p-2", entityLabel: "Contact" }),
+    ])
+  );
+  const rows = [{ ...about!, names: ["About us", "about-us"] }, { ...contact!, names: ["Contact"] }];
+
+  const byName = applyPublishCriteria(rows, { items: ["ABOUT-US"] });
+  assert.deepEqual([...byName.deselectedKeys], ["page:p-2"]);
+  assert.deepEqual(byName.unmatchedItems, []);
+
+  const excluded = applyPublishCriteria(rows, { types: ["pages"], excludeItems: ["contact"] });
+  assert.deepEqual([...excluded.deselectedKeys], ["page:p-2"]);
+});
+
+test("items also match an exact entity id or row key, and a blank item matches nothing", () => {
+  const rows = toPublishReportRows(
+    report([
+      row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" }),
+      row({ outcome: "created", entityType: "page", entityId: "p-2", entityLabel: "Contact" }),
+      row({ outcome: "created", entityType: "page", entityId: "p-3", entityLabel: "Team" }),
+    ])
+  );
+
+  const selection = applyPublishCriteria(rows, { items: ["p-1", "page:p-2", "   "] });
+
+  assert.deepEqual([...selection.deselectedKeys], ["page:p-3"]);
+  assert.deepEqual(selection.unmatchedItems, ["   "]);
+});

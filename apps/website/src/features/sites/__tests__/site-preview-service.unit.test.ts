@@ -111,3 +111,24 @@ test("read delegates to the store", () => {
   assert.equal(f.service.read({ name: "alpha" })?.toString(), "img:alpha");
   assert.equal(f.service.read({ name: "beta" }), null);
 });
+
+test("default options: the drain runs off the request path on its own, and a capture that throws still closes the browser and settles idle()", async () => {
+  const attempts: string[] = [];
+  let closes = 0;
+  const store: SitePreviewStore = { version: () => null, read: () => null, write: () => assert.fail("a thrown capture writes nothing") };
+  const capture: SitePreviewCapturePort = {
+    capture: async ({ url }) => { attempts.push(url); throw new Error("browser crashed"); },
+    close: async () => { closes += 1; },
+  };
+  const service = createSitePreviewService({ store, capture });
+
+  assert.deepEqual(service.versions({ sites: SITES, targets: [ALPHA] }), {});
+  assert.deepEqual(attempts, [], "nothing is captured synchronously");
+  await service.idle();
+  assert.deepEqual(attempts, [ALPHA.url]);
+  assert.equal(closes, 1);
+
+  service.versions({ sites: SITES, targets: [ALPHA] });
+  await service.idle();
+  assert.deepEqual(attempts, [ALPHA.url, ALPHA.url], "a thrown capture is not recorded as a failure, so the next listing retries it");
+});

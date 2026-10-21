@@ -101,3 +101,23 @@ test("canonical aliases bind the chat axis while registered unrelated settings b
   await f.deps.settingsRepo.saveDefinition({ ...definition, settingId: "other", namespace: "core.other" });
   assert.equal(await prepareChatExecutionWrite({ ...f, request: { ...f.request, namespace: "core.other" } }), null);
 });
+
+test("a chat axis with no registered definition reads as empty in the bound snapshot", async () => {
+  const f = fixture();
+  const reasoning = await f.deps.settingsRepo.findActiveDefinition({ namespace: "core.execution", key: "localCli.reasoning", workspaceId: null });
+  assert.ok(reasoning);
+  await f.deps.settingsRepo.saveDefinition({ ...reasoning, status: "tombstone" });
+  assert.equal(await prepareChatExecutionWrite(f), JSON.stringify({
+    previous: ["fixture", "", ""], selection: { agentId: "fixture", modelId: "model-a", effort: "" }, resolvedDefaultModel: null,
+  }));
+});
+
+test("clearing an axis whose inherited default is null binds it as empty", async () => {
+  const f = fixture();
+  const model = await f.deps.settingsRepo.findActiveDefinition({ namespace: "core.execution", key: "localCli.model", workspaceId: null });
+  assert.ok(model);
+  await f.deps.settingsRepo.saveDefinition({ ...model, defaultValue: null });
+  assert.equal(await prepareChatExecutionWrite({ ...f, request: { ...f.request, toolId: "settings_clear_value" } }), JSON.stringify({
+    previous: ["fixture", "", ""], selection: { agentId: "fixture", modelId: "", effort: "" }, resolvedDefaultModel: "model-a",
+  }));
+});

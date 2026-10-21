@@ -91,3 +91,25 @@ for (const adapter of ["memory", "sqlite"] as const) {
     assert.equal(await repo.findById({ workspaceId: "workspace-a", id: "missing" }), null);
   });
 }
+
+test("status of a run with no change sets, report or progress yet decodes to empty lists and a null report", async () => {
+  const repo = new InMemoryPublishContentRunRepo();
+  await repo.save(record({ phase: "planned" }));
+  const status = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  assert.deepEqual(
+    { changeSetIds: status?.changeSetIds, retiredChangeSetIds: status?.retiredChangeSetIds, report: status?.report, items: status?.items },
+    { changeSetIds: [], retiredChangeSetIds: [], report: null, items: [] },
+  );
+});
+
+test("status ignores JSON columns that are not arrays and change-set ids that are not strings", async () => {
+  const repo = new InMemoryPublishContentRunRepo();
+  await repo.save(record({ changeSetIdsJson: '{"cs":"not-a-list"}', itemsJson: '{"phase":"pending"}' }));
+  const notArrays = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  assert.deepEqual(notArrays?.changeSetIds, []);
+  assert.deepEqual(notArrays?.items, []);
+
+  await repo.save(record({ changeSetIdsJson: '["cs-1", 7, null, "cs-2"]' }));
+  const mixed = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  assert.deepEqual(mixed?.changeSetIds, ["cs-1", "cs-2"]);
+});

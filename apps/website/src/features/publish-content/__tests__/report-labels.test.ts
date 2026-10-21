@@ -295,3 +295,29 @@ test("L163 included rows preserve malformed and ordinary values while filtering 
   const odd = { details: { rows: null } };
   assert.equal(keepChangingIncludedEntities(odd, included), odd);
 });
+
+test("labelPeerPlanRows passes malformed rows and id-less rows through untouched", () => {
+  const malformed = [null, 42, "row", ["row"]];
+  const idless = { outcome: "created", writes: true };
+  const plan = planWith([...malformed, idless, { entityType: "post", entityId: "p1", outcome: "created" }]);
+
+  const rows = rowsOf(labelPeerPlanRows(plan, ENTITIES));
+
+  assert.deepEqual(rows.slice(0, 5), [...malformed, idless]);
+  assert.equal(rows[5]?.entityLabel, "spring-sale");
+  const notRows = { details: { rows: "not rows" } };
+  assert.equal(labelPeerPlanRows(notRows, ENTITIES), notRows);
+});
+
+test("tagTrashingRows leaves malformed rows and id-less update rows alone", () => {
+  const entities = [entity({ entityType: "media", id: "gone", state: { slug: "gone", status: "trashed" } })];
+  const malformed = [null, 42];
+  const idless = { outcome: "applied", writes: true };
+  const plan = planWith([...malformed, idless, { entityType: "media", entityId: "gone", outcome: "applied" }]);
+
+  const rows = rowsOf(tagTrashingRows(plan, entities));
+
+  assert.deepEqual(rows.slice(0, 3), [...malformed, idless]);
+  assert.equal(rows[3]?.trashes, true);
+  assert.equal(tagTrashingRows(plan, ENTITIES), plan, "nothing trashed locally: the plan is returned as-is");
+});

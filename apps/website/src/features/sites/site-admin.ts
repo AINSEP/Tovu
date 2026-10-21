@@ -244,9 +244,9 @@ export interface ActivateSiteResult {
   restarting?: boolean;
 }
 
-/** Whether to fire the restart, and if not, why (so the person is told the real reason). */
+/** Whether to fire the restart, and if not, why (so the person is told the real reason). Only
+ *  called once `activateSite` has seen `restartNow`, so no "not asked to restart" case lives here. */
 function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartPort | null | undefined): { restart: boolean; note?: string } {
-  if (!required.restartNow) return { restart: false };
   if (devRestart?.canSwitchSite === false) return { restart: false };
   if (required.dirOverridden) {
     return { restart: false, note: " Not restarting: TOVU_SITE_DIR is set, so a restart would come back on the same site — unset it first." };
