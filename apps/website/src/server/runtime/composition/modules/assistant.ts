@@ -72,7 +72,7 @@ import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
-import type { DurableRun } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunHead } from "#src/assistant/durable-runs/ports";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
@@ -182,7 +182,7 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
   await relayResponse(upstream, req, res);
 }
 
-async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRun | null> {
+async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRunHead | null> {
   const store = deps.chatRunLedger.durable;
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
