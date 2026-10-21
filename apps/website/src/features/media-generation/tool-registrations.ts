@@ -31,7 +31,7 @@ import {
 } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
-import { buildMediaGenerationAgentToolCatalog, imageModelIdsFrom } from "./agent-tools.js";
+import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFrom } from "./agent-tools.js";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for
@@ -324,7 +324,10 @@ interface GeneratedMediaView {
 
 export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
   const registry = routeDeps.mediaProviderRegistry;
-  const imageModelIds = imageModelIdsFrom({ catalog: registry });
+  // Construction may run over metadata-only deps (catalog/approval checks build every domain with a
+  // bare fake); the published enum then falls back to the built-in projection. Every composition
+  // root supplies the registry, and the handler always reads it.
+  const imageModelIds = registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
   const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds }) });
   const handlers: Record<string, ToolHandler> = {
     media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView } | { generated: false; message: string; credentialSetup: ToolFailureDiagnostic }> => {

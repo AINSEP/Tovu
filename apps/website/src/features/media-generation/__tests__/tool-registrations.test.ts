@@ -29,7 +29,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeMediaGenerationTools } from "../tool-registrations.js";
+import { buildMediaGenerationRegistrations, contributeMediaGenerationTools, type MediaGenerationToolDeps } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
 import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
@@ -705,4 +705,11 @@ test("a plugin vendor with no saved credential gets the same credential-setup di
   assert.equal(result.generated, false);
   assert.match(result.message, /no Acme Media media-provider credential/);
   assert.equal(fixture.generateCalls.length, 0);
+});
+
+test("construction over metadata-only deps (no registry) publishes the built-in enum", () => {
+  const { mediaProviderRegistry: _omitted, ...bare } = fakeRouteDeps().deps as unknown as Record<string, unknown>;
+  const registration = buildMediaGenerationRegistrations(bare as unknown as MediaGenerationToolDeps).find((r) => r.descriptor.id === "media_generate_asset");
+  assert.ok(registration);
+  assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
 });

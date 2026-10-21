@@ -246,7 +246,7 @@ function isKnownProviderId(providerId: string, catalog: MediaProviderIdCatalog |
   return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId(providerId, catalog);
 }
 
-function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog | undefined } = {}): void {
+function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
   rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
   if (!isKnownProviderId(providerId, catalog)) {
     throw new MediaProviderCredentialValidationError(
