@@ -61,3 +61,13 @@ test("visitorsafe: raw and circular diagnostics stay operator-only without trunc
   assert.match(logs.at(-1)!.diagnostic, /full operator reason/);
   assert.match(logs.at(-1)!.diagnostic, /Circular/);
 });
+
+test("visitorsafe: an Error without a stack still logs its message for operators", () => {
+  const logs: SiteAssistantErrorLogEntry[] = [];
+  const report = createSiteAssistantErrorReporter({ ids: { newId: () => "error-nostack" }, log: entry => logs.push(entry), redact: redactSecrets });
+  const diagnostic = new Error("upstream refused the request");
+  diagnostic.stack = undefined;
+  const error = report({ code: "provider_error", diagnostic });
+  assert.equal(error.errorId, "error-nostack");
+  assert.deepEqual(logs, [{ code: "provider_error", errorId: "error-nostack", diagnostic: "upstream refused the request" }]);
+});

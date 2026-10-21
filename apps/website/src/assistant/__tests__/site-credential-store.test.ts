@@ -215,6 +215,21 @@ test("a missing site key fails CLOSED with a distinct error, and writes nothing"
   assert.equal(await repo.findByWorkspaceId(WORKSPACE), null);
 });
 
+test("a non-Error seal failure still fails CLOSED and names the thrown value", async () => {
+  const { repo } = makeDeps();
+  const stringThrowingKeyring = new BrokenKeyring();
+  stringThrowingKeyring.activeKey = async () => { throw "keyring offline"; };
+  stringThrowingKeyring.derive = async () => { throw "keyring offline"; };
+  const sealer = new AesGcmSecretSealer(stringThrowingKeyring);
+
+  await assert.rejects(
+    () => setSiteAssistantCredential({ repo, sealer, keyring: stringThrowingKeyring, clock }, { workspaceId: WORKSPACE, apiKey: "would-be-a-real-key" }),
+    (error: unknown) => error instanceof SiteAssistantSecretStoreUnconfiguredError &&
+      error.message === "site assistant secret store is unconfigured: keyring offline",
+  );
+  assert.equal(await repo.findByWorkspaceId(WORKSPACE), null);
+});
+
 // ---------------------------------------------------------------------------
 // deleteSiteAssistantCredential
 // ---------------------------------------------------------------------------
