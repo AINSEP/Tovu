@@ -148,10 +148,11 @@ export const adminScreenLinkDerivedRisk: DerivedRiskByToolId = new Map<string, A
 /** The slice of the process environment this tool reads; injected so tests never touch `process.env`. */
 export type AdminScreenLinkEnv = Readonly<Record<string, string | undefined>>;
 
-/** Optional collaborators for {@link buildAdminScreenLinkRegistrations}. */
-export interface AdminScreenLinkOptions {
-  /** Environment to read `TOVU_PUBLIC_URL` from; defaults to `process.env`. */
-  readonly env?: AdminScreenLinkEnv;
+/** This tool's own slice of the assistant tool-deps bag (`AssistantToolRegistryDeps` in
+ *  `tool-registrations.ts` — the composition contract every domain builder receives). */
+export interface AdminScreenLinkToolDeps {
+  /** Environment to read `TOVU_PUBLIC_URL` from; unset means the live `process.env`. */
+  readonly adminScreenLinkEnv?: AdminScreenLinkEnv;
 }
 
 const CATALOG_BY_ID = new Map(adminScreenLinkAgentToolCatalog.map((entry) => [entry.name, entry]));
@@ -219,23 +220,17 @@ function resolveConfiguredPublicOrigin(env: AdminScreenLinkEnv): string | undefi
  * Builds `assistant_admin_screen_link`'s `ToolRegistration` — see this file's header for the tool's
  * whole design.
  *
- * `_routeDeps`/`_surfaces` are unused, matching `component-catalog-tool.ts`'s identical placeholder:
- * this tool needs neither a workspace-scoped dependency bag (it touches no store) nor a live surface
- * channel (it never opens an exchange) — both parameters exist only to satisfy `ToolContributor.build`'s
- * shared signature (`tool-registrations.ts`).
- *
- * `options.env` is the environment port `TOVU_PUBLIC_URL` is read from at call time; it defaults to
- * the live `process.env` (the composition edge), and a test passes a plain record instead.
+ * This tool needs no workspace-scoped store and no live surface channel (it never opens an
+ * exchange), so it declares only `ToolContributor.build`'s first parameter (`tool-registrations.ts`)
+ * and reads one field from it: `adminScreenLinkEnv`, the environment port `TOVU_PUBLIC_URL` is read
+ * from at call time. The composition root leaves it unset, meaning the live `process.env`; a test
+ * passes a plain record instead.
  *
  * @complexity O(1) to build; the handler's own cost is {@link buildAdminScreenPath}'s.
  * @overallScore 100
  */
-export function buildAdminScreenLinkRegistrations(
-  _routeDeps: unknown,
-  _surfaces: unknown,
-  options: AdminScreenLinkOptions = {},
-): ToolRegistration[] {
-  const env = options.env ?? process.env;
+export function buildAdminScreenLinkRegistrations(routeDeps: AdminScreenLinkToolDeps): ToolRegistration[] {
+  const env = routeDeps.adminScreenLinkEnv ?? process.env;
   const handlers: Record<string, ToolHandler> = {
     [ADMIN_SCREEN_LINK_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });

@@ -27,7 +27,7 @@ import { ADMIN_SCREEN_LINK_TOOL_ID, buildAdminScreenLinkRegistrations, buildAdmi
  */
 
 function buildHandler(): ToolRegistration["handler"] {
-  const registrations: ToolRegistration[] = buildAdminScreenLinkRegistrations(undefined, undefined);
+  const registrations: ToolRegistration[] = buildAdminScreenLinkRegistrations({});
   const registration = registrations.find((r) => r.descriptor.id === ADMIN_SCREEN_LINK_TOOL_ID);
   assert.ok(registration, "the tool must be wired");
   return registration.handler;
@@ -131,7 +131,7 @@ test('the tool normalizes a public origin with a trailing slash', async (t) => {
 
 // The env port: every TOVU_PUBLIC_URL shape is supplied as a plain record, never via process.env.
 function buildHandlerWithEnv(env: Readonly<Record<string, string | undefined>>): ToolRegistration["handler"] {
-  const registration = buildAdminScreenLinkRegistrations(undefined, undefined, { env })
+  const registration = buildAdminScreenLinkRegistrations({ adminScreenLinkEnv: env })
     .find((r) => r.descriptor.id === ADMIN_SCREEN_LINK_TOOL_ID);
   assert.ok(registration, "the tool must be wired");
   return registration.handler;
