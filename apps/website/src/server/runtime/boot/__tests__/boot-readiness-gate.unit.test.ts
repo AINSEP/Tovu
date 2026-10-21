@@ -124,3 +124,28 @@ test("the boot gate warns, without refusing, for a deployed local-mode boot and 
   assert.doesNotMatch(production.stderr, /looks deployed/);
   assert.doesNotMatch(production.stderr, /7a7a7a/);
 });
+
+test("the boot gate prints the local owner sign-in refusal, and production with no admin password set refuses on the default owner password", (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-owner-"));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
+  const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
+  const run = (overrides: NodeJS.ProcessEnv) => {
+    const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, HOME: cwd, ...overrides };
+    for (const name of ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "TOVU_DEV_OWNER_SIGNIN", "TOVU_DESKTOP_OWNER_SIGNIN", "TOVU_DESKTOP_OWNER_PID"]) if (!(name in overrides)) delete env[name];
+    return spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
+  };
+
+  const deployedDevSignIn = run({ NODE_ENV: "production", TOVU_DEV_OWNER_SIGNIN: "1" });
+  assert.equal(deployedDevSignIn.error, undefined);
+  assert.equal(deployedDevSignIn.status, 0, deployedDevSignIn.stderr);
+  assert.match(deployedDevSignIn.stdout, /gate-passed/);
+  assert.match(deployedDevSignIn.stderr, /\[local-owner-signin\] WARNING: TOVU_DEV_OWNER_SIGNIN is disabled: /);
+
+  const defaultPassword = run({ TOVU_RUNTIME_MODE: "production", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed", TOVU_SITE_KEY: "7a".repeat(32) });
+  assert.equal(defaultPassword.error, undefined);
+  assert.equal(defaultPassword.status, 1, defaultPassword.stderr);
+  assert.match(defaultPassword.stderr, /default-owner-password/);
+  assert.match(defaultPassword.stderr, /Refusing to boot in production mode/);
+  assert.doesNotMatch(defaultPassword.stdout, /gate-passed/);
+});

@@ -12,6 +12,7 @@ import type { AddressInfo } from "node:net";
 import { after, afterEach, before, test } from "node:test";
 
 import express from "express";
+import { ApiConnectionError } from "@jini-ai/integrations/api-connections";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -20,7 +21,7 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import type { ApiConnectionHost } from "#src/features/api-connections/host";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "#src/features/api-connections/vault-stores";
-import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
+import { ACME_FIXTURE_ROOT, ACME_PLUGIN, ACME_WORKSPACE, connectHosted, startAcmeHarness, type AcmeHarness } from "#src/features/api-connections/__tests__/support/acme-harness";
 import { API_CONNECTION_BINDING_COOKIE } from "#src/features/api-connections/browser-binding";
 import { API_CONNECTION_CALLBACK_MESSAGE_TYPE, registerApiConnectionOAuthCallbackRoute } from "../oauth-callback.js";
 
@@ -254,4 +255,29 @@ test("security (F1): a callback that never reaches a known attempt leaves the bi
   harness.makeHost();
   const page = await get(callbackAt(harness.siteOrigin, { state: "unknown-state", code: "c" }), { cookie: `${API_CONNECTION_BINDING_COOKIE}=abc` });
   assert.deepEqual({ status: page.status, reason: reasonOf(page.html), setCookie: page.setCookie }, { status: 400, reason: "state_expired", setCookie: [] });
+});
+
+test("failures: switching to the account that is already connected renders account_unchanged, not a retryable exchange failure", async () => {
+  const logs: string[] = [];
+  const host = harness.makeHost({ logs });
+  const { connection } = await connectHosted(harness, host);
+  const switching = await host.serviceFor({ connection }).start({ workspaceId: ACME_WORKSPACE, actorId: "admin-1", intent: "switch-account", scopeSetIds: [], redirectUri: host.hostedCallbackUrl({ connection }) });
+  const page = await get(harness.consentRedirect(switching.authorizationUrl));
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html), cacheControl: page.cacheControl }, { status: 400, reason: "account_unchanged", cacheControl: "no-store" });
+  assert.deepEqual(logs, ["api-connection oauth callback failed: ApiConnectionError account-unchanged"]);
+});
+
+test("failures: an API-connection error with any other code still renders exchange_failed, logging only its code", async () => {
+  const logs: string[] = [];
+  let fail = false;
+  const loader: LoadPluginContributions = (input) => loadPluginContributionsFromSource({ plugin: { pluginId: ACME_PLUGIN, packageRoot: ACME_FIXTURE_ROOT }, definition: input.definition });
+  const host = harness.makeHost({ logs, loadContributions: async (input, options) => {
+    if (fail) { fail = false; throw new ApiConnectionError({ code: "configuration-invalid", message: "provider text that must not be logged" }); }
+    return loader(input, options);
+  } });
+  const start = await startHosted(host);
+  fail = true;
+  const page = await get(harness.consentRedirect(start.authorizationUrl));
+  assert.deepEqual({ status: page.status, reason: reasonOf(page.html) }, { status: 400, reason: "exchange_failed" });
+  assert.deepEqual(logs, ["api-connection oauth callback failed: ApiConnectionError configuration-invalid"]);
 });

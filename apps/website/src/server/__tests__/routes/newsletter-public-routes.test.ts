@@ -344,3 +344,42 @@ test("CONFIRM_SUBSCRIPTION: bound consent grants, consumes the token and persist
   assert.equal(confirmations.length, 1);
   assert.deepEqual(await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId }), persisted);
 });
+
+test("both public routes treat a missing or repeated token query as an invalid link (400 HTML), not a crash", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+  await deps.newsletterReady;
+
+  for (const path of ["/newsletter/confirm", "/newsletter/confirm?token=a&token=b", "/newsletter/unsubscribe", "/newsletter/unsubscribe?token=a&token=b"]) {
+    const res = await fetch(`${baseUrl}${path}`);
+    assert.equal(res.status, 400, path);
+    assert.match(res.headers.get("content-type") ?? "", /html/, path);
+    assert.match(await res.text(), /invalid/i, path);
+  }
+});
+
+test("UNSUBSCRIBE: an unexpected storage failure behind a validly signed token renders the generic 500 page", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+  await deps.newsletterReady;
+  const { listId, subscriberId, consentRevisionId } = await seedConfirmedSubscription(deps);
+  const url = await buildUnsubscribeLink({
+    deps: {
+      subscriptionRepo: deps.newsletterSubscriptionRepo,
+      keyring: deps.newsletterKeyring,
+      originRegistry: deps.originRegistry,
+      consentCapability: deps.membersConsentCapability,
+      clock: deps.clock,
+    },
+    claims: { workspaceId: deps.workspaceId, subscriberId, listId, campaignId: null, consentRevisionId },
+  });
+  const token = new URL(url).searchParams.get("token") ?? "";
+  t.mock.method(deps.newsletterSubscriptionRepo, "findBySubscriberAndList", async () => { throw new Error("storage offline"); });
+
+  const res = await fetch(`${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`);
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /html/);
+  const body = await res.text();
+  assert.match(body, /Unexpected server error/);
+  assert.doesNotMatch(body, /storage offline/);
+});

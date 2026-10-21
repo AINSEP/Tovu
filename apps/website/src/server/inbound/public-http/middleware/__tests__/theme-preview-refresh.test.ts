@@ -285,3 +285,98 @@ test("theme asset requests never touch the roster", async (t) => {
   await request("/theme-assets/editorial-rose/styles.css");
   assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
+
+test("a roster sync failure is handed to next(error) on the public path and on the authenticated preview path", () => {
+  const boom = new Error("roster unreadable");
+  const handler = createThemePreviewMiddleware({ authenticate: (_req, _res, next) => next(), syncThemes: () => { throw boom; } });
+  const publicErrors: unknown[] = [];
+  handler({ query: {}, path: "/" } as never, {} as never, (error?: unknown) => { publicErrors.push(error); });
+  assert.deepEqual(publicErrors, [boom]);
+  const previewErrors: unknown[] = [];
+  handler({ query: { __tovu_preview: "rev-2" }, path: "/" } as never, { locals: {} } as never, (error?: unknown) => { previewErrors.push(error); });
+  assert.deepEqual(previewErrors, [boom]);
+});
+
+test("an authentication error is passed on without syncing themes or remembering the revision", () => {
+  const denied = new Error("session expired");
+  const remembered: string[] = [];
+  const handler = createThemePreviewMiddleware({
+    authenticate: (_req, _res, next) => next(denied),
+    syncThemes: () => assert.fail("must not sync for a failed authentication"),
+    rememberRevision: ({ revision }) => { remembered.push(revision); },
+  });
+  const errors: unknown[] = [];
+  handler({ query: { __tovu_preview: "rev-3" }, path: "/" } as never, {} as never, (error?: unknown) => { errors.push(error); });
+  assert.deepEqual(errors, [denied]);
+  assert.deepEqual(remembered, []);
+});
+
+test("an authenticated preview asset request remembers the revision, skips the roster and sends asset bodies unrewritten but uncached", () => {
+  const headers: Record<string, string> = {};
+  const sent: unknown[] = [];
+  const res: { locals?: Record<string, unknown>; set: (k: string, v: string) => unknown; send: (body: unknown) => unknown } = {
+    set: (k, v) => { headers[k] = v; return res; },
+    send: (body) => { sent.push(body); return res; },
+  };
+  const remembered: string[] = [];
+  const handler = createThemePreviewMiddleware({
+    authenticate: (_req, _res, next) => next(),
+    syncThemes: () => assert.fail("asset requests never touch the roster"),
+    rememberRevision: ({ revision }) => { remembered.push(revision); },
+  });
+  const bytes = Buffer.from("binary");
+  handler({ query: { __tovu_preview: "rev-4" }, path: "/theme-assets/test/css/theme.css" } as never, res as never, () => {
+    res.send('@import "/theme-assets/test/css/base.css";');
+    res.send(bytes);
+  });
+  assert.deepEqual(remembered, ["rev-4"]);
+  assert.equal(res.locals?.themePreviewRevision, "rev-4");
+  assert.equal(headers["Cache-Control"], "no-store");
+  assert.deepEqual(sent, ['@import "/theme-assets/test/css/base.css";', bytes]);
+});
+
+test("preview reload writes a fresh refresh frame, and a themes path that cannot hold the marker answers 500", async (t) => {
+  const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
+  const ok = createCapturingResponse();
+  ok.res.locals.principal = { id: "owner" };
+  await reload({ params: { workspaceId: "ws" } }, ok.res);
+  assert.equal(ok.capture.statusCode, 200);
+  assert.equal(typeof (ok.capture.jsonBody as { revision?: unknown }).revision, "string");
+  assert.equal(fs.existsSync(path.join(themesDir, ".preview-refresh.json")), true);
+
+  const blocker = path.join(themesDir, "not-a-directory");
+  fs.writeFileSync(blocker, "file");
+  (deps as { themesDir: string }).themesDir = blocker;
+  const failed = createCapturingResponse();
+  failed.res.locals.principal = { id: "owner" };
+  await reload({ params: { workspaceId: "ws" } }, failed.res);
+  assert.equal(failed.capture.statusCode, 500);
+  assert.deepEqual(failed.capture.jsonBody, { error: "preview reload failed" });
+});
+
+test("registered refresh remembers only the 512 most recent authenticated preview revisions, and never an anonymous one", async (t) => {
+  const { createRouteDeps } = await import("#src/server/runtime/composition/app");
+  const { registerAuthRoutes } = await import("#src/server/inbound/admin-http/dev-auth");
+  const { bootAuthenticated } = await import("#src/server/__tests__/helpers/http-test-server");
+  const { registerThemePreviewRefresh } = await import("../theme-preview-refresh.js");
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  const wasAuthenticated = registerThemePreviewRefresh({ app, deps });
+  app.get("/preview-probe", (_req, res) => { res.send("ok"); });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const anonymous = await fetch(`${baseUrl}/preview-probe?__tovu_preview=anon-rev`);
+  assert.equal(anonymous.status, 401);
+  assert.equal(wasAuthenticated({ revision: "anon-rev" }), false);
+
+  for (let i = 0; i <= 512; i++) {
+    const res = await fetch(`${baseUrl}/preview-probe?__tovu_preview=rev-${i}`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    await res.arrayBuffer();
+  }
+  assert.equal(wasAuthenticated({ revision: "rev-0" }), false, "the oldest revision is evicted past 512");
+  assert.equal(wasAuthenticated({ revision: "rev-1" }), true);
+  assert.equal(wasAuthenticated({ revision: "rev-512" }), true);
+});

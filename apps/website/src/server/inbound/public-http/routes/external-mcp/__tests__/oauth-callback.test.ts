@@ -6,7 +6,7 @@ import express from "express";
 import { ExternalMcpValidationError, type ExternalMcpOAuthService } from "#src/assistant/index";
 import { OAuthError } from "@jini-ai/oauth";
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "../oauth-callback.js";
 
 /**
@@ -308,4 +308,44 @@ test("callback IP budgets stay independent after another client exhausts its all
     }
   }
   assert.equal(exchanges, 0, "no state means no outbound exchange, even below the limit");
+});
+
+test("route-param guard: a handler reached without a :serverId param forwards an empty server id instead of the string \"undefined\"", async (t) => {
+  const seen: Array<{ serverId: string; redirectUri: string }> = [];
+  const routed = buildApp({
+    oauth: fakeOAuthService(async (input) => {
+      seen.push({ serverId: input.serverId, redirectUri: input.redirectUri });
+      throw new ExternalMcpValidationError("no such server");
+    }),
+    callbackLimiter: fixedRateLimiter({ allowed: true }),
+  });
+  const handler = extractRouteHandler(routed, "get", "/api/mcp-servers/oauth/callback/:serverId");
+  const bare = express();
+  bare.get("/no-param", handler as express.RequestHandler);
+  const errors = t.mock.method(console, "error", () => {});
+  const baseUrl = await startTestServer(bare, t);
+  const response = await fetch(`${baseUrl}/no-param?state=s&code=c`);
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(extractPostMessagePayload(await response.text()), { type: "tovu:external-mcp-connected", reason: "server_unknown" });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]!.serverId, "");
+  assert.match(seen[0]!.redirectUri, /\/api\/mcp-servers\/oauth\/callback\/$/);
+  assert.equal(errors.mock.callCount(), 1);
+});
+
+test("a non-Error rejection is logged by its string form and still renders the generic exchange_failed page", async (t) => {
+  const deps: ExternalMcpOAuthCallbackRouteDeps = {
+    oauth: fakeOAuthService(async () => {
+      throw "socket hang up";
+    }),
+    callbackLimiter: fixedRateLimiter({ allowed: true }),
+  };
+  const errors = t.mock.method(console, "error", () => {});
+  const baseUrl = await startTestServer(buildApp(deps), t);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c`);
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(extractPostMessagePayload(await response.text()), { type: "tovu:external-mcp-connected", reason: "exchange_failed" });
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [["external-mcp oauth callback failed: socket hang up"]]);
 });
