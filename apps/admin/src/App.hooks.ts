@@ -259,15 +259,21 @@ export function useAdminSession(_required: Record<string, never> = {}, {
  * and a second `requestPublish` call would supersede the first's promise for no reason (see
  * `publish-request.store.ts`'s own header on why a superseded request is resolved, not dropped).
  *
+ * @param optional.request - The publish-request port; defaults to the store's `requestPublish`. Tests
+ *   pass a recorder to count calls.
  * @complexity O(1): one `useEffect`, one `useRef`, no state of its own.
  */
-export function usePublishCriteriaDeepLink(): void {
+export function usePublishCriteriaDeepLink(
+  _required: Record<string, never> = {},
+  { request = requestPublish }: { request?: (criteria: PublishCriteria) => unknown } = {},
+): void {
   const handledRef = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per mount by design (see above); a new `request` identity must not re-run it.
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
     const criteria = takePublishCriteriaFromQuery(window.location, window.history);
-    if (criteria !== null) void requestPublish(criteria);
+    if (criteria !== null) void request(criteria);
   }, []);
 }
 

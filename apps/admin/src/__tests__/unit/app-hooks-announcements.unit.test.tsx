@@ -49,10 +49,15 @@ it("usePublishCriteriaDeepLink opens exactly one publish request, even under Str
     return usePublishRequest();
   }, { wrapper });
   expect(result.current?.criteria).toEqual({ types: ["page", "menu"] });
-  const first = result.current?.requestId;
-  // A second request would have superseded the first under a new id.
-  expect(result.current?.requestId).toBe(first);
   expect(window.location.search).toBe("");
+});
+
+it("usePublishCriteriaDeepLink calls requestPublish exactly once with the link's criteria under Strict Mode", () => {
+  window.history.replaceState(null, "", `/admin/?publish=${encodePublishCriteriaToQuery({ types: ["page", "menu"] })}`);
+  const requested: unknown[] = [];
+  const wrapper = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>;
+  renderHook(() => usePublishCriteriaDeepLink({}, { request: (criteria) => requested.push(criteria) }), { wrapper });
+  expect(requested).toEqual([{ types: ["page", "menu"] }]);
 });
 
 it("usePublishCriteriaDeepLink opens nothing without a ?publish= param", () => {
