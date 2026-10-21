@@ -145,6 +145,8 @@ test("terminal consent refuses a non-interactive input without asking", async ()
 });
 
 test("CLI install without --yes or an injected confirm refuses on a non-interactive stdin, writing the warning to stdout", async (t) => {
+  // Skip before any setup: starting the installer on a TTY would leave its promise running unawaited and could open a real consent prompt.
+  if (process.stdin.isTTY) { t.skip("stdin is a terminal here; the non-interactive refusal cannot be observed"); return; }
   const root = await mkdtemp(path.join(tmpdir(), "plugin-cli-noninteractive-")); t.after(() => rm(root, { recursive: true, force: true }));
   const sourceDir = path.join(root, "source"); const installDir = path.join(root, "plugins");
   await mkdir(path.join(sourceDir, "server"), { recursive: true });
@@ -159,7 +161,6 @@ test("CLI install without --yes or an injected confirm refuses on a non-interact
     open: async () => ({ deps: { ...pluginHostBinding, installDir, builtInIds: [], repo, conflicts: async () => [] }, close: async () => { closed++; } }),
   });
   try {
-    if (process.stdin.isTTY) { t.skip("stdin is a terminal here; the non-interactive refusal cannot be observed"); return; }
     await assert.rejects(task, { code: "PLUGIN_CONSENT_REQUIRED" });
   } finally { t.mock.restoreAll(); }
   assert.equal(closed, 1);
