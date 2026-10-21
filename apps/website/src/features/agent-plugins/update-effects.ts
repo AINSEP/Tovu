@@ -48,7 +48,9 @@ export function createAgentPluginUpdateEffects(
  *  @complexity O(1). */
 export function requireUpdateMcpDeps({ deps }: { deps: UpdateMcpHostDeps }, _optional: Record<string, never> = {}): UpdateMcpDeps {
   const { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged } = deps;
-  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer || !siteAssistantSecretKeyring || !notifyExternalMcpRosterChanged) throw new Error("Agent Plugin update is unavailable: the host did not bind its MCP provisioning.");
+  const unbound = () => new Error("Agent Plugin update is unavailable: the host did not bind its MCP provisioning.");
+  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer) throw unbound();
+  if (!siteAssistantSecretKeyring || !notifyExternalMcpRosterChanged) throw unbound();
   return { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged };
 }
 
