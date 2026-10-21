@@ -646,6 +646,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an interrupted update waiting for boot recovery 
     const response = await patch(baseUrl, cookie, "pending-plugin", { enabled: false });
     assert.equal(response.status, 409);
     assert.deepEqual(await response.json(), { code: "PLUGIN_UPDATE_PENDING", error: "Restart the host to recover the interrupted update." });
+  });
 });
 
 /**
