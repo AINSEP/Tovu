@@ -238,6 +238,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    "consent",
     "settings-ui-locales",
     // 2026-09-21: `site_backup_plan`/`site_backup_push` (`features/site-backup`).
     "site-backup",
@@ -263,6 +264,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // (F7b S6, e6d6963f0) â€” each its own domain key, registered right after `themes` (this list is
     // registration order, not alphabetical).
     "theme-set-active",
+    "theme-preview-switcher",
     // 2026-10-08: `theme_duplicate` â€” own domain key, registered right after `theme-set-active`.
     "theme-duplicate",
     // 2026-10-08: `theme_import_file_from_url` â€” own domain key, registered right after `theme-duplicate`.

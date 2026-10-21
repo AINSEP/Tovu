@@ -83,6 +83,7 @@ import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-theme-tool.js";
+import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
 import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
@@ -233,6 +234,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   post: postAgentToolCatalog as unknown as AgentToolDefinition[],
   themes: getThemesAgentToolCatalog() as unknown as AgentToolDefinition[],
   "theme-set-active": setActiveThemeAgentToolCatalog as unknown as AgentToolDefinition[],
+  "theme-preview-switcher": previewSwitcherAgentToolCatalog as unknown as AgentToolDefinition[],
   "theme-duplicate": duplicateThemeAgentToolCatalog as unknown as AgentToolDefinition[],
   "theme-import-file": importThemeFileAgentToolCatalog as unknown as AgentToolDefinition[],
   "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
@@ -381,7 +383,7 @@ test("every wired registration publishes the inputSchema from its catalog entry 
   }
 });
 
-test("every content_read card preserves all member tools' published input properties", () => {
+test("every content_read card preserves member inputs through published properties or canonical selector aliases", async () => {
   const cards = registrationsById();
   const members = new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), options: { includeContentReadCollapse: false, contributions } })
     .map((registration) => [registration.descriptor.id, registration]));
@@ -393,7 +395,13 @@ test("every content_read card preserves all member tools' published input proper
     const memberSchema = member.descriptor.inputSchema as { properties: Record<string, unknown> };
     const cardSchema = card.descriptor.inputSchema as { properties: Record<string, unknown> };
     for (const property of Object.keys(memberSchema.properties)) {
-      assert.ok(Object.hasOwn(cardSchema.properties, property), `${cardId} dropped ${memberId}'s '${property}' input`);
+      if (Object.hasOwn(cardSchema.properties, property)) continue;
+      // N2 publishes only `id`; the declared ingress normalizer must keep each legacy selector reachable.
+      assert.ok(Object.hasOwn(cardSchema.properties, "id"), `${cardId} dropped ${memberId}'s '${property}' input without a canonical id`);
+      assert.ok(card.normalizeInput, `${cardId} must declare an ingress alias for ${memberId}'s '${property}' input`);
+      const selector = "contract-selector";
+      const normalized = await card.normalizeInput({ input: { [property]: selector } }, {});
+      assert.deepEqual(normalized.input, { id: selector }, `${cardId} dropped ${memberId}'s '${property}' input instead of mapping it to id`);
     }
   }
 });
