@@ -103,6 +103,7 @@ import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/regi
 import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -2124,6 +2125,10 @@ async function composeSiteRouteDeps(
   });
 
   // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
+  // Media-generation vendors (built-in + Agent Plugin contributed), built ONCE here — see
+  // `features/media-generation/media-provider-registry.ts`. A refused plugin vendor is logged, never fatal.
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
+  for (const refusal of mediaProviders.refusals) console.error(`[media-providers] ${refusal}`);
   const guardedOutboundHttpClient = createGuardedMediaHttpClient({
       ...createNodeGuardedHttpPorts({}),
       userAgent: "Tovu/0.1.0",
@@ -2652,6 +2657,7 @@ async function composeSiteRouteDeps(
     mediaImportHttpClient,
     ...(outboundTestOrigins.length > 0 ? { outboundTestOrigins } : {}),
     mediaGenerationHttpClient: guardedOutboundHttpClient,
+    mediaProviderRegistry: mediaProviders.registry,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).

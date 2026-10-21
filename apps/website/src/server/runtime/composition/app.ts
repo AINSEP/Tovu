@@ -354,6 +354,7 @@ import type { RouteDeps } from "../../routes/types.js";
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import type { Express } from "express";
 import type { ServerModuleHandle } from "./modules/types.js";
+import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1627,6 +1628,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `routes/types.ts`'s `mediaImportHttpClient` doc for why the two policies cannot be shared.
     mediaImportHttpClient: createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY),
     mediaGenerationHttpClient: guardedOutboundHttpClient,
+    // Built-in vendors only: this hermetic root reads no plugin modules at construction (same rule as
+    // the plugin seams above); `deps.ts` adds plugin vendors via `loadMediaProviderRegistry`.
+    mediaProviderRegistry: createMediaProviderRegistry(),
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is
