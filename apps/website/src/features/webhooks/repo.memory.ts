@@ -211,7 +211,9 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
       )
       .sort((a, b) => {
         if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
-        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+        // Rows are keyed by (workspaceId, id) and filtered to one workspace, so two compared rows
+        // never share an id: the tie-break is strictly descending and needs no equal-id arm.
+        return a.id < b.id ? 1 : -1;
       })
       .slice(0, required.limit);
   }

@@ -27,14 +27,18 @@ export const workspaceDerivedRisk: DerivedRiskByToolId = new Map([...sharedWorks
 /**
  * Adds the v1 list projection by calling Jini's current-workspace read, including its permission gate.
  * @param deps - Jini workspace ports, bound to the served workspace.
- * @param _optional - Reserved host options.
+ * @param optional - `buildShared` swaps the Jini registration builder (defaults to `@jini-ai/cms/workspace`'s).
  * @returns Shared registrations plus the host's list of addressable workspaces.
- * @throws Existing read-owner failures unchanged; ToolInputError for another workspace id.
+ * @throws Error when the shared builder registers no `workspace_get` read owner;
+ * existing read-owner failures unchanged; ToolInputError for another workspace id.
  * @complexity O(t) wiring for t shared tools; each read uses one existing repository lookup.
  * @example buildWorkspaceRegistrations({ workspaceId: "ws", authorize, workspaceRepo })
  */
-export function buildWorkspaceRegistrations(deps: WorkspaceToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
-  const shared = buildSharedWorkspaceRegistrations(deps);
+export function buildWorkspaceRegistrations(
+  deps: WorkspaceToolDeps,
+  { buildShared = buildSharedWorkspaceRegistrations }: { buildShared?: (deps: WorkspaceToolDeps) => ToolRegistration[] } = {},
+): ToolRegistration[] {
+  const shared = buildShared(deps);
   const get = shared.find(registration => registration.descriptor.id === "workspace_get");
   if (!get) throw new Error("workspace read owner is not registered");
   /** Preserves the existing permission/read owner, translating only its known missing-row refusal. */

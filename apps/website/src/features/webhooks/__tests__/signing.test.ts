@@ -87,3 +87,10 @@ test("verifySignature rejects a malformed header", () => {
     false
   );
 });
+
+test("signPayload stamps the current wall-clock second when no timestampSeconds is supplied", () => {
+  const header = signPayload({ secret, rawBody });
+
+  assert.equal(header, signPayload({ secret, rawBody, timestampSeconds }));
+  assert.equal(verifySignature({ secret, rawBody, header, toleranceSeconds: 0 }), true);
+});

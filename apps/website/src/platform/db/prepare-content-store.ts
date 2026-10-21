@@ -21,7 +21,7 @@ type AnyTables = Record<string, AnyRow>;
  * driver mapping (boolean mode → 0/1, json mode → text). Keys the table has no column for are
  * dropped, as Drizzle drops them. Columns left out take their SQL default.
  */
-function columnRow(table: Table, value: object): AnyRow {
+export function columnRow(table: Table, value: object): AnyRow {
   const row: AnyRow = {};
   for (const [key, column] of Object.entries(getTableColumns(table))) {
     let field = (value as AnyRow)[key];
