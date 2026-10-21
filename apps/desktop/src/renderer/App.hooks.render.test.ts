@@ -346,6 +346,16 @@ test('useProjectMutations: the ready notice is withdrawn once the created site s
   assert.equal(hook.current().lastCreated, null, 'the site it names is gone, so the notice goes too');
 });
 
+test('useProjectMutations: a caller that passes no project list never has the notice withdrawn under it', async (t) => {
+  const getBridge = () => ({ createSite: async () => CREATED, deleteSite: async () => {} });
+  const hook = renderHook(t, () => useProjectsWith([], (setProjects) => useProjectMutations({
+    setProjects, closeProjectTab: () => {}, stopCreating: () => {}, startCreating: () => {},
+  }, { getBridge })));
+  await act(() => hook.current().handleCreate(INPUT));
+  await act(() => hook.current().handleDelete('new'));
+  assert.equal(hook.current().lastCreated, CREATED, 'without `projects` there is nothing to check the notice against');
+});
+
 // ── useExpandedMode ─────────────────────────────────────────────────────────────────────────────
 
 test('useExpandedMode: toggles, collapses on Escape only, and never outlives the workspace it immerses', (t) => {
@@ -958,4 +968,39 @@ test('useCreateWebsiteForm: with the credential inputs unmounted a SQLite site s
   await settle();
   assert.deepEqual(created, [{ displayName: 'Blog', database: { kind: 'sqlite' } }]);
   assert.equal(hook.current().formError, null);
+});
+
+// ── the default bridge lookup ───────────────────────────────────────────────────────────────────
+
+test('with the default lookup and no preload (`window.tovuRunner` unset) every bridge-reading hook stays inert', async (t) => {
+  assert.equal((window as { tovuRunner?: unknown }).tovuRunner, undefined);
+  const calls: string[] = [];
+  const hook = renderHook(t, () => {
+    const polling = useSitesPolling();
+    const rescan = useSiteRescan(polling.setProjects);
+    const tabs = useProjectTabs();
+    const nav = useSectionNav(tabs.setActiveTab);
+    useRunnerNavigation(nav.setActiveId, tabs.setActiveTab);
+    const mutations = useProjectMutations({
+      setProjects: polling.setProjects, closeProjectTab: () => calls.push('close'),
+      stopCreating: () => calls.push('stop'), startCreating: () => calls.push('start'),
+    });
+    const start = useSiteStart(site('a'));
+    const load = useWebviewLoadFailure(0);
+    const transport = useWorkspaceChatTransport();
+    const conversations = useRunnerConversations();
+    return { polling, rescan, mutations, start, load, transport, conversations };
+  });
+  await settle();
+  const value = hook.current();
+  assert.deepEqual([value.polling.projectsLoading, value.polling.projects], [false, []]);
+  await act(() => value.rescan.rescan());
+  assert.equal(hook.current().rescan.rescanning, false);
+  await assert.rejects(value.mutations.handleCreate(INPUT), /Runner desktop connection required/);
+  assert.equal(await act(() => hook.current().start.start()), false);
+  assert.equal(hook.current().start.error, 'Tovu desktop connection required to start a website.');
+  assert.equal(hook.current().transport.transport, undefined);
+  assert.deepEqual(hook.current().conversations.conversations, []);
+  assert.equal(hook.current().load.failed, false);
+  assert.deepEqual(calls, []);
 });
