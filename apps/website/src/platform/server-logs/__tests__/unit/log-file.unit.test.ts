@@ -219,9 +219,8 @@ test("an empty current file contributes nothing and leaves the whole byte budget
   assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 2 }), [entry(1), entry(2)]);
 });
 
-test("a byte budget that starts exactly on a line boundary still drops that whole first line (reported, not fixed)", () => {
+test("a byte budget that starts exactly on a line boundary retains that whole first line", () => {
   const mem = memoryFs();
   mem.files.set("/l/server.log", [1, 2, 3].map(seq => `${JSON.stringify(entry(seq))}\n`).join(""));
-  // Entry 2 is fully inside the 2-line budget, but the reader always treats an over-budget tail's first line as torn.
-  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 2 }), [entry(3)]);
+  assert.deepEqual(readLogFileTail({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 2 }), [entry(2), entry(3)]);
 });

@@ -111,13 +111,11 @@ test("write reports a moved destination row as a conflict", async () => {
     err.rowOutcome === "conflict" && err.message === "media 'm1' changed on the destination during apply: expected version 2, found version 3");
 });
 
-test("write crashes with a TypeError, not a typed block, on forged packed state with no source (reported, not fixed)", async () => {
-  // The `?? ""` fallbacks reach `importMediaEntity`, whose missing-blob message then reads
-  // `record.source.sha256` of an undefined source. A forged bundle fails its row untyped.
+test("write returns a typed block on forged packed state with no source", async () => {
   const { handler } = await fixture({ staged: false });
   const { source: _source, ...sourceless } = photo();
-  await assert.rejects(apply(handler, sourceless), (err: unknown) => err instanceof TypeError &&
-    err.message === "Cannot read properties of undefined (reading 'sha256')");
+  await assert.rejects(apply(handler, sourceless), blocked("blocked:precondition",
+    "media 'm1' cannot be applied — missing or malformed media source"));
 });
 
 // --- validate (precheck) -------------------------------------------------------------------------

@@ -163,13 +163,10 @@ test("credential-shaped bytes anywhere in the projected database refuse with SEC
   await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("SECRET_IN_CONTENT", "Share refused: 'database/content.db' contains credential-shaped content. Remove the secret before sharing."));
 });
 
-// The byte scan needs a word boundary: SQLite stores a record's text columns back to back, so a
-// token that opens a column right after another text column ("ws" + "ghp_...") is not detected.
-test("a credential glued to the previous column's text is not detected by the final byte scan (reported, not fixed)", async t => {
+test("a credential glued to the previous column's text is refused by the projected-value scan", async t => {
   const { sql } = sourceDb(t);
   sql.prepare("UPDATE workspaces SET name = ?").run("ghp_" + "x".repeat(36));
-  const { rows } = await share(t, sql);
-  assert.equal(rows("workspaces")[0]?.name, "ghp_" + "x".repeat(36));
+  await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("SECRET_IN_CONTENT", "Share refused: 'database/content.db' contains credential-shaped content. Remove the secret before sharing."));
 });
 
 // ---------------------------------------------------------------- copyTable: trusted schema

@@ -81,9 +81,9 @@ test("publish update invalidates cached compatibility only when worksFor changes
 });
 
 
-test("account-label healing failure returns 500 after saving and logs the raw error (reported, not fixed)", async t => {
+test("account-label healing failure returns 500 after saving and logs only a safe code", async t => {
   const f = await fixture({ accountLabel: "fixture-account" });
-  const failure = new Error("database detail fixture");
+  const failure = new Error("provider token=private-token; email=private@example.test");
   t.mock.method(f.repo, "updateAccountLabel", async () => { throw failure; });
   const logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
@@ -92,5 +92,5 @@ test("account-label healing failure returns 500 after saving and logs the raw er
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
   });
   assert.equal((await f.resolve())?.connection.token, token);
-  assert.equal(logs[0]?.[1], failure);
+  assert.deepEqual(logs, [["[publish-credentials]", "INTERNAL_ERROR"]]);
 });

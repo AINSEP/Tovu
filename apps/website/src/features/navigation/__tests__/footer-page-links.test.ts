@@ -255,10 +255,10 @@ test("footer repair converts each repairable seed shape, recursing into children
   ] }));
 });
 
-test("an unlabelled item whose id is an Object.prototype key is treated as a seed (reported, not fixed)", async () => {
+test("an unlabelled item whose id is an Object.prototype key remains author-owned", async () => {
   const result = await repairOneSeedFooter([{ id: "constructor", target: { kind: "entryRef", entryId: "about-page" } }]);
-  assert.equal(result.converted, 1);
+  assert.equal(result.converted, 0);
   assert.equal(result.docJson, JSON.stringify({ type: "menu", version: 1, items: [
-    { id: "constructor", target: { kind: "entryRef", entryId: "about-page", entryType: "page", lastKnownHref: "/about" } },
+    { id: "constructor", target: { kind: "entryRef", entryId: "about-page" } },
   ] }));
 });

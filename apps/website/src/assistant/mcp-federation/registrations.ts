@@ -230,7 +230,7 @@ interface HostPolicyCall {
  * @returns `{ result }` to return instead of running (declined or abandoned), or `undefined` to run.
  * @throws ToolInputError `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL`, plus liveness/permission refusals.
  */
-async function askHostPolicy(call: HostPolicyCall): Promise<{ readonly result: unknown } | undefined> {
+async function askHostPolicy(call: HostPolicyCall, _options = {}): Promise<{ readonly result: unknown } | undefined> {
   const { ctx, options, args, admitted, config, deps, hostDeps, policy } = call;
   const sharedConfirmation = federatedCallConfirmationForAction({ remoteName: admitted.remoteName, annotations: admitted.declaredAnnotations, args });
   if (!policy.needsApproval({ name: admitted.remoteName, input: args }) || sharedConfirmation !== 'none') return undefined;
@@ -244,7 +244,7 @@ async function askHostPolicy(call: HostPolicyCall): Promise<{ readonly result: u
     remoteName: admitted.remoteName, arguments: structuredClone(args), destructive: true, approvalClass: policy.classify({ name: admitted.remoteName, input: args }),
     declaredAnnotations: admitted.declaredAnnotations, origin: config.origin,
     description: admitted.description, inputSchema: admitted.inputSchema,
-    writeShapedInputs: writeShapedInputNames({ args }),
+    writeShapedInputs: [...new Set([...admitted.writeShapedInputs, ...writeShapedInputNames({ args })])].sort(),
   });
   if (!outcome.confirmed) return { result: outcome.result };
   if (ctx.signal.aborted) return { result: { executed: false, cancelled: false, reason: 'abandoned' } };

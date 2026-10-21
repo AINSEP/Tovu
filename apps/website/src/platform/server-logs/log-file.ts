@@ -102,10 +102,9 @@ function isEntry(value: unknown): value is ServerLogEntry {
   return typeof e.seq === "number" && typeof e.at === "string" && typeof e.level === "string" && typeof e.source === "string" && typeof e.message === "string";
 }
 
-function parseLines(text: string, dropFirst: boolean): ServerLogEntry[] {
+/** Parses complete log entries, ignoring malformed fragments and torn lines. O(text length). */
+function parseLines({ text }: { text: string }, _options = {}): ServerLogEntry[] {
   const lines = text.split("\n");
-  // A tail read usually starts mid-line; that first fragment is not a whole entry.
-  if (dropFirst) lines.shift();
   const out: ServerLogEntry[] = [];
   for (const line of lines) {
     if (line === "") continue;
@@ -125,9 +124,9 @@ function parseLines(text: string, dropFirst: boolean): ServerLogEntry[] {
  * @returns The file's whole entries oldest first; empty when the file is absent or vanished before the read.
  * @complexity O(budget).
  */
-function readTailEntries(required: { io: LogFileFsPort; filePath: string; size: number | null; budget: number }): ServerLogEntry[] {
+function readTailEntries(required: { io: LogFileFsPort; filePath: string; size: number | null; budget: number }, _options = {}): ServerLogEntry[] {
   if (required.size === null) return [];
-  return parseLines(required.io.readTail(required.filePath, required.budget) ?? "", required.size > required.budget);
+  return parseLines({ text: required.io.readTail(required.filePath, required.budget) ?? "" });
 }
 
 /**

@@ -87,18 +87,21 @@ test("tool names are capped at 128 characters", () => {
   let deep: HtmlMenuItem = leaf({ label: "deep" });
   for (let level = 0; level < 40; level += 1) deep = leaf({ href: null, children: [deep] });
   const html = renderHtmlMenu({ id: "x".repeat(80), items: [deep], sanitizeHref: asAuthored });
-  const expected = `menu_${"x".repeat(64)}${"_0".repeat(29)}_`;
-  assert.equal(expected.length, 128);
-  assert.ok(html.includes(`data-toolname="${expected}" data-tooldescription="deep"`));
+  const names = [...html.matchAll(/data-toolname="([^"]*)"/g)].map(match => match[1]);
+  assert.equal(names.length, 1);
+  assert.equal(names[0]!.length, 128);
+  assert.match(html, /data-tooldescription="deep"/);
 });
 
-test("siblings past the 128-character cap share one tool name (reported, not fixed)", () => {
+test("siblings past the 128-character cap retain distinct stable tool names", () => {
   let deep: HtmlMenuItem = leaf({ href: null, children: [leaf({ label: "a" }), leaf({ label: "b" })] });
   for (let level = 0; level < 40; level += 1) deep = leaf({ href: null, children: [deep] });
   const html = renderHtmlMenu({ id: "x".repeat(80), items: [deep], sanitizeHref: asAuthored });
   const names = [...html.matchAll(/data-toolname="([^"]*)"/g)].map((match) => match[1]);
   assert.equal(names.length, 2);
-  assert.equal(names[0], names[1]);
+  assert.notEqual(names[0], names[1]);
+  assert.ok(names.every(name => name!.length === 128));
+  assert.equal(renderHtmlMenu({ id: "x".repeat(80), items: [deep], sanitizeHref: asAuthored }), html);
 });
 
 test("an empty item list renders an empty string", () => {

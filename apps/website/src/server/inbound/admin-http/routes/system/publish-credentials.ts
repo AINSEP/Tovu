@@ -128,7 +128,7 @@ function credentialUpdateFields({ body }: { body: Record<string, unknown> }, _op
  *  sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
  *  typed ones above still escaped every one of those handlers too. Every caller below now gets a
  *  real response for an error this function does not recognize, instead of a hung request. */
-function sendStoreError(res: Response, err: unknown): void {
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _options = {}): void {
   if (err instanceof PublishCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
     return;
@@ -145,7 +145,7 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  console.error("[publish-credentials] unexpected error", err);
+  console.error("[publish-credentials]", "INTERNAL_ERROR");
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
@@ -267,7 +267,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // narrow.
       void triggerAccountLabelHeal(credentials);
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   });
 
@@ -291,7 +291,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
       res.status(201).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   });
 
@@ -313,7 +313,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
       res.status(200).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   });
 
@@ -333,7 +333,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // it is NOT covered by the provider-probe layer's "never throws" guarantee). Mirrors the
       // `POST`/`PUT` handlers' identical `try { ... } catch (err) { sendStoreError(res, err); }`
       // shape just below/above — this route was the one place that pattern was missing.
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   });
 
@@ -350,7 +350,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       if (before) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
       res.status(204).end();
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   });
 }

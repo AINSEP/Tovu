@@ -222,6 +222,22 @@ function hasSecretShape(required: { text: string }, _options: Record<string, nev
   return redactSecretShapes({ text: required.text }).redactions > 0;
 }
 
+/**
+ * Scans projected text values separately from SQLite's concatenated record encoding.
+ * @throws SiteShareRefusal SECRET_IN_CONTENT without exposing a value, column or row.
+ * @complexity O(projected bytes) time; O(largest table) space, bounded by the snapshot cap.
+ */
+async function requireProjectedSecretFree({ target }: { target: Kernel }, _options = {}): Promise<void> {
+  for (const table of await listTables(target)) {
+    const rows = await target.run(db => db.selectFrom(table).selectAll().execute());
+    for (const row of rows) {
+      for (const value of Object.values(row)) {
+        if (typeof value === "string") requireShareSecretFree({ path: "database/content.db", bytes: Buffer.from(value) });
+      }
+    }
+  }
+}
+
 /** Only non-secret portable definitions/workspace values travel. Secret-bearing definitions/values are omitted, never rewritten. */
 async function copySettings(source: Kernel, target: Kernel): Promise<void> {
   const definitions = await source.run(db => db.selectFrom("setting_definitions").selectAll().where("secret", "=", 0).where("status", "=", "active").execute());
@@ -316,6 +332,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer }, opti
       ...await from.run(db => db.selectFrom("asset_renditions").select("storage_key as storageKey").execute()),
     ];
     const excludedBlobKeys = [...new Set(sourceMedia.map(row => String(row.storageKey)).filter(key => !retainedKeys.has(key)))];
+    await requireProjectedSecretFree({ target });
     const bytes = sqliteClientOf(fresh).serialize();
     requireShareSecretFree({ path: "database/content.db", bytes });
     return { bytes, media, documents, excludedBlobKeys };

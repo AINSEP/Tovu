@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** JINI CANDIDATE: framework-free rendering; the host supplies its URL policy as a port. */
@@ -28,11 +29,15 @@ function isSiteRelative(href: string): boolean {
   return href !== "" && !SCHEME_OR_AUTHORITY.test(href) && !UNSAFE_HREF_CHARACTER.test(href);
 }
 
-function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }): string {
-  // Only site-relative navigation is advertised. The browser rechecks origin
-  // against its actual base URL before executing; external links remain ordinary links.
+/**
+ * Advertises site-relative links with bounded names retaining the full path's identity.
+ * The browser rechecks origin against its actual base URL before executing a navigation tool.
+ * External links remain ordinary links. Pure; returns escaped HTML attributes. O(toolName length).
+ */
+function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }, _options = {}): string {
+  const name = toolName.length <= 128 ? toolName : `${toolName.slice(0, 63)}_${createHash("sha256").update(toolName).digest("hex")}`;
   return isSiteRelative(href)
-    ? ` data-toolname="${escapeHtml(toolName.slice(0, 128))}" data-tooldescription="${escapeHtml(label)}"` : "";
+    ? ` data-toolname="${escapeHtml(name)}" data-tooldescription="${escapeHtml(label)}"` : "";
 }
 
 function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): string {

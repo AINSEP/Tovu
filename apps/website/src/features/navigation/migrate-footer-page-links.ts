@@ -20,7 +20,8 @@ type StoredTarget = NavItemNode["target"] & { entryType?: string; lastKnownHref?
 interface PageIndex { readonly pages: ReadonlyMap<string, string>; readonly paths: ReadonlyMap<string, string> }
 
 /** The page an untouched seed item should point at; `undefined` when the item is author-owned or unmatched. */
-function seedPageId({ item, target, index }: { item: NavItemNode; target: StoredTarget; index: PageIndex }): string | undefined {
+function seedPageId({ item, target, index }: { item: NavItemNode; target: StoredTarget; index: PageIndex }, _options = {}): string | undefined {
+  if (!Object.hasOwn(SEED_LINKS, item.id)) return undefined;
   const seeded = SEED_LINKS[item.id];
   if (seeded === undefined || seeded[0] !== item.label) return undefined;
   if (target.kind === "url") return seeded[1] === target.href ? index.pages.get(target.href) : undefined;

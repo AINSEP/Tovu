@@ -210,6 +210,9 @@ type ImportRefusal = Exclude<ImportMediaEntityResult, { status: "imported" }>;
  * @complexity O(bytes) for the one hash comparison.
  */
 function checkedBytes({ record, bytes }: { record: MediaRecord; bytes: Uint8Array | null }, _options = {}): { bytes: Uint8Array } | ImportRefusal {
+  if (typeof record.source?.sha256 !== "string") {
+    return { status: "blocked", code: "precondition", reason: "missing or malformed media source" };
+  }
   if (bytes === null) {
     return {
       status: "blocked",
