@@ -2,7 +2,6 @@
 
 Branches (all pushed, clean): Tovu+Jini `cloud/fix-email-dns-2026-10-21`, Tovu+Jini `cloud/fix-search-2026-10-21`.
 J = Jini commit, T = Tovu commit. A failing test was written first for every behaviour fix. 3 Opus subagents (DNS, email, search).
-
 ## 13-dns.md (email-dns branch)
 | # | finding | outcome |
 |---|---|---|
@@ -17,7 +16,6 @@ J = Jini commit, T = Tovu commit. A failing test was written first for every beh
 | 9 M | IPv6 not canonicalized | fixed J61f09fe8, ccc8ee2a (`canonicalIpv6`, RFC 5952) |
 | 10 M | Node resolver in Tovu | fixed J162b8e95 (`@jini-ai/devops/dns/node`), Tb333fad0 |
 | 11 M | isMxValue positional | fixed J61f09fe8 (`isMxValue({value},{})`) |
-
 ## 12-email.md (email-dns branch)
 | # | finding | outcome |
 |---|---|---|
@@ -30,7 +28,6 @@ J = Jini commit, T = Tovu commit. A failing test was written first for every beh
 | 7 M | unsigned flood blocks signed feedback | fixed Je1502f9e |
 | 8 M | console provider hides links | fixed Jcd60171f |
 | 9 M | payload hash incomplete | fixed J8ff3bbe7, 086a7b55 |
-
 ## 23-search.md (search branch)
 | # | finding | outcome |
 |---|---|---|
@@ -45,31 +42,24 @@ J = Jini commit, T = Tovu commit. A failing test was written first for every beh
 | 9 M | weak conformance kit | fixed J9327284e (+5 broken-provider checks; in-memory provider now tenant-scoped) |
 | 10 L | scalar public helpers | listed |
 | 11 L | meilisearch setTimeout not injected | listed |
-
 ## Public-shape changes (recorded)
 - DNS: `DnsPlanBlockerCode`+`record_not_owned`; `isMxValue({value},{})`; +`canonicalIpv6`; +export `./dns/node`; `DomainBinding.version`; `DomainBindingStore.put({binding,now,expectedVersion})->boolean`.
 - Mail: `MailFeedbackInboxPort.complete()`; `MailSendLedgerPort.reserve(..., {reclaimUnknown})`; `SendPipelineDeps.sleep?`; +`MAIL_RATE_LIMITED`/`isMailRateLimited`; payload hash changed (old ledger rows -> conflict on same-key retry).
 - Search contract.ts: signatures unchanged; `searchIndexName` format changed; `query` documented site/workspace-scoped. ports.ts: +`SearchIndexStatePort.settle({row,expected})`, `listByStatus(.., {failedBelowAttempts})`, +`SearchTargetPort.listRetired/forgetRetired`, `promote` retires. Tovu: +`isPluginActive`, `PagesHtmlDocumentStoreDeps.outbox?`.
-
 ## Tests run (all green)
 Agents: Jini devops 969; Jini platform 2411 (+6 skip); Jini search 319; Tovu DNS 176, mail/newsletter/resend 657, search 140 + migrations/parity/registries/pages. Coordinator re-run: devops dns 151, platform mail 89, search 319, Tovu domain-dns 108, mail+newsletter+resend 426, site-search+meilisearch 48.
 Pre-existing, untouched: `pnpm guard` self-test failures; 10 Tovu tsc errors in unrelated files; 4 eslint errors Jini search tools.ts.
-
 ## Coverage (touched files)
 100/100/100: Jini dns plan/verify/records/manual/contract/node/*; mail feedback/policy/rate-limit/builtin-providers; all search files. Tovu dns-changes, binding.repo, authoritative-dns, 0026; ledger.repo, feedback-inbox.repo, 0025, resend.mjs; index-state-store, meilisearch.mjs, site-search.ts, html-document-store, cms-document-source.
 Exceptions: send-pipeline.ts branches 99.38% (line 254 dispatchRow, unchanged code); newsletter deps.ts lines 97% (type-only imports); 0024_search_index_retired + meili emulator not measured.
-
 ## Complexity (cc/cognitive, eslint + sonarjs, limit 10)
 No touched function >10. handleSendBatchClaimed 7/9 (was cog 11); classifyError <=5 (was cc 11); dispatchWithinBudget 8/8; dispatchRow 9/6; deliver 9/6; handle 7/8; checkRevisions split (was 12). Untouched debt: resolveTarget (dns-changes.ts:95, cc 11), validateMailProvider (cc 11).
-
 ## LOCAL-RUN NEEDED
 - `runner.postgres.test.ts` on both branches (email-dns head 0026; search head 0024, 85 tables).
 - Search index-state store on real Postgres; meilisearch conformance vs real Meilisearch v1.x.
 - No Playwright needed.
-
 ## LOCAL VISUAL CHECK
 None (no UI touched).
-
 ## Owner questions
 1. DNS #2: manual provider never marks records `self`, so it can never plan replace/delete (blocker only). Intended UX?
 2. DNS #7: mixed-zone requests are rejected, not split per zone. OK?
@@ -77,7 +67,6 @@ None (no UI touched).
 4. Search #3: cross-process race remains (in-process serialized). Is one serving process per site guaranteed?
 5. Search #2: revocation happens at next use (`search_status` shows registered until then). Add a lifecycle hook?
 6. Migration numbers collide at the big merge: email-dns 0023_mail_ledgers/0024_domain_bindings/0025/0026 vs search 0023_search_index/0024_search_index_retired. Renumber at merge.
-
 ## Noticed, not fixed (out of scope / rules-check items)
 - verifyDueDomainBindings aborts the whole sweep if one binding throws (poison binding).
 - Email rules check: sender resolver should move to Jini; MailStatusBanner fetches its own data; createSmtpMailProvider lacks the optional arg; deleted "why" comment in resolve-mailer.ts; send-pipeline test imports the Resend plugin.
