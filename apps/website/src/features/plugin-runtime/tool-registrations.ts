@@ -1,3 +1,4 @@
+import { AgentPluginHostIncompatibleError } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -461,6 +462,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
       cancelled: false,
       family: request.family,
       agentPlugin: { pluginId: result.pluginId, enabled: result.enabled },
+      warnings: result.warnings ?? [],
       restartRequired: result.enabled,
       note: restartNoteFor(request),
     };
@@ -469,6 +471,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // not installed here IS a caller-input problem with an actionable fix (search first, then use a
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
+    if (error instanceof AgentPluginHostIncompatibleError) return { changed: false, code: error.code, error: error.message };
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See

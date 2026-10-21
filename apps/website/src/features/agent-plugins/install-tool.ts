@@ -1,7 +1,9 @@
+import { createAgentPluginUpdateEffects, type UpdateMcpDeps } from "./update-effects.js";
+import { AgentPluginUpdateError, AgentPluginHostIncompatibleError, type UpdateAgentPluginRequired } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { createHash } from "node:crypto";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration, type ToolExecutionContext } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration, type ToolExecutionContext } from "@jini-ai/core";
 import { FolderZipError } from "@jini-ai/agent-plugins/folder-zip";
 import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
 import type { ToolContributor } from "#src/assistant/index";
@@ -17,14 +19,16 @@ import { bundledAgentPluginsSourceRoot, listBundledAgentPluginServers } from "./
  * No opt-in for this family: only bundled digests may run code. Preview verifies the full archive,
  * install verifies the pinned bytes again, and every fresh/replacement install remains disabled. */
 export type AgentPluginsInstallToolDeps = {
+  readonly snapshotAgentPluginSettings?: UpdateAgentPluginRequired["snapshotSettings"];
   readonly pluginHost?: import("../../contracts/headless/plugin-host.js").PluginHostPort;
   readonly workspaceId: string;
   readonly authorize: AuthorizeFn;
   readonly readInstallAttachment?: InstallAttachmentReader;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly bundledAgentPluginsSourceRoot?: string;
-};
+} & Partial<UpdateMcpDeps>;
 
+export const AGENT_PLUGINS_UPDATE_TOOL_ID = "agent_plugins_update";
 export const AGENT_PLUGINS_INSTALL_TOOL_ID = "agent_plugins_install";
 export const catalog: AgentToolDefinition[] = [{
   name: AGENT_PLUGINS_INSTALL_TOOL_ID,
@@ -48,34 +52,62 @@ export const catalog: AgentToolDefinition[] = [{
     replace: { type: "boolean", description: "Explicitly replace the same plugin id. Default false." },
   } },
 }];
-export const derivedRisk: DerivedRiskByToolId = new Map([[AGENT_PLUGINS_INSTALL_TOOL_ID, "mutates-durable-state"]]);
+catalog.push({ ...catalog[0]!, name: AGENT_PLUGINS_UPDATE_TOOL_ID,
+  description: "Explicitly update an operator-installed Agent Plugin from a supplied zip/folder candidate. Preserves enabled state and memory; refuses downgrades and bundled packages. Requires the current archiveDigest from the plugin list. In-flight MCP calls may fail; running chats retain captured guidance. Rollback does not revert state written by the candidate.",
+  inputSchema: { type: "object", additionalProperties: false, required: ["source", "pluginId", "expectedOldDigest"], properties: {
+    source: PLUGIN_INSTALL_SOURCE_SCHEMA,
+    pluginId: { type: "string", minLength: 1, maxLength: 64 },
+    expectedOldDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+  } },
+});
+export const derivedRisk: DerivedRiskByToolId = new Map([[AGENT_PLUGINS_INSTALL_TOOL_ID, "mutates-durable-state"], [AGENT_PLUGINS_UPDATE_TOOL_ID, "mutates-durable-state"]]);
 
 export function buildRegistrations(deps: AgentPluginsInstallToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "agent-plugins-install", catalogModule: "features/agent-plugins/install-tool.ts", catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: {
-      [AGENT_PLUGINS_INSTALL_TOOL_ID]: async ctx => {
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
-        const input = requireInputRecord({ input: ctx.input });
-        const source = input.source as Record<string, unknown> | undefined;
-        if (source?.kind === "bundled") return installBundledPlugin({ input, deps });
-        if (source && Object.hasOwn(source, "bundledId")) throw new ToolInputError({ message: "source.bundledId requires kind 'bundled' and cannot be combined with a path or attachmentRef." });
-        return installArchivePlugin({ deps, ctx });
-      },
+      [AGENT_PLUGINS_INSTALL_TOOL_ID]: ctx => runInstallTool({ deps, ctx, operation: "install" }),
+      [AGENT_PLUGINS_UPDATE_TOOL_ID]: ctx => runInstallTool({ deps, ctx, operation: "update" }),
     },
   });
 }
 
+async function runInstallTool({ deps, ctx, operation }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext; operation: "install" | "update" }, _optional = {}) {
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
+  const input = requireInputRecord({ input: ctx.input });
+  const source = input.source as Record<string, unknown> | undefined;
+  if (operation === "update") {
+    const pluginId = requireString({ input, key: "pluginId" });
+    const expectedOldDigest = requireString({ input, key: "expectedOldDigest" });
+    if (!/^[a-f0-9]{64}$/.test(expectedOldDigest)) throw new ToolInputError({ message: "expectedOldDigest must be a SHA-256 digest." });
+    return installArchivePlugin({ deps, ctx }, { update: { pluginId, expectedOldDigest } });
+  }
+  if (source?.kind === "bundled") return installBundledPlugin({ input, deps });
+  if (source && Object.hasOwn(source, "bundledId")) throw new ToolInputError({ message: "source.bundledId requires kind 'bundled' and cannot be combined with a path or attachmentRef." });
+  return installArchivePlugin({ deps, ctx });
+}
+
+function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; actor: string }, _optional = {}) {
+  const { agentPluginLayout, workspaceId, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring } = deps;
+  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer || !siteAssistantSecretKeyring) throw new ToolInputError({ message: "Plugin update MCP effects are unavailable." });
+  return createAgentPluginUpdateEffects({ actor, deps: { agentPluginLayout, workspaceId, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring } });
+}
+
 async function installArchivePlugin(
   { deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext },
-  _optional: Record<string, never> = {},
+  options: { update?: { pluginId: string; expectedOldDigest: string } } = {},
 ) {
   const request = readPluginInstallRequest({ input: ctx.input });
   try {
     const archive = request.kind === "folder"
       ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
       : await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
-    const required = { archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), workspaceId: deps.workspaceId, actor: ctx.principal.id, replace: request.replace };
-    const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}) };
+    const required = { archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), workspaceId: deps.workspaceId, actor: ctx.principal.id, replace: request.replace, ...(options.update ? { update: options.update } : {}) };
+    const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}),
+      ...(options.update ? { snapshotSettings: deps.snapshotAgentPluginSettings, mcpProvisioning: updateMcpEffects({ deps, actor: ctx.principal.id }) } : {}) };
+    if (options.update) {
+      const result = await installUploadedAgentPlugin(required, optional);
+      return { updated: true, enabled: result.enabled, warnings: result.warnings ?? [], plugin: { id: result.plugin.pluginId, version: result.plugin.version }, note: "Memory is kept. Rollback restores package bytes, not state written by the candidate. Running chats retain captured guidance; in-flight MCP calls may fail." };
+    }
     const preview = await previewUploadedAgentPlugin(required, optional);
     const result = await installUploadedAgentPlugin({ ...required, expectedSha256: preview.digest }, optional);
     // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
@@ -85,6 +117,7 @@ async function installArchivePlugin(
       : "inactive";
     return uploadedInstallResult({ result, verdict, warning: preview.warning });
   } catch (error) {
+    if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
     if (error instanceof FolderZipError) throw new ToolInputError({ message: error.message });
     if (error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError) throw new ToolInputError({ message: `${error.code}: ${error.message}` });
     throw error;

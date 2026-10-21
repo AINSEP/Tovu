@@ -17,8 +17,8 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
   return (
     <InstallTabCard
       titleId="agent-plugin-add-title"
-      title={t("Add a plugin")}
-      lede={t("Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed.")}
+      title={t(c.updating ? "Update" : "Add a plugin")}
+      lede={t(c.updating ? "Update from a zip or folder. Memory is kept; rollback restores files, not state written by the new version. Running chats keep their guidance; MCP calls in progress may fail." : "Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed.")}
     >
       <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
@@ -45,11 +45,12 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
             chooseProps: agentHandle({ handle: "agent-plugin-add-choose-folder" }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
           }}
         />
-        <label className="install-tab-check">
+        {!c.updating ? <label className="install-tab-check">
           <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
             {...agentHandle({ handle: "agent-plugin-add-replace" }, { role: "field", label: t("Replace existing version") })} />
           {t("Replace existing version")}
-        </label>
+        </label> : null}
+        {c.warnings?.map(warning => <p key={warning} role="status">{warning}</p>)}
         {c.error ? (
           <p className="install-tab-alert" role="alert">
             {c.error}
@@ -66,14 +67,14 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
             className="btn-primary"
             disabled={c.installDisabled}
             onClick={c.install}
-            {...agentHandle({ handle: "agent-plugin-add-install" }, { role: "button", label: "Install the chosen Agent Plugin (stays off)" })}
+            {...agentHandle({ handle: "agent-plugin-add-install" }, { role: "button", label: c.updating ? "Update the chosen Agent Plugin" : "Install the chosen Agent Plugin (stays off)" })}
           >
-            {c.busy ? t("Installing…") : t("Install (stays off)")}
+            {c.busy ? t("Installing…") : t(c.updating ? "Update" : "Install (stays off)")}
           </button>
         </div>
       </InstallTabOption>
 
-      <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
+      {!c.updating ? <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
         <InstallTabFieldRow
           inputId="agent-plugin-add-url"
           type="url"
@@ -83,7 +84,7 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
           actionProps={agentHandle({ handle: "agent-plugin-add-from-url" }, { role: "button", label: t("Add from URL") })}
           action={{ label: t("Add from URL"), disabled: true }}
         />
-      </InstallTabOption>
+      </InstallTabOption> : null}
     </InstallTabCard>
   );
 }

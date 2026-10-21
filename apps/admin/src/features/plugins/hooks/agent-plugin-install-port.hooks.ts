@@ -8,12 +8,13 @@ import type { AdminAgentPlugin } from "@/lib/api";
 export interface AgentPluginInstallResult {
   /** True when these exact bytes were already installed; the server changed nothing. */
   alreadyInstalled: boolean;
+  warnings?: string[];
   /** The installed row in `listAgentPlugins`' shape, switched off on a fresh install. */
   agentPlugin: AdminAgentPlugin | null;
 }
 
 export interface AgentPluginInstallPort {
-  installZip(required: { file: File; sha256: string; replace?: boolean }, optional?: Record<string, never>): Promise<AgentPluginInstallResult>;
+  installZip(required: { file: File; sha256: string; replace?: boolean; update?: { pluginId: string; expectedOldDigest: string } }, optional?: Record<string, never>): Promise<AgentPluginInstallResult>;
   /** Lowercase hex SHA-256 of the file's bytes, so the server can refuse a damaged upload. */
   sha256(required: { file: File }, optional?: Record<string, never>): Promise<string>;
 }

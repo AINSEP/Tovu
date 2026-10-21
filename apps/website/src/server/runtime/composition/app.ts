@@ -1,3 +1,4 @@
+import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
@@ -7,6 +8,7 @@ import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/cons
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
+import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/system/tool-gaps.js";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -476,7 +478,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ensureCommentsSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
+    ).then(() => ensureCommentsProviderDefinition({
+      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+    }))
   );
 
   // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
@@ -977,6 +982,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Nothing in this composition opens a database transaction; see `createTrashService` above.
     runInTransaction: (fn) => fn(),
   }, {});
+  const commentsCapability = createCommentsCapability({
+    siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+  });
+
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
   // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
@@ -1479,7 +1489,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
-    commentWriteService: commentsModule.writeService,
+    commentWriteService: commentsCapability.writeService,
+    commentsProviders: commentsCapability.providers,
     // In-memory repo needs no dataModule declare — resolves immediately, unlike `deps.ts`'s real
     // fire-and-forget install (mirrors `newsletterReady`'s identical hermetic-vs-real split).
     commentsReady: Promise.resolve(),
@@ -2028,6 +2039,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerAdminExportSiteRoutes(app, routeDeps);
   registerAdminSiteShareRoutes({ app, deps: routeDeps });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
+  registerAdminSiteBackupRoutes({ app, deps: routeDeps });
   // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
@@ -2337,6 +2349,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.
   registerCommentsSubmitRoute(app, {
     ingressPolicy: routeDeps.commentIngressPolicy,
+    providers: routeDeps.commentsProviders,
     workspaceId: routeDeps.workspaceId,
     // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
     rateLimiter: createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: routeDeps.clock }),

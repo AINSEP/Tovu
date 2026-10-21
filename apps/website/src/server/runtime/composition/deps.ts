@@ -1,3 +1,4 @@
+import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
@@ -1288,7 +1289,10 @@ async function composeSiteRouteDeps(
     ensureCommentsSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-    ).then(() => undefined)
+    ).then(() => ensureCommentsProviderDefinition({
+      deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
+      systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+    }))
   );
 
   // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
@@ -1834,6 +1838,11 @@ async function composeSiteRouteDeps(
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
   }, {});
+  const commentsCapability = createCommentsCapability({
+    siteId: workspaceId, module: commentsModule, commentsReady: commentsReady, settingsReady: commentsSettingsReady,
+    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+  });
+
 
   // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
   // second `resolveRuntimeMode()` call used to sit) so `newsletterKeyring`'s own construction below
@@ -2531,7 +2540,8 @@ async function composeSiteRouteDeps(
     },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
-    commentWriteService: commentsModule.writeService,
+    commentWriteService: commentsCapability.writeService,
+    commentsProviders: commentsCapability.providers,
     commentsReady,
     commentsSettingsReady,
     widgetBindingRepo,

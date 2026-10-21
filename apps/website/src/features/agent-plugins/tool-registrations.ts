@@ -1,3 +1,4 @@
+import { describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
@@ -869,7 +870,11 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     // call below throws on any known input (`readInstalledMcpServerIds` already collapses a missing,
     // unreadable, or invalid `mcp.json` to `[]`), so this guards a future throwing change there.
     try {
-      candidates.push(await buildSearchCandidate({ plugin, activations }));
+      candidates.push({ ...await buildSearchCandidate({ plugin, activations }),
+        archiveDigest: plugin.archiveDigest,
+        ...describeAgentPluginCompatibility({ plugin, installed, activations }),
+        requiredBy: agentPluginDependentWarnings({ plugin, installed, activations, nextProvides: [] }),
+      });
     } catch (error) {
       console.warn(`[agent-plugins] '${plugin.pluginId}': ${error instanceof Error ? error.message : String(error)} — excluded from search`);
     }

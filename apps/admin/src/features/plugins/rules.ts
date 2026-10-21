@@ -508,6 +508,8 @@ export interface AgentPluginDisableConfirmCopy {
  *     the body's bundled-package sentence is reused VERBATIM across both — the fact that this can't
  *     actually delete anything doesn't change based on which control asked.
  *
+ * Origin now reaches the wire. The historical bundled-only explanation below is retained as
+ * context for the old copy; live copy follows the row's recorded origin.
  * The bundled-package sentence is unconditional rather than gated on a per-plugin flag: every
  * Agent Plugin installed today ships bundled with Tovu (`AGENT_PLUGINS_LIST`'s three rows are all
  * `origin: "bundled"` — see `AgentPluginRow`'s own header on why its uninstall button is honestly
@@ -520,10 +522,10 @@ export interface AgentPluginDisableConfirmCopy {
  * @complexity Time/space: O(1) — one ternary, no iteration.
  */
 export function buildAgentPluginDisableConfirmCopy(
-  params: { name: string; variant: "disable" | "remove" },
+  params: { name: string; variant: "disable" | "remove"; origin?: "bundled" | "operator-installed" },
   translate: Translate = (key) => key,
 ): AgentPluginDisableConfirmCopy {
-  const bundledFact = "This package ships with Tovu — it can't be deleted outright, only turned off.";
+  const bundledFact = params.origin === "operator-installed" ? "This is an operator-installed package. Turning it off keeps its files and memory." : "This package ships with Tovu — it can't be deleted outright, only turned off.";
   if (params.variant === "remove") {
     return {
       title: `Turn off ${params.name}?`,

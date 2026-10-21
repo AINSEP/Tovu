@@ -16,6 +16,10 @@ export const toolMetadata = {
   "agent_plugin_write_note": {
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  "agent_plugins_update": {
+    search: { keywords: "agent plugin update upgrade replace zip folder version digest" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "agent_plugins_install": {
     search: {
       keywords: "agent plugin plugins install add upload attachment zip folder bundled bundledId ui-ux-design package agent-plugins plugin.json upgrade replace version",

@@ -41,6 +41,8 @@ export interface AgentPluginDisableConfirmDialogProps {
   name: string;
   /** Which control opened this dialog — see this file's own header for what each reads and why. */
   variant: "disable" | "remove";
+  origin?: "bundled" | "operator-installed";
+  requiredBy?: readonly string[];
   /** This plugin row's own agent-handle base (e.g. `agent-plugin-row-site-compliance`) — Confirm/
    *  Cancel publish as `<rowHandle>-<variant>-confirm` / `<rowHandle>-<variant>-cancel`, nesting
    *  under the row's own control (`<rowHandle>-enabled` or `<rowHandle>-remove`) the same way
@@ -58,13 +60,15 @@ export interface AgentPluginDisableConfirmDialogProps {
 export function AgentPluginDisableConfirmDialog({
   name,
   variant,
+  origin,
+  requiredBy,
   agentHandleBase,
   onConfirm,
   onCancel,
   t,
   useAgentPluginDisableConfirmHook = useAgentPluginDisableConfirm,
 }: AgentPluginDisableConfirmDialogProps) {
-  const { copy, dialogRef } = useAgentPluginDisableConfirmHook({ name, variant, onCancel, t });
+  const { copy, dialogRef } = useAgentPluginDisableConfirmHook({ name, variant, origin, onCancel, t });
   const titleId = `${agentHandleBase}-${variant}-confirm-title`;
   const confirmWord = variant === "remove" ? "Turn off" : "Disable";
 
@@ -80,6 +84,7 @@ export function AgentPluginDisableConfirmDialog({
       >
         <h2 id={titleId}>{copy.title}</h2>
         <p>{copy.body}</p>
+        {requiredBy?.length ? <p role="status">{requiredBy.join(". ")}</p> : null}
         <span className="editor-actions">
           {/* Cancel is the default-focused control, matching `ExternalMcpRemoveConfirmDialog`'s own
               "the interrupting action is never the default" precedent. */}

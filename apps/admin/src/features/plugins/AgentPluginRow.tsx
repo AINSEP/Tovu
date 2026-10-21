@@ -1,3 +1,4 @@
+import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
 
@@ -75,6 +76,7 @@ export interface AgentPluginRowProps {
   readonly onToggleExpanded: () => void;
   readonly stateControl: AgentPluginRowStateControl;
   readonly onInspect: () => void;
+  readonly onUpdated?: (plugin: AdminAgentPlugin) => void;
   /** The plugin's own "Manage" entry (its admin screens), just left of the actions column; absent for most plugins. */
   readonly manage?: ReactNode;
   /** The id of the section-level note explaining why uninstall is unavailable. Referenced by the
@@ -227,6 +229,8 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
                 a hover tooltip, not a substitute for the unclamped copy below in the expanded
                 panel (screen readers and touch have no hover; that copy is the real fix). */}
+            {plugin.hostOk === false ? <span className="agent-plugin-row-desc">{t("Not for this Tovu version")}</span> : null}
+            {plugin.missingRequires?.length ? <span className="agent-plugin-row-desc">{t("Needs {capabilities}").replace("{capabilities}", plugin.missingRequires.join(", "))}</span> : null}
             {blurb ? (
               <span className="agent-plugin-row-desc" title={blurb}>
                 {blurb}
@@ -238,6 +242,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           </span>
         </button>
 
+        {plugin.origin === "operator-installed" && plugin.archiveDigest ? <AgentPluginUpdateControl plugin={plugin} t={t} onUpdated={props.onUpdated} /> : null}
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
         <div className="agent-plugin-row-actions">

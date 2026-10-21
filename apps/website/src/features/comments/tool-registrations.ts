@@ -33,6 +33,8 @@ import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueue
 import type { CommentWriteService } from "@jini-ai/cms/comments";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
@@ -44,6 +46,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
  * `RouteDeps` object; nothing there changes.
  */
 export interface CommentsToolDeps {
+  commentsProviders?: CommentsProviderRegistry;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: { nowIso(): string };
@@ -62,6 +65,8 @@ export interface CommentsToolDeps {
  * `sideEffects` declaration.
  */
 export const commentsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  ['comments_get_provider', 'none'],
+  ['comments_set_provider', 'mutates-durable-state'],
   // -> commentRepo.listModerationQueue: read only.
   ["comments_list_moderation_queue", "none"],
   // Workspace-scoped findById, projected through the same moderation view.
@@ -205,7 +210,46 @@ export function buildCommentsRegistrations(
   routeDeps: CommentsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
+  const providerRegistry = (_required = {}, _options = {}) => {
+    if (!routeDeps.commentsProviders) throw new ToolInputError({ message: 'Comments provider service is unavailable.' });
+    return routeDeps.commentsProviders;
+  };
+  const providerPermission = async ({ principalId }: { principalId: string }, _options = {}) => {
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId, permission: 'comments.configure' }, { entityType: 'comments-provider' });
+    await Promise.all([routeDeps.commentsReady, routeDeps.commentsSettingsReady]);
+  };
   const handlers: Record<string, ToolHandler> = {
+    comments_get_provider: async ctx => {
+      await providerPermission({ principalId: ctx.principal.id });
+      const active = await providerRegistry().active({ siteId: routeDeps.workspaceId });
+      const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
+      return { providerId: active.providerId, revision: active.revision, ready: !!active.adapter && settings.enabled,
+        pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
+    },
+    comments_set_provider: approvalToolHandler({ surfaces,
+      prepare: async ({ ctx }) => {
+        const input = requireInputRecord({ input: ctx.input });
+        refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
+        if (input.providerId !== null && input.providerId !== 'built-in') throw new ToolInputError({ message: 'Select built-in or null to disable comments.' });
+        const expectedRevision = requireNumber({ input, key: 'expectedRevision' });
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new ToolInputError({ message: 'expectedRevision must be a non-negative integer.' });
+        await providerPermission({ principalId: ctx.principal.id });
+        const current = await providerRegistry().active({ siteId: routeDeps.workspaceId });
+        if (current.revision !== expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
+        return { providerId: input.providerId as string | null, expectedRevision,
+          pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
+      },
+      describe: ({ prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
+        details: [{ label: 'Provider', value: prepared.providerId ?? 'Disabled' }, { label: 'Pending stored comments', value: String(prepared.pendingCount) }],
+        warning: 'Switching or disabling hides public stored comments. Stored data and the readable moderation queue are preserved.', confirmLabel: 'Change provider' }),
+      run: async ({ ctx, prepared }) => {
+        await providerPermission({ principalId: ctx.principal.id });
+        const pendingCount = await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' });
+        if (pendingCount > prepared.pendingCount) throw new ToolInputError({ message: 'More comments arrived. Review a fresh provider confirmation.' });
+        await providerRegistry().select({ siteId: routeDeps.workspaceId, providerId: prepared.providerId, expectedRevision: prepared.expectedRevision, actorPrincipalId: ctx.principal.id });
+        return { changed: true, providerId: prepared.providerId };
+      },
+    }, { flag: 'changed' }),
     /** Reads any status directly; pagination cannot establish that an id is absent. */
     comments_get_comment: async (ctx) => {
       const commentId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "commentId" });

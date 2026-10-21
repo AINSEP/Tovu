@@ -1,3 +1,4 @@
+import { createAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import type { Request, RequestHandler, Response } from "express";
 import { raw } from "express";
 
@@ -62,7 +63,7 @@ async function readZipUpload(required: { req: Request; res: Response; parseZip: 
 
 export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   const parseZip = raw({ type: "application/zip", limit: maxAgentPluginInstallArchiveBytes(), inflate: false });
-  app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip", async (req, res) => {
+  const installHandler: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -72,11 +73,24 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
       const upload = await readZipUpload({ req, res, parseZip });
       if ("status" in upload) return sendRefusal(res, upload);
-      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id }, { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost });
+      const updating = req.params.pluginId !== undefined;
+      const expectedOldDigest = req.query.expectedOldDigest;
+      if (updating && (typeof expectedOldDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedOldDigest))) {
+        res.status(400).json({ code: "VALIDATION_ERROR", error: "expectedOldDigest must identify the installed revision." });
+        return;
+      }
+      const result = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id,
+        ...(updating ? { update: { pluginId: String(req.params.pluginId), expectedOldDigest: expectedOldDigest as string } } : {}) },
+        { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost,
+          ...(updating ? { mcpProvisioning: createAgentPluginUpdateEffects({ deps, actor: principal.id }),
+            snapshotSettings: deps.snapshotAgentPluginSettings } : {}) });
+      const { plugin, alreadyInstalled } = result;
       const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === plugin.pluginId);
-      res.status(alreadyInstalled ? 200 : 201).json({ alreadyInstalled, agentPlugin: installedAgentPluginRow(candidate) });
+      res.status(alreadyInstalled ? 200 : 201).json({ alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
     } catch (error) {
       sendRefusal(res, installErrorResponse(error));
     }
-  });
+  };
+  app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip", installHandler);
+  app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/update/zip", installHandler);
 };

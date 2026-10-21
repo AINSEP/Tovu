@@ -1,3 +1,4 @@
+import { AgentPluginHostIncompatibleError } from "@jini-ai/agent-plugins/lifecycle";
 import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
@@ -112,14 +113,21 @@ function sendUpdatedRow(
   res: Response,
   candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number],
   enabled: boolean,
+  warnings: readonly string[] = [],
 ): void {
   res.json({
+    warnings,
     agentPlugin: {
       pluginId: candidate.pluginId,
       version: candidate.version ?? null,
       description: candidate.description ?? null,
       keywords: candidate.keywords,
       enabled,
+      origin: candidate.origin,
+      hostOk: candidate.hostOk,
+      missingRequires: candidate.missingRequires ?? [],
+      requiredBy: candidate.requiredBy ?? [],
+      archiveDigest: candidate.archiveDigest,
       skills: candidate.skills,
       mcpServerIds: candidate.mcpServerIds,
     },
@@ -174,6 +182,10 @@ async function provisionAgentPluginMcpServersBestEffort(
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
 function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+  if (error instanceof AgentPluginHostIncompatibleError) {
+    res.status(409).json({ code: error.code, error: error.message });
+    return;
+  }
   if (error instanceof AgentPluginNotInstalledError) {
     res.status(404).json({ error: error.message, code: "AGENT_PLUGIN_NOT_FOUND" });
     return;
@@ -263,7 +275,7 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         await provisionAgentPluginMcpServersBestEffort(deps, { pluginId, principalId: principal.id });
       }
 
-      sendUpdatedRow(res, candidate, written.enabled);
+      sendUpdatedRow(res, candidate, written.enabled, written.warnings);
     } catch (error) {
       sendSetEnabledError(res, pluginId, error);
     }

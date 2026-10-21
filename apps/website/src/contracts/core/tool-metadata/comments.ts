@@ -3,6 +3,8 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** comments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  comments_get_provider: { search: { keywords: 'comments provider built-in active readiness pending', queries: ['Where do my comments live?'] }, approval: { class: 'read', confirmation: 'direct' } },
+  comments_set_provider: { search: { keywords: 'comments provider select switch disable built-in', queries: ['Switch my comments provider.'] }, approval: { class: 'escalation', confirmation: 'plan' } },
   "comments_get_comment": {
     search: { keywords: "comment single details read approved spam trash id version" },
     approval: { class: 'read', confirmation: 'direct' },

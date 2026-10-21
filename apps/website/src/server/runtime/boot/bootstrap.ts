@@ -177,6 +177,16 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       },
     },
     {
+      name: "agent-plugin-update-recovery",
+      owner: "features/agent-plugins",
+      criticality: "critical",
+      prepare: async () => {
+        await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
+      },
+      start: noop,
+      stop: noop,
+    },
+    {
       // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
       // records each INACTIVE until an operator enables it (see
       // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).

@@ -1,3 +1,4 @@
+import { AgentPluginUpdateError, AgentPluginHostIncompatibleError } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
@@ -73,6 +74,7 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
  * @complexity O(1).
  */
 export function installErrorResponse(error: unknown): InstallRefusal {
+  if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return { status: 409, body: { code: error.code, error: error.message } };
   if (error instanceof AgentPluginUploadError) return uploadErrorRefusal(error);
   if (error instanceof AgentPluginInstallError) return installErrorRefusal(error);
   if (error instanceof AgentPluginActivationsUnreadableError || error instanceof AgentPluginActivationsBusyError) {
@@ -87,6 +89,11 @@ export function installErrorResponse(error: unknown): InstallRefusal {
 
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */
 export interface InstalledAgentPluginRow {
+  readonly origin?: AgentPluginSearchCandidate["origin"];
+  readonly hostOk?: boolean;
+  readonly missingRequires?: readonly string[];
+  readonly requiredBy?: readonly string[];
+  readonly archiveDigest?: string;
   readonly pluginId: string;
   readonly displayName: string | null;
   readonly summary: string | null;
@@ -112,6 +119,11 @@ export function installedAgentPluginRow(candidate: AgentPluginSearchCandidate | 
     description: candidate.description ?? null,
     keywords: candidate.keywords,
     enabled: candidate.enabled,
+    origin: candidate.origin,
+    hostOk: candidate.hostOk,
+    missingRequires: candidate.missingRequires ?? [],
+    requiredBy: candidate.requiredBy ?? [],
+    archiveDigest: candidate.archiveDigest,
     skills: candidate.skills,
     mcpServerIds: candidate.mcpServerIds,
   };

@@ -118,6 +118,7 @@ function AgentPluginList({
         <AgentPluginRow
           key={plugin.pluginId}
           plugin={plugin}
+          onUpdated={controller.onInstalled}
           t={controller.t}
           locale={controller.locale}
           expanded={controller.expandedIds.has(plugin.pluginId)}
@@ -483,6 +484,8 @@ export function AgentPlugins({
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
+            origin={pendingDisablePlugin.origin}
+            requiredBy={pendingDisablePlugin.requiredBy}
             name={agentPluginDisplayName(pendingDisablePlugin)}
             variant={pendingDisable.variant}
             // Same derivation the row itself uses (`buildAgentListHandles`), computed from the one

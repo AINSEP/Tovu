@@ -1,3 +1,4 @@
+import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { AssistantAgentInventory } from "#src/assistant/agents";
 import type { Express } from "express";
 import type { RememberedApprovalPort } from "@jini-ai/core";
@@ -600,6 +601,9 @@ export interface ContentTaxonomyDeps {
  * a back-edge into the composition root.
  */
 export interface CommentsDeps {
+  commentsProviders?: CommentsProviderRegistry;
+  /** Request-scoped keyset position; never persisted onto the site runtime. */
+  commentsCursor?: string;
   /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
    * (`Jini/packages/cms/src/comments/module.ts#createCommentsModule`). */
   commentRepo: CommentRepoPort;

@@ -1,0 +1,90 @@
+/** Site-scoped provider choice on the existing settings ledger; no comment data is moved. */
+import type { CommentsSelectionStorePort } from '@jini-ai/capability-providers/comments';
+import { ToolInputError } from '@jini-ai/core';
+import { createSettingsPrincipalLookup, ensureSettingDefinitions, set, type SettingsRepoPort } from '../settings/index.js';
+import type { SetCommentsSettingsDeps, EnsureCommentsSettingDefinitionsDeps } from './settings.js';
+import { createCommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import type { CommentRepoPort, CommentIngressPolicy, CommentWriteService } from '@jini-ai/cms/comments';
+import { BUILTIN_COMMENTS_DEFINITION, createBuiltinCommentsProvider } from './builtin-provider.js';
+import { getCommentsSettings } from './settings.js';
+
+export const BUILTIN_COMMENTS_PROVIDER_ID = 'built-in';
+const NAMESPACE = 'core.comments';
+/** Boot is chained to the existing settings registration to preserve its single-transaction ordering. */
+export async function ensureCommentsProviderDefinition({ deps, systemPrincipalId }: { deps: EnsureCommentsSettingDefinitionsDeps; systemPrincipalId: string }, _options = {}) {
+  const clock = deps.clock;
+  await ensureSettingDefinitions({ ...deps, clock: 'nowMs' in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) },
+    principals: createSettingsPrincipalLookup({ repo: deps.principals }) }, {
+    namespace: NAMESPACE, systemPrincipalId,
+    definitions: [{ key: 'provider', schema: { type: 'string' }, defaultValue: BUILTIN_COMMENTS_PROVIDER_ID }],
+  });
+}
+
+/** Reads the actual workspace value and revision, bypassing effective-value caches for CAS.
+ * Unset choices always fall back to built-in, including sites with historical rows. */
+async function readSelection({ repo, siteId }: { repo: SettingsRepoPort; siteId: string }, _options = {}) {
+  const definition = await repo.findActiveDefinition({ namespace: NAMESPACE, key: 'provider', workspaceId: null });
+  const value = definition ? await repo.getWorkspaceValue({ workspaceId: siteId, settingId: definition.settingId }) : null;
+  const providerId = value?.state === 'set' && typeof value.valueJson === 'string' ? value.valueJson : BUILTIN_COMMENTS_PROVIDER_ID;
+  return { providerId: providerId === '' ? null : providerId, revision: value?.seq ?? 0 };
+}
+
+/** Adapts the ledger's transaction to a revision CAS without bypassing its authorized write chokepoint.
+ * The proxy changes only transaction entry: the check runs inside set()'s OWN transaction, avoiding
+ * a nested settings transaction (which the ledger explicitly forbids). All other methods bind to the repo.
+ * @complexity O(1) ledger reads/writes; storage failures propagate and roll back. */
+export function createCommentsSelectionStore(deps: SetCommentsSettingsDeps, _options = {}): CommentsSelectionStorePort {
+  const clock = deps.clock;
+  return {
+    read: ({ siteId }) => readSelection({ repo: deps.settingsRepo, siteId }),
+    async compareAndSet(input) {
+      const repo = new Proxy(deps.settingsRepo, { get(target, key) {
+        if (key === 'transaction') return <T>(run: () => Promise<T>) => target.transaction(async () => {
+          const current = await readSelection({ repo: target, siteId: input.siteId });
+          if (current.revision !== input.expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
+          return run();
+        });
+        const member = Reflect.get(target, key);
+        return typeof member === 'function' ? member.bind(target) : member;
+      } });
+      await set({ deps: { repo, clock: 'nowMs' in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) }, ids: deps.ids,
+        authorize: deps.authorize, principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+      input: { namespace: NAMESPACE, key: 'provider', scope: 'workspace', workspaceId: input.siteId,
+        callerPrincipalId: input.actorPrincipalId, requiredPermissionOverride: 'comments.configure', value: input.providerId ?? '' } });
+      return true;
+    },
+  };
+}
+
+export { createCommentsProviderRegistry };
+
+/** Composes the built-in capability without touching plugin lifecycle or the existing data module. */
+export function createCommentsCapability(required: {
+  siteId: string; module: { commentRepo: CommentRepoPort; ingressPolicy: CommentIngressPolicy; writeService: CommentWriteService };
+  commentsReady: Promise<void>; settingsReady: Promise<void>; settings: SetCommentsSettingsDeps;
+}, _options = {}) {
+  const providers = createCommentsProviderRegistry({ selections: createCommentsSelectionStore(required.settings) });
+  const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
+  const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
+    writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });
+  providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }) => {
+    if (siteId !== required.siteId) return undefined;
+    await ready;
+    return builtin;
+  } });
+  const moderation = async (input: { workspaceId: string }, _options = {}) => {
+    if (input.workspaceId !== required.siteId) throw new ToolInputError({ message: 'Comments site mismatch' });
+    const active = await providers.active({ siteId: input.workspaceId });
+    if (active.adapter?.kind !== 'stored') throw new ToolInputError({ message: 'No stored comments provider is active. Select built-in first.' });
+    return active.adapter.moderation;
+  };
+  const writeService: CommentWriteService = {
+    async applyModeration(input) {
+      const port = await moderation(input);
+      if (!['approve', 'mark_spam', 'trash', 'restore'].includes(input.action)) throw new ToolInputError({ message: 'Unsupported comments moderation action' });
+      return port.apply({ ...input, siteId: input.workspaceId, action: input.action as 'approve' | 'mark_spam' | 'trash' | 'restore' });
+    },
+    async purge(input) { return (await moderation(input)).purge({ ...input, siteId: input.workspaceId }); },
+  };
+  return { providers, writeService };
+}

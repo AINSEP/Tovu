@@ -42,6 +42,7 @@ function errorKey(error: unknown): string {
   if (known) return known;
   if (error.status === 403) return "You don't have permission to install plugins.";
   if (error.status === 400) return "This .zip contains files or links that plugins may not include.";
+  if (error.status === 409) return error.message;
   return RETRY;
 }
 
@@ -61,9 +62,10 @@ function fileProblem(file: File): string | null {
  */
 export function useAgentPluginInstall(
   required: { port: AgentPluginInstallPort; t: Translate; onInstalled: (row: AdminAgentPlugin) => void },
-  _optional: Record<string, never> = {},
+  options: { update?: { pluginId: string; expectedOldDigest: string } } = {},
 ) {
   const { port, t, onInstalled } = required;
+  const [warnings, setWarnings] = useState<readonly string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [replace, setReplace] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,6 +76,7 @@ export function useAgentPluginInstall(
 
   function choose(next: File | null): void {
     setError(null);
+    setWarnings([]);
     setInstalled(null);
     // Replacement is an explicit choice for these bytes; picking another package revokes it.
     setReplace(false);
@@ -89,7 +92,8 @@ export function useAgentPluginInstall(
     setBusy(true);
     setError(null);
     try {
-      const result = await port.installZip({ file, sha256: await port.sha256({ file }), replace });
+      const result = await port.installZip({ file, sha256: await port.sha256({ file }), replace, ...(options.update ? { update: options.update } : {}) });
+      setWarnings(result.warnings ?? []);
       if (result.agentPlugin) onInstalled(result.agentPlugin);
       setInstalled({ name: result.agentPlugin ? agentPluginDisplayName(result.agentPlugin) : file.name, alreadyInstalled: result.alreadyInstalled });
       setFile(null);
@@ -131,6 +135,8 @@ export function useAgentPluginInstall(
     : null;
 
   return {
+    updating: options.update !== undefined,
+    warnings,
     t,
     file,
     replace,
@@ -140,7 +146,7 @@ export function useAgentPluginInstall(
     folderUpload,
     busy: busy || folderUpload.zipping,
     error,
-    installedMessage,
+    installedMessage: installed && options.update ? t("Plugin updated.") : installedMessage,
     inputRef,
     installDisabled: busy || folderUpload.zipping || !file,
     onChooseFile: () => inputRef.current?.click(),

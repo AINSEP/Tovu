@@ -1,3 +1,5 @@
+import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
+import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity } from "./identity.js";
 import type { PluginHostPort } from "../../contracts/headless/plugin-host.js";
 /**
@@ -142,10 +144,13 @@ export interface InstallUploadedAgentPluginRequired {
   /** The authenticated principal, recorded as the activation record's `updatedBy`. */
   readonly actor: string;
   readonly replace?: boolean;
+  readonly update?: { readonly pluginId: string; readonly expectedOldDigest: string };
 }
 
 export interface InstallUploadedAgentPluginOptional {
   readonly pluginHost?: PluginHostPort;
+  readonly mcpProvisioning?: AgentPluginMcpProvisioningPort;
+  readonly snapshotSettings?: import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired["snapshotSettings"];
   readonly archiveReader?: AgentPluginArchiveReaderPort;
   readonly layout: AgentPluginLayout;
 }
@@ -154,6 +159,8 @@ export interface InstalledUploadedAgentPlugin {
   readonly plugin: InstalledAgentPlugin;
   /** True when these exact bytes were already installed; nothing was written. */
   readonly alreadyInstalled: boolean;
+  readonly enabled?: boolean;
+  readonly warnings?: readonly string[];
   readonly upgradeFrom?: readonly string[];
 }
 
@@ -174,6 +181,16 @@ export async function installUploadedAgentPlugin(
   const digest = validateUploadedBytes({ archive, expectedSha256 });
 
   const { prefix, pluginId } = await locatePackage(reader, archive);
+  if (required.update) {
+    const snapshotSettings = optional.snapshotSettings;
+    if (!snapshotSettings) throw new AgentPluginUpdateError({ code: 'UPDATE_SETTINGS_OWNER_UNBOUND', message: 'The host must bind the plugin settings snapshot owner before updating.' });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, {
+      ...(optional.mcpProvisioning ? { mcpProvisioning: optional.mcpProvisioning } : {}),
+      ...(optional.pluginHost ? { identityAdmission: ({ id, localId, run }) => optional.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }) } : {}),
+    });
+    return lifecycle.updateAgentPlugin({ archive, expectedSha256: digest, archiveReader: withinPrefix(reader, prefix),
+      layout, workspaceId, actor, ...required.update, snapshotSettings });
+  }
   const workspaceLayout = layout.forWorkspace(workspaceId);
   let alreadyInstalled = false;
   let upgradeFrom: string[] = [];
@@ -184,6 +201,9 @@ export async function installUploadedAgentPlugin(
     publishGuard: async ({ plugin: indexed, publish }) => {
       const run = async () => {
         const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
+        for (const previous of existing) {
+          if (planAgentPluginUpdate({ installed: previous, candidate: indexed }).action === "downgrade-refused") throw new AgentPluginUpdateError({ code: "PLUGIN_DOWNGRADE_REFUSED", message: "Plugin downgrades are refused." });
+        }
         const same = existing.find(entry => entry.archiveDigest === digest);
         if (same) { alreadyInstalled = true; return same; }
         upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
