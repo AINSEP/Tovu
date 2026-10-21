@@ -109,6 +109,7 @@
         "content/agent-plugins/render/deploy-configs/render.mjs",
         "content/agent-plugins/resend/adapters/resend.mjs",
         "content/agent-plugins/s3-compatible/targets/s3-compatible.mjs",
+        "content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs",
         "content/agent-plugins/vercel/targets/vercel.mjs",
         "content/agent-plugins/google-workspace/ui/connection-panel.mjs",
         "content/agent-plugins/google-workspace/ui/destination-panel.mjs",

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "providers": [
+    {
+      "id": "s3_compatible",
+      "label": "S3-compatible storage",
+      "module": "object-stores/s3-compatible.mjs"
+    }
+  ]
+}
