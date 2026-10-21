@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { dropInFlightSettingsReads } from "@/lib/settings-effective-reads";
 import { useAnalytics, useWiredAnalytics } from "../hooks/use-analytics.hooks";
 import { createFakeAnalyticsPort } from "../hooks/analytics-dependencies.hooks";
 
@@ -169,5 +170,25 @@ describe("analytics query ownership", () => {
       expect(result.current.first.hits).toEqual([HIT]);
       expect(result.current.second.hits).toEqual([HIT]);
     });
+  });
+});
+
+describe("useWiredAnalytics — locale binding", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("hands the screen a translator bound to the operator's saved admin language", async () => {
+    // The first suite above leaves a never-settling language read in the shared in-flight cache;
+    // a fresh read is what this test is about.
+    dropInFlightSettingsReads({ namespaces: ["core.language"] });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return jsonResponse({ data: [{ key: "locale", value: "es" }] });
+      }
+      return jsonResponse({ hits: [] });
+    }));
+    const { result } = renderHook(() => useWiredAnalytics());
+    await waitFor(() => expect(result.current.t("Analytics")).toBe("Analítica"));
   });
 });
