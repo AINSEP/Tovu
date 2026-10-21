@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -11,6 +12,9 @@ import { registerAdminMailStatusRoute } from "../mail-status.js";
 import { registerAdminModuleStatusRoute } from "../module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../observability-status.js";
 import { registerAdminServerLogsRoute } from "../server-logs.js";
+import { registerAdminDockerfileSourceRoute } from "../dockerfile-source.js";
+import { registerAdminDeploymentOverviewRoute } from "../deployment-overview.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
  * @file The two guards every small `system/*` status route shares that the HTTP suites under
@@ -19,6 +23,7 @@ import { registerAdminServerLogsRoute } from "../server-logs.js";
  * `extractRouteHandler` documents), and the catch-all 500, which those suites never trigger because
  * the real authorizer does not throw. Each 500 case uses an authorizer that rejects with an error
  * carrying a path, and asserts the body stays the fixed envelope while the cause is only logged.
+ * Neither case reaches the Dockerfile on disk or the site-key material: both stop before them.
  */
 
 const WS = "ws-status";
@@ -35,7 +40,7 @@ const untouchedMailer: MailerPort = {
 
 type Register = (app: express.Express, deps: { workspaceId: string; authorize: typeof allow | typeof reject }) => void;
 
-const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post"; path: string; register: Register; logPrefix: string }> = [
+const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post" | "put"; path: string; register: Register; logPrefix: string }> = [
   { name: "mail-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/mail-status",
     register: (app, deps) => registerAdminMailStatusRoute(app, { ...deps, mailer: untouchedMailer }), logPrefix: "[system/mail-status] unexpected error" },
   { name: "module-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/module-status",
@@ -47,6 +52,12 @@ const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post"; path: string
   { name: "assistant-daemon restart", method: "post", path: "/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart",
     register: (app, deps) => registerAdminAssistantDaemonRoutes(app, { ...deps, restartAssistantDaemon: () => { throw new Error("must not restart"); } }),
     logPrefix: "[system/assistant-daemon] unexpected error restarting the agent daemon" },
+  { name: "dockerfile GET", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
+    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[dockerfile-source] unexpected error reading the Dockerfile" },
+  { name: "dockerfile PUT", method: "put", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
+    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[dockerfile-source] unexpected error writing the Dockerfile" },
+  { name: "deployment-overview", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/deployment-overview",
+    register: (app, deps) => registerAdminDeploymentOverviewRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[system/deployment-overview] unexpected error" },
 ];
 
 function handlerFor(route: (typeof ROUTES)[number], authorize: typeof allow | typeof reject) {
@@ -86,4 +97,16 @@ test("server-logs: a repeated query param (?level=error&level=debug) is filtered
     { params: { workspaceId: WS }, query: { level: ["error", "debug"], contains: "line" } }, res);
   assert.equal(capture.statusCode, 200);
   assert.deepEqual(capture.jsonBody, { entries: [entries[2]], matched: 1, buffered: 3, truncated: false, capturing: true });
+});
+
+test("dockerfile PUT: a JSON body that is not an object is a 400 before any write", async () => {
+  const app = express();
+  registerAdminDockerfileSourceRoute(app, { workspaceId: WS, authorize: allow });
+  for (const body of [["contents"], null]) {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "owner" };
+    await extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/system/dockerfile")(
+      { params: { workspaceId: WS }, body, get: (name: string) => (name === "If-Match" ? "\"etag-1\"" : undefined) }, res);
+    assert.deepEqual(capture, { statusCode: 400, jsonBody: { error: "request body must be a JSON object" } });
+  }
 });
