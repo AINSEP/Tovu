@@ -497,6 +497,42 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(result.current.isPublishing).toBe(true);
   });
 
+  it("publish({ destination }) replays a saved destination as-is instead of the form's fields", async () => {
+    let sentInput: { config: AdminStaticPublishConfig; projectName: string } | undefined;
+    const port = portWith({
+      triggerPublish: (input) => {
+        sentInput = input;
+        return Promise.resolve({ status: "running", startedAtIso: "t0", finishedAtIso: null, target: "netlify" } as AdminPublishRunSnapshot);
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run !== undefined && result.current.targets !== undefined).toBe(true));
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("form-name"));
+    const destination = { config: { target: "netlify", fields: {} } as AdminStaticPublishConfig, projectName: "saved-site" };
+    await act(async () => {
+      await result.current.publish({ destination });
+    });
+    expect(sentInput).toMatchObject(destination);
+  });
+
+  it("publish() sends nothing while no target has loaded yet", async () => {
+    let sent = 0;
+    const port = portWith({
+      listPublishTargets: () => new Promise(() => {}),
+      triggerPublish: () => {
+        sent += 1;
+        return Promise.resolve(IDLE_RUN);
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(sent).toBe(0);
+    expect(result.current.publishing).toBe(false);
+  });
+
   it("REGRESSION: netlify and cloudflare-pages each build their OWN config shape, never silently falling into vercel's — the pre-fix buildConfig sent {target:'vercel'} for any non-github-pages target", async () => {
     let sentInput: { config: AdminStaticPublishConfig; projectName: string } | undefined;
     const port = portWith({
