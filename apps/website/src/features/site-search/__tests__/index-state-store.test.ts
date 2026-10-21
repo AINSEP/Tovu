@@ -83,6 +83,18 @@ describeEachDialect("SqlSearchIndexStore", {
     assert.deepEqual(await ids([]), [], "no status asked for matches no row");
   });
 
+  test("listByStatus excludes failed rows at or over failedBelowAttempts before the limit applies", async () => {
+    const { indexState } = make();
+    await indexState.put({ row: row({ key: key("a"), status: "failed", attempts: 5, updatedAtMs: 1 }) });
+    await indexState.put({ row: row({ key: key("b"), status: "failed", attempts: 6, updatedAtMs: 2 }) });
+    await indexState.put({ row: row({ key: key("c"), status: "unknown", attempts: 9, updatedAtMs: 3 }) });
+    await indexState.put({ row: row({ key: key("d"), status: "failed", attempts: 4, updatedAtMs: 4 }) });
+    const ids = async (optional?: { failedBelowAttempts?: number }) =>
+      (await indexState.listByStatus({ target: TARGET, statuses: ["failed", "unknown"], limit: 2 }, optional)).map(r => r.key.documentId);
+    assert.deepEqual(await ids(), ["a", "b"]);
+    assert.deepEqual(await ids({ failedBelowAttempts: 5 }), ["c", "d"]);
+  });
+
   test("counts reports every status, zero when absent, per target", async () => {
     const { indexState } = make();
     assert.deepEqual(await indexState.counts({ target: TARGET }), { pending: 0, indexed: 0, unknown: 0, failed: 0 });

@@ -109,12 +109,14 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
         .executeTakeFirst());
       return Number(result.numUpdatedRows) === 1;
     },
-    async listByStatus({ target, statuses, limit }) {
+    async listByStatus({ target, statuses, limit }, { failedBelowAttempts } = {}) {
       // `IN ()` is not valid SQL; asking for no status matches no row.
       if (statuses.length === 0) return [];
       const rows = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
         .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
         .where("generation", "=", target.generation).where("status", "in", [...statuses])
+        // Exhausted failures leave the candidate set BEFORE the limit, so they cannot starve the rest.
+        .$if(failedBelowAttempts !== undefined, qb => qb.where(eb => eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts!)])))
         // Oldest first so a retry sweep reaches every row, with the key breaking ties stably.
         .orderBy("updated_at_ms", "asc").orderBy("doc_key", "asc")
         .limit(limit).execute());
