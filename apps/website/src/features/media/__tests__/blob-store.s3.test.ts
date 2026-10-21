@@ -573,8 +573,9 @@ test("S3BlobStore.sizeOf() reads Content-Length from a HEAD, is null for a 404, 
   assert.equal(await store.sizeOf({ storageKey }), 5);
   assert.equal(fakeS3.lastRequest()?.method, "HEAD");
   assert.equal(await store.sizeOf({ storageKey: "ws-size/missing/blobs/ab/abc" }, {}), null);
-  fakeS3.setForcedStatus("HEAD", storageKey, 503);
-  await assert.rejects(store.sizeOf({ storageKey }), { message: "S3BlobStore.sizeOf: failed to check object — HTTP 503" });
+  // 403, not a 5xx: the signing client retries 5xx responses with backoff, which only slows the test.
+  fakeS3.setForcedStatus("HEAD", storageKey, 403);
+  await assert.rejects(store.sizeOf({ storageKey }), { message: "S3BlobStore.sizeOf: failed to check object — HTTP 403" });
   fakeS3.setForcedStatus("HEAD", storageKey, 200);
   await assert.rejects(store.sizeOf({ storageKey }), { message: "S3BlobStore.sizeOf: storage did not return a valid content length" });
 });
