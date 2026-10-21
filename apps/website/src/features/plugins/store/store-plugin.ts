@@ -14,9 +14,9 @@
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { declareDataModule } from "../data-module.js";
 import { type PluginStore, pluginKernel } from "../plugin-store.js";
-import { activateStore as activateRuntime, type StoreApi } from "@jini-ai/commerce/store";
-export { STORE_PLUGIN_ID, SEED_PRODUCTS } from "@jini-ai/commerce/store";
-export type { Product, CheckoutResult, StoreApi } from "@jini-ai/commerce/store";
+import { activateStore as activateRuntime, type StoreApi } from "./store-runtime.js";
+export { STORE_PLUGIN_ID, SEED_PRODUCTS } from "./store-runtime.js";
+export type { Product, CheckoutResult, StoreApi } from "./store-runtime.js";
 
 import { STORE_MANIFEST } from "./manifest.js";
 export { STORE_MANIFEST } from "./manifest.js";

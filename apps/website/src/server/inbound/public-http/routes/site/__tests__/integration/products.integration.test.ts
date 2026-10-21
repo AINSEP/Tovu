@@ -4,7 +4,7 @@ import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Product, StoreApi } from "@jini-ai/commerce/store";
+import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 

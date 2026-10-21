@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
-import type { Product, StoreApi } from "@jini-ai/commerce/store";
+import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildRouteManifest } from "#src/features/site-export/route-manifest";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";

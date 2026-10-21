@@ -11,7 +11,7 @@ import { VendorCredentialSetVaultRepo } from "../../features/vendor-credentials/
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
 import type { CommentIngressPolicy, CommentWriteService } from "@jini-ai/cms/comments";
 import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
-import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
+import type { ResolvedEndpoint, WebhookReceiver } from "@jini-ai/commerce/payments/kernel";
 import { requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminCommerceStatusRoute } from "../inbound/admin-http/routes/commerce/status.js";
 
@@ -352,25 +352,27 @@ test("comments/moderate: POST .../purge responds 500 (not a hang) when commentWr
 // ---------------------------------------------------------------------------------------------
 // site/payments-webhook.ts — the one handler had no try/catch. Built as a standalone Express app
 // around `registerPaymentsWebhookRoute` directly (not the full `createApp()`): this route's real
-// composition path resolves a real, DB-backed lipay instance at request time, and this repo's
-// hermetic `createRouteDeps()` fixture has no lipay activated at all (always `resolveLipay() =>
-// null`, per this route file's own header) — that would only ever exercise the 503
-// PAYMENTS_UNAVAILABLE branch, never reach the code this test targets. `resolveLipay` is exactly
-// the seam the route itself defines for this; a minimal fake exercises it directly.
+// composition path resolves a real, DB-backed payments receiver at request time, and this repo's
+// hermetic `createRouteDeps()` fixture has no payments kernel activated at all (it would always
+// resolve `null`) — that would only ever exercise the 503 PAYMENTS_UNAVAILABLE branch, never reach
+// the code this test targets. `resolveReceiver` is exactly the seam the route itself defines for
+// this (it replaced the legacy `resolveLipay` when Jini's lipay runtime became the payments
+// kernel); a minimal fake exercises it directly. The endpoint resolves, then `receive` throws.
 // ---------------------------------------------------------------------------------------------
 
-test("payments-webhook: POST responds 500 (not a hang) when lipay.handleWebhook throws", async (t) => {
-  const brokenLipay = {
-    handleWebhook: async () => {
-      throw new Error("simulated lipay failure");
+test("payments-webhook: POST responds 500 (not a hang) when the receiver throws", async (t) => {
+  const brokenReceiver: WebhookReceiver = {
+    resolveEndpoint: async () => ({ ok: true, endpoint: {} as ResolvedEndpoint }),
+    receive: async () => {
+      throw new Error("simulated payments receiver failure");
     },
-  } as unknown as LipayApi;
+  };
 
   const app = express();
-  registerPaymentsWebhookRoute({ app, deps: { resolveLipay: () => brokenLipay } });
+  registerPaymentsWebhookRoute({ app, deps: { resolveReceiver: () => brokenReceiver } });
   const baseUrl = await startTestServer(app, t);
 
-  const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
+  const res = await fetch(`${baseUrl}/payments/webhooks/site-1/lipay/endpoint-1`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "test.event" }),

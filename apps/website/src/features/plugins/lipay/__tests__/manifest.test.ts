@@ -7,10 +7,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { activateLipay, LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
-import { InMemoryPaymentCredentials } from "@jini-ai/commerce/payments";
+import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
 import { declareDataModule } from "../../data-module.js";
-import { cleanup, makeLipay, tempDb, FakeHttpClient, TestClock, testIdGen } from "./support.js";
+import { cleanup, lipayOn, makeLipay, SCOPE, tempDb } from "./support.js";
 
 const objectNames = (db: import("better-sqlite3").Database, type: "table" | "index"): string[] =>
   (db.prepare(`SELECT name FROM sqlite_master WHERE type = ? ORDER BY name`).all(type) as { name: string }[]).map(
@@ -104,11 +103,36 @@ test("activation refuses an incompatible schema before returning a payments API"
   const incompatible = { ...LIPAY_MANIFEST, tables: LIPAY_MANIFEST.tables.map((table) => ({ ...table, columns: table.columns.map((column) => column.name === "amount_minor" ? { ...column, type: "TEXT" as const } : column) })) };
   const seeded = await declareDataModule({ db, dbPath, decl: incompatible });
   assert.equal(seeded.ok, true, JSON.stringify(seeded.error));
-  const http = new FakeHttpClient();
-  await assert.rejects(() => activateLipay({
-    db, dbPath, workspaceId: "workspace-1", httpClient: http,
-    credentials: new InMemoryPaymentCredentials({}), providers: [], clock: new TestClock(0),
-    idGen: testIdGen(), webhookBaseUrl: "https://site.test", returnUrl: "https://site.test/return",
-  }), { message: /lipay dataModule declaration failed: COLUMN_TYPE_MISMATCH/ });
-  assert.deepEqual(http.calls, []);
+  await assert.rejects(() => lipayOn(db, dbPath), { message: /lipay dataModule declaration failed: COLUMN_TYPE_MISMATCH/ });
+  // Refused before the kernel's ledger migrations ran: no payments API, no ledger tables.
+  const ledger = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'commerce_payments'`).get();
+  assert.equal(ledger, undefined);
+});
+
+test("activation imports a retired install's p_lipay rows into the kernel ledger under the host's mapping", async (t) => {
+  const { db, dbPath, dir } = tempDb();
+  t.after(() => cleanup(db, dir));
+  // The legacy runtime's tables, created by the same declaration it used, holding one charge that
+  // was partially refunded and has a refund still pending at the provider.
+  const declared = await declareDataModule({ db, dbPath, decl: LIPAY_MANIFEST });
+  assert.equal(declared.ok, true, JSON.stringify(declared.error));
+  db.prepare(`INSERT INTO p_lipay__payments (id, workspace_id, provider_id, idempotency_key, status, amount_minor, currency,
+    amount_refunded_minor, provider_ref, reference, created_at, updated_at, last_error)
+    VALUES ('legacy-1', 'workspace-1', 'lipay', 'order-9', 'partially_refunded', 1000, 'USD', 400, 'ch_9', 'order-9', 1, 2, NULL)`).run();
+  db.prepare(`INSERT INTO p_lipay__refunds (id, workspace_id, payment_id, idempotency_key, provider_ref, amount_minor, currency,
+    status, reason, created_at, updated_at) VALUES ('legacy-r1', 'workspace-1', 'legacy-1', 'r-9', NULL, 300, 'USD', 'pending', NULL, 3, 3)`).run();
+
+  await assert.rejects(() => lipayOn(db, dbPath), /pass `legacyLipay`/);
+
+  const { api } = await lipayOn(db, dbPath, { legacyLipay: () => ({ siteId: SCOPE.siteId, providerAccountId: SCOPE.providerAccountId, mode: SCOPE.mode }) });
+  const payment = await api.getPayment({ scope: SCOPE, paymentId: "legacy-1" });
+  assert.deepEqual(
+    [payment?.status, payment?.amount.minorUnits, payment?.refunded.minorUnits, payment?.refundHeld.minorUnits, payment?.reference],
+    ["partially_refunded", 1000, 400, 300, "order-9"]
+  );
+  // The legacy key still replays: the same idempotency key returns the imported payment, no new charge.
+  const replay = await api.createIntent({ scope: SCOPE, amount: { minorUnits: 1000, currency: "USD" }, idempotencyKey: "order-9", reference: "order-9" });
+  assert.ok(replay.ok && replay.replayed && replay.payment.id === "legacy-1");
+  // Never dropped: the legacy rows stay where they were.
+  assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM p_lipay__payments`).get() as { n: number }).n, 1);
 });
