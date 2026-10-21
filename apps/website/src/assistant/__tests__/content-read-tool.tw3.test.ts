@@ -72,3 +72,17 @@ test('TW3 paired members without schema properties still dispatch by id presence
   assert.deepEqual(await card.handler(context({ input: { items: [{ id: 'one' }] } })), { posts: ['all'] });
   assert.deepEqual(await card.handler(context({ input: 'not-an-object' })), { posts: ['all'] });
 });
+
+test('TW3 a lookup card over a list with no schema properties still publishes its id selector', () => {
+  const [card] = deriveContentReadRegistrations([source({ id: 'backup_list_restore_points', result: { items: [] }, schema: { type: 'object' } })]);
+  assert.ok(card);
+  const schema = card.descriptor.inputSchema as { properties: Record<string, unknown>; required: string[] };
+  assert.deepEqual(Object.keys(schema.properties), ['id']);
+  assert.deepEqual(schema.required, [], 'the id is optional: without it the card lists');
+});
+
+test('TW3 a reader schema with required fields but no properties is canonicalized to the id selector', () => {
+  const [card] = deriveContentReadRegistrations([source({ id: 'comments_get_comment', result: 'one', schema: { type: 'object', required: ['commentId'] } })]);
+  assert.ok(card);
+  assert.deepEqual(card.descriptor.inputSchema, { type: 'object', properties: {}, required: ['id'] });
+});
