@@ -53,6 +53,12 @@ test("RT-005: missing text and non-array content are ignored without losing vali
   assert.equal(countWords({ type: "doc", content: [{ type: "text", text: undefined }, { type: "paragraph", content: { type: "text", text: "ignored" } }, textNode("real words")] }), 2);
 });
 
+test("RT-005: null and primitive children are skipped, and a nested array of nodes is walked in document order", () => {
+  assert.equal(countWords({ type: "doc", content: [null, 42, "loose string", textNode("one two"), [textNode("three"), [textNode("four five")]]] }), 5);
+  assert.equal(countWords([textNode("top level"), null]), 2);
+  assert.equal(countWords(null), 0);
+});
+
 test("RT-005: a text node containing only whitespace contributes zero tokens, not an empty-string token", () => {
   const bodyJson = { type: "doc", content: [paragraph(textNode("   "), textNode("real word"))] };
   assert.equal(countWords(bodyJson), 2);

@@ -73,3 +73,39 @@ for (const filename of ["jini.plugin.json", "tovu.plugin.json"]) { // legacy ali
     assert.throws(() => pluginHostBinding.tierPolicy.checkInstall({ manifest: declarative, files }), /must not ship code/);
   });
 }
+
+test("a built-in source with no injected seam imports its entry directly, without a site snapshot", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-host-builtin-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const modulePath = path.join(root, "entry.mjs");
+  await writeFile(modulePath, 'export default { origin: "compiled-in" };');
+  const importer = createPluginModuleImporter({ manifest, source: "built-in" });
+  assert.deepEqual(await importer({ plugin: { pluginId: manifest.id, packageRoot: root }, modulePath }), { exported: { origin: "compiled-in" } });
+});
+
+test("the SDK binding's definePlugin produces a definition its readDefinedPlugin reads back as a module default export", () => {
+  const setup = () => {};
+  const binding = pluginHostBinding.pluginSdkBinding;
+  const defined = binding.definePlugin({ setup });
+  const read = binding.readDefinedPlugin({ moduleValue: { default: defined } });
+  assert.equal(binding.readDefinedPlugin({ moduleValue: defined }), null, "a bare definition is not a module namespace");
+  assert.ok(read, "the wrapped definition is recognised as a defined plugin");
+  assert.equal(read.definition.setup, setup);
+});
+
+test("site errors refuse a self-declared tier-2 manifest and ignore anything else", () => {
+  const { siteErrors } = pluginHostBinding.tierPolicy;
+  const errors = siteErrors({ manifestValue: { ...manifest, tier: "tier-2" } });
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0]!.code, "TIER_NOT_ALLOWED");
+  assert.match(errors[0]!.message, /cannot declare tier-2/);
+  for (const manifestValue of [{ ...manifest, tier: "tier-3" }, null, "tier-2", 7]) assert.deepEqual(siteErrors({ manifestValue }), []);
+});
+
+test("an executable install needs server/index.mjs and a tier-3 declaration", () => {
+  const { checkInstall } = pluginHostBinding.tierPolicy;
+  const withEntry = new Map([["tovu.plugin.json", Buffer.from("{}")], ["server/index.mjs", Buffer.from("export {}")]]);
+  assert.doesNotThrow(() => checkInstall({ manifest, files: withEntry }));
+  assert.throws(() => checkInstall({ manifest, files: new Map([["tovu.plugin.json", Buffer.from("{}")]]) }), /server\/index\.mjs is required/);
+  assert.throws(() => checkInstall({ manifest: { ...manifest, tier: "tier-2" }, files: withEntry }), /must declare tier-3/);
+});

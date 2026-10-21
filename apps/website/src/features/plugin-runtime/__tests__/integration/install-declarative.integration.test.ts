@@ -121,6 +121,13 @@ test("CLI consent: a code-free plugin says so and names its content types instea
   assert.doesNotMatch(code, /adds content types/);
 });
 
+test("CLI consent for an upgrade names the installed version it replaces; a fresh install does not", () => {
+  const base = { id: "upgrade-test", name: "Upgrade test", version: "2.0.0", tier: "tier-3" as const, capabilities: [], hooks: [], digest: "d", conflicts: [], contentTypes: [], hasCode: true };
+  const upgrade = pluginInstallConsent({ preview: { ...base, upgradeFrom: "1.4.0" } });
+  assert.ok(upgrade.split("\n").includes("Replaces installed version 1.4.0."));
+  assert.doesNotMatch(pluginInstallConsent({ preview: base }), /Replaces installed version/);
+});
+
 test("owner 2026-10-09: CLI consent displays the legacy publisher identity warning", () => {
   const warning = "Plugin 'legacy' has no publisher-qualified id; using 'unknown/legacy'.";
   const consent = pluginInstallConsent({ preview: { id: "legacy", name: "Legacy", version: "1.0.0", tier: "tier-1", capabilities: [], hooks: [], digest: "d", conflicts: [], contentTypes: [], hasCode: false, warnings: [warning] } });
