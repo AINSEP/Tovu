@@ -228,3 +228,15 @@ test("a saved directory replaced by a file is reported as vanished", () => {
   assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
   assert.deepEqual(getCustomFsRootStatus(WORKSPACE_A, { siteDir }), { path: undefined, vanished: true, vanishedPath: realDir });
 });
+
+test("resetCustomFsRootForTests ignores a site directory that does not exist but surfaces any other write fault", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-root-reset-"));
+  try {
+    assert.doesNotThrow(() => resetCustomFsRootForTests({ siteDir: path.join(base, "never-created") }));
+    const fileAsDir = path.join(base, "not-a-dir");
+    fs.writeFileSync(fileAsDir, "plain file");
+    assert.throws(() => resetCustomFsRootForTests({ siteDir: fileAsDir }), (err: NodeJS.ErrnoException) => err.code === "ENOTDIR");
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
