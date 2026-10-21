@@ -143,6 +143,7 @@
     "@jini-ai/plugins": "^0.5.1",
     "@jini-ai/registry": "^0.5.1",
     "@jini-ai/sandbox": "^0.4.2",
+    "@jini-ai/search": "^0.1.0",
     "@jini-ai/sidecar": "^0.4.3",
     "@jini-ai/ui": "^0.5.5",
     "@jini-ai/user-management": "^0.3.3",

@@ -35,6 +35,7 @@ import { toolMetadata as post } from './post.js';
 import { toolMetadata as publish_content } from './publish-content.js';
 import { toolMetadata as recovery } from './recovery.js';
 import { toolMetadata as redirects } from './redirects.js';
+import { toolMetadata as search } from './search.js';
 import { toolMetadata as seo } from './seo.js';
 import { toolMetadata as server_logs } from './server-logs.js';
 import { toolMetadata as settings } from './settings.js';
@@ -96,6 +97,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'publish-content', tools: publish_content },
   { domain: 'recovery', tools: recovery },
   { domain: 'redirects', tools: redirects },
+  { domain: 'search', tools: search },
   { domain: 'seo', tools: seo },
   { domain: 'server-logs', tools: server_logs },
   { domain: 'settings', tools: settings },

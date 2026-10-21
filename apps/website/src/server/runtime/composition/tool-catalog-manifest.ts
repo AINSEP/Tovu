@@ -1,6 +1,7 @@
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
+import { contributeSiteSearchTools } from "./site-search-tools.js";
 import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
@@ -435,6 +436,9 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeRecoveryTools() });
   contributions.contributors.register({ contribution: contributeRedirectsTools() });
   contributions.contributors.register({ contribution: contributeSeoTools() });
+  // Site search (S6, 2026-10-21): query/status reads plus the human-confirmed reindex and provider
+  // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
+  contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
   contributions.contributors.register({ contribution: contributeConsentTools() });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });

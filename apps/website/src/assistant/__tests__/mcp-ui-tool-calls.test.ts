@@ -212,6 +212,9 @@ const EXPECTED_ALLOWLIST = [
   "taxonomy_execute_merge_term",
   "publish_content_execute_pull",
   "webhooks_delete_subscription",
+  // 2026-10-21 — site search: the reindex and provider-switch cards (`server/runtime/composition/site-search-tools.ts`).
+  "search_reindex",
+  "search_set_provider",
 ];
 
 test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently", () => {

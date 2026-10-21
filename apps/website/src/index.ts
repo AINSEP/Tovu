@@ -428,9 +428,9 @@ async function main(): Promise<void> {
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
   // process open.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, bootWork: servingBootWork } = createServingApp(deps);
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork: servingBootWork } = createServingApp(deps);
   bootWork.push(...servingBootWork);
-  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper] });
+  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so

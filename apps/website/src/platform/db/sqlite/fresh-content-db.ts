@@ -4,6 +4,8 @@ import { MAIL_LEDGERS_STATEMENTS } from "../migrations/0023_mail_ledgers.js";
 import { DOMAIN_BINDINGS_STATEMENTS } from "../migrations/0024_domain_bindings.js";
 import { MAIL_FEEDBACK_PROCESSED_STATEMENTS } from "../migrations/0025_mail_feedback_processed.js";
 import { DOMAIN_BINDING_VERSION_STATEMENTS } from "../migrations/0026_domain_binding_version.js";
+import { SEARCH_INDEX_STATEMENTS } from "../migrations/0027_search_index.js";
+import { SEARCH_INDEX_RETIRED_STATEMENTS } from "../migrations/0028_search_index_retired.js";
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
@@ -170,6 +172,12 @@ export function bootstrapFreshContentDb(
     },
     "0026_domain_binding_version": () => {
       for (const statement of DOMAIN_BINDING_VERSION_STATEMENTS) client.exec(statement);
+    },
+    "0027_search_index": () => {
+      for (const statement of SEARCH_INDEX_STATEMENTS) client.exec(statement);
+    },
+    "0028_search_index_retired": () => {
+      for (const statement of SEARCH_INDEX_RETIRED_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);

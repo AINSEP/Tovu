@@ -102,6 +102,7 @@ import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tool
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
+import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
@@ -229,6 +230,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "settings-ui-locales": uiLocalesAgentToolCatalog as unknown as AgentToolDefinition[],
   entries: entriesAgentToolCatalog as unknown as AgentToolDefinition[],
   taxonomy: taxonomyAgentToolCatalog as unknown as AgentToolDefinition[],
+  search: searchAgentToolCatalog,
   seo: getSeoAgentToolCatalog() as unknown as AgentToolDefinition[],
   redirects: getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[],
   integrations: getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[],

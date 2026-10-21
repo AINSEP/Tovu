@@ -52,7 +52,7 @@ const ALLOWED = new Set([
   'apps/website/src/features/agent-plugins/federate-mcp.ts: * like an operator-typed one: the same allowlist/"may write" tool picker, the same enable toggle,',
   "apps/website/src/features/agent-plugins/federate-mcp.ts: *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets",
   'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    // google-workspace (2026-10-20) ships disabled until its products and sign-in are reviewed.',
-  'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    assert.deepEqual([...bundledIds].sort(), ["composio", "google-workspace", "higgsfield-media", "jev", "site-compliance", "supabase"]);',
+  'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    assert.deepEqual([...bundledIds].sort(), ["composio", "google-workspace", "higgsfield-media", "jev", "meilisearch", "site-compliance", "supabase"]);',
   'apps/website/src/features/agent-plugins/__tests__/integration/bundled-inactive-gating.integration.test.ts:    for (const expected of ["supabase", "google-workspace"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);',
 ]);
 

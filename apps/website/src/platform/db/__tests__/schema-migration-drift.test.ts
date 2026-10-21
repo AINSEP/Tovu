@@ -118,6 +118,10 @@ const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
   mail_feedback_inbox: 'ADR-066 step 0023 owns webhook replay dedup on (provider, event id); mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
   mail_capture: 'ADR-066 step 0023 owns the test/capture-mode sink; mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
   domain_binding: 'ADR-066 step 0024 owns per-hostname DNS requirements and verification state; domain-bindings-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
+  search_index_state: 'ADR-066 step 0027 owns site-search index bookkeeping; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_watermarks: 'ADR-066 step 0027 owns resumable search backfill cursors; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_targets: 'ADR-066 step 0027 owns the per-site active/building search target pointer; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  search_index_retired: 'ADR-066 step 0028 owns replaced search generations awaiting their index drop; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
 };
 
 function fts5ShadowPrefixes(): string[] {

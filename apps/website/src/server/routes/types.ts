@@ -12,6 +12,7 @@ import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/server/runtime/composition/peer-site-reads";
 import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
+import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
@@ -1251,6 +1252,13 @@ export interface TrashDeps {
  */
 export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
   workspaceRepo: WorkspaceRepoPort;
+  /**
+   * Site search (`server/runtime/composition/modules/site-search.ts`): registry, query service and
+   * indexer for this site, built once per composition. Optional: only the real composition
+   * (`deps.ts`) wires it; absent, `GET /api/search` answers 503 `not_configured`, no indexer is
+   * subscribed, no maintenance loop runs and no search tools are registered.
+   */
+  siteSearch?: SiteSearchRuntime;
   /**
    * Durable AI chat history, obtained per-principal.
    *

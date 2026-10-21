@@ -74,14 +74,15 @@ test("the content history through the current head applies on real Postgres", as
     "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts",
     "0019_form_delivery_plans", "0020_vault_api_connection_kind", "0021_site_consent_revisions",
     "0022_workspace_mcp_cascade", "0023_mail_ledgers", "0024_domain_bindings", "0025_mail_feedback_processed", "0026_domain_binding_version",
+    "0027_search_index", "0028_search_index_retired",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
-  assert.equal(n, collectCoreTables().length + 9, "declared content tables plus post_search_document, tovu_migrations, two TS-only site consent tables, four TS-only mail ledgers and domain_binding");
-  assert.equal(n, 86, "86 tables at 0024_domain_bindings: an accidental drop or addition must change this pin");
+  assert.equal(n, collectCoreTables().length + 13, "declared content tables plus post_search_document, tovu_migrations, two TS-only site consent tables, four TS-only mail ledgers, domain_binding and four TS-only search index tables");
+  assert.equal(n, 90, "90 tables at 0028_search_index_retired: an accidental drop or addition must change this pin");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");

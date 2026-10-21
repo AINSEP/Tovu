@@ -8,10 +8,12 @@ import { createApp } from "./app.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
 import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";
+import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./modules/site-search.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
- * (2026-09-14), Trash auto-purge sweeper (2026-09-20), theme watcher, and assistant-run recovery — as one step.
+ * (2026-09-14), Trash auto-purge sweeper (2026-09-20), theme watcher, assistant-run recovery and the
+ * site-search maintenance loop (2026-10-21) — as one step.
  *
  * Callers: the two site-serving boot paths and nothing else. `src/index.ts` serves the dev API and the
  * container image (`Dockerfile` CMD). `cli/commands/serve.ts` is `tovu serve`, which the desktop app
@@ -52,8 +54,8 @@ import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-b
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
  * @param optional.webhookDeliveryIntervalMs idle wait between webhook delivery ticks (default: the worker's own 15 s).
  * @param optional.domainBindingSweepIntervalMs idle wait between due-bindings DNS sweeps (default: the sweeper's own minute).
- * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` waits
- *   for a running pull), and
+ * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` and
+ *   `siteSearchMaintenance.stop` wait for a running pass), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
  *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
  * @complexity O(1) beyond `createApp`.
@@ -61,7 +63,7 @@ import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-b
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; bootWork: Promise<void>[] } {
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
@@ -95,5 +97,9 @@ export function createServingApp(
   );
   // After `createApp`: the pulled submissions' events need their subscribers attached.
   formPull.pullNow();
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, domainBindingSweeper, bootWork };
+  // Site search upkeep (reconcile + resumable backfill, and the boot rebuild for a site with no index
+  // yet). Serving-only for the sweeper's reason: it writes to search backends on a schedule, which only
+  // the process serving the site may do. A no-op handle when the composition has no search runtime.
+  const siteSearchMaintenance = startSiteSearchMaintenance({ runtime: routeDeps.siteSearch });
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork };
 }

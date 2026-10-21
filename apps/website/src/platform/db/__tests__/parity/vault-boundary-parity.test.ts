@@ -26,7 +26,11 @@ const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submiss
   // why: 0023 adds raw-SQL mail ledgers; suppression must follow the site, so a transfer copies them by introspection.
   "mail_feedback_inbox", "mail_send_ledger", "mail_suppression",
   // why: 0024 adds the raw-SQL domain_binding table (hostnames and DNS requirements, no secrets); copied by introspection.
-  "domain_binding"];
+  "domain_binding",
+  // why: 0027 adds derived site-search bookkeeping; copied by introspection like any other core table.
+  "search_index_state", "search_index_targets", "search_index_watermarks",
+  // why: 0028 adds replaced search generations awaiting their index drop; derived, copied the same way.
+  "search_index_retired"];
 // why: 0023's capture-mode sink holds whole messages (raw sign-in links), so it joins the exclusion list.
 const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
