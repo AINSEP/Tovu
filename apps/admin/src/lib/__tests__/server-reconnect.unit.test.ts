@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { API_UNREACHABLE_CODE, ApiError, requestOnce, requestRidingOutRestart } from "../api";
-import { createServerReconnect, shouldRetryAfterReconnect, type ServerReconnect } from "../server-reconnect";
+import { browserServerReconnectDeps, createServerReconnect, probeReadyz, serverReconnect, serverReconnectForMode, shouldRetryAfterReconnect, type ServerReconnect } from "../server-reconnect";
 
 /**
  * @file Riding out a server restart (2026-10-05, S3): the `/readyz` poll, which failures are retried,
@@ -109,5 +109,91 @@ describe("requestRidingOutRestart", () => {
     const result = await requestRidingOutRestart({ send: () => requestOnce<{ id: string }>({ path: "/posts", init: { method: "POST", body: "{}" } }), method: "POST" }, { reconnect });
     expect(result).toEqual({ id: "p1" });
     expect(reconnect.waits).toBe(1);
+  });
+});
+
+describe("createServerReconnect listeners", () => {
+  it("stops notifying a listener once it unsubscribes", async () => {
+    const answers = [false, true, false, true];
+    const reconnect = createServerReconnect({ probe: async () => answers.shift()!, ...fakeClock() });
+    const seen: string[] = [];
+    const unsubscribe = reconnect.subscribe(() => seen.push(reconnect.getStatus()));
+    await reconnect.waitUntilReachable();
+    unsubscribe();
+    await reconnect.waitUntilReachable();
+    expect(seen).toEqual(["reconnecting", "online"]);
+    expect(answers).toEqual([]);
+  });
+
+  it("starts a fresh poll for a later outage, moving from unreachable back to reconnecting", async () => {
+    const answers = [false, false, true];
+    const reconnect = createServerReconnect({ probe: async () => answers.shift()!, ...fakeClock() }, { pollMs: 500, timeoutMs: 400 });
+    const seen: string[] = [];
+    reconnect.subscribe(() => seen.push(reconnect.getStatus()));
+    expect(await reconnect.waitUntilReachable()).toBe(false);
+    expect(await reconnect.waitUntilReachable()).toBe(true);
+    expect(seen).toEqual(["reconnecting", "unreachable", "reconnecting", "online"]);
+  });
+});
+
+describe("probeReadyz", () => {
+  it("is up only when /readyz answers with its own ready JSON, ready or not", async () => {
+    const calls: [string, RequestInit][] = [];
+    const reply = (response: Response | Error) => ({ request: async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push([String(url), init!]);
+      if (response instanceof Error) throw response;
+      return response;
+    } });
+    expect(await probeReadyz({}, reply(new Response('{"ready":true}', { status: 200 })))).toBe(true);
+    expect(await probeReadyz({}, reply(new Response('{"ready":false}', { status: 503 })))).toBe(true);
+    expect(await probeReadyz({}, reply(new Response("Bad Gateway", { status: 502 })))).toBe(false);
+    expect(await probeReadyz({}, reply(new Response("null", { status: 200 })))).toBe(false);
+    expect(await probeReadyz({}, reply(new Response('{"ok":true}', { status: 200 })))).toBe(false);
+    expect(await probeReadyz({}, reply(new TypeError("Failed to fetch")))).toBe(false);
+    expect(calls[0]![0]).toBe("/readyz");
+    expect(calls[0]![1]).toMatchObject({ credentials: "same-origin", cache: "no-store" });
+    expect(calls[0]![1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("defaults to the browser fetch", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => { urls.push(url); return new Response('{"ready":true}'); });
+    expect(await probeReadyz()).toBe(true);
+    expect(await browserServerReconnectDeps().probe()).toBe(true);
+    expect(urls).toEqual(["/readyz", "/readyz"]);
+  });
+});
+
+describe("browser reconnect wiring", () => {
+  it("sleeps on a real timer and reads the wall clock", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000);
+      const deps = browserServerReconnectDeps();
+      expect(deps.now()).toBe(1_000);
+      let slept = false;
+      const sleeping = deps.sleep(500).then(() => { slept = true; });
+      await vi.advanceTimersByTimeAsync(499); expect(slept).toBe(false);
+      await vi.advanceTimersByTimeAsync(1); await sleeping; expect(slept).toBe(true);
+      expect(deps.now()).toBe(1_500);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("never probes under the test build, and builds a real online reconnect for any other mode", async () => {
+    const probes: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => { probes.push(url); return new Response('{"ready":true}'); });
+    const inert = serverReconnectForMode({ mode: "test" });
+    expect(serverReconnect.getStatus()).toBe("online");
+    expect(await serverReconnect.waitUntilReachable()).toBe(false);
+    let notified = 0;
+    const unsubscribe = inert.subscribe(() => { notified++; });
+    expect(await inert.waitUntilReachable()).toBe(false);
+    unsubscribe();
+    expect([inert.getStatus(), notified, probes]).toEqual(["online", 0, []]);
+
+    const live = serverReconnectForMode({ mode: "development" });
+    expect(live.getStatus()).toBe("online");
+    expect(await live.waitUntilReachable()).toBe(true);
+    expect(probes).toEqual(["/readyz"]);
   });
 });
