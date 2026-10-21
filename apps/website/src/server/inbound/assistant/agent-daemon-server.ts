@@ -463,8 +463,11 @@ const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDi
 const pluginPolling = startPluginActivationPolling(routeDeps);
 stopPluginPolling = pluginPolling.stop;
 
+// The in-memory log bounds itself (a run's payloads are compacted 15 min after its `end`; at most
+// 1000 runs are held), and the durable transcript is `ai_chat_messages.events_json`. Dropping a run's
+// events when the lifecycle evicts its record gives both the same lifetime (memory cause 2, 2026-10-21).
 const eventLog = createInMemoryEventLog({});
-const lifecycle = createRunLifecycle({ eventLog });
+const lifecycle = createRunLifecycle({ eventLog }, { dropEventsOnEviction: true });
 lifecycle.rehydrate({}).catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
