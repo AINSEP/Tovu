@@ -636,6 +636,9 @@ export interface MembersDeps {
   /** Refreshes and settles lazy mail configuration without sending; keeps tool responses
    * independent of whether a member is disabled and therefore skips send(). */
   settleMailer?: () => Promise<void>;
+  /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
+   *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
+  mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
@@ -806,6 +809,8 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
+  /** `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks); omitted by hermetic callers. */
+  mailFeedbackRoute?: import('#src/features/mail/index').MailFeedbackRoute;
   /**
    * The real `features/settings`'s own `getEffective` — threaded through `RouteDeps` (rather than
    * each consumer importing it directly) so `assistant/public-assistant-settings.ts`'s

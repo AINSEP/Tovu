@@ -12,8 +12,13 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Read-only and display-only: stored `notify_json` values and the forms write API are unaffected.
  * Gated on `admin.forms.manage` because the form editor is the consumer, so any principal who can
  * edit a form's notify settings can also see whether they will take effect.
+ *
+ * 2026-10-21 (email provider contract v1): when the root supplies `mailStatus`, the body also carries
+ * `state` (`ready|unconfigured|degraded`, which drives the admin's blocking banner), per-lane
+ * provider/state, `warnings` (`sender_unverified`/`sender_unknown`) and the installed providers.
+ * Never credentials.
  */
-export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mailer">;
+export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mailer" | "mailStatus">;
 
 // Delivery predicate: Jini/packages/platform/src/mail/delivery-availability.ts; boot-race caveat: platform/mail/delivery-availability.ts.
 export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatusDeps): void {
@@ -40,7 +45,8 @@ export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatus
         return;
       }
 
-      res.status(200).json({ mailDeliveryAvailable: isMailDeliveryAvailable(deps.mailer) });
+      const status = deps.mailStatus ? await deps.mailStatus() : {};
+      res.status(200).json({ mailDeliveryAvailable: isMailDeliveryAvailable(deps.mailer), ...status });
     } catch (err) {
       console.error("[system/mail-status] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

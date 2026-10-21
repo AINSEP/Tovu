@@ -154,6 +154,8 @@ export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps 
       originRegistry: deps.originRegistry,
       mailer: deps.mailer,
     },
+    // Campaign mail is bulk: each recipient gets signed RFC 8058 one-click unsubscribe headers.
+    unsubscribe: toUnsubscribeDeps(deps),
     outbox: deps.outbox,
     bus: deps.bus,
     clock: deps.clock,

@@ -22,7 +22,11 @@ const COMMERCE = ["commerce_order_items", "commerce_orders", "commerce_prices", 
  * pull lease is left out and joins the exclusion list (`database-transfer/exclusions.ts` says why). */
 const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submission_remote_receipts",
   // why: d2126748 0021 adds raw-SQL consent policy tables (no visitor data); a transfer copies them by introspection.
-  "site_consent_heads", "site_consent_revisions"];
+  "site_consent_heads", "site_consent_revisions",
+  // why: 0023 adds raw-SQL mail ledgers; suppression must follow the site, so a transfer copies them by introspection.
+  "mail_capture", "mail_feedback_inbox", "mail_send_ledger", "mail_suppression",
+  // why: 0024 adds the raw-SQL domain_binding table (hostnames and DNS requirements, no secrets); copied by introspection.
+  "domain_binding"];
 const LATER_EXCLUDED = ["form_receiver_pulls"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();

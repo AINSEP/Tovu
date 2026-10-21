@@ -8,7 +8,13 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort } from "../../platform/mail/index.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
 
-export interface MailStatusToolDeps { authorize: AuthorizeFn; workspaceId: string; mailer: MailerPort }
+import type { MailStatusReport } from "../../platform/mail/mail-status.js";
+
+export interface MailStatusToolDeps {
+  authorize: AuthorizeFn; workspaceId: string; mailer: MailerPort;
+  /** Lanes, providers and warnings (`server/runtime/boot/resolve-mailer.ts`); absent in hermetic roots. */
+  mailStatus?: () => Promise<MailStatusReport>;
+}
 export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> mailer.capabilities() only; the adapter may refresh configuration, but sends/writes nothing.
   ["system_get_mail_status", "none"],
@@ -27,7 +33,8 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps): ToolRegi
       requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.forms.manage" }, { entityType: "mail" });
       const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
-      return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE };
+      const status = deps.mailStatus ? await deps.mailStatus() : {};
+      return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
     },
   }, rules: [forbiddenRule({ domainPrefix: "MAIL_STATUS", error: ForbiddenError })] }) });
 }

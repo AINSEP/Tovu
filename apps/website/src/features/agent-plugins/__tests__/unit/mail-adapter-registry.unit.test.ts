@@ -167,7 +167,7 @@ test("a module without create() is refused, and a module path escaping the plugi
 
 test("parseMailAdaptersFile rejects a bad schema version, a non-.mjs module, a missing credential label and a duplicate id", () => {
   assert.deepEqual(parseMailAdaptersFile("{"), { ok: false, reason: "not valid JSON" });
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [] })), { ok: false, reason: "schemaVersion must be 1" });
+  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 3, adapters: [] })), { ok: false, reason: "schemaVersion must be 1 or 2" });
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
   assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, module: "a.js" }])), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" });
   assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, credentialLabel: "" }])), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });

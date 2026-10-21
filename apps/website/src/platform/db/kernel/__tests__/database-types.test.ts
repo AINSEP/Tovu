@@ -43,6 +43,11 @@ const RAW_SQL_MANAGED: ReadonlyMap<string, string> = new Map([
   // why: d2126748 (ADR-066 step 0021) added these after this test; the consent SQL contract tests pin their columns.
   ["site_consent_revisions", "ADR-066 step 0021: immutable consent policy snapshots"],
   ["site_consent_heads", "ADR-066 step 0021: atomic draft/published pointers"],
+  ["mail_send_ledger", "ADR-066 step 0023: per-recipient reserve/send/mark ledger"],
+  ["mail_suppression", "ADR-066 step 0023: provider-independent do-not-send list"],
+  ["mail_feedback_inbox", "ADR-066 step 0023: webhook replay dedup"],
+  ["mail_capture", "ADR-066 step 0023: test/capture-mode sink"],
+  ["domain_binding", "ADR-066 step 0024: per-hostname DNS requirements and verification state"],
 ]);
 
 /** Which SQLite declared types can hold each generated TypeScript type. */

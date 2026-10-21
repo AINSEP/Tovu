@@ -98,11 +98,13 @@ import {
   MEDIA_IMPORT_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
-import { createResolvedMailer } from "../boot/resolve-mailer.js";
+import { createSiteMailer } from "./site-mailer.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
 import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
+import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -1358,6 +1360,8 @@ async function composeSiteRouteDeps(
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
     .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // `core.mail.provider`/`testMode` (`features/settings/mail-provider.ts`): explicit provider per lane.
+    .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1962,13 +1966,22 @@ async function composeSiteRouteDeps(
   // `platform/http/egress-policies.ts`'s own header for why this used to be a hand-copied literal
   // (no default policy exists elsewhere in this codebase to reuse otherwise; checked: no production
   // `HttpClientPort` consumer was wired into either composition root before this).
-  const resolvedMailer = createResolvedMailer({
-    workspaceId,
-    customCredentialRepo: customCredentialSetRepo,
-    sealer: siteAssistantSecretSealer,
-    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
-    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-    mode: runtimeMode,
+  // Email provider contract v1 (2026-10-21): lanes read `core.mail.provider` (first boot writes the
+  // provider the old implicit chain picked), and every provider sits behind Jini's delivery policy
+  // over the mail ledgers (`features/mail`). See `site-mailer.ts` and `resolve-mailer.ts`.
+  const resolvedMailer = createSiteMailer({
+    resolve: {
+      workspaceId,
+      customCredentialRepo: customCredentialSetRepo,
+      sealer: siteAssistantSecretSealer,
+      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+      loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+      mode: runtimeMode,
+    },
+    settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID },
+    settingsReady: siteTitleReady,
+    delivery: { ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
+    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
   });
   // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
   // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
@@ -2318,6 +2331,8 @@ async function composeSiteRouteDeps(
     siteTitleReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
+    mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
+      loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     siteTitlePreservationStore,
     siteDisplayName,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
@@ -2402,6 +2417,7 @@ async function composeSiteRouteDeps(
       durableOutboxReady: () => false,
     }),
     settleMailer: resolvedMailer.settle,
+    mailStatus: resolvedMailer.status,
     mailSenderIdentity,
     menuRepo,
     navLocationBindingRepo,

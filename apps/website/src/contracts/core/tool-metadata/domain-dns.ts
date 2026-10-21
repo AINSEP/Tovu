@@ -43,4 +43,38 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  "dns_plan": {
+    search: {
+      keywords: "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
+      queries: [
+        "What DNS changes does my domain need?",
+        "Plan the DNS records for connecting my custom domain.",
+        "Which records must I add for my mail provider's SPF, DKIM and DMARC?",
+        "Is my domain delegated to the right nameservers?",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "dns_instructions": {
+    search: {
+      keywords: "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
+      queries: [
+        "Give me the DNS records to enter at my registrar.",
+        "What exactly do I type into my DNS host?",
+        "Show copyable DNS rows for my domain setup.",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "dns_verify": {
+    search: {
+      keywords: "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
+      queries: [
+        "I added the DNS records, are they live yet?",
+        "Verify the required DNS records on the authoritative nameservers.",
+        "Track whether my domain's records have propagated.",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

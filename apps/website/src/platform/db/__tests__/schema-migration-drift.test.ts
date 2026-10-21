@@ -113,6 +113,11 @@ const MIGRATOR_BOOKKEEPING_TABLE = "__drizzle_migrations";
 const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
   site_consent_revisions: 'ADR-066 step 0021 owns immutable policy snapshots; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
   site_consent_heads: 'ADR-066 step 0021 owns atomic draft/published pointers; the consent SQL contract tests assert the exact columns. No Drizzle declaration (frozen).',
+  mail_send_ledger: 'ADR-066 step 0023 owns the per-recipient reserve/send/mark ledger; mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
+  mail_suppression: 'ADR-066 step 0023 owns the provider-independent do-not-send list; mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
+  mail_feedback_inbox: 'ADR-066 step 0023 owns webhook replay dedup on (provider, event id); mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
+  mail_capture: 'ADR-066 step 0023 owns the test/capture-mode sink; mail-ledgers-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
+  domain_binding: 'ADR-066 step 0024 owns per-hostname DNS requirements and verification state; domain-bindings-step.test.ts asserts its keys. No Drizzle declaration (frozen).',
 };
 
 function fts5ShadowPrefixes(): string[] {
