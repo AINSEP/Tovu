@@ -105,7 +105,7 @@ async function probeAssistantAgents({ force = false }: { force?: boolean } = {},
  * @complexity O(1). */
 function toDetectedAgent({ def, launch, modelResult }: {
   def: AssistantAgentDefs[number];
-  launch: { launchPath?: string; selectedPath?: string };
+  launch: ReturnType<NativeAgentRuntime["resolveAgentLaunch"]>;
   modelResult: Awaited<ReturnType<AgentModelProber>>;
 }): DetectedAgent {
   return { ...def, available: Boolean(launch.launchPath), models: modelResult.models,
