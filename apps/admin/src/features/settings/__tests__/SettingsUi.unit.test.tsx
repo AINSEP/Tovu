@@ -630,3 +630,27 @@ describe("Settings — remaining wiring", () => {
     expect(execution.onChange).toHaveBeenCalledWith({ ...DEFAULT_EXECUTION_CONFIG, byok });
   });
 });
+
+describe("Settings — execution policy note and default wiring", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("explains that a saved Local CLI choice is hidden on a deployed site", async () => {
+    const execution = makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "local-cli", localCli: { agentId: "claude" } });
+    render(
+      <RealSettingsUi
+        useSettingsUiHook={() => baseController({ execution })}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController({})}
+        useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: false, loadRuntime: async () => ({ mode: "production" as const }) })}
+      />,
+    );
+    expect(await screen.findByText("Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.")).toHaveAttribute("role", "status");
+  });
+
+  it("wires the real settings controller by default, showing the loading placeholder while its reads are pending", () => {
+    const fetchSpy = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<SettingsUi useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController({})} />);
+    expect(screen.getByText("Loading settings…")).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+});
