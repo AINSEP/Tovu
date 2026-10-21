@@ -1,8 +1,8 @@
 import type { Response } from "express";
 
-import { DuplicateCommandError, executeCommand, ForbiddenError } from "@jini-ai/cms/core";
+import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled, type PluginActivationRecord } from "@jini-ai/plugins/host";
-import { PluginLoadError } from "@jini-ai/plugins/host/node";
+import { PluginLoadError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
@@ -45,10 +45,6 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
   }
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
-    return;
-  }
-  if (err instanceof DuplicateCommandError) {
-    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
     return;
   }
   if (err instanceof PluginNotFoundError) {
@@ -136,6 +132,8 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
           actor: { id: principal.id, kind: "user" },
           summary: `Set plugin '${pluginId}' enabled=${enabled}`,
           permission: "admin.plugins.enable",
+          // No `idempotencyKey`: an enable/disable is a target-state write, so the gateway can never
+          // raise `DuplicateCommandError` for this route and there is no `DUPLICATE_COMMAND` arm to map.
         },
         mutation: {
           entityType: "plugin-activation",
@@ -171,9 +169,11 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
         },
       });
 
-      const record = discovery.find((r) => r.id === pluginId);
+      // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
+      // snapshot, so reaching this line means the record is in it.
+      const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
       res.json({
-        plugin: record ? toAdminPluginResponse(record, result.activation) : undefined,
+        plugin: toAdminPluginResponse(record, result.activation),
         changeSetId,
       });
     } catch (err) {

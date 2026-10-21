@@ -320,3 +320,26 @@ test("send-test-campaign: the response exposes the provider error code separatel
   assert.equal(capture.statusCode, 200);
   assert.deepEqual(capture.jsonBody, { data: { results: [{ address: "bad@test.com", ok: false, errorCode: "invalid_recipient", message: "rejected by provider" }] } });
 });
+
+test("send-test-campaign: a failed send whose result carries no errorCode reports errorCode null (sendTestCampaign's errorCode is optional)", async (t) => {
+  const mailer = makeMailer(() => ({ ok: false, retryable: true, errorCode: undefined as unknown as string, message: "connection reset" }));
+  const { app, deps } = buildApp({ mailer });
+  await deps.newsletterCampaignRepo.saveCampaignRow(makeCampaign());
+
+  const { status, json } = await post(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/send-test`, {
+    testAddresses: ["a@test.com"],
+  });
+  assert.equal(status, 200);
+  assert.deepEqual(json, { data: { results: [{ address: "a@test.com", ok: false, errorCode: null, message: "connection reset" }] } });
+});
+
+test("send-test-campaign: registered on an app with no JSON body parser, the absent body is a 400 for testAddresses, not a 500", async (t) => {
+  const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
+  const app = express();
+  registerAdminNewsletterSendTestCampaignRoute(app, deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/send-test`, { method: "POST" });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "testAddresses must be an array of email strings", code: "VALIDATION_ERROR" });
+});

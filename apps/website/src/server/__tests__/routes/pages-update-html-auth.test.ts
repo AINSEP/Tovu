@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
+import { EntityNotLiveError } from "@jini-ai/cms/core";
 
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
@@ -80,7 +81,10 @@ interface Harness {
  * Boot the route alone, with `authorize` recorded and the store recording every method it is asked
  * for. `allow` decides the gate's answer.
  */
-async function harness(t: { after: (fn: () => Promise<void>) => void }, options: { allow: boolean; concurrentEdit?: boolean }): Promise<Harness> {
+async function harness(
+  t: { after: (fn: () => Promise<void>) => void },
+  options: { allow: boolean; concurrentEdit?: boolean; writeError?: unknown; pageGoneAfterWrite?: boolean }
+): Promise<Harness> {
   const authorizeCalls: Harness["authorizeCalls"] = [];
   const storeCalls: string[] = [];
   const storeScopes: Harness["storeScopes"] = [];
@@ -96,6 +100,7 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
     write: async () => {
       storeCalls.push("write");
       if (options.concurrentEdit) throw new PageConcurrentEditError("page changed since read");
+      if (options.writeError !== undefined) throw options.writeError;
     },
     // No request here states an `expectedVersion`, so the route never compares against this.
     capturedVersion: () => null,
@@ -112,7 +117,7 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
       return store;
     },
     postRepo: {
-      findById: async () => ({ id: PAGE_ID, kind: "page", bodyFormat: "html", bodyHtml: "<p>stored</p>" }),
+      findById: async () => (options.pageGoneAfterWrite ? null : { id: PAGE_ID, kind: "page", bodyFormat: "html", bodyHtml: "<p>stored</p>" }),
     },
   } as unknown as ContentRouteDeps;
 
@@ -435,5 +440,41 @@ test("PUT /pages/:id/html reports a concurrent store refusal as 409 without repo
   const response = await putHtml(baseUrl, { html: "<p>stale edit</p>" });
   assert.equal(response.status, 409);
   assert.deepEqual(await response.json(), { error: "page changed since read", code: "CONCURRENT_EDIT" });
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+});
+
+test("PUT /pages/:id/html for a workspace that is not this site's is 404 before authorize() or the store is consulted", async (t) => {
+  const { baseUrl, authorizeCalls, storeCalls } = await harness(t, { allow: true });
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-ws/pages/${PAGE_ID}/html`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ html: "<p>x</p>" }),
+  });
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "workspace was not found" });
+  assert.equal(authorizeCalls.length, 0);
+  assert.deepEqual(storeCalls, []);
+});
+
+test("PUT /pages/:id/html on a trashed page answers the 409 entity-not-live envelope, not a 500", async (t) => {
+  const writeError = new EntityNotLiveError({ entityType: "post", entityId: PAGE_ID, state: "trashed" });
+  const { baseUrl } = await harness(t, { allow: true, writeError });
+  const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: writeError.message, code: "ENTITY_IN_TRASH" });
+});
+
+test("PUT /pages/:id/html maps an unrecognised store failure to an opaque 500", async (t) => {
+  const { baseUrl } = await harness(t, { allow: true, writeError: new Error("disk full") });
+  const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "internal error" });
+});
+
+test("PUT /pages/:id/html whose page vanishes between the write and the re-read is a 404, never a reported success", async (t) => {
+  const { baseUrl, storeCalls } = await harness(t, { allow: true, pageGoneAfterWrite: true });
+  const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: `page '${PAGE_ID}' was not found`, code: "ENTRY_NOT_FOUND" });
   assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
 });
