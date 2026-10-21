@@ -6,12 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
 import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
 import { openContentDb } from "../../../db/sqlite/content-db.js";
 import { workspaces } from "../../../db/schema.sqlite.js";
 import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
 import { SiteDirInvalidError } from "../../errors.js";
-import { completeKeyOnlySiteMeta, parseKeyOnlySiteMeta } from "../../key-only-site-meta.js";
+import { buildSiteMetaForNewKey, completeKeyOnlySiteMeta, createdAtFromStat, parseKeyOnlySiteMeta, planKeyOnlySiteMetaCompletion, UNKNOWN_TEMPLATE_ID } from "../../key-only-site-meta.js";
 import { readAppliedSchemaIdentityOfFile } from "../../read-applied-schema-identity.js";
 import { readSiteDir } from "../../read-site-dir.js";
 import { classifySiteMarkers, planRepairSite, repairSite, SiteRepairRefusedError } from "../../repair-site.js";
@@ -243,4 +245,83 @@ test("ensureSiteKeyForBoot: with no content.db yet it mints the key-only shape (
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("classifySiteMarkers: both markers of a full meta are complete with nothing missing", () => {
+  const dir = buildDevSite({ db: false, metaText: JSON.stringify({ siteId: "full", templateId: "blank", templateVersion: "1", schemaVersion: 0, schemaTag: "t", createdAt: "2026-01-01T00:00:00.000Z" }) });
+  try {
+    assert.deepEqual(classifySiteMarkers(dir), { state: "complete", present: ["config.json", ".site-meta.json"], missing: [], keyOnlyMeta: false });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("planKeyOnlySiteMetaCompletion: describes the completion without writing it, and ignores any other meta", async () => {
+  const dir = buildDevSite();
+  try {
+    const planned = await planKeyOnlySiteMetaCompletion({ dir });
+    assert.equal(planned?.siteId, SITE_KEY_ID);
+    assert.equal(planned?.templateId, UNKNOWN_TEMPLATE_ID);
+    assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), KEY_ONLY_TEXT, "planning never writes");
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), "{ not json");
+    assert.equal(await planKeyOnlySiteMetaCompletion({ dir }), undefined);
+    assert.equal(await completeKeyOnlySiteMeta({ dir }), undefined, "unparseable meta is left for readSiteDir to refuse");
+    fs.rmSync(path.join(dir, ".site-meta.json"));
+    assert.equal(await planKeyOnlySiteMetaCompletion({ dir }), undefined, "an absent meta has nothing to complete");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("completeKeyOnlySiteMeta: a SQLite content.db with no applied or an unknown migration cannot be completed", async () => {
+  for (const [label, setup, reason] of [
+    ["never migrated", (db: Database.Database) => db.exec("CREATE TABLE unrelated (id TEXT)"), /has never had a migration applied/],
+    ["diverged", (db: Database.Database) => db.exec("CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT, created_at NUMERIC); INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('x', 1)"), /matches no entry in this runtime's bundled journal/],
+  ] as const) {
+    const dir = buildDevSite({ db: false });
+    try {
+      const db = new Database(path.join(dir, "content.db"));
+      try { setup(db); } finally { db.close(); }
+      await assert.rejects(completeKeyOnlySiteMeta({ dir }), (err: unknown) => err instanceof SiteDirInvalidError && reason.test(err.message), label);
+      assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), KEY_ONLY_TEXT, `${label}: nothing written`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("completeKeyOnlySiteMeta: a meta that changes under every attempt is never overwritten", async () => {
+  const dir = buildDevSite({ db: false });
+  try {
+    let reads = 0;
+    const readText = () => JSON.stringify({ siteKeyId: SITE_KEY_ID, siteKeyFingerprint: `fp-${reads++}`, storage: { kind: "pglite" } });
+    assert.equal(await completeKeyOnlySiteMeta({ dir }, { readText }), undefined);
+    assert.equal(reads, 6, "three attempts, each re-reading before the write");
+    assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), KEY_ONLY_TEXT);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("buildSiteMetaForNewKey: an unreadable or never-migrated content.db yields no meta", async () => {
+  for (const [label, write] of [
+    ["corrupt", (file: string) => fs.writeFileSync(file, "this is not a sqlite database".repeat(200))],
+    ["never migrated", (file: string) => { const db = new Database(file); db.exec("CREATE TABLE unrelated (id TEXT)"); db.close(); }],
+  ] as const) {
+    const dir = buildDevSite({ db: false });
+    try {
+      const dbPath = resolveSiteDatabasePaths({ dir, siteId: SITE_KEY_ID }).contentDbPath;
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+      write(dbPath);
+      assert.equal(await buildSiteMetaForNewKey({ dir, siteKeyId: SITE_KEY_ID }), undefined, label);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("createdAtFromStat: birth time when the filesystem reports one, otherwise modification time", () => {
+  const birthtime = new Date("2026-01-02T00:00:00.000Z"), mtime = new Date("2026-03-04T00:00:00.000Z");
+  assert.equal(createdAtFromStat({ birthtimeMs: birthtime.getTime(), birthtime, mtime }), "2026-01-02T00:00:00.000Z");
+  assert.equal(createdAtFromStat({ birthtimeMs: 0, birthtime: new Date(0), mtime }), "2026-03-04T00:00:00.000Z");
 });
