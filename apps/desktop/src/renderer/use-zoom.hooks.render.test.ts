@@ -86,3 +86,20 @@ test('with no bridge the hook subscribes to nothing, and defaults to the shell\'
   hook.current().registerGuest('/b', b);
   assert.equal(b.level, -1);
 });
+
+test('a shell whose localStorage getter throws still renders, and zoom still works for the session', (t) => {
+  const window = installDom();
+  const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+  let reads = 0;
+  Object.defineProperty(window, 'localStorage', { configurable: true, get() { reads += 1; throw new Error('SecurityError: storage denied'); } });
+  t.after(() => { if (original) Object.defineProperty(window, 'localStorage', original); });
+  const fake = zoomBridge();
+  const hook = renderHook(t, () => useZoom('/c', { bridge: fake.bridge }));
+  assert.equal(reads, 0, 'rendering never touches storage');
+  const c = guest(2);
+  hook.current().registerGuest('/c', c);
+  assert.equal(c.level, 0, 'nothing remembered is readable, so the guest starts at actual size');
+  fake.fire('in');
+  assert.equal(c.level, 0.5, 'the command still zooms the visible guest');
+  assert.ok(reads >= 2, 'storage is resolved lazily at the read and the write, each failure swallowed');
+});

@@ -49,6 +49,17 @@ export type ZoomBridge = Pick<RunnerInventoryBridge, 'onZoomCommand' | 'getZoomL
  *  tests, and permissive about a call that throws (a private window, or storage disabled). */
 export type ZoomStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
+/** The shell's own `localStorage`, resolved at each call rather than once at render. Reading the
+ *  `window.localStorage` getter can itself throw (storage denied, a sandboxed origin), so it must
+ *  never run during a render — a throw there would blank the whole sites home window even when no
+ *  guest or zoom command is in play. Resolved here instead, inside {@link readStoredZoom} /
+ *  {@link writeStoredZoom}'s own `try`, a denied store degrades to session-only zoom. A module-level
+ *  constant, so its identity is stable across renders and never re-runs the hook's effects. */
+export const shellZoomStorage: ZoomStorage = {
+  getItem: (key) => window.localStorage.getItem(key),
+  setItem: (key, value) => window.localStorage.setItem(key, value),
+};
+
 /** Electron's own zoom-level step (`webContents.zoomIn`/`zoomOut`'s default), kept identical so
  *  this shell's custom Zoom menu (`zoom-menu.ts`) feels like the built-in one it replaces. Each
  *  step is roughly a 20% factor change; see Electron's own `WebContents.zoomLevel` doc. */
@@ -205,11 +216,12 @@ export interface UseZoom {
  */
 export function useZoom(
   activeGuestId: string | null,
-  { bridge = runnerInventoryBridge(), storage = window.localStorage }: {
+  { bridge = runnerInventoryBridge(), storage = shellZoomStorage }: {
     /** The bridge port; defaults to the preload's `window.tovuRunner`. */
     bridge?: RunnerInventoryBridge | undefined;
-    /** Where per-site zoom levels persist; defaults to the shell's own `localStorage`. */
-    storage?: Storage;
+    /** Where per-site zoom levels persist; defaults to {@link shellZoomStorage}, the shell's own
+     *  `localStorage` resolved lazily. */
+    storage?: ZoomStorage;
   } = {},
 ): UseZoom {
   // A ref, not state, for the same reason `useFindInPage`'s own `guests` map is: registering a

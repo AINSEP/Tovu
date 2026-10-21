@@ -185,7 +185,7 @@ test('useZoom wires remembered zoom on registration and commands to the current 
   const guests = { current: new Map<string, ZoomableGuest>() };
   const hook = sourceFunction(readFileSync(new URL('./use-zoom.hooks.ts', import.meta.url), 'utf8'), 'useZoom', {
     ...harness.bindings, useRef: () => guests, runnerInventoryBridge: () => bridge,
-    window: { localStorage: storage }, applyStoredZoom, resolveZoomTarget, applyZoomCommand,
+    shellZoomStorage: storage, applyStoredZoom, resolveZoomTarget, applyZoomCommand,
   });
   let activeId: string | null = 'proj-1';
   const render = () => harness.render(() => hook(activeId));
