@@ -535,3 +535,38 @@ it.each([
   await act(async () => { await result.current.save(); });
   expect(port.updateMenuTree).toHaveBeenCalledTimes(2);
 });
+
+describe("useMenuEditor — remaining controller contracts", () => {
+  it("removing a stale nested path under a leaf leaves that item's content intact", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.removeAt([0, 0]));
+    expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
+  });
+
+  it("reports a non-Error load failure with the translated fallback", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.getMenu = () => Promise.reject("offline");
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => `t:${k}` }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("t:failed to load menu");
+  });
+
+  it("copies the embed through the browser clipboard when none is injected", async () => {
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    try {
+      const port = createFakeMenusPort({ menus: [MENU] });
+      const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await act(async () => { await result.current.copyHtmlEmbed(); });
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(writeText.mock.calls[0]?.[0]).toContain("main");
+      expect(result.current.copyFeedback).toBe("Copied!");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

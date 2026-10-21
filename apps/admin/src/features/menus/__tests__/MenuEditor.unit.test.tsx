@@ -588,4 +588,33 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     expect(controller.addChildAt).toHaveBeenCalledWith([0, 0]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("shows only the error when an existing menu failed to load", () => {
+    const controller = fakeController({ loading: false, isNew: false, menu: null, error: "menu not found" });
+    const { container } = render(<MenuEditor menuId="m1" useMenuEditorHook={() => controller} />);
+    expect(container.textContent).toBe("menu not found");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("sends HTML-mode edits to the controller", () => {
+    const controller = fakeController({ loading: false, mode: "html", html: "<nav></nav>" });
+    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
+    fireEvent.change(screen.getByLabelText("Menu HTML"), { target: { value: "<nav>x</nav>" } });
+    expect(controller.setHtml).toHaveBeenCalledWith("<nav>x</nav>");
+  });
+
+  it("shows an unlabelled item's label field empty and types the label through changeAt", () => {
+    const unlabelled = { id: "bare", target: { kind: "url", href: "/" } } as unknown as AdminMenuItem;
+    // The updater reads the input's value when applied, so apply it inside the change event.
+    const applied: Array<{ path: number[]; next: AdminMenuItem }> = [];
+    const changeAt = vi.fn((path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => {
+      applied.push({ path, next: update(unlabelled) });
+    });
+    const controller = fakeController({ loading: false, items: [unlabelled], changeAt });
+    render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);
+    const label = screen.getByLabelText("Item label");
+    expect(label).toHaveValue("");
+    fireEvent.change(label, { target: { value: "Docs" } });
+    expect(applied).toEqual([{ path: [0], next: { ...unlabelled, label: "Docs" } }]);
+  });
 });
