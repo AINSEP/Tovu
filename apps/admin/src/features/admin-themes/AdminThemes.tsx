@@ -26,8 +26,13 @@ export function schemeOptionAvailable({ theme, value }: { theme: AdminThemeManif
   return value === "system" ? theme.schemes.includes("light") && theme.schemes.includes("dark") : theme.schemes.includes(value);
 }
 
-function previewMatchMedia() {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia.bind(window) : undefined;
+/** Card previews resolve "system" against the same media port the picker paints with: the injected
+ *  `env`'s when one is given, otherwise the browser's. No `typeof window` guard: without `env` the
+ *  picker already reads `document.documentElement` during this same render, so a window-less
+ *  (non-browser) render never gets this far. */
+function previewMatchMedia(env: AdminThemeDocumentEnv | undefined) {
+  if (env) return env.matchMedia;
+  return typeof window.matchMedia === "function" ? window.matchMedia.bind(window) : undefined;
 }
 
 function ThemeSwatch({ theme, scheme }: { theme: AdminThemeManifest; scheme: AdminThemeScheme }) {
@@ -88,11 +93,12 @@ export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; 
   );
 }
 
-export function AdminThemes({ port, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}) {
+/** `themes` defaults to the installed registry; a host (or test) can pass its own manifests. */
+export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; themes?: readonly AdminThemeManifest[] } = {}) {
   const locale = useAdminLocale();
   const picker = useAdminThemePicker({}, { port, env });
-  const activeTheme = findAdminTheme({ id: picker.themeId ?? "" });
-  const matchMedia = previewMatchMedia();
+  const activeTheme = findAdminTheme({ id: picker.themeId ?? "" }, { themes });
+  const matchMedia = previewMatchMedia(env);
   return (
     <div className="page admin-themes-page">
       <div className="page-header">
@@ -108,9 +114,9 @@ export function AdminThemes({ port, env }: { port?: AdminThemePort; env?: AdminT
         </p>
       ) : null}
       <div className="theme-grid admin-themes-grid" role="radiogroup" aria-label={t({ locale, key: "Admin Themes" })}>
-        {ADMIN_THEMES.map((theme) => {
+        {themes.map((theme) => {
           const active = picker.ready && theme.id === activeTheme.id;
-          const { scheme } = resolveAdminThemeDocument({ choice: { themeId: theme.id, preference: picker.preference ?? "light" } }, { matchMedia });
+          const { scheme } = resolveAdminThemeDocument({ choice: { themeId: theme.id, preference: picker.preference ?? "light" } }, { matchMedia, themes });
           return (
             <button
               key={theme.id}

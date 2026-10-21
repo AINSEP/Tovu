@@ -108,8 +108,10 @@ const NO_PERMISSIONS: readonly string[] = [];
  * for a stored URL that reaches the parser without going through that redirect.
  */
 export function parseRoute(routePath: string): Route {
-  const [rawPath] = routePath.split("?");
-  const parts = (rawPath ?? "").split("/").filter(Boolean);
+  // Everything before the first `?` (the query is `matchRoute`'s to read). A replace rather than
+  // `split("?")[0]`, whose `?? ""` fallback for an index that always exists could never fire.
+  const rawPath = routePath.replace(/\?[\s\S]*$/, "");
+  const parts = rawPath.split("/").filter(Boolean);
 
   if (parts[0] === "section" && parts[1]) {
     const id = parts[1];
@@ -194,8 +196,12 @@ function renderRoute(route: Route, siteSection: SiteSectionAvailability, access:
   if (resolvePanelAccessGate({ panelId: route.panelId, panels: ADMIN_PANELS, permissions: access.permissions }) === "denied") {
     return <NoAccess locale={access.locale} />;
   }
-  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
-  return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
+  // Non-null by construction, so there is no `panel ? … : null` fallback: `parseRoute` (via
+  // `matchRoute` over this same `ADMIN_PANELS`) only ever yields a registered panel id, the root's
+  // `"dashboard"`, or `null` (mapped to `"dashboard"` here) — and `panels.tsx` registers
+  // `dashboard`. The legacy `/section/:id` branch returns early above for an unregistered id.
+  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard")!;
+  return panel.render({ view: route.view, params: route.params, query: route.query });
 }
 
 /**

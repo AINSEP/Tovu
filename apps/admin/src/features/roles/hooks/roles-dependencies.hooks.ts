@@ -23,9 +23,10 @@ export const defaultRolesPort: RolesPort = {
 
 const FAKE_WORKSPACE_ID = "fake-ws";
 
-function fakeRole(overrides: Partial<AdminRole> = {}): AdminRole {
+/** Every caller names the row's `id` (it is derived from the store size), so `id` is required
+ *  here and comes from the trailing `...overrides` spread. Same for {@link fakePolicy}. */
+function fakeRole(overrides: Pick<AdminRole, "id"> & Partial<AdminRole>): AdminRole {
   return {
-    id: overrides.id ?? "fake-role-1",
     workspaceId: FAKE_WORKSPACE_ID,
     name: "Fake role",
     isBuiltin: false,
@@ -33,9 +34,8 @@ function fakeRole(overrides: Partial<AdminRole> = {}): AdminRole {
   };
 }
 
-function fakePolicy(overrides: Partial<AdminPolicy> = {}): AdminPolicy {
+function fakePolicy(overrides: Pick<AdminPolicy, "id"> & Partial<AdminPolicy>): AdminPolicy {
   return {
-    id: overrides.id ?? "fake-policy-1",
     workspaceId: FAKE_WORKSPACE_ID,
     name: "Fake policy",
     isBuiltin: false,

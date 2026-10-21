@@ -51,6 +51,10 @@ import type { ElectronApplication, Page } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
 
+import { createCheckLog } from '../src/live-verify-checks.ts';
+import { allLayoutClaimsHold, flat, layoutClaims, seedSitePowerProfile } from '../src/site-power-verify.ts';
+import type { Box, CardState, LayoutClaims } from '../src/site-power-verify.ts';
+
 const DESKTOP = path.resolve(import.meta.dirname, '..');
 const REPO = path.resolve(DESKTOP, '../..');
 const SHOT_DIR =
@@ -60,52 +64,8 @@ const USER_DATA =
   process.env.SITE_POWER_USERDATA ?? fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'tovu-site-power-'));
 const SITE_DIR = process.env.SITE_POWER_SITE_DIR;
 
-/** A laid-out element's edges, from `getBoundingClientRect`. */
-interface Box {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
-
-/** Everything the first card is currently saying — see `cardState`. */
-interface CardState {
-  className: string;
-  name: string | null;
-  status: string;
-  port: string | null;
-  power: { label: string; disabled: boolean; visible: boolean } | null;
-  menuVisible: boolean;
-  menuInTile: boolean;
-  trashOnCard: boolean;
-  actionsInBody: boolean;
-  layout: { name: Box | null; menu: Box | null; power: Box | null; details: Box | null; status: Box | null };
-  error: string | null;
-}
-
-/** One geometric claim's verdict, with the pixels that decided it. */
-interface Claim {
-  ok: boolean;
-  why: string;
-}
-
-interface LayoutClaims {
-  onNameRow: Claim;
-  powerUnderText: Claim;
-  statusUnderMenu: Claim;
-}
-
-const MISSING_BOX: Claim = { ok: false, why: 'card is missing a name, a ⋮, a database line or a status' };
-/** What `layoutClaims` reports when there is no layout to read: every claim fails, and says why. */
-const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText: MISSING_BOX, statusUnderMenu: MISSING_BOX };
-
-const failures: string[] = [];
+const { check, report } = createCheckLog({ log: (line) => console.log(line) });
 let shotN = 0;
-
-function check(name: string, ok: boolean, detail: string): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'}:: ${name} — ${detail}`);
-  if (!ok) failures.push(`${name}: ${detail}`);
-}
 
 async function shot(win: Page, name: string): Promise<string> {
   shotN += 1;
@@ -160,79 +120,6 @@ const cardState = (win: Page): Promise<CardState | null> =>
     };
   });
 
-/** Vertical centre of a box — rows are centre-aligned in the head grid. */
-const middle = (b: Box): number => (b.top + b.bottom) / 2;
-
-/** "align dotes with tovu-com" — the ⋮ sits on the same row as the name, not under it. */
-function onNameRow(name: Box, menu: Box): Claim {
-  return {
-    ok: Math.abs(middle(menu) - middle(name)) <= 4 && menu.left >= name.right,
-    why: `⋮ middle ${middle(menu).toFixed(1)} vs name middle ${middle(name).toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs name right ${name.right.toFixed(1)}`,
-  };
-}
-
-/** "put the start/stop under the SQLite" — on the database line's left edge, below row 2. */
-function powerUnderText(details: Box, status: Box, power: Box | null): Claim {
-  if (power === null) return { ok: true, why: 'no power button for this status' };
-  const rowBottom = Math.max(details.bottom, status.bottom);
-  return {
-    ok: Math.abs(power.left - details.left) <= 1 && power.top >= rowBottom - 1,
-    why: `power left ${power.left.toFixed(1)} vs SQLite left ${details.left.toFixed(1)}; power top ${power.top.toFixed(1)} vs row 2 bottom ${rowBottom.toFixed(1)}`,
-  };
-}
-
-/** "status on the right under the ⋮" — right edges shared, below the ⋮, level with "SQLite". */
-function statusUnderMenu(menu: Box, details: Box, status: Box): Claim {
-  return {
-    ok: Math.abs(status.right - menu.right) <= 1 && status.top >= menu.bottom - 1 && Math.abs(middle(status) - middle(details)) <= 4,
-    why: `status right ${status.right.toFixed(1)} vs ⋮ right ${menu.right.toFixed(1)}; status top ${status.top.toFixed(1)} vs ⋮ bottom ${menu.bottom.toFixed(1)}; status middle ${middle(status).toFixed(1)} vs SQLite middle ${middle(details).toFixed(1)}`,
-  };
-}
-
-/**
- * The three geometric claims the owner's second layout makes, each with the tolerance that belongs
- * to it: sub-pixel rounding for two edges that must line up, and a real gap where one element sits
- * under another. Returns a reason per claim rather than a bare boolean, so a failure names the
- * pixels rather than sending the reader back to the screenshot.
- */
-function layoutClaims(state: CardState | null): LayoutClaims {
-  const layout = state === null ? null : state.layout;
-  if (!layout || !layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
-  return {
-    onNameRow: onNameRow(layout.name, layout.menu),
-    powerUnderText: powerUnderText(layout.details, layout.status, layout.power),
-    statusUnderMenu: statusUnderMenu(layout.menu, layout.details, layout.status),
-  };
-}
-
-/** True when every one of `layoutClaims`' three claims holds. */
-function allLayoutClaimsHold(claims: LayoutClaims): boolean {
-  return claims.onNameRow.ok && claims.powerUnderText.ok && claims.statusUnderMenu.ok;
-}
-
-/** A card state with the optional parts flattened out, so the checks below read plain fields
- *  instead of chaining through a possibly-absent card and a possibly-absent power button. Every
- *  field is `undefined` when there was no card at all. */
-interface FlatCard {
-  name?: string | null;
-  status?: string;
-  port?: string | null;
-  error?: string | null;
-  menuVisible?: boolean;
-  menuInTile?: boolean;
-  trashOnCard?: boolean;
-  actionsInBody?: boolean;
-  label?: string;
-  disabled?: boolean;
-  hasPower?: boolean;
-}
-
-function flat(state: CardState | null): FlatCard {
-  if (state === null) return {};
-  const { power, ...rest } = state;
-  return { ...rest, label: power?.label, disabled: power?.disabled, hasPower: power !== null };
-}
-
 /** Computed style of the card's power button versus the header's "Create website" button — the
  *  live proof that Start/Stop actually wears that style rather than merely sharing a class name
  *  that some other rule overrides. */
@@ -270,32 +157,6 @@ async function setTheme(win: Page, theme: string): Promise<void> {
   await win.reload();
   await win.waitForSelector('.card', { timeout: 20_000 });
   await win.waitForTimeout(400);
-}
-
-/** Validates `SITE_POWER_SITE_DIR` and seeds the isolated profile with it. Returns the site's
- *  display name, or `null` (after printing the FAIL line) when the directory is not a real site. */
-function seedProfile(siteDir: string | undefined): string | null {
-  if (!siteDir || !fs.existsSync(path.join(siteDir, 'config.json'))) {
-    console.log('FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)');
-    return null;
-  }
-  // The display name the seeded card must carry, read from the site's own config.json rather than
-  // passed in a second env var that could disagree with it. `CARD_IS_SEEDED_SITE` below is the
-  // reason this exists.
-  const expectedSiteName = (JSON.parse(fs.readFileSync(path.join(siteDir, 'config.json'), 'utf8')) as { name: string }).name;
-  fs.mkdirSync(SHOT_DIR, { recursive: true });
-  fs.mkdirSync(USER_DATA, { recursive: true });
-  // The seed a fresh profile cannot produce for itself: `handleList` renders this file and there is
-  // no scan that would reach a site outside the scan roots.
-  fs.writeFileSync(
-    path.join(USER_DATA, 'desktop-projects.json'),
-    JSON.stringify(
-      { projects: [{ siteDir, createdAt: new Date().toISOString(), origin: 'adopted' }], dismissed: [] },
-      null,
-      2,
-    ),
-  );
-  return expectedSiteName;
 }
 
 /** Reads the first card and refuses to go on unless it is the seeded site. Throws — ending the
@@ -525,7 +386,7 @@ function launchIsolatedApp(): Promise<ElectronApplication> {
 }
 
 async function main(): Promise<void> {
-  const expectedSiteName = seedProfile(SITE_DIR);
+  const expectedSiteName = seedSitePowerProfile({ siteDir: SITE_DIR, shotDir: SHOT_DIR, userDataDir: USER_DATA }, { fs, log: (line) => console.log(line), now: () => new Date() });
   if (expectedSiteName === null) {
     process.exitCode = 1;
     return;
@@ -546,12 +407,7 @@ async function main(): Promise<void> {
     await app.close();
   }
 
-  if (failures.length > 0) {
-    console.log(`\nVERIFY_FAILED:: ${failures.length} check(s)\n- ${failures.join('\n- ')}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log('\nVERIFY_OK:: every check passed');
+  process.exitCode = report();
 }
 
 await main();

@@ -119,7 +119,5 @@ export function describePushToTalkIndicator(state: PushToTalkState): PushToTalkI
       // same resting copy as `"idle"`, not a distinct "cancelling…" message nobody would be
       // holding still long enough to read.
       return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
-    default:
-      return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
   }
 }

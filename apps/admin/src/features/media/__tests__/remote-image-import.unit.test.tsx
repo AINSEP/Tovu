@@ -80,6 +80,22 @@ describe("remote media import", () => {
     expect(dialog).not.toHaveAttribute("open");
   });
 
+  it("labels the submit Importing… and locks the fields while the import is in flight", async () => {
+    let finish!: () => void;
+    const importFromUrl = vi.fn(() => new Promise<Awaited<ReturnType<MediaImportPort["importFromUrl"]>>>((resolve) => {
+      finish = () => resolve({ media: { id: "new-media" } as never });
+    }));
+    render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: "https://cdn.example/fox.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+
+    expect(await screen.findByRole("button", { name: "Importing…" })).toBeDisabled();
+    expect(screen.getByLabelText("Remote image URL")).toBeDisabled();
+    await act(async () => finish());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Importing…" })).not.toBeInTheDocument());
+  });
+
   it("keeps Import disabled until the URL meets the server's https-only, no-credentials contract", async () => {
     const importFromUrl = vi.fn();
     render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });

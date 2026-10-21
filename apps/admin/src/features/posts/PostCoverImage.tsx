@@ -36,7 +36,7 @@ export function PostCoverImage({ bodyFormat, featuredMediaId, setFeaturedMediaId
   if (!showsCoverImageSlot(bodyFormat)) return null;
   return (
     <div className={picker.previewUrl ? "post-cover post-cover-set" : "post-cover"}>
-      {picker.previewUrl ? <PostCoverPreview picker={picker} t={t} /> : (
+      {picker.previewUrl ? <PostCoverPreview picker={picker} src={picker.previewUrl} t={t} /> : (
         <button
           type="button"
           className="btn-ghost post-cover-add"
@@ -55,13 +55,15 @@ export function PostCoverImage({ bodyFormat, featuredMediaId, setFeaturedMediaId
   );
 }
 
-function PostCoverPreview({ picker, t }: { picker: ReturnType<typeof useWiredPostFeaturedImage>; t: Translate }) {
+/** `src` is the caller's already-checked `picker.previewUrl` (this only renders when one exists),
+ *  so the image needs no `previewUrl ?? undefined` fallback for a null it can never see. */
+function PostCoverPreview({ picker, src, t }: { picker: ReturnType<typeof useWiredPostFeaturedImage>; src: string; t: Translate }) {
   return (
     <span className="post-cover-frame">
       {picker.previewFailed ? (
         <span className="post-cover-image post-cover-missing editor-featured-preview-missing" role="img" aria-label={t("Cover image unavailable")} title={t("Cover image unavailable")} />
       ) : (
-        <img className="post-cover-image" src={picker.previewUrl ?? undefined} alt={t("Cover image")} onError={picker.onPreviewError} />
+        <img className="post-cover-image" src={src} alt={t("Cover image")} onError={picker.onPreviewError} />
       )}
       <span className="post-cover-actions">
         <button

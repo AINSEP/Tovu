@@ -217,6 +217,48 @@ describe("useFolderDrop", () => {
     });
   });
 
+  it("reads and sets the custom root through the real admin API when no seams are injected", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? "GET"} ${new URL(String(url), "http://localhost").pathname}${init?.body ? ` ${String(init.body)}` : ""}`);
+      const body = init?.method === "PUT" ? { path: "/Users/x/site" } : { path: null };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    try {
+      const composerHandle = fakeComposerHandle();
+      const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
+      const { result } = renderHook(() => useFolderDrop({ composerHandle }, { getPort: () => port }));
+      await act(async () => {
+        result.current.handleDropCapture(fakeDropEvent(dataTransfer));
+      });
+      for (let i = 0; i < 5 && result.current.notice === null; i++) await flushMicrotasks();
+      expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/site" });
+      expect(calls).toEqual([
+        "GET /api/admin/v1/workspaces/workspace-local/fs-files/custom-root",
+        'PUT /api/admin/v1/workspaces/workspace-local/fs-files/custom-root {"path":"/Users/x/site"}',
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("an unmount cancels a pending auto-dismiss, so it never fires afterwards", async () => {
+    const { dataTransfer, port } = folderDataTransfer(["/Users/x/site"]);
+    const setCustomRoot = vi.fn().mockResolvedValue({ path: "/Users/x/site" });
+    const getCustomRoot = vi.fn().mockResolvedValue({ path: null });
+    const { result, unmount } = renderHook(() =>
+      useFolderDrop({ composerHandle: fakeComposerHandle() }, { getPort: () => port, setCustomRoot, getCustomRoot, autoDismissMs: 1000 }),
+    );
+    await act(async () => {
+      result.current.handleDropCapture(fakeDropEvent(dataTransfer));
+    });
+    for (let i = 0; i < 5 && result.current.notice === null; i++) await flushMicrotasks();
+    expect(result.current.notice).toMatchObject({ kind: "confirmation" });
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("reports a replaced previous path when a different custom root was already set (behavior.spec.md §1.2)", async () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/site-b"]);

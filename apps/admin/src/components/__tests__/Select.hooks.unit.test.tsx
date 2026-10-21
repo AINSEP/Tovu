@@ -1,7 +1,15 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyHighlightKey,
+  buildOptionId,
+  computePosition,
+  edgeHighlightIndex,
+  focusableInDomOrder,
+  highlightedOptionOrNull,
+  repositionOrClose,
+  resolveTabTarget,
   usePanelPosition,
   useSelectDropdown,
   type SelectOption,
@@ -149,6 +157,280 @@ describe("useSelectDropdown", () => {
       act(() => result.current.openPanel());
       expect(result.current.open).toBe(true);
       expect(result.current.position).toMatchObject({ top: 234, left: 80, width: 240 });
+    });
+  });
+});
+
+/**
+ * The host-retained positional helpers (`Select.hooks.tsx` keeps them until Jini's admin-widgets
+ * barrel exports its own copies). Each one is a pure decision over a trigger rect, the viewport, or
+ * an option list, so they are asserted directly against plain DOM elements with stubbed rects.
+ */
+describe("host-retained Select helpers", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  function withViewport(size: { width: number; height: number }, run: () => void) {
+    const original = { width: window.innerWidth, height: window.innerHeight };
+    Object.defineProperty(window, "innerWidth", { value: size.width, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: size.height, configurable: true });
+    try {
+      run();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: original.width, configurable: true });
+      Object.defineProperty(window, "innerHeight", { value: original.height, configurable: true });
+    }
+  }
+
+  /** Installs (or removes, with `null`) `document.elementFromPoint` for one assertion block. */
+  function withElementFromPoint(impl: ((x: number, y: number) => Element | null) | null, run: () => void) {
+    const descriptor = Object.getOwnPropertyDescriptor(document, "elementFromPoint");
+    if (impl) Object.defineProperty(document, "elementFromPoint", { value: impl, configurable: true });
+    try {
+      run();
+    } finally {
+      if (descriptor) Object.defineProperty(document, "elementFromPoint", descriptor);
+      else delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+    }
+  }
+
+  it("buildOptionId shares one id scheme between the option row and aria-activedescendant", () => {
+    expect(buildOptionId("lb-1", 3)).toBe("lb-1-option-3");
+  });
+
+  describe("focusableInDomOrder", () => {
+    it("returns every enabled focusable node in DOM order, skipping disabled and tabindex=-1 nodes", () => {
+      document.body.innerHTML = `
+        <a id="link" href="#x">x</a>
+        <button id="off" disabled>off</button>
+        <button id="on">on</button>
+        <input id="field" />
+        <div id="skip" tabindex="-1"></div>
+        <div id="tab" tabindex="0"></div>`;
+      expect(focusableInDomOrder(null).map((el) => el.id)).toEqual(["link", "on", "field", "tab"]);
+    });
+
+    it("leaves out everything inside the excluded subtree (the portaled panel)", () => {
+      document.body.innerHTML = `<button id="before">b</button><div id="panel"><button id="inside">i</button></div><button id="after">a</button>`;
+      const panel = document.getElementById("panel")!;
+      expect(focusableInDomOrder(panel).map((el) => el.id)).toEqual(["before", "after"]);
+    });
+  });
+
+  describe("computePosition", () => {
+    it("opens downward below the trigger when there is room for the estimated panel", () => {
+      withInnerHeight(800, () => {
+        expect(computePosition(fakeTrigger({ top: 100, bottom: 130, left: 20, width: 200 }))).toEqual({
+          top: 134,
+          left: 20,
+          width: 200,
+          maxHeight: 662,
+        });
+      });
+    });
+
+    it("opens upward when the room below is short and there is more room above", () => {
+      withInnerHeight(800, () => {
+        expect(computePosition(fakeTrigger({ top: 700, bottom: 730, left: 5, width: 150 }))).toEqual({
+          bottom: 104,
+          left: 5,
+          width: 150,
+          maxHeight: 692,
+        });
+      });
+    });
+
+    it("stays downward when space below is short but space above is shorter still", () => {
+      withInnerHeight(200, () => {
+        const position = computePosition(fakeTrigger({ top: 40, bottom: 70, left: 0, width: 100 }));
+        expect(position).toMatchObject({ top: 74 });
+        // 130 px of real room below, minus the 8 px of gaps, is above the 120 px floor.
+        expect(position.maxHeight).toBe(122);
+      });
+    });
+
+    it("never shrinks maxHeight below the 120 px floor, in either direction", () => {
+      withInnerHeight(150, () => {
+        expect(computePosition(fakeTrigger({ top: 10, bottom: 40, left: 0, width: 100 })).maxHeight).toBe(120);
+        expect(computePosition(fakeTrigger({ top: 100, bottom: 130, left: 0, width: 100 }))).toMatchObject({
+          bottom: 54,
+          maxHeight: 120,
+        });
+      });
+    });
+  });
+
+  describe("repositionOrClose", () => {
+    const inView = { top: 100, bottom: 130, left: 20, right: 220, width: 200, height: 30 };
+
+    it.each([
+      ["scrolled above the viewport", { ...inView, top: -40, bottom: 0 }],
+      ["scrolled below the viewport", { ...inView, top: 600, bottom: 630 }],
+      ["scrolled off the left edge", { ...inView, left: -200, right: 0 }],
+      ["scrolled off the right edge", { ...inView, left: 800, right: 1000 }],
+    ])("closes instead of repositioning when the trigger is %s", (_label, rect) => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        repositionOrClose(fakeTrigger(rect), onOutOfView, setPosition);
+        expect(onOutOfView).toHaveBeenCalledTimes(1);
+        expect(setPosition).not.toHaveBeenCalled();
+      });
+    });
+
+    it("falls back to the viewport check alone where elementFromPoint is not implemented", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        withElementFromPoint(null, () => {
+          expect(typeof document.elementFromPoint).not.toBe("function");
+          const onOutOfView = vi.fn();
+          const setPosition = vi.fn();
+          repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition);
+          expect(onOutOfView).not.toHaveBeenCalled();
+          expect(setPosition).toHaveBeenCalledWith({ top: 134, left: 20, width: 200, maxHeight: 462 });
+        });
+      });
+    });
+
+    it("probes the trigger's own center point", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const trigger = fakeTrigger(inView);
+        const probe = vi.fn((_x: number, _y: number) => trigger as Element);
+        withElementFromPoint(probe, () => {
+          repositionOrClose(trigger, vi.fn(), vi.fn());
+        });
+        expect(probe).toHaveBeenCalledWith(120, 115);
+      });
+    });
+
+    it("repositions when the topmost element at the center is inside the trigger", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const trigger = fakeTrigger(inView);
+        const label = document.createElement("span");
+        trigger.appendChild(label);
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        withElementFromPoint(() => label, () => repositionOrClose(trigger, onOutOfView, setPosition));
+        expect(onOutOfView).not.toHaveBeenCalled();
+        expect(setPosition).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("repositions when the topmost element at the center is an ancestor of the trigger", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const trigger = fakeTrigger(inView);
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(trigger);
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        withElementFromPoint(() => wrapper, () => repositionOrClose(trigger, onOutOfView, setPosition));
+        expect(onOutOfView).not.toHaveBeenCalled();
+        expect(setPosition).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("closes when an unrelated element covers the trigger's center (clipped by an ancestor)", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        withElementFromPoint(() => document.createElement("div"), () =>
+          repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition),
+        );
+        expect(onOutOfView).toHaveBeenCalledTimes(1);
+        expect(setPosition).not.toHaveBeenCalled();
+      });
+    });
+
+    it("closes when nothing at all is rendered at the trigger's center", () => {
+      withViewport({ width: 800, height: 600 }, () => {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        withElementFromPoint(() => null, () => repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition));
+        expect(onOutOfView).toHaveBeenCalledTimes(1);
+        expect(setPosition).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("resolveTabTarget", () => {
+    function layout() {
+      document.body.innerHTML = `<button id="prev">p</button><button id="trigger">t</button><button id="next">n</button><div id="panel"><button id="opt">o</button></div>`;
+      return {
+        trigger: document.getElementById("trigger")!,
+        panel: document.getElementById("panel")!,
+      };
+    }
+
+    it("returns the trigger's next DOM-order neighbour on Tab and its previous one on Shift+Tab", () => {
+      const { trigger, panel } = layout();
+      expect(resolveTabTarget(panel, trigger, false)?.id).toBe("next");
+      expect(resolveTabTarget(panel, trigger, true)?.id).toBe("prev");
+    });
+
+    it("returns null when there is no neighbour in that direction", () => {
+      document.body.innerHTML = `<button id="trigger">t</button>`;
+      const trigger = document.getElementById("trigger")!;
+      expect(resolveTabTarget(null, trigger, false)).toBeNull();
+      expect(resolveTabTarget(null, trigger, true)).toBeNull();
+    });
+
+    it("returns null (do not move focus) when the trigger is missing or no longer focusable", () => {
+      const { trigger, panel } = layout();
+      expect(resolveTabTarget(panel, null, false)).toBeNull();
+      trigger.setAttribute("disabled", "");
+      expect(resolveTabTarget(panel, trigger, false)).toBeNull();
+    });
+  });
+
+  it("edgeHighlightIndex picks the first/last row, or -1 for an empty list", () => {
+    expect(edgeHighlightIndex(3, "first")).toBe(0);
+    expect(edgeHighlightIndex(3, "last")).toBe(2);
+    expect(edgeHighlightIndex(0, "first")).toBe(-1);
+    expect(edgeHighlightIndex(0, "last")).toBe(-1);
+  });
+
+  it("highlightedOptionOrNull returns the highlighted row, or null for -1 or a stale index", () => {
+    expect(highlightedOptionOrNull(FEW_OPTIONS, 1)).toEqual(FEW_OPTIONS[1]);
+    expect(highlightedOptionOrNull(FEW_OPTIONS, -1)).toBeNull();
+    expect(highlightedOptionOrNull(FEW_OPTIONS, 7)).toBeNull();
+  });
+
+  describe("applyHighlightKey", () => {
+    function recordingActions() {
+      const calls: string[] = [];
+      return {
+        calls,
+        actions: {
+          preventDefault: () => calls.push("preventDefault"),
+          moveHighlight: (delta: 1 | -1) => calls.push(`move ${delta}`),
+          setHighlightedIndex: (index: number) => calls.push(`set ${index}`),
+          selectOption: (option: SelectOption) => calls.push(`select ${option.value}`),
+        },
+      };
+    }
+
+    it.each([
+      ["ArrowDown", 0, ["preventDefault", "move 1"]],
+      ["ArrowUp", 0, ["preventDefault", "move -1"]],
+      ["Home", 2, ["preventDefault", "set 0"]],
+      ["End", 0, ["preventDefault", "set 2"]],
+      ["Enter", 2, ["preventDefault", "select c"]],
+    ])("%s prevents the default before applying its highlight change", (key, highlighted, expected) => {
+      const { calls, actions } = recordingActions();
+      expect(applyHighlightKey(key, FEW_OPTIONS, highlighted, actions)).toBe(true);
+      expect(calls).toEqual(expected);
+    });
+
+    it("Enter still prevents the default but selects nothing when no row is highlighted", () => {
+      const { calls, actions } = recordingActions();
+      expect(applyHighlightKey("Enter", FEW_OPTIONS, -1, actions)).toBe(true);
+      expect(calls).toEqual(["preventDefault"]);
+    });
+
+    it("reports an unhandled key as not recognized and does nothing", () => {
+      const { calls, actions } = recordingActions();
+      expect(applyHighlightKey("a", FEW_OPTIONS, 0, actions)).toBe(false);
+      expect(calls).toEqual([]);
     });
   });
 });

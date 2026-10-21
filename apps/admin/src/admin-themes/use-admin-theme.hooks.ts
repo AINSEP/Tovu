@@ -163,15 +163,23 @@ export function useAdminThemePicker(_required: object, { port = defaultAdminThem
   const [error, setError] = useState<string | null>(null);
   const { themeId, preference, ready } = resolvePickerValues({ pending, interfaceConfig, appearance }, {});
 
-  const commit = (next: AdminThemeChoice, save: () => Promise<unknown>, namespace: string, field: keyof AdminThemeChoice) => {
+  // `stored` is the loaded choice a failed save restores. Both callers only commit once both
+  // settings have loaded, so they hand it in rather than this re-checking `interfaceConfig &&
+  // appearance` inside the rejection handler, where that check could never be false.
+  const commit = (
+    { next, stored, save, namespace, field }: {
+      next: AdminThemeChoice; stored: AdminThemeChoice; save: () => Promise<unknown>; namespace: string; field: keyof AdminThemeChoice;
+    },
+  ) => {
+    const paintEnv = env ?? browserEnv();
     setError(null);
     setPending((current) => ({ ...current, [field]: next[field] }));
-    paintAdminTheme({ choice: next }, env ?? browserEnv());
+    paintAdminTheme({ choice: next }, paintEnv);
     save()
       .catch((cause: unknown) => {
         setError(cause instanceof Error ? cause.message : String(cause));
         setPending((current) => withoutField(current, field));
-        if (interfaceConfig && appearance) paintAdminTheme({ choice: { themeId: interfaceConfig.adminTheme, preference: appearance.theme } }, env ?? browserEnv());
+        paintAdminTheme({ choice: stored }, paintEnv);
       })
       .finally(() => invalidate({ key: ["settings", namespace] }));
   };
@@ -195,11 +203,23 @@ export function useAdminThemePicker(_required: object, { port = defaultAdminThem
     error,
     selectTheme: (nextId) => {
       if (!interfaceConfig || !appearance || preference === undefined || nextId === themeId) return;
-      commit({ themeId: nextId, preference }, () => port.saveInterface({ ...interfaceConfig, adminTheme: nextId }, interfaceConfig), INTERFACE_NAMESPACE, "themeId");
+      commit({
+        next: { themeId: nextId, preference },
+        stored: { themeId: interfaceConfig.adminTheme, preference: appearance.theme },
+        save: () => port.saveInterface({ ...interfaceConfig, adminTheme: nextId }, interfaceConfig),
+        namespace: INTERFACE_NAMESPACE,
+        field: "themeId",
+      });
     },
     selectPreference: (nextPreference) => {
       if (!interfaceConfig || !appearance || themeId === undefined || nextPreference === preference) return;
-      commit({ themeId, preference: nextPreference }, () => port.saveAppearance({ ...appearance, theme: nextPreference }, appearance), APPEARANCE_NAMESPACE, "preference");
+      commit({
+        next: { themeId, preference: nextPreference },
+        stored: { themeId: interfaceConfig.adminTheme, preference: appearance.theme },
+        save: () => port.saveAppearance({ ...appearance, theme: nextPreference }, appearance),
+        namespace: APPEARANCE_NAMESPACE,
+        field: "preference",
+      });
     },
   };
 }

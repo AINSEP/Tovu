@@ -769,11 +769,12 @@ function themeExploreSaveLabel(
 /** Reset button label — same filename-qualified shape as {@link themeExploreSaveLabel}, for the same
  *  reason. @complexity O(1). */
 function themeExploreResetLabel(
-  state: { resetting: boolean; file: ThemeExploreFile | undefined },
+  state: { resetting: boolean; file: ThemeExploreFile },
   t: Translate
 ): string {
+  // Reset only renders for a file `canResetThemeFile` accepted, so there is always a file to name.
   if (state.resetting) return t("Resetting…");
-  return state.file ? `${t("Reset")} ${state.file.label}` : t("Reset");
+  return `${t("Reset")} ${state.file.label}`;
 }
 
 /**

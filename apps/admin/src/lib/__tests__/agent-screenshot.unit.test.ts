@@ -141,6 +141,47 @@ describe("captureAdminScreenshotToolResult", () => {
     document.body.removeChild(element);
   });
 
+  it("skips an attempt that is not a base64 data URL (a zero-size canvas yields \"data:,\") and uses the next quality", async () => {
+    const element = document.createElement("main");
+    document.body.appendChild(element);
+    const urls = ["data:,", "data:image/jpeg;base64,QUJD"];
+    const canvas = { toDataURL: vi.fn(() => urls.shift()!) };
+
+    const result = await captureAdminScreenshotToolResult({ element, renderElementToCanvas: vi.fn().mockResolvedValue(canvas) });
+
+    expect(canvas.toDataURL).toHaveBeenCalledTimes(2);
+    expect(result.content[1]).toEqual(expect.objectContaining({ type: "image", mimeType: "image/jpeg", data: "QUJD" }));
+    document.body.removeChild(element);
+  });
+
+  it("counts trailing \"=\" padding as no bytes, so a padded payload exactly at the budget is accepted and one byte over is not", async () => {
+    const element = document.createElement("main");
+    document.body.appendChild(element);
+    // 2_000_002 chars estimate floor(2_000_002 * 3 / 4) = 1_500_001 bytes, minus 1 for "=" -> exactly the budget.
+    const onePad = "A".repeat(2_000_001) + "=";
+    // 2_000_003 chars estimate 1_500_002 bytes, minus 2 for "==" -> exactly the budget.
+    const twoPad = "A".repeat(2_000_001) + "==";
+    const unpadded = "A".repeat(2_000_002);
+    for (const [data, accepted] of [[onePad, true], [twoPad, true], [unpadded, false]] as const) {
+      const canvas = { toDataURL: vi.fn(() => `data:image/jpeg;base64,${data}`) };
+      const result = await captureAdminScreenshotToolResult({ element, renderElementToCanvas: vi.fn().mockResolvedValue(canvas) });
+      if (accepted) expect(result.content[1]).toEqual(expect.objectContaining({ type: "image", data }));
+      else expect(result.content).toEqual([expect.objectContaining({ type: "text", text: expect.stringMatching(/size budget/) })]);
+    }
+    document.body.removeChild(element);
+  });
+
+  it("reports a non-Error rejection from the renderer by its string form", async () => {
+    const element = document.createElement("main");
+    document.body.appendChild(element);
+
+    const result = await captureAdminScreenshotToolResult({ element, renderElementToCanvas: vi.fn().mockRejectedValue("tainted canvas") });
+
+    expect(result.content).toHaveLength(1);
+    expect((result.content[0] as { text: string }).text).toBe("screenshot capture failed: tainted canvas");
+    document.body.removeChild(element);
+  });
+
   it("reports a text-only failure, not a thrown error, when the renderer itself rejects", async () => {
     const element = document.createElement("main");
     document.body.appendChild(element);

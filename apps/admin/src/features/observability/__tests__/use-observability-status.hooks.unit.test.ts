@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
 import { createFakeObservabilityStatusPort } from "../hooks/observability-status-dependencies.hooks";
 import { useObservabilityStatus, useWiredObservabilityStatus } from "../hooks/use-observability-status.hooks";
+import { t as translateObservability } from "../observability-i18n";
 
 /**
  * @file `useObservabilityStatus` driven against the injected `ObservabilityStatusPort`, no `fetch`
@@ -82,6 +83,10 @@ describe("observability default binding and error copy", () => {
     await waitFor(() => expect(result.current.status).toEqual({ enabled: true, serviceName: "test-service" }));
     expect(result.current.error).toBeNull();
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/system/observability-status"))).toHaveLength(1);
+    // The wired translator reads the Observability dictionary for the admin's loaded locale.
+    expect(result.current.locale).toBe("en");
+    expect(result.current.t("Observability Providers")).toBe(translateObservability({ locale: "en", key: "Observability Providers" }));
+    expect(result.current.t("not a dictionary key")).toBe("not a dictionary key");
   });
 
   it.each([

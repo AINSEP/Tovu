@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  auditTranslationEntries,
+  candidateGapTranslationEntries,
   deploymentOverviewLoadErrorMessage,
   dockerfileLoadErrorMessage,
   dockerfileSaveErrorMessage,
@@ -139,5 +141,35 @@ describe("deployment-i18n — Static Site credential row and publish step", () =
     expect(t({ locale: "es", key: "The host finds or creates a project with this name on every publish." })).toBe(
       "The host finds or creates a project with this name on every publish."
     );
+  });
+});
+
+describe("index-aligned translation rows", () => {
+  // Each locale row is a list in the English keys' order; a row with a missing or extra entry would
+  // shift every later string onto the wrong control, so it is refused at module load instead.
+  it.each([
+    ["audit", auditTranslationEntries, /^Deployment audit translation has 1 entries; expected \d+\.$/],
+    ["candidate-gap", candidateGapTranslationEntries, /^Deployment candidate translation has 1 entries; expected \d+\.$/],
+  ] as const)("rejects a %s row whose length does not match the keys", (_name, build, message) => {
+    expect(() => build(["only one"])).toThrow(message);
+  });
+
+  it.each([
+    ["audit", auditTranslationEntries],
+    ["candidate-gap", candidateGapTranslationEntries],
+  ] as const)("maps a complete %s row onto the English keys in order", (_name, build) => {
+    // The key count is private to the module; the refusal message states it.
+    const refusal = (() => {
+      try {
+        build([]);
+        return "";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    })();
+    const size = Number(/expected (\d+)\./.exec(refusal)?.[1]);
+    expect(size).toBeGreaterThan(0);
+    const table = build(Array.from({ length: size }, (_, index) => `t${index}`));
+    expect(Object.values(table)).toEqual(Array.from({ length: size }, (_, index) => `t${index}`));
   });
 });

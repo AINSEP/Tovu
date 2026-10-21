@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 /**
  * @file Spanish translation for the Users screen (`Users.tsx`) — this feature's own dictionary,
  * not the shared `lib/admin-nav-i18n.ts` one, so parallel translation passes over other admin
@@ -1539,16 +1540,11 @@ const OWNER_LABELS: Record<string, string> = {
   "bn": "মালিক"
 };
 
-const USERS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(USERS_TRANSLATIONS).map(([locale, entries]) => [
-    locale,
-    {
-      ...entries,
-      Owner: OWNER_LABELS[locale] ?? "Owner",
-      ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}),
-      ...(RESET_PASSWORD_INFO_TRANSLATIONS[locale] ?? {}),
-    },
-  ]),
+const USERS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(
+  USERS_TRANSLATIONS,
+  Object.fromEntries(Object.entries(OWNER_LABELS).map(([locale, owner]) => [locale, { Owner: owner }])),
+  PASSWORD_FIELD_TRANSLATIONS,
+  RESET_PASSWORD_INFO_TRANSLATIONS,
 );
 
 export const t = createDictionaryTranslator({ featureDictionary: USERS_DICT }, { commonDictionary: COMMON_I18N });

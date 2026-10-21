@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
+import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThemePageDetailsModal } from "../ThemePageDetailsModal";
+import { useThemePageDetailsModal } from "../ThemePageDetailsModal.hooks";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
 const row: ThemePageRow = {
@@ -89,4 +90,23 @@ it("handles native cancel by preventing default and clearing the current row", (
   expect(cancel.defaultPrevented).toBe(true);
   expect(dialog).not.toHaveAttribute("open");
   expect(screen.queryByText("render/pages/pricing.html")).not.toBeInTheDocument();
+});
+
+describe("details notes for a locked page added after install", () => {
+  it("shows only the no-original note when the switch is locked", () => {
+    const locked: ThemePageRow = { pageId: "404", filePath: "render/pages/404.html", published: null, resettable: false, collidingContent: null };
+    render(<ThemePageDetailsModal row={locked} onClose={vi.fn()} t={(key: string) => key} />);
+    expect(screen.getByText("Added to this theme after it was installed — there is no original to reset to.")).toBeInTheDocument();
+    expect(screen.queryByText(/Whether this page has its own live URL on your site/)).not.toBeInTheDocument();
+  });
+});
+
+describe("useThemePageDetailsModal before its dialog ref is attached", () => {
+  it("does nothing (and does not throw) while no dialog element is attached", () => {
+    const onClose = vi.fn();
+    const { result, rerender } = renderHook(({ open }) => useThemePageDetailsModal(open, onClose), { initialProps: { open: true } });
+    rerender({ open: false });
+    expect(result.current.dialogRef.current).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@/__tests__/fetch-query-render";
+import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
@@ -297,6 +297,57 @@ describe("VisitorCredentialForm", () => {
     expect(screen.getByRole("combobox", { name: "Provider" })).toBeInTheDocument();
   });
 
+  it("the panel reports a failed credential read instead of the steps", () => {
+    const credential = fakeController({ loadState: { status: "error", message: "Stored settings unavailable" } });
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("the panel shows a save error and turns the assistant on through the switch once a key is stored", () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
+    const setPublicEnabled = vi.fn(async () => undefined);
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: "Could not save.", setPublicEnabled, setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    expect(screen.getByText("Could not save.")).toHaveClass("save-error");
+    const toggle = screen.getByRole("switch");
+    expect(screen.queryByText("Save a key in step 1 first.")).toBeNull();
+    fireEvent.click(toggle);
+    expect(setPublicEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("the panel blocks the switch with its reason until a key is stored", () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: false, hasUsableKey: false });
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    const toggle = screen.getByRole("switch");
+    expect(toggle).toBeDisabled();
+    const reason = screen.getByText("Save a key in step 1 first.", { selector: "p.visitor-step-hint" });
+    expect(toggle.getAttribute("aria-describedby")?.split(" ")).toContain(reason.id);
+  });
+
+  it("the panel's widget choice saves vanilla for Pure JS and react otherwise", async () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
+    const setWidget = vi.fn(async () => undefined);
+    const controller = { settings: { publicEnabled: false }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    const widget = screen.getByLabelText("Widget") as HTMLSelectElement;
+    // No stored widget yet: the React widget is what renders.
+    expect(widget.value).toBe("react");
+    fireEvent.change(widget, { target: { value: "vanilla" } });
+    fireEvent.change(widget, { target: { value: "react" } });
+    expect(setWidget.mock.calls).toEqual([[{ widget: "vanilla" }], [{ widget: "react" }]]);
+  });
+
   it("reports a failed settings read without displaying default provider fields", () => {
     render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
       loadState: { status: "error", message: "Stored settings unavailable" },
@@ -374,4 +425,55 @@ it("warns when an Anthropic key is pasted into the standalone OpenAI form", () =
     config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: preset.preferredModels[0], apiKey: "sk-ant-" + "x".repeat(40) },
   })} />);
   expect(screen.getByText(/looks like.*Anthropic/i)).toBeInTheDocument();
+});
+
+describe("in-flight and settled states of the visitor key and settings controls", () => {
+  it("Test key reads Testing… and is disabled while the provider is being asked", () => {
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: true, discovery: { status: "loading" } })} />);
+    expect(screen.getByRole("button", { name: "Testing…" })).toBeDisabled();
+  });
+
+  it("Save key reads Saving… while the key is being saved", () => {
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: true, saveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeInTheDocument();
+  });
+
+  it("Save model settings reads Saving… and is disabled while saving, with the status line beside it", () => {
+    render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByText("Saving…", { selector: "p.assistant-save-line" })).toBeInTheDocument();
+  });
+
+  it("confirms saved settings and shows a failed save's message", () => {
+    const { unmount } = render(<VisitorCredentialSettingsFooter {...fakeController({ settingsSaveState: { status: "saved", at: null } })} />);
+    expect(screen.getByText("Settings saved.")).toHaveClass("assistant-save-line");
+    unmount();
+    render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "error", message: "Model not allowed." } })} />);
+    expect(screen.getByText("Model not allowed.")).toHaveClass("save-error");
+    expect(screen.getByRole("button", { name: "Save model settings" })).toBeEnabled();
+  });
+
+  it("the form shows its loading line until the saved credential arrives", () => {
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ loadState: { status: "loading" } })} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
+    expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
+  });
+
+  it("offers Custom endpoint only while no catalog preset matches the config", () => {
+    const { unmount } = render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController()} />);
+    expect(screen.getByRole("option", { name: "Custom endpoint" })).toBeDisabled();
+    unmount();
+    const preset = DEFAULT_PROVIDER_PRESETS[0]!;
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ preset })} />);
+    expect(screen.queryByRole("option", { name: "Custom endpoint" })).toBeNull();
+    expect((screen.getByRole("combobox", { name: "Provider" }) as HTMLSelectElement).value).toBe(preset.id);
+  });
+
+  it("marks a provider that already holds a saved key as configured", () => {
+    const preset = DEFAULT_PROVIDER_PRESETS[0]!;
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+      preset, providerGroups: visitorProviderGroups(new Set([preset.id])),
+    })} />);
+    expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
+  });
 });

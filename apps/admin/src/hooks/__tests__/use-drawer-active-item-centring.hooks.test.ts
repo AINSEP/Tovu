@@ -123,6 +123,21 @@ describe("useDrawerActiveItemCentring", () => {
     expect(drawer.scrollTop).toBe(420);
   });
 
+  it("finds the admin sidebar (#admin-sidebar) in the page by default", () => {
+    const nav = document.createElement("nav");
+    nav.id = "admin-sidebar";
+    nav.innerHTML = '<a class="cms-item">Posts</a><a class="cms-item" aria-current="page">SEO</a>';
+    Object.defineProperty(nav, "clientHeight", { value: 600 });
+    Object.defineProperty(nav, "scrollHeight", { value: 1400 });
+    nav.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
+    (nav.querySelector('[aria-current="page"]') as HTMLElement).getBoundingClientRect = () => ({ top: 800, height: 40 }) as DOMRect;
+    document.body.append(nav);
+    try {
+      renderHook(() => useDrawerActiveItemCentring({ open: true }));
+      expect(nav.scrollTop).toBe(420);
+    } finally { nav.remove(); }
+  });
+
   it("does nothing when the drawer is not in the page", () => {
     const findDrawer = () => null;
     expect(() => renderHook(() => useDrawerActiveItemCentring({ open: true }, { findDrawer }))).not.toThrow();

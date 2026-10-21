@@ -48,3 +48,37 @@ it("uses the tab-stream adapter in the bridge's openStream port", () => {
   unmount();
   expect(closed).toBe(true);
 });
+
+/** Re-targeting the page root (a remount of the content area) must close the old bridge and expose
+ *  the new one; detaching the root entirely must close it and clear `agentBridge` so nothing keeps
+ *  routing `page.*` calls through a closed relay. */
+it("closes the previous bridge when the content root changes, and clears it when the root detaches", () => {
+  const made: Array<FrontendSessionBridge & { closed: boolean }> = [];
+  const createBridge: typeof createFrontendSessionBridge = () => {
+    const bridge = {
+      closed: false,
+      ready: Promise.resolve({ sessionId: `s${made.length}`, bindToken: "b" }), bindToken: () => "b",
+      close: () => { bridge.closed = true; },
+      bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
+    };
+    made.push(bridge);
+    return bridge;
+  };
+  const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
+  expect(result.current.agentBridge).toBeNull();
+
+  act(() => result.current.setContentEl(document.createElement("main")));
+  expect(made).toHaveLength(1);
+  expect(result.current.agentBridge).toBe(made[0]);
+
+  act(() => result.current.setContentEl(document.createElement("main")));
+  expect(made).toHaveLength(2);
+  expect(made[0].closed).toBe(true);
+  expect(made[1].closed).toBe(false);
+  expect(result.current.agentBridge).toBe(made[1]);
+
+  act(() => result.current.setContentEl(null));
+  expect(made[1].closed).toBe(true);
+  expect(result.current.agentBridge).toBeNull();
+  unmount();
+});

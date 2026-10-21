@@ -45,7 +45,7 @@ import type {
 } from '@jini-ai/chat/react/chat-pane';
 import type { ChatMessage } from '@jini-ai/chat/core';
 import type { ConversationListItem } from '@jini-ai/chat/react';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import { createWorkspaceChatTransport, type WorkspaceChatTransport } from './workspace-chat-transport.js';
 import { createLocalAttachmentUploader } from './chat-attachments.js';
 import { persistableMessages } from './persistable-messages.js';
@@ -62,6 +62,15 @@ import type { CreateSiteInput, CreatedSiteRecord, DatabaseProviderKind, SiteReco
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
 /**
+ * The desktop-bridge lookup every bridge-reading hook below takes as an optional port, defaulted to
+ * `runnerInventoryBridge` (`window.tovuRunner`). A LOOKUP rather than the bridge itself so each hook
+ * still reads the bridge exactly when it did before — inside the effect, the callback, or the
+ * once-per-lifetime memo — and a test hands in a fake without touching `window`. Each hook narrows
+ * it to the slice of the bridge it actually calls.
+ */
+export type BridgeLookup<K extends keyof RunnerInventoryBridge> = () => Pick<RunnerInventoryBridge, K> | undefined;
+
+/**
  * Polls Runner's project inventory on a 4s interval.
  *
  * Runner supervises OS processes that change state on their own — a site can crash, or finish
@@ -70,7 +79,13 @@ import type { WorkspaceConversationSummary } from '../contracts/workspace-conver
  * visible (`startVisibleInterval`): a hidden window does not poll, and polls once the moment it is
  * shown again.
  */
-export function useSitesPolling(): {
+export function useSitesPolling(
+  _required: Record<string, never> = {},
+  {
+    getBridge = runnerInventoryBridge,
+    startInterval = startVisibleInterval,
+  }: { getBridge?: BridgeLookup<'listSites'>; startInterval?: (tick: () => void, periodMs: number) => () => void } = {},
+): {
   projects: readonly SiteRecord[];
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
   projectsLoading: boolean;
@@ -81,7 +96,7 @@ export function useSitesPolling(): {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     if (bridge === undefined) {
       setProjectsLoading(false);
       return;
@@ -104,12 +119,12 @@ export function useSitesPolling(): {
         });
 
     void load();
-    const stop = startVisibleInterval(() => void load(), 4000);
+    const stop = startInterval(() => void load(), 4000);
     return () => {
       cancelled = true;
       stop();
     };
-  }, []);
+  }, [getBridge, startInterval]);
 
   return { projects, setProjects, projectsLoading, loadError };
 }
@@ -130,7 +145,10 @@ export function useSitesPolling(): {
  * `rescanning` is deliberately not derived from the polling hook's `projectsLoading`: that one is
  * true only until the first list arrives, so it would report nothing at all here.
  */
-export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>): {
+export function useSiteRescan(
+  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'rescanSites'> } = {},
+): {
   rescanning: boolean;
   rescanError: string | null;
   rescan: () => Promise<void>;
@@ -139,7 +157,7 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
   const [rescanError, setRescanError] = useState<string | null>(null);
 
   const rescan = useCallback(async () => {
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     if (bridge === undefined) return;
     setRescanning(true);
     setRescanError(null);
@@ -150,7 +168,7 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
     } finally {
       setRescanning(false);
     }
-  }, [setProjects]);
+  }, [setProjects, getBridge]);
 
   return { rescanning, rescanError, rescan };
 }
@@ -172,14 +190,15 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
 export function useRunnerNavigation(
   setActiveId: Dispatch<SetStateAction<RunnerSectionId>>,
   setActiveTab: Dispatch<SetStateAction<string | null>>,
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'onNavigate'> } = {},
 ): void {
   useEffect(() => {
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     return bridge?.onNavigate((section) => {
       setActiveId(section);
       setActiveTab(null);
     });
-  }, [setActiveId, setActiveTab]);
+  }, [setActiveId, setActiveTab, getBridge]);
 }
 
 export interface SectionNavState {
@@ -393,7 +412,7 @@ export function useProjectMutations(deps: {
   stopCreating: () => void;
   startCreating: () => void;
   projects?: readonly SiteRecord[];
-}): SiteMutationsState {
+}, { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'createSite' | 'deleteSite'> } = {}): SiteMutationsState {
   const [lastCreated, setLastCreated] = useState<CreatedSiteRecord | null>(null);
   useEffect(() => {
     if (deps.projects && lastCreated && !readyNoticeStillTrue({ created: lastCreated, projects: deps.projects })) setLastCreated(null);
@@ -420,7 +439,7 @@ export function useProjectMutations(deps: {
   };
 
   const handleCreate = async (input: CreateSiteInput) => {
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to create a website.');
     }
@@ -447,7 +466,7 @@ export function useProjectMutations(deps: {
   };
 
   const handleDelete = async (id: string) => {
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to delete a website.');
     }
@@ -841,6 +860,7 @@ export async function performSiteStart(
 export function useSiteStart(
   project: SiteRecord,
   onSiteUpdated?: (record: SiteRecord) => void,
+  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'startSite'> } = {},
 ): {
   starting: boolean;
   error: string | null;
@@ -852,7 +872,7 @@ export function useSiteStart(
   const start = async () => {
     setStarting(true);
     setError(null);
-    const result = await performSiteStart(project.id, runnerInventoryBridge());
+    const result = await performSiteStart(project.id, getBridge());
     try {
       if (result.error !== undefined) {
         setError(result.error);
@@ -958,7 +978,10 @@ export function startThenNotify(
  *   is no other way for this hook to see the node. `guest` is that node, for `useSiteWorkspace`'s
  *   history listeners, which need the same lifetime and cannot take a second ref on one element.
  */
-export function useWebviewLoadFailure(resetKey: unknown): {
+export function useWebviewLoadFailure(
+  resetKey: unknown,
+  { timers = window }: { timers?: Pick<Window, 'setTimeout' | 'clearTimeout'> } = {},
+): {
   failed: boolean;
   stalled: boolean;
   loaded: boolean;
@@ -985,18 +1008,18 @@ export function useWebviewLoadFailure(resetKey: unknown): {
     if (guest === null) return;
 
     const STALL_TIMEOUT_MS = 8000;
-    const stallTimer = window.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);
+    const stallTimer = timers.setTimeout(() => setStalled(true), STALL_TIMEOUT_MS);
 
     const onFailLoad = (event: WebviewDidFailLoadEvent) => {
       if (!event.isMainFrame || event.errorCode === -3) return;
-      window.clearTimeout(stallTimer);
+      timers.clearTimeout(stallTimer);
       // A fact arriving after a guess: the guess was wrong (or overtaken), so withdraw it rather
       // than leave both true and ask `SiteWorkspace` to decide which one wins.
       setStalled(false);
       setFailed(true);
     };
     const onFinishLoad = () => {
-      window.clearTimeout(stallTimer);
+      timers.clearTimeout(stallTimer);
       setFailed(false);
       setStalled(false);
       setLoaded(true);
@@ -1005,14 +1028,14 @@ export function useWebviewLoadFailure(resetKey: unknown): {
     guest.addEventListener('did-fail-load', onFailLoad);
     guest.addEventListener('did-finish-load', onFinishLoad);
     return () => {
-      window.clearTimeout(stallTimer);
+      timers.clearTimeout(stallTimer);
       guest.removeEventListener('did-fail-load', onFailLoad);
       guest.removeEventListener('did-finish-load', onFinishLoad);
     };
     // `resetKey` as well as the node: a VIEW switch or a soft load navigates the guest that is
     // already mounted, so the node is unchanged and only this re-arms the stall timer for the new
     // navigation. A recovery remount changes both (`key` remounts the element).
-  }, [guest, resetKey]);
+  }, [guest, resetKey, timers]);
 
   return { failed, stalled, loaded, guest, guestRef: setGuest };
 }
@@ -1022,7 +1045,10 @@ export function useWebviewLoadFailure(resetKey: unknown): {
  * on top of it, and the runtime-access and working-directory surfaces `ChatPane` needs. All three
  * are one bridge lookup, so they live in one hook rather than one per concern.
  */
-export function useWorkspaceChatTransport(): {
+export function useWorkspaceChatTransport(
+  _required: Record<string, never> = {},
+  { getBridge = runnerInventoryBridge }: { getBridge?: () => RunnerInventoryBridge | undefined } = {},
+): {
   transport: WorkspaceChatTransport | undefined;
   runtimeAccess: ChatPaneRuntimeAccess | undefined;
   workingDirectoryAccess: ChatPaneWorkingDirectoryAccess | undefined;
@@ -1031,7 +1057,7 @@ export function useWorkspaceChatTransport(): {
   /** `undefined` only when the bridge itself is. See `chat-attachments.ts`'s `createLocalAttachmentUploader`. */
   uploadAttachments: ChatPaneProps['uploadAttachments'];
 } {
-  const bridge = useMemo(() => runnerInventoryBridge(), []);
+  const bridge = useMemo(() => getBridge(), [getBridge]);
 
   const runtimeAccess = useMemo<ChatPaneRuntimeAccess | undefined>(() => {
     if (bridge === undefined) return undefined;
@@ -1129,8 +1155,14 @@ export interface UseRunnerConversations {
  * `activeId` would still be reading the outgoing value the moment a delta from the newly-mounted
  * pane arrives. Same hazard `use-assistant-chats.hooks.ts`'s `activeIdRef`/`commitActiveId` documents.
  */
-export function useRunnerConversations(): UseRunnerConversations {
-  const bridge = useMemo(() => runnerInventoryBridge(), []);
+export function useRunnerConversations(
+  _required: Record<string, never> = {},
+  { getBridge = runnerInventoryBridge }: {
+    getBridge?: BridgeLookup<'listConversations' | 'loadConversationMessages' | 'createConversation'
+      | 'deleteConversation' | 'renameConversation' | 'saveConversationMessage'>;
+  } = {},
+): UseRunnerConversations {
+  const bridge = useMemo(() => getBridge(), [getBridge]);
 
   const [conversations, setConversations] = useState<readonly WorkspaceConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1153,6 +1185,9 @@ export function useRunnerConversations(): UseRunnerConversations {
   /** Mirrors the last `conversations` this hook committed, for `remove`'s fallback when its own
    *  `refresh()` lands stale — see `refresh`'s own note. */
   const conversationsRef = useRef<readonly WorkspaceConversationSummary[]>([]);
+  /** Conversations this hook deleted. The store refuses writes to them, so a message the old pane
+   *  settles before `remove`'s follow-up `select` lands is dropped with the thread it belonged to. */
+  const deletedRef = useRef(new Set<string>());
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -1231,7 +1266,11 @@ export function useRunnerConversations(): UseRunnerConversations {
       if (bridge === undefined) return;
       await bridge.deleteConversation(id);
       writtenRef.current.delete(id);
-      const list = await refresh();
+      deletedRef.current.add(id);
+      // The delete succeeded, so the thread leaves the switcher now — and is filtered out of what
+      // `refresh` returns, whose failure fallback is the list still on screen (deleted row included).
+      setConversations((current) => current.filter((c) => c.id !== id));
+      const list = (await refresh()).filter((c) => c.id !== id);
       if (activeIdRef.current !== id) return;
       const next = list[0]?.id ?? null;
       if (next === null) {
@@ -1274,7 +1313,7 @@ export function useRunnerConversations(): UseRunnerConversations {
   /** Writes whatever in `messages` has settled and is not already stored, into `conversationId`. */
   const flush = useCallback(
     (conversationId: string, messages: ChatMessage[]) => {
-      if (bridge === undefined) return;
+      if (bridge === undefined || deletedRef.current.has(conversationId)) return;
       const written = writtenRef.current.get(conversationId) ?? new Set<string>();
       writtenRef.current.set(conversationId, written);
       const pending = persistableMessages(messages).filter((m) => !written.has(m.id));

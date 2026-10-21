@@ -114,9 +114,9 @@ function idleStoreState(): StoreState {
 /** Reads one single-`apiKey` store's current value into its (0 or 1) row — `site-assistant`/
  *  `admin-byok` share this exact "isSet, plus a server hint" shape; only the two GET calls' own field
  *  names differ, which the two small readers below normalize before this shared mapper ever runs. @complexity O(1). */
-function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, valueFact: string | null, updatedAt: string | null): RawStoreItem[] {
+function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, valueFact: string, updatedAt: string | null): RawStoreItem[] {
   if (!isSet) return [];
-  return [{ itemId: store.id, name: store.label, valueFact: valueFact ?? "", updatedAt }];
+  return [{ itemId: store.id, name: store.label, valueFact, updatedAt }];
 }
 
 async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
@@ -286,7 +286,8 @@ export function useOtherCredentials(
 
   const groups: readonly OtherCredentialGroupState[] | undefined = allSettled
     ? OTHER_CREDENTIAL_STORES.filter((store) => accessTokenCategoryMatches(store.category, filter.category)).map((store) =>
-        buildGroup(store, storeStates[store.id]?.items ?? [], drafts, filter.query)
+        // `allSettled` above already proved every store's `items` is defined.
+        buildGroup(store, storeStates[store.id]!.items!, drafts, filter.query)
       )
     : undefined;
 

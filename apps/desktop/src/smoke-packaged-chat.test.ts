@@ -114,7 +114,7 @@ test("the prompt is the release contract and Haiku comes from the actual picker"
   assert.equal(selectPackagedChatModel({ agents: [{ id: "claude", models: [{ id: "opus" }, { id: "haiku" }] }] }), "haiku");
   assert.equal(selectPackagedChatModel({ agents: [{ id: "claude", models: [{ id: "claude-haiku-4-5" }] }] }), "claude-haiku-4-5");
   for (const agents of [[], [{ id: "claude", available: false }], [{ id: "claude", authStatus: "missing" }],
-    [{ id: "claude", discoveryPending: true }], [{ id: "claude", models: [{ id: "sonnet" }] }]]) {
+    [{ id: "claude", discoveryPending: true }], [{ id: "claude", models: [{ id: "sonnet" }] }], [{ id: "claude" }]]) {
     assert.throws(() => selectPackagedChatModel({ agents }), PackagedChatSmokeError);
   }
 });
@@ -162,6 +162,24 @@ test("accepts the preflight line inside the packaged daemon's JSONL log", () => 
     JSON.stringify({ seq: 3, level: "info", source: "daemon", message: "[agent-daemon] jini bridge preflight ok (445ms)" }),
   ].join("\n");
   assert.doesNotThrow(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog }));
+});
+
+test("raw lines that are not strings or not JSON objects are skipped, and never count as the init frame", () => {
+  const noise = { kind: "raw", line: [42, "null", "[1,2]", init.line] };
+  assert.doesNotThrow(() => assertPackagedChatEvidence({ row: evidence([noise, tool, result]), runId: "smoke-run", daemonLog: preflight }));
+  // An init-shaped OBJECT smuggled in as a non-string line is not a CLI frame and proves nothing.
+  const objectLine = { kind: "raw", line: [JSON.parse(init.line) as unknown] };
+  assert.throws(() => assertPackagedChatEvidence({ row: evidence([objectLine, tool, result]), runId: "smoke-run", daemonLog: preflight }),
+    /did not report jini connected/);
+});
+
+test("daemon.log JSON lines without a string message are matched as raw text, not dropped", () => {
+  const daemonLog = ["42", JSON.stringify({ seq: 1, message: 7 }), "null", preflight.trim()].join("\n");
+  assert.doesNotThrow(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog }));
+  // A JSONL entry whose message is not a string is kept as its raw line, so a preflight claim inside
+  // some other field still has to match end-anchored and does not.
+  const misplaced = JSON.stringify({ seq: 1, message: 7, note: "[agent-daemon] jini bridge preflight ok (5ms)" });
+  assert.throws(() => assertPackagedChatEvidence({ row: evidence(), runId: "smoke-run", daemonLog: misplaced }), /no successful jini bridge preflight/);
 });
 
 function fakePorts(failures: string[] = []): { ports: PackagedChatSmokePorts; calls: string[] } {

@@ -42,7 +42,11 @@ import {
   LANGUAGE_NAMESPACE,
   DEFAULT_APPEARANCE,
   DEFAULT_LOCALE,
+  DEFAULT_INTERFACE,
+  INTERFACE_NAMESPACE,
   loadAppearance,
+  loadInterface,
+  saveInterface,
   adminThemeAccent,
   withAdminThemeAccent,
   loadInstructions,
@@ -571,5 +575,39 @@ describe("saveLanguage", () => {
     await saveLanguage("en", "en");
     const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
     expect(candidates[0]?.changed).toBe(false);
+  });
+});
+
+// --- Interface -----------------------------------------------------------------
+
+describe("loadInterface", () => {
+  it("defaults every field (the owner-approved behaviour) when nothing is stored, reading the interface namespace", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map());
+    expect(await loadInterface()).toEqual({ hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" });
+    expect(loadNamespaceValues).toHaveBeenCalledWith(INTERFACE_NAMESPACE);
+  });
+
+  it("reads stored values back, falling back field-by-field on a wrong-typed value", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["hideChatFabWhileOpen", false], ["wrapTabs", "yes"], ["adminTheme", "glass"]]));
+    expect(await loadInterface()).toEqual({ hideChatFabWhileOpen: false, wrapTabs: DEFAULT_INTERFACE.wrapTabs, adminTheme: "glass" });
+  });
+});
+
+describe("saveInterface", () => {
+  it("writes only the changed fields, USER-scoped, and returns what was written", async () => {
+    saveChangedEntries.mockResolvedValueOnce(["wrapTabs"]);
+    const written = await saveInterface({ ...DEFAULT_INTERFACE, wrapTabs: true }, DEFAULT_INTERFACE);
+    expect(written).toEqual(["wrapTabs"]);
+    expect(saveChangedEntries).toHaveBeenLastCalledWith("core.interface", "user", [
+      { key: "hideChatFabWhileOpen", valueJson: true, changed: false },
+      { key: "wrapTabs", valueJson: true, changed: true },
+      { key: "adminTheme", valueJson: "classic", changed: false },
+    ]);
+  });
+
+  it("marks every field changed when every field differs", async () => {
+    await saveInterface({ hideChatFabWhileOpen: false, wrapTabs: true, adminTheme: "glass" }, DEFAULT_INTERFACE);
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    expect(candidates.every((c) => c.changed)).toBe(true);
   });
 });

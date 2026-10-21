@@ -272,3 +272,24 @@ describe("Trash screen", () => {
     expect(screen.getByRole("button", { name: "Refreshing…" })).toHaveProperty("disabled", true);
   });
 });
+
+describe("Trash — row subtitle and default wiring", () => {
+  it("renders a row with no subtitle as just its title", () => {
+    render(<Trash useTrashHook={() => controller({ items: [item({ subtitle: null })] })} />);
+    const title = screen.getByText("A deleted post");
+    expect(title.parentElement!.querySelector(".muted-cell")).toBeNull();
+  });
+
+  it("wires the real Trash controller by default and lists what the server returns", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("/trash")) return Response.json({ items: [item({ title: "Served from the API" })], nextCursor: null });
+      return Response.json({ users: [] });
+    }));
+    try {
+      render(<FetchQueryProvider><Trash /></FetchQueryProvider>);
+      expect(await screen.findByText("Served from the API")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

@@ -431,6 +431,28 @@ describe("Formatting toolbar — mark and block-type toggles", () => {
   });
 });
 
+describe("Selection bubble menu — mark toggles", () => {
+  it.each([
+    ["Bold", "bold"],
+    ["Italic", "italic"],
+    ["Underline", "underline"],
+    ["Highlight", "highlight"],
+  ])("clicking the bubble menu's '%s' applies that mark to the selected text", async (title, mark) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
+    // The bubble menu only shows for a focused editor with a non-empty selection.
+    act(() => { ctrl.editor!.commands.focus(); });
+    const button = await waitFor(() => {
+      const found = screen.getAllByTitle(title).find((element) => element.closest(".bubble-formatting-menu"));
+      expect(found).toBeDefined();
+      return found!;
+    });
+    fireEvent.click(button);
+    expect(ctrl.editor!.isActive(mark)).toBe(true);
+  });
+});
+
 describe("Formatting toolbar — alignment button clicks", () => {
   it.each(["Align left", "Align center", "Align right", "Justify"])(
     "clicking '%s' sets its own aria-pressed state on",
@@ -1751,5 +1773,24 @@ describe("Categories & Tags", () => {
   it("is not mounted before the post loads", () => {
     renderPostEditor({ post: null });
     expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
+  });
+});
+
+describe("title keys, save errors and an unset template (injected controller)", () => {
+  it("Enter in the single-line title is swallowed, while other keys type normally", () => {
+    renderPostEditor();
+    const title = screen.getByLabelText("Post title");
+    expect(fireEvent.keyDown(title, { key: "Enter" })).toBe(false);
+    expect(fireEvent.keyDown(title, { key: "a" })).toBe(true);
+  });
+
+  it("shows the controller's save error beside the actions", () => {
+    const { container } = renderPostEditor({ error: "Save failed: server offline" });
+    expect(container.querySelector(".save-error")).toHaveTextContent("Save failed: server offline");
+  });
+
+  it("shows the empty choice in the template picker while no template is set", () => {
+    renderPostEditor({ availableTemplates: ["blog-post.html"], templateChoice: null });
+    expect(templateSelect()).toHaveValue("");
   });
 });

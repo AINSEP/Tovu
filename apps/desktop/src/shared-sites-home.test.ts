@@ -248,3 +248,85 @@ for (const oldOverride of ["documents", "local"]) test(`desktop retains sites wh
     assert.equal(records.find((record) => record.installDir === dir)?.folderMissing, false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("attaching: no lease is no server, a starting server says so, and a malformed lease is refused", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-shared-attach-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux" });
+    const dir = path.join(root, "site"); fs.mkdirSync(dir);
+    assert.equal(attachRunningSite({ workspace, dir }), null, "nothing is running there");
+    const starting = workspace.claim({ path: dir, app: "Web" });
+    assert.throws(() => attachRunningSite({ workspace, dir }), { message: "Running in Web (starting). Wait for this site to finish starting." });
+    workspace.running({ path: dir }).release({ token: starting.record.token });
+    const claimed = workspace.claim({ path: dir, app: "Web", port: 3456 });
+    // Leases live in the app-data running directory (linux layout pinned above), one file per site.
+    const runningDir = path.join(root, ".local", "share", "Tovu", "running");
+    const leasePath = path.join(runningDir, fs.readdirSync(runningDir).find((name) => name.endsWith(".json"))!);
+    const lease = JSON.parse(fs.readFileSync(leasePath, "utf8")) as Record<string, unknown>;
+    fs.writeFileSync(leasePath, JSON.stringify({ ...lease, scheme: "ftp" }));
+    // Refused before any origin is built from it — the lease reader itself rejects the bad record.
+    assert.throws(() => attachRunningSite({ workspace, dir }), /invalid/i);
+    fs.writeFileSync(leasePath, JSON.stringify(lease));
+    workspace.running({ path: dir }).release({ token: claimed.record.token });
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("an attached server reports the owner's exit once its lease changes, and Stop cancels the watch", (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-shared-exit-")));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const workspace = createSitesWorkspace({}, { homeDir: root, env: {} });
+  const dir = path.join(root, "site"); fs.mkdirSync(dir);
+  const claim = workspace.claim({ path: dir, app: "Web", port: 3456 });
+  const server = attachRunningSite({ workspace, dir })!;
+  const exits: unknown[] = [];
+  server.onExit((exit) => exits.push(exit));
+  t.mock.timers.tick(2000);
+  assert.deepEqual(exits, [], "the same lease is still live");
+  workspace.running({ path: dir }).release({ token: claim.record.token });
+  t.mock.timers.tick(2000);
+  assert.deepEqual(exits, [{ code: null, signal: null }]);
+  t.mock.timers.tick(10_000);
+  assert.equal(exits.length, 1, "reported once, then the poll stops");
+
+  const again = workspace.claim({ path: dir, app: "Web", port: 3457 });
+  const second = attachRunningSite({ workspace, dir })!;
+  const later: unknown[] = [];
+  second.onExit((exit) => later.push(exit));
+  void second.stop();
+  workspace.running({ path: dir }).release({ token: again.record.token });
+  t.mock.timers.tick(10_000);
+  assert.deepEqual(later, [], "a stopped observer reports nothing");
+});
+
+test("the old nested sites folder is never a compatibility root when settings are unreadable, it is a file, or it is itself a site", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-nested-guards-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
+    const nested = path.join(workspace.home({}), "sites");
+    fs.mkdirSync(workspace.home({}), { recursive: true });
+    fs.writeFileSync(nested, "a file, not a folder");
+    assert.equal(workspace.nestedSitesRoot({}), undefined);
+    fs.rmSync(nested);
+    writeSite(nested, "a-real-site-named-sites");
+    assert.equal(workspace.nestedSitesRoot({}), undefined, "a website named sites is a website");
+    fs.rmSync(path.join(nested, ".site-meta.json"));
+    assert.equal(workspace.nestedSitesRoot({}), nested, "sanity: a plain folder qualifies");
+    const configPath = workspace.config({}).configPath;
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, "{unreadable");
+    assert.equal(workspace.nestedSitesRoot({}), undefined, "an unreadable setting may hold a custom home");
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("catalog recovery, when asked for, still serves the same shared home", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-catalog-recovery-")));
+  try {
+    const plain = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
+    const recovering = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [], catalogRecovery: true });
+    assert.equal(recovering.home({}), plain.home({}));
+    const dir = path.join(root, "Documents", "Tovu", "alpha"); writeSite(dir, "alpha-id");
+    recovering.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "test", lastOpened: null }] });
+    assert.deepEqual(plain.registry({}).list({}).map((row) => row.id), ["alpha-id"]);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

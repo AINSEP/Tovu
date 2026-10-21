@@ -234,4 +234,12 @@ describe("Appearance moved to Admin UI", () => {
     fireEvent.change(input, { target: { value: "#abcdef" } });
     expect(appearance.onChange).toHaveBeenLastCalledWith({ ...value, accentColor: "#abcdef", accentColors: { glass: "#123456" } });
   });
+
+  it("reads the live document's theme state when no env is given", () => {
+    const appearance = slice({ value: { ...DEFAULT_APPEARANCE, theme: "light" } });
+    render(<AdminAppearance useAppearanceHook={() => appearance} port={themePicker().port} />);
+    // No `data-admin-theme` on the real <html>: Classic, whose light preview names its own picker hex.
+    expect(screen.getByLabelText("Custom accent color")).toHaveValue("#a85a38");
+    expect(screen.getByRole("radiogroup", { name: "Color scheme" })).toBeInTheDocument();
+  });
 });

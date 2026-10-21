@@ -19,10 +19,11 @@ export function registerSiteThemePreviewIpc(
     allowed: (sender: PreviewSender) => boolean;
   }, _optional = {},
 ): () => void {
-  const owners = new Map<PreviewSender, { claims: Map<string, () => void>; destroy: () => void }>();
-  const release = (sender: PreviewSender) => {
-    const owner = owners.get(sender);
-    if (!owner) return;
+  type Owner = { claims: Map<string, () => void>; destroy: () => void };
+  const owners = new Map<PreviewSender, Owner>();
+  // Every caller already holds the sender's live owner, and each path removes it (and its destroy
+  // hook) before anything else, so an owner is released at most once.
+  const release = (sender: PreviewSender, owner: Owner) => {
     owners.delete(sender);
     sender.removeListener('destroyed', owner.destroy);
     for (const off of owner.claims.values()) off();
@@ -35,7 +36,8 @@ export function registerSiteThemePreviewIpc(
     if (siteDir === undefined) return;
     let owner = owners.get(sender);
     if (!owner) {
-      owner = { claims: new Map(), destroy: () => release(sender) };
+      const created: Owner = { claims: new Map(), destroy: () => release(sender, created) };
+      owner = created;
       owners.set(sender, owner); sender.once('destroyed', owner.destroy);
     }
     if (owner.claims.has(id)) return;
@@ -48,10 +50,10 @@ export function registerSiteThemePreviewIpc(
     if (!id) return;
     const owner = owners.get(sender);
     owner?.claims.get(id)?.(); owner?.claims.delete(id);
-    if (owner?.claims.size === 0) release(sender);
+    if (owner?.claims.size === 0) release(sender, owner);
   });
   return () => {
-    for (const sender of owners.keys()) release(sender);
+    for (const [sender, owner] of owners) release(sender, owner);
     ipcMain.removeHandler(channels.watch); ipcMain.removeHandler(channels.unwatch);
   };
 }

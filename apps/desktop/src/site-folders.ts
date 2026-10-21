@@ -52,6 +52,7 @@ function readStoredFolders({ filePath }: { filePath: string }, _options = {}): {
 /** Bind discovery settings to this profile. Creation parents survive MRU eviction and card removal;
  * old creation rows contribute parents until the operator creates another site there.
  * @param required The MRU path, built-in roots and optional live legacy creation-row reader.
+ * @param optional.quarantine Moves a damaged settings file aside, `false` when it could not; defaults to `quarantineUnreadableFile`.
  * @returns The settings port; mutations lock, recover and atomically write only its own JSON file.
  * @throws Filesystem errors, or an error if damaged settings cannot be preserved on mutation.
  * @example createSiteFolders({ statePath, defaultRoots: [repoSites] }).read({})
@@ -63,9 +64,9 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
   createdSiteDirs?: () => string[];
   home?: () => string;
   workspace?: SitesWorkspace;
-}, _options = {}): SiteFoldersPort {
+}, { quarantine = quarantineUnreadableFile }: { quarantine?: typeof quarantineUnreadableFile } = {}): SiteFoldersPort {
   const filePath = path.join(path.dirname(statePath), 'desktop-site-folders.json');
-  if (workspace) return sharedSiteFolders({ workspace, filePath, createdSiteDirs });
+  if (workspace) return sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine });
   const read = (_required: {}, _optional = {}): SiteFolders => {
     const { stored } = readStoredFolders({ filePath });
     const sitesHome = home?.();
@@ -79,7 +80,7 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
   const update = (change: (stored: StoredSiteFolders) => StoredSiteFolders): void => {
     withFileLock(filePath, () => {
       const { stored, damaged } = readStoredFolders({ filePath });
-      if (damaged && !quarantineUnreadableFile(filePath, {
+      if (damaged && !quarantine(filePath, {
         label: 'sites folders settings', consequence: 'the previous folder settings are only in that copy now.',
       })) throw new Error(`Could not preserve damaged sites folders settings at ${filePath}. Nothing was saved.`);
       writeJsonFileAtomic(filePath, change(stored));
@@ -110,8 +111,8 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
  * Discovery changes never relocate a site or database. Missing volumes retain their paths.
  * @complexity O(n) roots and legacy created rows per read, one atomic settings mutation per action.
  */
-function sharedSiteFolders({ workspace, filePath, createdSiteDirs }: {
-  workspace: SitesWorkspace; filePath: string; createdSiteDirs: () => string[];
+function sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine }: {
+  workspace: SitesWorkspace; filePath: string; createdSiteDirs: () => string[]; quarantine: typeof quarantineUnreadableFile;
 }): SiteFoldersPort {
   const read = (): SiteFolders => {
     const config = workspace.config({});
@@ -124,7 +125,7 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs }: {
       const { stored, damaged } = readStoredFolders({ filePath });
       if (damaged) {
         withFileLock(filePath, () => {
-          if (readStoredFolders({ filePath }).damaged && !quarantineUnreadableFile(filePath, {
+          if (readStoredFolders({ filePath }).damaged && !quarantine(filePath, {
             label: "sites folders settings", consequence: "Using shared settings; the damaged legacy bytes are preserved.",
           })) throw new Error("Could not preserve legacy settings.");
         });

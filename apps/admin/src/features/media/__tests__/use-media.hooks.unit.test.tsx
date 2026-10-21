@@ -328,6 +328,25 @@ describe("useMedia — injected port (no fetch stub)", () => {
  * open purge dialog's `pending` prop to `false` mid-request, re-enabling Confirm/Cancel and
  * Escape/backdrop dismissal for a destructive delete that has not actually settled yet.
  */
+describe("useMedia — edit toggle", () => {
+  it("opens a row's editor, moves it to another row, closes it on a re-click, and closes it after a save", () => {
+    const port = createFakeMediaPort();
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    const a = { id: "a" } as AdminMedia;
+    const b = { id: "b" } as AdminMedia;
+
+    act(() => result.current.toggleEditing(a));
+    expect(result.current.editingId).toBe("a");
+    act(() => result.current.toggleEditing(b));
+    expect(result.current.editingId).toBe("b");
+    act(() => result.current.toggleEditing(b));
+    expect(result.current.editingId).toBeNull();
+    act(() => result.current.toggleEditing(a));
+    act(() => result.current.onMetadataSaved());
+    expect(result.current.editingId).toBeNull();
+  });
+});
+
 describe("useMedia — trash/purge shared rowSavingId race safety", () => {
   it.each(["replacement", "dismissed"] as const)("a finished purge preserves a newer row action and a %s confirmation", async (confirmation) => {
     const trashed = fakeMedia({ id: "old-purge", status: "trashed" });

@@ -176,6 +176,13 @@ test("drift detection also rejects a null gate entry with a clear error, not a r
   );
 });
 
+test("drift detection over a missing gates array, or an entry with no run command, still names every unrun script", () => {
+  // A manifest with no `gates` array at all is reported by validateManifest; drift must not pass it.
+  assert.deepEqual(detectGateDrift(null, ["check-a.mjs"]), ["check-a.mjs"]);
+  assert.deepEqual(detectGateDrift(undefined, ["check-a.mjs"]), ["check-a.mjs"]);
+  assert.deepEqual(detectGateDrift([{ id: "half-written" }], ["check-a.mjs"]), ["check-a.mjs"]);
+});
+
 // --- property 1: every gate is printed, every run -----------------------------------------------
 
 test("the summary lists disabled gates with their reason and date, not just the ones that ran", () => {
@@ -190,6 +197,12 @@ test("the summary lists disabled gates with their reason and date, not just the 
   assert.match(summary, /baseline pending/, "the reason must be visible without opening the manifest");
   assert.match(summary, /since 2026-09-10/);
   assert.match(summary, /2 gates: 1 pass, 0 fail, 1 DISABLED/);
+});
+
+test("a disabled gate with no reason or date says so instead of printing undefined", () => {
+  const summary = formatSummary([{ id: "coverage", run: "x", enabled: false }], new Map());
+  assert.match(summary, /DISABLED {2}coverage {2}— \(no reason given\) \[since \?\]/);
+  assert.doesNotMatch(summary, /undefined/);
 });
 
 test("a failing gate is counted and labelled FAIL", () => {

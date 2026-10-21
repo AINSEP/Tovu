@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -2002,4 +2002,152 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
     "tovu desktop: shared discovery is unavailable; showing local website cards.",
   ]);
   assert.equal(fs.readFileSync(projectsPath, "utf8"), before);
+});
+
+
+// --- start-failure translation, shared catalog sharing, erase reasons (coverage, 2026-10-21) -------
+
+test("handleStart with no injected classifier uses the real one and starts a real site folder", async () => {
+  const siteDir = siteFixture("default-classifier");
+  let started = 0;
+  // handleStart declares the classifier optional; omit it entirely rather than passing undefined.
+  const { classifySiteDir: _injected, ...deps } = baseDeps({ openSiteServer: async () => { started += 1; } });
+  trackSite(deps.projectsPath, siteDir);
+  await handleStart(siteDir, deps);
+  assert.equal(started, 1);
+});
+
+test("a SITE_DIR_INVALID start failure becomes 'folder not found' only when the folder vanished; other failures pass through", async () => {
+  const siteDir = siteFixture("vanishing");
+  const invalid = new Error("SITE_DIR_INVALID: config.json is missing at the site");
+  const deps = baseDeps({ openSiteServer: async () => { throw invalid; } });
+  trackSite(deps.projectsPath, siteDir);
+  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), (error) => error === invalid, "the folder is still there: serve's own reason stands");
+
+  deps.openSiteServer = async () => { fs.rmSync(siteDir, { recursive: true, force: true }); throw invalid; };
+  // The classifier ran before the spawn, so the folder disappearing mid-start is what serve reports.
+  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), {
+    message: `Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`,
+  });
+
+  const other = siteFixture("other-failure");
+  trackSite(deps.projectsPath, other);
+  deps.openSiteServer = async () => { throw "port in use"; };
+  await assert.rejects(handleStart(other, deps as ProjectIpcDeps), (error) => error === "port in use");
+});
+
+test("service discovery with no injected lister uses the real CLI, and any failure is an empty list with a warning", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  assert.deepEqual(await handleTokenSignInPlugins({ repoRoot: tempDir(), cliMode: "compiled" }), []);
+  assert.equal(warn.mock.callCount(), 1);
+  assert.deepEqual(await handleTokenSignInPlugins({ repoRoot: "/repo", cliMode: "source", listTokenSignInPlugins: async () => { throw "cli vanished"; } }), []);
+  assert.equal(warn.mock.calls[1]!.arguments[0], "[desktop] could not list the services a new site can connect: cli vanished");
+});
+
+test("Locate and Add Site share the folder into the shared catalog when shared settings are on", async () => {
+  const root = fs.realpathSync(tempDir());
+  const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", cwd: root, sourceRoots: [] });
+  const moved = writeSite(path.join(root, "moved-here"), "moved-id");
+  const located = locateDeps(moved);
+  located.sharedSites = workspace;
+  trackSite(located.projectsPath, path.join(root, "gone"));
+  await handleLocate(path.join(root, "gone"), located as ProjectIpcDeps);
+  assert.ok(workspace.registry({}).list({}).some((row) => row.path === moved), "the located folder is in the shared catalog");
+
+  const added = writeSite(path.join(root, "added-here"), "added-id");
+  const { deps } = addSiteDeps(added, { sharedSites: workspace });
+  await handleAddSite(deps as ProjectIpcDeps);
+  assert.ok(workspace.registry({}).list({}).some((row) => row.path === added), "the added folder is in the shared catalog");
+});
+
+test("an erase that fails for a reason other than permissions says the folder could not be removed", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "busy-site"), "busy-site");
+  const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "busy-site" });
+  await assert.rejects(handleDelete(siteDir, deps as ProjectIpcDeps), {
+    message: "Could not delete this website. The folder could not be removed. Its card has been kept so you can try again.",
+  });
+  assert.equal(readTrackedSites(deps.projectsPath).length, 1);
+});
+
+test("D-10: Rename also refuses the remembered name of a tracked site whose folder is missing", () => {
+  const root = tempDir();
+  const own = writeSite(path.join(root, 'own'), 'own');
+  const missing = path.join(root, 'unplugged-drive-site');
+  let writes = 0;
+  const deps = renameDeps({
+    readSiteName: (dir: string) => (dir === own ? 'Own' : assert.fail(`a missing folder's name is never read from disk: ${dir}`)),
+    writeSiteName: (_dir: string, name: string) => { writes += 1; return name.trim(); },
+  });
+  trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
+  trackSite(deps.projectsPath, missing, SITE_ORIGIN.adopted);
+  writeTrackedSites(deps.projectsPath, readTrackedSites(deps.projectsPath).map((row) => row.siteDir === missing ? { ...row, displayName: 'Bakery' } : row));
+  assert.throws(() => handleRename({ id: own, name: 'bakery' }, deps), {
+    message: 'A website named "bakery" is already tracked. Choose a different name.',
+  });
+  assert.equal(writes, 0);
+});
+
+test("erasing a created site drops it from the shared catalog, and a catalog failure only warns", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  for (const catalogFails of [false, true]) {
+    const root = fs.realpathSync(tempDir());
+    const real = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", cwd: root, sourceRoots: [] });
+    const siteDir = writeSite(path.join(root, "made"), `made-${catalogFails}`);
+    real.registry({}).merge({ entries: [{ id: `made-${catalogFails}`, name: "Made", path: siteDir, createdBy: "Desktop", lastOpened: null }] });
+    const sharedSites = catalogFails
+      ? { ...real, registry: (required: Record<string, never>) => ({ ...real.registry(required), remove: () => { throw new Error("catalog locked"); } }) }
+      : real;
+    const deps = baseDeps({ sharedSites, removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); } });
+    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: `made-${catalogFails}` });
+    await handleDelete(siteDir, deps as ProjectIpcDeps);
+    assert.equal(fs.existsSync(siteDir), false);
+    assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+    assert.equal(real.registry({}).list({}).some((row) => row.path === siteDir), catalogFails, "kept only when the catalog refused");
+  }
+  assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments[0]), ["tovu desktop: could not remove the erased website from the shared catalog."]);
+});
+
+test("re-adding a tracked site still succeeds when its name cannot be cached, and only warns", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const siteDir = siteFixture("readd-cache-fails");
+  let blocked = false;
+  const { deps } = addSiteDeps(siteDir, {
+    readSiteName: () => {
+      if (!blocked) {
+        blocked = true;
+        // The profile folder becomes unusable after the pointer was tracked, before the name cache write.
+        const profile = path.dirname(deps.projectsPath);
+        fs.rmSync(profile, { recursive: true, force: true });
+        fs.writeFileSync(profile, "not a folder");
+      }
+      return "Readded";
+    },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const record = await handleAddSite(deps);
+  assert.equal(record?.displayName, "Readded");
+  assert.equal(record?.alreadyTracked, true);
+  assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website name");
+});
+
+test("a list whose names changed on disk is still returned when the name cache cannot be written, and only warns", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const siteDir = writeSite(path.join(tempDir(), "list-cache-fails"), "list-cache-fails");
+  let blocked = false;
+  const deps = baseDeps({
+    readSiteName: () => {
+      if (!blocked) {
+        blocked = true;
+        const profile = path.dirname(deps.projectsPath);
+        fs.rmSync(profile, { recursive: true, force: true });
+        fs.writeFileSync(profile, "not a folder");
+      }
+      return "Renamed in Finder";
+    },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const records = handleList(deps);
+  assert.equal(first(records).displayName, "Renamed in Finder");
+  assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website names");
 });

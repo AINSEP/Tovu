@@ -204,10 +204,11 @@ export function useCollectionEntryEditor(
       seedExistingWorkingCopy({ found, editor });
       // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
       // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already apply.
-      if (props.entryId) {
-        const redirectPath = slugRedirectPath(`/collections/${props.contentTypeKey}`, props.entryId, found);
-        if (redirectPath) navigate(redirectPath, { replace: true });
-      }
+      // No separate `if (props.entryId)` guard: `found` is only non-null when `list`'s fetch looked
+      // an entry up by a truthy `props.entryId`, and even a missing id stringifies to a non-UUID
+      // (`"undefined"`), which `slugRedirectPath` already answers with `null` — so no redirect.
+      const redirectPath = slugRedirectPath(`/collections/${props.contentTypeKey}`, String(props.entryId), found);
+      if (redirectPath) navigate(redirectPath, { replace: true });
     } else {
       setTitle("");
       setSlug("");
@@ -293,7 +294,9 @@ export function useCollectionEntryEditor(
    * @complexity Time/space: O(1) — at most two sequential mutation calls.
    */
   async function publishWithSave(current: AdminEntry) {
-    if (!editor) return;
+    // No `if (!editor) return` guard here: the only caller, `toggleLifecycle`, already requires a
+    // loaded `entry`, and `entry` is only ever seeded by the load effect above, which itself waits
+    // for a live `editor` — so by the time Publish can run, the editor exists.
     setMessage(null);
     setValidationError(null);
     if (invalidFields.size > 0) {

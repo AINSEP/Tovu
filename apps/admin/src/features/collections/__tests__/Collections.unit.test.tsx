@@ -1,4 +1,4 @@
-import { render, screen, within } from "@/__tests__/fetch-query-render";
+import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -463,6 +463,13 @@ describe("NewContentTypeDialog", () => {
     expect(c.setShowNewDialog).toHaveBeenCalledWith(false);
     expect(c.load).toHaveBeenCalledTimes(1);
   });
+
+  it("onCancel closes the dialog without reloading the list", () => {
+    const c = renderCollections({ showNewDialog: true });
+    (newDialogPropsRef.current as { onCancel: () => void }).onCancel();
+    expect(c.setShowNewDialog).toHaveBeenCalledWith(false);
+    expect(c.load).not.toHaveBeenCalled();
+  });
 });
 
 describe("EditFieldsDialog", () => {
@@ -601,6 +608,13 @@ describe("EditFieldsDialog", () => {
     expect(c.setEditingFieldsFor).toHaveBeenCalledWith(null);
     expect(c.load).toHaveBeenCalledTimes(1);
   });
+
+  it("onCancel closes the dialog without reloading the list", () => {
+    const c = renderCollections({ editingFieldsFor: TYPE });
+    (editDialogPropsRef.current as { onCancel: () => void }).onCancel();
+    expect(c.setEditingFieldsFor).toHaveBeenCalledWith(null);
+    expect(c.load).not.toHaveBeenCalled();
+  });
 });
 
 describe("LifecycleConfirmDialog", () => {
@@ -617,6 +631,13 @@ describe("LifecycleConfirmDialog", () => {
     renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
     expect(screen.getByRole("heading", { name: "Deprecate content type" })).toBeInTheDocument();
     expect(screen.getByText("Recipe", { selector: "strong" })).toBeInTheDocument();
+  });
+
+  it("closing the dialog (Escape) cancels the pending lifecycle change", () => {
+    const c = renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+    expect(c.setPendingLifecycle).toHaveBeenCalledWith(null);
+    expect(c.runLifecycle).not.toHaveBeenCalled();
   });
 
   it("does not render when pendingLifecycle is null", () => {

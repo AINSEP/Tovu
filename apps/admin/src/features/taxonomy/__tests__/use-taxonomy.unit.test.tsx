@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { ApiError } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
@@ -301,6 +302,14 @@ describe("delete taxonomy", () => {
     expect(result.current.selected).toEqual({ taxonomy: GROUP, term: TERM_A });
   });
 
+  it("translates the embed-copy failure through the wired locale translator when no clipboard is available", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
+    const { result } = renderHook(() => useWiredTaxonomy(), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+    await act(async () => { await result.current.copyHtmlEmbed({ taxonomy: GROUP.taxonomy }); });
+    expect(result.current.copyFeedback).toBe("Could not copy embed");
+  });
+
   it("on a taxonomy 404: closes the dialog, clears its selection, and refetches without an error", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
@@ -357,6 +366,28 @@ describe("useTaxonomy — injected port", () => {
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     expect(result.current.taxonomies).toEqual([GROUP]);
     expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a non-Error delete rejection on the page banner instead of treating it as already gone", async () => {
+    const base = createFakeTaxonomyPort({ groups: [GROUP] });
+    const port = { ...base, trashTerm: () => Promise.reject("socket closed") };
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    act(() => result.current.requestDeleteTerm(TERM_A));
+    await act(() => result.current.confirmDeleteTerm());
+    expect(result.current.pendingDeleteTerm).toBeNull();
+    expect(result.current.deleteTermBlocked).toBeNull();
+    expect(result.current.taxonomies).toEqual([GROUP]);
+  });
+
+  it("a taxonomy delete refused as having children lands in deleteTaxonomyBlocked for that taxonomy", async () => {
+    const base = createFakeTaxonomyPort({ groups: [GROUP] });
+    const port = { ...base, trashTaxonomy: () => Promise.reject(new ApiError("has children", 409, "TERM_HAS_CHILDREN", { count: 3 })) };
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
+    await act(() => result.current.confirmDeleteTaxonomy());
+    expect(result.current.deleteTaxonomyBlocked).toEqual({ taxonomyId: GROUP.taxonomy.id, state: expect.objectContaining({ code: "TERM_HAS_CHILDREN", count: 3 }) });
   });
 
   it("a 409 from the fake port sets deleteTermBlocked, not the page error banner", async () => {

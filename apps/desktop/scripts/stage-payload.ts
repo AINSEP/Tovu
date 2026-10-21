@@ -39,355 +39,48 @@
  *   system-Node version to agree with.
  * - Runner's source `tovuDir` indirection — the source here IS this repo.
  * - `playwright`. See `EXCLUDED_PACKAGES` in `../src/stage-payload-lib.ts`.
+ *
+ * ## Shape
+ *
+ * Every precondition, staging step and summary line lives in `../src/stage-payload-run.ts`, tested
+ * there against real temporary trees; this file only binds the real filesystem, `npm ls`, the
+ * staging steps, the environment and the output streams.
+ *
+ * Usage: node scripts/stage-payload.ts [--repo-root <checkout>]   (default: this checkout)
+ * Exit codes: 0 = payload and bundled npm staged; 1 = a precondition or staged-tree check refused.
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
-
-import { assertDistImportsDeclared } from "../src/dist-import-check.ts";
-import { shellStalenessFailure } from "../src/shell-staleness.ts";
-import type { StalenessShell } from "../src/shell-staleness.ts";
-import {
-  assertClosureComplete,
-  diskBytes,
-  isExcluded,
-  newestMtime,
-  parseNpmLsPaths,
-  stageBundledNpm,
-  STAGED_SHELLS,
-  stagePayloadFiles,
-  stageDir,
-  pruneNativePrebuilds,
-  resolveNpmLsCommand,
-  resolveTargets,
-  stageTransitiveDependencies,
-  stripNonRuntimeFiles,
-} from "../src/stage-payload-lib.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** One `dist/runtime-manifest.json`, as far as this script reads it — see {@link readRuntimeManifest}. */
-interface RuntimeManifest {
-  cliEntry: string;
-}
+import { assertDistImportsDeclared } from "../src/dist-import-check.ts";
+import {
+  assertClosureComplete,
+  diskBytes,
+  newestMtime,
+  pruneNativePrebuilds,
+  STAGED_SHELLS,
+  stageBundledNpm,
+  stageDir,
+  stagePayloadFiles,
+  stageTransitiveDependencies,
+  stripNonRuntimeFiles,
+} from "../src/stage-payload-lib.ts";
+import { stagePayloadCli } from "../src/stage-payload-run.ts";
 
-/** One `STAGED_SHELLS` entry. `sourceDirs`/`sourceFiles` stay optional to match the defensive
- *  `?? []` reads in {@link failIfShellIsStale}. */
-interface ShellEntry extends StalenessShell {
-  sourceDirs?: string[];
-  sourceFiles?: string[];
-}
+const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const desktopDir = path.resolve(scriptDir, "..");
-const repoRoot = path.resolve(desktopDir, "..", "..");
-const outDir = path.join(desktopDir, "staging", "tovu-payload");
-const repoModulesDir = path.join(repoRoot, "node_modules");
-
-// `never`, not `void`: the body always ends in `process.exit(1)`, which @types/node itself types as
-// `never` — so this only states what already happens, and every call site below is understood as
-// unreachable-after by the same control-flow analysis a `throw` gets.
-function fail(message: string): never {
-  process.stderr.write(`stage-payload: ${message}\n`);
-  process.exit(1);
-}
-
-/** Tovu's production dependency closure, as package paths relative to its `node_modules`. */
-function productionDependencyPaths(): string[] {
-  let stdout: string;
-  // `resolveNpmLsCommand` picks the portable invocation — see its doc comment for why a bare
-  // `execFileSync("npm", …)` fails on Windows.
-  const { command, args, shell } = resolveNpmLsCommand(process);
-  try {
-    stdout = execFileSync(command, args, {
-      cwd: repoRoot,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      shell,
-    });
-  } catch (err) {
-    // `npm ls` exits non-zero on any tree quibble (the linked `@jini-ai/*` produce several) while
-    // still printing a complete, usable tree on stdout.
-    // `as`: `execFileSync`'s thrown error carries the same `stdout` it would have returned.
-    stdout = (err as { stdout?: string }).stdout ?? "";
-  }
-  const names = parseNpmLsPaths(stdout, repoModulesDir, path.sep);
-  if (names.length === 0) {
-    fail(`npm ls listed no packages under ${repoModulesDir}. Has \`npm install\` run at the repo root?`);
-  }
-  return names;
-}
-
-/**
- * The package names the built server may import bare: root `dependencies` plus every npm workspace
- * package (`@tovu/sdk`), both of which {@link productionDependencyPaths} stages. Anything else it
- * imports is a devDependency and absent from the payload -- see `../src/dist-import-check.ts`.
- */
-function declaredRuntimePackages(): Set<string> {
-  const rootPackage = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
-  const packagesDir = path.join(repoRoot, "packages");
-  const workspaces = readdirSync(packagesDir)
-    .map((entry) => path.join(packagesDir, entry, "package.json"))
-    .filter((manifestPath) => existsSync(manifestPath))
-    .map((manifestPath) => JSON.parse(readFileSync(manifestPath, "utf8")).name as string);
-  return new Set([...Object.keys(rootPackage.dependencies ?? {}), ...workspaces]);
-}
-
-function stagePackage(name: string): boolean {
-  if (isExcluded(name)) return false;
-  const src = path.join(repoModulesDir, name);
-  const dest = path.join(outDir, "node_modules", name);
-  if (!existsSync(src)) return false;
-  // A nested entry (`liquidjs/node_modules/commander`) already came along with its parent.
-  if (existsSync(dest)) return false;
-
-  // `@jini-ai/*` and `@tovu/sdk` are `file:`/workspace links whose real directories carry a pnpm
-  // symlink farm under `node_modules/`. Dereferencing that would drag in the entire pnpm store;
-  // dropping it makes their imports resolve from the staged root instead, which is where npm
-  // hoisted those same dependencies.
-  stageDir(src, dest, lstatSync(src).isSymbolicLink());
-  return true;
-}
-
-/**
- * npm's hoisted view only covers the `@jini-ai/*` packages this repo names directly. Their imports
- * of each other — `@jini-ai/agent-runtime` needing `@jini-ai/platform`, which Tovu never mentions —
- * resolve in dev through Jini's own pnpm workspace links, which cannot ship. Staging every Jini
- * package flat puts all of them somewhere one upward walk can find.
- *
- * @returns the real source directory of each staged package, to seed the dependency closure.
- */
-function stageJiniPackages(): string[] {
-  const anchor = path.join(repoModulesDir, "@jini-ai", "core");
-  if (!existsSync(anchor)) {
-    fail(`no @jini-ai/core under ${repoModulesDir}; cannot locate the Jini packages.`);
-  }
-  // Derived from the link itself so it cannot drift from wherever Jini really is.
-  const packagesDir = path.dirname(realpathSync(anchor));
-  const roots: string[] = [];
-  for (const entry of readdirSync(packagesDir)) {
-    const src = path.join(packagesDir, entry);
-    const manifest = path.join(src, "package.json");
-    if (!existsSync(manifest)) continue;
-    roots.push(src);
-    const dest = path.join(outDir, "node_modules", JSON.parse(readFileSync(manifest, "utf8")).name);
-    if (existsSync(dest)) continue;
-    stageDir(src, dest, true);
-  }
-  return roots;
-}
-
-/**
- * Replace every symlink in the staged tree with the real thing it points at.
- *
- * `cpSync`'s `dereference` only dereferences links whose target lies inside the subtree being
- * copied. A link pointing OUT of it (npm's `.bin/node-which -> ../which/bin/…`) is recreated as a
- * symlink to the resolved ABSOLUTE path — so a developer-machine path ends up inside the bundle.
- * `codesign --verify --deep --strict` rejects that outright ("invalid destination for symbolic link
- * in bundle"), and on any other machine it would simply dangle.
- */
-function materializeSymlinks(dir: string): number {
-  let replaced = 0;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isSymbolicLink()) {
-      let target;
-      try {
-        target = realpathSync(full);
-      } catch {
-        rmSync(full, { force: true });
-        continue;
-      }
-      rmSync(full, { force: true });
-      cpSync(target, full, { recursive: true, dereference: true });
-      replaced += 1;
-    }
-    // Re-stat rather than trusting the dirent: an entry just materialized from a link to a
-    // directory needs walking too, in case its own contents carried links outward.
-    if (existsSync(full) && statSync(full).isDirectory()) replaced += materializeSymlinks(full);
-  }
-  return replaced;
-}
-
-function assertNoSymlinks(dir: string): void {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isSymbolicLink()) fail(`staged tree still contains a symlink after materialization: ${full}`);
-    if (entry.isDirectory()) assertNoSymlinks(full);
-  }
-}
-
-/**
- * `dist/runtime-manifest.json` is the root build's own output (`emit-dist-package-json.mjs`, derived
- * from the root `package.json`'s `bin.tovu`) — read here rather than assuming the conventional
- * `dist/src/cli/main.js`, since that literal is exactly what broke once already when `src/` was
- * renamed (2026-08-27 restructure).
- */
-function readRuntimeManifest(dir: string): RuntimeManifest {
-  const manifestPath = path.join(dir, "dist", "runtime-manifest.json");
-  if (!existsSync(manifestPath)) {
-    fail(`no ${manifestPath}. Run \`npm run build\` at ${repoRoot} first.`);
-  }
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  if (typeof manifest.cliEntry !== "string") fail(`${manifestPath} has no "cliEntry" string field.`);
-  return manifest;
-}
-
-/**
- * The shell resolves the CLI through `resolveCliEntry`, which reads `<payloadRoot>/package.json`'s
- * `bin.tovu` — so that manifest has to be staged, and it has to agree with the `cliEntry` the build
- * recorded. Two independently-derived paths that are allowed to disagree are exactly the failure
- * `runtime-manifest.json` was introduced to prevent, so assert they match instead of picking one.
- */
-function assertCliEntryAgreement(manifest: RuntimeManifest): void {
-  const binEntry = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8")).bin?.tovu;
-  if (binEntry !== manifest.cliEntry) {
-    fail(`the root package.json's bin.tovu ("${binEntry}") and dist/runtime-manifest.json's cliEntry ("${manifest.cliEntry}") disagree. Re-run \`npm run build\`.`);
-  }
-}
-
-/** Count `.sql` migrations on both sides — a stale `dist/` is the single likeliest reason a
- *  packaged app rejects a site with `SITE_NEWER_THAN_RUNTIME`, and it is invisible otherwise. */
-function countMigrations(dir: string): number {
-  return existsSync(dir) ? readdirSync(dir).filter((entry) => entry.endsWith(".sql")).length : 0;
-}
-
-function failIfDistIsStale(): void {
-  const source = countMigrations(path.join(repoRoot, "apps", "website", "src", "platform", "db", "drizzle"));
-  const built = countMigrations(path.join(outDir, "dist", "src", "platform", "db", "drizzle"));
-  if (built < source) {
-    fail(
-      `the staged dist/ carries ${built} migrations but source has ${source}. This payload is built ` +
-        `from a stale dist/ and will reject any site created from current source with ` +
-        `SITE_NEWER_THAN_RUNTIME. Re-run \`npm run build\` at the repo root for a shippable payload.`
-    );
-  }
-}
-
-/**
- * Refuse a shell whose build output is OLDER than its own source. The comparison itself lives in
- * `../src/shell-staleness.ts` (and is tested there, against the real 2026-09-12 incident); this
- * function is only the filesystem half.
- *
- * BEHAVIOUR CHANGE, deliberately: anyone packaging from a checkout whose shells are behind their
- * source now hits a HARD STOP where they previously got a shipped-but-wrong artifact.
- *
- * mtime is the floor, not the ceiling. A build-provenance record (git HEAD sha plus a dirty flag,
- * written at build time and asserted here) would be stricter — but a matching `head_sha` is NOT
- * proof of freshness if the build came from a dirty tree, so such a record must carry the dirty
- * flag and staging must refuse a dirty-built payload. Otherwise it becomes another
- * green-for-the-wrong-reason check, which is the failure class this guard exists to end.
- *
- * @complexity O(n) in source files under the shell's own tree.
- */
-function failIfShellIsStale(shell: ShellEntry): void {
-  const builtAt = newestMtime(path.join(repoRoot, shell.relative, shell.marker));
-  let sourceAt = 0;
-  for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, newestMtime(path.join(repoRoot, dir)));
-  for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, newestMtime(path.join(repoRoot, file)));
-
-  const failure = shellStalenessFailure(builtAt, sourceAt, shell);
-  if (failure) fail(failure);
-}
-
-const manifest = readRuntimeManifest(repoRoot);
-assertCliEntryAgreement(manifest);
-if (!existsSync(path.join(repoRoot, manifest.cliEntry))) {
-  fail(`no built Tovu CLI at ${path.join(repoRoot, manifest.cliEntry)} (from runtime-manifest.json's cliEntry). Run \`npm run build\` at ${repoRoot} first.`);
-}
-
-/**
- * The admin and site-chat SPAs are SEPARATE builds from `dist/`: the root `npm run build` compiles
- * the server only. So a checkout that builds cleanly can still have neither shell, and a build made
- * from it produces an app whose every site tab answers `/admin` and `/site-chat` with a 503 — a
- * failure that first shows up after packaging, signing and notarizing. Refusing to stage is the
- * cheap end of that.
- */
-for (const shell of STAGED_SHELLS) {
-  if (!existsSync(path.join(repoRoot, shell.relative, shell.marker))) {
-    fail(`no built shell at ${path.join(repoRoot, shell.relative, shell.marker)}. Run \`${shell.buildWith}\` at ${repoRoot} first.`);
-  }
-  // Existence was never enough -- see failIfShellIsStale's header for the bundle this missed.
-  failIfShellIsStale(shell);
-}
-
-rmSync(outDir, { recursive: true, force: true });
-mkdirSync(outDir, { recursive: true });
-
-// `package.json` is staged verbatim because `resolveCliEntry` reads `bin.tovu` from it in BOTH
-// modes — copying it is what keeps that function free of any packaged-mode branch at all.
-stagePayloadFiles({ repoRoot, outDir });
-
-const jiniRoots = stageJiniPackages();
-const staged =
-  productionDependencyPaths().filter(stagePackage).length +
-  jiniRoots.length +
-  stageTransitiveDependencies({ roots: jiniRoots, outDir });
-
-if (!existsSync(path.join(outDir, "node_modules", "better-sqlite3"))) {
-  fail("staged tree has no better-sqlite3 — Tovu's CLI cannot open a site database without it.");
-}
-const materialized = materializeSymlinks(outDir);
-assertNoSymlinks(outDir);
-// BEFORE assertClosureComplete, deliberately: the closure is then verified against the tree that
-// actually ships, not against a fuller one the strip has yet to touch.
-const stripped = stripNonRuntimeFiles({ outDir });
-// See `resolveTargets` for why this is the host unless TOVU_TARGET_ARCH says otherwise.
-const targets = resolveTargets(process.env, process);
-let pruned;
-try {
-  pruned = pruneNativePrebuilds({ outDir, targets });
-  assertClosureComplete({ outDir });
-  assertDistImportsDeclared({
-    distDir: path.join(outDir, "dist"),
-    entry: path.join(outDir, manifest.cliEntry),
-    declared: declaredRuntimePackages(),
-  });
-} catch (err) {
-  // `as`: assertClosureComplete, assertDistImportsDeclared and pruneNativePrebuilds only ever throw
-  // a plain Error.
-  fail((err as Error).message);
-}
-
-const stagedManifest = readRuntimeManifest(outDir);
-if (stagedManifest.cliEntry !== manifest.cliEntry || !existsSync(path.join(outDir, stagedManifest.cliEntry))) {
-  fail(`the staged tree's runtime-manifest.json names cliEntry "${stagedManifest.cliEntry}", which did not survive the dist/ copy.`);
-}
-for (const shell of STAGED_SHELLS) {
-  // After `materializeSymlinks`, not before: that pass could in principle empty out a dangling link.
-  if (!existsSync(path.join(outDir, shell.relative, shell.marker))) {
-    fail(`staged tree has no shell at ${path.join(outDir, shell.relative, shell.marker)} — the copy must have gone wrong.`);
-  }
-}
-failIfDistIsStale();
-
-// The bundled npm package (plan-desktop-bundled-npx-2026-09-24.md §5, §6 S5) — staged into its own
-// `staging/npm` tree, a SIBLING of `outDir` (`staging/tovu-payload`), not inside it: `npm` is a
-// devDependency of apps/desktop itself (package.json), never a runtime dependency of the Tovu
-// payload above, so it has nothing to do with `productionDependencyPaths()`. `electron-builder.yml`
-// ships it via its own pair of `extraResources` entries at `Contents/Resources/npm/`.
-const npmSrc = path.join(desktopDir, "node_modules", "npm");
-const npmStagingDir = path.join(desktopDir, "staging", "npm");
-let npmStaged;
-try {
-  npmStaged = stageBundledNpm({ npmSrc, outDir: npmStagingDir });
-} catch (err) {
-  // `as`: stageBundledNpm only ever throws a plain Error.
-  fail((err as Error).message);
-}
-process.stdout.write(
-  `stage-payload: staged bundled npm -> ${npmStagingDir} (${npmStaged.fileCount} files, ${(npmStaged.bytes / 1048576).toFixed(1)} MB)\n`
-);
-
-// `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
-// on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.
-const sizeMb = (diskBytes(outDir) / 1048576).toFixed(1);
-process.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${outDir} (${sizeMb} MB)\n`);
-process.stdout.write(
-  `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
-    `${stripped.coverage} coverage reports (${(stripped.bytes / 1048576).toFixed(1)} MB on disk)\n`
-);
-process.stdout.write(
-  `stage-payload: native prebuilds kept for ${targets.map((target) => `${target.platform}-${target.arch}`).join(" + ")} only; ` +
-    `removed ${pruned.prebuilds} other-architecture prebuilds and ${pruned.buildInputs} from-source build inputs ` +
-    `(${(pruned.bytes / 1048576).toFixed(1)} MB on disk)\n`
-);
+process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, {
+  fs: { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync },
+  steps: {
+    stagePayloadFiles, stageDir, stageTransitiveDependencies, stripNonRuntimeFiles, pruneNativePrebuilds,
+    assertClosureComplete, assertDistImportsDeclared, stageBundledNpm, diskBytes, newestMtime,
+  },
+  shells: STAGED_SHELLS,
+  execFileSync,
+  env: process.env,
+  host: process,
+  stdout: process.stdout,
+  stderr: process.stderr,
+});

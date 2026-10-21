@@ -1005,6 +1005,18 @@ describe("users dependency port contracts", () => {
     expect(JSON.parse(String(requests[0].init?.body))).toEqual({ password: "new-password" });
   });
 
+  it("the live delete adapter sends DELETE for the encoded principal id", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return new Response(null, { status: 204 });
+    });
+    await defaultUsersPort.deleteUser("u 2");
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe("/api/admin/v1/workspaces/workspace-local/users/u%202");
+    expect(requests[0].init?.method).toBe("DELETE");
+  });
+
   it("an empty fake uses its fallback caller id and creates users with or without email", async () => {
     const port = createFakeUsersPort();
     await expect(port.me()).resolves.toEqual({ user: { id: "fake-user-1" }, canManageUserTrash: true });

@@ -19,7 +19,10 @@ export function Members({ useMembersHook = useWiredMembers }: MembersProps = {})
     const controller = useMembersHook();
     return { ...controller, translate: controller.t, stateFor: ({ id }) => controller.stateFor(id) };
   }
-  return <JiniMembers port={port} translate={key => key} useMembersHook={useController}
+  // `translate` is required by Jini's props but only feeds its default `useMembers`, which
+  // `useController` replaces (it translates through `controller.t`). `String` is the identity on a
+  // string key, so no never-called arrow function is defined here just to satisfy the type.
+  return <JiniMembers port={port} translate={String} useMembersHook={useController}
     description="Site visitors who have registered an account — review status, resend a sign-in link, or disable access."
     emptyDescription="Registered site visitors will show up here."
     renderServerLabel={({ value }) => <ServerLabel value={value} />} />;

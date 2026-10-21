@@ -2,7 +2,7 @@
  * @file `startVisibleInterval` (admin copy) — the composer's skills poll must not tick while the
  * window is hidden, and must catch up the moment it is shown again. Fake document and fake timers.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { startVisibleInterval, type IntervalTimers, type VisibilitySource } from "../visible-interval";
 
@@ -71,5 +71,33 @@ describe("startVisibleInterval (admin)", () => {
     startVisibleInterval(() => void ticks++, 10_000, doc, timers);
     expect(timers.liveCount()).toBe(0);
     expect(ticks).toBe(0);
+  });
+
+  it("ignores a repeated visible or hidden notification without stacking timers or extra ticks", () => {
+    const doc = fakeDocument("visible");
+    const timers = fakeTimers();
+    let ticks = 0;
+    const stop = startVisibleInterval(() => { ticks++; }, 1_000, doc, timers);
+    doc.set("visible");
+    expect([ticks, timers.liveCount()]).toEqual([0, 1]);
+    doc.set("hidden");
+    doc.set("hidden");
+    expect(timers.liveCount()).toBe(0);
+    stop();
+    expect([ticks, timers.liveCount(), doc.listenerCount()]).toEqual([0, 0, 0]);
+  });
+
+  it("defaults to the page document and the real interval timer", () => {
+    vi.useFakeTimers();
+    try {
+      let ticks = 0;
+      const stop = startVisibleInterval(() => { ticks++; }, 1_000);
+      vi.advanceTimersByTime(2_500);
+      expect(ticks).toBe(2);
+      stop();
+      vi.advanceTimersByTime(5_000);
+      expect(ticks).toBe(2);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 });

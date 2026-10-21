@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EventEmitter } from "node:events";
+import { spawnSync } from "node:child_process";
 
 import { createAutoUpdateController } from "./auto-update-controller.ts";
 import type { AutoUpdateControllerDeps } from "./auto-update-controller.ts";
@@ -226,4 +227,32 @@ test("start records this instance at once; willQuit removes it", () => {
   assert.deepEqual(t.calls, [], "the first check waits for the launch delay");
   t.controller.willQuit();
   assert.deepEqual(fs.readdirSync(t.presenceDir), []);
+});
+
+test("without an injected liveness probe the real process table decides: a live older sibling suppresses the check, an exited one does not", async () => {
+  // Both instances must be real processes for the default probe: this runner is "self", and its
+  // parent (certainly alive while the runner is) is the older sibling.
+  const live = setup({ isAlive: undefined, pid: process.pid });
+  live.addSibling(process.ppid, 0);
+  live.controller.tick();
+  await flush();
+  assert.deepEqual(live.calls, [], "a live older copy owns the update check");
+
+  const exited = spawnSync(process.execPath, ["-e", ""]);
+  const dead = setup({ isAlive: undefined, pid: process.pid });
+  dead.addSibling(exited.pid!, 0);
+  dead.controller.tick();
+  await flush();
+  assert.deepEqual(dead.calls, ["check"], "a record left by an exited process cannot suppress the check");
+});
+
+test("macOS: with no host override, a hung Squirrel hand-off quits the app after Jini's two-minute deadline", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const s = setup({ stageTimeoutMs: undefined });
+  s.updater.emit("update-downloaded", { version: "0.2.0" });
+  assert.equal(s.controller.beforeFinalQuit(), true);
+  t.mock.timers.tick(2 * 60 * 1000 - 1);
+  assert.deepEqual(s.events.filter((event) => event === "quit"), [], "the quit is held while Squirrel may still be staging");
+  t.mock.timers.tick(1);
+  assert.deepEqual(s.events.filter((event) => event === "quit"), ["quit"]);
 });

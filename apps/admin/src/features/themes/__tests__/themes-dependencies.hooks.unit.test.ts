@@ -53,6 +53,26 @@ describe("defaultThemesPort — real api wiring", () => {
     expect(spy).toHaveBeenCalledWith("quartz");
   });
 
+  it("duplicateTheme delegates to api.duplicateTheme with the source id and new name", async () => {
+    const copy = {
+      theme: { id: "quartz-copy", name: "Quartz copy", tier: "declarative" as const, status: "ok", errors: [] },
+      sourceThemeId: "quartz",
+      files: 3,
+      availableThemeIds: ["basic", "quartz", "quartz-copy"],
+    };
+    const spy = vi.spyOn(api, "duplicateTheme").mockResolvedValue(copy);
+    await expect(defaultThemesPort.duplicateTheme("quartz", "Quartz copy")).resolves.toEqual(copy);
+    expect(spy).toHaveBeenCalledWith("quartz", "Quartz copy");
+  });
+
+});
+
+describe("createFakeThemesPort — duplicateTheme", () => {
+  it("rejects a copy of a theme that is not installed and leaves the list unchanged", async () => {
+    const port = createFakeThemesPort();
+    await expect(port.duplicateTheme("missing", "Copy")).rejects.toThrow("theme 'missing' was not found");
+    await expect(port.getPresentation()).resolves.toMatchObject({ availableThemeIds: ["basic"] });
+  });
 });
 
 describe("createFakeThemesPort — rescanThemes", () => {

@@ -295,7 +295,9 @@ export function useThemeCanvasStyling(
     let settled = false;
     setState({ status: "pending" });
     const timeoutId = setTimeout(() => {
-      if (cancelled || settled) return;
+      // No `cancelled || settled` early return here: both settle paths below and the effect's
+      // cleanup `clearTimeout(timeoutId)` before setting those flags, so this callback only ever
+      // runs while neither is set.
       settled = true;
       // Same outcome a fetch REJECTION already produces — see `CANVAS_STYLING_TIMEOUT_MS`'s own doc.
       logCanvasStylingSettle("styling:timeout");

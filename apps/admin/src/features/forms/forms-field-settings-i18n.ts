@@ -7,6 +7,7 @@
  * every list to the key count and checks each `{n}`/`{name}` placeholder survives, so a dropped or
  * shifted entry fails a test instead of mislabelling a control.
  */
+import { indexAlignedTranslations } from "./index-aligned-translations";
 export const FIELD_SETTINGS_KEYS = [
   // 0–17: type names, registry order
   "Short text", "Paragraph", "Email", "Phone", "Website address", "Number", "Slider", "Date", "Time", "Date and time",
@@ -327,8 +328,4 @@ export const FIELD_SETTINGS_TRANSLATIONS: Record<string, readonly string[]> = {
 };
 
 /** `{ locale: { key: translation } }`, the shape `FORMS_DICT` merges. */
-export const FORMS_FIELD_SETTINGS_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(FIELD_SETTINGS_TRANSLATIONS).map(([locale, values]) => [
-    locale, Object.fromEntries(FIELD_SETTINGS_KEYS.map((key, index) => [key, values[index] ?? key])),
-  ]),
-);
+export const FORMS_FIELD_SETTINGS_I18N: Record<string, Record<string, string>> = indexAlignedTranslations({ keys: FIELD_SETTINGS_KEYS, translations: FIELD_SETTINGS_TRANSLATIONS });

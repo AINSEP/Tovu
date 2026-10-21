@@ -588,3 +588,69 @@ describe('D-21 selected CLI warning', () => {
     expect(screen.getByRole('tablist', { name: 'AI agent' })).toBeInTheDocument();
   });
 });
+
+describe("Settings — remaining wiring", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps the embedded Memory panel display-only: its controls change nothing and call nothing", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const user = userEvent.setup();
+    render(<SettingsUi useSettingsUiHook={() => baseController({ language: makeSlice("en") })} />);
+    await goToTab(user, "memory");
+    const panel = screen.getByText("No saved memories yet").closest("[data-agent-element]") ?? document.body;
+    const callsBefore = fetchSpy.mock.calls.length;
+    for (const control of within(panel as HTMLElement).queryAllByRole("switch").concat(within(panel as HTMLElement).queryAllByRole("checkbox"))) {
+      await user.click(control);
+    }
+    expect(screen.getByText("No saved memories yet")).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(callsBefore);
+  });
+
+  it("replaces the old Skills deep link with the Add-ons Skills page", () => {
+    window.history.replaceState(null, "", "/admin/settings?tab=skills");
+    const length = window.history.length;
+    render(<SettingsUi tabId="skills" useSettingsUiHook={() => baseController()} />);
+    expect(window.location.pathname).toBe("/admin/addons/skills");
+    expect(window.history.length).toBe(length);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("writes a BYOK change from the credential controller back into the execution settings, keeping the rest", () => {
+    const execution = makeSlice(DEFAULT_EXECUTION_CONFIG);
+    let onByokChange: ((byok: ExecutionConfig["byok"]) => void) | undefined;
+    render(
+      <SettingsUi
+        useSettingsUiHook={() => baseController({ execution })}
+        useAdminExecutionCredentialHook={(input) => { onByokChange = input.onByokChange; return fakeAdminExecutionCredentialController({}); }}
+      />,
+    );
+    const byok = { ...DEFAULT_EXECUTION_CONFIG.byok, model: "a-new-model" } as ExecutionConfig["byok"];
+    onByokChange!(byok);
+    expect(execution.onChange).toHaveBeenCalledWith({ ...DEFAULT_EXECUTION_CONFIG, byok });
+  });
+});
+
+describe("Settings — execution policy note and default wiring", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("explains that a saved Local CLI choice is hidden on a deployed site", async () => {
+    const execution = makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "local-cli", localCli: { agentId: "claude" } });
+    render(
+      <RealSettingsUi
+        useSettingsUiHook={() => baseController({ execution })}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController({})}
+        useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: false, loadRuntime: async () => ({ mode: "production" as const }) })}
+      />,
+    );
+    expect(await screen.findByText("Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.")).toHaveAttribute("role", "status");
+  });
+
+  it("wires the real settings controller by default, showing the loading placeholder while its reads are pending", () => {
+    const fetchSpy = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<SettingsUi useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController({})} />);
+    expect(screen.getByText("Loading settings…")).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+});

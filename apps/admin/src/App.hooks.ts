@@ -259,15 +259,21 @@ export function useAdminSession(_required: Record<string, never> = {}, {
  * and a second `requestPublish` call would supersede the first's promise for no reason (see
  * `publish-request.store.ts`'s own header on why a superseded request is resolved, not dropped).
  *
+ * @param optional.request - The publish-request port; defaults to the store's `requestPublish`. Tests
+ *   pass a recorder to count calls.
  * @complexity O(1): one `useEffect`, one `useRef`, no state of its own.
  */
-export function usePublishCriteriaDeepLink(): void {
+export function usePublishCriteriaDeepLink(
+  _required: Record<string, never> = {},
+  { request = requestPublish }: { request?: (criteria: PublishCriteria) => unknown } = {},
+): void {
   const handledRef = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per mount by design (see above); a new `request` identity must not re-run it.
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
     const criteria = takePublishCriteriaFromQuery(window.location, window.history);
-    if (criteria !== null) void requestPublish(criteria);
+    if (criteria !== null) void request(criteria);
   }, []);
 }
 
@@ -1076,7 +1082,11 @@ export function useAgentPageBridge(
 
     return () => {
       bridge.close();
-      setAgentBridge((current) => (current === bridge ? null : current));
+      // A plain `null`, not a `current === bridge ? null : current` updater: React runs this
+      // cleanup before the next setup in the same passive-effect flush, so the queue is always
+      // [null, nextBridge] and the newer bridge still wins; on an unmount/detach, null is exactly
+      // right. The "a newer bridge already landed" arm of that updater could never be reached.
+      setAgentBridge(null);
     };
   }, [pageDriver, executors, createBridge, openStream]);
 

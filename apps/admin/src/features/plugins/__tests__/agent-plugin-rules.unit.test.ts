@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { agentPluginDisplayName, agentPluginGlyphKind, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "../rules";
+import { agentPluginDisplayName, agentPluginGlyphKind, agentPluginToggleAriaLabel, buildAgentPluginDisableConfirmCopy, humanizeAgentPluginId } from "../rules";
 
 /**
  * @file The Agent Plugins row's two pure derivations — which glyph identifies a package, and how
@@ -102,5 +102,21 @@ describe("agentPluginToggleAriaLabel", () => {
 
   it("names the plugin by its display name when it has one", () => {
     expect(agentPluginToggleAriaLabel({ pluginId: "deploy", enabled: false, displayName: "Deploy Online" }, "en")).toBe("Enable Deploy Online");
+  });
+});
+
+describe("buildAgentPluginDisableConfirmCopy without a translator", () => {
+  it("renders the English disable copy, naming the plugin and the bundled-package fact", () => {
+    const copy = buildAgentPluginDisableConfirmCopy({ name: "Writer", variant: "disable" });
+    expect(copy.title).toBe("Disable Writer for this site?");
+    expect(copy.body).toBe(
+      "Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again. This package ships with Tovu — it can't be deleted outright, only turned off.",
+    );
+  });
+
+  it("renders the English remove (turn off) copy", () => {
+    const copy = buildAgentPluginDisableConfirmCopy({ name: "Writer", variant: "remove" });
+    expect(copy.title).toBe("Turn off Writer?");
+    expect(copy.body).toContain("It stays right here on Downloaded and can be enabled again any time.");
   });
 });

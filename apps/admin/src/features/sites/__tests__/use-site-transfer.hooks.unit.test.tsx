@@ -168,6 +168,45 @@ describe("useSiteExport", () => {
     expect(result.current.exporting).toBe(false);
   });
 
+  it("gives up with a 'taking too long' message when the export never finishes", async () => {
+    const createShare = vi.fn(async () => ({ jobId: "job-1", phase: "packing" }));
+    const port = createFakeSiteTransferPort({ createShare });
+    const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+    await act(() => result.current.exportSite());
+    expect(result.current.exportError).toBe("The export is taking too long. Try again later.");
+    expect(result.current.exporting).toBe(false);
+    expect(createShare.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("drops an export failure that lands after unmount", async () => {
+    let fail: (error: Error) => void = () => {};
+    const createShare = vi.fn(() => new Promise<SiteShare>((_resolve, reject) => { fail = reject; }));
+    const port = createFakeSiteTransferPort({ createShare });
+    const { result, unmount } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+    let pending: Promise<void> = Promise.resolve();
+    act(() => { pending = result.current.exportSite(); });
+    const exporting = result.current;
+    unmount();
+    await act(async () => { fail(new Error("packing failed")); await pending; });
+    expect(exporting.exportError).toBeNull();
+    expect(createShare).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a second revoke while one is in flight", async () => {
+    let release: (value: SiteShare) => void = () => {};
+    const revokeShare = vi.fn(() => new Promise<SiteShare>((resolve) => { release = resolve; }));
+    const port = createFakeSiteTransferPort({ listShares: async () => ({ shares: [share()] }), revokeShare });
+    const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+    await waitFor(() => expect(result.current.shares).toHaveLength(1));
+    let first: Promise<void> = Promise.resolve();
+    act(() => { first = result.current.revoke(share()); });
+    await waitFor(() => expect(result.current.revokingId).toBe("share-1"));
+    await act(() => result.current.revoke(share({ shareId: "share-2" })));
+    expect(revokeShare).toHaveBeenCalledTimes(1);
+    await act(async () => { release(share({ status: "revoked" })); await first; });
+    expect(result.current.revokingId).toBeNull();
+  });
+
   it("revokes one share and reports a failure", async () => {
     const revokeShare = vi.fn(async () => share({ status: "revoked" }));
     const port = createFakeSiteTransferPort({ listShares: async () => ({ shares: [share()] }), revokeShare });
@@ -191,6 +230,18 @@ describe("useSiteExport", () => {
     await act(() => result.current.copyLink(share()));
     expect(writeText).toHaveBeenCalledWith("https://example.com/s/abc");
     expect(result.current.copiedId).toBe("share-1");
+  });
+
+  it("copies nothing on a host with no navigator (SSR) when no clipboard is injected", async () => {
+    const port = createFakeSiteTransferPort();
+    vi.stubGlobal("navigator", undefined);
+    try {
+      const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+      await act(() => result.current.copyLink(share()));
+      expect(result.current.copiedId).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("is zip-only when the newest export has no link", async () => {
@@ -298,6 +349,24 @@ describe("useSiteImport", () => {
     act(() => result.current.clearFile());
     expect(result.current.file).toBeNull();
     expect(result.current.canImport).toBe(false);
+  });
+
+  it("clearing the link keeps a chosen file, and a second import press while one runs is ignored", async () => {
+    let release: (value: SiteImport) => void = () => {};
+    const startImport = vi.fn(() => new Promise<SiteImport>((resolve) => { release = resolve; }));
+    const port = createFakeSiteTransferPort({ startImport });
+    const { result } = renderHook(() => useSiteImport({ port, t }), { wrapper });
+    act(() => result.current.chooseFiles([new File(["PK"], "site.tovu.zip")]));
+    act(() => result.current.setLink(""));
+    expect(result.current.file?.name).toBe("site.tovu.zip");
+    act(() => result.current.setLink("https://example.com/s/abc"));
+    let first: Promise<void> = Promise.resolve();
+    act(() => { first = result.current.startImport(); });
+    await waitFor(() => expect(result.current.importing).toBe(true));
+    await act(() => result.current.startImport());
+    expect(startImport).toHaveBeenCalledTimes(1);
+    await act(async () => { release(siteImport()); await first; });
+    expect(result.current.importing).toBe(false);
   });
 
   it("refuses a link that is not https, without calling the server", async () => {

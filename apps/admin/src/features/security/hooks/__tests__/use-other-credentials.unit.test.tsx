@@ -334,6 +334,31 @@ describe("useOtherCredentials — replace: no-op guards", () => {
   });
 });
 
+describe("useOtherCredentials — remaining read and write guards", () => {
+  it("shows a set single-key store with no server hint as a bare mask", async () => {
+    const port = createFakeOtherCredentialsPort({
+      getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: null, provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(findGroup(result.current.groups, "site-assistant")?.rows[0]?.valueFact).toBe("••••"));
+  });
+
+  it("writes nothing for an external-mcp row even if it were offered Replace", async () => {
+    const port = createFakeOtherCredentialsPort({
+      listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1" })] }),
+    });
+    const writeSpies = (["setSiteAssistantCredential", "setAdminByokCredential", "saveMediaProviders", "getMediaProviders", "deleteExternalMcpServer"] as const).map((method) => vi.spyOn(port, method));
+    const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(findGroup(result.current.groups, "external-mcp")?.rows[0]).toBeDefined());
+    const row = findGroup(result.current.groups, "external-mcp")!.rows[0]!;
+    act(() => result.current.setDraftToken(row.key, "a-replacement-value-1234"));
+    const offered = { ...findGroup(result.current.groups, "external-mcp")!.rows[0]!, store: { ...row.store, supportsReplace: true } };
+    for (const spy of writeSpies) spy.mockClear();
+    await act(() => result.current.replace(offered));
+    for (const spy of writeSpies) expect(spy).not.toHaveBeenCalled();
+  });
+});
+
 describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", () => {
   it("site-assistant: writes via setSiteAssistantCredential, refetches, and clears the draft on success", async () => {
     // A real server's GET reflects the just-committed PUT, so the stub does too — refetchOne re-reads

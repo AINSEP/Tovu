@@ -86,3 +86,18 @@ test('Memory and Package files switch the header and selected ARIA tab together 
   expect(screen.queryByText("Read-only view of this plugin's files; nothing runs from this screen.")).not.toBeInTheDocument();
   expect(screen.queryByText('Edit project notes and review what this plugin has learned.')).not.toBeInTheDocument();
 });
+
+test('typing a note path and choosing a listed note file both retarget the editor', async () => {
+  memoryPort.read.mockResolvedValue({ ...empty(), notes: [{ relativePath: 'project.md', text: 'Project text' }, { relativePath: 'brand.md', text: 'Brand notes' }] });
+  render(<MemoryHarness port={memoryPort} />);
+  const path = screen.getByRole('textbox', { name: 'Note file' });
+  const notes = screen.getByRole('textbox', { name: 'Project notes' });
+  await waitFor(() => expect(notes).toHaveValue('Project text'));
+  await userEvent.click(within(screen.getByRole('region', { name: 'Note files' })).getByRole('button', { name: 'brand.md' }));
+  expect(path).toHaveValue('brand.md');
+  expect(notes).toHaveValue('Brand notes');
+  await userEvent.clear(path);
+  await userEvent.type(path, 'new.md');
+  expect(path).toHaveValue('new.md');
+  expect(notes).toHaveValue('');
+});

@@ -326,10 +326,15 @@ function isTransientAppPath(electronPath: string, { isReadOnlyVolume }: { isRead
 
 /** A mounted disk image refuses write access with `EROFS`; anything else (a writable drive, a
  *  permission denial, a path that is gone) is not evidence of one.
+ *  @param options.accessSync the write probe; production uses `fs.accessSync`, a test passes a fake
+ *    so the `EROFS` answer can be exercised without mounting a read-only volume.
  *  @complexity O(1) — one `access` call. */
-function isReadOnlyVolumeRoot(volumeRoot: string): boolean {
+function isReadOnlyVolumeRoot(
+  volumeRoot: string,
+  { accessSync = fs.accessSync }: { accessSync?: (target: string, mode: number) => void } = {},
+): boolean {
   try {
-    fs.accessSync(volumeRoot, fs.constants.W_OK);
+    accessSync(volumeRoot, fs.constants.W_OK);
     return false;
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "EROFS";

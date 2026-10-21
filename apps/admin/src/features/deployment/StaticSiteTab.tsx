@@ -159,10 +159,13 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
  *
- *  Two variants, because this tab hands over two different KINDS of text: a shell command
- *  (`prose={false}`, monospace, rendered with a `$` prompt via CSS) and a sentence to say to the
- *  assistant (`prose`, UI face, no prompt). Sharing one component keeps the copy affordance
- *  identical between them; the variant only changes what the box claims the text is.
+ *  It hands over a shell command: monospace, rendered with a `$` prompt via CSS. There used to be
+ *  two variants, because this tab once handed over two different KINDS of text — a shell command
+ *  and a sentence to say to the assistant (a `prose` flag: UI face, no prompt). Sharing one
+ *  component kept the copy affordance identical between them; the variant only changed what the
+ *  box claimed the text was. The prose call sites (the per-publish-CLI "ask the assistant" lines)
+ *  left with the CLI-first route on 2026-09-29, so the flag had no caller and was removed; bring
+ *  it back with the first new prose call site.
  *
  *  Component-local `useState` rather than a hook + port pair — there is nothing to inject, same
  *  carve-out `ThemeExplore.tsx`'s device-width/fullscreen state documents.
@@ -172,14 +175,12 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
  *  rather than to an error the reader can do nothing about. */
 function CopyLine({
   text,
-  prose,
   copyLabel,
   copiedLabel,
   copyAccessibleName,
   agentHandleId,
 }: {
   text: string;
-  prose?: boolean;
   copyLabel: string;
   copiedLabel: string;
   /** Distinguishes the several Copy buttons this tab now has. Two controls whose only accessible
@@ -205,8 +206,8 @@ function CopyLine({
   }
 
   return (
-    <div className={`deployment-command${prose ? " deployment-command-prose" : ""}`}>
-      <code translate={prose ? undefined : "no"}>{text}</code>
+    <div className="deployment-command">
+      <code translate="no">{text}</code>
       {/* `aria-live="polite"` on the label so the swap to "Copied!" is announced — an action whose
           only feedback is a silent visual label change is invisible to a screen-reader user. */}
       <button
@@ -1119,6 +1120,8 @@ function CredentialTokenPicker({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
+  // Rendered only inside the connected row (`row.saved` set — that row reads `row.saved!` too), so
+  // the selected value falls back to the saved default's id with no further "nothing saved" arm.
   const options = controller.credentialsForProvider(row.providerId);
   if (options.length < 2) return null;
   const fieldId = `deployment-static-site-credentials-picker-${row.providerId}`;
@@ -1129,7 +1132,7 @@ function CredentialTokenPicker({
       </label>
       <select
         id={fieldId}
-        value={row.selectingCredentialId ?? row.saved?.id ?? ""}
+        value={row.selectingCredentialId ?? row.saved!.id}
         disabled={row.selectingCredentialId !== null}
         onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
         {...agentHandle({ handle: fieldId }, {
@@ -1163,10 +1166,14 @@ function CredentialTokenPicker({
  * already uses.
  */
 function StaticPublishTargetFields({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
-  const fields = controller.selectedTarget?.configFields ?? [];
+  // The target is bound once, up front: a field can only render when a target exists, so the
+  // agent-handle label below reads `target.label` directly instead of a per-field
+  // `selectedTarget?.label ?? ""` whose empty-label arm no field could ever reach.
+  const target = controller.selectedTarget;
+  if (!target) return null;
   return (
     <>
-      {fields.map((field) => {
+      {target.configFields.map((field) => {
         const id = publishConfigFieldHandleId(field.name);
         return (
           <div className="field" key={field.name}>
@@ -1176,7 +1183,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
               type="text"
               value={controller.configValues[field.name] ?? ""}
               onChange={(e) => controller.setConfigField(field.name, e.target.value)}
-              {...agentHandle({ handle: id }, { role: "field", label: `${controller.selectedTarget?.label ?? ""} ${field.label}` })}
+              {...agentHandle({ handle: id }, { role: "field", label: `${target.label} ${field.label}` })}
             />
             {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
           </div>

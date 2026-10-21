@@ -111,6 +111,11 @@ import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { startDesktopCaptureBridge } from "./src/desktop-capture.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
+// Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
+// live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
+import { isSupervisedSiteUrl } from "./src/supervised-site-url.ts";
+import { readSiteName as readSiteNameIn } from "./src/site-name.ts";
+import { describeRejectedDefault, explicitStartupSiteDirs as explicitStartupSiteDirsIn, isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, sitesUiRequested as sitesUiRequestedIn, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createExternalSiteStopper } from "./src/external-site-stop.ts";
@@ -180,16 +185,10 @@ import type { SelftestTracker } from "./src/selftest-tracker.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** `"source"` or `"compiled"`: how a site's `tovu serve` is run. See this file's header. */
-type CliMode = "source" | "compiled";
 
 /** A resolved {@link startTovuServer} handle. `tovu-server.ts` does not export the type. */
 type TovuServerHandle = Awaited<ReturnType<typeof startTovuServer>>;
 
-/** The candidate {@link promptForSiteDir} is told was tried first and turned down: `site-dir-store.ts`'s
- *  `RejectedDevFallback`, read off {@link resolveSiteDir}'s picker seam because that module does not
- *  export it. */
-type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]>;
 
 /** One {@link openSites} entry. Only own-server mode's {@link openSiteWindow} sets `window`; a sites-home
  *  tab, opened through {@link openSiteServer}, has none. */
@@ -352,30 +351,6 @@ const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: a
 let siteDiscoveryAbort: AbortController | undefined;
 let siteValidationAbort: AbortController | undefined;
 
-/**
- * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
- * directly. Default since 2026-09-06 — the whole point of the port — but three things must keep
- * bypassing it unconditionally, because they each name a single destination directly and exist
- * specifically for automation/attach workflows that have no use for a project picker:
- *
- * - `TOVU_DESKTOP_URL` (attach mode).
- * - `TOVU_DESKTOP_SITE_DIR` / `TOVU_DESKTOP_SITE_DIRS` (own-server, pinned to specific dir(s)) —
- *   this is what keeps every existing `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any real
- *   automation untouched by this flip.
- *
- * An explicit `TOVU_DESKTOP_UI=runner` still opts in outright, unconditionally, matching this
- * function's pre-flip behavior exactly (kept for anyone who has that set alongside one of the
- * above, historically to force the sites home UI over a pinned site dir — that ordering is preserved:
- * explicit `runner` is checked, and returns, before any bypass condition below).
- */
-function sitesUiRequested(): boolean {
-  if (process.env.TOVU_DESKTOP_UI?.trim() === "runner") return true;
-  const bypassesFrontPage =
-    Boolean(process.env.TOVU_DESKTOP_URL?.trim()) ||
-    Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) ||
-    explicitStartupSiteDirs() !== null;
-  return !bypassesFrontPage;
-}
 
 /**
  * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
@@ -454,26 +429,7 @@ let autoUpdaterStarting = false;
  */
 const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 
-/** `"source"` (default) or `"compiled"` — see this file's own header. Read once at module load,
- *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
- *  plain argument, never read directly by `tovu-server.ts`/`site-dir-store.ts`). */
-function resolveCliMode(): CliMode {
-  const explicit = process.env.TOVU_DESKTOP_CLI_MODE?.trim();
-  if (explicit === "compiled") return "compiled";
-  if (explicit === "source") return "source";
-  // `"source"` in a checkout — unchanged, including for a garbage value, which still falls through
-  // to the default exactly as the old ternary did. `"compiled"` when packaged, where no TypeScript
-  // source and no `tsx` ship; see `packaged-paths.ts`.
-  return DESKTOP_ROOTS.defaultCliMode;
-}
 
-/** `TOVU_DESKTOP_SITE_DIRS`, split and trimmed — `null` when unset, so callers fall back to the
- *  normal single-site `resolveSiteDir()` precedence untouched. */
-function explicitStartupSiteDirs(): string[] | null {
-  const raw = process.env.TOVU_DESKTOP_SITE_DIRS?.trim();
-  if (!raw) return null;
-  return raw.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
-}
 
 /**
  * Ask the user which folder holds their site. Cancelling returns `null`.
@@ -485,20 +441,6 @@ function explicitStartupSiteDirs(): string[] | null {
  *   (only ever non-null for the STARTUP picker, which tries `devFallbackDir` first — see
  *   `resolveSiteDir`), or `null` when there was nothing to try (every other call site).
  */
-function describeRejectedDefault(rejectedDefault: RejectedDefault): string {
-  if (rejectedDefault.kind === "empty") return "has no site in it yet";
-  // Before the `missing` read below: `classifySiteDirSafely` reports a candidate it could not
-  // examine at all (EACCES/ENOTDIR/ELOOP — see D-01), and that verdict has no marker list to name,
-  // so the generic branch would throw on `undefined.join` while building the very dialog that is
-  // supposed to explain the problem.
-  if (rejectedDefault.kind === "unreadable") return "could not be read (check its permissions, or whether something replaced it)";
-  // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
-  // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
-  const missing = rejectedDefault.missing!.join(" and "); // `!`: "incomplete" and "occupied", the only kinds left, always carry it.
-  return rejectedDefault.kind === "incomplete"
-    ? `is missing ${missing} — it looks like a half-initialized site`
-    : `is not a Tovu site (missing ${missing})`;
-}
 
 async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promise<string | null> {
   // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
@@ -520,19 +462,15 @@ async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promis
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]!; // `!`: the length check rules out an empty list.
 }
 
-/** The site's own display name — `config.json`'s `name` field, falling back to the folder's own
- *  basename when that is missing or unreadable. Used only for the window title, which is what makes
- *  Electron's native Window menu double as a site switcher (distinct titles, distinct entries).
- *  @complexity O(1). */
-function readSiteName(siteDir: string): string {
-  try {
-    const config = JSON.parse(fs.readFileSync(path.join(siteDir, "config.json"), "utf8"));
-    if (typeof config.name === "string" && config.name.trim().length > 0) return config.name;
-  } catch {
-    // Missing, unreadable, or not JSON — the folder's own name is still a reasonable title.
-  }
-  return path.basename(siteDir);
-}
+
+// Wiring edge for the launch-time decisions in `startup-env.ts` / `site-name.ts`: each binds this
+// process's own `process.env`, packaged CLI default or filesystem, keeping the call sites (and the
+// source-shape wiring tests that read them) unchanged.
+function sitesUiRequested(): boolean { return sitesUiRequestedIn({ env: process.env }); }
+function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }); }
+function explicitStartupSiteDirs(): string[] | null { return explicitStartupSiteDirsIn({ env: process.env }); }
+function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
+function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
 
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   const window = new BrowserWindow({
@@ -1166,13 +1104,7 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
  * @complexity O(n) in currently open sites.
  */
 function isSupervisedGuestUrl(raw: string): boolean {
-  let url;
-  try {
-    url = new URL(raw);
-  } catch {
-    return false;
-  }
-  return [...openSites.values()].some((entry) => entry.server && new URL(entry.server.origin).origin === url.origin);
+  return isSupervisedSiteUrl({ raw, sites: openSites.values() });
 }
 
 /**
@@ -1318,19 +1250,6 @@ function refreshAppMenu(ctx: SiteOpenCtx): void {
  * indistinguishable from the app being broken. A short info dialog closes that gap without turning a
  * legitimate decline into an error.
  */
-/**
- * `true` when this launch named its site dir(s) directly via env var rather than through the
- * interactive picker — `TOVU_DESKTOP_SITE_DIR`/`TOVU_DESKTOP_SITE_DIRS`, documented at the top of
- * this file as "chiefly for verification/automation". {@link reportBootFailure} uses this to decide
- * whether a boot failure may show a blocking native dialog at all: measured live (2026-09-06), a
- * `dialog.showErrorBox` shown from one of these launches — no interactive user to dismiss it — left
- * the whole Electron process hung indefinitely rather than exiting, defeating the entire point of a
- * "fail fast" policy for an automation-facing arm. An interactive picker failure still gets the
- * dialog, because a human is at the keyboard there to see and dismiss it.
- */
-function isUnattendedSiteLaunch(): boolean {
-  return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs() !== null;
-}
 
 async function reportBootFailure(error: Error): Promise<void> {
   if (error instanceof SiteDirSelectionCancelled) {

@@ -112,6 +112,18 @@ test("writeSiteName leaves no temp file behind on success", () => {
   assert.deepEqual(fs.readdirSync(dir), ["config.json"]);
 });
 
+test("writeSiteName reports a failed write as operator-facing and leaves config.json untouched", () => {
+  const dir = writeConfig({ name: "old", port: 4321 });
+  // Occupy this process's temp name with a non-empty folder: the write fails (EISDIR) and even the
+  // best-effort cleanup cannot remove it — the original failure is still the one reported.
+  const squatter = path.join(dir, `config.json.${process.pid}.tmp`);
+  fs.mkdirSync(path.join(squatter, "inside"), { recursive: true });
+  assert.throws(() => writeSiteName(dir, "new"), {
+    message: new RegExp(`^${path.join(dir, "config.json").replaceAll("\\", "\\\\")} could not be written: EISDIR`),
+  });
+  assert.deepEqual(readConfig(dir), { name: "old", port: 4321 });
+});
+
 test("the written file is valid JSON that round-trips, with a trailing newline", () => {
   // The next thing to read this file is `tovu serve`'s own `JSON.parse`. A file that needs this
   // module to read it back is not good enough.

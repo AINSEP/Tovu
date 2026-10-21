@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { PublishContentReport } from "@tovu/publish-content-ui";
@@ -126,6 +126,14 @@ function row(panel: HTMLElement, label: string): HTMLElement {
 }
 
 afterEach(() => closePublishRequest());
+
+describe("createFakeSitePublishPort", () => {
+  it("defaults to an empty destination list and a viewer allowed to publish both ways", async () => {
+    const port = createFakeSitePublishPort();
+    await expect(port.listDestinations()).resolves.toEqual([]);
+    await expect(port.me()).resolves.toEqual({ effectivePermissions: ["system.publish", "publish_content.apply"] });
+  });
+});
 
 describe("site publish rules", () => {
   it("offers publish, connect or nothing from the row kind and the viewer's permissions", () => {
@@ -407,6 +415,100 @@ describe("SitePublishButton", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Publish" }));
     expect(screen.getByRole("button", { name: "Publish" }).getAttribute("aria-expanded")).toBe("false");
   });
+});
+
+describe("useSitePublish controller", () => {
+  function renderController(input: { destinations: AdminPublishDestination[]; staticPort?: StaticPublishPort; peer?: FakePublishContentPortOptions }) {
+    const port = createFakeSitePublishPort({ listDestinations: () => Promise.resolve(input.destinations) });
+    const peerPort = createFakePublishContentPort(input.peer);
+    const staticPort = input.staticPort ?? createFakeStaticPublishPort();
+    const hook = renderHook(
+      () => useSitePublish({ port, staticPort, peerPort, t, locale: "en", liveAvailable: true }, { now: () => NOW }),
+      { wrapper: FetchQueryProvider },
+    );
+    return { hook, peerPort };
+  }
+
+  async function openController(hook: ReturnType<typeof renderController>["hook"]) {
+    act(() => hook.result.current.toggle());
+    await waitFor(() => expect(hook.result.current.status).toBe("ready"));
+  }
+
+  it("ignores a publish for a row it never listed, and a same-tick second push of one row", async () => {
+    const { hook, peerPort } = renderController({ destinations: [peerRow], peer: { report: report(["created"]) } });
+    await openController(hook);
+    act(() => hook.result.current.publish("no-such-row"));
+    expect(peerPort.calls.planPublish).toHaveLength(0);
+    act(() => {
+      hook.result.current.publish(peerRow.id);
+      hook.result.current.publish(peerRow.id);
+    });
+    await waitFor(() => expect(hook.result.current.rows[0]?.state?.kind).toBe("done"));
+    expect(peerPort.calls.planPublish).toEqual([{ peerId: "peer-1" }]);
+    expect(peerPort.calls.confirmPublish).toHaveLength(1);
+  });
+
+  it("falls back to a generic refusal message when the peer refuses without a reason", async () => {
+    const { hook, peerPort } = renderController({ destinations: [peerRow], peer: { report: { ...report([], true), refusalReason: null } } });
+    await openController(hook);
+    act(() => hook.result.current.publish(peerRow.id));
+    await waitFor(() => expect(hook.result.current.rows[0]?.state).toEqual({ kind: "error", message: "Publishing was refused." }));
+    expect(peerPort.calls.confirmPublish).toHaveLength(0);
+  });
+
+  it("replays a static destination that saved no connection without naming a credential", async () => {
+    const sent: unknown[] = [];
+    const { credentialId: _saved, ...noCredential } = staticRow as Extract<AdminPublishDestination, { kind: "static" }>;
+    const staticPort = createFakeStaticPublishPort({
+      triggerPublish: (request) => { sent.push(request); return Promise.resolve({ status: "completed", startedAtIso: "x", finishedAtIso: "y", target: "host-a" }); },
+    });
+    const { hook } = renderController({ destinations: [noCredential], staticPort });
+    await openController(hook);
+    act(() => hook.result.current.publish(noCredential.id));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent).toEqual([{ config: { target: "host-a", fields: { teamId: "team-9" } }, projectName: "blog" }]);
+    expect(sent[0]).not.toHaveProperty("credentialId");
+  });
+
+  it("shows a failed static trigger as an error on its row", async () => {
+    const staticPort = createFakeStaticPublishPort({ triggerPublish: () => Promise.reject(new Error("host refused the upload")) });
+    const { hook } = renderController({ destinations: [staticRow], staticPort });
+    await openController(hook);
+    act(() => hook.result.current.publish(staticRow.id));
+    await waitFor(() => expect(hook.result.current.rows[0]?.state?.kind).toBe("error"));
+    const state = hook.result.current.rows[0]?.state as { kind: "error"; message: string };
+    expect(state.message).toContain("host refused the upload");
+    expect(hook.result.current.busy).toBe(false);
+  });
+
+  it("shows no row state for a triggered static run that has neither finished nor started running", async () => {
+    const staticPort = createFakeStaticPublishPort({
+      triggerPublish: () => Promise.resolve({ status: "idle", startedAtIso: null, finishedAtIso: null, target: "host-a" }),
+    });
+    const { hook } = renderController({ destinations: [staticRow], staticPort });
+    await openController(hook);
+    act(() => hook.result.current.publish(staticRow.id));
+    await waitFor(() => expect(hook.result.current.busy).toBe(false));
+    expect(hook.result.current.rows[0]?.state).toBeNull();
+  });
+
+  it("shows a static run whose status polling gave up as an error on its row", async () => {
+    let reads = 0;
+    const staticPort = createFakeStaticPublishPort({
+      triggerPublish: () => Promise.resolve({ status: "running", startedAtIso: "x", finishedAtIso: null, target: "host-a" }),
+      getPublishStatus: () => {
+        reads += 1;
+        if (reads === 1) return Promise.resolve({ status: "idle", startedAtIso: null, finishedAtIso: null, target: null });
+        return Promise.reject(new Error("status endpoint down"));
+      },
+    });
+    const { hook } = renderController({ destinations: [staticRow], staticPort });
+    await openController(hook);
+    act(() => hook.result.current.publish(staticRow.id));
+    await waitFor(() => expect(hook.result.current.rows[0]?.state?.kind).toBe("error"), { timeout: 8000 });
+    const state = hook.result.current.rows[0]?.state as { kind: "error"; message: string };
+    expect(state.message).toContain("status endpoint down");
+  }, 12000);
 });
 
 describe("site publish copy", () => {

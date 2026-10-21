@@ -1689,7 +1689,10 @@ const MEDIA_PROVENANCE_STRINGS: Record<string, Record<string, string>> = {
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
-    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}), ...(MEDIA_IMPORT_STRINGS[locale] ?? {}), ...(MEDIA_PROVENANCE_STRINGS[locale] ?? {}), ...(MEDIA_DIALOG_STRINGS[locale] ?? {}) },
+    // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
+    // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
+    // is present in all four, which left those fallbacks with no reachable branch).
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale] },
   ]),
 );
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItem } from "@/lib/api";
-import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport } from "../rules";
+import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/api";
 import { describeTrashLoadError } from "../rules";
 
@@ -179,5 +179,22 @@ describe("itemSubtitle", () => {
     expect(itemSubtitle("en", { entityType: "plugin", subtitle: "my-plugin 1.0.0" })).toBe(
       "my-plugin 1.0.0 · Shared across all workspaces on this site.",
     );
+  });
+
+  it("shows only the shared note for a plugin with no subtitle, and leaves other rows' subtitles alone", () => {
+    expect(itemSubtitle("en", { entityType: "plugin", subtitle: null })).toBe("Shared across all workspaces on this site.");
+    expect(itemSubtitle("en", { entityType: "post", subtitle: "Draft" })).toBe("Draft");
+  });
+});
+
+describe("toggleSelection", () => {
+  it("adds an unselected id and removes a selected one, returning a new set each time", () => {
+    const start = new Set(["a"]);
+    const added = toggleSelection(start, "b");
+    expect([...added]).toEqual(["a", "b"]);
+    const removed = toggleSelection(added, "a");
+    expect([...removed]).toEqual(["b"]);
+    expect(removed).not.toBe(added);
+    expect([...start]).toEqual(["a"]);
   });
 });

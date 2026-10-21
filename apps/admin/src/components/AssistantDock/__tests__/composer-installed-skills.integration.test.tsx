@@ -81,4 +81,23 @@ describe("installed skills from GET through the real composer slash popup", () =
     ]));
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+  it("re-reads installed skills every 10 seconds while the tab is visible, so a skill installed elsewhere appears unprompted", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(Response.json({ skills: [] }))
+        .mockImplementation(async () => Response.json(skillsResponse));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<Harness />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      expect(JSON.parse(screen.getByTestId("installed-ids").textContent!)).toEqual([]);
+      await act(async () => { vi.advanceTimersByTime(10_000); });
+      await waitFor(() => expect(JSON.parse(screen.getByTestId("installed-ids").textContent!)).toEqual([
+        "installed-skill:skill_incident_response", "installed-skill:skill_ui_ux_design",
+      ]));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

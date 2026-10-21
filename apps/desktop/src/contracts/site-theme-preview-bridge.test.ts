@@ -24,3 +24,25 @@ test('preload bridge uses fixed IPC channels, strips Electron event, and tears d
   receive({ siteDir: '/a', revision: 'late' }); assert.equal(frames.length, 1);
   await Promise.resolve();
 });
+
+test('a rejected watch or unwatch claim is swallowed: preview is best-effort and never an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => { unhandled.push(reason); };
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const invoked: string[] = [];
+    let detached = 0;
+    const watch = createSiteThemePreviewBridge({
+      invoke: async (channel) => { invoked.push(channel); throw new Error(`${channel} refused`); },
+      subscribe: () => () => { detached++; },
+    });
+    const off = watch({ siteDir: '/a', listener: () => undefined });
+    off();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(invoked, [channels.watch, channels.unwatch]);
+    assert.equal(detached, 1);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});

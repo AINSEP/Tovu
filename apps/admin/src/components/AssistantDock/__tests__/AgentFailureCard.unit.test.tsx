@@ -165,3 +165,15 @@ it("keeps the latest rescan inventory when an older list completes and switches 
   expect(selections).toEqual([{ agentId: "aider" }]);
   expect(modes).toEqual(["local"]);
 });
+
+it.each([
+  ["the run is still streaming", { runStreaming: true, runSucceeded: false }],
+  ["the run succeeded after all", { runStreaming: false, runSucceeded: true }],
+])("renders nothing while %s", (_label, run) => {
+  const failure = { reason: "Agent exited", details: "Agent exited with code 1", agentId: "codex" };
+  const { container, rerender } = render(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} {...run} />);
+  expect(container.innerHTML).toBe("");
+  // Control: the same failure event, once the run has stopped without succeeding, does render.
+  rerender(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} runStreaming={false} runSucceeded={false} />);
+  expect(screen.getByRole("status")).toBeInTheDocument();
+});

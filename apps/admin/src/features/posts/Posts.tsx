@@ -89,12 +89,11 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
 
-  const notice = postsListNotice(posts, error, t);
-  if (notice) return notice;
-  // Unreachable in practice — `postsListNotice` already returns a non-null notice whenever `posts`
-  // is null — but restores the narrowing TS lost by moving that check behind a function call, so
-  // `rows={posts}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
-  if (!posts) return null;
+  // `postsListNotice` answers non-null exactly when `posts` is null, so gating on `!posts` returns
+  // that notice AND keeps TS's narrowing, so `rows={posts}` below type-checks as `AdminPost[]`
+  // without an `as`/`!` assertion. (The earlier `if (notice) return notice; if (!posts) return null;`
+  // pair restored that narrowing with a second `!posts` check that was unreachable in practice.)
+  if (!posts) return postsListNotice(posts, error, t);
 
   return (
     <div className="page">

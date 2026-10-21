@@ -457,7 +457,7 @@ export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
  *
  * @complexity O(1).
  */
-export function canResetThemeFile(file: ThemeExploreFile | undefined): boolean {
+export function canResetThemeFile(file: ThemeExploreFile | undefined): file is ThemeExploreFile {
   return file?.resettable === true && file.modified === true;
 }
 
@@ -893,15 +893,18 @@ export function useThemeExplore(
   { pageId, fileId }: ThemeExploreOptions = {}
 ): ThemeExploreController {
   const detailKey = useMemo(() => ["themes", "detail", themeId] as const, [themeId]);
-  const fetchDetail = useCallback(() => port.getThemeDetail(themeId), [port, themeId]);
+  // One definition of "read this theme's detail", used both as the loader's own default fetch and by
+  // `cachedReads.getThemeDetail` below for any id.
+  const detailFetchFor = useCallback((id: string) => () => port.getThemeDetail(id), [port]);
+  const fetchDetail = useMemo(() => detailFetchFor(themeId), [detailFetchFor, themeId]);
   const detailLoader = useCachedLoader({ key: detailKey, fetch: fetchDetail }, { staleTime: 0 });
   const sourceKey = useMemo(() => ["themes", "source", themeId] as const, [themeId]);
   const fetchSource = useCallback(async (): ReturnType<ThemeExplorePort["getThemeFile"]> => { throw new Error("Theme file path required"); }, []);
   const sourceLoader = useCachedLoader({ key: sourceKey, fetch: fetchSource }, { staleTime: 0 });
   const cachedReads = useMemo<ThemeExplorePort>(() => ({ ...port,
-    getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: () => port.getThemeDetail(id) }),
+    getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
     getThemeFile: (id, path) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile(id, path) }),
-  }), [port, detailLoader, sourceLoader]);
+  }), [port, detailLoader, sourceLoader, detailFetchFor]);
   const listingKey = useMemo(() => ["themes", "explore", themeId] as const, [themeId]);
   const fetchListing = useCallback(() => fetchThemeExploreState(themeId, cachedReads), [themeId, cachedReads]);
   const listingQuery = useFetchQuery({ key: listingKey, fetch: fetchListing }, { staleTime: 0 });

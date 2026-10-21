@@ -283,6 +283,8 @@ export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): stri
  *
  * @complexity Time O(n) in `plugins.length`; space O(k) for the k enabled rows kept.
  */
+export function filterInstalledPlugins(plugins: AdminPlugin[]): AdminPlugin[];
+export function filterInstalledPlugins(plugins: AdminPlugin[] | null): AdminPlugin[] | null;
 export function filterInstalledPlugins(plugins: AdminPlugin[] | null): AdminPlugin[] | null {
   return plugins ? plugins.filter((plugin) => plugin.enabled) : null;
 }

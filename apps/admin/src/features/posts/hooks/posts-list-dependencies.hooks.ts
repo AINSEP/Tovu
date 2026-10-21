@@ -17,9 +17,10 @@ export const defaultPostsListPort: PostsListPort = {
 
 const FAKE_WORKSPACE_ID = "fake-ws";
 
-function fakePost(overrides: Partial<AdminPost> = {}): AdminPost {
+/** Every caller names the row's `id` (it is derived from the store size), so `id` is required
+ *  here and comes from the trailing `...overrides` spread. */
+function fakePost(overrides: Pick<AdminPost, "id"> & Partial<AdminPost>): AdminPost {
   return {
-    id: overrides.id ?? "fake-post-1",
     workspaceId: FAKE_WORKSPACE_ID,
     kind: "post",
     title: "Untitled",

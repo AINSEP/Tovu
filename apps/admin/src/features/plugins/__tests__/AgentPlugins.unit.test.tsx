@@ -613,3 +613,21 @@ describe("AgentPlugins — real wired hook and HTTP adapter", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+describe("AgentPlugins Manage button", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the inspector on the plugin's listed admin screens", async () => {
+    const surface = { id: "settings", title: "Compliance settings", src: "/plugin/settings.html", actions: [] };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const body = String(input).includes("/agent-plugins/site-compliance/surfaces") ? { surfaces: [surface] } : { surfaces: [], data: [] };
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    const inspectPlugin = vi.fn();
+    renderAgentPlugins({ inspectPlugin });
+    fireEvent.click(await within(row("Site Compliance")).findByRole("button", { name: /^Manage / }));
+    expect(inspectPlugin).toHaveBeenCalledWith({ id: "site-compliance", displayName: "Site Compliance", surfaces: [surface] });
+  });
+});

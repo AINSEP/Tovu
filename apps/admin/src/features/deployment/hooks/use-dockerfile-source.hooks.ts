@@ -173,7 +173,9 @@ export function useDockerfileSource(
     run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input.contents, input.ifMatch),
   });
 
-  const { isDirty } = useDirtyGuard({ current: draft, original: snapshot ? (snapshot.contents ?? "") : null }, { host: window, translate: (key) => key });
+  // No `translate`: this hook reads only `isDirty`, never the guard's translated leave-confirm, so
+  // the identity translator it used to pass was never called (and equals the guard's own default).
+  const { isDirty } = useDirtyGuard({ current: draft, original: snapshot ? (snapshot.contents ?? "") : null }, { host: window });
 
   // Synchronous duplicate-submit guard for `save()` — a ref, not the `saving` (state) value below,
   // because a true double-click/double-Enter can fire two `save()` calls in the same synchronous

@@ -28,9 +28,11 @@ const URL_TITLES: Record<UrlKind, string> = {
  */
 function urlError(kind: UrlKind | null, url: string): UrlError {
   if (/\s/.test(url) || !/^https?:\/\//i.test(url)) return "Enter an HTTP or HTTPS URL.";
+  // The regex above already pins the scheme to http(s); the WHATWG parser then rejects an empty
+  // host for those special schemes, so a successful parse always has an http(s) protocol and a
+  // non-empty hostname — only the throw needs handling.
   try {
-    const parsed = new URL(url);
-    if (!parsed.hostname || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) return "Enter an HTTP or HTTPS URL.";
+    new URL(url);
   } catch {
     return "Enter an HTTP or HTTPS URL.";
   }

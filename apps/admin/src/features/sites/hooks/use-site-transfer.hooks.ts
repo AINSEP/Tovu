@@ -58,6 +58,8 @@ export interface SiteExportController {
  */
 export function useSiteExport(
   { port, t }: { port: SiteTransferPort; t: Translate },
+  // Guarded for SSR / non-browser hosts, where `navigator` may be absent entirely; `clipboard` itself
+  // may also be absent (insecure context). `copyLink` copies nothing in either case.
   { clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard }: { clipboard?: Pick<Clipboard, "writeText"> } = {},
 ): SiteExportController {
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares], fetch: () => port.listShares() });

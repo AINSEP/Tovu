@@ -86,7 +86,7 @@ type Token =
 /** Matches one complete HTML tag, attributes included, with attribute values allowed to contain
  *  `>` when quoted (`data-x="a > b"`) so such a value is never mistaken for the tag's own end. */
 const TAG_PATTERN =
-  /<\/?[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^\s"'=<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>]+))?)*\s*\/?>/y;
+  /<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:\s+[^\s"'=<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>]+))?)*\s*\/?>/y;
 
 /**
  * Consumes an HTML comment (`<!-- ... -->`) starting at `i`, if there is one — one of four token
@@ -116,14 +116,16 @@ function consumeDoctype(html: string, i: number, length: number, tokens: Token[]
 }
 
 /** Tag metadata derived from one matched `<tag ...>` string — split out of {@link consumeTag} so its
- *  own ternary/optional-chaining chain scores independently. */
-function parseTagMeta(raw: string): {
+ *  own ternary chain scores independently. `tagName` is {@link TAG_PATTERN}'s own capture group: the
+ *  pattern only matches when a name is present, so (unlike the earlier re-match of `raw` with an
+ *  `?.[1] ?? ""` fallback) there is no "no name" case to handle. */
+function parseTagMeta(raw: string, tagName: string): {
   name: string;
   tagKind: "open" | "close" | "self-close";
 } {
   const isClose = raw.startsWith("</");
   const isSelfClose = !isClose && raw.endsWith("/>");
-  const name = (/^<\/?([a-zA-Z][a-zA-Z0-9:-]*)/.exec(raw)?.[1] ?? "").toLowerCase();
+  const name = tagName.toLowerCase();
   const tagKind: "open" | "close" | "self-close" = isClose ? "close" : isSelfClose ? "self-close" : "open";
   return { name, tagKind };
 }
@@ -151,7 +153,7 @@ function consumeTag(html: string, i: number, length: number, tokens: Token[]): n
   if (!match) return null;
 
   const raw = match[0];
-  const { name, tagKind } = parseTagMeta(raw);
+  const { name, tagKind } = parseTagMeta(raw, match[1]);
   tokens.push({ kind: "tag", text: raw, tagKind, name });
   const next = i + raw.length;
 

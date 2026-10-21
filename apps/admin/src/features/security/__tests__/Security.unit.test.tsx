@@ -1,8 +1,9 @@
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Security } from "../Security";
+import { SITE_KEY_MANAGE_PERMISSION } from "../rules";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { SecurityPermissionsController } from "../hooks/use-security-permissions.hooks";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
@@ -175,5 +176,20 @@ describe("Security — page shell", () => {
       renderPage({ tabId: "not-a-real-tab", canManageSiteKey: true });
       expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
     });
+  });
+});
+
+describe("Security — default permissions wiring", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reads the viewer's permissions from /auth/me and offers the Site key tab to a site-key manager", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      urls.push(String(url));
+      return Response.json({ user: { id: "admin" }, effectivePermissions: [SITE_KEY_MANAGE_PERMISSION] });
+    });
+    render(<Security tabId="site-key" useAccessTokensHook={() => makeAccessTokens()} useSiteKeyHook={() => makeSiteKey()} />);
+    expect(await screen.findByRole("tab", { name: /Site key/ })).toHaveAttribute("aria-selected", "true");
+    expect(urls).toContain("/api/admin/v1/auth/me");
   });
 });

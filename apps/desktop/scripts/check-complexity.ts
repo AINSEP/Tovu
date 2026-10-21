@@ -61,6 +61,13 @@ const THRESHOLD = 9;
  */
 const MIN_FILES_LINTED = 58;
 
+/** One ESLint run's raw outcome; `status` is `null` when it was killed by a signal. */
+interface LintRun {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
 const RULE_OVERRIDE = JSON.stringify({
   complexity: ["error", THRESHOLD],
   "sonarjs/cognitive-complexity": ["error", THRESHOLD],
@@ -69,8 +76,8 @@ const RULE_OVERRIDE = JSON.stringify({
 /** Runs ESLint at the strict ceiling and returns its raw stdout plus status. Runs from the REPO
  *  root because `eslint.config.mjs` and its relative plugin paths live there.
  *  @complexity O(1) plus ESLint's own cost. */
-function lintAtCeiling(): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(
+function lintAtCeiling({ spawn = spawnSync }: { spawn?: typeof spawnSync } = {}): LintRun {
+  const result = spawn(
     "npx",
     [
       "eslint",
@@ -87,7 +94,7 @@ function lintAtCeiling(): { status: number | null; stdout: string; stderr: strin
     ],
     { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }
   );
-  return { status: result.signal ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+  return { status: result.signal ? null : result.status, stdout: String(result.stdout ?? ""), stderr: String(result.stderr ?? "") };
 }
 
 /** Rewrites each result's absolute `filePath` to a repo-relative, forward-slash path, so the debt
@@ -100,7 +107,17 @@ function toRepoRelative(results: readonly EslintFileResult[]): EslintFileResult[
   }));
 }
 
-function writeBaseline(violations: readonly ComplexityViolation[]): void {
+/** Every effect the gate has — production wires ESLint, the debt file and stdio. */
+interface ComplexityGatePorts {
+  lint: () => LintRun;
+  exists: (target: string) => boolean;
+  readFile: (target: string) => string;
+  writeFile: (target: string, text: string) => void;
+  out: (text: string) => void;
+  err: (text: string) => void;
+}
+
+function writeBaseline(violations: readonly ComplexityViolation[], ports: ComplexityGatePorts, debtPath: string): void {
   const payload = {
     _comment:
       "Grandfathered apps/desktop complexity violations, keyed PER VIOLATION (rule, file, message) " +
@@ -110,64 +127,81 @@ function writeBaseline(violations: readonly ComplexityViolation[]): void {
       "— never to turn a red gate green. Shrink this list; do not grow it.",
     violations,
   };
-  writeFileSync(DEBT_PATH, `${JSON.stringify(payload, null, 2)}\n`);
-  process.stdout.write(`check-complexity — wrote ${violations.length} violation(s) to complexity-debt.json\n`);
+  ports.writeFile(debtPath, `${JSON.stringify(payload, null, 2)}\n`);
+  ports.out(`check-complexity — wrote ${violations.length} violation(s) to complexity-debt.json\n`);
 }
 
-function main(): void {
-  const update = process.argv.includes("--update");
-  const run = lintAtCeiling();
-
-  const unusable = rejectUnusableEslintRun(run.status, run.stdout);
-  if (unusable) {
-    process.stderr.write(`check-complexity: FAIL — ${unusable}\n`);
-    if (run.stderr.trim()) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: run.stderr }) }, { maxLength: 2_000 }) + "\n");
-    process.exit(1);
-  }
-
-  const results = toRepoRelative(JSON.parse(run.stdout));
-
-  if (update) {
-    writeBaseline(evaluateRun(results, [], MIN_FILES_LINTED).current);
-    return;
-  }
-
-  if (!existsSync(DEBT_PATH)) {
-    process.stderr.write(
-      `check-complexity: FAIL — no complexity-debt.json. Seed it with ` +
-        `\`node scripts/check-complexity.ts --update\` and review what lands in it. This gate does ` +
-        `NOT pass by default when its baseline is missing — a gate that cannot run is exactly how ` +
-        `development/scripts/check-area-coverage-floor.ts sat unrunnable and unnoticed.\n`
-    );
-    process.exit(1);
-  }
-
-  const baseline = JSON.parse(readFileSync(DEBT_PATH, "utf8")).violations;
+/** Prints a verdict against the debt list and returns the exit code. Split from
+ *  {@link runComplexityGate} to keep both under the ceiling this gate enforces. @complexity O(n). */
+function reportAgainstBaseline(results: readonly EslintFileResult[], baseline: readonly ComplexityViolation[], ports: ComplexityGatePorts): number {
   const { added, removed, failures, filesLinted } = evaluateRun(results, baseline, MIN_FILES_LINTED);
 
-  process.stdout.write(`check-complexity — ${filesLinted} files linted at ${THRESHOLD}/${THRESHOLD}\n`);
+  ports.out(`check-complexity — ${filesLinted} files linted at ${THRESHOLD}/${THRESHOLD}\n`);
   for (const violation of removed) {
-    process.stdout.write(
-      `  FIXED (remove from complexity-debt.json): [${violation.rule}] ${violation.file}: ${violation.reason}\n`
-    );
+    ports.out(`  FIXED (remove from complexity-debt.json): [${violation.rule}] ${violation.file}: ${violation.reason}\n`);
   }
-  for (const violation of added) {
-    process.stderr.write(`  NEW: [${violation.rule}] ${violation.file}: ${violation.reason}\n`);
-  }
-  for (const failure of failures) process.stderr.write(`  ! ${failure}\n`);
+  for (const violation of added) ports.err(`  NEW: [${violation.rule}] ${violation.file}: ${violation.reason}\n`);
+  for (const failure of failures) ports.err(`  ! ${failure}\n`);
 
   if (failures.length > 0) {
-    process.stderr.write(
+    ports.err(
       `\ncheck-complexity: FAILED. Refactor under the ${THRESHOLD}/${THRESHOLD} ceiling, or — only if ` +
         `genuinely intentional — record it with --update and say why in the review.\n`
     );
-    process.exit(1);
+    return 1;
   }
-  process.stdout.write(`check-complexity: OK — ${baseline.length} grandfathered, 0 new\n`);
+  ports.out(`check-complexity: OK — ${baseline.length} grandfathered, 0 new\n`);
+  return 0;
 }
 
-try { main(); }
-catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
-  process.exitCode = 1;
+/**
+ * The whole gate over its ports. `--update` reseeds the debt file from this run instead of judging it.
+ * @returns the exit code: 0 clean, 1 for a new violation, an undersized scan, an unusable ESLint
+ *   run, a missing debt file, or any failure along the way.
+ * @complexity O(n) in ESLint results.
+ */
+function runComplexityGate({ argv }: { argv: readonly string[] }, ports: ComplexityGatePorts, { debtPath = DEBT_PATH }: { debtPath?: string } = {}): number {
+  try {
+    const run = ports.lint();
+    const unusable = rejectUnusableEslintRun(run.status, run.stdout);
+    if (unusable) {
+      ports.err(`check-complexity: FAIL — ${unusable}\n`);
+      if (run.stderr.trim()) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: run.stderr }) }, { maxLength: 2_000 }) + "\n");
+      return 1;
+    }
+
+    const results = toRepoRelative(JSON.parse(run.stdout));
+    if (argv.includes("--update")) {
+      writeBaseline(evaluateRun(results, [], MIN_FILES_LINTED).current, ports, debtPath);
+      return 0;
+    }
+    if (!ports.exists(debtPath)) {
+      ports.err(
+        `check-complexity: FAIL — no complexity-debt.json. Seed it with ` +
+          `\`node scripts/check-complexity.ts --update\` and review what lands in it. This gate does ` +
+          `NOT pass by default when its baseline is missing — a gate that cannot run is exactly how ` +
+          `development/scripts/check-area-coverage-floor.ts sat unrunnable and unnoticed.\n`
+      );
+      return 1;
+    }
+    return reportAgainstBaseline(results, JSON.parse(ports.readFile(debtPath)).violations, ports);
+  } catch (error) {
+    ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
+    return 1;
+  }
 }
+
+/** Run only when this file IS the process, never when a test imports it. */
+if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = runComplexityGate({ argv: process.argv.slice(2) }, {
+    lint: lintAtCeiling,
+    exists: existsSync,
+    readFile: (target) => readFileSync(target, "utf8"),
+    writeFile: writeFileSync,
+    out: process.stdout.write.bind(process.stdout),
+    err: process.stderr.write.bind(process.stderr),
+  });
+}
+
+export { MIN_FILES_LINTED, REPO_ROOT, lintAtCeiling, runComplexityGate };
+export type { ComplexityGatePorts, LintRun };

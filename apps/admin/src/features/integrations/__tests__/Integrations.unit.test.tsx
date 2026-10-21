@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import type { AdminWebhookSubscription } from "@/lib/api";
 import { Integrations } from "../Integrations";
+import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
+import { useIntegrations, type IntegrationsController } from "../hooks/use-integrations.hooks";
 
 /**
  * @file `Integrations` — pins the MSG-03 RowMenu rollout: the row's Pause/Delete buttons moved
@@ -124,5 +127,97 @@ describe("row actions menu", () => {
 
     await screen.findByText("My webhook");
     expect(screen.queryByRole("button", { name: /actions for webhook/i })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The real `useIntegrations` over the in-memory port, through the component's `useIntegrationsHook`
+ * seam; `overrides` pins a state (an error, an in-flight save) the fake port would otherwise only
+ * reach transiently.
+ */
+function renderWithPort(
+  port: ReturnType<typeof createFakeIntegrationsPort>,
+  overrides: Partial<IntegrationsController> = {},
+) {
+  function useHook(): IntegrationsController {
+    return { ...useIntegrations(port, (key) => key, "en"), ...overrides };
+  }
+  return renderScreen(<Integrations useIntegrationsHook={useHook} />);
+}
+
+describe("screen states", () => {
+  it("shows the load error instead of the list", () => {
+    renderWithPort(createFakeIntegrationsPort(), { error: "Could not load webhooks." });
+    expect(screen.getByText("Could not load webhooks.")).toHaveClass("notice", "error");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("shows the last delivery's status, and never when there is none", async () => {
+    const delivered: AdminWebhookSubscription = {
+      ...SUBSCRIPTION,
+      id: "sub2",
+      label: "Release hook",
+      lastDelivery: {
+        id: "del1",
+        status: "delivered",
+        attempts: 1,
+        lastResponseStatus: 200,
+        lastError: null,
+        createdAt: "2026-08-02T00:00:00.000Z",
+        deliveredAt: "2026-08-02T00:00:01.000Z",
+      },
+    };
+    renderWithPort(createFakeIntegrationsPort({ subscriptions: [SUBSCRIPTION, delivered] }));
+    await screen.findByRole("link", { name: "Release hook" });
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]!.querySelector(".muted-cell")).toHaveTextContent("never");
+    expect(rows[1]!.querySelector(".status-delivery-delivered")).toHaveTextContent("Delivered");
+  });
+});
+
+describe("create form", () => {
+  it("Add webhook opens the form (hiding itself), Cancel closes it again", async () => {
+    const user = userEvent.setup();
+    renderWithPort(createFakeIntegrationsPort());
+    await user.click(await screen.findByRole("button", { name: "Add webhook" }));
+    expect(screen.queryByRole("button", { name: "Add webhook" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("textbox", { name: "Label" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add webhook" })).toBeInTheDocument();
+  });
+
+  it("creates a subscription from the three fields", async () => {
+    const user = userEvent.setup();
+    const port = createFakeIntegrationsPort();
+    renderWithPort(port);
+    await user.click(await screen.findByRole("button", { name: "Add webhook" }));
+    await user.type(screen.getByRole("textbox", { name: "Label" }), "Deploy hook");
+    await user.type(screen.getByRole("textbox", { name: "Target URL" }), "https://example.com/deploy");
+    await user.type(screen.getByRole("textbox", { name: /Topics/ }), "post.published, post.*");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+    expect(await screen.findByRole("link", { name: "Deploy hook" })).toBeInTheDocument();
+    expect(port.subscriptions).toMatchObject([
+      { label: "Deploy hook", targetUrl: "https://example.com/deploy", topics: ["post.published", "post.*"] },
+    ]);
+  });
+
+  it("shows the form error and a disabled Saving… button while a create is in flight", async () => {
+    renderWithPort(createFakeIntegrationsPort(), { formOpen: true, formError: "Target URL must be https.", saving: true });
+    expect(await screen.findByText("Target URL must be https.")).toHaveClass("save-error");
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+});
+
+describe("delete confirm", () => {
+  it("cancelling the confirm dialog keeps the subscription", async () => {
+    const user = userEvent.setup();
+    const port = createFakeIntegrationsPort({ subscriptions: [SUBSCRIPTION] });
+    renderWithPort(port);
+    await user.click(await screen.findByRole("button", { name: /actions for webhook "my webhook"/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(port.subscriptions).toHaveLength(1);
   });
 });

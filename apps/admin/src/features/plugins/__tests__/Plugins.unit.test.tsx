@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -732,5 +732,40 @@ describe("X1: a refresh failure after load keeps the tabs and rows", () => {
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(screen.getByRole("listitem", { name: "Word Count" })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("failed to load plugins");
+  });
+});
+
+describe("row expanders and tab edge states (injected controller)", () => {
+  function renderTab(tabId: string, overrides: Partial<PluginsController> = {}) {
+    const controller = fakePluginsController(overrides);
+    render(<Plugins tabId={tabId} usePluginsHook={() => controller} />);
+    return controller;
+  }
+
+  it.each(["installed", "downloaded"])("the %s row's expander asks the controller to toggle that row", (tabId) => {
+    const onToggleExpanded = vi.fn();
+    renderTab(tabId, { onToggleExpanded });
+    const row = screen.getByRole("listitem", { name: "Word Count" });
+    fireEvent.click(within(row).getByRole("button", { expanded: false }));
+    expect(onToggleExpanded).toHaveBeenCalledWith("word-count");
+  });
+
+  it("Marketplace drops the install-directory hint when this server accepts folder installs", () => {
+    renderTab("marketplace", { canInstallFolder: true });
+    expect(screen.getByRole("note")).toHaveTextContent("Nothing to browse yet");
+    expect(screen.queryByText("Install a plugin by placing its files in this site's plugin install directory.")).not.toBeInTheDocument();
+  });
+
+  it.each(["installed", "downloaded"])("the %s row's package-files button opens that plugin's inspector", (tabId) => {
+    const onInspectPlugin = vi.fn();
+    renderTab(tabId, { onInspectPlugin });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect package files — Word Count" }));
+    expect(onInspectPlugin).toHaveBeenCalledWith("word-count");
+  });
+
+  it("Add shows no install card when the controller carries no install flow", () => {
+    renderTab("add", { canInstallFolder: true, install: undefined });
+    expect(screen.getByRole("tab", { name: /Add a plugin/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("Upload a .zip or a folder")).not.toBeInTheDocument();
   });
 });

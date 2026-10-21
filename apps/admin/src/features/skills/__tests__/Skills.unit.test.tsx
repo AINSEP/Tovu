@@ -110,6 +110,20 @@ describe("Skills", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirm remove" }));
     await screen.findByText("No skills installed yet");
   });
+  it("shows a failed removal as an alert and keeps the skill listed", async () => {
+    const installed = [{ toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: "uploaded" }];
+    vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
+      if (init?.method === "DELETE") return Response.json({ error: { code: "SKILL_LOCKED", message: "Skill is in use by a running chat." } }, { status: 409 });
+      return Response.json({ skills: installed });
+    }));
+    render(<Skills />);
+    await userEvent.click(await screen.findByRole("button", { name: "Remove incident-response" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm remove" }));
+    const alert = (await screen.findAllByRole("alert")).find((element) => element.classList.contains("notice"))!;
+    expect(alert.textContent).not.toBe("");
+    expect(screen.getByRole("list", { name: "Installed skills" })).toHaveTextContent("incident-response");
+  });
+
   it("GitHub add requires confirmation, installs, and refreshes the list", async () => {
     let installed: unknown[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url, init) => {
