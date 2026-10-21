@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
 import { createSitesWorkspace } from "../../sites-home.js";
 import { claimSiteRunning, readSiteRunning, runningSiteUrl } from "../../site-running.js";
 
@@ -22,7 +23,7 @@ function writeSite(dir: string): void {
 }
 
 test("runningSiteUrl names the admin URL only once a port is bound", () => {
-  const record = { app: "Web", port: 0, scheme: "https", pid: 1, token: "t", startedAt: "" } as Parameters<typeof runningSiteUrl>[0]["record"];
+  const record: DirectoryRunningRecord = { app: "Web", port: 0, scheme: "https", pid: 1, token: "t", started: "" };
   assert.equal(runningSiteUrl({ record }), null);
   assert.equal(runningSiteUrl({ record: { ...record, port: 4321 } }), "https://localhost:4321/admin/");
 });
