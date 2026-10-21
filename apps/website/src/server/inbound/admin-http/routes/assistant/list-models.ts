@@ -78,7 +78,7 @@ interface ListModelsRequestBody {
  */
 export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/models", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

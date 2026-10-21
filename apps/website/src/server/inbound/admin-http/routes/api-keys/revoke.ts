@@ -28,7 +28,7 @@ export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = (app, deps)
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
-          keyId: String(req.params.id ?? ""),
+          keyId: String(req.params.id),
         },
       });
 

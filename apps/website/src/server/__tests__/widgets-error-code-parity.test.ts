@@ -10,6 +10,7 @@ import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { WidgetEmbedGuardrailError, WidgetEmbedReorderCountMismatchError, WidgetReferencedError } from "@jini-ai/cms/widgets";
 import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetEmbedHostNotFoundError, WidgetEmbedHostUnsupportedError, WidgetEmbedPlacementNotFoundError, WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../features/widgets/tool-registrations.js";
@@ -46,6 +47,24 @@ test("WidgetForbiddenError: an unrecognized message keeps empty permission and r
       details: { permission: "", reason: "" },
     },
   });
+});
+
+// The embed insert/reorder and trash paths raise these three; each keeps its structured detail
+// on the HTTP body so the admin client can explain the refusal without parsing the message.
+test("widgetErrorToResponse maps embed-reorder, embed-guardrail and referenced errors with their details", () => {
+  assert.deepEqual(
+    widgetErrorToResponse(new WidgetEmbedReorderCountMismatchError({ message: "expected 3 placements, got 2", expectedCount: 3, actualCount: 2 })),
+    { status: 400, body: { error: "expected 3 placements, got 2", code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH", details: { expectedCount: 3, actualCount: 2 } } },
+  );
+  assert.deepEqual(
+    widgetErrorToResponse(new WidgetEmbedGuardrailError({ message: "a widget cannot embed itself", reason: "recursion" })),
+    { status: 400, body: { error: "a widget cannot embed itself", code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: "recursion" } } },
+  );
+  const referencingLocations = [{ kind: "region" as const, entryId: "area-1" }, { kind: "embed" as const, entryId: "post-2" }];
+  assert.deepEqual(
+    widgetErrorToResponse(new WidgetReferencedError({ message: "widget 'w' is still referenced", referencingLocations })),
+    { status: 409, body: { error: "widget 'w' is still referenced", code: "WIDGETS_REFERENCED", details: { referencingLocations } } },
+  );
 });
 
 function makeRouteDeps(entryRepo: WidgetsToolDeps["entryRepo"]): WidgetsToolDeps {

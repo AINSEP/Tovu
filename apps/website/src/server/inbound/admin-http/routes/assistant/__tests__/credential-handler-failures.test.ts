@@ -261,3 +261,27 @@ for (const [field, value] of [["apiKey", 123], ["provider", null], ["baseUrl", f
     assert.equal(await deps.siteAssistantCredentialRepo.findByWorkspaceId("ws-7"), null);
   });
 }
+
+// A host that mounts no JSON body parser hands the handler `req.body === undefined` (modelled here as
+// null, like the execution PUT case above): both PUTs must treat that as an empty patch, not crash.
+test("settings PUT with a null body is an empty patch that returns the current values unchanged", async () => {
+  const deps = depsForHandler();
+  const writes: unknown[] = [];
+  deps.set = async (request) => { writes.push(request.input); return fail(); };
+  deps.getEffective = async (_deps, input) => resolved(input.key === "public_enabled");
+  const result = await invoke(registerAdminAssistantPutSettingsRoute, deps, "put", "settings", null);
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual((result.jsonBody as { data: { publicEnabled: boolean } }).data.publicEnabled, true);
+  assert.deepEqual(writes, []);
+});
+
+test("site credential PUT with a null body keeps the stored metadata and writes no key", async () => {
+  const deps = depsForHandler();
+  const saved = await invoke(registerAdminAssistantPutSiteCredentialRoute, deps, "put", "site-credential", { provider: "openai", baseUrl: "https://example.org/v1", model: "kept-model" });
+  assert.equal(saved.statusCode, 200);
+  const result = await invoke(registerAdminAssistantPutSiteCredentialRoute, deps, "put", "site-credential", null);
+  assert.equal(result.statusCode, 200);
+  const { data } = result.jsonBody as { data: { isSet: boolean; provider: string; baseUrl: string; model: string } };
+  assert.deepEqual({ isSet: data.isSet, provider: data.provider, baseUrl: data.baseUrl, model: data.model },
+    { isSet: false, provider: "openai", baseUrl: "https://example.org/v1", model: "kept-model" });
+});

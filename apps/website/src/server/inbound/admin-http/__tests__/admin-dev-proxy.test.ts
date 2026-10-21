@@ -400,3 +400,46 @@ test("upgrade to an unavailable upstream closes the client socket", { timeout: 8
   });
   assert.equal(error.code, "ECONNRESET");
 });
+
+test("registerAdminStatic dev-proxy mode: an upstream that dies after its response headers were relayed tears the client response down instead of writing a second (502) head", { timeout: 8_000 }, async (t) => {
+  const { request: httpRequest } = await import("node:http");
+  // Answers before reading the upload, then drops the connection while the client is still sending:
+  // the proxy's upstream request then fails AFTER this response's headers already went to the client.
+  const fakeVite = createHttpServer((req, res) => {
+    res.writeHead(200, { "content-type": "text/plain" });
+    res.write("partial");
+    setTimeout(() => req.socket.destroy(), 50);
+  });
+  fakeVite.listen(0);
+  t.after(() => new Promise<void>((resolve) => fakeVite.close(() => resolve())));
+  await once(fakeVite, "listening");
+  const fakeViteAddress = fakeVite.address();
+  if (fakeViteAddress === null || typeof fakeViteAddress === "string") throw new Error("test setup: expected a bound TCP address");
+  process.env.TOVU_ADMIN_DEV_PROXY_URL = `http://127.0.0.1:${fakeViteAddress.port}`;
+  t.after(() => {
+    delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  });
+  const baseUrl = await startAdminApp(t, "/nonexistent-dist-dir");
+
+  const outcome = await new Promise<{ status: number | undefined; body: string; ended: "complete" | "torn-down" }>((resolve) => {
+    const upload = httpRequest(`${baseUrl}/admin/upload`, { method: "POST", headers: { "content-type": "text/plain" } }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk: string) => { body += chunk; });
+      res.on("end", () => resolve({ status: res.statusCode, body, ended: "complete" }));
+      res.on("error", () => resolve({ status: res.statusCode, body, ended: "torn-down" }));
+    });
+    upload.on("error", () => { /* the torn-down response is the assertion; the upload leg dying with it is expected */ });
+    const timer = setInterval(() => { if (!upload.destroyed) upload.write("x".repeat(64 * 1024)); }, 10);
+    upload.on("close", () => clearInterval(timer));
+    t.after(() => { clearInterval(timer); upload.destroy(); });
+  });
+
+  assert.equal(outcome.status, 200, "the upstream's own status reached the client first");
+  assert.equal(outcome.ended, "torn-down");
+  assert.doesNotMatch(outcome.body, /Admin dev proxy: .* is unreachable/, "no 502 text is appended to an already-started response");
+  // The admin server survived the late failure and still relays the next request.
+  const next = await fetch(`${baseUrl}/admin/`);
+  assert.equal(next.status, 200);
+  await next.body?.cancel();
+});

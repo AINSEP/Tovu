@@ -307,6 +307,25 @@ test("the publishing gate refuses a token after its only capability is removed f
   assert.equal(call.res.locals.publishTrust, undefined);
 });
 
+// A broken deny store or grant source must refuse (401), never admit and never surface a 500 oracle.
+test("the publishing gate refuses a verified token when either trust store is unreadable or rejects", async () => {
+  const { deps, token } = await directGateFixture();
+  const brokenStores: ReadonlyArray<[string, Partial<PublishTrustAuthDeps>]> = [
+    ["unreadable deny store", { revocations: async () => ({ ok: false, reason: "the revocation file could not be parsed" }) }],
+    ["rejecting deny store", { revocations: async () => { throw new Error("EIO reading /private/revocations.json"); } }],
+    ["rejecting grant source", { grants: async () => { throw new Error("EIO reading /private/grants.json"); } }],
+  ];
+  for (const [label, override] of brokenStores) {
+    const call = directGateRequest({ headers: { authorization: `Bearer ${token}` } });
+    await assert.doesNotReject(requirePublishTrust({ ...deps, ...override })(call.req, call.res, call.next), label);
+    assert.deepEqual(call.statuses, [401], label);
+    assert.deepEqual(call.bodies, [{ error: "unauthenticated", code: "UNAUTHENTICATED" }], label);
+    assert.deepEqual(call.nextCalls, [], label);
+    assert.equal(call.res.locals.principal, undefined, label);
+    assert.equal(call.res.locals.publishTrust, undefined, label);
+  }
+});
+
 test("the identity route states this install's identity and nothing about who may publish to it", async () => {
   const key = await sourceKey();
   const { server, baseUrl } = await startServer(grantDocument(key.publicKeyB64u));
