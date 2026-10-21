@@ -206,3 +206,24 @@ test("an injected detector seeds its first snapshot from the composition invento
   await new Promise<void>(resolve => setImmediate(resolve));
   await new Promise<void>(resolve => setImmediate(resolve));
 });
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+test("detect-agents: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is a 404 before authorization or detection", async () => {
+  calls = 0;
+  const authorizations: unknown[] = [];
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+
+  await handler(true, { authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "granted" }; } })(
+    { params: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(authorizations, []);
+  assert.equal(calls, 0);
+});
