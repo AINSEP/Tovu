@@ -4,7 +4,7 @@ import test from "node:test";
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations } from "../demo-a2ui-tool.js";
+import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations, validateDemoA2uiMessage } from "../demo-a2ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -171,4 +171,45 @@ test("registers unconditionally — no environment can switch this tool off", ()
   } finally {
     if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
   }
+});
+
+/** Drives the flow through its first action and returns what the test needs for the second turn. */
+async function throughFirstTurn(surfaceExchanges: SurfaceExchangeStore, signal?: AbortSignal) {
+  const handler = buildHandler(surfaceExchanges);
+  const emitted: SurfaceEmission[] = [];
+  const pending = call(handler, { emitSurface: async (e) => void emitted.push(e), ...(signal ? { signal } : {}) });
+  await new Promise((resolve) => setImmediate(resolve));
+  const surfaceId = surfaceIdOf(emitted[0]!);
+  surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.continue`) } }, { channel: "a2ui" });
+  await new Promise((resolve) => setImmediate(resolve));
+  return { pending, surfaceId };
+}
+
+test("a second turn delivered without an action is reported as an unknown step, not dropped", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const { pending, surfaceId } = await throughFirstTurn(surfaceExchanges);
+  surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: {} } }, { channel: "a2ui" });
+  assert.deepEqual(await pending, {
+    completed: true,
+    firstAction: { name: `${DEMO_A2UI_TOOL_ID}.continue`, context: {} },
+    secondAction: { name: "unknown", context: {} },
+  });
+});
+
+test("a run cancelled between the two turns returns the no-answer result for the second turn", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const controller = new AbortController();
+  const { pending } = await throughFirstTurn(surfaceExchanges, controller.signal);
+  controller.abort();
+  const result = await pending as { completed: boolean; reason: string };
+  assert.equal(result.completed, false);
+  assert.notEqual(result.reason, "expired", "an abort is not a timeout");
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("validateDemoA2uiMessage returns a valid message as parsed and refuses an invalid one by name", () => {
+  const valid = { version: "v1.0", deleteSurface: { surfaceId: "s1" } };
+  assert.deepEqual(validateDemoA2uiMessage({ message: valid }), valid);
+  assert.throws(() => validateDemoA2uiMessage({ message: { version: "v1.0", deleteSurface: {} } }),
+    new RegExp(`^Error: ${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: `));
 });
