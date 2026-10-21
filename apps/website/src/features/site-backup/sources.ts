@@ -76,6 +76,11 @@ export interface SiteBackupSources {
    *  this machine to back up, and {@link collectSiteBackupFiles} says so instead of backing up
    *  nothing silently. */
   readonly mediaUploadsDir: string | null;
+  /** The effective media provider is remote — read at backup time, since a site-setting choice
+   *  (`core.storage.mediaObjectStore`) is not known at boot the way the env override is. When it
+   *  answers `true` the uploads folder is not walked (it is not where media lives) and the scope
+   *  note is written, exactly as for a `null` {@link mediaUploadsDir}. */
+  readonly isMediaRemote?: () => Promise<boolean>;
   readonly themesDir: string;
   /** The installer's own layout (`features/agent-plugins/layout.ts`), never a re-derived path: every
    *  plugin folder the backup reads comes from the same helpers `install.ts` writes through, so a
@@ -338,7 +343,7 @@ async function walkInstalledPlugin(required: { sink: WalkSink; layout: AgentPlug
 
 /** The one media note a backup can carry, and why: the bytes are not on this machine. */
 const MEDIA_IN_OBJECT_STORAGE_NOTE =
-  "Media is stored in object storage (TOVU_MEDIA_BLOB_STORE=s3), not in a folder on this server, so media files are not in this backup. The database still lists every media item.";
+  "Media is stored in object storage (TOVU_MEDIA_BLOB_STORE=s3 or the site's media storage setting), not in a folder on this server, so media files are not in this backup. The database still lists every media item.";
 
 /**
  * Every file on disk the switched-on scopes pick up. The database scope is never a disk walk — see
@@ -375,8 +380,8 @@ function byPath(a: { path: string }, b: { path: string }): number {
 
 /** The uploads folder, minus chat attachments; object-storage media is noted, never silently empty. */
 async function collectMediaScope(required: { sink: WalkSink; sources: SiteBackupSources; scopeNotes: Partial<Record<SiteBackupScope, string>> }): Promise<void> {
-  const { mediaUploadsDir } = required.sources;
-  if (mediaUploadsDir === null) required.scopeNotes.media = MEDIA_IN_OBJECT_STORAGE_NOTE;
+  const { mediaUploadsDir, isMediaRemote } = required.sources;
+  if (mediaUploadsDir === null || (await isMediaRemote?.())) required.scopeNotes.media = MEDIA_IN_OBJECT_STORAGE_NOTE;
   else await walkTree(required.sink, { absDir: mediaUploadsDir, relDir: "uploads", scope: "media", excludeTopLevel: new Set(["chat-attachments"]) });
 }
 

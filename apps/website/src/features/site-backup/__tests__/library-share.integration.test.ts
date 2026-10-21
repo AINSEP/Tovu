@@ -12,7 +12,8 @@ import express from "express";
 import { createHash } from "node:crypto";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { LocalFsBlobStore, computeBlobStorageKey, type BlobStorePort } from "../../media/index.js";
-import { S3BlobStore } from "../../media/blob-store.s3.js";
+import { blobStoreFromObjectStore } from "@jini-ai/cms/media";
+import { createDeployHostKit } from "../../deployments/deploy-targets/host-kit.js";
 import { libraryFixture } from "../../media/__tests__/library.fixture.js";
 import { contributeMediaPublish } from "../../media/publish-content.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -56,7 +57,8 @@ async function sourceStore(t: TestContext, h: Awaited<ReturnType<typeof importFi
     for (const [key, bytes] of objects) { fs.mkdirSync(path.dirname(path.join(rootDir, key)), { recursive: true }); fs.writeFileSync(path.join(rootDir, key), bytes); }
     return new LocalFsBlobStore({ rootDir });
   }
-  // Exercise the real signed S3 adapter's HEAD/GET path with an isolated HTTP object service.
+  // Exercise the bundled s3-compatible plugin's real signed object store (the provider media uses
+  // under TOVU_MEDIA_BLOB_STORE=s3) through its HEAD/GET path with an isolated HTTP object service.
   const server = http.createServer((req, res) => {
     const bytes = objects.get(decodeURIComponent(new URL(req.url!, "http://localhost").pathname.slice("/bucket/".length)));
     if (!bytes) { res.writeHead(404); res.end(); return; }
@@ -65,7 +67,15 @@ async function sourceStore(t: TestContext, h: Awaited<ReturnType<typeof importFi
   server.listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
   t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
-  return new S3BlobStore({ bucket: "bucket", region: "us-east-1", accessKeyId: "fixture", secretAccessKey: "fixture", endpoint: `http://127.0.0.1:${(server.address() as { port: number }).port}` });
+  const providerUrl = new URL("../../../../../../content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs", import.meta.url).href;
+  const provider = (await import(providerUrl)).default;
+  const created = provider.create({
+    settings: { bucket: "bucket" },
+    credential: { fields: { accessKeyId: "fixture", region: "us-east-1", endpoint: `http://127.0.0.1:${(server.address() as { port: number }).port}` }, secret: "fixture" },
+    host: { createSigV4Client: createDeployHostKit({}).createSigV4Client },
+  });
+  assert.equal(created.status, "ok", JSON.stringify(created.error));
+  return blobStoreFromObjectStore({ store: created.value });
 }
 
 for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/import preserves private documents and deduplicates blobs`, async t => {

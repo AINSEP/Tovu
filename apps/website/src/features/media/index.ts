@@ -135,8 +135,6 @@ export {
 
 export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 
-export { S3BlobStore, type S3BlobStoreConfig } from "./blob-store.s3.js";
-
 export { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 export { resolveUploadContentType, assertAllowedSniffedContentType } from "./upload-content-type.js";
 

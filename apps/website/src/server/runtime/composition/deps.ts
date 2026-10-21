@@ -52,7 +52,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, type ObservabilityPort } from "#src/platform/observability/index";
+import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -191,10 +191,9 @@ import { createSqliteConversationToolApprovalStore } from "#src/assistant/persis
 import {
   LocalFsBlobStore,
   purgeMedia,
-  S3BlobStore,
   SharpImageTransformer,
-  type BlobStorePort,
 } from "#src/features/media/index";
+import { createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -391,56 +390,6 @@ export function mediaUploadsDir(optional: SitePathResolverOptional & { siteDir?:
   return env.TOVU_MEDIA_UPLOADS_DIR ?? join(optional.siteDir ?? siteDir(), "uploads");
 }
 
-/**
- * Resolves the real running server's `BlobStorePort` — `LocalFsBlobStore` by default (unchanged
- * for every existing install), or `S3BlobStore` when an operator opts in with
- * `TOVU_MEDIA_BLOB_STORE=s3`. This is the ONE seam a deployment needs to point Tovu's media bytes
- * at S3-compatible object storage instead of a local volume — every read/write path (`/m/...`
- * rendition serving, admin upload/purge, static export's asset crawl) already goes through
- * whatever `RouteDeps.blobStore` this returns, so no other file changes for this to take effect.
- *
- * Fails LOUD, not silently, when the opt-in is set but incomplete: an operator who typos
- * `TOVU_MEDIA_BLOB_STORE=s3` without also setting the bucket/region/credential vars needs to see a
- * startup error, not have their install quietly fall back to writing local files nobody expected
- * (which would then look like "media works" until the next deploy wipes the ephemeral disk).
- *
- * `observability` traces the S3 store's object requests (identity for the no-op port).
- *
- * @complexity O(1) — a handful of env reads and a branch.
- */
-function resolveBlobStore(uploadsDir: string, { observability }: { observability: ObservabilityPort }): BlobStorePort {
-  const backend = process.env.TOVU_MEDIA_BLOB_STORE ?? "local";
-  if (backend === "local") {
-    return new LocalFsBlobStore({ rootDir: uploadsDir });
-  }
-  if (backend !== "s3") {
-    throw new Error(`Unknown TOVU_MEDIA_BLOB_STORE '${backend}' — expected 'local' or 's3'.`);
-  }
-  // Each entry pairs the env var name with its resolved value, so a missing one can be reported
-  // by its real name below rather than reconstructed from an object key.
-  const requiredVars: Array<[name: string, value: string | undefined]> = [
-    ["TOVU_S3_BUCKET", process.env.TOVU_S3_BUCKET],
-    ["TOVU_S3_REGION", process.env.TOVU_S3_REGION],
-    ["TOVU_S3_ACCESS_KEY_ID", process.env.TOVU_S3_ACCESS_KEY_ID],
-    ["TOVU_S3_SECRET_ACCESS_KEY", process.env.TOVU_S3_SECRET_ACCESS_KEY],
-  ];
-  const missing = requiredVars.filter(([, value]) => !value).map(([name]) => name);
-  if (missing.length > 0) {
-    throw new Error(`TOVU_MEDIA_BLOB_STORE=s3 requires ${requiredVars.map(([name]) => name).join(", ")} — missing: ${missing.join(", ")}.`);
-  }
-  const [, bucket] = requiredVars[0];
-  const [, region] = requiredVars[1];
-  const [, accessKeyId] = requiredVars[2];
-  const [, secretAccessKey] = requiredVars[3];
-  return new S3BlobStore({
-    bucket: bucket as string,
-    region: region as string,
-    accessKeyId: accessKeyId as string,
-    secretAccessKey: secretAccessKey as string,
-    endpoint: process.env.TOVU_S3_ENDPOINT,
-    keyPrefix: process.env.TOVU_S3_KEY_PREFIX,
-  }, { observability });
-}
 
 /**
  * The read-only STOCK themes tree that ships with the product: `content/themes/`, copied to
@@ -817,14 +766,17 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverr
  * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
  * resolved values this root serves the site from, so a backup never walks a different folder than
  * the one in use. Media is `null` under `TOVU_MEDIA_BLOB_STORE=s3`: the bytes then live in object
- * storage, and the backup says so instead of copying an unused local folder.
+ * storage, and the backup says so instead of copying an unused local folder. A remote provider
+ * chosen by the site setting instead is only known when the backup runs, so `isMediaRemote` (the
+ * media store's effective answer) is passed through for the backup to ask then.
  *
  * @complexity O(1) — env reads and one small `package.json` read.
  */
-function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
   return {
     siteDir: input.siteDir,
-    mediaUploadsDir: process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : input.uploadsDir,
+    mediaUploadsDir: input.mediaIsRemoteByEnv ? null : input.uploadsDir,
+    isMediaRemote: input.isMediaRemote,
     themesDir: input.themesDir,
     agentPlugins: input.agentPluginLayout,
     skillsDir: input.skillLayout.root,
@@ -1157,12 +1109,31 @@ async function composeSiteRouteDeps(
   // (identity for the no-op port, so a default boot keeps its exact objects).
   const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) });
   instrumentStorageKernel({ kernel, observability });
-  // Resolved here, before the first fire-and-forget boot promise below: `resolveBlobStore` throws on
-  // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
+  // Resolved here, before the first fire-and-forget boot promise below: `createMediaBlobStore` throws
+  // on an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
   // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
   // unhandled ("The database connection is not open") on top of the operator's real config error.
+  // The provider itself (env override > `core.storage.mediaObjectStore` > local) resolves on first
+  // media use through the late-bound ports below (`features/object-storage/media-store.ts`).
   const resolvedUploadsDir = overrides.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });
-  const blobStore = resolveBlobStore(resolvedUploadsDir, { observability });
+  // The site's saved connection is read through the same publish credential source shares use
+  // (one bucket credential for media and shares); that source needs `routeDeps`, built later.
+  let provideMediaCredentials!: (source: ReturnType<typeof composePublishCredentialSource>) => void;
+  const mediaCredentials = new Promise<ReturnType<typeof composePublishCredentialSource>>((done) => { provideMediaCredentials = done; });
+  const mediaStorePorts = (): MediaObjectStorePorts => ({
+    host: { createSigV4Client: createDeployHostKit({}).createSigV4Client, wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability }) },
+    loadBundledRegistry: () => loadBundledObjectStoreRegistry({ uploadsDir: resolvedUploadsDir, sourceRoot: bundledAgentPluginsDir() }),
+    loadSiteRegistry: () => loadObjectStoreRegistry({ workspaceId, uploadsDir: resolvedUploadsDir, loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    readSetting: () => readMediaObjectStoreSetting({ settingsRepo, workspaceId }),
+    resolveSharedCredential: async ({ providerId }) => {
+      // Provider ids use underscores; the saved connection is keyed by the deploy target's hyphenated id.
+      const resolved = await (await mediaCredentials).resolve({ workspaceId, target: providerId.replace(/_/g, "-") });
+      if (!resolved.ok) return undefined;
+      const { token, ...fields } = toDeployTargetCredential(resolved);
+      return { fields, secret: token };
+    },
+  });
+  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor(store, dbPath);
@@ -1354,6 +1325,7 @@ async function composeSiteRouteDeps(
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensureMediaObjectStoreSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
@@ -2357,7 +2329,7 @@ async function composeSiteRouteDeps(
     agentPluginLayout,
     agentPluginLifecycle,
     skillLayout,
-    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, isMediaRemote, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
@@ -2734,6 +2706,8 @@ async function composeSiteRouteDeps(
     // A boot pass can start another app (for example during export); drain until none remain.
     while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
   });
+  provideMediaCredentials(composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
+    dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } }));
   configureSiteSharing({}, {});
 
   function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
@@ -2770,9 +2744,13 @@ async function composeSiteRouteDeps(
               runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
             } : {}),
             s3: async () => {
-              const module = (await routeDeps.loadDeployTargets(workspaceId)).get("s3-compatible")?.module;
-              if (!module?.createArtifactStore) return undefined;
-              const resolved = await credentials.resolve({ workspaceId, target: "s3-compatible" });
+              // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
+              // the site's media choice wins so media and shares share one provider and connection.
+              const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });
+              if (!chosen) return undefined;
+              // Provider ids use underscores; the saved connection is keyed by the hyphenated target id.
+              const target = chosen.id.replace(/_/g, "-");
+              const resolved = await credentials.resolve({ workspaceId, target });
               if (!resolved.ok) return undefined;
               // A new default connection must never turn revocation into deletion in another bucket.
               // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
@@ -2784,7 +2762,7 @@ async function composeSiteRouteDeps(
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
-              return { provider: "s3-compatible", binding: storageBinding, store: module.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+              return { provider: target, binding: storageBinding, store: chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
             },
           }, selection),
         });

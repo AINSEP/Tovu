@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { S3BlobStore } from "#src/features/media/blob-store.s3";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -151,7 +150,9 @@ test("a complete S3 config boots with the S3 blob store, and the site backup the
   closeAfter(t, deps);
   await deps.identityReady;
 
-  assert.ok(deps.blobStore instanceof S3BlobStore, "the S3 backend is the store media writes go to");
+  // Media goes to S3: a lookup is a signed HEAD against the configured endpoint, and that closed port
+  // makes it reject with the S3 provider's transport error. A local store would resolve `false`.
+  await assert.rejects(deps.blobStore.exists({ storageKey: "ws/x/blobs/ab/abc" }), /^Error: S3ObjectStore\.head: request failed for 'ws\/x\/blobs\/ab\/abc'/);
   assert.equal(deps.siteBackupSources?.mediaUploadsDir, null, "with media in S3 there is no local uploads folder to back up");
 });
 
