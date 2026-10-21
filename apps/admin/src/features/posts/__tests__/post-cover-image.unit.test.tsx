@@ -82,6 +82,18 @@ describe("PostCoverImage", () => {
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
+  it("an open picker shows the media library dialog, and its Cancel closes the picker", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ media: [], data: [] }), { status: 200, headers: { "content-type": "application/json" } })));
+    try {
+      const closePicker = vi.fn();
+      render(<PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ pickerOpen: true, closePicker })} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+      expect(closePicker).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("an image that will not load shows the unavailable placeholder and keeps Change/Remove", () => {
     render(
       <PostCoverImage {...toggleProps} bodyFormat="doc" featuredMediaId="m-gone" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m-gone", previewFailed: true })} />,

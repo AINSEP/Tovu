@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createFakePostEditorPort, defaultPostEditorPort } from "../hooks/post-editor-dependencies.hooks";
+import { createFakePostEditorPort, defaultFeaturedImageRenditionUrl, defaultPostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 
 // The hook suite is being edited by another worker. These are the port's own contracts,
 // including its id guards, which the hook cannot reach with its loaded post's id.
@@ -47,3 +47,33 @@ describe("post editor dependencies", () => {
     expect(port.post).not.toHaveProperty("slugFromTitle");
   });
 });
+
+describe("post editor dependencies — live list and rendition bindings, fake list and upload defaults", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("lists posts through the admin API", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return new Response(JSON.stringify({ posts: [] }), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    await expect(defaultPostEditorPort.listPosts()).resolves.toEqual({ posts: [] });
+    expect(calls).toEqual([expect.stringMatching(/\/workspaces\/workspace-local\/posts$/)]);
+  });
+
+  it("builds the cover preview's resized rendition URL with an encoded id", () => {
+    expect(defaultFeaturedImageRenditionUrl("media/1")).toMatch(/\/m\/media%2F1\/public\.v1\/image\.jpg$/);
+  });
+
+  it("the fake lists its mentionable posts (none by default) and uploads a default media row", async () => {
+    const empty = createFakePostEditorPort();
+    await expect(empty.listPosts()).resolves.toEqual({ posts: [] });
+    const withPosts = createFakePostEditorPort({ mentionablePosts: [empty.post] });
+    await expect(withPosts.listPosts()).resolves.toEqual({ posts: [{ post: empty.post }] });
+    const uploaded = await empty.uploadMedia({ filename: "a.png", dataBase64: "AA==" } as never);
+    expect(uploaded.media.id).toEqual(expect.any(String));
+  });
+});
+
