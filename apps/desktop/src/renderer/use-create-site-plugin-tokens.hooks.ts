@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateSiteInput, CreatedSiteRecord, TokenSignInPlugin } from '../contracts/project.js';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 
 /**
  * @file "+ Create website"'s optional "Connect services" fields (2026-09-29) — the desktop twin of
@@ -58,10 +58,17 @@ export function createdTokensNote(record: Pick<CreatedSiteRecord, 'agentPluginTo
     : `${names} couldn't be saved. Open the site and ask its assistant to connect it.`;
 }
 
-/** `enabled` follows onboarding availability: hidden fields never contribute tokens to create. */
+/**
+ * `enabled` follows onboarding availability: hidden fields never contribute tokens to create.
+ * `bridge` defaults to this window's preload bridge (absent outside a real desktop window); a test
+ * passes a fake of the one method used.
+ */
 export function useCreateSitePluginTokens(
   _requiredArgs: Record<string, never> = {},
-  { enabled = true }: { enabled?: boolean } = {},
+  { enabled = true, bridge = runnerInventoryBridge() }: {
+    enabled?: boolean;
+    bridge?: Pick<RunnerInventoryBridge, 'listTokenSignInPlugins'>;
+  } = {},
 ): CreateSitePluginTokens {
   const [plugins, setPlugins] = useState<readonly TokenSignInPlugin[]>([]);
   const inputs = useRef(new Map<string, HTMLInputElement>());
@@ -70,7 +77,7 @@ export function useCreateSitePluginTokens(
     // Owner 2026-10-06: hidden — do not offer tokens while the service section is unavailable.
     if (!enabled) return;
     let live = true;
-    const list = runnerInventoryBridge()?.listTokenSignInPlugins;
+    const list = bridge?.listTokenSignInPlugins;
     if (!list) return;
     list()
       .then((found) => {
@@ -81,7 +88,7 @@ export function useCreateSitePluginTokens(
     return () => {
       live = false;
     };
-  }, [enabled]);
+  }, [enabled, bridge]);
 
   const inputRef = useCallback(
     (pluginId: string) => (element: HTMLInputElement | null) => {
