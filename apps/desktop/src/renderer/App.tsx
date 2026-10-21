@@ -1264,18 +1264,15 @@ function MainContent({
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Stopped records use the same
-              sentinel; `sitePortPresentation` applies that rule across the renderer. */}
+              sentinel; `sitePortPresentation` applies that rule across the renderer.
+
+              The notice only ever describes a STOPPED site: `useProjectMutations` withdraws it the
+              moment `readyNoticeStillTrue` stops holding, and that requires the created row to be
+              on the grid with `status === 'stopped'`. A "provisioned on port N" variant for a
+              running record used to sit here and could never outlive its first commit, so it was
+              removed rather than kept as copy no operator can read. */}
           <span className="creation-notice__text">
-            {!sitePortPresentation(lastCreated).running ? (
-              <>
-                <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
-              </>
-            ) : (
-              <>
-                <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
-                {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
-              </>
-            )}
+            <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
             {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
           </span>
         </p>
