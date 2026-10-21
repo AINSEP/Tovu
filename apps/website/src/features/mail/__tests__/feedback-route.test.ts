@@ -31,12 +31,12 @@ function fakeRepos() {
   const suppressed: Parameters<MailSuppressionRepoPort["suppress"]>[0][] = [];
   return {
     suppressed,
-    inbox: { record: async ({ providerId, event: item }: { providerId: string; event: { eventId: string } }) => {
-      const key = `${providerId}:${item.eventId}`;
-      if (seen.has(key)) return "duplicate" as const;
-      seen.add(key);
-      return "inserted" as const;
-    } },
+    inbox: {
+      // Only a completed event is a duplicate (the ingest completes it after suppression).
+      record: async ({ providerId, event: item }: { providerId: string; event: { eventId: string } }) =>
+        (seen.has(`${providerId}:${item.eventId}`) ? "duplicate" as const : "inserted" as const),
+      complete: async ({ providerId, eventId }: { providerId: string; eventId: string }) => { seen.add(`${providerId}:${eventId}`); },
+    },
     suppression: { isSuppressed: async () => false, suppress: async (input: Parameters<MailSuppressionRepoPort["suppress"]>[0]) => { suppressed.push(input); } },
   };
 }
