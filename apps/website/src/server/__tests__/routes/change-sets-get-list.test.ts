@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminChangeSetGetRoute } from "../../inbound/admin-http/routes/change-sets/get.js";
@@ -183,4 +183,39 @@ test("change-sets list + get: a principal without changeset.read is 403 FORBIDDE
     { permission: "changeset.read", entityType: "change_set", entityId: undefined },
     { permission: "changeset.read", entityType: "change_set", entityId: "cs-get-1" },
   ]);
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` / `String(req.params.changeSetId ?? "")` (extractRouteHandler's
+ * own doc, `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always populated, so
+ * the right side of every `??` below is unreachable through any real HTTP request. Restored 2026-09-03
+ * after being wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the
+ * guard and exercise it with a hand-built `req` that deliberately violates that contract.
+ */
+for (const path of ["/api/admin/v1/workspaces/:workspaceId/change-sets", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId"]) {
+  test(`change-sets ${path.endsWith(":changeSetId") ? "get" : "list"}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is the workspace 404`, async () => {
+    const { app } = buildTestApp();
+    const handler = extractRouteHandler(app, "get", path);
+    const { res, capture } = createCapturingResponse();
+
+    await handler({ params: {}, query: {} }, res);
+
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  });
+}
+
+test("change-sets get: `req.params.changeSetId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal, is the ordinary not-found", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: WS }, query: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "change set was not found", code: "CHANGE_SET_NOT_FOUND" } });
 });

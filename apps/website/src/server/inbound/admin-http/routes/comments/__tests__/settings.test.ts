@@ -5,7 +5,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminCommentsGetSettingsRoute } from "../get-settings.js";
 import { registerAdminCommentsPutSettingsRoute } from "../put-settings.js";
 import type { CommentsModerationRouteDeps } from "../deps.js";
@@ -143,3 +143,23 @@ test("comments settings: a host that mounts PUT without any JSON parser still ge
   // The unparsed body is never read as a patch: the stored settings come back unchanged.
   assert.deepEqual(((await putRes.json()) as { data: unknown }).data, stored.data);
 });
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+for (const method of ["get", "put"] as const) {
+  test(`comments settings ${method.toUpperCase()}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is the workspace 404 before authorize()`, async () => {
+    const { app, authorizeCalls } = buildApp();
+    const handler = extractRouteHandler(app, method, "/api/admin/v1/workspaces/:workspaceId/comments/settings");
+    const { res, capture } = createCapturingResponse();
+
+    await handler({ params: {}, body: { requireModeration: false } }, res);
+
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+    assert.equal(authorizeCalls.length, 0);
+  });
+}

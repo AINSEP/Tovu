@@ -6,7 +6,7 @@ import { registerAdminFsFilesCustomRootRoutes } from '../custom-root.js';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BASE, INTERNAL_CODE, allowed, fixture } from '#src/server/__tests__/helpers/admin-route-failures';
+import { BASE, INTERNAL_CODE, allowed, fixture, invokeRouteDirectly } from '#src/server/__tests__/helpers/admin-route-failures';
 
 test('custom root: default store uses the bound site directory across PUT, GET and DELETE', async t => {
   const siteDir = mkdtempSync(join(tmpdir(), 's02-root-'));
@@ -58,5 +58,23 @@ for (const method of ['GET', 'PUT', 'DELETE']) {
     assert.equal((response.body as { code: string }).code, 'FORBIDDEN');
     assert.equal(permissions.length, 1);
     assert.equal(permissions[0], method === 'GET' ? 'content.read' : 'fs_files.custom_root.manage');
+  });
+}
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract. All three verbs share the one guard.
+ */
+for (const method of ['GET', 'PUT', 'DELETE']) {
+  test(`custom root ${method}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is the workspace 404 before authorization`, async () => {
+    let calls = 0;
+    const { app } = fixture(registerAdminFsFilesCustomRootRoutes, { authorize: async () => { calls++; return { allowed: true }; } });
+    assert.deepEqual(await invokeRouteDirectly({ app, method, path: `${BASE}/fs-files/custom-root`, req: { params: {}, query: {}, body: {} } }), {
+      statusCode: 404, jsonBody: { error: 'workspace was not found' },
+    });
+    assert.equal(calls, 0);
   });
 }
