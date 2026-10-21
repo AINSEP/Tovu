@@ -44,6 +44,16 @@ test("both arches' zips are listed (the re-stapled dmgs are not), and the legacy
   assert.equal(merged.files[0]!.blockMapSize, 10, "blockmap sizes must survive for differential downloads");
 });
 
+test("when no input carries a releaseDate the merged manifest omits the key rather than inventing one", () => {
+  const undated = (arch: "arm64" | "x64") => {
+    const { releaseDate: _dropped, ...rest } = manifest(arch);
+    return rest;
+  };
+  const merged = mergeMacManifests([{ label: "arm", manifest: undated("arm64") }, { label: "x64", manifest: undated("x64") }]);
+  assert.equal("releaseDate" in merged, false);
+  assert.equal(merged.path, "Tovu-mac-x64.zip");
+});
+
 test("a merge of one arch alone is refused: the other arch would find no zip or the wrong one", () => {
   assert.throws(
     () => mergeMacManifests([{ label: "arm", manifest: manifest("arm64") }]),
