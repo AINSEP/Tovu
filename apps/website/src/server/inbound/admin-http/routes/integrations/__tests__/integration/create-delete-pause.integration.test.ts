@@ -309,7 +309,7 @@ test("delete: a missing subscriptionId param (impossible via real routing), forc
   await handler({ params: { workspaceId: deps.workspaceId } }, res);
 
   assert.equal(getStatus(), 404);
-  assert.equal((getBody() as { error: string }).error, "webhook subscription 'undefined' was not found");
+  assert.equal((getBody() as { error: string }).error, "webhook subscription '' was not found");
 });
 
 test("pause: mismatched workspaceId 404s", async (t) => {
@@ -467,5 +467,5 @@ test("pause: a missing subscriptionId param (impossible via real routing), force
   await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
 
   assert.equal(getStatus(), 404);
-  assert.equal((getBody() as { error: string }).error, "webhook subscription 'undefined' was not found");
+  assert.equal((getBody() as { error: string }).error, "webhook subscription '' was not found");
 });

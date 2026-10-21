@@ -98,7 +98,7 @@ test("MEMBER_DISABLE route: direct invoke with nullish params.memberId (impossib
   res.locals.principal = { id: ownerId };
   await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
   assert.equal(capture.statusCode, 404);
-  assert.equal((capture.jsonBody as { error: string }).error, "member 'undefined' was not found");
+  assert.equal((capture.jsonBody as { error: string }).error, "member '' was not found");
 });
 
 test("MEMBER_DISABLE route: 200 on success, revokes every live member session", async (t) => {

@@ -32,7 +32,7 @@ function parseFormCreateBody(rawBody: unknown): {
  */
 export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

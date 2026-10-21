@@ -51,7 +51,7 @@ function sendAssignLocationError(
  */
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -62,7 +62,7 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
       return;
     }
 
-    const menuId = String(req.params.menuId);
+    const menuId = String(req.params.menuId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

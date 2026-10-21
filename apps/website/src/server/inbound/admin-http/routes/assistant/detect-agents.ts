@@ -166,7 +166,7 @@ async function readDetectionSnapshot(
 export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
   const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents, ...(deps.assistantAgentInventory ? { runtime: deps.assistantAgentInventory.runtime } : {}) }) : undefined;
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

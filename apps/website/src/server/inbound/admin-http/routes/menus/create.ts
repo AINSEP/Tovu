@@ -35,7 +35,7 @@ function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; i
  */
 export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

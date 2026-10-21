@@ -27,7 +27,7 @@ export function registerAdminCommerceStatusRoute(
   deps: AdminCommerceStatusDeps
 ): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/commerce/status", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

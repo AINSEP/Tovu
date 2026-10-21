@@ -20,14 +20,14 @@ export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (a
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
 
-      if (isBuiltInExternalMcpServer({ serverId: String(req.params.serverId), ids: deps.builtInExternalMcpServerIds })) {
+      if (isBuiltInExternalMcpServer({ serverId: String(req.params.serverId ?? ""), ids: deps.builtInExternalMcpServerIds })) {
         res.status(409).json({ error: "built-in MCP connections cannot be removed", code: "BUILT_IN_CONNECTION" });
         return;
       }
 
       const removed = await deleteExternalMcpServer(
         { repo: deps.externalMcpServerRepo },
-        { workspaceId: deps.workspaceId, serverId: String(req.params.serverId) },
+        { workspaceId: deps.workspaceId, serverId: String(req.params.serverId ?? "") },
       );
       if (!removed) {
         res.status(404).json({ error: "external MCP server was not found", code: "NOT_FOUND" });

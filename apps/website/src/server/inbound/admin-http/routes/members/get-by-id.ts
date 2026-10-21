@@ -23,12 +23,12 @@ export const registerAdminMemberGetRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const memberId = String(req.params.memberId);
+    const memberId = String(req.params.memberId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

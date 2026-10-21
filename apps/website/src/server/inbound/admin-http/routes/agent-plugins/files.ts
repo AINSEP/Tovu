@@ -23,12 +23,12 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  */
 export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const pluginId = String(req.params.pluginId);
+    const pluginId = String(req.params.pluginId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

@@ -20,7 +20,7 @@ const LAST_DELIVERY_LOOKUP_LIMIT = 50;
  */
 export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

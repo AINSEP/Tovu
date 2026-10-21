@@ -39,7 +39,7 @@ export function registerAdminMediaImportUrlRoute(
 ): void {
   const { app, deps } = required;
   app.post("/api/admin/v1/workspaces/:workspaceId/media/import-url", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

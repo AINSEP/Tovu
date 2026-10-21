@@ -14,12 +14,12 @@ export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = 
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId",
     async (req, res) => {
-      if (String(req.params.workspaceId) !== deps.workspaceId) {
+      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
 
-      const subscriptionId = String(req.params.subscriptionId);
+      const subscriptionId = String(req.params.subscriptionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);

@@ -6,12 +6,12 @@ import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */
 export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const formId = String(req.params.formId);
+    const formId = String(req.params.formId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

@@ -146,7 +146,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         },
         {
           workspaceId: deps.workspaceId,
-          serverId: String(req.params.serverId),
+          serverId: String(req.params.serverId ?? ""),
           // The guard above already authorized this same principal — a second, cheap read off
           // `res.locals` (`getAuthedPrincipal` does no I/O), used ONLY to attribute a change to
           // `writeAllowedToolNames` if this save makes one.

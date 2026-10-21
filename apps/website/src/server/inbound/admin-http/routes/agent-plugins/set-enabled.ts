@@ -214,12 +214,12 @@ function validateSetEnabledRequest(
   res: Response,
   deps: AgentPluginsRouteDeps,
 ): { pluginId: string; enabled: boolean } | undefined {
-  if (String(req.params.workspaceId) !== deps.workspaceId) {
+  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return undefined;
   }
 
-  const pluginId = String(req.params.pluginId);
+  const pluginId = String(req.params.pluginId ?? "");
   const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
   if (typeof enabled !== "boolean") {
     res.status(400).json({ error: "'enabled' must be a boolean", code: "VALIDATION_ERROR" });

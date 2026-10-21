@@ -289,7 +289,7 @@ test("integrations routes: pause's workspaceId/subscriptionId params can never a
     } as unknown as Parameters<typeof handler>[0];
     await handler(req, res);
     assert.equal(capture.statusCode, 404);
-    assert.equal((capture.jsonBody as { error: string }).error, "webhook subscription 'undefined' was not found");
+    assert.equal((capture.jsonBody as { error: string }).error, "webhook subscription '' was not found");
   }
 });
 
@@ -431,7 +431,7 @@ test("integrations routes: delete with subscriptionId omitted -- forced via a di
   await handler({ params: { workspaceId: deps.workspaceId } }, res);
 
   assert.equal(getStatus(), 404);
-  assert.equal((getBody() as { error: string }).error, "webhook subscription 'undefined' was not found");
+  assert.equal((getBody() as { error: string }).error, "webhook subscription '' was not found");
 });
 
 test("integrations routes: list's lastDelivery picks the newest row by createdAt, not insertion order", async (t) => {

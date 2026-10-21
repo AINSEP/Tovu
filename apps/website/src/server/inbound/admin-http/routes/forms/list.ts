@@ -5,7 +5,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
 /** GET the workspace's form definitions (`FORMS_LIST_DEFINITIONS`, api.spec.md §1). */
 export const registerAdminFormsListRoute: FormsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

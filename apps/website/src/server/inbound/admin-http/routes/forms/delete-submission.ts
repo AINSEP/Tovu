@@ -9,13 +9,13 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
-      if (String(req.params.workspaceId) !== deps.workspaceId) {
+      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
 
-      const formId = String(req.params.formId);
-      const submissionId = String(req.params.submissionId);
+      const formId = String(req.params.formId ?? "");
+      const submissionId = String(req.params.submissionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);

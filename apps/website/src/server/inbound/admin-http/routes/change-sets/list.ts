@@ -9,7 +9,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 export const registerAdminChangeSetListRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/change-sets", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

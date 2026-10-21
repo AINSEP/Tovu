@@ -31,7 +31,7 @@ function parseQueueQuery(query: Record<string, unknown>): { status: CommentStatu
 
 export function registerAdminCommentsModerationQueueRoute(app: Express, deps: AdminCommentsModerationQueueDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/queue", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
