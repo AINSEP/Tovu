@@ -134,9 +134,13 @@ const PEER_NETWORK_REASONS = new Map<string, string>([
 function peerNetworkReason({ err }: { err: unknown }, _options = {}): string {
   if (typeof err !== "object" || err === null) return "";
   const cause = "cause" in err ? err.cause : undefined;
-  const code = "code" in err ? err.code
-    : typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
+  const code = "code" in err ? err.code : peerCauseCode({ cause });
   return typeof code === "string" ? PEER_NETWORK_REASONS.get(code) ?? "" : "";
+}
+
+/** Inspect only the immediate cause; messages and deeper causes never supply diagnostics. */
+function peerCauseCode({ cause }: { cause: unknown }, _options: Record<string, never> = {}): unknown {
+  return typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
 }
 
 const PEER_REFUSAL_REASONS = new Map<string, string>([
@@ -155,20 +159,29 @@ const PEER_REFUSAL_REASONS = new Map<string, string>([
 function peerRefusalReason({ status, bodyText }: { status: number; bodyText: string }, _options = {}): string | undefined {
   try {
     const body: unknown = JSON.parse(bodyText);
-    if (typeof body === "object" && body !== null) {
-      if ("code" in body && typeof body.code === "string") {
-        const reason = PEER_REFUSAL_REASONS.get(body.code);
-        if (reason) return reason;
-      }
-      if (status === 404 && "error" in body && body.error === "workspace was not found") {
-        return PEER_REFUSAL_REASONS.get("WORKSPACE_NOT_FOUND");
-      }
-    }
+    const reason = peerBodyRefusalReason({ status, body });
+    if (reason) return reason;
   } catch {
     // Proxies may return HTML or an empty body; the HTTP status still provides safe guidance.
   }
   if (status === 413) return PEER_REFUSAL_REASONS.get("PAYLOAD_TOO_LARGE");
   if (status === 409) return "The peer reported a conflict; check what would change again before retrying.";
+  return undefined;
+}
+
+/** Prefer a recognised code to the exact legacy sentinel; upstream prose is never returned. */
+function peerBodyRefusalReason(
+  { status, body }: { status: number; body: unknown },
+  _options: Record<string, never> = {}
+): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  if ("code" in body && typeof body.code === "string") {
+    const reason = PEER_REFUSAL_REASONS.get(body.code);
+    if (reason) return reason;
+  }
+  if (status === 404 && "error" in body && body.error === "workspace was not found") {
+    return PEER_REFUSAL_REASONS.get("WORKSPACE_NOT_FOUND");
+  }
   return undefined;
 }
 

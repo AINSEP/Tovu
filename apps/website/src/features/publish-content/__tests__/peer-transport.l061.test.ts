@@ -230,3 +230,60 @@ test("L061 a repeated missing sha is probed, read and uploaded only once", async
   assert.deepEqual(result.blobsUnavailable, ["gone"]);
   assert.equal(deps.calls.filter(request => request.method === "PUT").length, 1);
 });
+
+test("security cleanup pins network code precedence and every empty diagnostic branch", async () => {
+  const refused = " The peer refused the connection; check that it is running and reachable.";
+  const dns = " The peer's hostname could not be resolved; check its address and DNS.";
+  const cases: readonly [unknown, string][] = [
+    [null, ""], [undefined, ""], [7, ""], ["ECONNREFUSED", ""],
+    [{}, ""], [{ cause: null }, ""], [{ cause: "ECONNREFUSED" }, ""], [{ cause: {} }, ""],
+    [{ code: undefined, cause: { code: "ECONNREFUSED" } }, ""],
+    [{ code: 7, cause: { code: "ECONNREFUSED" } }, ""],
+    [{ code: "unknown", cause: { code: "ECONNREFUSED" } }, ""],
+    [{ cause: { code: 7 } }, ""], [{ cause: { code: "unknown" } }, ""],
+    [{ code: "ENOTFOUND", cause: { code: "ECONNREFUSED" } }, dns],
+    [{ cause: { code: "ECONNREFUSED" } }, refused],
+    [{ cause: { cause: { code: "ECONNREFUSED" } } }, ""],
+    [Object.create({ code: "ECONNREFUSED" }), refused],
+  ];
+  for (const [failure, suffix] of cases) {
+    const httpClient: HttpClientPort = { send: async () => { throw failure; } };
+    await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), {
+      code: "PEER_UNREACHABLE", message: `the peer at 'live.example' could not be reached.${suffix}`,
+    });
+  }
+  const reads: string[] = [];
+  const failure = {
+    get cause() { reads.push("cause"); return { code: "ECONNREFUSED" }; },
+    get code() { reads.push("code"); return "ENOTFOUND"; },
+  };
+  await assert.rejects(callPeer({ credential, httpClient: { send: async () => { throw failure; } } }, { method: "GET", path: "/route" }));
+  assert.deepEqual(reads, ["cause", "code"]);
+});
+
+test("security cleanup pins peer code, legacy sentinel and HTTP fallback precedence", async () => {
+  const workspace = "The destination workspace was not found; check the peer's workspace setting.";
+  const stale = "The destination changed since the plan was checked; check what would change again.";
+  const large = "The transfer exceeds the peer's size limit; publish a smaller selection.";
+  const conflict = "The peer reported a conflict; check what would change again before retrying.";
+  const cases: readonly [number, string, string | undefined][] = [
+    [404, '{"code":"PLAN_STALE","error":"workspace was not found"}', stale],
+    [413, '{"code":"PLAN_STALE"}', stale],
+    [409, '{"code":"WORKSPACE_NOT_FOUND"}', workspace],
+    [404, '{"code":7,"error":"workspace was not found"}', workspace],
+    [404, '{"code":"unknown","error":"workspace was not found"}', workspace],
+    [500, '{"error":"workspace was not found"}', undefined],
+    [404, '{"error":7}', undefined], [404, '{}', undefined],
+    [404, '{', undefined], [404, 'null', undefined], [404, 'true', undefined],
+    [404, '"text"', undefined], [404, '[]', undefined],
+    [413, '{}', large], [413, '{', large], [413, 'null', large],
+    [409, '{}', conflict], [409, '{', conflict], [409, 'null', conflict],
+  ];
+  for (const [status, bodyText, guidance] of cases) {
+    const deps = client({ reply: () => response({ status, bodyText }) });
+    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), {
+      code: "PEER_REJECTED", peerStatus: status,
+      message: `the peer refused GET /route with HTTP ${status}${guidance ? `. ${guidance}` : ""}`,
+    });
+  }
+});

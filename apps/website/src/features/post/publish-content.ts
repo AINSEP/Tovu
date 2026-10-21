@@ -216,6 +216,16 @@ function importedLocalFields(
     // refused before this point, so the only correct value here is "live".
     deletedAt: null,
     ...(existing?.ext !== undefined ? { ext: existing.ext } : {}),
+    ...importedProvenanceFields({ existing, wire }),
+  };
+}
+
+/** Existing rows keep write-once provenance, including absence; new rows default wire absence to null. */
+function importedProvenanceFields(
+  { existing, wire }: { existing: PostRecord | null; wire: Record<string, unknown> },
+  _options: Record<string, never> = {}
+) {
+  return {
     createdByPrincipalId: existing ? existing.createdByPrincipalId : (wire.createdByPrincipalId as string | null) ?? null,
     createdAt: existing ? existing.createdAt : (wire.createdAt as string | null) ?? null,
   };

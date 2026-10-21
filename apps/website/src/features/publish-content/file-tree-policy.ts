@@ -331,6 +331,15 @@ function mcpConfigReason({ value, path }: { value: unknown; path: string }, _opt
     const reason = mcpSectionReason({ section, value: record[key] });
     if (reason) return reason;
   }
+  return mcpNestedConfigReason({ record, path });
+}
+
+/** Search child declarations only after this node's env/headers have passed.
+ * @complexity O(n) JSON nodes; traversal uses O(depth) stack space. */
+function mcpNestedConfigReason(
+  { record, path }: { record: Record<string, unknown>; path: string },
+  _options: Record<string, never> = {}
+): string | null {
   for (const [key, entry] of Object.entries(record)) {
     if (key === "env" || key === "headers") continue;
     const reason = mcpConfigReason({ value: entry, path: path ? `${path}.${key}` : key });

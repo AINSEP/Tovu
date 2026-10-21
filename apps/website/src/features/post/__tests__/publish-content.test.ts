@@ -350,6 +350,47 @@ test("apply() 'created' path: a null source author imports as null, not the oper
   assert.equal(saved?.createdByPrincipalId, null);
 });
 
+test("security cleanup pins source provenance defaults and destination local fields", async () => {
+  for (const provenance of [undefined, null, "source-value", ""]) {
+    const deps = makeApplyDeps([]);
+    const source = makePost({ createdByPrincipalId: provenance, createdAt: provenance });
+    const entity = packedFrom("post", source);
+    // Omitted wire provenance and explicit null both become null for a new row.
+    if (provenance === undefined) {
+      delete entity.state.createdByPrincipalId;
+      delete entity.state.createdAt;
+    }
+    Object.assign(entity.state, { version: 999, updatedAt: "untrusted-time", deletedAt: "untrusted-trash", ext: { plugin: { injected: true } } });
+    await contributePostPublish().build(deps).apply({ entity, expectedVersion: undefined, principalId: "operator", idempotencyKey: "create" });
+    const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
+    assert.ok(saved);
+    assert.equal(saved.createdByPrincipalId, provenance ?? null);
+    assert.equal(saved.createdAt, provenance ?? null);
+    assert.equal(saved.version, 1);
+    assert.equal(saved.updatedAt, "2026-09-18T00:00:00.000Z");
+    assert.equal(saved.deletedAt, null);
+    assert.equal(saved.ext, undefined);
+  }
+  for (const provenance of [undefined, null, "destination-value", ""]) {
+    for (const ext of [undefined, { plugin: { preserved: true } }]) {
+      const existing = makePost({ version: 3, createdByPrincipalId: provenance, createdAt: provenance, ext });
+      const deps = makeApplyDeps([existing]);
+      const source = makePost({ createdByPrincipalId: "untrusted-author", createdAt: "untrusted-time", ext: { plugin: { injected: true } } });
+      const entity = packedFrom("post", source);
+      Object.assign(entity.state, { version: 999, updatedAt: "untrusted-time", deletedAt: "untrusted-trash", ext: { plugin: { injected: true } } });
+      await contributePostPublish().build(deps).apply({ entity, expectedVersion: 3, principalId: "operator", idempotencyKey: "update" });
+      const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: existing.id });
+      assert.ok(saved);
+      assert.equal(saved.createdByPrincipalId, provenance);
+      assert.equal(saved.createdAt, provenance);
+      assert.deepEqual(saved.ext, ext);
+      assert.equal(saved.version, 4);
+      assert.equal(saved.updatedAt, "2026-09-18T00:00:00.000Z");
+      assert.equal(saved.deletedAt, null);
+    }
+  }
+});
+
 test("apply() 'created' path: a change-set failure removes the row outright — an undone create must leave nothing behind", async () => {
   const deps = makeApplyDeps([]);
   // Fails only on the RECORD, after `createPost` has already written the row — the exact window

@@ -68,3 +68,22 @@ test("L044 absent text samples block qualifying files instead of bypassing the s
     assert.equal(checkTreeFiles(kind, [{ ...file, path: "safe.png" }]), null);
   }
 });
+
+test("security cleanup pins MCP traversal order, primitive leaves and section boundaries", () => {
+  const cases: readonly [unknown, string | null][] = [
+    [{ child: { env: { token: "nested" } }, headers: { token: "header" }, env: { token: "root" } }, "env.token"],
+    [{ child: { env: { token: "nested" } }, headers: { token: "header" }, env: { token: "${TOKEN}" } }, "headers.token"],
+    [{ first: null, second: 7, third: [{ env: { token: "${TOKEN}" } }, { headers: { token: "literal" } }] }, "third.1.headers.token"],
+    [[{ env: { token: "literal" } }], "0.env.token"],
+    [{ child: { env: { token: "literal" } }, later: { headers: { token: "literal" } } }, "child.env.token"],
+    [{ env: { headers: "${TOKEN}", empty: "", number: 0, absent: null, flag: false }, headers: [], child: { safe: "literal outside a section" } }, null],
+    [{ child: { env: { token: "${TOKEN}" } }, other: [{ headers: { token: "" } }] }, null],
+    [{ env: { token: "prefix${TOKEN}" } }, "env.token"],
+    [{ headers: { token: "${}" } }, "headers.token"],
+    [null, null], [7, null], ["literal", null], [{}, null],
+  ];
+  for (const [value, section] of cases) {
+    assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify(value)), section === null ? null
+      : `has a key written into mcp.json (${section}); move it to live's settings`);
+  }
+});
