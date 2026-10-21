@@ -2095,6 +2095,35 @@ describe("useChatsSeam", () => {
 });
 
 describe("useFolderDropBridge", () => {
+  it("on the desktop app, hands a dropped skill folder to the skill installer instead of the plain folder upload", async () => {
+    const plainDrop = vi.fn();
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: plainDrop });
+    const proposeSkillFiles = vi.fn().mockResolvedValue(undefined);
+    const skillFile = new File(["# skill"], "SKILL.md");
+    const leaf = { name: "SKILL.md", fullPath: "/skill/SKILL.md", isFile: true, isDirectory: false, file: (resolve: (file: File) => void) => resolve(skillFile) };
+    const folder = { name: "skill", fullPath: "/skill", isFile: false, isDirectory: true, createReader: () => {
+      let read = false;
+      return { readEntries: (resolve: (entries: unknown[]) => void) => { resolve(read ? [] : [leaf]); read = true; } };
+    } };
+    const event = {
+      dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => folder }], files: [], types: ["Files"] },
+      preventDefault: vi.fn(), stopPropagation: vi.fn(),
+    } as unknown as Parameters<ReturnType<typeof useFolderDropBridge>["handleDropCapture"]>[0];
+    const desktop = window as unknown as { tovuFiles?: unknown };
+    desktop.tovuFiles = {};
+    try {
+      // No `onSkillDropError`: a host may omit it, and the drop must still be captured.
+      const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+      result.current.handleDropCapture(event);
+      await waitFor(() => expect(proposeSkillFiles).toHaveBeenCalledTimes(1));
+      expect(proposeSkillFiles.mock.calls[0]![0]).toEqual([skillFile]);
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(plainDrop).not.toHaveBeenCalled();
+    } finally {
+      delete desktop.tovuFiles;
+    }
+  });
+
   it("publishes handleDropCapture to onReady once it is available", () => {
     const handleDropCapture = vi.fn();
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture });
