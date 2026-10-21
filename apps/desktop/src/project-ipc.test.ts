@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, siteRecordLifecycle, importSharedSiteDiscovery, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, handleTokenSignInPlugins, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
@@ -2002,4 +2002,69 @@ test("shared discovery with no workspace is inert and unavailable discovery pres
     "tovu desktop: shared discovery is unavailable; showing local website cards.",
   ]);
   assert.equal(fs.readFileSync(projectsPath, "utf8"), before);
+});
+
+
+// --- start-failure translation, shared catalog sharing, erase reasons (coverage, 2026-10-21) -------
+
+test("handleStart with no injected classifier uses the real one and starts a real site folder", async () => {
+  const siteDir = siteFixture("default-classifier");
+  let started = 0;
+  const deps = baseDeps({ classifySiteDir: undefined, openSiteServer: async () => { started += 1; } });
+  trackSite(deps.projectsPath, siteDir);
+  await handleStart(siteDir, deps as ProjectIpcDeps);
+  assert.equal(started, 1);
+});
+
+test("a SITE_DIR_INVALID start failure becomes 'folder not found' only when the folder vanished; other failures pass through", async () => {
+  const siteDir = siteFixture("vanishing");
+  const invalid = new Error("SITE_DIR_INVALID: config.json is missing at the site");
+  const deps = baseDeps({ openSiteServer: async () => { throw invalid; } });
+  trackSite(deps.projectsPath, siteDir);
+  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), (error) => error === invalid, "the folder is still there: serve's own reason stands");
+
+  deps.openSiteServer = async () => { fs.rmSync(siteDir, { recursive: true, force: true }); throw invalid; };
+  // The classifier ran before the spawn, so the folder disappearing mid-start is what serve reports.
+  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), {
+    message: `Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`,
+  });
+
+  const other = siteFixture("other-failure");
+  trackSite(deps.projectsPath, other);
+  deps.openSiteServer = async () => { throw "port in use"; };
+  await assert.rejects(handleStart(other, deps as ProjectIpcDeps), (error) => error === "port in use");
+});
+
+test("service discovery with no injected lister uses the real CLI, and any failure is an empty list with a warning", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  assert.deepEqual(await handleTokenSignInPlugins({ repoRoot: tempDir(), cliMode: "compiled" }), []);
+  assert.equal(warn.mock.callCount(), 1);
+  assert.deepEqual(await handleTokenSignInPlugins({ repoRoot: "/repo", cliMode: "source", listTokenSignInPlugins: async () => { throw "cli vanished"; } }), []);
+  assert.equal(warn.mock.calls[1]!.arguments[0], "[desktop] could not list the services a new site can connect: cli vanished");
+});
+
+test("Locate and Add Site share the folder into the shared catalog when shared settings are on", async () => {
+  const root = fs.realpathSync(tempDir());
+  const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", cwd: root, sourceRoots: [] });
+  const moved = writeSite(path.join(root, "moved-here"), "moved-id");
+  const located = locateDeps(moved);
+  located.sharedSites = workspace;
+  trackSite(located.projectsPath, path.join(root, "gone"));
+  await handleLocate(path.join(root, "gone"), located as ProjectIpcDeps);
+  assert.ok(workspace.registry({}).list({}).some((row) => row.path === moved), "the located folder is in the shared catalog");
+
+  const added = writeSite(path.join(root, "added-here"), "added-id");
+  const { deps } = addSiteDeps(added, { sharedSites: workspace });
+  await handleAddSite(deps as ProjectIpcDeps);
+  assert.ok(workspace.registry({}).list({}).some((row) => row.path === added), "the added folder is in the shared catalog");
+});
+
+test("an erase that fails for a reason other than permissions says the folder could not be removed", async () => {
+  const siteDir = writeSite(path.join(tempDir(), "busy-site"), "busy-site");
+  const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "busy-site" });
+  await assert.rejects(handleDelete(siteDir, deps as ProjectIpcDeps), {
+    message: "Could not delete this website. The folder could not be removed. Its card has been kept so you can try again.",
+  });
+  assert.equal(readTrackedSites(deps.projectsPath).length, 1);
 });
