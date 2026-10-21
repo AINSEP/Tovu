@@ -118,8 +118,11 @@ export function resetLiveModelCacheForTesting(): void {
  * @complexity O(1) local work; one outbound HTTPS call bounded by `listProviderModels`'s own
  *   12s timeout.
  */
-export async function fetchLiveClaudeModels({ apiKey, baseUrl }: { apiKey: string; baseUrl: string }): Promise<readonly ProviderModelOption[] | null> {
-  const result = await listProviderModels({ protocol: "anthropic", baseUrl, apiKey });
+export async function fetchLiveClaudeModels(
+  { apiKey, baseUrl }: { apiKey: string; baseUrl: string },
+  { listModels = listProviderModels }: { listModels?: typeof listProviderModels } = {},
+): Promise<readonly ProviderModelOption[] | null> {
+  const result = await listModels({ protocol: "anthropic", baseUrl, apiKey });
   if (!result.ok) {
     console.warn(
       `[assistant] live Claude model discovery failed (${result.kind}${result.detail ? `: ${result.detail}` : ""}) — falling back to the static model list`,
