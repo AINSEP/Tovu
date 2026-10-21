@@ -13,8 +13,10 @@ function depsFor(repo: InMemoryPostRepo): PostReverterDeps {
   return { postRepo: repo, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z") }, outbox, forgetRemoved: async () => {} };
 }
 
-test("both post reverters report no current version for a post that does not exist", async () => {
-  const reverters = createPostReverters(depsFor(new InMemoryPostRepo()));
+test("both post reverters report the stored version of an existing post, and none for a post that does not exist", async () => {
+  const reverters = createPostReverters(depsFor(new InMemoryPostRepo([buildPostRecord({ id: "post-1", workspaceId: WS, version: 4 })])));
+  assert.equal(await reverters.update.currentVersion({ workspaceId: WS, entityId: "post-1" }), 4);
+  assert.equal(await reverters.delete.currentVersion({ workspaceId: WS, entityId: "post-1" }), 4);
   assert.equal(await reverters.update.currentVersion({ workspaceId: WS, entityId: "missing" }), null);
   assert.equal(await reverters.delete.currentVersion({ workspaceId: WS, entityId: "missing" }), null);
 });
