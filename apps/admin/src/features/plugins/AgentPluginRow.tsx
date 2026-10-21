@@ -75,7 +75,7 @@ export interface AgentPluginRowProps {
   readonly onToggleExpanded: () => void;
   readonly stateControl: AgentPluginRowStateControl;
   readonly onInspect: () => void;
-  /** The row's Update control (an operator-installed package only; see `canUpdateAgentPlugin`),
+  /** The row's Update control (an operator-installed package only; see `updatableAgentPluginDigest`),
    *  shown in the expanded details. The screen builds it, so this row stays props-only. */
   readonly update?: ReactNode;
   /** The plugin's own "Manage" entry (its admin screens), just left of the actions column; absent for most plugins. */
@@ -232,7 +232,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
                 panel (screen readers and touch have no hover; that copy is the real fix). */}
             {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
                 turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
-            {agentPluginCompatibilityLines(plugin, t).map((line) => (
+            {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
               <span key={line} className="agent-plugin-row-desc">{line}</span>
             ))}
             {blurb ? (

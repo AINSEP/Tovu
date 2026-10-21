@@ -526,7 +526,7 @@ export function buildAgentPluginDisableConfirmCopy(
   const copy = disableConfirmCopy(params, translate);
   // Advisory, like the server's own warning: turning it off still goes ahead if confirmed.
   if (!params.requiredBy?.length) return copy;
-  return { ...copy, dependents: `${translate("Other enabled plugins rely on it:")} ${params.requiredBy.map((warning) => agentPluginWarningText(warning, translate)).join("; ")}` };
+  return { ...copy, dependents: `${translate("Other enabled plugins rely on it:")} ${params.requiredBy.map((warning) => agentPluginWarningText({ warning, translate })).join("; ")}` };
 }
 
 /** The title and body of {@link buildAgentPluginDisableConfirmCopy}. @complexity O(1). */
@@ -564,7 +564,8 @@ const AGENT_PLUGIN_WARNING_PATTERNS: readonly { readonly pattern: RegExp; readon
  * Ids stay as sent; an unknown warning is shown verbatim rather than dropped.
  * @complexity O(1): four fixed patterns.
  */
-export function agentPluginWarningText(warning: string, translate: Translate): string {
+export function agentPluginWarningText(required: { warning: string; translate: Translate }, _optional: Record<string, never> = {}): string {
+  const { warning, translate } = required;
   for (const { pattern, render } of AGENT_PLUGIN_WARNING_PATTERNS) {
     const match = warning.match(pattern);
     if (match) return render(match, translate);
@@ -578,7 +579,8 @@ export function agentPluginWarningText(warning: string, translate: Translate): s
  * (advisory: the plugin still turns on). Absent fields, from an older server, show nothing.
  * @complexity O(r) in missing requirements.
  */
-export function agentPluginCompatibilityLines(plugin: Pick<AdminAgentPlugin, "hostOk" | "missingRequires">, translate: Translate): string[] {
+export function agentPluginCompatibilityLines(required: { plugin: Pick<AdminAgentPlugin, "hostOk" | "missingRequires">; translate: Translate }, _optional: Record<string, never> = {}): string[] {
+  const { plugin, translate } = required;
   const lines: string[] = [];
   if (plugin.hostOk === false) lines.push(translate("Not for this Tovu version"));
   if (plugin.missingRequires?.length) lines.push(translate("Needs {capabilities}").replace("{capabilities}", plugin.missingRequires.join(", ")));
@@ -589,10 +591,12 @@ export function agentPluginCompatibilityLines(plugin: Pick<AdminAgentPlugin, "ho
  * Only a package an operator added can be updated from this screen, and only when the server named
  * the installed revision (`archiveDigest`) the update must replace. Bundled packages update with
  * Tovu itself, so their rows never offer it.
+ * @returns The installed revision the update must replace, or `undefined` when the row offers no Update.
  * @complexity O(1).
  */
-export function canUpdateAgentPlugin<P extends Pick<AdminAgentPlugin, "origin" | "archiveDigest">>(plugin: P): plugin is P & { archiveDigest: string } {
-  return plugin.origin === "operator-installed" && typeof plugin.archiveDigest === "string" && plugin.archiveDigest.length > 0;
+export function updatableAgentPluginDigest(required: { plugin: Pick<AdminAgentPlugin, "origin" | "archiveDigest"> }, _optional: Record<string, never> = {}): string | undefined {
+  const { origin, archiveDigest } = required.plugin;
+  return origin === "operator-installed" && typeof archiveDigest === "string" && archiveDigest.length > 0 ? archiveDigest : undefined;
 }
 
 /**

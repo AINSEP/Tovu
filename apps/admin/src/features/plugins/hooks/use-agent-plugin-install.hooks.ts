@@ -47,7 +47,8 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
 /** A refusal's dictionary key; `retry` is the install's or the update's own try-again line, used
  *  for anything unrecognised (an unknown 409 never shows the server's untranslated text).
  *  @complexity O(1). */
-function errorKey(error: unknown, retry: string): string {
+function errorKey(required: { error: unknown; retry: string }, _optional: Record<string, never> = {}): string {
+  const { error, retry } = required;
   if (!(error instanceof ApiError)) return retry;
   const known = error.code ? ERROR_KEYS[error.code] : undefined;
   if (known) return known;
@@ -61,6 +62,19 @@ function errorKey(error: unknown, retry: string): string {
 function installedMessageKey({ alreadyInstalled, updating }: { alreadyInstalled: boolean; updating: boolean }): string {
   if (alreadyInstalled) return "{name} is already installed.";
   return updating ? "{name} is updated." : "{name} is installed and switched off. Turn it on in Installed.";
+}
+
+/** The upload panel's mode-specific copy, derived here so `AddAgentPluginPanel` only renders it:
+ *  an update keeps its memory and on/off state, an install always stays off.
+ *  @complexity O(1). */
+function installLabels(required: { t: Translate; updating: boolean }, _optional: Record<string, never> = {}) {
+  const { t, updating } = required;
+  if (updating) {
+    return { lede: t("Upload a newer version of this plugin as a .zip or a folder. It keeps its memory and stays on or off as it is now."),
+      action: t("Update"), busyAction: t("Updating…"), actionAgentLabel: "Update the chosen Agent Plugin" };
+  }
+  return { lede: t("Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed."),
+    action: t("Install (stays off)"), busyAction: t("Installing…"), actionAgentLabel: "Install the chosen Agent Plugin (stays off)" };
 }
 
 /** Why `file` cannot be uploaded, as a dictionary key, or `null` when it can.
@@ -110,13 +124,13 @@ export function useAgentPluginInstall(
     setError(null);
     try {
       const result = await port.installZip({ file, sha256: await port.sha256({ file }), replace, ...(options.update ? { update: options.update } : {}) });
-      setWarnings((result.warnings ?? []).map((warning) => agentPluginWarningText(warning, t)));
+      setWarnings((result.warnings ?? []).map((warning) => agentPluginWarningText({ warning, translate: t })));
       if (result.agentPlugin) onInstalled(result.agentPlugin);
       setInstalled({ name: result.agentPlugin ? agentPluginDisplayName(result.agentPlugin) : file.name, alreadyInstalled: result.alreadyInstalled });
       setFile(null);
       setReplace(false);
     } catch (e) {
-      setError(t(errorKey(e, options.update ? RETRY_UPDATE : RETRY)));
+      setError(t(errorKey({ error: e, retry: options.update ? RETRY_UPDATE : RETRY })));
     } finally {
       locked.current = false;
       setBusy(false);
@@ -151,6 +165,7 @@ export function useAgentPluginInstall(
 
   return {
     updating: options.update !== undefined,
+    labels: installLabels({ t, updating: options.update !== undefined }),
     warnings,
     t,
     file,

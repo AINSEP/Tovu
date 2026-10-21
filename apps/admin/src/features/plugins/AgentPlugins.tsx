@@ -18,12 +18,13 @@ import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDial
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { AgentPluginManageButton } from "./AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "./agent-plugins-visuals";
-import { agentPluginDisplayName, canUpdateAgentPlugin } from "./rules";
+import { agentPluginDisplayName, updatableAgentPluginDigest } from "./rules";
 import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
+import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
@@ -86,6 +87,32 @@ function AgentPluginsStatus({
   );
 }
 
+/**
+ * The wired owner of one updatable row's Update control: hooks cannot run inside the rows' `map`, so
+ * each operator-installed row composes its update state (`useAgentPluginUpdate`) here and
+ * `AgentPluginUpdateControl` only renders what it is handed.
+ */
+export function AgentPluginUpdateSlot({ plugin, expectedOldDigest, t, agentHandleBase, onUpdated, port }: {
+  plugin: AdminAgentPlugin;
+  expectedOldDigest: string;
+  t: Translate;
+  agentHandleBase: string;
+  onUpdated: (plugin: AdminAgentPlugin) => void;
+  port: AgentPluginInstallPort;
+}) {
+  const update = useAgentPluginUpdate({ plugin, expectedOldDigest, port, t, onUpdated });
+  return <AgentPluginUpdateControl update={update} t={t} agentHandleBase={agentHandleBase} />;
+}
+
+/** A row's Update slot, or nothing. Bundled rows never get one: they update with Tovu itself
+ *  (`updatableAgentPluginDigest`). @complexity O(1). */
+function updateSlotFor(required: { plugin: AdminAgentPlugin; controller: AgentPluginsController; agentHandleBase: string; port: AgentPluginInstallPort }, _optional: Record<string, never> = {}) {
+  const { plugin, controller, agentHandleBase, port } = required;
+  const expectedOldDigest = updatableAgentPluginDigest({ plugin });
+  if (!expectedOldDigest) return undefined;
+  return <AgentPluginUpdateSlot plugin={plugin} expectedOldDigest={expectedOldDigest} t={controller.t} agentHandleBase={agentHandleBase} onUpdated={controller.onInstalled} port={port} />;
+}
+
 /** The row list itself, scoped to whichever tab is rendering it. Rendered only when there is at
  *  least one row, so it carries no emptiness branch of its own — {@link AgentPluginsStatus} owns
  *  that case.
@@ -142,10 +169,7 @@ function AgentPluginList({
           ) : undefined}
           uninstallNoteId={uninstallNoteId}
           agentHandleBase={rowHandles[index]!}
-          // Bundled rows never get one: they update with Tovu itself (`canUpdateAgentPlugin`).
-          update={canUpdateAgentPlugin(plugin) ? (
-            <AgentPluginUpdateControl plugin={plugin} t={controller.t} agentHandleBase={rowHandles[index]!} onUpdated={controller.onInstalled} port={updatePort} />
-          ) : undefined}
+          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index]!, port: updatePort })}
         />
       ))}
     </ul>

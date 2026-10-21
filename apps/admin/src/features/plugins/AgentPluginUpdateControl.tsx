@@ -1,23 +1,16 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { useId, useState } from "react";
+import { useId } from "react";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { AdminAgentPlugin } from "@/lib/api";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
-import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
-import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
-import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
-import { agentPluginDisplayName } from "./rules";
+import type { AgentPluginUpdateState } from "./hooks/use-agent-plugin-update.hooks";
 
 export interface AgentPluginUpdateControlProps {
-  /** An operator-installed row with its `archiveDigest` (`canUpdateAgentPlugin`); the row decides. */
-  readonly plugin: AdminAgentPlugin & { readonly archiveDigest: string };
+  /** The row's update state and upload controller, composed by the wired list
+   *  (`AgentPlugins.tsx`'s `AgentPluginUpdateSlot`, from `useAgentPluginUpdate`). */
+  readonly update: AgentPluginUpdateState;
   readonly t: Translate;
   /** The row's own agent-handle base; the button and panel nest under `<base>-update`. */
   readonly agentHandleBase: string;
-  /** The updated row, so the list replaces it in place (new version and digest). */
-  readonly onUpdated: (plugin: AdminAgentPlugin) => void;
-  /** A test passes a typed fake. */
-  readonly port?: AgentPluginInstallPort;
 }
 
 /**
@@ -26,13 +19,11 @@ export interface AgentPluginUpdateControlProps {
  * revision this row shows (`archiveDigest`). If the plugin changed meanwhile, the server refuses
  * (`PLUGIN_CHANGED`) and nothing moves. The plugin keeps its memory and its on/off state.
  * There is no "update available" signal: without a catalog nothing knows a newer version exists.
+ * Renders only: the open state and the upload controller arrive through `update`.
  */
-export function AgentPluginUpdateControl({ plugin, t, agentHandleBase, onUpdated, port = defaultAgentPluginInstallPort }: AgentPluginUpdateControlProps) {
-  const [open, setOpen] = useState(false);
+export function AgentPluginUpdateControl({ update, t, agentHandleBase }: AgentPluginUpdateControlProps) {
+  const { open, onToggle, displayName, controller } = update;
   const panelId = useId();
-  const displayName = agentPluginDisplayName(plugin);
-  const controller = useAgentPluginInstall({ port, t, onInstalled: onUpdated },
-    { update: { pluginId: plugin.pluginId, expectedOldDigest: plugin.archiveDigest } });
   const base = `${agentHandleBase}-update`;
   return (
     <div>
@@ -43,7 +34,7 @@ export function AgentPluginUpdateControl({ plugin, t, agentHandleBase, onUpdated
         aria-controls={panelId}
         aria-label={`${t("Update")} ${displayName}`}
         disabled={controller.busy}
-        onClick={() => setOpen(!open)}
+        onClick={onToggle}
         {...agentHandle({ handle: base }, { role: "button", label: `Show or hide the update upload for "${displayName}"` })}
       >
         {t("Update")}

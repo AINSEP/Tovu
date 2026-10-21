@@ -25,7 +25,7 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
     <InstallTabCard
       titleId={`${handleBase}-title`}
       title={title ?? t("Add a plugin")}
-      lede={t(c.updating ? "Upload a newer version of this plugin as a .zip or a folder. It keeps its memory and stays on or off as it is now." : "Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed.")}
+      lede={c.labels.lede}
     >
       <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
@@ -60,32 +60,8 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
           </label>
           <p className="field-hint">{t("Replaces the installed version with a newer one. Older versions are refused.")}</p>
         </> : null}
-        {c.warnings.length > 0 ? (
-          <div className="install-tab-review" role="status">
-            {c.warnings.map((warning) => <p key={warning}>{warning}</p>)}
-          </div>
-        ) : null}
-        {c.error ? (
-          <p className="install-tab-alert" role="alert">
-            {c.error}
-          </p>
-        ) : null}
-        {c.installedMessage ? (
-          <p className="install-tab-success" role="status">
-            {c.installedMessage}
-          </p>
-        ) : null}
-        <div className="install-tab-actions">
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={c.installDisabled}
-            onClick={c.install}
-            {...agentHandle({ handle: `${handleBase}-install` }, { role: "button", label: c.updating ? "Update the chosen Agent Plugin" : "Install the chosen Agent Plugin (stays off)" })}
-          >
-            {c.busy ? t(c.updating ? "Updating…" : "Installing…") : t(c.updating ? "Update" : "Install (stays off)")}
-          </button>
-        </div>
+        <AgentPluginUploadStatus controller={c} />
+        <AgentPluginUploadActions controller={c} handleBase={handleBase} />
       </InstallTabOption>
 
       {!c.updating ? <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
@@ -100,5 +76,45 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
         />
       </InstallTabOption> : null}
     </InstallTabCard>
+  );
+}
+
+/** The upload's outcome lines: lifecycle warnings, the refusal, and the success line. */
+function AgentPluginUploadStatus({ controller: c }: { controller: AgentPluginInstallController }) {
+  return (
+    <>
+      {c.warnings.length > 0 ? (
+        <div className="install-tab-review" role="status">
+          {c.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+        </div>
+      ) : null}
+      {c.error ? (
+        <p className="install-tab-alert" role="alert">
+          {c.error}
+        </p>
+      ) : null}
+      {c.installedMessage ? (
+        <p className="install-tab-success" role="status">
+          {c.installedMessage}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** The install/update button; its mode-specific words come from the controller's `labels`. */
+function AgentPluginUploadActions({ controller: c, handleBase }: { controller: AgentPluginInstallController; handleBase: string }) {
+  return (
+    <div className="install-tab-actions">
+      <button
+        type="button"
+        className="btn-primary"
+        disabled={c.installDisabled}
+        onClick={c.install}
+        {...agentHandle({ handle: `${handleBase}-install` }, { role: "button", label: c.labels.actionAgentLabel })}
+      >
+        {c.busy ? c.labels.busyAction : c.labels.action}
+      </button>
+    </div>
   );
 }

@@ -97,7 +97,8 @@ function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): R
 
 /** `plugin` in place of the row with its id, keeping the list's order (an update must not move its
  *  row to the end), or appended when it is new. @complexity O(n) in row count. */
-function withRow(rows: readonly AdminAgentPlugin[] | null, plugin: AdminAgentPlugin): AdminAgentPlugin[] {
+function withRow(required: { rows: readonly AdminAgentPlugin[] | null; plugin: AdminAgentPlugin }, _optional: Record<string, never> = {}): AdminAgentPlugin[] {
+  const { rows, plugin } = required;
   const current = rows ?? [];
   return current.some((entry) => entry.pluginId === plugin.pluginId)
     ? current.map((entry) => (entry.pluginId === plugin.pluginId ? plugin : entry))
@@ -181,7 +182,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     onInstalled: (plugin: AdminAgentPlugin) => {
       // The install response is newer than any pending list read. Keep its row until a later
       // refresh starts rather than letting an earlier snapshot hide the completed install.
-      setAgentPlugins((current) => withRow(current, plugin));
+      setAgentPlugins((current) => withRow({ rows: current, plugin }));
     },
     expandedIds,
     onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),

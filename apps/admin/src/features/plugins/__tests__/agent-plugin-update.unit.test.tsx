@@ -3,15 +3,14 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentPlugins } from "../AgentPlugins";
+import { AgentPlugins, AgentPluginUpdateSlot } from "../AgentPlugins";
 import { AgentPluginDisableConfirmDialog } from "../AgentPluginDisableConfirmDialog";
 import { AgentPluginRow } from "../AgentPluginRow";
-import { AgentPluginUpdateControl } from "../AgentPluginUpdateControl";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
-import { agentPluginCompatibilityLines, agentPluginWarningText, canUpdateAgentPlugin } from "../rules";
+import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
 
 /**
@@ -72,9 +71,9 @@ describe("Agent Plugin rows — compatibility and Update", () => {
   });
 });
 
-describe("AgentPluginUpdateControl", () => {
+describe("AgentPluginUpdateControl, composed by its wired slot", () => {
   async function openAndUpload(port: ReturnType<typeof createFakeAgentPluginInstallPort>, onUpdated = vi.fn()) {
-    render(<AgentPluginUpdateControl plugin={UPLOADED} t={(key) => key} agentHandleBase="row-note-taker" onUpdated={onUpdated} port={port} />);
+    render(<AgentPluginUpdateSlot plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row-note-taker" onUpdated={onUpdated} port={port} />);
     const toggle = screen.getByRole("button", { name: "Update Note Taker" });
     expect(toggle).toHaveAttribute("data-agent-element", "row-note-taker-update");
     await userEvent.click(toggle);
@@ -102,7 +101,7 @@ describe("AgentPluginUpdateControl", () => {
   });
 
   it("closes again from the same button", async () => {
-    render(<AgentPluginUpdateControl plugin={UPLOADED} t={(key) => key} agentHandleBase="row" onUpdated={vi.fn()} port={createFakeAgentPluginInstallPort({ row: UPLOADED })} />);
+    render(<AgentPluginUpdateSlot plugin={UPLOADED} expectedOldDigest={DIGEST} t={(key) => key} agentHandleBase="row" onUpdated={vi.fn()} port={createFakeAgentPluginInstallPort({ row: UPLOADED })} />);
     const toggle = screen.getByRole("button", { name: "Update Note Taker" });
     await userEvent.click(toggle);
     await userEvent.click(toggle);
@@ -219,23 +218,31 @@ describe("rules — lifecycle fields", () => {
   const translate = (key: string) => `[${key}]`;
 
   it("agentPluginWarningText translates the server's known warnings, keeping ids, and passes unknown ones through", () => {
-    expect(agentPluginWarningText("Needs x:y", translate)).toBe("[Needs {capabilities}]".replace("{capabilities}", "x:y"));
-    expect(agentPluginWarningText("consumer needs mail:send", translate)).toBe("[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
-    expect(agentPluginWarningText("Unknown release version; explicit replacement required.", translate)).toBe("[This package has no release version to compare.]");
-    expect(agentPluginWarningText("Same version with different bytes; explicit replacement required.", translate)).toBe("[Same version number as the installed one, with different contents.]");
-    expect(agentPluginWarningText("Something the server added later", translate)).toBe("Something the server added later");
+    expect(agentPluginWarningText({ warning: "Needs x:y", translate })).toBe("[Needs {capabilities}]".replace("{capabilities}", "x:y"));
+    expect(agentPluginWarningText({ warning: "consumer needs mail:send", translate })).toBe("[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
+    expect(agentPluginWarningText({ warning: "Unknown release version; explicit replacement required.", translate })).toBe("[This package has no release version to compare.]");
+    expect(agentPluginWarningText({ warning: "Same version with different bytes; explicit replacement required.", translate })).toBe("[Same version number as the installed one, with different contents.]");
+    expect(agentPluginWarningText({ warning: "Something the server added later", translate })).toBe("Something the server added later");
   });
 
   it("agentPluginCompatibilityLines: incompatible first, then unmet requirements; nothing for a compatible row", () => {
-    expect(agentPluginCompatibilityLines({ hostOk: false, missingRequires: ["a:b"] }, (key) => key)).toEqual(["Not for this Tovu version", "Needs a:b"]);
-    expect(agentPluginCompatibilityLines({ hostOk: true, missingRequires: [] }, (key) => key)).toEqual([]);
+    expect(agentPluginCompatibilityLines({ plugin: { hostOk: false, missingRequires: ["a:b"] }, translate: (key) => key })).toEqual(["Not for this Tovu version", "Needs a:b"]);
+    expect(agentPluginCompatibilityLines({ plugin: { hostOk: true, missingRequires: [] }, translate: (key) => key })).toEqual([]);
   });
 
-  it("canUpdateAgentPlugin: operator-installed with a digest only", () => {
-    expect(canUpdateAgentPlugin({ origin: "operator-installed", archiveDigest: DIGEST })).toBe(true);
-    expect(canUpdateAgentPlugin({ origin: "operator-installed", archiveDigest: "" })).toBe(false);
-    expect(canUpdateAgentPlugin({ origin: "operator-installed" })).toBe(false);
-    expect(canUpdateAgentPlugin({ origin: "bundled", archiveDigest: DIGEST })).toBe(false);
-    expect(canUpdateAgentPlugin({ archiveDigest: DIGEST })).toBe(false);
+  it("buildAgentPluginDisableConfirmCopy names dependents through the same warning translation, and none when nothing relies on it", () => {
+    const copy = buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", origin: "operator-installed", requiredBy: ["consumer needs mail:send"] }, translate);
+    expect(copy.dependents).toBe("[Other enabled plugins rely on it:] " + "[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
+    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: [] }, translate).dependents).toBeUndefined();
+    // Without a translator the dictionary keys pass through untranslated.
+    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: ["Needs x:y"] }).dependents).toBe("Other enabled plugins rely on it: Needs x:y");
+  });
+
+  it("updatableAgentPluginDigest: operator-installed with a digest only, which it returns", () => {
+    expect(updatableAgentPluginDigest({ plugin: { origin: "operator-installed", archiveDigest: DIGEST } })).toBe(DIGEST);
+    expect(updatableAgentPluginDigest({ plugin: { origin: "operator-installed", archiveDigest: "" } })).toBeUndefined();
+    expect(updatableAgentPluginDigest({ plugin: { origin: "operator-installed" } })).toBeUndefined();
+    expect(updatableAgentPluginDigest({ plugin: { origin: "bundled", archiveDigest: DIGEST } })).toBeUndefined();
+    expect(updatableAgentPluginDigest({ plugin: { archiveDigest: DIGEST } })).toBeUndefined();
   });
 });
