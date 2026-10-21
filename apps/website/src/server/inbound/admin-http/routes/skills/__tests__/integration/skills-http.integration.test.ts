@@ -10,7 +10,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerSkillsListRoute } from "../../list.js";
 import type { SkillsRouteDeps } from "../../deps.js";
 
@@ -170,4 +170,12 @@ test("C-001: 500 surfaces the duplicate-skill-name error VERBATIM (INTERNAL_ERRO
       "both would register the same tool id 'skill_incident_response'; rename one skill's frontmatter 'name' to disambiguate";
     assert.ok(body.error === expectedAB || body.error === expectedBA, `unexpected error message: ${body.error}`);
   });
+});
+
+test("C-001: a request with no :workspaceId param at all 404s (the `?? \"\"` fallback, forced via a direct handler call)", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/skills");
+  const { res, capture } = createCapturingResponse();
+  await handler({ params: {} }, res);
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
 });
