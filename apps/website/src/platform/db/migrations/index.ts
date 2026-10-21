@@ -1,6 +1,7 @@
 import { siteConsentRevisions } from './0021_site_consent_revisions.js';
 import { workspaceMcpCascade } from "./0022_workspace_mcp_cascade.js";
 import { searchIndex } from "./0023_search_index.js";
+import { searchIndexRetired } from "./0024_search_index_retired.js";
 import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
 import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
@@ -74,6 +75,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   siteConsentRevisions({ checksum: pinned("0021_site_consent_revisions") }),
   workspaceMcpCascade({ checksum: pinned("0022_workspace_mcp_cascade") }),
   searchIndex({ checksum: pinned("0023_search_index") }),
+  searchIndexRetired({ checksum: pinned("0024_search_index_retired") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

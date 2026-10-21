@@ -24,17 +24,20 @@ interface StateTable {
   task_id: string | null; last_error: string | null; updated_at_ms: Big;
 }
 interface WatermarkTable { site_id: string; provider_id: string; generation: number; collection: string; cursor: string | null; done: number }
+interface RetiredTable { site_id: string; provider_id: string; generation: number; retired_at_ms: Big }
 interface TargetTable {
   site_id: string; active_provider_id: string | null; active_generation: number | null;
   building_provider_id: string | null; building_generation: number | null; updated_at_ms: Big;
 }
 
-/** The three tables 0023 owns. They are raw-SQL managed (no Drizzle declaration), so the generated
- *  `ContentDatabase` type never holds them; this local shape is what the queries are typed against. */
+/** The three tables 0023 owns, plus 0024's retired generations. They are raw-SQL managed (no Drizzle
+ *  declaration), so the generated `ContentDatabase` type never holds them; this local shape is what
+ *  the queries are typed against. */
 export interface SearchIndexDatabase {
   search_index_state: StateTable;
   search_index_watermarks: WatermarkTable;
   search_index_targets: TargetTable;
+  search_index_retired: RetiredTable;
 }
 
 export interface SqlSearchIndexStore {
@@ -202,8 +205,24 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
     promote: ({ siteId, expected }) => kernel.transaction(async () => {
       const { active } = await read(siteId);
       const swapped = await swapPointers(kernel, { siteId, expected, active, nowMs: now() });
-      return swapped ? { replaced: active } : false;
+      if (!swapped) return false;
+      // Same transaction as the switch: the replaced index is dropped later even if this process dies now.
+      if (active !== null) {
+        await kernel.run(db => db.insertInto("search_index_retired")
+          .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
+          .onConflict(oc => oc.columns(["site_id", "provider_id", "generation"]).doNothing()).execute());
+      }
+      return { replaced: active };
     }),
+    async listRetired({ siteId }) {
+      const rows = await kernel.run(db => db.selectFrom("search_index_retired").select(["provider_id", "generation"])
+        .where("site_id", "=", siteId).orderBy("retired_at_ms", "asc").orderBy("provider_id", "asc").orderBy("generation", "asc").execute());
+      return rows.map(row => ({ siteId, providerId: row.provider_id, generation: Number(row.generation) }));
+    },
+    async forgetRetired({ target }) {
+      await kernel.run(db => db.deleteFrom("search_index_retired").where("site_id", "=", target.siteId)
+        .where("provider_id", "=", target.providerId).where("generation", "=", target.generation).execute());
+    },
     async clearBuilding({ siteId }) {
       await kernel.run(db => db.updateTable("search_index_targets")
         .set({ building_provider_id: null, building_generation: null, updated_at_ms: now() })

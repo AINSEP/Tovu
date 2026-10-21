@@ -33,7 +33,7 @@ for (const adapter of eachDialect({ tables: TABLES, make: kernel => kernel })) {
       const step = CONTENT_MIGRATIONS.find(entry => entry.id === ID);
       assert.ok(step, "0023 must be registered in the active history");
       assert.equal(step.checksum, MIGRATION_CHECKSUMS[ID]);
-      assert.equal(CONTENT_MIGRATIONS.at(-1)?.id, ID, "0023 is the head");
+      assert.equal(CONTENT_MIGRATIONS.findIndex(entry => entry.id === ID), CONTENT_MIGRATIONS.findIndex(entry => entry.id === "0022_workspace_mcp_cascade") + 1, "0023 follows 0022");
       for (const table of TABLES) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "search_index_step_contract_migrations" };
       assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, [ID]);

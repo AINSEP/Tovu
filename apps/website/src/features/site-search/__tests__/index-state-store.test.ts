@@ -30,7 +30,7 @@ function row(overrides: Partial<SearchIndexStateRow> = {}): SearchIndexStateRow 
 const key = (documentId: string) => ({ siteId: "site-a", workspaceId: "ws", collection: "post", documentId });
 
 describeEachDialect("SqlSearchIndexStore", {
-  tables: ["search_index_state", "search_index_watermarks", "search_index_targets"],
+  tables: ["search_index_state", "search_index_watermarks", "search_index_targets", "search_index_retired"],
   make: (kernel) => {
     let clock = 1_000;
     return { kernel, ...createSqlSearchIndexStore({ kernel, now: () => { clock += 1; return clock; } }) };
@@ -156,6 +156,26 @@ describeEachDialect("SqlSearchIndexStore", {
     const [stamp] = await kernel.run(db => tables(db)
       .selectFrom("search_index_targets").select("updated_at_ms").where("site_id", "=", "site-a").execute());
     assert.ok(Number(stamp?.updated_at_ms) > 1_000);
+  });
+
+  test("promote retires the replaced target in the same transaction; listRetired is oldest first per site; forgetRetired removes one", async () => {
+    const { targets } = make();
+    const gen = (generation: number, providerId = "builtin", siteId = "site-a"): SearchTarget => ({ siteId, providerId, generation });
+    await targets.setBuilding({ target: gen(1) });
+    assert.deepEqual(await targets.promote({ siteId: "site-a", expected: gen(1) }), { replaced: null });
+    assert.deepEqual(await targets.listRetired({ siteId: "site-a" }), [], "a first promote replaces nothing");
+    await targets.setBuilding({ target: gen(2, "meilisearch") });
+    await targets.promote({ siteId: "site-a", expected: gen(2, "meilisearch") });
+    await targets.setBuilding({ target: gen(3) });
+    await targets.promote({ siteId: "site-a", expected: gen(3) });
+    await targets.setBuilding({ target: gen(1, "builtin", "site-b") });
+    await targets.promote({ siteId: "site-b", expected: gen(1, "builtin", "site-b") });
+    assert.deepEqual(await targets.listRetired({ siteId: "site-a" }), [gen(1), gen(2, "meilisearch")]);
+    assert.equal(await targets.promote({ siteId: "site-a", expected: gen(9) }), false);
+    assert.deepEqual(await targets.listRetired({ siteId: "site-a" }), [gen(1), gen(2, "meilisearch")], "a lost CAS retires nothing");
+    await targets.forgetRetired({ target: gen(1) });
+    assert.deepEqual(await targets.listRetired({ siteId: "site-a" }), [gen(2, "meilisearch")]);
+    assert.deepEqual(await targets.listRetired({ siteId: "site-b" }), []);
   });
 
   test("promote is a compare-and-swap on the active pointer too: a switch that raced in first wins", async () => {

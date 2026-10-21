@@ -24,7 +24,9 @@ const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submiss
   // why: d2126748 0021 adds raw-SQL consent policy tables (no visitor data); a transfer copies them by introspection.
   "site_consent_heads", "site_consent_revisions",
   // why: 0023 adds derived site-search bookkeeping; copied by introspection like any other core table.
-  "search_index_state", "search_index_targets", "search_index_watermarks"];
+  "search_index_state", "search_index_targets", "search_index_watermarks",
+  // why: 0024 adds replaced search generations awaiting their index drop; derived, copied the same way.
+  "search_index_retired"];
 const LATER_EXCLUDED = ["form_receiver_pulls"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();
