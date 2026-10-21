@@ -1,20 +1,12 @@
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/content-types/index";
 import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "#src/features/content-types/index";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-
-function statusFor(error: Error): { status: number; code: string } {
-  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
-  if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
-  if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
-  if (error instanceof ContentTypeLifecycleError) return { status: 409, code: "CONTENT_TYPE_LIFECYCLE_ERROR" };
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
+import { contentTypeWriteErrorStatus } from "./write-error-status.js";
 
 /**
  * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types/:key/lifecycle` (Deprecate /
@@ -77,7 +69,7 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
       });
 
       if (!result.ok) {
-        const { status, code } = statusFor(result.error);
+        const { status, code } = contentTypeWriteErrorStatus(result.error);
         res.status(status).json({ error: result.error.message, code });
         return;
       }

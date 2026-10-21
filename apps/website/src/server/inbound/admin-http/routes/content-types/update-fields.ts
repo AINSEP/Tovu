@@ -1,44 +1,12 @@
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize, EntityNotLiveError } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
-import {
-  ContentTypeAlreadyExistsError,
-  ContentTypeNotFoundError,
-  ForbiddenError,
-  InvalidFieldKindError,
-  InvalidFieldNameGrammarError,
-  InvalidFieldShapeError,
-  QueryableFieldCapExceededError,
-  ValidationError,
-  VersionConflictError,
-} from "#src/features/content-types/index";
 import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { updateContentTypeFields } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-
-/** The `EntityNotLiveError` arm is S9 (web-high fix plan, 2026-09-24) — `updateContentTypeFields`
- * now rejects a tombstoned type instead of silently applying a full-replace to it. The
- * `ContentTypeAlreadyExistsError` arm mirrors `register.ts`'s for a shared status-mapping surface,
- * though this route's own write-service call never produces one. */
-function statusFor(error: Error): { status: number; code: string } {
-  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
-  if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
-  if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
-  if (error instanceof EntityNotLiveError) return { status: 409, code: error.code };
-  if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
-  if ([
-    ValidationError,
-    InvalidFieldShapeError,
-    InvalidFieldNameGrammarError,
-    InvalidFieldKindError,
-    QueryableFieldCapExceededError,
-  ].some((ErrorType) => error instanceof ErrorType)) {
-    return { status: 400, code: "VALIDATION_ERROR" };
-  }
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
+import { contentTypeWriteErrorStatus } from "./write-error-status.js";
 
 /**
  * @file design-spec.md §1.9 — `PUT /api/admin/v1/content-types/:key/fields` (full-replace of a
@@ -75,7 +43,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       // `write-service.ts`'s CIC U-002-B1 chain — see `field-defs.ts`'s header.
       const fields = parseContentTypeFieldDefs({ value: body.fields });
       if (!fields.ok) {
-        const { status, code } = statusFor(fields.error);
+        const { status, code } = contentTypeWriteErrorStatus(fields.error);
         res.status(status).json({ error: fields.error.message, code });
         return;
       }
@@ -101,7 +69,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       });
 
       if (!result.ok) {
-        const { status, code } = statusFor(result.error);
+        const { status, code } = contentTypeWriteErrorStatus(result.error);
         res.status(status).json({ error: result.error.message, code });
         return;
       }
