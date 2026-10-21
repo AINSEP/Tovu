@@ -121,7 +121,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      const serverId = String(req.params.serverId ?? "");
+      const serverId = String(req.params.serverId);
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId,
         redirectUri: externalMcpOAuthCallbackUrl(req, serverId),
@@ -150,7 +150,7 @@ export function registerAdminExternalMcpOAuthDevicePollRoute(
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      res.json(await deps.externalMcpOAuth.pollDeviceAuthorization({ serverId: String(req.params.serverId ?? "") }));
+      res.json(await deps.externalMcpOAuth.pollDeviceAuthorization({ serverId: String(req.params.serverId) }));
     } catch (error) {
       sendExternalMcpOAuthError(res, error);
     }
@@ -177,7 +177,7 @@ export function registerAdminExternalMcpOAuthDisconnectRoute(app: Express, deps:
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      await deps.externalMcpOAuth.disconnect({ serverId: String(req.params.serverId ?? "") });
+      await deps.externalMcpOAuth.disconnect({ serverId: String(req.params.serverId) });
       res.json({ disconnected: true, restartRequired: true });
     } catch (error) {
       sendExternalMcpOAuthError(res, error);

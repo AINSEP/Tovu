@@ -160,3 +160,27 @@ test("change-sets list + get: a repository failure is a 500 'internal error', ne
     assert.deepEqual(await res.json(), { error: "internal error" }, path);
   }
 });
+
+test("change-sets list + get: a principal without changeset.read is 403 FORBIDDEN carrying the authorizer's reason", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.changeSets.insert({ record: changeSet(), items: [item()] });
+  const asked: Array<{ permission: string; entityType?: string; entityId?: string }> = [];
+  deps.authorize = async (input) => {
+    asked.push({ permission: input.permission, entityType: input.entityType, entityId: input.entityId });
+    return { allowed: false, reason: "role lacks permission" };
+  };
+
+  for (const path of ["/change-sets", "/change-sets/cs-get-1"]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}${path}`, { headers: { cookie } });
+    assert.equal(res.status, 403, path);
+    const body = (await res.json()) as { error: string; code: string; details: unknown };
+    assert.equal(body.code, "FORBIDDEN", path);
+    assert.match(body.error, /is not authorized for 'changeset\.read' \(role lacks permission\)$/, path);
+    assert.deepEqual(body.details, { permission: "changeset.read", reason: "role lacks permission" }, path);
+  }
+  assert.deepEqual(asked, [
+    { permission: "changeset.read", entityType: "change_set", entityId: undefined },
+    { permission: "changeset.read", entityType: "change_set", entityId: "cs-get-1" },
+  ]);
+});

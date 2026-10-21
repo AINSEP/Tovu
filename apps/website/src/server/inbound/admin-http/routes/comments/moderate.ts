@@ -64,7 +64,7 @@ function respondToModerationResult(res: Response, result: Awaited<ReturnType<Com
 export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCommentsModerateDeps): void {
   for (const spec of ACTIONS) {
     app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      if (String(req.params.workspaceId) !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
@@ -112,7 +112,7 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
   }
 
   app.post("/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

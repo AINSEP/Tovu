@@ -107,3 +107,39 @@ test("comments settings: an unexpected failure is a 500 INTERNAL_ERROR on GET an
   assert.equal(putRes.status, 500);
   assert.deepEqual(await putRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });
+
+test("comments settings: a PUT with no request body is an empty patch — it echoes the stored settings unchanged", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const before = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`);
+  assert.equal(before.status, 200);
+  const stored = (await before.json()) as { data: unknown };
+
+  // No content-type and no body: express.json() skips it and hands the route an empty object.
+  const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, { method: "PUT" });
+  assert.equal(putRes.status, 200);
+  assert.deepEqual(((await putRes.json()) as { data: unknown }).data, stored.data);
+});
+
+test("comments settings: a host that mounts PUT without any JSON parser still gets an empty patch, not a 500", async (t) => {
+  const deps: CommentsModerationRouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const app = express();
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.locals.principal = { id: "test-principal" };
+    next();
+  });
+  registerAdminCommentsGetSettingsRoute(app, deps);
+  registerAdminCommentsPutSettingsRoute(app, deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const stored = (await (await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`)).json()) as { data: unknown };
+  const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ requireModeration: false }),
+  });
+  assert.equal(putRes.status, 200);
+  // The unparsed body is never read as a patch: the stored settings come back unchanged.
+  assert.deepEqual(((await putRes.json()) as { data: unknown }).data, stored.data);
+});

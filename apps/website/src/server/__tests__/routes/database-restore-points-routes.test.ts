@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../inbound/admin-http/routes/database/restore-points.js";
@@ -342,4 +342,25 @@ test("restore-point retry refuses an inconsistent idempotency lookup before capt
   assert.deepEqual(await response.json(), { error: "restore point 'lost-snapshot' has a known idempotency key but no persisted row", code: "INTERNAL_ERROR" });
   assert.equal(capture.mock.callCount(), 0);
   assert.equal(save.mock.callCount(), 0);
+});
+
+/** `rawBody ?? {}`: real body-parser always assigns `req.body`, so a hand-built request with no
+ *  `body` key is the only way to reach the guard (same convention as `content-types-routes.test.ts`). */
+test("database restore-points routes: POST with no body at all mints a 'manual' restore point, not a crash", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/database/restore-points");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 201);
+  const { restorePoint } = capture.jsonBody as { restorePoint: { id: string } };
+  const listed = await deps.restorePointsRepo.list();
+  assert.deepEqual(listed.map((row) => [row.id, row.trigger]), [[restorePoint.id, "manual"]]);
 });

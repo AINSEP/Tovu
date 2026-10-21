@@ -1,20 +1,12 @@
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { ContentTypeNotActiveError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/entries/index";
 import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-
-function statusFor(error: Error): { status: number; code: string } {
-  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
-  if (error instanceof EntryNotFoundError) return { status: 404, code: "ENTRY_NOT_FOUND" };
-  if (error instanceof ContentTypeNotActiveError) return { status: 409, code: "CONTENT_TYPE_NOT_ACTIVE" };
-  if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
+import { entryWriteErrorStatus } from "./write-error-status.js";
 
 /**
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries/:id/lifecycle` (Publish/Unpublish,
@@ -73,7 +65,7 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
       });
 
       if (!result.ok) {
-        const { status, code } = statusFor(result.error);
+        const { status, code } = entryWriteErrorStatus(result.error);
         res.status(status).json({ error: result.error.message, code });
         return;
       }

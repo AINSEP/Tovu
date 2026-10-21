@@ -79,7 +79,7 @@ test("moderation-queue: mismatched workspaceId 404s", async (t) => {
   assert.deepEqual(await res.json(), { error: "workspace was not found" });
 });
 
-test("moderation-queue: direct invoke fallback for nullish params.workspaceId (`req.params.workspaceId ?? \"\"`, unreachable through real HTTP since Express always populates a matched required :param)", async () => {
+test("moderation-queue: a direct invoke with no workspaceId param never matches the site and is a 404 (real HTTP always populates a matched required :param)", async () => {
   const { app } = buildApp();
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/comments/queue");
   const { res, capture } = createCapturingResponse();
@@ -229,4 +229,18 @@ test("moderation-queue: a non-string cursor is a 400 VALIDATION_ERROR, not a sil
   const res = await fetch(`${baseUrl}${PATH}?cursor=a&cursor=b`);
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: "'cursor' must be a string", code: "VALIDATION_ERROR" });
+});
+
+test("moderation-queue: a repository failure that is not a ToolInputError is a 500 INTERNAL_ERROR, never a leaked message", async (t) => {
+  const { app, commentRepo } = buildApp();
+  commentRepo.listModerationQueue = async () => {
+    throw new Error("disk exploded at /var/secret/path");
+  };
+  const baseUrl = await startTestServer(app, t);
+  const consoleError = t.mock.method(console, "error", () => undefined);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/comments/queue`);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(consoleError.mock.callCount(), 1);
+  assert.equal(consoleError.mock.calls[0]?.arguments[0], "[comments/moderation-queue] unexpected error");
 });

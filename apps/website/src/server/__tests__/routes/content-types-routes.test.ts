@@ -423,3 +423,27 @@ test("UPDATE-FIELDS: `req.body ?? {}` fallback, forced via a direct handler call
   assert.equal(capture.statusCode, 400);
   assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });
+
+/** Same contract-violating direct call as the UPDATE-FIELDS case above, for the other two body readers. */
+for (const [method, path, params, expectedError] of [
+  ["post", "/api/admin/v1/content-types", {}, "'key' (string) and 'label' (string) are required"],
+  ["post", "/api/admin/v1/content-types/:key/lifecycle", { key: "recipe" }, "'op' must be one of 'deprecate', 'reactivate', 'tombstone'"],
+] as const) {
+  test(`${path}: a request with no body at all is a 400 VALIDATION_ERROR, not a crash`, async () => {
+    const { app, deps } = buildTestApp();
+    await deps.identityReady;
+    const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+    assert.ok(ownerUser, "expected the seeded admin user");
+    const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+    assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+    const handler = extractRouteHandler(app, method, path);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = ownerPrincipal;
+
+    await handler({ params }, res);
+
+    assert.equal(capture.statusCode, 400);
+    assert.deepEqual(capture.jsonBody, { error: expectedError, code: "VALIDATION_ERROR" });
+  });
+}

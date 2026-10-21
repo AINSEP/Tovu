@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
@@ -444,3 +444,48 @@ for (const failure of [new Error("token store unavailable"), "private token fail
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
   });
 }
+
+/** Seeded owner principal, for the direct handler calls below that skip the session middleware. */
+async function seededOwner(deps: RouteDeps): Promise<{ id: string }> {
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  return ownerPrincipal;
+}
+
+/** `req.body ?? {}`: real body-parser always assigns `req.body`, so a hand-built request with no
+ *  `body` key is the only way to reach the guard (same convention as `content-types-routes.test.ts`). */
+for (const [suffix, expectedError] of [
+  ["confirm", "'planId' and 'planHash' (strings) are required"],
+  ["execute", "'confirmationToken' (string) is required"],
+] as const) {
+  test(`database migrate-forward ${suffix}: a request with no body at all is a 400 VALIDATION_ERROR, not a crash`, async () => {
+    const { app, deps } = buildTestApp();
+    const handler = extractRouteHandler(app, "post", `/api/admin/v1/database/migrate-forward/${suffix}`);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = await seededOwner(deps);
+
+    await handler({ params: {} }, res);
+
+    assert.equal(capture.statusCode, 400);
+    assert.deepEqual(capture.jsonBody, { error: expectedError, code: "VALIDATION_ERROR" });
+  });
+}
+
+test("database migrate-forward execute: a non-Error throw is a 500 with the generic message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.dbOps.getCapabilities = async () => {
+    throw "capability probe offline";
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ confirmationToken: "token" }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});

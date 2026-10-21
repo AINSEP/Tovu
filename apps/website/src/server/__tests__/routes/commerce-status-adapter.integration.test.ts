@@ -175,3 +175,28 @@ test("commerce status: returns registered providers without claiming downstream 
     revenue: "unavailable",
   });
 });
+
+test("commerce status: a payment-runtime failure is a fixed 500 that never echoes the adapter's message", async (t) => {
+  const leak = ["sk", "live", "adapter-secret"].join("_");
+  const explode = (): never => {
+    throw new Error(`provider catalog unavailable: ${leak}`);
+  };
+  const deps: TestCommerceDeps = {
+    ...createRouteDeps(),
+    lipay: {
+      listProviders: explode,
+      charge: async () => explode(),
+      refund: async () => explode(),
+      handleWebhook: async () => explode(),
+      getPayment: explode,
+      listPayments: explode,
+    },
+  };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
+  const raw = await response.text();
+  assert.equal(response.status, 500);
+  assert.deepEqual(JSON.parse(raw), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(raw.includes(leak), false);
+});
