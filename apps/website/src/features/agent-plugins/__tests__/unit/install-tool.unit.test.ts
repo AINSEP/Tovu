@@ -79,7 +79,9 @@ test("the install contribution wires the host's attachment reader into the tool 
   const contribution = contributeAgentPluginsInstallTools({ readInstallAttachment });
   assert.equal(contribution.domain, "agent-plugins-install");
   assert.equal(contribution.risk, derivedRisk);
-  const [tool] = contribution.build(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }) }) as Parameters<typeof contribution.build>[0], {} as Parameters<typeof contribution.build>[1]);
+  // The contributor's build takes the whole assistant deps bag; this tool reads only the install subset.
+  const installDeps = testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }) });
+  const [tool] = contribution.build(installDeps as unknown as Parameters<typeof contribution.build>[0], {} as Parameters<typeof contribution.build>[1]);
   assert.equal(tool?.descriptor.id, AGENT_PLUGINS_INSTALL_TOOL_ID);
   await assert.rejects(() => tool!.handler(context(), {}), ToolInputError);
   assert.equal(reads, 1, "the contributed reader, not a default, read the attachment");
