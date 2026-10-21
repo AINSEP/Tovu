@@ -88,6 +88,31 @@ test('the real CLI entry propagates success, refusal, and usage exit codes', () 
   }
 });
 
+test("with no --user-data-dir the real CLI uses the env override and says plainly when that directory is new", () => {
+  const entry = fileURLToPath(new URL('../bin/tovu-desktop.ts', import.meta.url));
+  const userDataDir = path.join(tempDir(), "not-created-yet");
+  const siteDir = siteFixture();
+
+  const child = spawnSync(process.execPath, [entry, "add-site", siteDir], {
+    encoding: "utf8", timeout: 30_000, env: { ...process.env, TOVU_DESKTOP_USER_DATA_DIR: `  ${userDataDir}  ` },
+  });
+
+  assert.equal(child.status, EXIT_OK, child.stderr);
+  assert.ok(child.stdout.includes(`Using app data: ${userDataDir}\n`));
+  assert.match(child.stdout, /this directory does not exist yet — it will be created/);
+  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map((row) => row.siteDir), [path.resolve(siteDir)]);
+});
+
+test("a filesystem failure while recording is thrown as itself, never dressed up as a refusal", () => {
+  const notADirectory = path.join(tempDir(), "file");
+  fs.writeFileSync(notADirectory, "x");
+  const io = capture();
+
+  assert.throws(() => runTovuDesktopCli(["add-site", siteFixture(), "--user-data-dir", notADirectory], io.io),
+    (error: NodeJS.ErrnoException) => /^(ENOTDIR|EEXIST)$/.test(error.code ?? ""));
+  assert.equal(io.stderr(), "");
+});
+
 test("add-site EXITS NON-ZERO and writes nothing when the folder is not a site", () => {
   const userDataDir = tempDir();
   const empty = path.join(tempDir(), "fresh");

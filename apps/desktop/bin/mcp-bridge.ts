@@ -79,23 +79,29 @@ const REVEAL_COMMANDS: Partial<Record<NodeJS.Platform, RevealCommandBuilder>> = 
 /**
  * Open `target` in the operator's file manager.
  *
+ * @param options.platform / options.spawnFn / options.timeoutMs test seams; production uses
+ *   `process.platform`, `child_process.spawn` and {@link REVEAL_TIMEOUT_MS}.
  * @throws {Error} on an unsupported platform, a missing file manager, a non-zero exit, or a timeout
  *   — each of which the tool layer turns into a readable tool error rather than a crash.
  * @complexity O(1) beyond the spawned command's own cost.
  */
-function revealPath(target: string): Promise<void> {
-  const build = REVEAL_COMMANDS[process.platform];
+function revealPath(
+  target: string,
+  { platform = process.platform, spawnFn = spawn, timeoutMs = REVEAL_TIMEOUT_MS }:
+    { platform?: NodeJS.Platform; spawnFn?: typeof spawn; timeoutMs?: number } = {},
+): Promise<void> {
+  const build = REVEAL_COMMANDS[platform];
   if (build === undefined) {
-    throw new Error(`opening a folder is not supported on ${process.platform}.`);
+    throw new Error(`opening a folder is not supported on ${platform}.`);
   }
   const [command, args] = build(target);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "ignore" });
+    const child = spawnFn(command, args, { stdio: "ignore" });
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error(`'${command}' did not finish within ${REVEAL_TIMEOUT_MS}ms.`));
-    }, REVEAL_TIMEOUT_MS);
+      reject(new Error(`'${command}' did not finish within ${timeoutMs}ms.`));
+    }, timeoutMs);
     timer.unref();
 
     child.once("error", (error) => {
@@ -227,7 +233,9 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
   } catch (err) {
     // A startup fault is fatal and must be LOUD: the daemon's connect attempt fails either way, and
     // the reason is only recoverable from stderr, which is why it is written there before exiting.
-    warn(err instanceof Error ? err.message : String(err));
+    // `as Error`: every throw `main` can reach is an Error (`resolveUserDataDir`'s own refusal, or a
+    // TypeError from node itself), so the old `String(err)` fallback for a non-Error was unreachable.
+    warn((err as Error).message);
     process.exitCode = 1;
   }
 }
