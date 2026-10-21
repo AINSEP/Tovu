@@ -151,7 +151,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let closed: Promise<void>;
   let exitCode: number | undefined;
   const stopped: string[] = [];
-  const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", storage: { kind: "sqlite" }, db: {} };
+  const bootResult: { config: { port: number }; workspaceId: string; storage: { kind: string }; db: object; store?: { pgliteSocketPath: string } } = { config: { port: 3456 }, workspaceId: "wiring-workspace", storage: { kind: "sqlite" }, db: {} };
   const deps: { workspaceId: string; legacyPublishCredentialsReady?: Promise<void>; identityReady?: Promise<unknown> } = { workspaceId: bootResult.workspaceId };
   // Per-scenario switches for the steps around the listener (see the scenarios below).
   let daemonWanted = false;
@@ -160,6 +160,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   const criticalFailureLogs: unknown[] = [];
   let leaseReadyError: Error | undefined;
   let serverCloses = 0;
+  /** Off by default: the BR-07 shutdown's worker-stop order is asserted without the listener's own "close" hook. */
+  let emitCloseEvent = false;
+  const leaseClaims: unknown[] = [];
   // Boot work the composition starts and returns before it finishes: the detached legacy
   // publish-credential tail (on `deps`) and `createApp`'s BYOK pass (`createServingApp`'s `bootWork`).
   // The store close must wait for both, or they log "The database connection is not open".
@@ -199,7 +202,11 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       app: { listen: (...args: unknown[]) => {
         listens.push(args);
         const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done?: () => void): void };
-        server.close = done => { serverCloses += 1; done?.(); };
+        server.close = done => {
+          serverCloses += 1;
+          if (emitCloseEvent) server.emit("close");
+          done?.();
+        };
         queueMicrotask(() => server.emit("listening"));
         return server;
       } },
@@ -213,7 +220,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   });
   // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
   // scenario would otherwise find the previous one still "Running in Web".
-  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: () => ({ ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
+  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
@@ -253,11 +260,17 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     for (const scenario of [
       { env: undefined, host: undefined, expected: "127.0.0.1", daemonWanted: true },
       { env: "0.0.0.0", host: undefined, expected: "0.0.0.0", identityFails: true },
-      { env: "0.0.0.0", host: "127.0.0.1", expected: "127.0.0.1" },
+      // A PGlite owner hands the daemon its socket; the desktop shell's run is recorded as Desktop.
+      { env: "0.0.0.0", host: "127.0.0.1", expected: "127.0.0.1", daemonWanted: true, pgliteSocketPath: "/tmp/wiring-pglite.sock", runningApp: "Desktop" },
       // `::` is Node's own all-interfaces default: the listener gets no host argument at all.
       { env: "::", host: undefined, expected: undefined, emitBootToken: true },
     ]) {
       daemonWanted = scenario.daemonWanted === true;
+      if (scenario.pgliteSocketPath === undefined) delete bootResult.store;
+      else bootResult.store = { pgliteSocketPath: scenario.pgliteSocketPath };
+      if (scenario.runningApp === undefined) delete process.env.TOVU_RUNNING_APP;
+      else process.env.TOVU_RUNNING_APP = scenario.runningApp;
+      leaseClaims.length = 0;
       daemonStarts.length = 0;
       errors.length = 0;
       logged.length = 0;
@@ -290,8 +303,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);
       else assert.deepEqual(widened, [`tovu serve: warning: listening on ${scenario.expected ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`]);
       if (scenario.daemonWanted === true) {
-        assert.deepEqual(daemonStarts, [[{ workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: undefined }, { registerProcessSignalHandlers: false }]]);
+        assert.deepEqual(daemonStarts, [[{ workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath }, { registerProcessSignalHandlers: false }]]);
       } else assert.deepEqual(daemonStarts, []);
+      assert.deepEqual(leaseClaims, [{ dir: target, app: scenario.runningApp ?? "Web" }]);
       if (scenario.identityFails === true) {
         // Server log capture (installed by the command) formats console.error's arguments into one line.
         assert.equal(errors.length, 1);
@@ -345,12 +359,16 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
 
     // The running-site record failing to take the bound port closes the listener and the workers.
     leaseReadyError = new Error("site registry unwritable");
+    delete process.env.TOVU_RUNNING_APP;
+    delete bootResult.store;
+    emitCloseEvent = true;
     const closesBefore = serverCloses;
     closeStarted = false;
     stopped.length = 0;
     await assert.rejects(runServeCommand({ dir: refusalTarget, port: "4567" }), (error: unknown) => error === leaseReadyError);
     assert.equal(serverCloses, closesBefore + 1, "the just-bound listener is closed again");
-    assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks"]);
+    // The closed listener's own "close" hook stops the theme watcher first; the release then stops every worker.
+    assert.deepEqual(stopped, ["themes", "outbox", "trash", "themes", "form-pull", "webhooks"]);
     assert.equal(closeStarted, true);
     leaseReadyError = undefined;
   } finally {
