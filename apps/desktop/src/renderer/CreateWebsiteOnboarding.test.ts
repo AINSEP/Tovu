@@ -314,3 +314,10 @@ test('section explanations are ⓘ tooltips beside their headings, not loose sen
   const paragraphs = byType(tree, 'p').map((element) => text(element.props.children));
   for (const line of explanations) assert.equal(paragraphs.includes(line), false, line);
 });
+
+test('with services available but none offered by Tovu, there is no empty Connect services section', () => {
+  const { tree, tokensEnabled } = setup({ plugins: [], supabaseDatabaseAvailable: true });
+  assert.equal(tokensEnabled, true, 'the token hook is still asked, so a later offer can appear');
+  assert.equal(byType(tree, 'h3').some((element) => element.props.children === 'Connect services'), false);
+  assert.equal(input(tree, (props) => props.type === 'password' && String(props.id ?? '').includes('token')), undefined);
+});
