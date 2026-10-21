@@ -49,6 +49,17 @@
             "required": true,
             "help": "The web address people will actually visit once this is live, e.g. https://my-site.pages.dev, a custom domain pointed at this bucket, or your provider's public bucket URL. Not sure how to set this up? Ask me to generate the exact steps for your bucket, then apply them yourself in your provider's console. Once it's live, paste the address here; Tovu checks it after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway.",
             "userHelp": "The address visitors open: your bucket's public URL, or a custom domain pointed at the bucket. Tovu checks it after every publish and tells you if it can't be reached."
+          },
+          {
+            "name": "mediaBucket",
+            "label": "Media bucket (optional)",
+            "help": "Only if the site's media (uploads, including drafts) should live in object storage: the exact name of a SEPARATE, PRIVATE bucket the same access key can read and write. Never the public bucket above — Tovu serves media through its own /m/ route, so this bucket needs no public access. Leave blank to keep media on the server's disk.",
+            "userHelp": "Optional. A separate private bucket for your uploads. Leave blank to keep uploads on the server."
+          },
+          {
+            "name": "mediaKeyPrefix",
+            "label": "Media key prefix (optional)",
+            "help": "Optional folder-like prefix for media objects in the media bucket, e.g. tovu-media/. Blank stores them at ws/… directly."
           }
         ]
       },
