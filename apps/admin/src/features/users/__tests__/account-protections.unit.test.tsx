@@ -55,11 +55,12 @@ it("Owner badge uses server owner classification or builtin role; never username
   expect(isOwnerAccount({ user, roles: new Map([["owner-role", { name: "owner", isBuiltin: true }]]) })).toBe(true);
 });
 
-it("rendered owner row keeps admin login, shows Owner badge, and hides Delete/Disable", async () => {
+it("rendered owner row keeps admin login, shows the Owner role, and hides Delete/Disable", async () => {
   const port = createFakeUsersPort({ users: [{ ...user, isOwner: true, isProtectedAccount: true }],
     roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true }], meId: "owner" });
   render(<FetchQueryProvider><Users useUsersHook={() => useUsers({ port })} /></FetchQueryProvider>);
-  await waitFor(() => expect(screen.getAllByText("Owner").length).toBeGreaterThanOrEqual(2));
+  // why: Jini 86e44994 dropped the "Owner" badge beside the username (the Roles column already shows it), so the row shows Owner once, in its Roles cell.
+  await waitFor(() => expect(screen.getByRole("cell", { name: "Owner" })).toBeTruthy());
   expect(screen.getByRole("button", { name: "admin" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: 'Actions for user "admin"' }));
   await waitFor(() => expect(screen.getByRole("menuitem", { name: "Reset password" })).toBeTruthy());

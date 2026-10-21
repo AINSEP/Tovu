@@ -164,7 +164,8 @@ describe("Media screen — tab counts", () => {
       return Promise.resolve(jsonResponse({ media: [IMAGE_A, IMAGE_B, VIDEO_A] }));
     });
     renderScreen();
-    await screen.findByText("Image A");
+    // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
+    await screen.findByRole("button", { name: "Image A.png" });
 
     expect(tabCount("All")).toBe("3");
     expect(tabCount("Images")).toBe("2");
@@ -198,11 +199,12 @@ describe("Media screen — tab counts", () => {
       return Promise.reject(new Error(`media-tab-counts test: no mocked route for ${method} ${url}`));
     });
     renderScreen();
-    await screen.findByText("Image A");
+    // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
+    await screen.findByRole("button", { name: "Image A.png" });
     expect(tabCount("All")).toBe("2");
     expect(tabCount("Videos")).toBe("1");
 
-    const card = screen.getByText("Video A").closest(".media-card") as HTMLElement;
+    const card = screen.getByRole("button", { name: "Video A.mp4" }).closest(".media-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: /actions for "video a"/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete permanently/i }));
     await screen.findByText("Delete permanently?");
