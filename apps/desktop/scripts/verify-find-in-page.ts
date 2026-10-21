@@ -53,42 +53,23 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
+import { createCheckLog } from '../src/live-verify-checks.ts';
+import { advancesEveryStep, nextOrdinal, parseCount, previousOrdinal } from '../src/find-in-page-verify.ts';
+import type { Count } from '../src/find-in-page-verify.ts';
+
 const DESKTOP = path.resolve(import.meta.dirname, '..');
 const REPO = path.resolve(DESKTOP, '../..');
 const SHOT_DIR = process.env.FIND_SHOT_DIR ?? path.join(REPO, 'ADS-memory/.local-artifacts/find-enter-fix-screenshots-2026-09-18');
 const USER_DATA = process.env.FIND_VERIFY_USERDATA ?? fs.mkdtempSync(path.join(process.env.TMPDIR ?? '/tmp', 'tovu-find-verify-'));
 
-/** The find bar's `"N of M"` counter, parsed. */
-interface Count {
-  ordinal: number;
-  total: number;
-}
-
-const failures: string[] = [];
+const { check, report } = createCheckLog({ log: (line) => console.log(line) });
 let shotN = 0;
-
-function check(name: string, ok: boolean, detail: string): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'}:: ${name} — ${detail}`);
-  if (!ok) failures.push(`${name}: ${detail}`);
-}
 
 async function shot(win: Page, name: string): Promise<string> {
   shotN += 1;
   const file = path.join(SHOT_DIR, `${String(shotN).padStart(2, '0')}-${name}.png`);
   await win.screenshot({ path: file });
   return file;
-}
-
-/** `"3 of 17"` -> `{ ordinal: 3, total: 17 }`; anything else -> `null` (no result, or "No results"). */
-function parseCount(text: string | null | undefined): Count | null {
-  const match = /^(\d+) of (\d+)$/.exec((text ?? '').trim());
-  return match ? { ordinal: Number(match[1]), total: Number(match[2]) } : null;
-}
-
-/** The ordinal one forward `find` should land on from `count`, wrapping `total -> 1`; `null` when
- *  there was no count to advance from. */
-function nextOrdinal(count: Count | null): number | null {
-  return count === null ? null : (count.ordinal % count.total) + 1;
 }
 
 const countText = (win: Page): Promise<string> =>
@@ -155,15 +136,6 @@ async function pressEnter(
   return seen;
 }
 
-/** Every step is `previous + 1`, wrapping `total -> 1`. */
-function advancesEveryStep(start: number, steps: readonly (Count | null)[], total: number): boolean {
-  let expected = start;
-  return steps.every((step) => {
-    expected = (expected % total) + 1;
-    return step !== null && step.ordinal === expected && step.total === total;
-  });
-}
-
 /** Enter cycles forward three times, then Shift+Enter steps back one — on whatever surface the bar
  *  is currently open over. */
 async function verifyCycling(win: Page, start: Count): Promise<void> {
@@ -171,7 +143,7 @@ async function verifyCycling(win: Page, start: Count): Promise<void> {
   check('ENTER_ADVANCES', advancesEveryStep(start.ordinal, forward, start.total), `${start.ordinal} -> ${forward.map((s) => s?.ordinal).join(' -> ')} of ${start.total}`);
   const here = parseCount(await countText(win));
   const [back] = await pressEnter(win, 1, { modifier: 'Shift', shotName: 'projects-shift-enter' });
-  const expectedBack = here === null ? null : ((here.ordinal - 2 + here.total) % here.total) + 1;
+  const expectedBack = previousOrdinal(here);
   check('SHIFT_ENTER_GOES_BACK', back != null && back.ordinal === expectedBack, `${here?.ordinal} -> ${back?.ordinal} (expected ${expectedBack}) of ${here?.total}`);
 }
 
@@ -504,12 +476,7 @@ async function main(): Promise<void> {
     await app.close();
   }
 
-  if (failures.length > 0) {
-    console.log(`\nVERIFY_FAILED:: ${failures.length} check(s)\n- ${failures.join('\n- ')}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log('\nVERIFY_OK:: every check passed');
+  process.exitCode = report();
 }
 
 main().catch((error: unknown) => {
