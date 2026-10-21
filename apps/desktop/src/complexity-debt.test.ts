@@ -105,6 +105,11 @@ test("empty stdout is rejected — an empty report is not an empty result", () =
   assert.match(rejectUnusableEslintRun(1, "   ")!, /no output at all/);
 });
 
+test("a missing stdout (spawnSync's null when the pipe never opened) is rejected as no output, not crashed on", () => {
+  assert.match(rejectUnusableEslintRun(0, null)!, /no output at all/);
+  assert.match(rejectUnusableEslintRun(1, undefined)!, /no output at all/);
+});
+
 test("non-JSON stdout is rejected rather than throwing", () => {
   assert.match(rejectUnusableEslintRun(1, "Oops! Something went wrong!")!, /not JSON/);
 });

@@ -32,6 +32,15 @@ test("a dev-only package imported by reachable code is reported with the file th
   });
 });
 
+test("several undeclared packages are all listed in the boot-failure message, counted in the plural", () => {
+  const { distDir, entry } = fakeDist({
+    "src/cli/main.js": `import { load } from "js-yaml";\nimport chalk from "chalk";\n`,
+  });
+  assert.throws(() => assertDistImportsDeclared({ distDir, entry, declared }), {
+    message: /imports 2 packages that are not root `dependencies` entries, so the packaged app would fail at boot[\s\S]*\n {2}js-yaml \(src\/cli\/main\.js\)\n {2}chalk \(src\/cli\/main\.js\)$/,
+  });
+});
+
 test("builtins, declared packages, subpaths of declared packages and scoped packages pass", () => {
   const { distDir, entry } = fakeDist({
     "src/cli/main.js": [
