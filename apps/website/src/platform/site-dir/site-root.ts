@@ -78,12 +78,16 @@ export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string 
   const workspace = createSitesWorkspace({}, optional);
   return selectWorkspaceDirectory({ home: workspace.home({}), roots: workspace.roots({}), entries: workspace.registry({}).list({}), selected: env.TOVU_SITE ?? DEFAULT_SITE_NAME,
     fallback: path.resolve(cwd, "sites", DEFAULT_SITE_NAME),
-    listDirectories: ({ root }) => {
-      try { return fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => path.join(root, entry.name)); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error; }
-    },
+    listDirectories: noDirectoryScan,
     isInitialized: ({ path: dir }) => fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir, ".site-meta.json")),
   });
+}
+
+/** `selectWorkspaceDirectory` scans roots only when nothing is selected; {@link resolveSiteRoot}
+ * always selects (`TOVU_SITE` or {@link DEFAULT_SITE_NAME}), so a most-recent folder scan can never
+ * redirect this process's data. The required port is therefore an empty scan. */
+function noDirectoryScan(): readonly string[] {
+  return [];
 }
 
 /** Pin one process's default selection before boot. MRU updates and home-setting changes belong

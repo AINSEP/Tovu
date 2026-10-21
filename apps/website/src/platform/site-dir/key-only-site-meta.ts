@@ -116,7 +116,12 @@ export function carriedKeyFields(keyOnly: KeyOnlySiteMeta): Pick<SiteMetaJson, "
  *  the same date the admin Sites screen showed for this folder before it carried a full meta
  *  (`site-registry.ts`'s `describeUnregisteredServingSite`). */
 function dirCreatedAt(dir: string): string {
-  const stat = fs.statSync(dir);
+  return createdAtFromStat(fs.statSync(dir));
+}
+
+/** The pure choice behind {@link dirCreatedAt}: birth time when the filesystem reports one
+ *  (`birthtimeMs > 0`), otherwise modification time. @complexity O(1). */
+export function createdAtFromStat(stat: Pick<fs.Stats, "birthtimeMs" | "birthtime" | "mtime">): string {
   return (stat.birthtimeMs > 0 ? stat.birthtime : stat.mtime).toISOString();
 }
 
@@ -210,19 +215,24 @@ const COMPLETION_ATTEMPTS = 3;
  * write is never overwritten with the older key-only content.
  *
  * @param required.dir - an already-resolved site directory.
- * @returns the meta written, or `undefined` when nothing needed completing.
+ * @param optional.readText - reads the meta's raw text; defaults to the file itself.
+ * @returns the meta written, or `undefined` when nothing needed completing, or when the file kept
+ *   changing for every attempt (nothing is written then).
  * @throws {SiteDirInvalidError} see {@link planKeyOnlySiteMetaCompletion}; nothing is written.
  * @throws whatever the atomic write throws.
  * @complexity see {@link planKeyOnlySiteMetaCompletion}, at most {@link COMPLETION_ATTEMPTS} times.
  */
-export async function completeKeyOnlySiteMeta(required: { dir: string }): Promise<SiteMetaJson | undefined> {
+export async function completeKeyOnlySiteMeta(
+  required: { dir: string },
+  { readText = readMetaText }: { readText?: (dir: string) => string | undefined } = {},
+): Promise<SiteMetaJson | undefined> {
   const { dir } = required;
   for (let attempt = 0; attempt < COMPLETION_ATTEMPTS; attempt++) {
-    const before = readMetaText(dir);
+    const before = readText(dir);
     const keyOnly = keyOnlyFromText(before);
     if (keyOnly === undefined) return undefined;
     const completed = await buildCompletedMeta(dir, keyOnly);
-    if (readMetaText(dir) !== before) continue;
+    if (readText(dir) !== before) continue;
     writeJsonFileAtomic({ filePath: path.join(dir, SITE_META_FILENAME), data: completed }, {});
     return completed;
   }

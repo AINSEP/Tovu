@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createDurableJsonFile, createNodeDurableJsonPorts, type createNodeDirectoryWorkspace, type DurableJsonPorts } from "@jini-ai/platform/fs";
+import { createDurableJsonFile, createNodeDurableJsonPorts, type createNodeDirectoryWorkspace, type DurableJsonNotices, type DurableJsonPorts } from "@jini-ai/platform/fs";
 
 type DirectoryWorkspace = ReturnType<typeof createNodeDirectoryWorkspace>;
 /** Folder reads behind the nested-sites probe; node:fs in production, a typed fake in tests. */
@@ -48,11 +48,15 @@ function nestedRoot(
   } catch { return undefined; }
 }
 
+/** Notices for the sites settings store. This probe only reads (reads never lock), so the lock
+ * notice is the store's contract for its locked writers, not something this probe reaches. */
+export const SITES_SETTINGS_NOTICES: DurableJsonNotices = Object.freeze({
+  prefix: "Tovu sites", lockTimeout: () => "Tovu sites settings are locked.",
+});
+
 /** True when the saved setting chooses a home, or cannot be read. */
 function savedHomeOrUnknown({ configPath }: { configPath: string }, { ports }: { ports: DurableJsonPorts }): boolean {
-  const saved = createDurableJsonFile({ ...ports, filePath: configPath,
-    notices: { prefix: "Tovu sites", lockTimeout: () => "Tovu sites settings are locked." },
-  }).read({});
+  const saved = createDurableJsonFile({ ...ports, filePath: configPath, notices: SITES_SETTINGS_NOTICES }).read({});
   // An unreadable setting may contain a custom pointer: discovery must not authorize a move.
   if (saved.state === "unreadable") return true;
   return saved.state === "ok" && (saved.value as { sitesHome?: unknown } | null)?.sitesHome !== undefined;

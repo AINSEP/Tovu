@@ -127,3 +127,31 @@ test("a locked source yields ValidationError and never creates a target or remov
   assert.equal(fs.existsSync(targetDataDir), false);
   assert.equal(fs.readFileSync(lock, "utf8"), `${process.pid}\n`);
 });
+
+test("a lock naming no process is still a running owner: ValidationError says the process is unknown", async (t) => {
+  const root = fixture(t);
+  const sourceDataDir = path.join(root, "starting");
+  const targetDataDir = path.join(root, "never-written");
+  fs.mkdirSync(sourceDataDir);
+  // A starter that created its lock but has not written its pid yet: fresh and empty.
+  fs.writeFileSync(path.join(sourceDataDir, OWNER_LOCK_FILE), "");
+  await assert.rejects(duplicatePgliteStore({ sourceDataDir, targetDataDir }), (error) => {
+    assert.ok(error instanceof ValidationError);
+    assert.equal(error.message, "the site being duplicated is running (process unknown); stop it, or duplicate it from inside that site, then retry");
+    return true;
+  });
+  assert.equal(fs.existsSync(targetDataDir), false);
+});
+
+test("a source the owner lock cannot even be taken on is an InternalError naming the target", async (t) => {
+  const root = fixture(t);
+  const sourceDataDir = path.join(root, "missing-source");
+  const targetDataDir = path.join(root, "never-written");
+  await assert.rejects(duplicatePgliteStore({ sourceDataDir, targetDataDir }), (error) => {
+    assert.ok(error instanceof InternalError);
+    assert.ok(error.message.startsWith(`duplicatePgliteStore: copying to ${targetDataDir} failed: `), error.message);
+    assert.match(error.message, /ENOENT/);
+    return true;
+  });
+  assert.equal(fs.existsSync(targetDataDir), false);
+});
