@@ -1224,3 +1224,59 @@ describe("?tab= deep linking", () => {
     expect(window.location.search).toBe("?tab=videos");
   });
 });
+
+/**
+ * `EditMediaPanel` — the remaining editable fields and live feedback: Caption and CSS class typing
+ * reach the PATCH, the Save button reads "Saving…" while the request is in flight, and a copy
+ * button flips to "Copied" after a clipboard write.
+ */
+describe("EditMediaPanel — caption, CSS class, pending save and copy feedback", () => {
+  async function openEditPanel() {
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
+    await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await screen.findByRole("heading", { name: /editing "sunset photo"/i });
+    return user;
+  }
+
+  it("sends typed Caption and CSS class values, labelling Save as Saving… until the PATCH answers", async () => {
+    let patchBody: unknown = null;
+    let answerPatch!: () => void;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return new Promise<Response>((resolve) => {
+          answerPatch = () => resolve(jsonResponse({ media: { ...ACTIVE_ITEM, caption: "Dusk", cssClass: "hero" } }));
+        });
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+    const user = await openEditPanel();
+    await user.type(screen.getByLabelText("Caption"), "Dusk");
+    await user.type(screen.getByLabelText("CSS class (optional)"), "hero");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(patchBody).toEqual({ caption: "Dusk", cssClass: "hero" });
+    answerPatch();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Saving…" })).not.toBeInTheDocument());
+  });
+
+  it("shows Copied on the sha256 row after copying the hash", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = await openEditPanel();
+    // Stubbed after `userEvent.setup()`, which installs its own clipboard on `navigator`.
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
+    const hashRow = screen.getByText("sha256").closest(".field") as HTMLElement;
+    await user.click(within(hashRow).getByRole("button", { name: "Copy" }));
+
+    expect(writeText).toHaveBeenCalledWith("abc123");
+    expect(await within(hashRow).findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+});

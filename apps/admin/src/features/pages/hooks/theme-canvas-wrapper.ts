@@ -35,8 +35,9 @@ import type { CanvasContentWrapperNode } from "@jini-ai/ui/html-editor";
  * against an already-parsed DOM and only needs the one predicate, not source-offset substitution.
  */
 function isContentMarker(el: Element): boolean {
-  const raw = el.getAttribute("data-embed-config");
-  if (raw === null) return false;
+  // Only ever called on `querySelectorAll("[data-embed-config]")` matches (see
+  // `deriveContentWrapperChain`), so the attribute is always present: no `null` check needed.
+  const raw = el.getAttribute("data-embed-config") as string;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

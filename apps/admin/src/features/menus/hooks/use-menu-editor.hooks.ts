@@ -109,18 +109,6 @@ function getChildrenAtPath(items: AdminMenuItem[], path: number[]): AdminMenuIte
   return getChildrenAtPath(items[index]?.children ?? [], rest);
 }
 
-function setChildrenAtPath(
-  items: AdminMenuItem[],
-  path: number[],
-  children: AdminMenuItem[]
-): AdminMenuItem[] {
-  if (path.length === 0) return children;
-  const [index, ...rest] = path;
-  return items.map((item, i) =>
-    i === index ? { ...item, children: setChildrenAtPath(item.children ?? [], rest, children) } : item
-  );
-}
-
 function moveAtPath(items: AdminMenuItem[], path: number[], direction: -1 | 1): AdminMenuItem[] {
   const parentPath = path.slice(0, -1);
   const index = path[path.length - 1];
@@ -129,7 +117,12 @@ function moveAtPath(items: AdminMenuItem[], path: number[], direction: -1 | 1): 
   if (target < 0 || target >= siblings.length) return items;
   const reordered = [...siblings];
   [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-  return setChildrenAtPath(items, parentPath, reordered);
+  // Root moves replace the list itself; nested moves replace one parent's children through
+  // `mapAtPath`. (A dedicated `setChildrenAtPath` walker used to do this with its own
+  // `item.children ?? []` fallback, which could never run: reaching here means `siblings` had
+  // `target` in range, so every ancestor on `parentPath` already has a children array.)
+  if (parentPath.length === 0) return reordered;
+  return mapAtPath(items, parentPath, (parent) => ({ ...parent, children: reordered }));
 }
 
 /** What `useDirtyGuard` compares — everything an operator can actually edit on this screen. */
@@ -278,7 +271,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : t("failed to load menu"));
+        // Always an `Error`: `fetchMenu` above rethrows every failure as one (with the translated
+        // "failed to load menu" fallback for a non-Error rejection), so no second fallback here.
+        setError((e as Error).message);
       })
       .finally(() => {
         if (cancelled) return;

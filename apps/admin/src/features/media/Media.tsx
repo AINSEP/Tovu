@@ -157,13 +157,17 @@ interface MediaPreviewProps {
    *  in `Media()` — see `Taxonomy.tsx`'s `NewTermForm.agentBase` for why a per-instance search
    *  cannot dedupe across siblings. */
   agentExpandHandle?: string;
-  /** Opens `EditMediaModal` for this card's item — the eye-icon trigger (owner ask, 2026-09-07).
+  /** The eye-icon edit trigger, as one optional unit so a trigger can never render without its handle.
    *  `undefined` for the same reason `onExpand` is: the lightbox's own reuse of this component
    *  omits it, since editing metadata from inside the enlarged view isn't part of this ask. */
-  onEdit?: () => void;
-  /** This card's own eye-button handle — same "passed down, not derived here" reasoning as
-   *  `agentExpandHandle`. */
-  agentEditHandle?: string;
+  edit?: {
+    /** Opens `EditMediaModal` for this card's item — the eye-icon trigger (owner ask, 2026-09-07). */
+    onEdit: () => void;
+    /** This card's own eye-button handle — same "passed down, not derived here" reasoning as
+     *  `agentExpandHandle`. Required with `onEdit` (they were two independent optionals before,
+     *  which left an "edit button without a handle" branch no caller could reach). */
+    agentHandle: string;
+  };
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real (wired) hook, so production callers pass nothing and behave exactly as
@@ -203,15 +207,13 @@ function MediaPreview(props: MediaPreviewProps) {
   // Computed ahead of the stage branches (unlike `expandButton` below, which the `"unsupported"`
   // branch never needed) — editing an asset's metadata is meaningful regardless of whether its
   // bytes can be previewed, so this renders in all three stages, not just image/video.
-  const editButton = props.onEdit ? (
+  const editButton = props.edit ? (
     <button
       type="button"
       className="media-card-edit"
       aria-label={`Edit "${props.item.title}"`}
-      onClick={props.onEdit}
-      {...(props.agentEditHandle
-        ? agentHandle({ handle: props.agentEditHandle }, { role: "button", label: "Open the edit form for this asset as a modal" })
-        : {})}
+      onClick={props.edit.onEdit}
+      {...agentHandle({ handle: props.edit.agentHandle }, { role: "button", label: "Open the edit form for this asset as a modal" })}
     >
       <EyeIcon />
     </button>
@@ -1005,8 +1007,7 @@ function MediaGridOrEmpty({
               item={item}
               onExpand={() => onExpand(index)}
               agentExpandHandle={`${mediaExpandHandles[index]}-expand`}
-              onEdit={() => onToggleEdit(item)}
-              agentEditHandle={`${mediaExpandHandles[index]}-edit`}
+              edit={{ onEdit: () => onToggleEdit(item), agentHandle: `${mediaExpandHandles[index]}-edit` }}
               t={t}
             />
           </div>

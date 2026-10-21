@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, type AdminPlugin } from "@/lib/api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 
 /**
  * @file `usePlugins` driven against the injected `PluginsPort`, no `fetch` stub and no
@@ -474,4 +475,62 @@ it("resolves inspector and removal targets from the current list, including miss
   });
   expect(result.current.inspectedPlugin).toBeNull();
   expect(result.current.pendingRemovePlugin).toBeNull();
+});
+
+describe("usePlugins — expanders, single-flight toggles and failed refreshes", () => {
+  const PLUGIN: AdminPlugin = { id: "p1", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] } as AdminPlugin;
+
+  it("toggles a row open and closed again", async () => {
+    const port = createFakePluginsPort({ plugins: [PLUGIN] });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    act(() => result.current.onToggleExpanded("p1"));
+    expect(result.current.expandedIds.has("p1")).toBe(true);
+    act(() => result.current.onToggleExpanded("p1"));
+    expect(result.current.expandedIds.has("p1")).toBe(false);
+  });
+
+  it("ignores a second toggle of the same row while the first is still saving", async () => {
+    const port = createFakePluginsPort({ plugins: [PLUGIN] });
+    let release!: () => void;
+    const setEnabled = port.setPluginEnabled;
+    const calls: string[] = [];
+    port.setPluginEnabled = async (id, patch) => {
+      calls.push(id);
+      await new Promise<void>((resolve) => { release = resolve; });
+      return setEnabled(id, patch);
+    };
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    let first!: Promise<void>;
+    act(() => { first = result.current.onToggleEnabled(PLUGIN); });
+    await waitFor(() => expect(result.current.rowSavingId).toBe("p1"));
+    await act(async () => { await result.current.onToggleEnabled(PLUGIN); });
+    await act(async () => { release(); await first; });
+    expect(calls).toEqual(["p1"]);
+  });
+
+  it("keeps an accepted removal when the list re-read after it fails, and exposes that failure", async () => {
+    const port = createFakePluginsPort({ plugins: [PLUGIN] });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+    port.listPlugins = async () => { throw new Error("list offline"); };
+    await act(async () => { await result.current.onRemovePlugin(PLUGIN); });
+    expect(port.plugins).toEqual([]);
+    expect(result.current.rowError).toBeNull();
+    await waitFor(() => expect(result.current.error).toBe("list offline"));
+  });
+
+  it("swallows a failed refresh-bus reload, leaving the read error to the query", async () => {
+    try {
+      const port = createFakePluginsPort({ plugins: [PLUGIN] });
+      const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
+      await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+      port.listPlugins = async () => { throw new Error("refresh offline"); };
+      act(() => publishContentRefresh(["plugins"]));
+      await waitFor(() => expect(result.current.error).toBe("refresh offline"));
+    } finally {
+      resetContentRefreshBus();
+    }
+  });
 });

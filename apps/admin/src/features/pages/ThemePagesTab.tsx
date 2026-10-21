@@ -133,9 +133,10 @@ function ThemePagePublishToggle({
   // uses, narrowed to THIS row rather than the whole screen (see `Pages.tsx`'s `savingPageId`).
   const disabled = state.kind === "locked" || saving;
 
-  function handleClick() {
-    if (state.kind === "toggle") onSetPublished(!state.published);
-  }
+  // Only a live toggle gets a handler: a locked switch is always `disabled`, so a click handler on
+  // it could never fire (the earlier `handleClick` re-checked `state.kind` for a case no click
+  // could reach).
+  const handleClick = state.kind === "toggle" ? () => onSetPublished(!state.published) : undefined;
 
   return (
     <button

@@ -261,7 +261,10 @@ const ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT = 0x20;
 function isUnsafeMediaUrlValue(value: string): boolean {
   let stripped = "";
   for (const char of value) {
-    if ((char.codePointAt(0) ?? 0) > ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT) stripped += char;
+    // `charCodeAt`, not `codePointAt(0) ?? 0`: a `for…of` item is never empty, so the `?? 0` fallback
+    // could never run, and for an astral character the high surrogate (>= 0xD800) is already far
+    // above the ASCII cutoff, so the comparison answers the same as with the full code point.
+    if (char.charCodeAt(0) > ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT) stripped += char;
   }
   stripped = stripped.toLowerCase();
   return stripped.startsWith("javascript:") || stripped.startsWith("vbscript:") || stripped.startsWith("data:");
@@ -398,10 +401,25 @@ export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, 
   return t("'{attribute}' is not an allowed HTML attribute.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
 }
 
-/** Reads a browser `File` into a base64 string (no data: URL prefix). */
-export function readFileAsBase64(file: File): Promise<string> {
+/** The slice of the browser's `FileReader` {@link readFileAsBase64} drives, so tests can hand it a
+ *  plain-object reader that fails, answers `null`, or answers a bare (comma-less) payload. */
+export interface Base64FileReader {
+  readonly error: unknown;
+  readonly result: string | ArrayBuffer | null;
+  onerror: (() => void) | null;
+  onload: (() => void) | null;
+  readAsDataURL(file: Blob): void;
+}
+
+/** Reads a browser `File` into a base64 string (no data: URL prefix).
+ *  @param optional.createReader - Builds the reader; defaults to the browser's `FileReader`. */
+export function readFileAsBase64(
+  file: File,
+  optional: { createReader?: () => Base64FileReader } = {},
+): Promise<string> {
+  const createReader = optional.createReader ?? (() => new FileReader());
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+    const reader = createReader();
     reader.onerror = () => reject(reader.error ?? new Error("failed to read file"));
     reader.onload = () => {
       const result = String(reader.result ?? "");
