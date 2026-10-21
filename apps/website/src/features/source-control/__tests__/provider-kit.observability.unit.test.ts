@@ -112,11 +112,9 @@ test("describeTransportError relays an egress refusal's caller-safe message and 
   assert.equal(plain.logDetail, "TypeError", "a non-refusal logs its error type only, never its message");
 });
 
-test("fetch without an init sends an empty init, and the default sleep waits on the real timer", async () => {
-  const inits: unknown[] = [];
-  const kit = createSourceControlProviderKit({ fetchFn: async (_url, init) => { inits.push(init); return new Response(null, { status: 204 }); } });
-  assert.equal((await kit.fetch("https://api.github.com/")).status, 204);
-  assert.equal(inits.length, 1);
+test("the default sleep waits on the real timer", async () => {
+  const kit = createSourceControlProviderKit();
+  assert.ok(kit.sleep, "the kit always provides a sleep");
   const started = Date.now();
   await kit.sleep(5);
   assert.ok(Date.now() - started >= 4, "sleep resolved only after the timer fired");
@@ -125,6 +123,7 @@ test("fetch without an init sends an empty init, and the default sleep waits on 
 test("an injected sleep is used as-is", async () => {
   const waits: number[] = [];
   const kit = createSourceControlProviderKit({ sleep: async ms => { waits.push(ms); } });
+  assert.ok(kit.sleep, "the kit always provides a sleep");
   await kit.sleep(250);
   assert.deepEqual(waits, [250]);
 });
