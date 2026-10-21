@@ -886,6 +886,75 @@ test("update-tree logs the original error with or without a stack and returns an
   assert.equal(logged[1], "admin menu update-tree route failed: boom: repo exploded");
 });
 
+test("update-tree: renaming a menu onto another menu's slug is a plain 409 without the VERSION_CONFLICT code, and stores nothing", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const create = async (title: string, slug: string) => {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ title, slug }),
+    });
+    assert.equal(res.status, 201);
+    return ((await res.json()) as { menu: { id: string; version: number } }).menu;
+  };
+  await create("Header", "header-nav");
+  const footer = await create("Footer", "footer-nav");
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${footer.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ items: [], expectedVersion: footer.version, slug: "header-nav" }),
+  });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "slug 'header-nav' already exists" });
+
+  const after = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${footer.id}`, { headers: { cookie } });
+  const stored = ((await after.json()) as { menu: { slug: string; version: number } }).menu;
+  assert.equal(stored.slug, "footer-nav");
+  assert.equal(stored.version, footer.version);
+});
+
+test("update-tree: a thrown non-Error value is logged via String() and still answers the opaque 500", async () => {
+  const throwingMenuRepo: MenuRepoPort = {
+    findById: async () => {
+      throw "repo rejected with a bare string";
+    },
+    findBySlug: async () => null,
+    list: async () => [],
+    save: async () => {},
+    remove: async () => {},
+    transaction: async ({ fn }) => fn(),
+  };
+  const deps: MenuRouteDeps = {
+    ...createRouteDeps(),
+    menuRepo: throwingMenuRepo,
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
+  };
+  const app = express();
+  registerAdminMenuUpdateTreeRoute(app, deps);
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+
+  const logged: string[] = [];
+  const realError = console.error;
+  console.error = (...args: unknown[]) => void logged.push(args.map(String).join(" "));
+  try {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = ownerPrincipal;
+    await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
+    assert.equal(capture.statusCode, 500);
+    assert.deepEqual(capture.jsonBody, { error: "internal error" });
+  } finally {
+    console.error = realError;
+  }
+  assert.deepEqual(logged, ["admin menu update-tree route failed: repo rejected with a bare string"]);
+});
+
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
   const { readFileSync, readdirSync } = await import("node:fs");
   const { join } = await import("node:path");

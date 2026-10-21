@@ -104,7 +104,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
       return;
     }
 
-    const menuId = String(req.params.menuId);
+    const menuId = String(req.params.menuId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
