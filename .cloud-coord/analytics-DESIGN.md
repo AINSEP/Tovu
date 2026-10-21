@@ -80,9 +80,11 @@ into the Jini branch; no TEMP copy needed).
   needed (ADR-066 untouched). Rollback = set `"local"` or remove the plugin.
 
 ## Risks
-- Vendor latency/outage: detached forwards; unbounded concurrency under a beacon flood → each
-  forwarder call should be bounded by the vendor module (timeout via `HttpClientPort`). Follow-up:
-  a bounded queue in the fan-out sink.
+- Vendor latency/outage: forwards are detached; a shared per-route in-flight cap
+  (`createAnalyticsForwardLimiter`, default 64) drops + logs vendor calls over the cap, so a flood
+  sheds vendor traffic, never local hits. Vendor modules should still bound their own timeouts.
+- Plugin providers and vendor credentials are cached 60s (failures not cached): a plugin change or
+  key rotation takes effect within a minute.
 - Consent read adds one receipt file read per beacon only when a vendor is configured.
 - Forwarded data is no longer only first-party: privacy page copy must name the vendor (owner).
 - `beforeIngest` handlers run in-process (bundled-digest plugins only), not out-of-process yet.
