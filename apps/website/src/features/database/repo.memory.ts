@@ -14,8 +14,12 @@ import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration
 export class InMemoryDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort {
   private rows: LedgerRow[] = [];
 
-  constructor(initial: LedgerRow[] = []) {
+  private readonly now: () => string;
+
+  /** @param optional.now clock for synthesized rows (defaults to the system clock). */
+  constructor(initial: LedgerRow[] = [], optional: { now?: () => string } = {}) {
     this.rows = [...initial];
+    this.now = optional.now ?? (() => new Date().toISOString());
   }
 
   async append(row: LedgerRow): Promise<void> {
@@ -35,7 +39,7 @@ export class InMemoryDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPor
     await this.append({
       id,
       kind: "migration.interrupted",
-      createdAt: new Date().toISOString(),
+      createdAt: this.now(),
       restorePointId: null,
       outcome: "blocked_pending_recovery",
     });
