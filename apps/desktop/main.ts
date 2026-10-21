@@ -111,6 +111,9 @@ import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
 import { startDesktopCaptureBridge } from "./src/desktop-capture.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
+// Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
+// live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
+import { describeRejectedDefault, explicitStartupSiteDirs, resolveCliMode, sitesUiRequested, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createExternalSiteStopper } from "./src/external-site-stop.ts";
@@ -180,16 +183,10 @@ import type { SelftestTracker } from "./src/selftest-tracker.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** `"source"` or `"compiled"`: how a site's `tovu serve` is run. See this file's header. */
-type CliMode = "source" | "compiled";
 
 /** A resolved {@link startTovuServer} handle. `tovu-server.ts` does not export the type. */
 type TovuServerHandle = Awaited<ReturnType<typeof startTovuServer>>;
 
-/** The candidate {@link promptForSiteDir} is told was tried first and turned down: `site-dir-store.ts`'s
- *  `RejectedDevFallback`, read off {@link resolveSiteDir}'s picker seam because that module does not
- *  export it. */
-type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]>;
 
 /** One {@link openSites} entry. Only own-server mode's {@link openSiteWindow} sets `window`; a sites-home
  *  tab, opened through {@link openSiteServer}, has none. */
@@ -352,30 +349,6 @@ const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: a
 let siteDiscoveryAbort: AbortController | undefined;
 let siteValidationAbort: AbortController | undefined;
 
-/**
- * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
- * directly. Default since 2026-09-06 — the whole point of the port — but three things must keep
- * bypassing it unconditionally, because they each name a single destination directly and exist
- * specifically for automation/attach workflows that have no use for a project picker:
- *
- * - `TOVU_DESKTOP_URL` (attach mode).
- * - `TOVU_DESKTOP_SITE_DIR` / `TOVU_DESKTOP_SITE_DIRS` (own-server, pinned to specific dir(s)) —
- *   this is what keeps every existing `TOVU_DESKTOP_SITE_DIR`-driven E2E spec and any real
- *   automation untouched by this flip.
- *
- * An explicit `TOVU_DESKTOP_UI=runner` still opts in outright, unconditionally, matching this
- * function's pre-flip behavior exactly (kept for anyone who has that set alongside one of the
- * above, historically to force the sites home UI over a pinned site dir — that ordering is preserved:
- * explicit `runner` is checked, and returns, before any bypass condition below).
- */
-function sitesUiRequested(): boolean {
-  if (process.env.TOVU_DESKTOP_UI?.trim() === "runner") return true;
-  const bypassesFrontPage =
-    Boolean(process.env.TOVU_DESKTOP_URL?.trim()) ||
-    Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) ||
-    explicitStartupSiteDirs() !== null;
-  return !bypassesFrontPage;
-}
 
 /**
  * `siteDir -> { server, window }` for every site this process currently has open. Replaces the
@@ -454,26 +427,7 @@ let autoUpdaterStarting = false;
  */
 const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
 
-/** `"source"` (default) or `"compiled"` — see this file's own header. Read once at module load,
- *  same convention as every other `TOVU_DESKTOP_*` env var below (parsed here, passed down as a
- *  plain argument, never read directly by `tovu-server.ts`/`site-dir-store.ts`). */
-function resolveCliMode(): CliMode {
-  const explicit = process.env.TOVU_DESKTOP_CLI_MODE?.trim();
-  if (explicit === "compiled") return "compiled";
-  if (explicit === "source") return "source";
-  // `"source"` in a checkout — unchanged, including for a garbage value, which still falls through
-  // to the default exactly as the old ternary did. `"compiled"` when packaged, where no TypeScript
-  // source and no `tsx` ship; see `packaged-paths.ts`.
-  return DESKTOP_ROOTS.defaultCliMode;
-}
 
-/** `TOVU_DESKTOP_SITE_DIRS`, split and trimmed — `null` when unset, so callers fall back to the
- *  normal single-site `resolveSiteDir()` precedence untouched. */
-function explicitStartupSiteDirs(): string[] | null {
-  const raw = process.env.TOVU_DESKTOP_SITE_DIRS?.trim();
-  if (!raw) return null;
-  return raw.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
-}
 
 /**
  * Ask the user which folder holds their site. Cancelling returns `null`.
@@ -485,20 +439,6 @@ function explicitStartupSiteDirs(): string[] | null {
  *   (only ever non-null for the STARTUP picker, which tries `devFallbackDir` first — see
  *   `resolveSiteDir`), or `null` when there was nothing to try (every other call site).
  */
-function describeRejectedDefault(rejectedDefault: RejectedDefault): string {
-  if (rejectedDefault.kind === "empty") return "has no site in it yet";
-  // Before the `missing` read below: `classifySiteDirSafely` reports a candidate it could not
-  // examine at all (EACCES/ENOTDIR/ELOOP — see D-01), and that verdict has no marker list to name,
-  // so the generic branch would throw on `undefined.join` while building the very dialog that is
-  // supposed to explain the problem.
-  if (rejectedDefault.kind === "unreadable") return "could not be read (check its permissions, or whether something replaced it)";
-  // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
-  // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
-  const missing = rejectedDefault.missing!.join(" and "); // `!`: "incomplete" and "occupied", the only kinds left, always carry it.
-  return rejectedDefault.kind === "incomplete"
-    ? `is missing ${missing} — it looks like a half-initialized site`
-    : `is not a Tovu site (missing ${missing})`;
-}
 
 async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promise<string | null> {
   // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
@@ -1329,7 +1269,7 @@ function refreshAppMenu(ctx: SiteOpenCtx): void {
  * dialog, because a human is at the keyboard there to see and dismiss it.
  */
 function isUnattendedSiteLaunch(): boolean {
-  return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs() !== null;
+  return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs({ env: process.env }) !== null;
 }
 
 async function reportBootFailure(error: Error): Promise<void> {
@@ -1406,7 +1346,7 @@ const ENV_SITE_DIR_ON_MISSING = "fail";
  *  {@link ENV_SITE_DIR_ON_MISSING} declares — see that constant's own doc for why.
  *  @complexity O(n) in the explicit-dirs count, plus `resolveSiteDir`'s own cost in the single-site case. */
 async function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
-  const explicit = explicitStartupSiteDirs();
+  const explicit = explicitStartupSiteDirs({ env: process.env });
   if (explicit) {
     return await Promise.all(
       explicit.map((dir) => resolveOrInitSiteDir({ dir, onMissingSite: ENV_SITE_DIR_ON_MISSING, repoRoot: PAYLOAD_ROOT, cliMode: ctx.cliMode })),
@@ -1499,7 +1439,7 @@ async function bootOwnServerMode(): Promise<void> {
   const warning = sharedSites.config({}).warning;
   if (warning) console.warn(`[tovu-desktop] ${warning.message} Choose appData in Sites settings or use ${warning.localHome}.`);
   const ctx: SiteOpenCtx = {
-    cliMode: resolveCliMode(),
+    cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
     statePath: stateFilePath(app.getPath("userData")),
     registryPath: registryDirPath(app.getPath("userData")),
   };
@@ -1732,7 +1672,7 @@ app
     await reconcileOrphansOnBoot(registryDirPath(app.getPath("userData")));
 
     // Before any boot mode opens a database: reuse the stopped/verified CLI move owner.
-    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
+    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
       projectsPath: sitesFilePath(app.getPath("userData")),
     });
 
@@ -1740,9 +1680,9 @@ app
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
     // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the sites-home counterpart of the
     // `openSiteWindow` own-server mode uses below).
-    if (sitesUiRequested()) {
+    if (sitesUiRequested({ env: process.env })) {
       const sitesCtx = {
-        cliMode: resolveCliMode(),
+        cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
         statePath: stateFilePath(app.getPath("userData")),
         registryPath: registryDirPath(app.getPath("userData")),
         projectsPath: sitesFilePath(app.getPath("userData")),
