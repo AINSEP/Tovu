@@ -31,7 +31,7 @@ test("with a content kernel: shared registry/resolver, a workspace-scoped store,
     const request = { method: "GET", url: "https://dns.test/", headers: {} };
     await first.context.httpClient.send({ request } as never);
     assert.deepEqual(sent, [request]);
-    await first.bindings!.put({ binding: { hostname: "example.com", providerId: "manual", zone: "example.com", requirements: [], status: "pending", delegation: null, attempt: 0, startedAt: AT, nextCheckAt: null, lastCheckedAt: null, lastResult: null }, now: AT });
+    await first.bindings!.put({ binding: { hostname: "example.com", providerId: "manual", zone: "example.com", requirements: [], status: "pending", delegation: null, attempt: 0, startedAt: AT, nextCheckAt: null, lastCheckedAt: null, lastResult: null, version: 1 }, now: AT, expectedVersion: null });
     assert.deepEqual(await kernel.query(sql`SELECT workspace_id, hostname FROM domain_binding`), [{ workspace_id: "ws", hostname: "example.com" }]);
   } finally {
     await kernel.close();
@@ -61,7 +61,7 @@ test("the pre-bound sweep re-checks this workspace's due bindings over the same 
     const sweep = createDomainBindingSweep({ httpClient: { send: async () => { throw new Error("unused"); } }, workspaceId: "ws", contentKernel: kernel }, { resolver, now: () => now });
     const tools = createDnsChangeDepsFactory({ httpClient: { send: async () => { throw new Error("unused"); } } }, { resolver, now: () => now })({ workspaceId: "ws", authorize, contentKernel: kernel } as never);
     const requirements = [{ purpose: "site" as const, domain: "example.com", providerId: "host", records: [{ type: "TXT" as const, name: "example.com", value: "site-verify=1" }] }];
-    await tools.bindings!.put({ binding: { hostname: "example.com", providerId: "manual", zone: "example.com", requirements, status: "pending", delegation: null, attempt: 0, startedAt: AT, nextCheckAt: AT, lastCheckedAt: null, lastResult: null }, now: AT });
+    await tools.bindings!.put({ binding: { hostname: "example.com", providerId: "manual", zone: "example.com", requirements, status: "pending", delegation: null, attempt: 0, startedAt: AT, nextCheckAt: AT, lastCheckedAt: null, lastResult: null, version: 1 }, now: AT, expectedVersion: null });
     assert.deepEqual(await sweep({ limit: 5 }), ["example.com"]);
     assert.equal((await tools.bindings!.get({ hostname: "example.com" }))?.status, "propagated");
     assert.deepEqual(await sweep({ limit: 5 }), [], "a propagated binding is no longer due");

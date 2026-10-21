@@ -73,7 +73,7 @@ test("the content history through the current head applies on real Postgres", as
     "0013_unify_vault_credentials", "0014_media_library", "0015_document_blob_ownership",
     "0016_publish_destination_history", "0017_publish_history_kind", "0018_form_submission_remote_receipts",
     "0019_form_delivery_plans", "0020_vault_api_connection_kind", "0021_site_consent_revisions",
-    "0022_workspace_mcp_cascade", "0023_mail_ledgers", "0024_domain_bindings", "0025_mail_feedback_processed",
+    "0022_workspace_mcp_cascade", "0023_mail_ledgers", "0024_domain_bindings", "0025_mail_feedback_processed", "0026_domain_binding_version",
   ];
   assert.deepEqual(report.applied, head);
   assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);

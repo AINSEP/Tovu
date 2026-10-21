@@ -42,4 +42,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0023_mail_ledgers": "abfddfb661663c537d23b2c3ebd84c0cf06f6bc7a1948fcbbff25d60c3505319",
   "0024_domain_bindings": "cea288e4c976a8ddb3d504639671ce802dbe025762c5543964821be62244a791",
   "0025_mail_feedback_processed": "296fe07516f30c5404dc2147293bd498d84214c419902322995096212daea75b",
+  "0026_domain_binding_version": "c21e7bc7eadfed3163cf4fb3c40a7b36a3b20ba3b6a72b86e55f1095a4ccf671",
 };

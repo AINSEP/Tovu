@@ -284,7 +284,7 @@ function nextBinding(required: { target: Target; zone: string; delegation: Deleg
   return {
     hostname: target.hostname, providerId: target.providerId, zone, requirements: target.requirements, status,
     delegation: delegation.state, attempt, startedAt, nextCheckAt: done ? null : iso(now + nextCheckDelayMs({ attempt })),
-    lastCheckedAt: iso(now), lastResult: summarize(verification, delegation),
+    lastCheckedAt: iso(now), lastResult: summarize(verification, delegation), version: (target.binding?.version ?? 0) + 1,
   };
 }
 
@@ -294,15 +294,16 @@ export interface DomainDnsVerifyResult {
   verification: DnsVerification;
 }
 
+type VerifyPorts = DnsChangePorts & { bindings: DomainBindingStore; now: () => number };
+
+/** How often `dns_verify` recomputes after losing a write race before giving up. */
+export const VERIFY_WRITE_ATTEMPTS = 3;
+
 /**
- * Start or continue propagation tracking: save the requirements, check every authoritative
- * nameserver once now, and schedule the next check (30 s doubling to 10 min, 48 h cap).
- * @complexity O(records · nameservers) DNS queries plus one keyed upsert.
+ * One check and one compare-and-swap save against the binding version read at the start. `null`
+ * when another writer saved the binding while DNS was being read: this observation is stale.
  */
-export async function verifyDomainDns(
-  required: DnsChangeRequest,
-  ports: DnsChangePorts & { bindings: DomainBindingStore; now: () => number },
-): Promise<DomainDnsVerifyResult> {
+async function verifyOnce(required: DnsChangeRequest, ports: VerifyPorts): Promise<DomainDnsVerifyResult | null> {
   const errorPrefix = "dns_verify";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const { zone } = await locateCheckedZone({ target, errorPrefix }, ports);
@@ -310,23 +311,36 @@ export async function verifyDomainDns(
   const verification = await verifyRequirements({ zone, requirements: target.requirements }, { resolver: ports.resolver });
   const now = ports.now();
   const binding = nextBinding({ target, zone, delegation, verification, now });
-  await ports.bindings.put({ binding, now: iso(now) });
-  return { binding, delegation, verification };
+  const saved = await ports.bindings.put({ binding, now: iso(now), expectedVersion: target.binding?.version ?? null });
+  return saved ? { binding, delegation, verification } : null;
+}
+
+/**
+ * Start or continue propagation tracking: save the requirements, check every authoritative
+ * nameserver once now, and schedule the next check (30 s doubling to 10 min, 48 h cap).
+ * The save is compare-and-swap: when a concurrent check saved first, this one is recomputed from
+ * the newer binding (up to {@link VERIFY_WRITE_ATTEMPTS} times) instead of overwriting it.
+ * @complexity O(records · nameservers) DNS queries plus one keyed write, per attempt.
+ */
+export async function verifyDomainDns(required: DnsChangeRequest, ports: VerifyPorts): Promise<DomainDnsVerifyResult> {
+  for (let attempt = 1; attempt <= VERIFY_WRITE_ATTEMPTS; attempt += 1) {
+    const result = await verifyOnce(required, ports);
+    if (result !== null) return result;
+  }
+  throw new ToolInputError({ message: `dns_verify: ${required.hostname} kept changing while it was being checked (${VERIFY_WRITE_ATTEMPTS} attempts); try again.` });
 }
 
 /**
  * One sweep over this workspace's due bindings, oldest first and one at a time (each check is
- * already O(records · nameservers) concurrent queries). Returns the hostnames checked.
+ * already O(records · nameservers) concurrent queries). Returns the hostnames checked and saved;
+ * a binding another writer (e.g. `dns_verify` with new requirements) saved meanwhile is skipped,
+ * its newer state standing, and comes due again on its own schedule.
  */
-export async function verifyDueDomainBindings(
-  required: { limit: number },
-  ports: DnsChangePorts & { bindings: DomainBindingStore; now: () => number },
-): Promise<string[]> {
+export async function verifyDueDomainBindings(required: { limit: number }, ports: VerifyPorts): Promise<string[]> {
   const due = await ports.bindings.listDue({ now: iso(ports.now()), limit: required.limit });
   const checked: string[] = [];
   for (const binding of due) {
-    await verifyDomainDns({ hostname: binding.hostname }, ports);
-    checked.push(binding.hostname);
+    if (await verifyOnce({ hostname: binding.hostname }, ports)) checked.push(binding.hostname);
   }
   return checked;
 }

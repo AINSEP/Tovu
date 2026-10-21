@@ -3,7 +3,7 @@ import test from "node:test";
 import { providerOk, providerRejected } from "@jini-ai/core/provider-registry";
 import { createDnsProviderRegistry, type AuthoritativeDnsPort, type DnsProvider } from "@jini-ai/devops/dns";
 import type { DomainBinding } from "../binding.repo.js";
-import { domainDnsInstructions, planDomainDns, verifyDomainDns, verifyDueDomainBindings, type DnsChangePorts } from "../dns-changes.js";
+import { domainDnsInstructions, planDomainDns, VERIFY_WRITE_ATTEMPTS, verifyDomainDns, verifyDueDomainBindings, type DnsChangePorts } from "../dns-changes.js";
 import { context, fakeAuthoritative, mailRequirement, memoryBindings, siteRequirement } from "./dns-fakes.js";
 
 /**
@@ -32,7 +32,7 @@ function customProvider(optional: { list?: "rejected" | "ancestors" } = {}): Dns
 
 const binding = (overrides: Partial<DomainBinding> = {}): DomainBinding => ({
   hostname: "www.example.com", providerId: "manual", zone: "example.com", requirements: [siteRequirement()], status: "pending",
-  delegation: "delegated", attempt: 0, startedAt: iso(T0), nextCheckAt: iso(T0 + 30_000), lastCheckedAt: iso(T0), lastResult: null, ...overrides,
+  delegation: "delegated", attempt: 0, startedAt: iso(T0), nextCheckAt: iso(T0 + 30_000), lastCheckedAt: iso(T0), lastResult: null, version: 1, ...overrides,
 });
 
 test("plan: the manual provider finds the zone past a non-delegated host, reads current records and keeps a conflicting A it does not own", async () => {
@@ -235,6 +235,49 @@ test("due sweep: only bindings whose next check is due are re-verified, earliest
   assert.deepEqual(await verifyDueDomainBindings({ limit: 10 }, ports), ["a.example.com", "b.example.com"]);
   assert.deepEqual(bindings.writes.map(write => write.hostname), ["a.example.com", "b.example.com"]);
   assert.deepEqual(await verifyDueDomainBindings({ limit: 1 }, { ...ports, now: () => T0 + 1 }), ["later.example.com"]);
+});
+
+// Regression (review 13-dns #8): the save was an unconditional upsert after slow DNS reads, so a
+// background re-check could overwrite the requirements a newer dns_verify had just saved.
+test("verify: a sweep whose binding changed during its DNS reads discards its stale observation", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const base = fakeAuthoritative({ zones: { "example.com": NS }, records: { "www.example.com|A": ["203.0.113.10"] } });
+  // The old (site) requirement's A query waits; the new (mail) requirements answer at once.
+  const resolver: AuthoritativeDnsPort = { queryNs: base.queryNs, query: async request => { if (request.type === "A") await gate; return base.query(request); } };
+  const bindings = memoryBindings([binding({ nextCheckAt: iso(T0 - 1) })]);
+  const ports = { ...portsFor(resolver, { bindings }), bindings, now: () => T0 };
+  const sweep = verifyDueDomainBindings({ limit: 10 }, ports);
+  await new Promise(resolve => setImmediate(resolve));
+  const explicit = await verifyDomainDns({ hostname: "www.example.com", requirements: [mailRequirement] }, ports);
+  assert.equal(explicit.binding.version, 2);
+  release();
+  assert.deepEqual(await sweep, [], "the stale sweep result is not saved and not reported as checked");
+  assert.deepEqual(bindings.rows.get("www.example.com")?.requirements, [mailRequirement], "the newer requirements stand");
+  assert.equal(bindings.rows.get("www.example.com")?.version, 2);
+  assert.deepEqual(bindings.refused.map(refused => refused.requirements), [[siteRequirement()]]);
+});
+
+test("verify: dns_verify recomputes from the newer binding after losing a race, and gives up after repeated losses", async () => {
+  const resolver = fakeAuthoritative({ zones: { "example.com": NS }, records: { "www.example.com|A": ["203.0.113.10"] } });
+  const store = memoryBindings([binding()]);
+  let interleave = 1;
+  const racing = {
+    ...store,
+    put: async (request: Parameters<typeof store.put>[0]) => {
+      // A concurrent writer saves just before this one, once.
+      if (interleave-- > 0) store.rows.set("www.example.com", binding({ attempt: 4, version: 2 }));
+      return store.put(request);
+    },
+  };
+  const ports = { ...portsFor(resolver, { bindings: racing }), bindings: racing, now: () => T0 };
+  const result = await verifyDomainDns({ hostname: "www.example.com" }, ports);
+  assert.equal(store.refused.length, 1);
+  assert.deepEqual([result.binding.version, result.binding.attempt], [3, 5], "the retry continued from the newer binding");
+
+  const losing = { ...store, put: async () => false };
+  const losingPorts = { ...portsFor(resolver, { bindings: losing }), bindings: losing, now: () => T0 };
+  await assert.rejects(verifyDomainDns({ hostname: "www.example.com" }, losingPorts), { name: "ToolInputError", message: new RegExp(`kept changing .*${VERIFY_WRITE_ATTEMPTS} attempts`) });
 });
 
 test("include mail: plan merges the provider's SPF into the existing one; verify saves the mail records with the binding", async () => {

@@ -36,14 +36,23 @@ export const mailRequirement: DnsPlanRequirement = {
   records: [{ type: "MX", name: "example.com", value: "mx.mailer.test", priority: 10 }, { type: "TXT", name: "example.com", value: "v=spf1 include:mailer.test ~all" }],
 };
 
-/** A Map-backed binding store recording each write. */
-export function memoryBindings(initial: DomainBinding[] = []): DomainBindingStore & { rows: Map<string, DomainBinding>; writes: DomainBinding[] } {
+/** A Map-backed binding store recording each write, with the SQL store's compare-and-swap semantics. */
+export function memoryBindings(initial: DomainBinding[] = []): DomainBindingStore & { rows: Map<string, DomainBinding>; writes: DomainBinding[]; refused: DomainBinding[] } {
   const rows = new Map(initial.map(binding => [binding.hostname, binding]));
   const writes: DomainBinding[] = [];
+  const refused: DomainBinding[] = [];
   return {
-    rows, writes,
+    rows, writes, refused,
     get: async ({ hostname }) => rows.get(hostname) ?? null,
-    put: async ({ binding }) => { rows.set(binding.hostname, binding); writes.push(binding); },
+    put: async ({ binding, expectedVersion }) => {
+      if ((rows.get(binding.hostname)?.version ?? null) !== expectedVersion) {
+        refused.push(binding);
+        return false;
+      }
+      rows.set(binding.hostname, binding);
+      writes.push(binding);
+      return true;
+    },
     listDue: async ({ now, limit }) => [...rows.values()].filter(binding => binding.nextCheckAt !== null && binding.nextCheckAt <= now).sort((a, b) => a.nextCheckAt!.localeCompare(b.nextCheckAt!)).slice(0, limit),
   };
 }
