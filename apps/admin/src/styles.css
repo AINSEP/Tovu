@@ -5455,6 +5455,11 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .import-export-card .card-title { margin: 0; }
 .import-export-card .card-lead { margin: 0; }
 .import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
+/* Git backup: the one Import & Export card with its own flow, so it takes the full row. */
+.import-export-card-wide { grid-column: 1 / -1; }
+.git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
+.git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.import-export-card .git-backup-actions .btn-secondary { margin-top: 0; }
 
 /* ---- Capability list ------------------------------------------------------------------------ */
 /* The "what works / what doesn't" rows. Shared by the Overview comparison and the Static Site tab
