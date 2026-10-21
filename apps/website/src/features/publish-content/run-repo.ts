@@ -135,7 +135,8 @@ export class InMemoryPublishContentRunRepo implements PublishContentRunRepoPort 
 
   async findById(input: { workspaceId: string; id: string }): Promise<PublishContentRunRecord | null> {
     const record = this.recordsById.get(input.id);
-    if (record?.workspaceId !== input.workspaceId) return null;
-    return record ? { ...record } : null;
+    // One guard answers both misses: an unknown id and a run saved under another workspace.
+    if (!record || record.workspaceId !== input.workspaceId) return null;
+    return { ...record };
   }
 }
