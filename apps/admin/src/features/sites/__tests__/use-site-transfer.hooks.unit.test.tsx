@@ -232,6 +232,18 @@ describe("useSiteExport", () => {
     expect(result.current.copiedId).toBe("share-1");
   });
 
+  it("copies nothing on a host with no navigator (SSR) when no clipboard is injected", async () => {
+    const port = createFakeSiteTransferPort();
+    vi.stubGlobal("navigator", undefined);
+    try {
+      const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+      await act(() => result.current.copyLink(share()));
+      expect(result.current.copiedId).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("is zip-only when the newest export has no link", async () => {
     const port = createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ url: null }), share({ shareId: "old" })] }) });
     const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });

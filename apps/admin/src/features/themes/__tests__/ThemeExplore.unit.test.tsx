@@ -1,5 +1,5 @@
 import { useThemeExplorePreview } from "../hooks/use-theme-explore-preview.hooks";
-import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
@@ -1506,6 +1506,24 @@ describe("toolbar and status states", () => {
     } finally {
       if (original) Object.defineProperty(window.navigator, "platform", original);
       else delete (window.navigator as { platform?: string }).platform;
+    }
+  });
+
+  it("names the Ctrl save shortcut on a host with no navigator (SSR), or one without a platform", () => {
+    vi.stubGlobal("navigator", undefined);
+    try {
+      renderExplore({ dirty: true });
+      expect(screen.getByTitle("Save (Ctrl+S)")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    cleanup();
+    vi.stubGlobal("navigator", {});
+    try {
+      renderExplore({ dirty: true });
+      expect(screen.getByTitle("Save (Ctrl+S)")).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 

@@ -58,9 +58,9 @@ export interface SiteExportController {
  */
 export function useSiteExport(
   { port, t }: { port: SiteTransferPort; t: Translate },
-  // A hook only ever runs in a browser (or jsdom), where `navigator` always exists; `clipboard` itself
-  // may still be absent (insecure context), which `copyLink` already handles.
-  { clipboard = navigator.clipboard }: { clipboard?: Pick<Clipboard, "writeText"> } = {},
+  // Guarded for SSR / non-browser hosts, where `navigator` may be absent entirely; `clipboard` itself
+  // may also be absent (insecure context). `copyLink` copies nothing in either case.
+  { clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard }: { clipboard?: Pick<Clipboard, "writeText"> } = {},
 ): SiteExportController {
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares], fetch: () => port.listShares() });
   const invalidate = useInvalidate();

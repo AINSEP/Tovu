@@ -118,12 +118,12 @@ export interface ThemeExploreProps {
  * Reads `navigator.platform` despite it being deprecated, because the replacement
  * (`navigator.userAgentData.platform`) is not in Safari or Firefox — the exact browsers where
  * getting this wrong is most likely. Wrong answer costs a slightly off tooltip, so the deprecated
- * property beats a feature-detection ladder. This only runs while rendering the Explore toolbar,
- * i.e. in a browser (or jsdom), where `navigator` and its string-typed `platform` always exist, so
- * no absence guard is needed.
+ * property with a guard beats a feature-detection ladder. Guarded for jsdom/SSR, where `navigator`
+ * may be absent entirely.
  */
 function isApplePlatform(): boolean {
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform);
+  if (typeof navigator === "undefined") return false;
+  return /mac|iphone|ipad|ipod/i.test(navigator.platform ?? "");
 }
 
 const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
