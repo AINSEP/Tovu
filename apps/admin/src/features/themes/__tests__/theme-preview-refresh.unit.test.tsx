@@ -9,7 +9,7 @@ import {
   subscribeThemePreviewRefresh,
 } from "../theme-preview-refresh";
 import { useThemePreviewRefresh } from "../hooks/use-theme-preview-refresh.hooks";
-import { ThemePreviewReloadButton } from "../ThemePreviewReloadButton";
+import { ThemePreviewReloadButton, WiredThemePreviewReloadButton } from "../ThemePreviewReloadButton";
 import { THEMES_DICT } from "../themes-i18n";
 afterEach(resetThemePreviewRefresh);
 
@@ -89,6 +89,26 @@ it("reload button has translated label and tooltip and signals a new refresh", (
   expect(button.querySelector("svg")?.getAttribute("stroke-width")).toBe("1.5");
   fireEvent.click(button);
   expect(calls).toBe(1);
+});
+
+it("wired reload button shows a failed reload as an alert and clears it when the next reload succeeds", async () => {
+  const outcomes: Array<() => Promise<void>> = [
+    () => Promise.reject(new Error("preview host unreachable")),
+    () => Promise.resolve(),
+  ];
+  render(<WiredThemePreviewReloadButton reloadPreviews={() => outcomes.shift()!()} />);
+  expect(screen.queryByRole("alert")).toBeNull();
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Reload preview" })); });
+  expect(screen.getByRole("alert").textContent).toBe("preview host unreachable");
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Reload preview" })); });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(outcomes).toHaveLength(0);
+});
+
+it("wired reload button names a non-Error reload failure generically", async () => {
+  render(<WiredThemePreviewReloadButton reloadPreviews={() => Promise.reject("nope")} />);
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Reload preview" })); });
+  expect(screen.getByRole("alert").textContent).toBe("preview reload failed");
 });
 
 it("all themes locales translate Reload preview with exact strings", () => {

@@ -86,7 +86,7 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
  */
 export function withDerivedTitle(conversation: AssistantConversation, message: ChatMessage): AssistantConversation {
   if (message.role !== "user" || conversation.title) return conversation;
-  const derived = deriveContentConversationTitle({ prompt: typeof message.content === "string" ? message.content : "", deriveFallback: deriveConversationTitle });
+  const derived = deriveContentConversationTitle({ prompt: message.content, deriveFallback: deriveConversationTitle });
   return derived ? { ...conversation, title: derived, titleSource: "fallback" } : conversation;
 }
 
