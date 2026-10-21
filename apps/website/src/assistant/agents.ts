@@ -62,6 +62,9 @@ const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
  * the Local CLI picker current. Swappable so tests never spawn real CLIs.
  */
 type AgentModelProber = typeof probeAgentModels;
+/** The agent-def registry an inventory projects; `AGENT_DEFS` unless a host/test injects one. A def
+ * may carry the Tovu-side `failureHints` bridge (see {@link AssistantAgentSummary}). */
+export type AssistantAgentDefs = readonly ((typeof AGENT_DEFS)[number] & Pick<AssistantAgentSummary, "failureHints">)[];
 let agentModelProber: AgentModelProber | null = null;
 
 /** Compatibility test wrapper: install a fake model prober (or `null` to restore the real one)
@@ -82,12 +85,12 @@ export function setAgentModelProberForTesting(prober: AgentModelProber | null): 
  * defs read-only metadata processes bounded by each def's timeout and the shared process queue. Space: O(d).
  * @overallScore 100
  */
-async function probeAssistantAgents({ force = false }: { force?: boolean } = {}, { modelProber = agentModelProber, runtime }: { modelProber?: AgentModelProber | null; runtime: NativeAgentRuntime }): Promise<DetectedAgent[]> {
+async function probeAssistantAgents({ force = false }: { force?: boolean } = {}, { modelProber = agentModelProber, runtime, defs = AGENT_DEFS }: { modelProber?: AgentModelProber | null; runtime: NativeAgentRuntime; defs?: AssistantAgentDefs }): Promise<DetectedAgent[]> {
   // The full detector owns version, capabilities, auth and models. Both HTTP inventories share
   // this result instead of launching a separate model-only sweep for the chat picker.
   if (!modelProber) return runtime.detectAgents({}, { force });
   const results: DetectedAgent[] = [];
-  for (const def of AGENT_DEFS.filter((candidate) => !UNSUPPORTED_AGENT_IDS.has(candidate.id))) {
+  for (const def of defs.filter((candidate) => !UNSUPPORTED_AGENT_IDS.has(candidate.id))) {
     const launch = runtime.resolveAgentLaunch({ def });
     const modelResult = launch.launchPath
       ? await modelProber({ def }, { force, state: runtime.state, env: runtime.hostEnv })
@@ -102,12 +105,12 @@ async function probeAssistantAgents({ force = false }: { force?: boolean } = {},
 
 /** The same projection serves cheap PATH-only snapshots and completed live discovery. */
 function projectAssistantAgent({ def, launch, modelResult }: {
-  def: (typeof AGENT_DEFS)[number];
+  def: AssistantAgentDefs[number];
   launch: { launchPath?: string; diagnostic?: string };
   modelResult: Awaited<ReturnType<AgentModelProber>>;
 }): AssistantAgentSummary {
   const available = Boolean(launch.launchPath);
-  const { failureHints } = def as typeof def & Pick<AssistantAgentSummary, "failureHints">;
+  const { failureHints } = def;
   const { models, source, catalog, defaultModelResolution } = modelResult;
   return {
     id: def.id,
@@ -134,15 +137,17 @@ function projectAssistantAgent({ def, launch, modelResult }: {
 }
 
 /** The runtime owns discovery; this host owns the shared snapshot consumed by both HTTP routes.
- * An injected detector supplies an isolated inventory for embedding hosts and route tests. */
+ * An injected detector supplies an isolated inventory for embedding hosts and route tests; injected
+ * `defs` (default: the runtime's own `AGENT_DEFS`) is the registry both the cheap PATH-only snapshot
+ * and the projection read from, so a host or test can supply a def shape Jini does not ship yet. */
 export function createAssistantDetectionCache(
-  { detector, runtime = createNativeAgentRuntime({ env: process.env }) }: { detector?: typeof detectAgents; runtime?: NativeAgentRuntime },
+  { detector, runtime = createNativeAgentRuntime({ env: process.env }), defs = AGENT_DEFS }: { detector?: typeof detectAgents; runtime?: NativeAgentRuntime; defs?: AssistantAgentDefs },
   _options: Record<string, never> = {},
 ) {
   const modelProber = agentModelProber;
-  const detect: typeof detectAgents = detector ?? ((_input, options = {}) => probeAssistantAgents({ ...(options.force !== undefined ? { force: options.force } : {}) }, { modelProber, runtime }));
+  const detect: typeof detectAgents = detector ?? ((_input, options = {}) => probeAssistantAgents({ ...(options.force !== undefined ? { force: options.force } : {}) }, { modelProber, runtime, defs }));
   return createCliProbeCache({
-    initial: (): DetectedAgent[] => AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map((def) => {
+    initial: (): DetectedAgent[] => defs.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map((def) => {
       const launch = runtime.resolveAgentLaunch({ def });
       return { ...def, available: Boolean(launch.launchPath), models: def.fallbackModels.filter(model => model.id !== "default"),
         modelsSource: "fallback", ...(launch.selectedPath ? { path: launch.selectedPath } : {}) };
@@ -161,10 +166,10 @@ export function createAssistantDetectionCache(
  * @example const inventory = createAssistantAgentInventory({ runtime });
  */
 export function createAssistantAgentInventory(
-  { runtime, detector }: { runtime: NativeAgentRuntime; detector?: typeof detectAgents },
+  { runtime, detector, defs = AGENT_DEFS }: { runtime: NativeAgentRuntime; detector?: typeof detectAgents; defs?: AssistantAgentDefs },
   _optional: Record<string, never> = {},
 ): AssistantAgentInventory {
-  const cachedAgents = createAssistantDetectionCache({ runtime, ...(detector ? { detector } : {}) });
+  const cachedAgents = createAssistantDetectionCache({ runtime, defs, ...(detector ? { detector } : {}) });
   let projectedSource: Promise<DetectedAgent[]> | undefined;
   let projectedPending = false;
   let projectedAgents: Promise<AssistantAgentSummary[]> | undefined;
@@ -185,7 +190,7 @@ export function createAssistantAgentInventory(
       projectedPending = discoveryPending;
       projectedSource = source;
       projectedAgents = source.then(agents => agents.map(agent => {
-        const registered = AGENT_DEFS.find(candidate => candidate.id === agent.id)!;
+        const registered = defs.find(candidate => candidate.id === agent.id)!;
         const def = { ...registered, ...(agent.reasoningOptions ? { reasoningOptions: agent.reasoningOptions } : {}) };
         return { ...projectAssistantAgent({ def, launch: { launchPath: agent.available ? agent.path : undefined }, modelResult: {
           models: agent.models, source: agent.modelsSource,
