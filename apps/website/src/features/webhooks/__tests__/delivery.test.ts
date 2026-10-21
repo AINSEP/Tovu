@@ -742,7 +742,7 @@ test("the HTTP adapter forwards the exact request (signed body bytes intact) and
 test("the HTTP adapter fails closed on a per-request redirect control, without dispatching", async () => {
   const http = new RecordingHttpClient();
   const adapted = adaptWebhookHttpClient({ httpClient: http });
-  const request = { method: "POST" as const, url: "https://example.com/hooks", headers: {}, body: "{}" };
+  const request = { method: "POST" as const, url: "https://example.com/hooks", headers: {}, timeoutMs: 5000, body: "{}" };
 
   assert.throws(() => adapted.send({ request }, { redirect: "follow" }), /does not support per-request redirect controls/);
   assert.equal(http.calls.length, 0);
