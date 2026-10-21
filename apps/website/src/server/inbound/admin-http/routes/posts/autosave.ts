@@ -148,8 +148,11 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     try {
       parsed = parseAutosaveBody(req.body);
     } catch (error) {
-      if (!(error instanceof PostValidationError)) throw error;
-      res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
+      // `parseAutosaveBody`'s only thrower is `normalizePostAuthor`'s `PostValidationError` (an
+      // over-long author; a non-string one already returned `null` above it) -- there is no other
+      // throw site to re-raise, and a re-raise from this async handler would only have been an
+      // unhandled rejection under Express 4 anyway.
+      res.status(400).json({ error: (error as PostValidationError).message, code: "VALIDATION_ERROR" });
       return;
     }
     if (!parsed) {

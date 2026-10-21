@@ -39,8 +39,18 @@ function statusForCode(code: string): number {
   return STATUS_BY_RECOVERY_ERROR_CODE[code] ?? 500;
 }
 
-function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
+/** Exported for its own unit test: `RecoveryErrorPayload.message` is optional by contract, but every
+ *  producer reachable from these three routes today (`toRecoveryResult`'s classifier and the
+ *  orchestrator's own short-circuits) always sets one -- so the `?? error.code` fallback is only
+ *  observable by handing this a contract-valid, message-less payload directly. */
+export function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
   res.status(statusForCode(error.code)).json({ error: error.message ?? error.code, code: error.code });
+}
+
+/** The one 500 shape all three ceremony routes share for anything thrown outside the gateway's own
+ *  `Result` wrapping (a missing session principal, a throwing `dbOps`/`authorize` port). */
+function sendInternalError(res: import("express").Response, err: unknown): void {
+  res.status(500).json({ error: err instanceof Error ? err.message : "internal error", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps): void {
@@ -93,7 +103,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : "internal error", code: "INTERNAL_ERROR" });
+      sendInternalError(res, err);
     }
   });
 
@@ -139,7 +149,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : "internal error", code: "INTERNAL_ERROR" });
+      sendInternalError(res, err);
     }
   });
 
@@ -228,7 +238,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : "internal error", code: "INTERNAL_ERROR" });
+      sendInternalError(res, err);
     }
   });
 }

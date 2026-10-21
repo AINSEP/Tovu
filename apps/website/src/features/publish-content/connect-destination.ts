@@ -136,7 +136,7 @@ export async function connectAndRecordDestination(
 export async function disconnectAndForgetDestination(
   deps: DisconnectAndForgetDeps,
   input: { workspaceId: string }
-): Promise<{ site: PublishContentPeerSummary | null; changed: boolean; target: { nextStep: string } | null }> {
+): Promise<{ site: PublishContentPeerSummary | null; changed: boolean; target: GrantReverseResult["target"] }> {
   const rows = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const row = selectConnectedDestination(rows);
 

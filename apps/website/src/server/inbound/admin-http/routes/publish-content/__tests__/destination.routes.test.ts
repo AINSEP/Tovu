@@ -13,7 +13,7 @@ import {
 } from "#src/features/publish-content/type-registry";
 import type { PublishTrustProvisioningPort, ProvisioningWrite } from "#src/features/publish-trust/provisioning";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { PublishContentRouteDeps } from "../deps.js";
 import { registerPublishContentDestinationRoutes } from "../destination.js";
 
@@ -37,6 +37,7 @@ const CLOCK = { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () 
 
 interface Harness {
   readonly url: string;
+  readonly app: express.Express;
   readonly repo: InMemoryPublishContentPeerRepo;
   readonly httpCalls: string[];
   readonly provisioningCalls: string[];
@@ -107,7 +108,7 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
   registerPublishContentDestinationRoutes(app, deps, { provisioning, findCandidate: async () => candidate });
 
   const url = await startTestServer(app, t);
-  return { url, repo, httpCalls, provisioningCalls, authorizeCalls };
+  return { url, app, repo, httpCalls, provisioningCalls, authorizeCalls };
 }
 
 /** Pins the contributor registry to exactly `entityTypes` for one test, then restores whatever was
@@ -299,4 +300,59 @@ test("POST disconnect: a deploy config that cannot be written is 500 PUBLISH_TRU
   assert.equal(res.body.code, "PUBLISH_TRUST_NOT_SAVED");
   const rows = await h.repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
   assert.deepEqual(rows.map((row) => row.baseUrl), ["https://live.example"]);
+});
+
+test("GET destination: a deployed-site candidate is offered by its host name, and a candidate that is not a URL is offered verbatim", async (t) => {
+  const named = await boot(t, { candidate: "https://live.example:8443/some/path" });
+  const res = await fetch(`${named.url}${BASE}`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    connected: false, site: null, candidateUrl: "https://live.example:8443/some/path", message: "Publish to live.example:8443?", nextStep: null,
+  });
+
+  const raw = await boot(t, { candidate: "not a url" });
+  const rawRes = await fetch(`${raw.url}${BASE}`);
+  assert.equal(((await rawRes.json()) as { message: string }).message, "Publish to not a url?");
+});
+
+test("GET destination: an unexpected failure reading the peer list is a generic 500 INTERNAL_ERROR", async (t) => {
+  const h = await boot(t);
+  h.repo.listByWorkspace = async () => {
+    throw new Error("sqlite: no such table publish_content_peers");
+  };
+  const res = await fetch(`${h.url}${BASE}`);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("POST connect: when recording the peer fails after the grant was written, the grant is reversed and the failure is a generic 500", async (t) => {
+  withContributors(t, ["post"]);
+  const h = await boot(t);
+  h.repo.insert = async () => {
+    throw new Error("disk full");
+  };
+  const res = await post(`${h.url}${BASE}/connect`, { siteUrl: "https://live.example" });
+  assert.equal(res.status, 500);
+  assert.deepEqual(res.body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual(h.provisioningCalls, ["connect remote-workspace", "disconnect"], "the written grant must be compensated");
+});
+
+/** Express guarantees a matched `:workspaceId` and body-parser always assigns `req.body`, so these
+ *  fallbacks are only reachable with a hand-built `req` (extractRouteHandler's own doc). */
+test("direct invoke: a missing :workspaceId 404s before authorize; a body-less connect falls back to the (absent) candidate and is 400 NO_DESTINATION", async (t) => {
+  withContributors(t, ["post"]);
+  const h = await boot(t);
+  const route = `/api/admin/v1/workspaces/:workspaceId/publish-content/destination`;
+
+  const noWorkspace = createCapturingResponse();
+  await extractRouteHandler(h.app, "get", route)({ params: {} }, noWorkspace.res);
+  assert.deepEqual(noWorkspace.capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(h.authorizeCalls, []);
+
+  const noBody = createCapturingResponse();
+  noBody.res.locals.principal = { id: "operator-1" };
+  await extractRouteHandler(h.app, "post", `${route}/connect`)({ params: { workspaceId: WORKSPACE_ID } }, noBody.res);
+  assert.equal(noBody.capture.statusCode, 400);
+  assert.equal((noBody.capture.jsonBody as { code: string }).code, "NO_DESTINATION");
+  assert.deepEqual(h.httpCalls, []);
 });

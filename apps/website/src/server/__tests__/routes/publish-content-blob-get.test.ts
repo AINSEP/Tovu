@@ -10,6 +10,9 @@ import path from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
+import { computeBlobStorageKey } from "@jini-ai/cms/media";
+import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for `GET .../publish-content/blobs/:sha` — the blob DOWNLOAD endpoint
@@ -265,4 +268,64 @@ test("GET .../blobs/:sha 404s BLOB_NOT_FOUND when the indexed file changed on di
   const raw = await res.text();
   assert.equal(res.status, 404, raw);
   assert.equal((JSON.parse(raw) as { code: string }).code, "BLOB_NOT_FOUND");
+});
+
+test("GET .../blobs/:sha 404s BLOB_NOT_FOUND (no-store) for a blob owned only by a Library document, even though the bytes exist", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const owner = await loginAsOwner(baseUrl);
+  const sha = await putBlob(baseUrl, owner, Buffer.from("a private document's bytes"));
+  await deps.assetBlobRepo.save({
+    id: "doc-blob-1",
+    workspaceId: WORKSPACE,
+    sha256: sha,
+    storageKey: computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha }),
+    createdByPrincipal: "admin",
+    createdAt: deps.clock.nowIso(),
+    status: "active",
+    documentOwned: true,
+  });
+
+  const reader = await loginWithPermissions(deps, baseUrl, { username: "doc-reader", permissions: ["publish_content.read"] });
+  const res = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
+  assert.equal(res.status, 404);
+  assert.equal(res.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await res.json(), { error: "blob was not found", code: "BLOB_NOT_FOUND" });
+});
+
+test("GET .../blobs/:sha refuses (413) to ship a stored blob larger than the transfer limit, and 500s generically when the store fails", async (t) => {
+  const { deps, server, baseUrl } = await startServer();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const reader = await loginWithPermissions(deps, baseUrl, { username: "big-reader", permissions: ["publish_content.read"] });
+  const sha = sha256Of(Buffer.from("written by some other means"));
+
+  deps.blobStore.exists = async () => true;
+  deps.blobStore.get = async () => new Uint8Array(TOVU_MAX_UPLOAD_BYTES + 1);
+  const big = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
+  assert.equal(big.status, 413);
+  assert.deepEqual(await big.json(), { error: `blob exceeds the ${TOVU_MAX_UPLOAD_BYTES}-byte transfer limit`, code: "PAYLOAD_TOO_LARGE" });
+
+  deps.blobStore.exists = async () => {
+    throw new Error("object store unreachable at s3://private-bucket");
+  };
+  const failed = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: "internal error" });
+});
+
+/** Express guarantees matched `:workspaceId`/`:sha` segments, so these `?? ""` fallbacks are only
+ *  reachable with a hand-built `req` (extractRouteHandler's own doc). */
+test("GET .../blobs/:sha (direct invoke): a missing :workspaceId 404s; a missing :sha is the malformed-sha 400", async () => {
+  const deps = createRouteDeps();
+  const handler = extractRouteHandler(createApp(deps), "get", "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha");
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {} }, noWorkspace.res);
+  assert.equal(noWorkspace.capture.statusCode, 404);
+  assert.deepEqual(noWorkspace.capture.jsonBody, { error: "workspace was not found" });
+
+  const noSha = createCapturingResponse();
+  await handler({ params: { workspaceId: WORKSPACE } }, noSha.res);
+  assert.equal(noSha.capture.statusCode, 400);
+  assert.deepEqual(noSha.capture.jsonBody, { error: "sha must be a lowercase 64-character hex sha256 digest" });
 });

@@ -4,11 +4,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
+import { registerAdminRecoveryRestoreRoutes, sendRecoveryError } from "../../inbound/admin-http/routes/recovery/restore.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
 
@@ -404,4 +404,128 @@ test("instance-scope fix (internal audit, 2026-08-12): a principal holding backu
   const executeBody = (await executeRes.json()) as { code: string; details: { permission: string } };
   assert.equal(executeBody.code, "NOT_AUTHORIZED");
   assert.equal(executeBody.details.permission, "backup.restore");
+});
+
+async function postJson(baseUrl: string, cookie: string, step: string, body: unknown): Promise<Response> {
+  return fetch(`${baseUrl}/api/admin/v1/recovery/restore/${step}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify(body),
+  });
+}
+
+/** The seeded `admin` owner's real principal record — what `requireAdminSession` would have put on
+ *  `res.locals` — for the direct-handler tests below. */
+async function seededOwnerPrincipal(deps: RouteDeps): Promise<unknown> {
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  return ownerPrincipal;
+}
+
+test("recovery restore: plan/confirm/execute each reject a missing or non-string required field with 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const plan = await postJson(baseUrl, cookie, "plan", { restorePointId: 7 });
+  assert.equal(plan.status, 400);
+  assert.deepEqual(await plan.json(), { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
+
+  const confirm = await postJson(baseUrl, cookie, "confirm", { planId: "p-1" });
+  assert.equal(confirm.status, 400);
+  assert.deepEqual(await confirm.json(), { error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
+
+  const confirmNoId = await postJson(baseUrl, cookie, "confirm", { planHash: "h-1" });
+  assert.equal(confirmNoId.status, 400);
+
+  const execute = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok" });
+  assert.equal(execute.status, 400);
+  assert.deepEqual(await execute.json(), { error: "'confirmationToken' and 'restorePointId' (strings) are required", code: "VALIDATION_ERROR" });
+
+  const executeNoToken = await postJson(baseUrl, cookie, "execute", { restorePointId: "rp-1" });
+  assert.equal(executeNoToken.status, 400);
+});
+
+/** Real `body-parser` always assigns `req.body` (as `{}` at worst), so each route's `req.body?.`/
+ *  `req.body ?? {}` fallback is only reachable by calling the registered handler directly with a
+ *  body-less `req` (extractRouteHandler's own doc, `helpers/http-test-server.ts`). */
+test("recovery restore: a body-less request (no req.body at all) is a 400 VALIDATION_ERROR on every step, never a TypeError 500", async () => {
+  const { app, deps } = buildTestApp();
+  const principal = await seededOwnerPrincipal(deps);
+
+  for (const step of ["plan", "confirm", "execute"] as const) {
+    const handler = extractRouteHandler(app, "post", `/api/admin/v1/recovery/restore/${step}`);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = principal;
+    await handler({}, res);
+    assert.equal(capture.statusCode, 400, step);
+    assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR", step);
+  }
+});
+
+test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 INTERNAL_ERROR (its message, or a generic one for a non-Error)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const restorePointId = await seedRestorePoint(deps);
+
+  deps.dbOps.getCapabilities = async () => {
+    throw new Error("capabilities probe failed");
+  };
+  const errorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
+  assert.equal(errorRes.status, 500);
+  assert.deepEqual(await errorRes.json(), { error: "capabilities probe failed", code: "INTERNAL_ERROR" });
+
+  deps.dbOps.getCapabilities = async () => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw "not-an-error";
+  };
+  const nonErrorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
+  assert.equal(nonErrorRes.status, 500);
+  assert.deepEqual(await nonErrorRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("recovery restore: a gateway error whose code has no mapped status (INTERNAL_ERROR from a throwing restore-points repo) is a 500", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.restorePointsRepo.list = async () => {
+    throw new Error("restore-points ledger unreadable");
+  };
+
+  const res = await postJson(baseUrl, cookie, "plan", { restorePointId: "rp-1" });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "restore-points ledger unreadable", code: "INTERNAL_ERROR" });
+});
+
+test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR naming the miswiring", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/recovery/restore/confirm");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ body: { planId: "p-1", planHash: "h-1", disclosureAcknowledged: true } }, res);
+
+  assert.equal(capture.statusCode, 500);
+  const body = capture.jsonBody as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.match(body.error, /no principal on res\.locals/);
+});
+
+test("recovery restore: execute surfaces a throwing instance-authorization port as 500 INTERNAL_ERROR before any lock is taken", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.gatedMutations.gatewayDeps.authorizeInstance = async () => {
+    throw new Error("instance authorizer offline");
+  };
+
+  const res = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok", restorePointId: "rp-1" });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "instance authorizer offline", code: "INTERNAL_ERROR" });
+});
+
+test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {
+  const { res, capture } = createCapturingResponse();
+  sendRecoveryError(res, { code: "PLAN_STALE" });
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, { error: "PLAN_STALE", code: "PLAN_STALE" });
 });

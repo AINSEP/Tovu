@@ -565,3 +565,27 @@ test("postpolish: REST update derives a title slug, validates cover choice, and 
   assert.equal(loaded.post.everPublished, true);
   assert.equal(loaded.post.slug, "post-polish-rest");
 });
+
+test("PUT posts/:postId: when the row was invisible to captureInverse but present for the update (a create racing in between), a failed change-set record cannot compensate and surfaces as a 500", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { id } = await createPost(baseUrl, cookie, { title: "Racing Update", slug: "racing-update" });
+
+  // Addressed by SLUG, so the route's up-front resolve reads `findBySlug`; the first `findById` is
+  // therefore captureInverse's own read, which this hides, and the next is updatePost's.
+  const realFindById = deps.postRepo.findById.bind(deps.postRepo);
+  let findByIdCalls = 0;
+  deps.postRepo.findById = async (input) => (++findByIdCalls === 1 ? null : realFindById(input));
+  deps.changeSets.insert = async () => {
+    throw new Error("simulated change-set persistence failure");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/racing-update`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Uncompensated edit", slug: "racing-update", bodyJson: { type: "doc", content: [] }, status: "draft" }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+  const stored = await realFindById({ workspaceId: WS, id });
+  assert.equal(stored?.title, "Uncompensated edit", "with no captured prior row, rollback must not fabricate a restore");
+});

@@ -270,7 +270,9 @@ export function registerPublishContentDestinationRoutes(
         message: site ? `This computer no longer publishes to ${site.label}.` : "This computer was not publishing anywhere.",
         // Takes effect on the next deploy — the destination-side deny list is the immediate one,
         // and it is a separate action on the SITE, not on this computer.
-        nextStep: removed.changed ? (removed.target?.nextStep ?? null) : null,
+        // `target` is always present: `disconnectAndForgetDestination` returns the reversal's own
+        // (`GrantReverseResult.target`, never null), so only `changed` decides whether to show it.
+        nextStep: removed.changed ? removed.target.nextStep : null,
       };
       res.json(view);
     } catch (err) {
