@@ -339,10 +339,10 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
   await ensureAgentDaemonPortResolved();
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
-  // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher and the
-  // automatic form pull. All stop in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger);
+  // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the
+  // automatic form pull and the site-search maintenance loop. All stop in `shutdown` below.
+  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
+  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, siteSearchMaintenance);
   owned.bootWork.push(...bootWork);
 
   await new Promise<void>((resolve, reject) => {
@@ -448,7 +448,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }, {
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger,
+          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, siteSearchMaintenance,
         ] }),
         // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
         stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,

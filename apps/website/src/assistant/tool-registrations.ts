@@ -117,6 +117,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
+  import("../server/runtime/composition/site-search-tools.js").SiteSearchToolHostDeps &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
   { getEffective: typeof getEffectiveSetting } &

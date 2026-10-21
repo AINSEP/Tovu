@@ -315,7 +315,11 @@
     "consent_update_settings": "edit change cookie consent banner text appearance position css rules draft",
     "consent_publish_settings": "publish enable disable cookie consent banner draft privacy policy",
     "theme_get_preview_switcher": "theme preview switcher banner demo installed choices read settings",
-    "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings"
+    "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings",
+    "search_query": "search find site content posts pages full text query results lookup",
+    "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
+    "search_reindex": "search reindex rebuild refresh index full backfill",
+    "search_set_provider": "search provider switch change backend meilisearch builtin engine"
   },
   "queries": {
     "media_replace_file": [
@@ -1859,6 +1863,16 @@
     ],
     "consent_publish_settings": [
       "Publish the reviewed cookie consent draft."
+    ],
+    "search_query": [
+      "Search my site for posts about pricing.",
+      "Which pages mention our refund policy?",
+      "Find published content matching a phrase."
+    ],
+    "search_status": [
+      "Is site search working?",
+      "Which search provider does my site use?",
+      "How many documents are indexed?"
     ]
   },
   "approvals": {
@@ -3309,6 +3323,22 @@
     "theme_update_preview_switcher": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "search_query": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "search_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "search_reindex": {
+      "class": "publish",
+      "confirmation": "plan"
+    },
+    "search_set_provider": {
+      "class": "publish",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3357,7 +3387,9 @@
     "widgets_trash_instance",
     "plugin_source_delete",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "search_reindex",
+    "search_set_provider"
   ],
   "secretForms": {
     "credential_save": {
@@ -3443,7 +3475,9 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "search_reindex",
+    "search_set_provider"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3496,7 +3530,9 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "search_reindex",
+    "search_set_provider"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

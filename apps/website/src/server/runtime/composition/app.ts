@@ -340,6 +340,8 @@ import { createRedirectsModule } from "./modules/redirects.js";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
 import { createContentTypesModule } from "./modules/content-types.js";
 import { createSeoModule } from "./modules/seo.js";
+import { subscribeSiteSearchIndexer } from "./modules/site-search.js";
+import { registerSiteSearchRoute } from "#src/server/inbound/public-http/routes/site/search";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { createAssistantModule } from "./modules/assistant.js";
 import { createSiteAssistantModule } from "./modules/site-assistant.js";
@@ -1752,6 +1754,11 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   void routeDeps.bus.subscribe({ eventName: "entry.updated", handler: seoEventSubscriptions.onEntryUpdated });
   void routeDeps.bus.subscribe({ eventName: "entry.unpublished", handler: seoEventSubscriptions.onEntryUnpublished });
 
+  // Site search (lots S3/S4): the indexer re-loads each post/page an entry event names and writes the
+  // current truth (document or tombstone) to every current index. Errors propagate so the outbox
+  // redelivers. A composition without `siteSearch` subscribes nothing (`modules/site-search.ts`).
+  subscribeSiteSearchIndexer({ bus: routeDeps.bus, runtime: routeDeps.siteSearch });
+
   const newsletterAdminDeps = routeDeps;
   // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
@@ -2260,6 +2267,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
   mountRoutes(app, createSeoModule(routeDeps));
+  // `GET /api/search` (site search, lot S4): public, audiences from the visitor's own member cookie
+  // only; answers 503 `not_configured` in a composition without `siteSearch`.
+  registerSiteSearchRoute(app, routeDeps);
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
   // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.

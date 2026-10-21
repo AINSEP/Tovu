@@ -1,0 +1,31 @@
+import type { ToolMetadataById } from '@jini-ai/core';
+import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+
+/** site-search registration declarations; shared placement rationale is in ./index.ts.
+ * The two writes are `plan`: their own handler asks the human (`server/runtime/composition/site-search-tools.ts`),
+ * so the session gate must not ask a second time, and the click must be admitted on the MCP-UI route.
+ * `publish`: a reindex or switch writes every public document to a provider that may be a hosted vendor. */
+export const toolMetadata = {
+  search_query: {
+    search: {
+      keywords: "search find site content posts pages full text query results lookup",
+      queries: ["Search my site for posts about pricing.", "Which pages mention our refund policy?", "Find published content matching a phrase."],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  search_status: {
+    search: {
+      keywords: "search index status health provider indexed pending failed backend builtin meilisearch",
+      queries: ["Is site search working?", "Which search provider does my site use?", "How many documents are indexed?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  search_reindex: {
+    search: { keywords: "search reindex rebuild refresh index full backfill" },
+    approval: { class: 'publish', confirmation: 'plan' },
+  },
+  search_set_provider: {
+    search: { keywords: "search provider switch change backend meilisearch builtin engine" },
+    approval: { class: 'publish', confirmation: 'plan' },
+  },
+} as const satisfies ToolMetadataById<ToolApprovalPolicy>;

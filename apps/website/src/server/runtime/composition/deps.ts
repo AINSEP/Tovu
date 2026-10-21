@@ -160,7 +160,10 @@ import {
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
 } from "#src/features/newsletter/repo.sqlite";
-import { MembersSubscriberDirectory } from "#src/features/members/index";
+import { DefaultMemberAccessResolver, MembersSubscriberDirectory } from "#src/features/members/index";
+import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
+import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
+import { bindSiteSearchPorts, createSiteSearchRuntime } from "./modules/site-search.js";
 import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
@@ -1357,6 +1360,8 @@ async function composeSiteRouteDeps(
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
+    .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
@@ -2710,6 +2715,23 @@ async function composeSiteRouteDeps(
       kit: createDeployHostKit({ observability }),
     }),
   });
+
+  // Site search (lots S4-S6): registry, query service and indexer, built once per composition so the
+  // public route, the bus subscription (`app.ts`), the serving loop (`serving-app.ts`) and the
+  // assistant's search tools share one registry. See `modules/site-search.ts`'s header for the vendor
+  // credential labels (`Tovu Search — <Provider label>`), index names and the empty built-in slot.
+  // Vendor calls go through the shared single-hop public-HTTPS policy, like hosted mail adapters.
+  routeDeps.siteSearch = createSiteSearchRuntime(bindSiteSearchPorts({
+    workspaceId, kernel, now: clock.nowMs, settingsRepo,
+    settingsWriteDeps: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
+    keyring: siteAssistantSecretKeyring,
+    resolveCredentialByLabel: (input) => resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, input),
+    resolveMemberContext: (input) => new DefaultMemberAccessResolver({
+      sessions: routeDeps.memberSessionRepo, subscriptions: routeDeps.memberSubscriptionRepo, tiers: routeDeps.memberTierRepo,
+    }).resolveContext(input),
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    loadContributions: agentPluginLifecycle.loadPluginContributions,
+  }), { storage: kernel, settingsReady: siteTitleReady });
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
