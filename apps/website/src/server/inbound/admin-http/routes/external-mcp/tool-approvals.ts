@@ -35,8 +35,8 @@ export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegist
       const removed =
         (await deps.externalMcpToolApprovalRepo?.delete({
           workspaceId: deps.workspaceId,
-          serverId: String(req.params.serverId ?? ""),
-          toolName: String(req.params.toolName ?? ""),
+          serverId: String(req.params.serverId),
+          toolName: String(req.params.toolName),
         })) ?? false;
       if (!removed) {
         res.status(404).json({ error: "no Always allow is saved for that tool", code: "NOT_FOUND" });
