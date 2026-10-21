@@ -8,6 +8,7 @@ import { MAX_REVOCATIONS } from "#src/features/publish-trust/revocations";
 import { sql } from "kysely";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
+import type { ContentKernel } from "../../content-kernel.js";
 
 /** @file The publish-trust deny store's one Kysely body on SQLite and PGlite (storage plan §4). */
 
@@ -125,5 +126,45 @@ test("a refused restore reports a write error and preserves the disconnected com
     await kernel.execute(sql`DROP TRIGGER refuse_restore`);
     assert.deepEqual(await store.restore({ sourceInstallationId: "keep-disconnected" }), { ok: true, revocations: [], changed: true });
     assert.deepEqual(await store.list(), { ok: true, revocations: [] });
+  } finally { await kernel.close(); }
+});
+
+/** The real kernel, except that `run` calls numbered in `failRuns` reject with a non-Error value. */
+function kernelThrowingNonErrors({ kernel, failRuns }: { kernel: ContentKernel; failRuns: ReadonlySet<number> }): ContentKernel {
+  let runs = 0;
+  return new Proxy(kernel, {
+    get(target, property, receiver) {
+      if (property !== "run") return Reflect.get(target, property, receiver);
+      return (work: Parameters<ContentKernel["run"]>[0]) => {
+        runs += 1;
+        // A driver may reject with a bare string; the store must still produce a readable reason.
+        return failRuns.has(runs) ? Promise.reject("driver gave up") : target.run(work);
+      };
+    },
+  });
+}
+
+test("a driver rejecting with a non-Error value is reported as an unknown error at boot, on read and on write", async () => {
+  const kernel = openMemorySqliteKernel<ContentDatabase>();
+  try {
+    await kernel.execute(sql`CREATE TABLE publish_trust_revocations (source_installation_id text PRIMARY KEY, revoked_at text NOT NULL, note text)`);
+    await kernel.execute(sql`INSERT INTO publish_trust_revocations VALUES ('keep-disconnected', '2026-09-01T00:00:00.000Z', null)`);
+    const always = kernelThrowingNonErrors({ kernel, failRuns: new Set([1, 2]) });
+    await assert.rejects(publishTrustRevocationStoreFor(always), { message: "publish trust revocation store is unavailable at boot: unknown error" });
+    assert.deepEqual(await new SqlPublishTrustRevocationStore(always).list(), {
+      ok: false, reason: "the list of disconnected computers could not be read: unknown error",
+    });
+
+    const failedInsert = new SqlPublishTrustRevocationStore(kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }));
+    assert.deepEqual(await failedInsert.revoke({ sourceInstallationId: "new", nowIso: "2026-09-02T00:00:00.000Z" }), {
+      ok: false, reason: "the disconnected-computer list could not be updated: unknown error",
+    });
+    const failedDelete = new SqlPublishTrustRevocationStore(kernelThrowingNonErrors({ kernel, failRuns: new Set([2]) }));
+    assert.deepEqual(await failedDelete.restore({ sourceInstallationId: "keep-disconnected" }), {
+      ok: false, reason: "the disconnected-computer list could not be updated: unknown error",
+    });
+    assert.deepEqual(await new SqlPublishTrustRevocationStore(kernel).list(), {
+      ok: true, revocations: [{ sourceInstallationId: "keep-disconnected", revokedAt: "2026-09-01T00:00:00.000Z", note: null }],
+    });
   } finally { await kernel.close(); }
 });

@@ -39,3 +39,30 @@ test("audit storage stays closed before installation and persists source and des
     label: "table:p_widgets", count: 2, lastReason: "Emergency second fix", lastAt: "2026-10-04T01:00:00.000Z",
   }]);
 });
+
+test("gaps rank labels by how often successful or undone source events hit them, then alphabetically", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec(`CREATE TABLE publish_backstop_log (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, direction TEXT NOT NULL,
+    actor_id TEXT NOT NULL, destination TEXT NOT NULL, reason TEXT NOT NULL, at TEXT NOT NULL,
+    items_json TEXT NOT NULL, gap_labels_json TEXT NOT NULL, result TEXT NOT NULL,
+    run_id TEXT, details_json TEXT NOT NULL, inverses_json TEXT NOT NULL
+  )`);
+  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel(db) });
+  const base: BackstopAuditRecord = {
+    id: "", workspaceId: "ws", direction: "source", actorId: "admin", destination: "https://live.example", reason: "",
+    at: "", items: [], gapLabels: [], result: "success", runId: null, details: {}, inverses: [],
+  };
+  const events: Array<Pick<BackstopAuditRecord, "id" | "at" | "gapLabels" | "result" | "reason">> = [
+    { id: "e1", at: "2026-10-04T00:00:00.000Z", gapLabels: ["table:zeta", "table:beta"], result: "success", reason: "first" },
+    { id: "e2", at: "2026-10-04T01:00:00.000Z", gapLabels: ["table:zeta", "table:alpha"], result: "undone", reason: "second" },
+    { id: "e3", at: "2026-10-04T02:00:00.000Z", gapLabels: ["table:gamma"], result: "failure", reason: "ignored failure" },
+  ];
+  for (const event of events) await audit.save({ record: { ...base, ...event } });
+  assert.deepEqual(await audit.gaps({ workspaceId: "ws" }), [
+    { label: "table:zeta", count: 2, lastReason: "second", lastAt: "2026-10-04T01:00:00.000Z" },
+    { label: "table:alpha", count: 1, lastReason: "second", lastAt: "2026-10-04T01:00:00.000Z" },
+    { label: "table:beta", count: 1, lastReason: "first", lastAt: "2026-10-04T00:00:00.000Z" },
+  ]);
+});

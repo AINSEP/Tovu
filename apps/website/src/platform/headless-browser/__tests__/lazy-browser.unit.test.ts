@@ -3,7 +3,7 @@ import test from "node:test";
 
 import sharp from "sharp";
 
-import { createLazyBrowser, encodeJpeg, type LazyBrowserTimers } from "../lazy-browser.js";
+import { createLazyBrowser, encodeJpeg, importPlaywrightChromium, type LazyBrowserTimers } from "../lazy-browser.js";
 
 /**
  * @file The shared headless-capture core: one lazily launched browser, reused, closed on demand or
@@ -95,4 +95,17 @@ test("encodeJpeg honors an explicit quality instead of its default", async () =>
   assert.deepEqual([encoded.width, encoded.height], [32, 20]);
   assert.deepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 35 }).toBuffer());
   assert.notDeepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 72 }).toBuffer());
+});
+
+test("importPlaywrightChromium resolves the host's Playwright adapter, which launches the native chromium", async t => {
+  const launches: unknown[] = [];
+  const closed: string[] = [];
+  t.mock.module("playwright", { namedExports: { chromium: {
+    launch: async (options: unknown) => { launches.push(options); return { newContext: async () => ({}), close: async () => { closed.push("browser"); } }; },
+  } } });
+  const chromium = await importPlaywrightChromium();
+  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] }) as { close(): Promise<void> };
+  await browser.close();
+  assert.deepEqual(launches, [{ headless: true, args: ["--no-sandbox"] }]);
+  assert.deepEqual(closed, ["browser"]);
 });
