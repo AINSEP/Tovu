@@ -191,3 +191,22 @@ test("duplicate: a missing source parameter is normalized to the empty id", asyn
   assert.equal(status, 404);
   assert.equal((body as { code: string }).code, "SOURCE_NOT_FOUND");
 });
+
+// Route-param guard (`String(req.params.workspaceId ?? "")`): an absent workspace param reads as "" and 404s.
+test("duplicate: a missing workspace parameter is normalized to the empty id and 404s before authorizing", async (t) => {
+  const { app, root, permissions } = buildApp();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let status: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "test-principal" } },
+    status(value: number) { status = value; return res; },
+    json(value: unknown) { body = value; return res; },
+  };
+  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/themes/:themeId/duplicate")(
+    { params: {}, body: { newName: "X" } }, res as never,
+  );
+  assert.equal(status, 404);
+  assert.deepEqual(body, { error: "workspace was not found" });
+  assert.deepEqual(permissions, []);
+});
