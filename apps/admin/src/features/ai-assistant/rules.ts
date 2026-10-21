@@ -206,8 +206,11 @@ export const DEFAULT_VISITOR_PRESET_ID = "anthropic";
  *
  * @complexity Time: O(p) in the number of provider presets; space: O(1).
  */
-export function defaultVisitorCredentialConfig(): ByokConfig {
-  const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === DEFAULT_VISITOR_PRESET_ID) ?? DEFAULT_PROVIDER_PRESETS[0];
+export function defaultVisitorCredentialConfig(
+  _required: Record<string, never> = {},
+  { presets = DEFAULT_PROVIDER_PRESETS }: { presets?: typeof DEFAULT_PROVIDER_PRESETS } = {},
+): ByokConfig {
+  const preset = presets.find((p) => p.id === DEFAULT_VISITOR_PRESET_ID) ?? presets[0];
   return { protocol: preset.protocol, providerId: preset.id, apiKey: "", baseUrl: preset.baseUrl, model: "" };
 }
 

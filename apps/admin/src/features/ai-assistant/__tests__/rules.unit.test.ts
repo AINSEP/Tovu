@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
 import { ApiError, type SiteAssistantCredential } from "@/lib/api";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import {
+  defaultVisitorCredentialConfig,
+  DEFAULT_VISITOR_PRESET_ID,
   configuredPresetIds,
   describeApiError,
   hasStoredCredential,
@@ -125,5 +128,19 @@ describe("visitor credential hydration", () => {
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "https://local.example/v1", model: "draft-model" });
     expect(hydrateVisitorCredentialConfig(config(), stored({ provider: "google", baseUrl: "", model: "" })))
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "", model: "" });
+  });
+});
+
+describe("defaultVisitorCredentialConfig", () => {
+  it("starts on the default (Anthropic) preset with an empty key and model", () => {
+    const anthropic = DEFAULT_PROVIDER_PRESETS.find((preset) => preset.id === DEFAULT_VISITOR_PRESET_ID)!;
+    expect(defaultVisitorCredentialConfig()).toEqual({
+      protocol: anthropic.protocol, providerId: anthropic.id, apiKey: "", baseUrl: anthropic.baseUrl, model: "",
+    });
+  });
+
+  it("falls back to the catalog's first preset when the default one is not in it", () => {
+    const presets = DEFAULT_PROVIDER_PRESETS.filter((preset) => preset.id !== DEFAULT_VISITOR_PRESET_ID);
+    expect(defaultVisitorCredentialConfig({}, { presets })).toMatchObject({ providerId: presets[0]!.id, baseUrl: presets[0]!.baseUrl });
   });
 });
