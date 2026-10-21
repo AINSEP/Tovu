@@ -140,3 +140,17 @@ it("does not announce twice when the terminal delta also carries a new tool resu
 
   expect(content).toHaveBeenCalledTimes(1);
 });
+
+it("a freshly opened pane with no stored history still announces its first finished run", () => {
+  const content = vi.fn();
+  subscribeToContentRefresh(content);
+  const onMessagesChange = vi.fn();
+
+  // A pane key but no `initialMessages`: a brand-new conversation, nothing settled to skip.
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange, paneKey: "pane-new" } }));
+  result.current([settledAssistantMessage("m1")]);
+
+  expect(onMessagesChange).toHaveBeenCalledWith([settledAssistantMessage("m1")]);
+  expect(content).toHaveBeenCalledTimes(1);
+  expect(content).toHaveBeenCalledWith(null);
+});
