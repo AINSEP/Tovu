@@ -36,8 +36,8 @@ export function createRawRowSqlitePort({ kernel }: { kernel: ContentKernel }, _o
     allowed(table, info.map((c) => c.name));
     return info.map(({ name, type, pk, notnull }) => ({ name, type, pk, notnull })).sort((a, b) => a.name.localeCompare(b.name));
   }
+  /** Callers run verifyPk() first, which already refuses an empty or partial primary key. */
   function where(pk: Readonly<Record<string, RawValue>>) {
-    if (Object.keys(pk).length === 0) throw new Error("A complete primary key is required.");
     return sql.join(Object.entries(pk).map(([name, value]) => sql`${sql.raw(identifier(name))} = ${decode(value)}`), sql` AND `);
   }
   async function verifyPk(table: string, pk: Readonly<Record<string, RawValue>>): Promise<readonly RawColumn[]> {
