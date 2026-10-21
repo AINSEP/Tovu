@@ -8,7 +8,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
-import { IMAGE_MODELS, MEDIA_PROVIDERS, VIDEO_MODELS } from '@jini-ai/integrations/media-providers/catalog';
+import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-providers/catalog';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -28,16 +28,32 @@ export interface MediaProviderToolDeps extends OperatorLocaleDeps {
   siteAssistantSecretSealer: SecretSealerPort;
   siteAssistantSecretKeyring: KeyringPort;
   clock: Clock;
+  /** The composition-built media provider registry (built-in + plugin vendors); listing and the
+   *  credential form read it, so a plugin vendor can be listed and given a key like a built-in one. */
+  mediaProviderRegistry: MediaProviderListing;
 }
 
-const imageIds = new Set(IMAGE_MODELS.map(model => model.provider));
-const videoIds = new Set(VIDEO_MODELS.map(model => model.provider));
-const PROVIDERS = MEDIA_PROVIDERS.flatMap(provider => {
-  const kinds: Array<'image' | 'video'> = [];
-  if (imageIds.has(provider.id)) kinds.push('image');
-  if (videoIds.has(provider.id)) kinds.push('video');
-  return kinds.length === 0 ? [] : [{ id: provider.id, label: provider.label, integrated: provider.integrated, kinds }];
-});
+/** Structurally the part of `MediaProviderRegistry` this file reads (keeps the catalog-only import). */
+export interface MediaProviderListing {
+  listProviders(): readonly MediaProvider[];
+  modelsForSurface(required: { surface: 'image' | 'video' }): readonly MediaModel[];
+  findProvider(required: { id: string }): MediaProvider | null;
+}
+
+interface CatalogueProvider { id: string; label: string; integrated: boolean; kinds: Array<'image' | 'video'> }
+
+/** Image/video providers in registry order, with the surfaces they offer.
+ * @complexity Time/space O(p + m), registered providers plus image/video models. */
+function catalogueProviders(catalog: MediaProviderListing): CatalogueProvider[] {
+  const imageIds = new Set(catalog.modelsForSurface({ surface: 'image' }).map(model => model.provider));
+  const videoIds = new Set(catalog.modelsForSurface({ surface: 'video' }).map(model => model.provider));
+  return catalog.listProviders().flatMap(provider => {
+    const kinds: Array<'image' | 'video'> = [];
+    if (imageIds.has(provider.id)) kinds.push('image');
+    if (videoIds.has(provider.id)) kinds.push('video');
+    return kinds.length === 0 ? [] : [{ id: provider.id, label: provider.label, integrated: provider.integrated, kinds }];
+  });
+}
 
 export const mediaProvidersAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -61,7 +77,7 @@ const CATALOG = indexCatalogById({ catalog: mediaProvidersAgentToolCatalog });
  */
 async function listProviders(deps: MediaProviderToolDeps): Promise<{ providers: ProviderView[] }> {
   const stored = await getMediaProviderCredentials({ repo: deps.mediaProviderCredentialRepo }, { workspaceId: deps.workspaceId });
-  return { providers: PROVIDERS.map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], integrated: provider.integrated, configured: stored[provider.id]?.apiKeyConfigured === true })) };
+  return { providers: catalogueProviders(deps.mediaProviderRegistry).map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], integrated: provider.integrated, configured: stored[provider.id]?.apiKeyConfigured === true })) };
 }
 
 /** Shared safe copy for the model result and human outcome; no submitted key is accepted.
@@ -84,7 +100,7 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
   const raw = requireInputRecord({ input: ctx.input });
   if (Object.keys(raw).some(key => key !== 'provider' && key !== 'reason')) throw new ToolInputError({ message: 'media_propose_provider_credential accepts only provider and reason; enter the key in the human form.' });
   const providerId = requireString({ input: raw, key: 'provider' });
-  const provider = PROVIDERS.find(candidate => candidate.id === providerId);
+  const provider = catalogueProviders(deps.mediaProviderRegistry).find(candidate => candidate.id === providerId);
   if (!provider) throw new ToolInputError({ message: 'Unknown media provider. Call media_list_providers for supported provider ids.' });
   const reason = optionalString({ input: raw, key: 'reason' });
   if (reason !== undefined) assertCredentialFreeField({ value: reason, field: "reason" });
@@ -96,7 +112,7 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
   const saveFailure = 'Nothing was saved. Check the key and the server credential store, then try again.';
   // Strict non-secret validation and authorization retain their precedence over channel errors.
   const card = defineSecretCardTool<{
-    provider: (typeof PROVIDERS)[number]; configured: boolean; reason: string | undefined; locale: string;
+    provider: CatalogueProvider; configured: boolean; reason: string | undefined; locale: string;
   }, Awaited<ReturnType<typeof saveMediaProviderKey>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ provider, configured, reason, locale }),
@@ -120,7 +136,7 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
         } }),
       };
       return saveMediaProviderKey({
-        deps: { repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+        deps: { repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, providerCatalog: deps.mediaProviderRegistry },
         workspaceId: deps.workspaceId, provider: prep.provider.id, apiKey: values.apiKey as string,
       });
     },

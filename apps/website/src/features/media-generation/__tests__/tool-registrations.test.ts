@@ -32,7 +32,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeMediaGenerationTools } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
-import { mediaVendorRegistry, type MediaGenerationRequest, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
+import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
@@ -112,6 +112,8 @@ function fakeRouteDeps(
      *  here can pass or fail depending on what happens to be set on the machine running it. Tests
      *  that need the env-fallback path pass their own fixed map. */
     env?: NodeJS.ProcessEnv;
+    /** Defaults to a fresh built-in-only registry (what `app.ts` composes). */
+    mediaProviderRegistry?: MediaProviderRegistry;
   } = {}
 ) {
   const allow = options.allow ?? true;
@@ -143,6 +145,7 @@ function fakeRouteDeps(
     mediaGenerationHttpClient: options.httpClient ?? {
       send: async () => { throw new Error("fixture forbids external media HTTP"); },
     },
+    mediaProviderRegistry: options.mediaProviderRegistry ?? createMediaProviderRegistry(),
     generateMedia: options.generateMedia === null ? undefined : (options.generateMedia ?? fakeGenerateMedia(generateCalls)),
     env: options.env ?? {},
     authorize: async (params: Record<string, unknown>) => {
@@ -645,3 +648,60 @@ for (const scenario of ["private", "redirect", "public"] as const) {
     }
   });
 }
+
+
+/** A plugin-shaped vendor: one image model, one adapter that returns the response body as the image. */
+function acmeVendor(): MediaProviderContribution {
+  return {
+    provider: { id: "acme-media", label: "Acme Media", hint: "plugin vendor", integrated: true },
+    models: [{ id: "acme-image-1", label: "acme-image-1", hint: "", provider: "acme-media", caps: ["t2i"], surface: "image" }],
+    adapters: {
+      image: {
+        buildRequest: ({ credentials }) => ({ url: "https://api.acme.example/v1/images", init: { method: "POST", headers: { authorization: `Bearer ${credentials.apiKey ?? "none"}` } }, meta: undefined as never }),
+        parseResponse: async ({ resp }) => ({ bytes: Buffer.from(await resp.arrayBuffer()), providerNote: "acme" }),
+      },
+    },
+  };
+}
+
+function registryWithAcme(): MediaProviderRegistry {
+  const registry = createMediaProviderRegistry();
+  assert.equal(registry.providers.contribute({ definition: mediaProviderDefinition({ contribution: acmeVendor() }), pluginId: "acme-plugin" }), true);
+  return registry;
+}
+
+test("a plugin-contributed image model is in the published model enum, built from the live registry", () => {
+  const withPlugin = wired("media_generate_asset", fakeRouteDeps({ mediaProviderRegistry: registryWithAcme() }).deps);
+  const builtinOnly = wired("media_generate_asset", fakeRouteDeps().deps);
+  const enumOf = (registration: ToolRegistration) => ((registration.descriptor.inputSchema as { properties: { model: { enum: string[] } } }).properties.model.enum);
+  assert.deepEqual(enumOf(builtinOnly), (catalogEntry("media_generate_asset").inputSchema as { properties: { model: { enum: string[] } } }).properties.model.enum);
+  assert.deepEqual(enumOf(withPlugin), [...enumOf(builtinOnly), "acme-image-1"]);
+});
+
+test("a plugin vendor generates end to end through the composition-built registry with its saved credential", async () => {
+  const sent: Array<{ url: string; authorization: string | undefined }> = [];
+  const httpClient: HttpClientPort = {
+    send: async ({ request }) => {
+      sent.push({ url: request.url, authorization: (request.headers as Record<string, string> | undefined)?.authorization });
+      return { status: 200, headers: { "content-type": "image/png" }, bodyText: "", bodyBytes: FAKE_PNG_BYTES, finalUrl: request.url };
+    },
+  };
+  const fixture = fakeRouteDeps({ generateMedia: null, httpClient, mediaProviderRegistry: registryWithAcme() });
+  await saveMediaProviderCredentials(
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
+    { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } }
+  );
+  await seedPublicTransform(fixture.transformDefinitionRepo);
+  const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a kite", model: "acme-image-1" })) as { media: { placeholder: boolean; sha256: string } };
+  assert.equal(result.media.placeholder, false);
+  assert.equal(result.media.sha256, createHash("sha256").update(FAKE_PNG_BYTES).digest("hex"));
+  assert.deepEqual(sent, [{ url: "https://api.acme.example/v1/images", authorization: "Bearer acme-key-1" }]);
+});
+
+test("a plugin vendor with no saved credential gets the same credential-setup diagnostic, labelled from the registry", async () => {
+  const fixture = fakeRouteDeps({ mediaProviderRegistry: registryWithAcme() });
+  const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a kite", model: "acme-image-1" })) as { generated: false; message: string };
+  assert.equal(result.generated, false);
+  assert.match(result.message, /no Acme Media media-provider credential/);
+  assert.equal(fixture.generateCalls.length, 0);
+});

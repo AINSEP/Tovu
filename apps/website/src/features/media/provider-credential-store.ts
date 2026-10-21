@@ -210,6 +210,14 @@ export interface MediaProviderCredentialWriteDeps extends MediaProviderCredentia
   sealer: SecretSealerPort;
   keyring: KeyringPort;
   clock: ClockPort;
+  /** The live media provider registry (built-in + plugin vendors, 2026-10-21). A plugin vendor's id is
+   *  accepted only when the registry holds that exact public id; omitted, only built-in ids are. */
+  providerCatalog?: MediaProviderIdCatalog;
+}
+
+/** Structurally `MediaProviderRegistry['findProvider']` — only the id is read. */
+export interface MediaProviderIdCatalog {
+  findProvider(required: { id: string }): { readonly id: string } | null;
 }
 
 /** Writes use only `replaceWorkspace`; new envelopes are prepared through the vault port. */
@@ -228,9 +236,14 @@ function rethrowAsValidation<T>({ run }: { run: () => T }, _options = {}): T {
   catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
 }
 
-function assertKnownProviderId({ providerId }: { providerId: string }, _options = {}): void {
+/** Built-in ids, or an exact (never alias-resolved) id the injected registry holds. @complexity O(m). */
+function isKnownProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
+  return KNOWN_PROVIDER_IDS.has(providerId) || catalog?.findProvider({ id: providerId })?.id === providerId;
+}
+
+function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog | undefined } = {}): void {
   rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
-  if (!KNOWN_PROVIDER_IDS.has(providerId)) {
+  if (!isKnownProviderId(providerId, catalog)) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
     );
@@ -253,8 +266,8 @@ function assertEntryField({ providerId, field, value }: { providerId: string; fi
 }
 
 /** Rejects anything the row cannot faithfully hold, before a single write happens. */
-function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput): void {
-  assertKnownProviderId({ providerId });
+function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput, catalog: MediaProviderIdCatalog | undefined): void {
+  assertKnownProviderId({ providerId }, { catalog });
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     throw new MediaProviderCredentialValidationError(`provider "${providerId}" must be an object`);
   }
@@ -340,7 +353,7 @@ export async function saveMediaProviderCredentials(
   }
 
   const entries = Object.entries(providers);
-  for (const [providerId, entry] of entries) assertValidEntry(providerId, entry);
+  for (const [providerId, entry] of entries) assertValidEntry(providerId, entry, deps.providerCatalog);
 
   const now = clockNowIso({ clock: deps.clock });
 
