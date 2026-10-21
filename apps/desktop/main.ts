@@ -114,8 +114,8 @@ import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
 import { isSupervisedSiteUrl } from "./src/supervised-site-url.ts";
-import { readSiteName } from "./src/site-name.ts";
-import { describeRejectedDefault, explicitStartupSiteDirs, isUnattendedSiteLaunch, resolveCliMode, sitesUiRequested, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
+import { readSiteName as readSiteNameIn } from "./src/site-name.ts";
+import { describeRejectedDefault, explicitStartupSiteDirs as explicitStartupSiteDirsIn, isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, sitesUiRequested as sitesUiRequestedIn, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createExternalSiteStopper } from "./src/external-site-stop.ts";
@@ -462,6 +462,15 @@ async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promis
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]!; // `!`: the length check rules out an empty list.
 }
 
+
+// Wiring edge for the launch-time decisions in `startup-env.ts` / `site-name.ts`: each binds this
+// process's own `process.env`, packaged CLI default or filesystem, keeping the call sites (and the
+// source-shape wiring tests that read them) unchanged.
+function sitesUiRequested(): boolean { return sitesUiRequestedIn({ env: process.env }); }
+function resolveCliMode(): CliMode { return resolveCliModeIn({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }); }
+function explicitStartupSiteDirs(): string[] | null { return explicitStartupSiteDirsIn({ env: process.env }); }
+function isUnattendedSiteLaunch(): boolean { return isUnattendedSiteLaunchIn({ env: process.env }); }
+function readSiteName(siteDir: string): string { return readSiteNameIn({ siteDir }); }
 
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   const window = new BrowserWindow({
@@ -1001,7 +1010,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
 
   let window;
   try {
-    window = createWindow(server.adminUrl, readSiteName({ siteDir }), partition);
+    window = createWindow(server.adminUrl, readSiteName(siteDir), partition);
   } catch (error) {
     if (!already) {
       recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
@@ -1257,7 +1266,7 @@ async function reportBootFailure(error: Error): Promise<void> {
   }
   console.error(`tovu desktop: ${error.message}`);
   process.exitCode = 1;
-  if (!SELFTEST && !isUnattendedSiteLaunch({ env: process.env })) dialog.showErrorBox("Tovu could not start", error.message);
+  if (!SELFTEST && !isUnattendedSiteLaunch()) dialog.showErrorBox("Tovu could not start", error.message);
   // `app.exit(1)` ONLY when nothing is open — a boot failure this early (resolving which site
   // dir(s) to serve, before any window exists) always has `openSites` empty, so there is nothing
   // for the graceful `before-quit` drain to do, and `app.exit` guarantees the process actually
@@ -1316,7 +1325,7 @@ const ENV_SITE_DIR_ON_MISSING = "fail";
  *  {@link ENV_SITE_DIR_ON_MISSING} declares — see that constant's own doc for why.
  *  @complexity O(n) in the explicit-dirs count, plus `resolveSiteDir`'s own cost in the single-site case. */
 async function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
-  const explicit = explicitStartupSiteDirs({ env: process.env });
+  const explicit = explicitStartupSiteDirs();
   if (explicit) {
     return await Promise.all(
       explicit.map((dir) => resolveOrInitSiteDir({ dir, onMissingSite: ENV_SITE_DIR_ON_MISSING, repoRoot: PAYLOAD_ROOT, cliMode: ctx.cliMode })),
@@ -1409,7 +1418,7 @@ async function bootOwnServerMode(): Promise<void> {
   const warning = sharedSites.config({}).warning;
   if (warning) console.warn(`[tovu-desktop] ${warning.message} Choose appData in Sites settings or use ${warning.localHome}.`);
   const ctx: SiteOpenCtx = {
-    cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
+    cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
     registryPath: registryDirPath(app.getPath("userData")),
   };
@@ -1555,7 +1564,7 @@ async function offerMoveToApplications(): Promise<void> {
     isPackaged: app.isPackaged,
     isMas: process.mas === true,
     selftest: SELFTEST,
-    unattended: isUnattendedSiteLaunch({ env: process.env }),
+    unattended: isUnattendedSiteLaunch(),
     inApplications: process.platform === "darwin" && app.isInApplicationsFolder(),
     otherInstancesOpen: createInstancePresence({ directory: presenceDirPath(userDataDir) }).readLive().filter((record) => record.pid !== process.pid).length,
     currentVersion: app.getVersion(),
@@ -1642,7 +1651,7 @@ app
     await reconcileOrphansOnBoot(registryDirPath(app.getPath("userData")));
 
     // Before any boot mode opens a database: reuse the stopped/verified CLI move owner.
-    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
+    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
       projectsPath: sitesFilePath(app.getPath("userData")),
     });
 
@@ -1650,9 +1659,9 @@ app
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through
     // `openSiteServer`'s own `serializer`-guarded spawn-or-reuse (the sites-home counterpart of the
     // `openSiteWindow` own-server mode uses below).
-    if (sitesUiRequested({ env: process.env })) {
+    if (sitesUiRequested()) {
       const sitesCtx = {
-        cliMode: resolveCliMode({ env: process.env, defaultCliMode: DESKTOP_ROOTS.defaultCliMode }),
+        cliMode: resolveCliMode(),
         statePath: stateFilePath(app.getPath("userData")),
         registryPath: registryDirPath(app.getPath("userData")),
         projectsPath: sitesFilePath(app.getPath("userData")),

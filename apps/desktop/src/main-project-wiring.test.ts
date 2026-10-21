@@ -23,6 +23,7 @@ import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 import { resolveDesktopRoots } from "./packaged-paths.ts";
+import { describeRejectedDefault } from "./startup-env.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -171,9 +172,9 @@ test("the two bulk site scans in the boot chain use the NON-throwing classifier"
 });
 
 test("describeRejectedDefault answers the 'unreadable' verdict the safe classifier can now return", () => {
-  const declaration = mainFunction("describeRejectedDefault");
-  const executable = ts.transpileModule(declaration.getText(parsedMain), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const describe = new Function(`${executable}; return describeRejectedDefault;`)() as (verdict: unknown) => string;
+  // Moved out of main.ts into `startup-env.ts` (2026-10-21); main.ts must still use that one.
+  assert.match(rawSource, /import \{ describeRejectedDefault,[^}]*\} from "\.\/src\/startup-env\.ts";/);
+  const describe = describeRejectedDefault as (verdict: unknown) => string;
   assert.equal(describe({ kind: "unreadable", dir: "/unreadable" }), "could not be read (check its permissions, or whether something replaced it)");
   assert.equal(describe({ kind: "empty", dir: "/empty" }), "has no site in it yet");
   assert.equal(describe({ kind: "incomplete", dir: "/half", missing: ["config.json"] }), "is missing config.json — it looks like a half-initialized site");
