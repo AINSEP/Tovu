@@ -11,7 +11,7 @@ import { registerAdminExternalMcpToolApprovalsRoutes } from '../tool-approvals.j
 import { registerAdminExternalMcpOAuthConnectRoute, registerAdminExternalMcpOAuthDevicePollRoute, registerAdminExternalMcpOAuthDisconnectRoute } from '../oauth.js';
 import { OAuthError } from '@jini-ai/oauth';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
-import { WS, BASE, INTERNAL_CODE, allowed, limiter, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { WS, BASE, INTERNAL_CODE, allowed, limiter, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
 const routes: RouteFailureCase[] = [
   { name: 'MCP admissions', register: registerAdminExternalMcpAdmissionsRoute, method: 'GET', path: `${BASE}/mcp-servers/admissions`, coded: true },
@@ -143,5 +143,62 @@ for (const thrown of ['secret upstream body', new Error('secret upstream body')]
       ...deps, externalMcpOAuth: { disconnect: async () => { throw thrown; } },
     } as any));
     assert.deepEqual(await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), { status: 500, body: INTERNAL_CODE });
+  });
+}
+
+/**
+ * `String(req.params.serverId ?? "")` / `String(req.params.toolName ?? "")` (extractRouteHandler's own
+ * doc, `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always populated, so the
+ * right side of each `??` below is unreachable through any real HTTP request. Restored 2026-09-03 after
+ * being wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard
+ * and exercise it with a hand-built `req` that deliberately violates that contract.
+ */
+const MISSING_SERVER_REQ = { params: { workspaceId: WS }, query: {}, body: {}, headers: {}, socket: { remoteAddress: '127.0.0.1' }, ip: '127.0.0.1', protocol: 'http', get: (name: string) => (name.toLowerCase() === 'host' ? 'admin.test' : undefined) };
+
+for (const { name, register, method, path, expected } of [
+  { name: 'MCP delete: `req.params.serverId ?? ""`', register: registerAdminExternalMcpDeleteRoute, method: 'DELETE', path: `${BASE}/mcp-servers/server`,
+    expected: { statusCode: 404, jsonBody: { error: 'external MCP server was not found', code: 'NOT_FOUND' } } },
+  { name: 'MCP put: `req.params.serverId ?? ""`', register: registerAdminExternalMcpPutRoute, method: 'PUT', path: `${BASE}/mcp-servers/server`,
+    expected: { statusCode: 400, jsonBody: {
+      error: "mcp-federation: connectionId '' must match /^[a-z0-9][a-z0-9-]{0,39}$/ — it becomes part of every federated tool id, and a '_' in it would blur the 'mcp__<connection>__<tool>' separator",
+      code: 'INVALID_MCP_SERVER', details: { field: 'id' },
+    } } },
+  { name: 'MCP probe: `req.params.serverId ?? ""`', register: (app: Parameters<RouteFailureCase['register']>[0], deps: Parameters<RouteFailureCase['register']>[1]) => registerAdminExternalMcpProbeRoute(app, deps, limiter), method: 'POST', path: `${BASE}/mcp-servers/server/probe`,
+    expected: { statusCode: 400, jsonBody: { error: "no external MCP server is configured as ''", code: 'INVALID_MCP_SERVER', details: { field: 'id' } } } },
+] as const) {
+  test(`${name} fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe`, async () => {
+    const { app } = fixture(register);
+    assert.deepEqual(await invokeRouteDirectly({ app, method, path, req: MISSING_SERVER_REQ }), expected);
+  });
+}
+
+test('MCP approvals revoke: `req.params.serverId ?? ""` / `req.params.toolName ?? ""` fallbacks, forced via a direct handler call, delete nothing and answer 404', async () => {
+  const deletes: unknown[] = [];
+  const { app } = fixture(registerAdminExternalMcpToolApprovalsRoutes, {
+    externalMcpToolApprovalRepo: { listByWorkspaceId: async () => [], delete: async (input: unknown) => { deletes.push(input); return false; } },
+  });
+  assert.deepEqual(await invokeRouteDirectly({ app, method: 'DELETE', path: `${BASE}/mcp-servers/server/tool-approvals/tool`, req: MISSING_SERVER_REQ }), {
+    statusCode: 404, jsonBody: { error: 'no Always allow is saved for that tool', code: 'NOT_FOUND' },
+  });
+  assert.deepEqual(deletes, [{ workspaceId: WS, serverId: '', toolName: '' }]);
+});
+
+for (const [name, register, method, suffix, expected] of [
+  ['connect', registerAdminExternalMcpOAuthConnectRoute, 'POST', '/connect', { auth: { started: true } }],
+  ['poll', registerAdminExternalMcpOAuthDevicePollRoute, 'POST', '/device/poll', { polled: true }],
+  ['disconnect', registerAdminExternalMcpOAuthDisconnectRoute, 'DELETE', '', { disconnected: true, restartRequired: true }],
+] as const) {
+  test(`MCP OAuth ${name}: \`req.params.serverId ?? ""\` fallback, forced via a direct handler call, hands the service the empty id`, async () => {
+    const serverIds: string[] = [];
+    const service = {
+      beginConnect: async ({ serverId }: { serverId: string }) => { serverIds.push(serverId); return { started: true }; },
+      pollDeviceAuthorization: async ({ serverId }: { serverId: string }) => { serverIds.push(serverId); return { polled: true }; },
+      disconnect: async ({ serverId }: { serverId: string }) => { serverIds.push(serverId); },
+    };
+    const { app } = fixture((app, deps) => register(app, { ...deps, externalMcpOAuth: service } as unknown as Parameters<typeof register>[1], limiter));
+    assert.deepEqual(await invokeRouteDirectly({ app, method, path: `${BASE}/mcp-servers/server/oauth${suffix}`, req: MISSING_SERVER_REQ }), {
+      statusCode: 200, jsonBody: expected,
+    });
+    assert.deepEqual(serverIds, ['']);
   });
 }
