@@ -49,25 +49,22 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { JSDOM } from "jsdom";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const bundlePath = path.resolve(__dirname, "../dist/site-assistant.js");
-const MOUNT_ID = "tovu-site-assistant-root";
-const TRANSCRIPT_STORAGE_KEY = "tovu.site-assistant.transcript.v1";
-const ACTION_QUEUE_STORAGE_KEY = "tovu.site-assistant.action-queue.v1";
+export const BUNDLE_PATH = path.resolve(__dirname, "../dist/site-assistant.js");
+export const MOUNT_ID = "tovu-site-assistant-root";
+export const TRANSCRIPT_STORAGE_KEY = "tovu.site-assistant.transcript.v1";
+export const ACTION_QUEUE_STORAGE_KEY = "tovu.site-assistant.action-queue.v1";
 
-function fail(message) {
-  console.error(`[check-bundle-mounts] FAIL: ${message}`);
-  process.exit(1);
-}
+/** A failed check. Thrown rather than exiting here, so every check is callable from a test;
+ *  {@link main} is the one place that turns it into the CLI's message and exit status. */
+export class BundleCheckError extends Error {}
 
-let bundleSource;
-try {
-  bundleSource = readFileSync(bundlePath, "utf8");
-} catch (error) {
-  fail(`could not read ${bundlePath} — did the build run first? (${error.message})`);
+/** Abort the check with `message`. @throws {BundleCheckError} always. */
+export function fail(message) {
+  throw new BundleCheckError(message);
 }
 
 /**
@@ -86,7 +83,38 @@ try {
  *  scenarios below have a real target to resolve against without needing a second HTML fixture. */
 const PAGE_CONTENT_HTML = `<article class="entry"><h1 class="entry-title">Example Published Post</h1><p>Some body text.</p></article>`;
 
-async function runScenario(scenario) {
+/** Whether a jsdom `jsdomError` is its "Not implemented: navigation" report. */
+export function isNavigationError(error) {
+  return typeof error?.message === "string" && error.message.includes("navigation");
+}
+
+/** Fail with every caught error listed under `heading`, when there are any. */
+function failOnErrors({ caughtErrors, heading }) {
+  if (caughtErrors.length === 0) return;
+  fail(`${heading}\n` + caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"));
+}
+
+/** Install the three page APIs jsdom lacks and every real browser has — see this file's header. */
+function stubBrowserGaps({ window }) {
+  window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(Date.now()), 0);
+  window.Element.prototype.scrollIntoView = function scrollIntoViewStub(options) {
+    this.__tovuScrollIntoViewCalls = (this.__tovuScrollIntoViewCalls ?? 0) + 1;
+    this.__tovuLastScrollIntoViewOptions = options;
+  };
+  window.matchMedia = (query) => ({
+    matches: false, // no scenario here exercises prefers-reduced-motion — highlight.test.ts covers that directly.
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
+}
+
+/**
+ * @param {{ scenario: { name: string; seed?: Function; verify?: Function }; bundleSource: string }} input
+ * @param {{ settleMs?: number; log?: (line: string) => void }} [options] `settleMs` is the post-eval
+ *   wait (see the comment at that wait); `log` receives the one OK line.
+ */
+export async function runScenario({ scenario, bundleSource }, { settleMs = 150, log = console.log } = {}) {
   const dom = new JSDOM(`<!doctype html><html><body><div id="${MOUNT_ID}"></div>${PAGE_CONTENT_HTML}</body></html>`, {
     // Mirrors what `render.ts` actually injects: the mount div present ahead of the script, same as a
     // real themed page — `main.tsx`'s `mount()` looks for this id before falling back to creating one,
@@ -103,23 +131,13 @@ async function runScenario(scenario) {
   // navigate," independent of whether jsdom could have carried the navigation out.
   const navigationAttempts = [];
   dom.virtualConsole.on("jsdomError", (error) => {
-    if (typeof error?.message === "string" && error.message.includes("navigation")) navigationAttempts.push(error.message);
+    if (isNavigationError(error)) navigationAttempts.push(error.message);
   });
 
   // See this file's header (SPEC-046 REQ-2/§4) for why these three are stubbed rather than left
   // absent: jsdom implements none of them, but every real browser does, so an absent stub would fail
   // scenarios that exercise real page-content DOM behavior for a jsdom limitation, not a real bug.
-  dom.window.requestAnimationFrame = (callback) => dom.window.setTimeout(() => callback(Date.now()), 0);
-  dom.window.Element.prototype.scrollIntoView = function scrollIntoViewStub(options) {
-    this.__tovuScrollIntoViewCalls = (this.__tovuScrollIntoViewCalls ?? 0) + 1;
-    this.__tovuLastScrollIntoViewOptions = options;
-  };
-  dom.window.matchMedia = (query) => ({
-    matches: false, // no scenario here exercises prefers-reduced-motion — highlight.test.ts covers that directly.
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  });
+  stubBrowserGaps({ window: dom.window });
 
   scenario.seed?.(dom.window.sessionStorage);
 
@@ -140,12 +158,7 @@ async function runScenario(scenario) {
     caughtErrors.push(error);
   }
 
-  if (caughtErrors.length > 0) {
-    fail(
-      `[${scenario.name}] the bundle threw during execution — it would have crashed on load in a real browser:\n` +
-        caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"),
-    );
-  }
+  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw during execution — it would have crashed on load in a real browser:` });
 
   // React 19's `createRoot(...).render(...)` schedules the initial commit through its own scheduler
   // (message-channel/timeout-based), not synchronously within the `eval` call above — measured: without
@@ -153,14 +166,9 @@ async function runScenario(scenario) {
   // moment later. A real macrotask tick, not a microtask (`Promise.resolve()`), is what the scheduler
   // actually waits on. 150ms (not 100ms): `executeDrainedAction`'s `requestAnimationFrame` stub above
   // adds one more macrotask hop after the mount commit, for scenarios that queue a real page action.
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await new Promise((resolve) => setTimeout(resolve, settleMs));
 
-  if (caughtErrors.length > 0) {
-    fail(
-      `[${scenario.name}] the bundle threw after mounting (a post-mount effect or async error):\n` +
-        caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"),
-    );
-  }
+  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw after mounting (a post-mount effect or async error):` });
 
   const mountEl = dom.window.document.getElementById(MOUNT_ID);
   if (!mountEl) {
@@ -172,12 +180,12 @@ async function runScenario(scenario) {
 
   scenario.verify?.(dom.window.sessionStorage, dom.window.document, navigationAttempts);
 
-  console.log(
+  log(
     `[check-bundle-mounts] OK [${scenario.name}] — bundle executed cleanly and mounted ${mountEl.children.length} child element(s) into #${MOUNT_ID}.`,
   );
 }
 
-const scenarios = [
+export const scenarios = [
   { name: "clean sessionStorage" },
   {
     name: "poisoned transcript entry (REQ-1 fail-soft rehydrate)",
@@ -204,7 +212,6 @@ const scenarios = [
         parsed = JSON.parse(value);
       } catch {
         fail(`poisoned transcript entry: whatever replaced the corrupt entry is not valid JSON: ${value}`);
-        return;
       }
       if (parsed.open !== false || !Array.isArray(parsed.messages) || parsed.messages.length !== 0) {
         fail(`poisoned transcript entry: replaced with an unexpected, non-empty value: ${value}`);
@@ -230,7 +237,6 @@ const scenarios = [
         parsed = JSON.parse(value);
       } catch {
         fail(`wrong-shaped transcript entry: whatever replaced the invalid entry is not valid JSON: ${value}`);
-        return;
       }
       if (parsed.open !== false || !Array.isArray(parsed.messages) || parsed.messages.length !== 0) {
         fail(`wrong-shaped transcript entry: replaced with an unexpected, non-empty value: ${value}`);
@@ -301,7 +307,8 @@ const scenarios = [
       if ((heading?.__tovuScrollIntoViewCalls ?? 0) !== 1) {
         fail(`scroll_to action: expected exactly one scrollIntoView call, got ${heading?.__tovuScrollIntoViewCalls ?? 0}`);
       }
-      if (heading?.classList.contains("tovu-site-assistant__highlight")) {
+      // `heading` is non-null here: a missing heading has zero scrollIntoView calls and failed above.
+      if (heading.classList.contains("tovu-site-assistant__highlight")) {
         fail("scroll_to action: must never apply the highlight class — that is highlight_entry's job, not scroll_to_entry's");
       }
       // Drift guard (SPEC-046 Task 3) — see the identical comment on the highlight-action scenario
@@ -384,6 +391,46 @@ const scenarios = [
   },
 ];
 
-for (const scenario of scenarios) {
-  await runScenario(scenario);
+/** Run every scenario against one bundle, in order; the first failure throws. */
+export async function checkBundleMounts({ bundleSource }, options = {}) {
+  for (const scenario of scenarios) {
+    await runScenario({ scenario, bundleSource }, options);
+  }
 }
+
+/** The built bundle's text; an unreadable file is a check failure naming the likely cause. */
+function readBundle({ bundlePath, readText }) {
+  try {
+    return readText(bundlePath);
+  } catch (cause) {
+    return fail(`could not read ${bundlePath} — did the build run first? (${cause.message})`);
+  }
+}
+
+/**
+ * The CLI: read the built bundle and run every scenario, reporting a failure on stderr with exit
+ * status 1. Ports default to the real file system, console and process; a test injects fakes.
+ * @returns the exit status it reported (0 when every scenario passed).
+ */
+export async function main(
+  { bundlePath = BUNDLE_PATH } = {},
+  { readText = (file) => readFileSync(file, "utf8"), check = checkBundleMounts, error = console.error, exit = process.exit } = {},
+) {
+  try {
+    await check({ bundleSource: readBundle({ bundlePath, readText }) });
+    return 0;
+  } catch (cause) {
+    if (!(cause instanceof BundleCheckError)) throw cause;
+    error(`[check-bundle-mounts] FAIL: ${cause.message}`);
+    exit(1);
+    return 1;
+  }
+}
+
+/** Whether this module is the process entry point (`node scripts/check-bundle-mounts.mjs`). */
+export function isEntryPoint({ moduleUrl, argv1 }) {
+  return argv1 !== undefined && moduleUrl === pathToFileURL(path.resolve(argv1)).href;
+}
+
+// An optional first argument names another bundle file (the tests point it at a missing one).
+if (isEntryPoint({ moduleUrl: import.meta.url, argv1: process.argv[1] })) await main({ bundlePath: process.argv[2] });

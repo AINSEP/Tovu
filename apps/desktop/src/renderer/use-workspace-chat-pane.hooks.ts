@@ -143,11 +143,23 @@ export interface WorkspaceChatPaneState extends WorkspaceConversationView {
  * conversations, delete confirmation, then the pane's own state, ref and drop callback — so moving
  * them here changed no hook's position.
  */
-export function useWorkspaceChatPane(): WorkspaceChatPaneState {
+export function useWorkspaceChatPane(
+  _input: Record<string, never> = {},
+  {
+    useTransport = useWorkspaceChatTransport,
+    useConversations = useRunnerConversations,
+    useDeleteConfirmation = useConversationDeleteConfirmation,
+  }: {
+    /** The three hook ports, defaulting to `App.hooks.ts`'s; each must keep its position stable. */
+    useTransport?: typeof useWorkspaceChatTransport;
+    useConversations?: typeof useRunnerConversations;
+    useDeleteConfirmation?: typeof useConversationDeleteConfirmation;
+  } = {},
+): WorkspaceChatPaneState {
   const { transport, runtimeAccess, workingDirectoryAccess, getPathForFile, uploadAttachments } =
-    useWorkspaceChatTransport();
-  const conversations = useRunnerConversations();
-  const deleteConfirmation = useConversationDeleteConfirmation();
+    useTransport();
+  const conversations = useConversations();
+  const deleteConfirmation = useDeleteConfirmation();
   // The working-directory picker (native folder dialog + MRU list) — unrelated to, and untouched
   // by, the drop handler below. A folder drop no longer feeds this: see `captureFolderDrop`'s doc.
   const [workingDirectory, setWorkingDirectory] = useState<string | null>(null);

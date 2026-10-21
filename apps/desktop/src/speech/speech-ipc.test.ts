@@ -208,3 +208,11 @@ test("an invalid recording cap rejects before registering either handler", () =>
     assert.equal(ipcMain.handlers.size, 0);
   }
 });
+
+test("without an injected port, a non-macOS host registers the default port, which reports unavailable", async () => {
+  const ipcMain = fakeIpcMain();
+  registerSpeechIpc({ ipcMain, isTrustedSender }, { platform: "linux" });
+  const result = await ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE)!(TRUSTED_EVENT) as { available: boolean; reason?: string };
+  assert.equal(result.available, false);
+  assert.ok(result.reason, "the unavailable port names why");
+});

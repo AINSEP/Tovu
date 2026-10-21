@@ -60,7 +60,7 @@ export function speechHelperSourcePath(_requiredArgs: Record<string, never>): st
 function realDependencies({ binaryPath, sourcePath }: { binaryPath: string; sourcePath: string }): MacTranscriberDeps {
   // Requiring inside the factory keeps non-macOS hosts from loading the process/promisify
   // adapters at module import; resolveTranscriptionPort selects platform eligibility first.
-  const { execFile, spawnSync }: typeof import("node:child_process") = require("node:child_process");
+  const { execFile }: typeof import("node:child_process") = require("node:child_process");
   const { promisify }: typeof import("node:util") = require("node:util");
   const fs: typeof import("node:fs") = require("node:fs");
   const execFileAsync = promisify(execFile);
@@ -71,7 +71,8 @@ function realDependencies({ binaryPath, sourcePath }: { binaryPath: string; sour
       writeFileSync: ({ path, data }) => fs.writeFileSync(path, data),
       rmSync: ({ path }, { force = false } = {}) => fs.rmSync(path, { force }),
     },
-    spawnSync: ({ command, args }) => spawnSync(command, args),
+    // No `spawnSync` adapter: since @jini-ai/desktop-host 0.4.1 (this app's floor) the helper is
+    // compiled through `execFileAsync`, and the deps' `spawnSync` is deprecated and never called.
     execFileAsync: ({ file, args }) => execFileAsync(file, args),
     sourcePath, binaryPath, compilerPath: "swiftc", locale: "en-US", messages: macTranscriberMessages,
     tempFilePath: () => path.join(os.tmpdir(), `tovu-speech-${crypto.randomUUID()}.wav`),

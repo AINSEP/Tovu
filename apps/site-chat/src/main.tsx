@@ -1,4 +1,4 @@
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 
 import { isQueuedPageAction } from "./client-directives";
 import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
@@ -41,7 +41,7 @@ const MOUNT_ID = "tovu-site-assistant-root";
  * element positions, matching `check-bundle-mounts.mjs`'s own note that a real macrotask tick (not a
  * microtask) is what a browser's rendering pipeline actually needs here.
  */
-function executeDrainedAction(action: ReturnType<typeof drainQueuedPageAction>): void {
+export function executeDrainedAction(action: ReturnType<typeof drainQueuedPageAction>): void {
   const queued = { value: action };
   if (!isQueuedPageAction(queued) || queued.value.type === "navigate") return;
   const treatment = queued.value;
@@ -53,7 +53,9 @@ function executeDrainedAction(action: ReturnType<typeof drainQueuedPageAction>):
   });
 }
 
-function mount(): void {
+/** Mount the widget into the page root (creating one if absent).
+ * @returns the React root, so a host (or a test) can unmount it. */
+export function mount(): Root {
   let el = document.getElementById(MOUNT_ID);
   if (!el) {
     // Defensive, not the expected path: `render.ts` injects this element itself, ahead of this
@@ -70,8 +72,11 @@ function mount(): void {
   // executed by `executeDrainedAction` above; a stray or half-written entry from an earlier session
   // fails `isQueuedPageAction` and is silently dropped rather than acted on.
   const queuedAction = drainQueuedPageAction();
-  createRoot(el).render(<SiteAssistantWidget />);
+  const root = createRoot(el);
+  root.render(<SiteAssistantWidget />);
   executeDrainedAction(queuedAction);
+  return root;
 }
 
-mount();
+/** The root this bundle mounted when it loaded. */
+export const mountedRoot = mount();

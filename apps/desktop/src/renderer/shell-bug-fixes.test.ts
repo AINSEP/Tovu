@@ -123,7 +123,7 @@ test('D-12: Escape closes the menu and Rename even when focus is on a panel butt
   const renameHarness = hookHarness();
   const renameKeys = keyboard();
   const useRename = sourceFunction(readFileSync(new URL('./use-site-rename.hooks.ts', import.meta.url), 'utf8'), 'useSiteRename', {
-    ...renameHarness.bindings, document: renameKeys.document, dismissOnEscape, canSubmitRename,
+    ...renameHarness.bindings, document: renameKeys.document, dismissOnEscape, canSubmitRename, runnerInventoryBridge: () => undefined,
   });
   const rename = () => renameHarness.render(() => useRename());
   rename().startRename(site()); rename(); renameKeys.press('Escape');

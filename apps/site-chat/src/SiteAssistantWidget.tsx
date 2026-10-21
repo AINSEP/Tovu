@@ -216,8 +216,10 @@ export function SiteAssistantWidget() {
   }, [open]);
 
   const handleProposalClick = useCallback(() => {
-    if (!pendingProposal) return;
-    const { navigate, bundled } = pendingProposal;
+    // Non-null by construction: this handler is wired only to the "Go there" button, which renders
+    // only while `pendingProposal` is set, and the click that clears it also unrenders the button.
+    // (The former `if (!pendingProposal) return;` guard could never run and was removed.)
+    const { navigate, bundled } = pendingProposal!;
     setPendingProposal(null);
     // Same flush-before-navigate reasoning as the auto path above — `persistedMessages` here is
     // already the latest settled transcript (`handleMessagesChange` updates it on every change).

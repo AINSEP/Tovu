@@ -24,7 +24,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWorkspaceChatTransport } from './workspace-chat-transport.js';
+import { createWorkspaceChatTransport, subscriptionRandomPart } from './workspace-chat-transport.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import { mcpToolNameForVerb } from '../contracts/workspace-chat.js';
 import type {
@@ -985,4 +985,48 @@ test('cumulative usage preserves session identity and rejects malformed metadata
     { kind: 'usage' },
   ]);
   transport.dispose();
+});
+
+test('subscriptionRandomPart prefers the runtime UUID and falls back to a base-36 time+random token', () => {
+  assert.equal(subscriptionRandomPart({}, { crypto: { randomUUID: () => 'uuid-1' } }), 'uuid-1');
+  const fallback = { now: () => 36 ** 2, random: () => 0.5 };
+  assert.equal(subscriptionRandomPart({}, { crypto: null, ...fallback }), '100-i');
+  assert.equal(subscriptionRandomPart({}, { crypto: {}, ...fallback }), '100-i', 'a crypto without randomUUID falls back too');
+  assert.match(subscriptionRandomPart(), /^[0-9a-f-]{36}$/, 'the default port is the real crypto.randomUUID');
+});
+
+test('buildChatStartPayload sends model and reasoning independently of each other', async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  await transport.startRun(startInput({ context: { model: 'm1' } }), dummyHandlers());
+  await transport.startRun(startInput({ context: { reasoning: 'low' } }), dummyHandlers());
+  const [modelOnly, reasoningOnly] = fake.calls.chatStart;
+  assert.equal(modelOnly!.model, 'm1');
+  assert.ok(!('reasoning' in modelOnly!));
+  assert.equal(reasoningOnly!.reasoning, 'low');
+  assert.ok(!('model' in reasoningOnly!));
+});
+
+test('a rejecting chatDetach for a pane that was already gone at start never surfaces as an unhandled rejection', async () => {
+  await assertNoUnhandledRejection(async () => {
+    const fake = createFakeBridge({ chatDetach: () => Promise.reject(new Error('window gone')) });
+    const transport = createWorkspaceChatTransport(fake.bridge);
+    const controller = new AbortController();
+    controller.abort();
+    const { runId } = await transport.startRun(startInput({ signal: controller.signal }), dummyHandlers());
+    assert.equal(runId, 'run-1');
+    assert.equal(fake.calls.chatDetach.length, 1, 'main is told to detach the subscription it just attached');
+  });
+});
+
+test('buildChatStartPayload forwards a conversation id and omits a null or absent one', async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  await transport.startRun(startInput({ conversationId: 'conv-7' }), dummyHandlers());
+  await transport.startRun(startInput({ conversationId: null as unknown as undefined }), dummyHandlers());
+  await transport.startRun(startInput(), dummyHandlers());
+  const [withId, nullId, absent] = fake.calls.chatStart;
+  assert.equal(withId!.conversationId, 'conv-7');
+  assert.ok(!('conversationId' in nullId!));
+  assert.ok(!('conversationId' in absent!));
 });

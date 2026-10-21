@@ -135,3 +135,15 @@ test("the projects polling hook schedules its listSites callback every 4000ms", 
   cleanup();
   assert.equal(stopped, true);
 });
+
+test("the default timers are the real global interval: it ticks, and stop clears it", async () => {
+  const doc = fakeDocument("visible");
+  let ticks = 0;
+  const stop = startVisibleInterval(() => { ticks += 1; }, 5, doc);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  stop();
+  const afterStop = ticks;
+  assert.ok(afterStop >= 1, `expected the real interval to tick, got ${afterStop}`);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(ticks, afterStop, "a stopped interval never ticks again");
+});

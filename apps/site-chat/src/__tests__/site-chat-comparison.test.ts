@@ -125,3 +125,37 @@ test('comparison catches cross-origin parent access without enabling a channel',
   Object.defineProperty(f.dom.window, 'parent', { get: () => { throw new f.dom.window.DOMException('Blocked parent', 'SecurityError'); } });
   assert.equal(readSiteChatComparisonVariant({ document: f.root.ownerDocument }), null);
 });
+
+test('wcmp: malformed send requests are ignored, and a non-Error failure is reported as text', async () => {
+  const f = fixture('vanilla');
+  let calls = 0;
+  const dispose = installSiteChatComparisonSend({ root: f.root, send: async () => { calls += 1; throw 'quota exhausted'; } });
+  for (const detail of [null, { text: 42, done: () => {} }, { text: 'no callback', done: 'nope' }]) {
+    f.root.dispatchEvent(new f.dom.window.CustomEvent('tovu-compare-send', { detail }));
+  }
+  await Promise.resolve();
+  assert.equal(calls, 0, 'a request without text and a done callback never sends');
+  assert.equal(await f.send('go'), 'quota exhausted');
+  assert.equal(calls, 1);
+  dispose(); f.dom.window.close();
+});
+
+test('wcmp: a React pane relays capability errors, and unmounting rejects a send still in flight', async () => {
+  const f = fixture('react');
+  const control = createReactSiteComparisonControl({ root: f.root })!;
+  let dispose = control.bridgeAccess!.subscribe(action => {
+    void control.bridgeAccess!.respondError(action.invocationId, 'The agent refused.');
+  });
+  assert.equal(await f.send('first'), 'The agent refused.');
+  dispose();
+
+  dispose = control.bridgeAccess!.subscribe(() => {});
+  const pending = f.send('never answered');
+  await new Promise(resolve => setImmediate(resolve));
+  dispose();
+  assert.equal(await pending, 'Comparison pane was unmounted.');
+  // With nothing pending, late responses and a second unmount are harmless no-ops.
+  await control.bridgeAccess!.respondSuccess('site-chat-comparison', {});
+  await control.bridgeAccess!.respondError('site-chat-comparison', 'late');
+  f.dom.window.close();
+});

@@ -45,12 +45,16 @@ interface RegisterSpeechIpcArgs {
 }
 /** Adapt native IPC without changing the renderer's positional payloads. @complexity O(1) to register; O(n) per recording. */
 export function registerSpeechIpc({ ipcMain, isTrustedSender }: RegisterSpeechIpcArgs,
-  { port, maxSamples = MAX_TRANSCRIBE_SAMPLES }: { port?: TranscriptionPort; maxSamples?: number } = {}): () => void {
+  { port, maxSamples = MAX_TRANSCRIBE_SAMPLES, platform = process.platform }: {
+    port?: TranscriptionPort; maxSamples?: number;
+    /** Which host's default port to build when `port` is omitted; defaults to this process's. */
+    platform?: NodeJS.Platform;
+  } = {}): () => void {
   // Fail before constructing native dependencies when the host forgot its sender policy.
   if (typeof isTrustedSender !== "function") throw new Error(messages.missingSenderGuard);
   return registerIpc({
     channelNamespace: "tovu:speech", messages,
-    port: port ?? buildDefaultPort({ platform: process.platform }),
+    port: port ?? buildDefaultPort({ platform }),
     isTrustedSender: ({ senderUrl }) => isTrustedSender(senderUrl),
     ipcMain: {
       handle: ({ channel, handler }) => ipcMain.handle(channel, (event, samples, sampleRate) => handler({ event, samples, sampleRate })),

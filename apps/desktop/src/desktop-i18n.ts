@@ -86,6 +86,18 @@ const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string
   bn: ['{name} বন্ধ করবেন?', 'এটি `npm run dev` বন্ধ করবে, অ্যাডমিন ডেভেলপমেন্ট সার্ভারসহ।', 'এটি {app}-এ এই সাইট চালানো সার্ভারটি বন্ধ করবে।', 'বন্ধ করুন', 'বন্ধ হচ্ছে…'],
 };
 
+/**
+ * The locale the renderer runs in: the browser's `navigator.language`, or `en` where there is no
+ * navigator at all (a non-browser host). Pure given its port; no errors.
+ * @complexity O(1).
+ */
+export function runtimeLocale(
+  _input: Record<string, never> = {},
+  { navigator: nav = globalThis.navigator }: { navigator?: Pick<Navigator, 'language'> | null } = {},
+): string {
+  return nav == null ? 'en' : nav.language;
+}
+
 export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
   const normalized = locale.replace(/_/g, '-');
   const key = Object.keys(COPY).find(key => key.toLowerCase() === normalized.toLowerCase())
