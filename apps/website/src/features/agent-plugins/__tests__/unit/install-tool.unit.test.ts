@@ -5,7 +5,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { buildRegistrations, catalog } from "../../install-tool.js";
+import { AGENT_PLUGINS_INSTALL_TOOL_ID, buildRegistrations, catalog, contributeAgentPluginsInstallTools, derivedRisk } from "../../install-tool.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -71,4 +71,17 @@ test("agent tool rejects malformed input and invalid archives at preview", async
   for (const value of [input, { source: { kind: "zip" } }, { source: { kind: "zip", path: "/tmp/plugin.zip", attachmentRef: "attachment:agent123" } }]) {
     await assert.rejects(() => tool!.handler(context(value), {}), ToolInputError);
   }
+});
+
+test("the install contribution wires the host's attachment reader into the tool it builds", async () => {
+  let reads = 0;
+  const readInstallAttachment = async () => { reads++; return { ok: false as const, refusal: "not-owner" as const }; };
+  const contribution = contributeAgentPluginsInstallTools({ readInstallAttachment });
+  assert.equal(contribution.domain, "agent-plugins-install");
+  assert.equal(contribution.risk, derivedRisk);
+  const [tool] = contribution.build(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }) }) as Parameters<typeof contribution.build>[0], {} as Parameters<typeof contribution.build>[1]);
+  assert.equal(tool?.descriptor.id, AGENT_PLUGINS_INSTALL_TOOL_ID);
+  await assert.rejects(() => tool!.handler(context(), {}), ToolInputError);
+  assert.equal(reads, 1, "the contributed reader, not a default, read the attachment");
+  assert.equal(contributeAgentPluginsInstallTools().domain, "agent-plugins-install");
 });
