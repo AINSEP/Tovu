@@ -8,7 +8,7 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
-import { goLiveEvent, wentLiveSinceSave } from "./go-live.js";
+import { announcePendingGoLive } from "./go-live.js";
 import { toSlug } from "#src/platform/html/slug";
 import { postPublicPath } from "#src/platform/routing/adapter";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
@@ -752,10 +752,11 @@ export async function deletePost(
       if (removed.reason === "not-found") throw new PostNotFoundError(`post '${input.id}' was not found`);
       throw new PostConflictError(`post '${input.id}' changed while it was being deleted`);
     }
-    return appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: "delete", attribution: input });
+    // Inside the transaction (2026-10-21): an enqueue failure rolls the trash back with it.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
+    return revision;
   });
-
-  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }
@@ -892,10 +893,9 @@ export async function retirePostForReplacement(
 
     const trashed: PostRecord = { ...renamed, deletedAt: renamed.updatedAt, version: renamed.version + 1 };
     const deleteRevision = await appendPostRevision({ repo: deps.repo, post: trashed, op: "delete", attribution: input });
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: trashed, nowIso: now });
     return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
   });
-
-  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }
@@ -1470,15 +1470,15 @@ export async function createPost(
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await deps.repo.save(post);
-    return appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: "create", attribution: input });
+    // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
+    // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
+    // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
+    // (no event) when the caller created a plain draft, same as it always has. Inside the
+    // transaction (2026-10-21), so the row and its event commit or roll back together.
+    if (deps.outbox) await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now });
+    return revision;
   });
-  // A brand-new record has no real prior status to read, so "draft" is used as the classifier's
-  // baseline (never-published) — matching `classifyStatusTransition`'s own "not published ->
-  // published" / "not published -> draft" rows exactly, the latter correctly resolving to `null`
-  // (no event) when the caller created a plain draft, same as it always has.
-  if (deps.outbox) {
-    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: null, next: post, nowIso: now });
-  }
   return { post, revisionId, previousRevisionId };
 }
 
@@ -1921,9 +1921,11 @@ export async function updatePost(
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
     await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
     const { id: revisionId, previousId: previousRevisionId } = await appendPostRevision({ repo: deps.repo, post, op: "update", attribution: input });
+    // Inside the transaction (2026-10-21): committing the edit without its event (a crash, a failed
+    // enqueue) would push `updatedAt` past a pending go-live and lose that announcement for good.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
     return { post, revisionId, previousRevisionId };
   });
-  if (result.revisionId !== null) await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
 
   return result;
 }
@@ -2063,11 +2065,11 @@ export async function restorePostForward(
     // transaction already opened, so the marker and the index row move together or not at all. A
     // compensation that can itself half-fail is not a compensation.
     if (undoesATrash) await deps.forgetRemoved({ workspaceId: restored.workspaceId, id: restored.id });
+    // Same transaction for the event (2026-10-21), for the same all-or-nothing reason.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt });
     return appended.id;
   });
   if (revisionId === null) return null;
-
-  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: current, next: restored, nowIso: restored.updatedAt });
 
   return { post: restored, revisionId };
 }
@@ -2107,10 +2109,17 @@ export function classifyStatusTransition(
  * ({@link wentLiveSinceSave}) may not have been announced by the go-live sweep yet, and after this
  * write the sweep will no longer see it (its `updatedAt` passes `publishAt`), so its go-live event
  * is enqueued here first — the same id the sweep uses, which the outbox de-duplicates.
+ *
+ * Exported for `reverters.ts` (2026-10-21): an undo writes through `repo.save` directly (no
+ * before-save hooks, BR-08) but its event must be the same schedule-aware one every save emits.
+ * Call it inside the write's transaction, so the row and its events commit or roll back together.
  */
-async function emitPublicTransitionEvent(required: { outbox: OutboxPort; previous: PostRecord | null; next: PostRecord; nowIso: string }): Promise<void> {
+export async function emitPublicTransitionEvent(
+  required: { outbox: OutboxPort; previous: PostRecord | null; next: PostRecord; nowIso: string },
+  _optional: Record<string, never> = {}
+): Promise<void> {
   const { outbox, previous, next, nowIso } = required;
-  if (previous && wentLiveSinceSave({ post: previous, nowIso })) await outbox.enqueue(goLiveEvent({ post: previous }));
+  if (previous) await announcePendingGoLive({ outbox, post: previous, nowIso });
   const previousStatus = previous ? publicFacingStatus({ post: previous, nowIso }) : "draft";
   await emitStatusTransitionEvent(outbox, previousStatus, publicFacingStatus({ post: next, nowIso }), next);
 }
@@ -2493,12 +2502,13 @@ export async function importPostEntity(required: {
 
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
-    return appendPostRevision({ repo: deps.repo, post, op: existing ? "update" : "create", attribution: input });
+    const revision = await appendPostRevision({ repo: deps.repo, post, op: existing ? "update" : "create", attribution: input });
+    // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
+    // must invalidate the destination's sitemap cache exactly like one published locally. Inside
+    // the transaction (2026-10-21), so the row never commits without its event.
+    await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing ?? null, next: post, nowIso: now });
+    return revision;
   });
-
-  // Same SEO/sitemap signal every other write path emits — a post that arrives already-published
-  // must invalidate the destination's sitemap cache exactly like one published locally.
-  await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing ?? null, next: post, nowIso: now });
 
   return { post, revisionId, previousRevisionId };
 }

@@ -4,6 +4,7 @@ import test from "node:test";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import {
   announceDueGoLives,
+  announcePendingGoLive,
   goLiveEvent,
   POST_GO_LIVE_LOOKBACK_MS,
   POST_GO_LIVE_SWEEP_INTERVAL_MS,
@@ -70,9 +71,9 @@ test("wentLiveSinceSave: only a published, untrashed row saved before a publishA
   assert.equal(wentLiveSinceSave({ post: scheduled({ updatedAt: LATER }), nowIso: LATER }), false, "saved after go-live: that save announced it");
 });
 
-test("goLiveEvent: the id the save of that version would have used, occurring at the go-live instant", () => {
+test("goLiveEvent: keyed by the scheduled publication (post + publishAt), not the version, occurring at the go-live instant", () => {
   assert.deepEqual(goLiveEvent({ post: scheduled({ kind: "page", workspaceId: "ws" }) }), {
-    id: "p1-entry.published-3",
+    id: `p1-entry.published-at-${GO_LIVE}`,
     name: "entry.published",
     occurredAt: GO_LIVE,
     aggregateId: "p1",
@@ -80,13 +81,22 @@ test("goLiveEvent: the id the save of that version would have used, occurring at
     payload: { entryId: "p1", contentType: "page" },
   });
   assert.equal(goLiveEvent({ post: scheduled({ publishAt: null }) }).occurredAt, SAVED);
+  assert.equal(goLiveEvent({ post: scheduled({ version: 9 }) }).id, goLiveEvent({ post: scheduled() }).id, "every version of one schedule shares the id");
+});
+
+test("announcePendingGoLive: enqueues the go-live event only for a row that went live since its save", async () => {
+  const outbox = new RecordingOutbox();
+  await announcePendingGoLive({ outbox, post: scheduled(), nowIso: SAVED });
+  assert.deepEqual(outbox.enqueued, [], "still scheduled: nothing to announce yet");
+  await announcePendingGoLive({ outbox, post: scheduled(), nowIso: LATER });
+  assert.deepEqual(outbox.enqueued, [goLiveEvent({ post: scheduled() })]);
 });
 
 test("announceDueGoLives enqueues one event per candidate and passes the window through", async () => {
   const repo = new FakeCandidates([scheduled(), scheduled({ id: "p2" })]);
   const outbox = new RecordingOutbox();
   assert.deepEqual(await announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: "ws", nowIso: LATER } }), { announced: 2 });
-  assert.deepEqual(outbox.enqueued.map((event) => event.id), ["p1-entry.published-3", "p2-entry.published-3"]);
+  assert.deepEqual(outbox.enqueued.map((event) => event.id), [`p1-entry.published-at-${GO_LIVE}`, `p2-entry.published-at-${GO_LIVE}`]);
   await announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: "ws", nowIso: LATER } }, { afterIso: GO_LIVE });
   assert.deepEqual(repo.calls, [{ workspaceId: "ws", nowIso: LATER }, { workspaceId: "ws", nowIso: LATER, afterIso: GO_LIVE }]);
 });

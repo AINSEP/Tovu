@@ -74,7 +74,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   /** See `GoLiveCandidatesPort.listGoLiveCandidates` — the in-JS twin of `repo.ts`'s query. */
-  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }): Promise<PostRecord[]> {
+  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, _optional: Record<string, never> = {}): Promise<PostRecord[]> {
     const { workspaceId, nowIso, afterIso } = required;
     return this.rows
       .filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave({ post: row, nowIso }) && (afterIso === undefined || (row.publishAt as string) > afterIso))

@@ -108,7 +108,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   /** See `GoLiveCandidatesPort.listGoLiveCandidates`. Every predicate is in the query: ISO UTC
    *  strings compare in time order (`scheduled-publish.ts`), so `publish_at > updated_at` is "saved
    *  while still scheduled". Ordered by go-live time, `id` breaking ties. */
-  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }): Promise<PostRecord[]> {
+  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, _optional: Record<string, never> = {}): Promise<PostRecord[]> {
     const { workspaceId, nowIso, afterIso } = required;
     const rows = await this.kernel.run((db) =>
       db
