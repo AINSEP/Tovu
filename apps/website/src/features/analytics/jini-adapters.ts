@@ -2,6 +2,7 @@
 import {
   createFanOutAnalyticsSink,
   LocalBufferSink,
+  type AnalyticsForwardLimiter,
   type AnalyticsForwardReport,
   type BoundAnalyticsForwarder,
   type AnalyticsPrivacyPolicy,
@@ -52,14 +53,15 @@ const reportForwardFailure: AnalyticsForwardReport = ({ forwarderId, outcome, me
  * Convert host ports to the package's object arguments and supply explicit host policy/context.
  * Hooks receive only normalized hits; adapter failures propagate to the HTTP error boundary.
  * `optional.forwarders` (already consent-checked for this request) receive minimised hits after
- * the built-in sink accepts; their failures are logged, never propagated.
+ * the built-in sink accepts; their failures are logged, never propagated. `optional.limiter` is the
+ * route's shared in-flight cap (sinks are built per request, so the cap must outlive them).
  * @returns Required Jini deps and separate optional hooks, without invoking any port.
  * @example const { deps, optional } = createAnalyticsIngestBinding({ deps: hostDeps });
  * @complexity O(1).
  */
 export function createAnalyticsIngestBinding(
   required: { deps: AnalyticsIngestRouteDeps },
-  optional: { forwarders?: readonly BoundAnalyticsForwarder[] } = {},
+  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter } = {},
 ): { deps: IngestHitDeps; optional: IngestHitOptional } {
   const host = required.deps;
   const hooks = host.hooks;
@@ -71,7 +73,7 @@ export function createAnalyticsIngestBinding(
       acceptBatch: ({ hits }) => host.sink.acceptBatch(hits),
       list: (_required, listOptional) => host.sink.list(listOptional),
     },
-  }, { forwarders: optional.forwarders ?? [], report: reportForwardFailure });
+  }, { forwarders: optional.forwarders ?? [], report: reportForwardFailure, ...(optional.limiter ? { limiter: optional.limiter } : {}) });
   return {
     deps: {
       config: host.config,

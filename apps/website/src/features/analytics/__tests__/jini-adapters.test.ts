@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createAnalyticsForwardLimiter } from "@jini-ai/analytics";
+
 import { analyticsPrivacyPolicy, analyticsSaltContext, createAnalyticsIngestBinding, createLocalAnalyticsSink, type AnalyticsIngestRouteDeps } from "../jini-adapters.js";
 import type { NormalizedHit } from "../types.js";
 
@@ -54,4 +56,23 @@ test("createLocalAnalyticsSink seeds initial hits and exposes all()", async () =
   const sink = createLocalAnalyticsSink({}, { initialHits: [hit("/seed")] });
   assert.deepEqual(sink.all().map((h) => h.path), ["/seed"]);
   assert.deepEqual((await sink.list()).map((h) => h.path), ["/seed"]);
+});
+
+test("binding: a shared limiter over its cap drops the forward but the built-in sink still accepts", async () => {
+  const limiter = createAnalyticsForwardLimiter({}, { maxInFlight: 0 });
+  const warn = console.warn;
+  const logged: unknown[] = [];
+  console.warn = (m: unknown) => { logged.push(m); };
+  try {
+    const deps = hostDeps();
+    const { deps: bound } = createAnalyticsIngestBinding({ deps }, {
+      limiter,
+      forwarders: [{ id: "v", context: { workspaceId: "ws-1", mode: "live" }, forwarder: { forward: async () => { throw new Error("must not run"); } } }],
+    });
+    await bound.sink.accept({ hit: hit("/kept") });
+    assert.deepEqual(deps.sink.all().map((h) => h.path), ["/kept"]);
+  } finally {
+    console.warn = warn;
+  }
+  assert.deepEqual(logged, ["[analytics] forward to 'v' dropped: too many vendor calls in flight"]);
 });
