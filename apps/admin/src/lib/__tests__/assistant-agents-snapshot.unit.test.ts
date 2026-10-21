@@ -32,6 +32,8 @@ describe("assistant agents snapshot", () => {
     ["a non-array", JSON.stringify({ id: "claude" })],
     ["an empty array", "[]"],
     ["an entry without a string id/name", JSON.stringify([{ id: "claude", name: "Claude Code" }, { id: 7 }])],
+    ["a null entry", JSON.stringify([{ id: "claude", name: "Claude Code" }, null])],
+    ["a bare-string entry", JSON.stringify(["claude"])],
   ])("reads undefined for %s", (_label, raw) => {
     localStorage.setItem(STORAGE_KEY, raw);
 
