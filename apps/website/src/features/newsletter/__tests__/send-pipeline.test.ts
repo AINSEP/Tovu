@@ -282,7 +282,7 @@ test("handleSendBatchClaimed: campaign mail is bulk with per-recipient one-click
   assert.deepEqual(await processUnsubscribe({ deps: unsubscribe, input: { rawToken: link[2]! } }), { outcome: "unsubscribed" });
 });
 
-test("handleSendBatchClaimed: a rate-limited send leaves the row pending and fails the batch for an outbox retry", async () => {
+test("handleSendBatchClaimed: a rate-limited send leaves the rows pending and reschedules them in a fresh batch after the hint, without failing this one", async () => {
   const mailer = makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "bulk lane is rate limited", retryAfterMs: 500 }));
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], mailer });
   for (const subscriberId of ["sub-1", "sub-2"]) {
@@ -291,13 +291,108 @@ test("handleSendBatchClaimed: a rate-limited send leaves the row pending and fai
   await rig.sendRepo.save(makeSendRow());
   await rig.sendRepo.save(makeSendRow({ id: "send-2", subscriberId: "sub-2", recipientEmail: "b@test.com", idempotencyKey: "idem-2" }));
 
-  await assert.rejects(handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ sendIds: ["send-1", "send-2"] }) }), /rate limited by the mail provider/);
+  await handleSendBatchClaimed({ deps: rig.deps, job: makeJob({ sendIds: ["send-1", "send-2"] }) });
 
   assert.equal(mailer.calls.length, 1, "the batch stops at the first rate-limited row");
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-2" }))?.status, "pending");
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.counters.failed, 0);
+  const [continuation] = rig.outbox.records;
+  assert.deepEqual((continuation?.event.payload as SendBatchJob).sendIds, ["send-1", "send-2"], "the deferred row and the rest are rescheduled");
+  // Due no earlier than the hint, and no earlier than the deferred row's own dispatch lease.
+  assert.equal(continuation?.nextAttemptAt, new Date(Date.parse(clock.nowIso()) + NEWSLETTER_SEND_ROW_LEASE_MS).toISOString());
+  assert.equal(continuation?.attempts, 0, "a fresh event: the quota wait spends no outbox attempt");
 });
+
+async function deferralRig(mailer: ReturnType<typeof makeMailer>) {
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], mailer });
+  await rig.subscriptionRepo.save({ id: "subscription-sub-1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  await rig.sendRepo.save(makeSendRow());
+  return rig;
+}
+
+test("handleSendBatchClaimed: a quota hint longer than the row lease schedules the continuation at the hint", async () => {
+  const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "429", retryAfterMs: 10 * 60 * 1000 })));
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async () => assert.fail("a 10 minute hint is never waited inline") }, job: makeJob() });
+  assert.equal(rig.outbox.records[0]?.nextAttemptAt, "2026-08-21T00:10:00.000Z");
+});
+
+test("handleSendBatchClaimed: a hintless rate limit waits the default second inline, then sends", async () => {
+  let calls = 0;
+  const rig = await deferralRig(makeMailer(() => (++calls === 1 ? { ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "busy" } : { ok: true, providerMessageId: "pm-1", acceptedAt: clock.nowIso() })));
+  const slept: number[] = [];
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  assert.deepEqual(slept, [1000]);
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "delivered");
+  assert.equal(rig.outbox.records.length, 0);
+});
+
+test("handleSendBatchClaimed: a pause that lands during an inline quota wait stops the batch with the row pending", async () => {
+  const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "busy", retryAfterMs: 300 })));
+  const sleep = async () => { await pauseCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } }); };
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep }, job: makeJob() });
+  assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
+  assert.equal(rig.outbox.records.length, 0, "resume requeues pending rows; nothing is rescheduled for a paused campaign");
+});
+
+test("handleSendBatchClaimed: a leased row reported without a lease time is rescheduled at the hint", async () => {
+  const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "busy", retryAfterMs: 5000 })));
+  const sendRepo = Object.assign(Object.create(rig.sendRepo), { claimForDispatch: async () => makeSendRow({ nextAttemptAt: null }) }) as NewsletterSendRepoPort;
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sendRepo }, job: makeJob() });
+  assert.equal(rig.outbox.records[0]?.nextAttemptAt, "2026-08-21T00:00:05.000Z");
+});
+
+/**
+ * A full 20-recipient batch against Resend's real declared limit (2/s, burst 2) through the outbox,
+ * with the provider's quota answered by the real lane limiter. `sleep` is the injected wait.
+ */
+async function runResendBatch(optional: { inlineSleep: boolean }) {
+  const { createMailLaneLimiter } = await import("@jini-ai/platform/mail");
+  let nowMs = Date.parse("2026-08-21T00:00:00.000Z");
+  const limiter = createMailLaneLimiter({ limit: { perSecond: 2, burst: 2 } }, { now: () => nowMs });
+  const mailer = makeMailer(() => {
+    nowMs += 100; // one provider round trip
+    const taken = limiter.tryTake({ lane: "bulk" });
+    return taken.ok
+      ? { ok: true as const, providerMessageId: `pm-${nowMs}`, acceptedAt: new Date(nowMs).toISOString() }
+      : { ok: false as const, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "bulk lane is rate limited", retryAfterMs: taken.retryAfterMs };
+  });
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" })], mailer });
+  const movingClock = { nowMs: () => nowMs, nowIso: () => new Date(nowMs).toISOString() };
+  const slept: number[] = [];
+  const deps: SendPipelineDeps = { ...rig.deps, clock: movingClock, ...(optional.inlineSleep ? { sleep: async (ms: number) => { slept.push(ms); nowMs += ms; } } : {}) };
+  const sendIds: string[] = [];
+  for (let i = 1; i <= 20; i++) {
+    await rig.subscriptionRepo.save({ id: `subscription-${i}`, workspaceId: WS, listId: "list-1", subscriberId: `sub-${i}`, status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+    await rig.sendRepo.save(makeSendRow({ id: `send-${i}`, subscriberId: `sub-${i}`, recipientEmail: `r${i}@test.com`, idempotencyKey: `idem-${i}` }));
+    sendIds.push(`send-${i}`);
+  }
+  await rig.bus.subscribe({ eventName: SEND_BATCH_CLAIMED_EVENT, handler: async (event) => handleSendBatchClaimed({ deps, job: event.payload as SendBatchJob }) });
+  await rig.outbox.enqueue({ id: "batch-1", name: SEND_BATCH_CLAIMED_EVENT, occurredAt: movingClock.nowIso(), workspaceId: WS, payload: makeJob({ sendIds }) } as never);
+  for (let round = 0; round < 200 && rig.outbox.records.some((row) => row.status !== "delivered" && row.status !== "failed"); round++) {
+    if ((await claimBatch({ deps: { outbox: rig.outbox, bus: rig.bus, clock: movingClock } })) === 0) {
+      const due = rig.outbox.records.filter((row) => row.status === "pending").map((row) => Date.parse(row.nextAttemptAt));
+      nowMs = Math.max(nowMs, Math.min(...due));
+    }
+  }
+  return { rig, slept };
+}
+
+for (const inlineSleep of [true, false]) {
+  test(`handleSendBatchClaimed: a full 20-recipient batch at Resend's limits is delivered through quota waits without spending the outbox failure budget (inline sleep: ${inlineSleep})`, async () => {
+    const { rig, slept } = await runResendBatch({ inlineSleep });
+    const rows = await rig.sendRepo.listByCampaign({ workspaceId: WS, campaignId: "camp-1", limit: 100 });
+    assert.deepEqual(rows.map((row) => row.status), Array(20).fill("delivered"));
+    assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sent");
+    assert.ok(rig.outbox.records.every((row) => row.status === "delivered" && row.attempts === 1), "no outbox event ever failed or retried");
+    if (inlineSleep) {
+      assert.equal(rig.outbox.records.length, 1, "short provider waits are taken inline");
+      assert.ok(slept.length > 0 && slept.every((ms) => ms > 0));
+    } else {
+      assert.ok(rig.outbox.records.length > 1, "without an inline wait the rest is rescheduled");
+    }
+  });
+}
 
 test("handleSendBatchClaimed: a terminal row in a still-sending campaign is skipped without recounting", async () => {
   const mailer = makeMailer();

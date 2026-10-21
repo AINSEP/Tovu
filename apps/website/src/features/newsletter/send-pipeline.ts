@@ -65,7 +65,23 @@ export interface SendPipelineDeps {
   bus: EventBusPort;
   clock: { nowIso(): string };
   ids: { newId(): string };
+  /** Waits out a short provider quota hint inside the batch (see {@link NEWSLETTER_INLINE_DEFER_MAX_MS}). Absent, every
+   *  quota wait reschedules the rest of the batch as a fresh outbox event instead. */
+  sleep?: (ms: number) => Promise<void>;
 }
+
+/**
+ * Quota waits (2026-10-21, review email#4). A rate limit is back-pressure, not a failure, so it must never spend the
+ * outbox's failure budget: a batch of 20 against Resend's 2/s burst-2 bucket defers on almost every other row, which
+ * used to fail the batch each time and exhaust `MAX_OUTBOX_ATTEMPTS` with recipients still pending. A short hint is
+ * waited out inline (each wait at most 2s, at most 20s per run: far inside the 60s outbox delivery timeout and the 2
+ * minute row lease); a longer one reschedules the deferred row and the rest as a fresh event, due no earlier than the
+ * hint and the deferred row's lease.
+ */
+export const NEWSLETTER_INLINE_DEFER_MAX_MS = 2_000;
+export const NEWSLETTER_INLINE_DEFER_BUDGET_MS = 20_000;
+/** Wait used when a rate-limited result carries no `retryAfterMs` hint. */
+const DEFAULT_DEFER_MS = 1_000;
 
 /** REQ-19/25 — only the pipeline (`authorizeSend`) may start a real send; compose/schedule-tier actors cannot (AC-25). */
 export async function authorizeSend(required: {
@@ -215,7 +231,7 @@ export async function dispatchRow(required: {
   message: { subject: string; text?: string; html?: string; fromName: string; fromEmail: string; replyTo: string };
   /** The subscription's consent revision, bound into the unsubscribe token (INV-04). */
   consentRevisionId?: string | null;
-}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null }> {
+}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null; retryAfterMs?: number }> {
   const { deps, row } = required;
 
   // REQ-10: crash-recovery / redelivery idempotency (INV-10, EC-04) — a row already terminal is
@@ -265,7 +281,7 @@ export async function dispatchRow(required: {
     return { outcome: "sent", providerMessageId: result.providerMessageId, error: null };
   }
   // A rate limit is back-pressure, not a failure: the row stays pending for the retried batch.
-  if (result.errorCode === MAIL_RATE_LIMITED) return { outcome: "deferred", providerMessageId: null, error: result.message };
+  if (result.errorCode === MAIL_RATE_LIMITED) return { outcome: "deferred", providerMessageId: null, error: result.message, retryAfterMs: result.retryAfterMs ?? DEFAULT_DEFER_MS };
   return { outcome: "failed", providerMessageId: null, error: result.message };
 }
 
@@ -465,7 +481,7 @@ async function claimSendRow(required: { deps: SendPipelineDeps; workspaceId: str
  *
  * @complexity O(1) beyond the hook chain, the mailer call, and `recordResult`.
  */
-async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow }): Promise<"recorded" | "deferred"> {
+async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow }): Promise<{ kind: "recorded" } | { kind: "deferred"; retryAfterMs: number }> {
   const { deps, job, campaign, row } = required;
   const subscription = await deps.subscriptionRepo.findBySubscriberAndList({
     workspaceId: job.workspaceId,
@@ -483,7 +499,7 @@ async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBa
     consentRevisionId: subscription?.consentRevisionIdAtSubscribe ?? null,
   });
   // Rate limited: leave the row pending (its lease expires) so the retried batch sends it later.
-  if (dispatchResult.outcome === "deferred") return "deferred";
+  if (dispatchResult.outcome === "deferred") return { kind: "deferred", retryAfterMs: dispatchResult.retryAfterMs ?? DEFAULT_DEFER_MS };
   // BUG FIX: `recordResult` is the ONLY place a send row's status ever leaves "pending" --
   // `dispatchRow` above never writes. Previously this call was skipped for a "suppressed"
   // outcome, which left the row at "pending" forever: `countPendingByCampaign` could never reach
@@ -502,7 +518,59 @@ async function dispatchAndRecord(required: { deps: SendPipelineDeps; job: SendBa
       error: dispatchResult.error,
     },
   });
-  return "recorded";
+  return { kind: "recorded" };
+}
+
+/** Whether the campaign is still `sending`; re-read because a pause can land during any provider call or wait. */
+async function stillSending(required: { deps: SendPipelineDeps; job: SendBatchJob }): Promise<boolean> {
+  const current = await required.deps.campaignRepo.findById({ workspaceId: required.job.workspaceId, id: required.job.campaignId });
+  return current?.status === "sending";
+}
+
+type RowStep = { kind: "next" } | { kind: "stopped" } | { kind: "leased-elsewhere" } | { kind: "deferred"; retryAfterMs: number; leaseUntilIso: string };
+
+/**
+ * Dispatches one leased row, waiting out short quota hints inline while this run's wait budget allows.
+ * @complexity O(waits) dispatch attempts, each bounded by {@link NEWSLETTER_INLINE_DEFER_BUDGET_MS} in total.
+ */
+async function dispatchWithinBudget(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; row: SendRow; budget: { waitedMs: number } }): Promise<RowStep> {
+  const { deps, budget } = required;
+  for (;;) {
+    const outcome = await dispatchAndRecord(required);
+    if (outcome.kind === "recorded") return { kind: "next" };
+    const wait = outcome.retryAfterMs;
+    const fits = wait <= NEWSLETTER_INLINE_DEFER_MAX_MS && budget.waitedMs + wait <= NEWSLETTER_INLINE_DEFER_BUDGET_MS;
+    if (!deps.sleep || !fits) return { kind: "deferred", retryAfterMs: wait, leaseUntilIso: required.row.nextAttemptAt ?? deps.clock.nowIso() };
+    budget.waitedMs += wait;
+    await deps.sleep(wait);
+    if (!(await stillSending(required))) return { kind: "stopped" };
+  }
+}
+
+/** One recipient of a batch: pause check, lease, dispatch. @complexity O(1) repo calls beyond the dispatch. */
+async function runBatchRow(required: { deps: SendPipelineDeps; job: SendBatchJob; campaign: CampaignRecord; sendId: string; budget: { waitedMs: number } }): Promise<RowStep> {
+  const { deps, job, sendId } = required;
+  // Re-read before each recipient: pause can arrive while the prior provider request is in flight.
+  // Resume requeues pending rows, so acknowledging this stopped batch does not strand them.
+  if (!(await stillSending({ deps, job }))) return { kind: "stopped" };
+  const row = await claimSendRow({ deps, workspaceId: job.workspaceId, sendId });
+  if (row === "leased-elsewhere") return { kind: "leased-elsewhere" };
+  if (!row) return { kind: "next" };
+  return dispatchWithinBudget({ ...required, row });
+}
+
+/**
+ * Reschedules the deferred row and every row after it as a fresh batch event, so a quota wait spends
+ * no outbox attempt. Both outbox adapters take an event's `occurredAt` as its first due time, so the
+ * continuation's `occurredAt` is when it may run: the later of the provider's hint and the deferred
+ * row's own lease (an earlier run would find that row leased and fail the batch).
+ */
+async function continueLater(required: { deps: SendPipelineDeps; job: SendBatchJob; sendIds: readonly string[]; step: { retryAfterMs: number; leaseUntilIso: string } }): Promise<void> {
+  const { deps, job, step } = required;
+  const hinted = new Date(Date.parse(deps.clock.nowIso()) + step.retryAfterMs).toISOString();
+  const dueIso = hinted > step.leaseUntilIso ? hinted : step.leaseUntilIso;
+  const event: DomainEvent<SendBatchJob> = { id: deps.ids.newId(), name: SEND_BATCH_CLAIMED_EVENT, occurredAt: dueIso, workspaceId: job.workspaceId, payload: { ...job, sendIds: required.sendIds } };
+  await deps.outbox.enqueue(event as unknown as DomainEvent);
 }
 
 /**
@@ -523,21 +591,16 @@ export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps;
   if (!campaign) return;
 
   let leasedElsewhere = 0;
-  for (const sendId of job.sendIds) {
-    // Re-read before each recipient: pause can arrive while the prior provider request is in flight.
-    // Resume requeues pending rows, so acknowledging this stopped batch does not strand them.
-    const current = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
-    if (!current || current.status !== "sending") return;
-    const row = await claimSendRow({ deps, workspaceId: job.workspaceId, sendId });
-    if (row === "leased-elsewhere") {
-      leasedElsewhere += 1;
-      continue;
-    }
-    if (!row) continue;
-    if ((await dispatchAndRecord({ deps, job, campaign, row })) === "deferred") {
-      // The provider's bucket is empty: further rows would only be deferred too. Fail the batch so
-      // the outbox retries it after its backoff instead of marking anyone failed.
-      throw new Error(`campaign ${job.campaignId} is rate limited by the mail provider; the batch will be retried`);
+  const budget = { waitedMs: 0 };
+  for (const [index, sendId] of job.sendIds.entries()) {
+    const step = await runBatchRow({ deps, job, campaign, sendId, budget });
+    if (step.kind === "stopped") return;
+    if (step.kind === "leased-elsewhere") leasedElsewhere += 1;
+    if (step.kind === "deferred") {
+      // The provider's bucket is empty: further rows would only be deferred too. Reschedule them
+      // (a quota wait, not a failure) instead of marking anyone failed or spending an outbox attempt.
+      await continueLater({ deps, job, sendIds: job.sendIds.slice(index), step });
+      break;
     }
   }
 
