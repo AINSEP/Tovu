@@ -175,6 +175,8 @@ test("gapb member: sign-in request for a trashed email keeps the neutral respons
   const deps = {
     clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo([blocked]),
     magicLinks: { save: fail }, mailer: { send: fail }, ids: { newId: () => { assert.fail("must not mint"); } },
+    // The sender is resolved before the member lookup, for every address alike.
+    senderIdentity: { resolve: async ({ fallback }: { fallback: unknown }) => fallback },
   } as unknown as MembersWriteServiceDeps;
   assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }), { delivered: true });
 });

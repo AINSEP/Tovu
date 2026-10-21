@@ -12,7 +12,7 @@
  */
 import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import type { MailerPort } from "#src/platform/mail/index";
+import type { MailerPort, MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import type {
@@ -33,6 +33,8 @@ export interface NewsletterPublicRouteDeps {
   originRegistry: OriginRegistryPort;
   clock: { nowIso(): string };
   idGen: { newId(): string };
+  /** The site's system-email From resolver — see `ConfirmationDeps.senderIdentity`. */
+  mailSenderIdentity?: MailSenderIdentityPort;
 }
 
 /** Assemble `confirmation.ts`'s deps bundle from the narrower public deps shape. */
@@ -45,6 +47,7 @@ export function toPublicConfirmationDeps(deps: NewsletterPublicRouteDeps): Confi
     originRegistry: deps.originRegistry,
     clock: deps.clock,
     ids: deps.idGen,
+    senderIdentity: deps.mailSenderIdentity,
   };
 }
 

@@ -106,6 +106,8 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
     magicLinkRepo,
     principalRepo,
     mailer,
+    // The fake is an SMTP driver, so a send needs the site's configured sender.
+    mailSenderIdentity: { resolve: async () => ({ email: "hello@example.test", name: "Example Site" }) },
     magicLinkPerEmailLimiter,
   };
 
@@ -342,6 +344,7 @@ test("members_request_magic_link: delivers {delivered:true} for a valid email an
   assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
   assert.deepEqual((sentMail[0] as { to: unknown }).to, { email: "member@example.test" });
+  assert.deepEqual((sentMail[0] as { from: unknown }).from, { email: "hello@example.test", name: "Example Site" }, "the tool path must send from the site's configured sender");
   const url = signInUrl(sentMail[0]);
   assert.equal(url.pathname, "/auth/magic");
   assert.equal(url.searchParams.has("redirect"), false);

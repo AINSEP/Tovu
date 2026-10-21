@@ -224,6 +224,13 @@ test("authorized tools expose reachable validation, conflict, protected-default,
   await expectBadRequest(noneditable, "newsletter_update_campaign", { campaignId: "c-1", subject: "New" }, "NEWSLETTER_CAMPAIGN_NOT_EDITABLE: campaign is 'sent' and cannot be edited");
 });
 
+test("newsletter_update_campaign on an unknown campaign id refuses as NEWSLETTER_CAMPAIGN_NOT_FOUND and writes nothing", async () => {
+  const missing = makeRouteDeps();
+  await seedList(missing);
+  await expectBadRequest(missing, "newsletter_update_campaign", { campaignId: "ghost", subject: "New" }, "NEWSLETTER_CAMPAIGN_NOT_FOUND: campaign ghost was not found");
+  assert.deepEqual(await missing.newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID }), []);
+});
+
 test("authorized list and campaign tools return exact views and persist edits", async () => {
   const deps = makeRouteDeps();
   const harness = await buildHarness(deps);

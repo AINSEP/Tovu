@@ -95,6 +95,8 @@ test("real call sites use distinct lanes through the production gate and sign-in
     members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(), mailer, principals: new InMemoryPrincipalRepo({}),
+    // A delivering ("recording") driver needs the site's configured sender.
+    senderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example" }) },
   }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });
   try {
     // Drain the call site's asynchronous repo operations without advancing any wall-clock timer.

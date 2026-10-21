@@ -151,8 +151,18 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let closed: Promise<void>;
   let exitCode: number | undefined;
   const stopped: string[] = [];
-  const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", storage: { kind: "sqlite" }, db: {} };
-  const deps: { workspaceId: string; legacyPublishCredentialsReady?: Promise<void> } = { workspaceId: bootResult.workspaceId };
+  const bootResult: { config: { port: number }; workspaceId: string; storage: { kind: string }; db: object; store?: { pgliteSocketPath: string } } = { config: { port: 3456 }, workspaceId: "wiring-workspace", storage: { kind: "sqlite" }, db: {} };
+  const deps: { workspaceId: string; legacyPublishCredentialsReady?: Promise<void>; identityReady?: Promise<unknown> } = { workspaceId: bootResult.workspaceId };
+  // Per-scenario switches for the steps around the listener (see the scenarios below).
+  let daemonWanted = false;
+  const daemonStarts: unknown[][] = [];
+  let lifecycle: { ok: boolean; modules: unknown[] } = { ok: true, modules: [] };
+  const criticalFailureLogs: unknown[] = [];
+  let leaseReadyError: Error | undefined;
+  let serverCloses = 0;
+  /** Off by default: the BR-07 shutdown's worker-stop order is asserted without the listener's own "close" hook. */
+  let emitCloseEvent = false;
+  const leaseClaims: unknown[] = [];
   // Boot work the composition starts and returns before it finishes: the detached legacy
   // publish-credential tail (on `deps`) and `createApp`'s BYOK pass (`createServingApp`'s `bootWork`).
   // The store close must wait for both, or they log "The database connection is not open".
@@ -191,8 +201,12 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     createServingApp: () => ({
       app: { listen: (...args: unknown[]) => {
         listens.push(args);
-        const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done: () => void): void };
-        server.close = done => done();
+        const server = new EventEmitter() as InstanceType<typeof EventEmitter> & { close(done?: () => void): void };
+        server.close = done => {
+          serverCloses += 1;
+          if (emitCloseEvent) server.emit("close");
+          done?.();
+        };
         queueMicrotask(() => server.emit("listening"));
         return server;
       } },
@@ -200,23 +214,24 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       trashSweeper: { stop: async () => { stopped.push("trash"); } },
       themeWatcher: { stop: async () => { stopped.push("themes"); } },
       formPullTrigger: { stop: async () => { stopped.push("form-pull"); } },
+      webhookDeliveryWorker: { stop: async () => { stopped.push("webhooks"); } },
       bootWork: [byokWork.promise],
     }),
   });
   // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
   // scenario would otherwise find the previous one still "Running in Web".
-  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: () => ({ ready: () => {}, release: () => {} }) });
+  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
-  module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: () => {} });
-  module("../../../server/runtime/lifecycle/boot-lifecycle.ts", { runBootLifecycle: async () => ({ ok: true, modules: [] }) });
+  module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: (result: unknown) => { criticalFailureLogs.push(result); } });
+  module("../../../server/runtime/lifecycle/boot-lifecycle.ts", { runBootLifecycle: async () => lifecycle });
   module("../../../server/runtime/lifecycle/readiness-state.ts", { setReadinessSnapshot: () => {} });
   module("../../../server/runtime/lifecycle/agent-daemon-port.ts", { ensureAgentDaemonPortResolved: async () => {} });
-  module("../../../server/runtime/boot/agent-daemon-wanted.ts", { agentDaemonWanted: async () => false });
-  module("../../../server/inbound/assistant/index.ts", { startAssistantDaemon: () => {}, shutdownAssistantDaemon: () => {} });
+  module("../../../server/runtime/boot/agent-daemon-wanted.ts", { agentDaemonWanted: async () => daemonWanted });
+  module("../../../server/inbound/assistant/index.ts", { startAssistantDaemon: (...args: unknown[]) => { daemonStarts.push(args); }, shutdownAssistantDaemon: () => {} });
   module("../../../assistant/index.ts", { ensureAgentDaemonToken: () => {} });
   module("../../../server/inbound/admin-http/admin-dev-proxy.ts", { registerAdminDevProxyUpgrade: () => {} });
   // Preserve other exports used by transitive imports while observing only the command's dependencies.
@@ -229,13 +244,42 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     return once(event, listener);
   }) as typeof process.once);
   t.mock.method(process, "exit", ((code: number) => { exitCode = code; }) as typeof process.exit);
+  const logged: string[] = [];
+  t.mock.method(console, "log", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
+  const errors: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
+  const stderr: string[] = [];
+  const writeStderr = process.stderr.write.bind(process.stderr);
+  t.mock.method(process.stderr, "write", ((chunk: string | Uint8Array, ...rest: unknown[]) => {
+    stderr.push(String(chunk));
+    return (writeStderr as (...args: unknown[]) => boolean)(chunk, ...rest);
+  }) as typeof process.stderr.write);
+  const readinessFailure = new Error("identity seeding failed");
   const { runServeCommand } = await import("../../commands/serve.js");
   try {
     for (const scenario of [
-      { env: undefined, host: undefined, expected: "127.0.0.1" },
-      { env: "0.0.0.0", host: undefined, expected: "0.0.0.0" },
-      { env: "0.0.0.0", host: "127.0.0.1", expected: "127.0.0.1" },
+      { env: undefined, host: undefined, expected: "127.0.0.1", daemonWanted: true },
+      { env: "0.0.0.0", host: undefined, expected: "0.0.0.0", identityFails: true },
+      // A PGlite owner hands the daemon its socket; the desktop shell's run is recorded as Desktop.
+      { env: "0.0.0.0", host: "127.0.0.1", expected: "127.0.0.1", daemonWanted: true, pgliteSocketPath: "/tmp/wiring-pglite.sock", runningApp: "Desktop" },
+      // `::` is Node's own all-interfaces default: the listener gets no host argument at all.
+      { env: "::", host: undefined, expected: undefined, emitBootToken: true },
     ]) {
+      daemonWanted = scenario.daemonWanted === true;
+      if (scenario.pgliteSocketPath === undefined) delete bootResult.store;
+      else bootResult.store = { pgliteSocketPath: scenario.pgliteSocketPath };
+      if (scenario.runningApp === undefined) delete process.env.TOVU_RUNNING_APP;
+      else process.env.TOVU_RUNNING_APP = scenario.runningApp;
+      leaseClaims.length = 0;
+      daemonStarts.length = 0;
+      errors.length = 0;
+      logged.length = 0;
+      stderr.length = 0;
+      if (scenario.identityFails === true) {
+        const failing = Promise.reject(readinessFailure);
+        failing.catch(() => {});
+        deps.identityReady = failing;
+      } else delete deps.identityReady;
       if (scenario.env === undefined) delete process.env.TOVU_HOST;
       else process.env.TOVU_HOST = scenario.env;
       const target = path.resolve("/tmp/tovu-serve-wiring-fixture");
@@ -246,14 +290,33 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       legacyWork = deferred();
       byokWork = deferred();
       deps.legacyPublishCredentialsReady = legacyWork.promise;
-      await runServeCommand({ dir: target, port: "4567", host: scenario.host });
-      assert.deepEqual(listens.at(-1), [4567, scenario.expected]);
+      await runServeCommand({ dir: target, port: "4567", host: scenario.host, emitBootToken: scenario.emitBootToken });
+      assert.deepEqual(listens.at(-1), scenario.expected === undefined ? [4567] : [4567, scenario.expected]);
+      await new Promise(resolve => setImmediate(resolve));
+      const startup = `tovu serve: dir=${target} port=4567 schemaVersion=`;
+      const startupIndex = logged.findIndex(line => line.startsWith(startup));
+      assert.ok(startupIndex >= 0, "the documented startup line is printed once the listener is bound");
+      const tokenIndex = logged.findIndex(line => /^tovu serve: bootToken=\S+$/.test(line));
+      if (scenario.emitBootToken === true) assert.equal(tokenIndex, startupIndex - 1, "the boot token is printed on its own line just before the startup line");
+      else assert.equal(tokenIndex, -1, "no boot token is printed unless asked for");
+      const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
+      if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);
+      else assert.deepEqual(widened, [`tovu serve: warning: listening on ${scenario.expected ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`]);
+      if (scenario.daemonWanted === true) {
+        assert.deepEqual(daemonStarts, [[{ workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath }, { registerProcessSignalHandlers: false }]]);
+      } else assert.deepEqual(daemonStarts, []);
+      assert.deepEqual(leaseClaims, [{ dir: target, app: scenario.runningApp ?? "Web" }]);
+      if (scenario.identityFails === true) {
+        // Server log capture (installed by the command) formats console.error's arguments into one line.
+        assert.equal(errors.length, 1);
+        assert.match(String(errors[0]![0]), /^\[cli\/serve\] a boot-readiness promise rejected — not starting the agent daemon Error: identity seeding failed\n/);
+      }
       assert.equal(process.env.TOVU_SITE_DIR, target);
       assert.ok(signals.has("SIGTERM"));
       assert.ok(signals.has("SIGINT"));
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull"], "shutdown must stop all workers before closing storage");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks"], "shutdown must stop all workers before closing storage");
       assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
       legacyWork.resolve();
       await new Promise(resolve => setImmediate(resolve));
@@ -265,8 +328,49 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull"], "each worker stops exactly once");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks"], "each worker stops exactly once");
     }
+
+    // Refusals after the boot: nothing keeps serving, and what the boot opened is closed again.
+    const refusalTarget = path.resolve("/tmp/tovu-serve-wiring-fixture");
+    delete process.env.TOVU_HOST;
+    delete deps.identityReady;
+    closed = Promise.resolve();
+    legacyWork = deferred();
+    legacyWork.resolve();
+    deps.legacyPublishCredentialsReady = legacyWork.promise;
+    byokWork = deferred();
+    byokWork.resolve();
+
+    // A critical boot module failing refuses to serve: failures logged, no listener, store closed.
+    lifecycle = { ok: false, modules: [{ name: "settings", status: "failed" }] };
+    const listensBeforeRefusal = listens.length;
+    closeStarted = false;
+    stopped.length = 0;
+    await assert.rejects(runServeCommand({ dir: refusalTarget, port: "4567" }), (error: unknown) => {
+      assert.equal((error as Error).message, "Refusing to boot — a critical module failed. See failures above.");
+      return true;
+    });
+    assert.deepEqual(criticalFailureLogs, [lifecycle]);
+    assert.equal(listens.length, listensBeforeRefusal, "a refused boot never listens");
+    assert.deepEqual(stopped, [], "no worker was started yet");
+    assert.equal(closeStarted, true);
+    lifecycle = { ok: true, modules: [] };
+
+    // The running-site record failing to take the bound port closes the listener and the workers.
+    leaseReadyError = new Error("site registry unwritable");
+    delete process.env.TOVU_RUNNING_APP;
+    delete bootResult.store;
+    emitCloseEvent = true;
+    const closesBefore = serverCloses;
+    closeStarted = false;
+    stopped.length = 0;
+    await assert.rejects(runServeCommand({ dir: refusalTarget, port: "4567" }), (error: unknown) => error === leaseReadyError);
+    assert.equal(serverCloses, closesBefore + 1, "the just-bound listener is closed again");
+    // The closed listener's own "close" hook stops the theme watcher first; the release then stops every worker.
+    assert.deepEqual(stopped, ["themes", "outbox", "trash", "themes", "form-pull", "webhooks"]);
+    assert.equal(closeStarted, true);
+    leaseReadyError = undefined;
   } finally {
     releaseClose();
     for (const key of Object.keys(process.env)) if (!(key in envBefore)) delete process.env[key];

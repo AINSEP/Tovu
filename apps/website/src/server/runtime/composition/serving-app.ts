@@ -6,6 +6,7 @@ import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/even
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
+import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
@@ -31,6 +32,10 @@ import { createServingFormPullTrigger } from "./form-pull-triggers.js";
  * The automatic form pull (`form-pull-triggers.ts`) follows the same two rules: it imports
  * submissions and enqueues their events, so its startup pull runs only after `createApp` attached
  * the subscribers, and only a serving process pulls — at startup and on owner/admin sign-in.
+ *
+ * The webhook delivery loop (`webhook-delivery-worker.ts`) sends what `createApp`'s integrations
+ * module enqueued, so it too runs only here: a POST of a site's data from a process nobody serves
+ * is the drainer's loss in reverse.
  */
 
 /**
@@ -40,6 +45,7 @@ import { createServingFormPullTrigger } from "./form-pull-triggers.js";
  *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
+ * @param optional.webhookDeliveryIntervalMs idle wait between webhook delivery ticks (default: the worker's own 15 s).
  * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` waits
  *   for a running pull), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
@@ -48,8 +54,8 @@ import { createServingFormPullTrigger } from "./form-pull-triggers.js";
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; bootWork: Promise<void>[] } {
+  optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number } = {}
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
@@ -73,7 +79,11 @@ export function createServingApp(
     }
   );
   const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  const webhookDeliveryWorker = startServingWebhookDeliveryWorker(
+    { deps: routeDeps },
+    optional.webhookDeliveryIntervalMs === undefined ? {} : { intervalMs: optional.webhookDeliveryIntervalMs }
+  );
   // After `createApp`: the pulled submissions' events need their subscribers attached.
   formPull.pullNow();
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, bootWork };
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, bootWork };
 }

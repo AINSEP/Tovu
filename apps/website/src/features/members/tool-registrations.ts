@@ -72,6 +72,8 @@ export interface MembersToolDeps {
   /** Resolves configuration independently of sending; production supplies this so disabled
    * members (which skip sends) cannot be distinguished during a lazy driver swap. */
   settleMailer?: () => Promise<void>;
+  /** The site's system-email From resolver — see `MembersWriteServiceDeps.senderIdentity`. */
+  mailSenderIdentity?: MembersWriteServiceDeps["senderIdentity"];
   magicLinkPerEmailLimiter: MagicLinkRateLimiter;
 }
 
@@ -94,6 +96,7 @@ function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDe
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
     principals: deps.principalRepo,
+    senderIdentity: deps.mailSenderIdentity,
   };
 }
 

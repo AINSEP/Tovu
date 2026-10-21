@@ -1785,6 +1785,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       mailer: routeDeps.mailer,
       formDefinitionRepo: routeDeps.formDefinitionRepo,
       formSubmissionRepo: routeDeps.formSubmissionRepo,
+      senderIdentity: routeDeps.mailSenderIdentity,
     })
   );
   startModule(
@@ -1951,6 +1952,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
+    mailSenderIdentity: routeDeps.mailSenderIdentity,
     magicLinkPerEmailLimiter,
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,
@@ -1979,6 +1981,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     originRegistry: newsletterAdminDeps.originRegistry,
     clock: newsletterAdminDeps.clock,
     idGen: newsletterAdminDeps.idGen,
+    mailSenderIdentity: newsletterAdminDeps.mailSenderIdentity,
   };
   mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
 

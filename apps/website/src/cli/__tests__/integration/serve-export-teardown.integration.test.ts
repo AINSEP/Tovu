@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { ValidationError } from "#src/platform/site-dir/index";
+import { SiteDirInvalidError, ValidationError } from "#src/platform/site-dir/index";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { openSiteStore, PG_SOCKET_ENV } from "#src/server/runtime/composition/open-site-store";
 import { PortInUseError } from "../../errors.js";
@@ -16,6 +16,7 @@ import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
 import { createServingApp } from "#src/server/runtime/composition/serving-app";
 import { runExportCommand } from "../../commands/export.js";
 import { runServeCommand, type RunServeCommandOptional } from "../../commands/serve.js";
+import { claimSiteRunning } from "#src/platform/site-dir/site-running";
 
 // `registerPluginSdkResolver` refuses a second call per process, and every case here runs a command
 // in this one process: the resolver itself is `*-plugin-sdk-resolver.integration.test.ts`'s subject.
@@ -27,7 +28,8 @@ const commandEffects: RunServeCommandOptional = {
     const outbox = { name: "outboxDrainer", stopped: false };
     const trash = { name: "trashSweeper", stopped: false };
     const formPull = { name: "formPullTrigger", stopped: false };
-    workerStops.push(outbox, trash, formPull);
+    const webhooks = { name: "webhookDeliveryWorker", stopped: false };
+    workerStops.push(outbox, trash, formPull, webhooks);
     return { ...serving,
       outboxDrainer: { ...serving.outboxDrainer, stop: async () => {
         await serving.outboxDrainer.stop();
@@ -40,6 +42,10 @@ const commandEffects: RunServeCommandOptional = {
       formPullTrigger: { stop: async () => {
         await serving.formPullTrigger.stop();
         formPull.stopped = true;
+      } },
+      webhookDeliveryWorker: { ...serving.webhookDeliveryWorker, stop: async () => {
+        await serving.webhookDeliveryWorker.stop();
+        webhooks.stopped = true;
       } },
     };
   },
@@ -140,9 +146,104 @@ test("serve: EADDRINUSE stops the started workers and closes the store", async (
       { name: "outboxDrainer", stopped: true },
       { name: "trashSweeper", stopped: true },
       { name: "formPullTrigger", stopped: true },
+      // e246de16: the webhook delivery loop started by `createServingApp` is stopped like the rest.
+      { name: "webhookDeliveryWorker", stopped: true },
     ]);
     await assertOwnerReleased(dir);
   } finally {
     await new Promise<void>((resolve) => blocker.close(() => resolve()));
   }
+});
+
+/** Sets (or, for `undefined`, deletes) env vars for one test and restores them afterwards. */
+function withEnv(t: { after(fn: () => void): void }, vars: Record<string, string | undefined>): void {
+  const saved = Object.fromEntries(Object.keys(vars).map((key) => [key, process.env[key]]));
+  for (const [key, value] of Object.entries(vars)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+}
+
+test("serve: an invalid --port (non-integer or outside 1..65535) after the boot is VALIDATION and closes the store", async () => {
+  const dir = await pgliteSite();
+  for (const [port, message] of [
+    ["abc", '--port must be an integer between 1 and 65535 (got "abc")'],
+    ["0", "--port must be between 1 and 65535 (got 0)"],
+    ["65536", "--port must be between 1 and 65535 (got 65536)"],
+  ] as const) {
+    await assert.rejects(runServeCommand({ dir, port, host: "127.0.0.1" }, commandEffects), (error: unknown) => {
+      assert.ok(error instanceof ValidationError);
+      assert.equal(error.message, message);
+      return true;
+    });
+    await assertOwnerReleased(dir);
+  }
+});
+
+test("serve: with no --port, a present-but-invalid config.json port is VALIDATION, never a fall-through to PORT", async (t) => {
+  withEnv(t, { PORT: "4321" });
+  const dir = await pgliteSite();
+  const configPath = path.join(dir, "config.json");
+  fs.writeFileSync(configPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(configPath, "utf8")), port: 0 }));
+  await assert.rejects(runServeCommand({ dir, host: "127.0.0.1" }, commandEffects), (error: unknown) => {
+    assert.ok(error instanceof ValidationError);
+    assert.equal(error.message, "--port must be between 1 and 65535 (got 0)");
+    return true;
+  });
+  await assertOwnerReleased(dir);
+});
+
+test("serve: with no --port and no config.json port, a present-but-invalid PORT env is VALIDATION", async (t) => {
+  withEnv(t, { PORT: " 80a " });
+  const dir = await pgliteSite();
+  await assert.rejects(runServeCommand({ dir, host: "127.0.0.1" }, commandEffects), (error: unknown) => {
+    assert.ok(error instanceof ValidationError);
+    assert.equal(error.message, '--port must be an integer between 1 and 65535 (got " 80a ")');
+    return true;
+  });
+  await assertOwnerReleased(dir);
+});
+
+test("serve: a dir argument logs that TOVU_CONTENT_DB and TOVU_DB are ignored (BR-04/EC-08)", async (t) => {
+  withEnv(t, { TOVU_CONTENT_DB: path.join(parent, "ignored-content.db"), TOVU_DB: path.join(parent, "ignored.db") });
+  const dir = await pgliteSite();
+  const stderr: string[] = [];
+  const write = process.stderr.write.bind(process.stderr);
+  t.mock.method(process.stderr, "write", (chunk: string | Uint8Array, ...rest: unknown[]) => {
+    stderr.push(String(chunk));
+    return (write as (...args: unknown[]) => boolean)(chunk, ...rest);
+  });
+  // A bad port ends the run right after the boot, so no listener is ever bound.
+  await assert.rejects(runServeCommand({ dir, port: "abc", host: "127.0.0.1" }, commandEffects), ValidationError);
+  assert.ok(stderr.includes("tovu: warning: TOVU_CONTENT_DB is ignored when a dir argument is given\n"));
+  assert.ok(stderr.includes("tovu: warning: TOVU_DB is ignored when a dir argument is given\n"));
+  await assertOwnerReleased(dir);
+});
+
+test("serve: a dir bootSiteDir refuses releases the running-site claim before the error propagates", async () => {
+  const dir = path.join(parent, `not-a-site-${++siteCount}`);
+  fs.mkdirSync(dir, { recursive: true });
+  await assert.rejects(runServeCommand({ dir, port: String(await freePort()), host: "127.0.0.1" }, commandEffects), SiteDirInvalidError);
+  // A claim still held would refuse here with "Running in Web (...)".
+  const lease = claimSiteRunning({ dir, app: "Web" });
+  lease.release();
+});
+
+test("serve: with no port anywhere it binds 3000, and a listen error other than EADDRINUSE propagates as-is after closing the store", async (t) => {
+  withEnv(t, { PORT: undefined });
+  const dir = await pgliteSite();
+  // 192.0.2.1 (TEST-NET-1, RFC 5737) is a valid IP no local interface owns, so the bind itself fails.
+  await assert.rejects(runServeCommand({ dir, host: "192.0.2.1" }, commandEffects), (error: unknown) => {
+    assert.ok(!(error instanceof PortInUseError), "only EADDRINUSE is mapped to PortInUseError");
+    assert.equal((error as NodeJS.ErrnoException).code, "EADDRNOTAVAIL");
+    assert.match((error as Error).message, /192\.0\.2\.1:3000/, "BR-02's last tier: the default port 3000");
+    return true;
+  });
+  await assertOwnerReleased(dir);
 });

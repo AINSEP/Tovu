@@ -86,7 +86,7 @@ import { SqlFormSubmissionReceiptRepo } from "#src/platform/db/repos/form-submis
 import { composeFormDelivery } from "#src/server/runtime/composition/form-delivery";
 import { composeFormDeliveryDeliverer } from "#src/server/runtime/composition/form-delivery-deliverer";
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { ensureFormDeliverySettings } from "#src/features/settings/index";
+import { ensureFormDeliverySettings, ensureMailSenderSettings, readMailSenderSetting } from "#src/features/settings/index";
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -317,6 +317,7 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#s
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
+import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
 import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
@@ -1355,6 +1356,8 @@ async function composeSiteRouteDeps(
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDeliverySettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // `core.mail.senderEmail`/`senderName` (`features/settings/mail-sender.ts`): system mail's From.
+    .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1967,6 +1970,12 @@ async function composeSiteRouteDeps(
     loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     mode: runtimeMode,
   });
+  // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
+  // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
+  const mailSenderIdentity = createMailSenderIdentityResolver({ mailer: resolvedMailer.mailer }, {
+    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
+    settle: resolvedMailer.settle,
+  });
 
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
@@ -2393,6 +2402,7 @@ async function composeSiteRouteDeps(
       durableOutboxReady: () => false,
     }),
     settleMailer: resolvedMailer.settle,
+    mailSenderIdentity,
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

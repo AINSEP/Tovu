@@ -9,6 +9,7 @@ import type {
   MailerSendResult,
   OutboundEmail,
 } from "#src/platform/mail/index";
+import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import {
@@ -21,6 +22,7 @@ import {
 import {
   compSubscription,
   completeSignIn,
+  createMember,
   disableMember,
   requestSignInLink,
   setSubscriptionStatus,
@@ -786,4 +788,119 @@ test("L298 completeSignIn accepts an email_change-purpose token (reported, not f
   const result = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } });
   assert.equal(result.member.status, "active");
   assert.ok(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }));
+});
+
+// ---- sender identity (platform/mail/sender-identity.ts) ----
+
+/** `makeMailer`'s fake reporting a delivering driver, as a real provider would. */
+function makeDeliveringMailer() {
+  const made = makeMailer();
+  const capabilities = made.mailer.capabilities();
+  made.mailer.capabilities = () => ({ ...capabilities, driver: "smtp" });
+  return made;
+}
+
+test("requestSignInLink sends from the site's configured sender through the composed resolver", async () => {
+  const { mailer, sent } = makeDeliveringMailer();
+  const senderIdentity = createMailSenderIdentityResolver({ mailer }, { readConfiguredSender: async () => ({ email: "hello@example.com", name: "Example Site" }) });
+  const { deps } = makeDeps({ mailer, senderIdentity });
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "sender@example.com" } });
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0]!.message.from, { email: "hello@example.com", name: "Example Site" });
+});
+
+test("requestSignInLink keeps the no-reply@members.local placeholder while the mailer is non-delivering", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "local@example.com" } });
+  assert.deepEqual(sent[0]!.message.from, { email: "no-reply@members.local", name: "Members" });
+});
+
+test("requestSignInLink on a delivering mailer with no sender refuses before writing a member or a token", async () => {
+  const { mailer, sent } = makeDeliveringMailer();
+  const { deps } = makeDeps({ mailer });
+  let tokensSaved = 0;
+  const saveToken = deps.magicLinks.save.bind(deps.magicLinks);
+  deps.magicLinks.save = async (record) => { tokensSaved += 1; return saveToken(record); };
+  await assert.rejects(
+    requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "nobody@example.com" } }),
+    (error: unknown) => error instanceof SenderIdentityNotConfiguredError && error.code === "mail_sender_not_configured"
+  );
+  assert.equal(await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "nobody@example.com" }), null, "no pending member is pre-created");
+  assert.equal(tokensSaved, 0, "no token is minted for a link that cannot be sent");
+  assert.equal(sent.length, 0);
+});
+
+test("requestSignInLink's missing-sender refusal is the same for a disabled member (anti-enumeration)", async () => {
+  const { mailer } = makeDeliveringMailer();
+  const { deps } = makeDeps({ mailer });
+  await deps.members.save({
+    id: "member-disabled", workspaceId: WORKSPACE_ID, email: "disabled@example.com", status: "disabled",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1,
+  });
+  await assert.rejects(
+    requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "disabled@example.com" } }),
+    SenderIdentityNotConfiguredError
+  );
+});
+
+test("completeSignIn refuses with MemberNotFoundError when the token's member row is gone, and opens no session", async () => {
+  // Defensive path: `requestSignInLink` always pre-creates the member, so only a row lost after the
+  // link was minted reaches it. The token is consumed first (single-use holds even here).
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "vanished@example.test" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+  const tokenHash = hashToken(rawToken);
+  const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
+  assert.ok(issued);
+  const members = deps.members;
+  const lostRowDeps: MembersWriteServiceDeps = { ...deps, members: {
+    findById: async () => null,
+    findByEmail: required => members.findByEmail(required),
+    list: required => members.list(required),
+    save: record => members.save(record),
+  } };
+  await assert.rejects(
+    completeSignIn({ deps: lostRowDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
+    (error: unknown) => {
+      assert.ok(error instanceof MemberNotFoundError);
+      assert.equal(error.message, `member '${issued.memberId}' was not found`);
+      return true;
+    },
+  );
+  assert.ok((await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }))?.consumedAt, "the token stays consumed");
+  assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);
+});
+
+test("createMember refuses as a conflict when a disabled row with the same email appears between its check and its create", async () => {
+  // Race: the first lookup sees no row, a concurrent writer saves a disabled member, and the
+  // sign-up creation owner then declines to reuse it. No second member or principal is written.
+  const { deps, principals } = makeDeps();
+  const members = deps.members;
+  let lookups = 0;
+  const racingDeps: MembersWriteServiceDeps = { ...deps, members: {
+    findById: required => members.findById(required),
+    findByEmail: async (required) => {
+      lookups += 1;
+      if (lookups === 2) {
+        await members.save({
+          id: "member-raced", workspaceId: WORKSPACE_ID, email: required.email, status: "disabled",
+          createdAt: "2026-07-10T00:00:00.000Z", updatedAt: "2026-07-10T00:00:00.000Z", version: 1,
+        });
+      }
+      return members.findByEmail(required);
+    },
+    list: required => members.list(required),
+    save: record => members.save(record),
+  } };
+  await assert.rejects(
+    createMember({ deps: racingDeps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.test" } }, { name: "Raced" }),
+    (error: unknown) => {
+      assert.ok(error instanceof MemberConflictError);
+      assert.equal(error.message, "member with email 'raced@example.test' already exists");
+      return true;
+    },
+  );
+  assert.equal(lookups, 2);
+  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).map(m => m.id), ["member-raced"]);
+  assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
 });
