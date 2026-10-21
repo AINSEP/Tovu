@@ -29,7 +29,7 @@ test("the binding forwards each sink call, workspace lookup and the host's fixed
   const host = hostDeps(false);
   const { deps, optional } = createAnalyticsIngestBinding({ deps: host.deps });
   const hit = { id: "hit-2" } as unknown as NormalizedHit;
-  assert.equal(deps.sink.capabilities(), host.capabilities);
+  assert.equal(deps.sink.capabilities({}), host.capabilities);
   await deps.sink.accept({ hit });
   await deps.sink.acceptBatch({ hits: [hit] });
   assert.equal(await deps.sink.list({}, { limit: 5 }), host.listed);
@@ -52,16 +52,13 @@ test("host hooks are adapted to Jini's object-argument beforeIngest", async () =
 });
 
 test("the local sink adapts Jini's buffer to the positional Tovu sink port, seeded with initial hits", async () => {
-  const seeded = { id: "seed", workspaceId: "ws-1", ts: "2026-10-20T00:00:00.000Z" } as unknown as NormalizedHit;
-  const sink = createLocalAnalyticsSink({}, { initialHits: [seeded] });
+  const hit = (path: string, second: number) => ({ path, workspaceId: "ws-1", occurredAt: `2026-10-20T00:00:0${second}.000Z` } as unknown as NormalizedHit);
+  const sink = createLocalAnalyticsSink({}, { initialHits: [hit("/seed", 0)] });
   assert.equal(sink.capabilities().durable, false);
-  const one = { ...seeded, id: "one", ts: "2026-10-20T00:00:01.000Z" } as NormalizedHit;
-  const two = { ...seeded, id: "two", ts: "2026-10-20T00:00:02.000Z" } as NormalizedHit;
-  const three = { ...seeded, id: "three", ts: "2026-10-20T00:00:03.000Z" } as NormalizedHit;
-  await sink.accept(one);
-  await sink.acceptBatch([two, three]);
-  assert.deepEqual(sink.all().map((hit) => hit.id), ["seed", "one", "two", "three"]);
+  await sink.accept(hit("/one", 1));
+  await sink.acceptBatch([hit("/two", 2), hit("/three", 3)]);
+  assert.deepEqual(sink.all().map((stored) => stored.path), ["/seed", "/one", "/two", "/three"]);
   const listed = await sink.list({ limit: 2 });
   assert.equal(listed.length, 2);
-  assert.ok(listed.every((hit) => ["seed", "one", "two", "three"].includes(hit.id)));
+  assert.ok(listed.every((stored) => ["/seed", "/one", "/two", "/three"].includes(stored.path)));
 });
