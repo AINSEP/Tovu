@@ -50,6 +50,24 @@ describeEachDialect("SqlSearchIndexStore", {
     assert.equal(await indexState.get({ target: TARGET, key: { ...key("p"), collection: "post/1" } }), null);
   });
 
+  test("settle is a compare-and-swap on the observed revision and task id", async () => {
+    const { indexState } = make();
+    const settled = row({ status: "indexed", updatedAtMs: 1_760_000_002_000 });
+    assert.equal(await indexState.settle({ row: settled, expected: { revision: row().revision, taskId: null } }), false, "no row: nothing to settle");
+    assert.equal(await indexState.get({ target: TARGET, key: key("p/1") }), null);
+    await indexState.put({ row: row({ taskId: "t-1" }) });
+    assert.equal(await indexState.settle({ row: settled, expected: { revision: row().revision, taskId: null } }), false, "another task owns the row");
+    assert.equal(await indexState.settle({ row: settled, expected: { revision: row().revision - 1, taskId: "t-1" } }), false, "a newer revision owns the row");
+    assert.equal((await indexState.get({ target: TARGET, key: key("p/1") }))?.status, "pending");
+    assert.equal(await indexState.settle({ row: settled, expected: { revision: row().revision, taskId: "t-1" } }), true);
+    assert.deepEqual(await indexState.get({ target: TARGET, key: key("p/1") }), settled);
+    const failed = row({ status: "failed", lastError: "boom", updatedAtMs: 1_760_000_003_000 });
+    assert.equal(await indexState.settle({ row: failed, expected: { revision: row().revision, taskId: null } }), true, "a task-less row matches a null task");
+    assert.deepEqual(await indexState.get({ target: TARGET, key: key("p/1") }), failed);
+    // Another target's row with the same key is untouched.
+    assert.equal(await indexState.settle({ row: { ...settled, target: OTHER }, expected: { revision: row().revision, taskId: null } }), false);
+  });
+
   test("listByStatus filters by target and status, oldest first with the key as tie-break, capped at limit", async () => {
     const { indexState } = make();
     await indexState.put({ row: row({ key: key("c"), status: "unknown", updatedAtMs: 5 }) });

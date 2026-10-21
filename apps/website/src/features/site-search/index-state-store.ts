@@ -93,6 +93,22 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
         .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "doc_key"]).doUpdateSet(updatable))
         .execute());
     },
+    /**
+     * Compare-and-swap settle: ONE UPDATE that matches only while the stored row still carries the
+     * observed revision and task, so an older write's completion never replaces a newer revision's
+     * bookkeeping. @complexity O(1), one primary-key UPDATE.
+     */
+    async settle({ row, expected }) {
+      const values = toStateColumns(row);
+      const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
+      const result = await kernel.run(db => db.updateTable("search_index_state").set(updatable)
+        .where("site_id", "=", values.site_id).where("provider_id", "=", values.provider_id)
+        .where("generation", "=", values.generation).where("doc_key", "=", values.doc_key)
+        .where("revision", "=", expected.revision)
+        .where("task_id", expected.taskId === null ? "is" : "=", expected.taskId)
+        .executeTakeFirst());
+      return Number(result.numUpdatedRows) === 1;
+    },
     async listByStatus({ target, statuses, limit }) {
       // `IN ()` is not valid SQL; asking for no status matches no row.
       if (statuses.length === 0) return [];
