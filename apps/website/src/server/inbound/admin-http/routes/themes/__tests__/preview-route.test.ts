@@ -177,3 +177,42 @@ test("capture lookup errors retain the internal-error response", async (t) => {
   assert.equal(got.status, 500);
   assert.deepEqual(got.json, { error: "internal error", code: "INTERNAL_ERROR" });
 });
+
+test("a host that wires neither a preview service nor a site binding serves the shipped screenshot", async () => {
+  const app = express();
+  registerAdminThemePreviewRoute(
+    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never } },
+    { contentVersion: () => 1_000, shippedImage: ({ id }) => `/theme-assets/${id}/screenshots/index.png`, waitMs: 50 },
+  );
+  const { res, capture } = response();
+  await extractRouteHandler(app, "get", ROUTE)({ params: { workspaceId: "ws", themeId: "editorial-rose" }, socket: { localPort: 3000 } }, res as never);
+  assert.deepEqual(capture.redirect, [302, "/theme-assets/editorial-rose/screenshots/index.png"]);
+});
+
+test("a theme with no pages map skips the capture queue and uses the fallback", async () => {
+  const service: SitePreviewService = {
+    versions: () => { throw new Error("queue must not be queried"); },
+    read: () => { throw new Error("capture must not be read"); },
+    idle: async () => { throw new Error("queue must not be drained"); },
+  };
+  const got = await route({ service, themes: [{ ...theme("bare"), pages: undefined } as never], shipped: "/fallback.png" })("bare");
+  assert.deepEqual(got.redirect, [302, "/fallback.png"]);
+});
+
+// Route-param guards (`String(req.params.X ?? "")`): absent params read as "" and 404 cleanly.
+test("absent workspaceId or themeId params fall back to the empty string and 404", async () => {
+  const { service, enqueued } = fakeService();
+  const app = express();
+  registerAdminThemePreviewRoute(
+    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, themePreviews: service } },
+    { contentVersion: () => 1_000, shippedImage: () => null, waitMs: 50 },
+  );
+  const handler = extractRouteHandler(app, "get", ROUTE);
+  const noWorkspace = response();
+  await handler({ params: {}, socket: {} }, noWorkspace.res as never);
+  assert.deepEqual([noWorkspace.capture.status, noWorkspace.capture.json], [404, { error: "workspace was not found" }]);
+  const noTheme = response();
+  await handler({ params: { workspaceId: "ws" }, socket: {} }, noTheme.res as never);
+  assert.deepEqual([noTheme.capture.status, noTheme.capture.json], [404, { code: "THEME_NOT_FOUND", error: "no such static theme" }]);
+  assert.deepEqual(enqueued, []);
+});
