@@ -131,6 +131,8 @@ test('the effect refetches on id changing too, not only previewVersion', () => {
   // that happen to share a version NUMBER (a filesystem mtime — see this file's own header on why
   // it is not monotonic) would silently keep showing whichever site fetched first. There is no way
   // to observe a dependency array's effect without a renderer, so this one thing stays a source-text
-  // assertion rather than a call — see this file's own header.
-  assert.match(hookSource, /\}, \[id, previewVersion\]\);/);
+  // assertion rather than a call — see this file's own header. (`use-site-preview.hooks.render.test.ts`
+  // now also renders the hook and observes the id-change refetch directly.) `getBridge` is the
+  // injected bridge port, stable by default.
+  assert.match(hookSource, /\}, \[id, previewVersion, getBridge\]\);/);
 });

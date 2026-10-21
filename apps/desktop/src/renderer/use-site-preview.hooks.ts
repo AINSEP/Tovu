@@ -76,11 +76,19 @@ export function nextPreviewUrl(
  *
  * @complexity O(1) plus one IPC round trip per distinct `previewVersion`.
  */
-export function useSitePreview(id: string, previewVersion: number | null): string | null {
+export function useSitePreview(
+  id: string,
+  previewVersion: number | null,
+  { getBridge = runnerInventoryBridge }: {
+    /** The bridge port; defaults to the preload's `window.tovuRunner`. Keep it stable: it is an
+     *  effect dependency, so a new function each render would refetch each render. */
+    getBridge?: () => RunnerInventoryBridge | undefined;
+  } = {},
+): string | null {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const plan = previewFetchPlan(id, previewVersion, runnerInventoryBridge());
+    const plan = previewFetchPlan(id, previewVersion, getBridge());
     if (plan.kind === 'clear') {
       setUrl(null);
       return;
@@ -101,7 +109,7 @@ export function useSitePreview(id: string, previewVersion: number | null): strin
     return () => {
       cancelled = true;
     };
-  }, [id, previewVersion]);
+  }, [id, previewVersion, getBridge]);
 
   return url;
 }
