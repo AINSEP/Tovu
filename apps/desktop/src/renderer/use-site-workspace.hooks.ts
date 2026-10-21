@@ -309,19 +309,23 @@ export interface SiteWorkspace extends WorkspaceActions {
  * Per tab, never lifted into `App`: every open project stays mounted at once, so a shared value
  * would move every other tab's guest too.
  */
-export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage }: { adminPage?: SiteAdminPage } = {}): SiteWorkspace {
+export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage, getBridge = runnerInventoryBridge }: {
+  adminPage?: SiteAdminPage;
+  /** The bridge port; defaults to the preload's `window.tovuRunner`. */
+  getBridge?: () => RunnerInventoryBridge | undefined;
+} = {}): SiteWorkspace {
   const [state, dispatch] = useReducer(siteWorkspaceReducer, initialSiteWorkspaceState);
   const [attachedUrl, setAttachedUrl] = useState<string | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     setAttachedUrl(null); setAttachError(null);
-    if (project.externalUrl) void prepareExternalWorkspace({ project, bridge: runnerInventoryBridge() }).then(
+    if (project.externalUrl) void prepareExternalWorkspace({ project, bridge: getBridge() }).then(
       (url) => { if (active) setAttachedUrl(url); },
       (error: unknown) => { if (active) setAttachError(error instanceof Error ? error.message : String(error)); },
     );
     return () => { active = false; };
-  }, [project.id, project.externalUrl]);
+  }, [project.id, project.externalUrl, getBridge]);
   const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure(loadResetKey(state));
 
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
@@ -330,13 +334,13 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPa
     return guest === null ? undefined : trackGuestNavigation(guest, dispatch);
   }, [guest]);
 
-  useEffect(() => subscribeSiteHistory({ bridge: runnerInventoryBridge(), hidden, guest }), [hidden, guest]);
+  useEffect(() => subscribeSiteHistory({ bridge: getBridge(), hidden, guest }), [hidden, guest, getBridge]);
 
   const src = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl, adminPage });
   useEffect(() => subscribeWorkspaceThemePreview({
-    bridge: runnerInventoryBridge(), siteDir: project.installDir, port: project.port,
+    bridge: getBridge(), siteDir: project.installDir, port: project.port,
     running: src !== '', url: state.liveUrl ?? src, guest, dispatch,
-  }), [project.installDir, project.port, src, state.liveUrl, guest]);
+  }), [project.installDir, project.port, src, state.liveUrl, guest, getBridge]);
 
   const actions = createWorkspaceActions({
     guest,
@@ -344,7 +348,7 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPa
     stalled,
     state,
     dispatch,
-    bridge: runnerInventoryBridge(),
+    bridge: getBridge(),
     siteId: project.id,
     port: project.port,
     externalUrl: project.externalUrl,
