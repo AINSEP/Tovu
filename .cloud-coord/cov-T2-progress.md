@@ -13,9 +13,11 @@ OWNER UPDATE (15:13): no Postgres or browser test runs in cloud; such tests are 
 | S8 | 032,033 | cloud/cov-T2-032 | MERGED 0720b4710; rerun changed tests pass 284 fail 0; 27 files 100 (21 raised, 6 already); open: settings/tool-registrations B43/44, site-profile B64/65, share-registry B82/84; ~19 files not started |
 | S7 | 030,031 | cloud/cov-T2-030 | MERGED f15c4a59b; rerun changed tests 409/409; ~40 files 100; open: host-binding (2-byte V8 range), featured-image (100 alone; existing mock.module test corrupts merge), post/publish-content B99.22, search-index B96, search-index.postgres (LOCAL-RUN), apply-loop, backstop-service, export-bundle, gated-hooks, peer-transport, disconnect-tool |
 | S6 | 028,029 | cloud/cov-T2-028 | MERGED d585c054e; rerun changed tests 696 pass 0 fail (1 skipped); ~45 files 100; open: static-publish/adapter B135/137, deployments/tool-registrations B22/23, publish-agent-tools, publish-credentials/store, trash-aware-memory-repo, identity/tool-registrations, library-save-attachment, media-import/tool-registrations, blob-store.s3, forms/publish-content, media/publish-content, read-chat-attachment, forms/index, forms/tool-registrations, external-mcp/tool-registrations, media-generation tool-registrations + providers-tools |
-| S11 | 037 | cloud/cov-T2-037 | running (20:48, stop 21:15) |
-| S10 | 036 | cloud/cov-T2-036 | running (20:41, stop 21:15) |
+| S11 | 037 | cloud/cov-T2-037 | MERGED 3a8656757; 64/64 |
+| S10 | 036 | cloud/cov-T2-036 | MERGED acc851c35; 182/182 |
 | S9 | 034 | cloud/cov-T2-034 | MERGED cc93cb233; rerun changed tests 89/89; 9 files 100; open: provider-kit B21/22 F13/14 (Jini-contract adapter, owner), duplicate-theme-tool B19/21; 12 files not started |
 | — | rate-limit 17:2x–19:52 | S6/S7/S8 paused, resumed 19:53; owner moved hard stop to 21:45Z | |
 | S3 | 022,023 | cloud/cov-T2-022 | MERGED 805bf66b; rerun all assistant tests 3318 pass 0 fail; 20/25 at 100 (agents.ts 100 in targeted run, aggregate diff = cache-busted copy); open: content-read-tool 1L/4B, external-mcp-connection-source 1B, external-mcp-revocation 1B, external-mcp-store 1L/8B, index.ts never-loaded (parent-watchdog extracted) |
 | S6 | 028,029 | cloud/cov-T2-028 | running (16:23) |
+
+DONE 21:12Z. Lot 035 not started. See cov-T2-REPORT.md (owner item 7: secret-scan-guard regression).
