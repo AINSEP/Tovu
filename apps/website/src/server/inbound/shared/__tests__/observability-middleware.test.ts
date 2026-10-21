@@ -332,3 +332,16 @@ test("a tracker without run() (an adapter written before scoping) still lets the
   const baseUrl = await startTestServer(app, t);
   assert.equal((await fetch(`${baseUrl}/plain`)).status, 200);
 });
+
+test("site-share artifact transfers bypass tracing entirely and carry no request id, while the route still serves", async (t) => {
+  const { port, calls } = createSpyObservabilityPort();
+  const app = buildTestApp(port);
+  app.get("/api/admin/site-shares/artifacts/:token", (_req, res) => res.status(200).send("bytes"));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/Site-Shares/Artifacts/secret-token`);
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), "bytes");
+  assert.equal(res.headers.get("x-request-id"), null);
+  assert.equal(calls.length, 0);
+});

@@ -51,6 +51,9 @@ export type ContentDbSchemaGuardResult =
  * a site's db.
  *
  * @param dbPath - absolute path to the content.db this boot is about to open.
+ * @param options.compare - the schema-version policy; defaults to `compareSchemaVersion`, the exact
+ *   one `tovu serve` enforces. Injectable so the refusal/rethrow handling of its errors is testable
+ *   without fabricating a journal that disagrees with itself.
  * @returns `"no-file"` when nothing exists yet at `dbPath` (first boot — `openContentDb()` will
  *   create it); `"unmigrated"` when the file exists but carries no applied-migration history yet
  *   (also safe to proceed); `"ok"` when the db's latest applied migration matches or is behind this
@@ -67,7 +70,10 @@ export type ContentDbSchemaGuardResult =
  *   `sqlite_master` lookup, one bounded `__drizzle_migrations` query, one small JSON read; not a
  *   function of any caller-controlled collection.
  */
-export async function checkContentDbSchema(dbPath: string): Promise<ContentDbSchemaGuardResult> {
+export async function checkContentDbSchema(
+  dbPath: string,
+  { compare = compareSchemaVersion }: { compare?: typeof compareSchemaVersion } = {},
+): Promise<ContentDbSchemaGuardResult> {
   if (!fs.existsSync(dbPath)) return { status: "no-file" };
 
   const applied = await readAppliedSchemaIdentityOfFile(dbPath);
@@ -84,7 +90,7 @@ export async function checkContentDbSchema(dbPath: string): Promise<ContentDbSch
   }
 
   try {
-    compareSchemaVersion({ schemaVersion: applied.idx, schemaTag: applied.tag });
+    compare({ schemaVersion: applied.idx, schemaTag: applied.tag });
     return { status: "ok" };
   } catch (err) {
     if (err instanceof SiteNewerThanRuntimeError) {

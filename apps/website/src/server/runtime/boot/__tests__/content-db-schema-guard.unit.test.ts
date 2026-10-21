@@ -8,6 +8,7 @@ import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { checkContentDbSchema } from "../content-db-schema-guard.js";
+import { SiteNewerThanRuntimeError } from "#src/platform/site-dir/errors";
 
 /**
  * @file `checkContentDbSchema()` — closes the gap this dispatch's own header names: `npm run dev`
@@ -112,4 +113,27 @@ test("checkContentDbSchema(): an older real migration is safe to migrate forward
   sqlite.prepare("INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)").run("older-migration", older.when);
   sqlite.close();
   assert.deepEqual(await checkContentDbSchema(dbPath), { status: "ok" });
+});
+
+test("checkContentDbSchema(): a site newer than this runtime becomes a 'refuse' carrying the policy's own message", async (t) => {
+  const dbPath = mkTempDbPath();
+  t.after(() => fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }));
+  openContentDb(dbPath).$client.close();
+  const seen: Array<{ schemaVersion: number; schemaTag: string }> = [];
+  const result = await checkContentDbSchema(dbPath, {
+    compare: (required) => { seen.push(required); throw new SiteNewerThanRuntimeError("site schema (v99) is newer — upgrade tovu"); },
+  });
+  assert.deepEqual(result, { status: "refuse", message: "site schema (v99) is newer — upgrade tovu" });
+  assert.equal(seen.length, 1);
+  assert.equal(typeof seen[0]!.schemaTag, "string");
+});
+
+test("checkContentDbSchema(): any other policy failure propagates instead of being masked as a refusal", async (t) => {
+  const dbPath = mkTempDbPath();
+  t.after(() => fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }));
+  openContentDb(dbPath).$client.close();
+  await assert.rejects(
+    () => checkContentDbSchema(dbPath, { compare: () => { throw new TypeError("journal unreadable"); } }),
+    { name: "TypeError", message: "journal unreadable" },
+  );
 });
