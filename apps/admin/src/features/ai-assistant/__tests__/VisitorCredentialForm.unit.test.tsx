@@ -426,3 +426,54 @@ it("warns when an Anthropic key is pasted into the standalone OpenAI form", () =
   })} />);
   expect(screen.getByText(/looks like.*Anthropic/i)).toBeInTheDocument();
 });
+
+describe("in-flight and settled states of the visitor key and settings controls", () => {
+  it("Test key reads Testing… and is disabled while the provider is being asked", () => {
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: true, discovery: { status: "loading" } })} />);
+    expect(screen.getByRole("button", { name: "Testing…" })).toBeDisabled();
+  });
+
+  it("Save key reads Saving… while the key is being saved", () => {
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: true, saveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeInTheDocument();
+  });
+
+  it("Save model settings reads Saving… and is disabled while saving, with the status line beside it", () => {
+    render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByText("Saving…", { selector: "p.assistant-save-line" })).toBeInTheDocument();
+  });
+
+  it("confirms saved settings and shows a failed save's message", () => {
+    const { unmount } = render(<VisitorCredentialSettingsFooter {...fakeController({ settingsSaveState: { status: "saved" } })} />);
+    expect(screen.getByText("Settings saved.")).toHaveClass("assistant-save-line");
+    unmount();
+    render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "error", message: "Model not allowed." } })} />);
+    expect(screen.getByText("Model not allowed.")).toHaveClass("save-error");
+    expect(screen.getByRole("button", { name: "Save model settings" })).toBeEnabled();
+  });
+
+  it("the form shows its loading line until the saved credential arrives", () => {
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ loadState: { status: "loading" } })} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
+    expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
+  });
+
+  it("offers Custom endpoint only while no catalog preset matches the config", () => {
+    const { unmount } = render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController()} />);
+    expect(screen.getByRole("option", { name: "Custom endpoint" })).toBeDisabled();
+    unmount();
+    const preset = DEFAULT_PROVIDER_PRESETS[0]!;
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({ preset })} />);
+    expect(screen.queryByRole("option", { name: "Custom endpoint" })).toBeNull();
+    expect((screen.getByRole("combobox", { name: "Provider" }) as HTMLSelectElement).value).toBe(preset.id);
+  });
+
+  it("marks a provider that already holds a saved key as configured", () => {
+    const preset = DEFAULT_PROVIDER_PRESETS[0]!;
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+      preset, providerGroups: visitorProviderGroups(new Set([preset.id])),
+    })} />);
+    expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
+  });
+});
