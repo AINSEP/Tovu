@@ -1,7 +1,7 @@
 # Coverage wave T3 — REPORT (tovu lots 038..055)
 
 Result branch: `cloud/cov-T3` (Tovu), from `cloud/integration-2026-10-21` @ e0c935bb5 (Jini @ b3c4144b). Ledger: `.cloud-coord/cov-T3-progress.md`.
-Window: 15:37–21:45 UTC (original 4 h cap; account rate limit stopped subagents ~17:25–19:51; owner lifted it and moved the hard stop to 21:45).
+Window: 15:37–21:10 UTC (hard stop 21:45) (original 4 h cap; account rate limit stopped subagents ~17:25–19:51; owner lifted it and moved the hard stop to 21:45).
 
 ## Outcome
 - Lots merged: **038, 039, 040, 041, 042, 043, 044, 045, 046, 049** (10 of 18), plus a follow-up branch covering restored guards.
@@ -20,7 +20,7 @@ Window: 15:37–21:45 UTC (original 4 h cap; account rate limit stopped subagent
 | 043 | newsletter, pages, plugins, menus/update-tree | 23/25 | pages x6 |
 | 044 | posts, publish-content, recovery, redirects | 24/25 | posts/autosave |
 | 045 | redirects/seo/settings/sites/skills/system | 23/25 | site-imports, custom-credentials |
-| 046 | users, trash, taxonomy, themes, system | 23/25 | see below |
+| 046 | users, trash, taxonomy, themes, system | 22/25 | users create/delete/disable/list-roles/list-policies/list-policy-permissions (69 tests) |
 | 049 | public-http, middleware, boot | 20/25 | content-db-schema-guard, agent-daemon-wanted, site-consent |
 
 Baseline (before) per file: `.cloud-coord/coverage-lots/tovu-NNN.txt` on `cloud/coverage-lots-2026-10-21`. Per-file before→after detail: the ledger and each lot branch's commits.
@@ -39,7 +39,9 @@ Baseline (before) per file: `.cloud-coord/coverage-lots/tovu-NNN.txt` on `cloud/
 - 045 `system/publish-credentials` br 74/75 — unreachable guard in credential code; kept.
 - 049 `theme-preview-switcher` br 52/53, `bootstrap` fn 21/22, `media-rendition` br 111/112, `worker-sandbox` br 11/13 (needs an injected esbuild port), `pages.ts` (not started).
 - 041 `forms/create.ts` (after the guard restore) — 91.30% br with the forms tests alone; the subagent's 100% came only from a 202-file whole-app run that the coordinator did not reproduce.
-- 046: _filled in at merge_.
+- 046 `users/create.ts` 100/96.77/100 — coordinator restored `if (!username) return false;` (identity code), which the subagent had removed as unreachable.
+- 046 `themes/duplicate.ts` br 21/23 — `theme?.status`/`theme?.errors` need `duplicateDiscoveredTheme` to return no theme; that needs an injected seam.
+- 046 `system/site-key.ts` 133/151 br — not started (out of time).
 
 ## Unreachable code removed and accepted (file — why)
 - 039 `site-root.ts` folder-scan port — `resolveSiteRoot` always passes `selected`, so Jini never calls the scan.
@@ -68,6 +70,7 @@ Lots 040, 041 and 042 removed **76** `String(req.params.X ?? "")` guards in **53
 
 ## Review notes for the owner
 - 038 lazy-browser test module-mocks `playwright` (third-party boundary).
+- 046 new tests use `portFake<T>` (`server/__tests__/helpers/port-fake.ts`): key names are type-checked, port method signatures are not, and it contains one `as T`. It replaced 8 `as any` the coordinator rejected. `as never` casts remain in 046's sites.tw4.pins and preview-route tests (same `res as never` pattern older tests use).
 - 041 one test runs the real agent detector (spawns any agent CLI on PATH); its asserted outcome is deterministic.
 - Process: subagents shared one scratch folder until 16:41 and lot 038's measuring script was overwritten. The brief then gave each lot its own folder; affected lots re-measured.
 - Typecheck: `tsc -p tsconfig.tests.json` shows ~46 errors in files no lot touched (backstop-service, composition app/deps, …); not compared to the base commit.

@@ -13,8 +13,8 @@ Postgres/Playwright: not installed (owner override) — such tests listed as LOC
 | 043 | merged 17:20 (804ca271c). Subagent: 25/25 at 100%; it KEPT the req.params guards per the repo rule and found that rule. Coordinator REVERTED its pages delete/update rollback change (2776f52b1: `if (!priorPost) return;` replaced by a cast); with guard kept, pages delete 100/96.30/100, update 99.59/97.14/100 (line 88); create/get-by-id/list/update-html 100/100/100 (101 tests, 0 fail). | cloud/cov-T3-043 @81574c1f0 | 804ca271c |
 | 044 | merged 20:22 (c3993cbd1). Subagent: 25/25 at 100%, kept every guard. Coordinator REVERTED posts/autosave.ts catch change (3d34800cf): it removed the `instanceof PostValidationError` rethrow so every error became a 400; rethrow kept, file 98.97/98.67/100 (15 tests pass). Review note: destination.ts relies on narrowing disconnectAndForgetDestination's return type (connect-destination.ts, outside lot). | cloud/cov-T3-044 @d22deb1bb | c3993cbd1 |
 | 045 | merged 20:24 (5555f23e5; conflict in redirects-auth.test.ts with 044 resolved keeping both, 9/9 pass). Subagent: 23/25 at 100%. Not 100: system/deployment-overview br 22/23 (default `inspectSiteKeyMaterial` reads live env/homedir/cwd; making siteKey required was REFUSED by the permission classifier as 'Security Weaken' — left unchanged, OWNER DECISION), system/publish-credentials br 74/75 (guard kept in credential code). Coordinator re-measured site-imports 100/100/100 (9 tests) and custom-credentials 100/100/100 (19 tests). | cloud/cov-T3-045 @bafd01a44 | 5555f23e5 |
-| guards | dispatched ~19:52: add hand-built-req tests for the 76 restored guards | cloud/cov-T3-guards | |
-| 046 | dispatched 20:22 (stop 21:15) | cloud/cov-T3-046 | |
+| guards | merged 20:57 (83e75094e). Test-only: direct-handler tests for all 76 restored guards. Re-measured assistant credential x8 100/100/100; forms 7/8 (create 91.30 br). | cloud/cov-T3-guards @fa7255571 | 83e75094e |
+| 046 | merged 21:08 (a6eda4b2f). 22/25 at 100% after coordinator restored users/create.ts empty-username guard (d6c858682; file 100/96.77/100). Coordinator sent it back once to replace 8 `as any` (now portFake<T>). Not 100: themes/duplicate br 21/23, system/site-key not started. | cloud/cov-T3-046 @d8c86a2fa | a6eda4b2f |
 | 049 | merged 20:52 (adcd65af3). Subagent: 20/25 at 100%; no code removed, guards kept. Not 100: theme-preview-switcher br 52/53, bootstrap fn 21/22, media-rendition br 111/112, worker-sandbox br 11/13 (untouched; needs injected esbuild build port), pages.ts (untouched, too large). Coordinator re-measured content-db-schema-guard, agent-daemon-wanted, site-consent at 100/100/100. | cloud/cov-T3-049 @447f71ef9 | adcd65af3 |
 Sessions used: 11/15 (an earlier ledger version said 4/15 — undercount, corrected).
 
@@ -31,3 +31,5 @@ Subagents 044 and 045 stopped on an account session limit (reset 19:40 UTC). Own
 - Deleted untracked test-run artifacts chat.db and content/themes/.preview-refresh.json from the main checkout (not committed).
 
 20:51 — no new lots dispatched: too little time left to finish one without rushing. Lots 047, 048, 050, 051, 052, 053, 054, 055 go to the next wave.
+
+21:10 — all in-flight work merged. Final report: .cloud-coord/cov-T3-REPORT.md.
