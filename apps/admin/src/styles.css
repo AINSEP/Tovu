@@ -3987,6 +3987,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* A plugin's "Manage" entry (its own admin screens) sits against the actions divider, outside that
    column, so the switch keeps one x position down the list. */
 .agent-plugin-row-manage { flex: 0 0 auto; margin-left: auto; }
+/* `AgentPluginManageButton` renders nothing for a plugin with no admin screens, leaving this wrapper
+   empty -- and the `+` rule below then zeroed the actions' auto margin, so on a narrow list the
+   wrapped actions sat flush left and the rail clipped "Enabled" (owner report, 2026-10-21). */
+.agent-plugin-row-manage:empty { display: none; }
 .agent-plugin-row-manage .btn-secondary { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
 .agent-plugin-row-manage + .agent-plugin-row-actions { margin-left: 0; }
 .agent-plugin-row-actions {
@@ -4152,6 +4156,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     /* Beside the text or wrapped under it, a left border would cut through the wrapped line. */
     border-left: none; align-self: center;
   }
+  /* A real Manage button stays on the text's line while the actions wrap under it, so the actions
+     need their own auto margin back to stay right-aligned rather than start at the rail. */
+  .agent-plugin-row-manage + .agent-plugin-row-actions { margin-left: auto; }
   /* Keeps its 8px gap to the switch rather than being pushed to the far edge by a `margin-right:
      auto`, which is what an earlier revision of this block did: at 440px that put the word 290px
      from the control it labels, and a state word that far from its switch stops reading as its
