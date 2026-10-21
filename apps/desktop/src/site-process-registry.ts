@@ -357,6 +357,16 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+/** Options for the two `ps` readers; `runPs` runs `ps` with the given argv-only column args (test seam). */
+interface PsOptions {
+  runPs?: (args: string[]) => string;
+}
+
+/** The real `ps`, stdout as text; throws when `ps` exits non-zero (a gone pid). @complexity O(1). */
+function runPsArgvOnly(args: string[]): string {
+  return execFileSync("ps", args, { encoding: "utf8" });
+}
+
 /**
  * Read a live process's own argv — `ps -o command=`, deliberately NEVER `ps eww`/`pgrep -fl`. Both
  * of those dump a process's ENVIRONMENT, which can hold live secrets, and are banned in this
@@ -369,14 +379,15 @@ function isProcessAlive(pid: number): boolean {
  * no-op on Windows v1: a leak (an orphan is left running), never a crash or a wrongful kill.
  *
  * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
+ * @param options.runPs test seam for the `ps` call itself; defaults to the real `ps`.
  * @returns the command line, or `null` once the pid is gone (a race between {@link isProcessAlive}
  *   and this call, or the row's pid was never real) — or unconditionally on win32.
  * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessCommand(pid: number, platform: NodeJS.Platform = process.platform): string | null {
+function readProcessCommand(pid: number, platform: NodeJS.Platform = process.platform, { runPs = runPsArgvOnly }: PsOptions = {}): string | null {
   if (platform === "win32") return null;
   try {
-    const output = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" });
+    const output = runPs(["-o", "command=", "-p", String(pid)]);
     return output.trim() || null;
   } catch {
     return null;
@@ -392,14 +403,15 @@ function readProcessCommand(pid: number, platform: NodeJS.Platform = process.pla
  * which is the correct answer on a platform this cannot check.
  *
  * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
+ * @param options.runPs test seam for the `ps` call itself; defaults to the real `ps`.
  * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable — or
  *   unconditionally on win32.
  * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessParentPid(pid: number, platform: NodeJS.Platform = process.platform): number | null {
+function readProcessParentPid(pid: number, platform: NodeJS.Platform = process.platform, { runPs = runPsArgvOnly }: PsOptions = {}): number | null {
   if (platform === "win32") return null;
   try {
-    const parsed = Number.parseInt(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], { encoding: "utf8" }).trim(), 10);
+    const parsed = Number.parseInt(runPs(["-o", "ppid=", "-p", String(pid)]).trim(), 10);
     return Number.isNaN(parsed) ? null : parsed;
   } catch {
     return null;

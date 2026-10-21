@@ -773,3 +773,54 @@ test("reconcileOrphans reports a registry directory it cannot list, and still re
     if (isProcessAlive(pid)) process.kill(pid, 'SIGKILL');
   }
 });
+
+
+test("the ps readers ask only for argv-free columns and read blank or non-numeric output as unknown", () => {
+  const calls: string[][] = [];
+  const runPs = (answer: string) => (args: string[]) => (calls.push(args), answer);
+  assert.equal(readProcessCommand(4242, "linux", { runPs: runPs("  node serve --site /a  \n") }), "node serve --site /a");
+  assert.equal(readProcessCommand(4242, "darwin", { runPs: runPs("   \n") }), null, "a blank command is not an identity");
+  assert.equal(readProcessParentPid(4242, "linux", { runPs: runPs(" 1\n") }), 1);
+  assert.equal(readProcessParentPid(4242, "darwin", { runPs: runPs("PPID\n") }), null, "an unparseable ppid is unknown, never 0 or NaN");
+  assert.deepEqual(calls, [["-o", "command=", "-p", "4242"], ["-o", "command=", "-p", "4242"], ["-o", "ppid=", "-p", "4242"], ["-o", "ppid=", "-p", "4242"]]);
+});
+
+test("a registry path that cannot be listed is reported, and nothing recorded there is reconciled", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-registry-unlistable-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const registryDir = path.join(root, "open-sites");
+  fs.writeFileSync(registryDir, "a file where the registry folder belongs");
+  const errors = t.mock.method(console, "error", () => {});
+  assert.deepEqual(await reconcileOrphans(registryDir), []);
+  assert.deepEqual(errors.mock.calls.map((entry) => entry.arguments[0]), [`tovu desktop: could not list ${registryDir}; orphans recorded there are not reconciled this boot.`]);
+});
+
+test("a legacy shared file whose rows are all dead is reaped of nothing and left exactly as written", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-registry-legacy-dead-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const registryDir = path.join(root, "open-sites");
+  const exited = childProcess.spawnSync(process.execPath, ["-e", ""]);
+  writeRegistry(legacyRegistryFilePath(registryDir), { sites: [{ siteDir: "/sites/old", port: 4100, workspaceId: "w", pid: exited.pid!, updatedAt: 1 }] });
+  const before = fs.readFileSync(legacyRegistryFilePath(registryDir), "utf8");
+  assert.deepEqual(await reconcileOrphans(registryDir), []);
+  assert.equal(fs.readFileSync(legacyRegistryFilePath(registryDir), "utf8"), before);
+});
+
+test("reconcileOrphans never touches a live process that is not an orphaned serve: a stranger, or a serve whose parent is alive", async (t) => {
+  const registryDir = tempRegistryDir();
+  const siteDir = "/fake/site/still-parented";
+  const port = 4061;
+  const child = spawnFakeServeChild(siteDir, port);
+  t.after(async () => { child.kill("SIGKILL"); await waitForExit(child); });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const crashedOwner = await deadInstanceId();
+  writeRegistry(instanceFilePath(registryDir, crashedOwner), { sites: [
+    // A recycled pid: alive, but its command line is this test runner, not a serve for that site.
+    { siteDir: "/fake/site/recycled", port: 4060, workspaceId: "w", pid: process.pid, updatedAt: 1 },
+    // A real serve-shaped child, but its parent (this runner) is alive, so it is not an orphan.
+    { siteDir, port, workspaceId: "w", pid: child.pid!, updatedAt: 1 },
+  ] });
+  assert.deepEqual(await reconcileOrphans(registryDir), []);
+  assert.equal(isProcessAlive(child.pid!), true, "a parented serve is never reaped");
+  assert.equal(fs.existsSync(instanceFilePath(registryDir, crashedOwner)), false, "the dead owner's file is still cleaned up");
+});
