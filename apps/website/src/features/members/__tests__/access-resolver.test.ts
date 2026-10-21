@@ -103,6 +103,23 @@ test("decide: tiers visibility requires overlap between context.activeTierIds an
   );
 });
 
+test("decide: tiers visibility with no tierIds listed entitles nobody, even a paid member", () => {
+  const resolver = new DefaultMemberAccessResolver({
+    sessions: new InMemoryMemberSessionRepo(),
+    subscriptions: new InMemoryMemberSubscriptionRepo(),
+    tiers: new InMemoryMemberTierRepo(),
+  });
+  const access: MemberContentAccess = { visibility: "tiers" };
+
+  assert.deepEqual(resolver.decide({ access, context: authenticatedContext(["tier-gold"], true) }), {
+    allowed: false,
+    visibility: "tiers",
+    reason: "upgrade_required",
+    teaser: true,
+  });
+  assert.equal(resolver.decide({ access, context: anonymousContext() }).reason, "sign_in_required");
+});
+
 test("decide: an unknown/unparseable visibility value fails closed with no teaser", () => {
   const resolver = new DefaultMemberAccessResolver({
     sessions: new InMemoryMemberSessionRepo(),
