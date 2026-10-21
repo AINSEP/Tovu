@@ -7,3 +7,4 @@ Worktrees /home/user/wt/<X> (hardlinked node_modules) per subagent.
 | lot | session | branch | status |
 |---|---|---|---|
 | 014+015 | T1-C | cloud/cov-T1-014 @4e777da9 | MERGED 16:27. Full desktop main suite on merged: 1569 tests, 1559 pass, 0 fail, 10 skip. 31/34 files 100% (+new site-discovery-scan.ts 100%). Gaps: desktop-agent br 116/117 fn 49/50 (security backstop deny branch; lifecycle.finish .catch), shared-sites br 79/80 fn 19/20 (readdir race; unused lockTimeout notice), site-process-registry 623/628 br 112/116 (macOS-only orphan reaping; kill race). |
+| 003+004 | T1-B | cloud/cov-T1-003 @79ce789f | MERGED 16:40. Merged rerun: 156 files / 2524 tests pass. 48/50 at 100%. Gaps: use-agent-plugins.hooks.ts:147 `current ?? []` (reachable, probe shows it empties the list = likely BUG, owner decision); use-package-file-tree.hooks.ts:81 `if (action.focus)` false (Jini contract type allows absent). |
