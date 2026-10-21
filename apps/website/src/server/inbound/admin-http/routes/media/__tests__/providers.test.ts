@@ -10,6 +10,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminMediaGetProvidersRoute } from "../get-providers.js";
 import { registerAdminMediaPutProvidersRoute } from "../put-providers.js";
 import type { MediaProviderRouteDeps } from "../deps.js";
+import { createMediaProviderRegistry, mediaProviderDefinition } from "@jini-ai/integrations/media-providers";
 
 /**
  * @file Unit-tier coverage for `GET`/`PUT .../media/providers` (`registerAdminMediaGetProvidersRoute`/
@@ -29,6 +30,7 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     clock: base.clock,
     mediaProviderCredentialRepo: base.mediaProviderCredentialRepo,
     siteAssistantSecretSealer: base.siteAssistantSecretSealer,
+    mediaProviderRegistry: base.mediaProviderRegistry,
     siteAssistantSecretKeyring: base.siteAssistantSecretKeyring,
     ...depsOverrides,
   };
@@ -124,6 +126,20 @@ test("put-providers: unknown provider id 400s", async (t) => {
   const app = buildApp();
   const { status } = await put(t, app, { "not-a-real-provider": { apiKey: "sk-1" } });
   assert.equal(status, 400);
+});
+
+test("put-providers: a plugin vendor id the composed registry holds is accepted", async (t) => {
+  const registry = createMediaProviderRegistry();
+  const contribution = {
+    provider: { id: "acme-media", label: "Acme Media", hint: "", integrated: true },
+    models: [],
+    adapters: {},
+  };
+  assert.equal(registry.providers.contribute({ definition: mediaProviderDefinition({ contribution }), pluginId: "acme-plugin" }), true);
+  const app = buildApp({ mediaProviderRegistry: registry });
+  const { status, json } = await put(t, app, { "acme-media": { apiKey: "acme-secret-1" } });
+  assert.equal(status, 200, JSON.stringify(json));
+  assert.equal((json as Record<string, { apiKeyConfigured?: boolean }>)["acme-media"]?.apiKeyConfigured, true);
 });
 
 test("put-providers: non-object body 400s", async (t) => {
