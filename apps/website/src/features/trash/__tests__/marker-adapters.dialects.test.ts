@@ -192,4 +192,24 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     error = new Error("reference lookup failed");
     await assert.rejects(media.purge(input), caught => caught === error);
   });
+
+  test("media: an unversioned purge skips the version compare, and a purge that leaves the row reports version-changed", async () => {
+    const kernel = make();
+    await seedMedia(kernel, "m-kept");
+    await seedMedia(kernel, "m-forced");
+    const purged: string[] = [];
+    const media = createMediaTrashAdapter({
+      db: kernel,
+      purgeAsset: async ({ entityId }) => {
+        purged.push(entityId);
+        // Simulates a concurrent restore winning the race: the blob-aware purge declines to delete.
+        if (entityId === "m-forced") await kernel.run((db) => db.deleteFrom("media").where("id", "=", entityId).execute());
+      },
+    });
+
+    assert.equal(await media.purge({ workspaceId: WS, entityId: "m-kept", expectedVersion: null }), "version-changed");
+    assert.deepEqual(await kernel.run((db) => db.selectFrom("media").select(["id", "version"]).where("id", "=", "m-kept").executeTakeFirst()), { id: "m-kept", version: 1 }, "the kept row is still there");
+    assert.equal(await media.purge({ workspaceId: WS, entityId: "m-forced", expectedVersion: null }), "purged");
+    assert.deepEqual(purged, ["m-kept", "m-forced"], "a null expected version reaches the purge whatever the row's version");
+  });
 });
