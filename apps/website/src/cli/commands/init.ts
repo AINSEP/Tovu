@@ -77,20 +77,27 @@ export function parseInitStorage(storage: string | undefined, storageEnv: string
  * The connection string to seal: asked for without echo on a terminal, else read from stdin
  * (`printf '%s' "$URL" | tovu init --storage postgres <dir>`). Shared with `tovu storage move`.
  */
-export async function readConnectionStringFromUser(): Promise<string> {
-  if (!process.stdin.isTTY) {
+export async function readConnectionStringFromUser(
+  _required: Record<string, never> = {},
+  { input = process.stdin, output = process.stdout }: {
+    input?: NodeJS.ReadableStream & { isTTY?: boolean };
+    output?: Pick<NodeJS.WritableStream, "write">;
+  } = {},
+): Promise<string> {
+  if (!input.isTTY) {
     const chunks: Buffer[] = [];
-    for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
-    return Buffer.concat(chunks).toString("utf8").split(/\r?\n/)[0] ?? "";
+    for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
+    // Only the first line is the connection string; anything after it is ignored.
+    return Buffer.concat(chunks).toString("utf8").replace(/\r?\n[\s\S]*$/, "");
   }
-  process.stdout.write("Postgres connection string (not shown): ");
+  output.write("Postgres connection string (not shown): ");
   const muted = new Writable({ write: (_chunk, _encoding, done) => done() });
-  const rl = createInterface({ input: process.stdin, output: muted, terminal: true });
+  const rl = createInterface({ input, output: muted, terminal: true });
   try {
     return await new Promise<string>((resolve) => rl.once("line", resolve));
   } finally {
     rl.close();
-    process.stdout.write("\n");
+    output.write("\n");
   }
 }
 
@@ -128,9 +135,11 @@ async function readCreateInput(input: RunInitCommandInput, _options: Record<stri
   if (input.adminPassword !== undefined || input.agentPluginTokensStdin) {
     throw new ValidationError("init: --create-input-stdin cannot be combined with --admin-password or --agent-plugin-tokens-stdin");
   }
+  // The real stdin reader is wired here, at the command edge; tests inject their own.
+  const { readCreateInput: readInput = readAllStdin } = input;
   let raw: unknown;
   try {
-    raw = JSON.parse(await (input.readCreateInput ?? readAllStdin)());
+    raw = JSON.parse(await readInput());
   } catch {
     throw new ValidationError("init: --create-input-stdin expects a JSON object on stdin");
   }
