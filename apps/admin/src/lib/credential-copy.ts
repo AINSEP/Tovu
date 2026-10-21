@@ -15,12 +15,14 @@ export function storedCredentialHint(
   return formatCredentialHint({ hint: stored.tokenHint, locale }) || stored.masked || undefined;
 }
 
-/** Preserve the draft bytes; an exact blank update keeps the saved secret. */
+/** Preserve the draft bytes; an exact blank update keeps the saved secret. Only the token
+ *  validator's own `CredentialInputError` becomes display copy; any other failure is rethrown so an
+ *  unknown exception never gains display permission. `assertToken` defaults to the shared validator. */
 export function credentialDraftError(
   { value }: { value: string },
-  { locale = 'en', required = false }: { locale?: string; required?: boolean } = {},
+  { locale = 'en', required = false, assertToken = assertCredentialToken }: { locale?: string; required?: boolean; assertToken?: (required: { value: string }) => void } = {},
 ): string | null {
   if (value === '' && !required) return null;
-  try { assertCredentialToken({ value }); return null; }
+  try { assertToken({ value }); return null; }
   catch (error) { if (error instanceof CredentialInputError) return translateCredentialMessage({ message: error.message, locale }); throw error; }
 }
