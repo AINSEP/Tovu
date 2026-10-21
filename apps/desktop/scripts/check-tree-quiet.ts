@@ -24,6 +24,9 @@ import { fileURLToPath } from "node:url";
 import { treeQuietProblems } from "../src/tree-quiet.ts";
 import type { TreeQuietSignals } from "../src/tree-quiet.ts";
 
+/** The slice of `execFileSync` this check calls: pgrep, git and sleep. */
+type ExecPort = (file: string, args: readonly string[], options?: { encoding?: "utf8"; stdio?: "pipe" }) => string | Buffer;
+
 /** A cheap fingerprint of one path, as {@link snapshot} produces it. */
 interface Snapshot {
   exists: boolean;
@@ -47,9 +50,9 @@ const SNAPSHOT_WINDOW_SECONDS = 0.8;
 /** True when a `vite build --watch` is live. `pgrep` exits 1 for "no match", which is a normal "not
  *  running" outcome, not a script failure — only a non-1 exit is a real error worth surfacing.
  *  @complexity O(1) plus pgrep's own cost. */
-function isViteWatchRunning(): boolean {
+function isViteWatchRunning(exec: ExecPort): boolean {
   try {
-    execFileSync("pgrep", ["-f", "vite build --watch"], { stdio: "pipe" });
+    exec("pgrep", ["-f", "vite build --watch"], { stdio: "pipe" });
     return true;
   } catch (error) {
     // `as`: execFileSync throws a plain Error decorated with the spawned process's own `status`.
@@ -62,12 +65,12 @@ function isViteWatchRunning(): boolean {
  *  bare `git status`, so this reads exactly the files the backstop half will later check. On a fresh
  *  CI checkout this is empty by construction: there is nothing to diff against yet.
  *  @complexity O(1) plus git's own cost. */
-function gitDirtyPaths(): string[] {
-  const output = execFileSync(
+function gitDirtyPaths(exec: ExecPort, repoRoot: string): string[] {
+  const output = String(exec(
     "git",
-    ["-C", REPO_ROOT, "status", "--porcelain", "--", ...VERIFIED_RELATIVE_PATHS],
+    ["-C", repoRoot, "status", "--porcelain", "--", ...VERIFIED_RELATIVE_PATHS],
     { encoding: "utf8" }
-  );
+  ));
   // Never trim before slicing: the porcelain XY status is two fixed columns and a leading space is
   // one of them (" M path" = unstaged modify). Trimming it shifts the path left, and slice(3) then
   // eats the path's first character ("pps/desktop/..." for "apps/desktop/...").
@@ -117,34 +120,54 @@ function snapshotsDiffer(a: Snapshot, b: Snapshot): boolean {
  *  output (`dist/renderer`). Blocks synchronously via the `sleep` binary rather than `setTimeout`, so
  *  this stays a single straight-line script with no async plumbing for what is a one-shot check.
  *  @complexity O(n) in files under the verified surface, twice. */
-function movingPaths(): string[] {
-  const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(REPO_ROOT, rel)));
-  execFileSync("sleep", [String(SNAPSHOT_WINDOW_SECONDS)]);
-  const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(REPO_ROOT, rel)));
+function movingPaths(exec: ExecPort, repoRoot: string): string[] {
+  const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(repoRoot, rel)));
+  exec("sleep", [String(SNAPSHOT_WINDOW_SECONDS)]);
+  const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot(path.join(repoRoot, rel)));
   return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer(before[i]!, after[i]!));
   // !: `before`/`after` are both mapped from VERIFIED_RELATIVE_PATHS with .map, so they share its
   // length and `i` (from the same filter over VERIFIED_RELATIVE_PATHS) is always in bounds of both.
 }
 
-function main(): void {
-  const signals: TreeQuietSignals = {
-    viteWatchRunning: isViteWatchRunning(),
-    gitDirtyPaths: gitDirtyPaths(),
-    movingPaths: movingPaths(),
-  };
+/**
+ * The whole check over its effects. `exec` stands in for `execFileSync` (pgrep, git, sleep) and
+ * `repoRoot` for the checkout, so a test can drive every signal without a real watcher or repo.
+ * @returns the exit code: 0 quiet, 1 when any signal says the tree is moving or a probe failed.
+ * @complexity O(n) in files under the verified surface.
+ */
+function runTreeQuietCheck(
+  { exec, out, err }: { exec: ExecPort; out: (text: string) => void; err: (text: string) => void },
+  { repoRoot = REPO_ROOT }: { repoRoot?: string } = {},
+): number {
+  try {
+    const signals: TreeQuietSignals = {
+      viteWatchRunning: isViteWatchRunning(exec),
+      gitDirtyPaths: gitDirtyPaths(exec, repoRoot),
+      movingPaths: movingPaths(exec, repoRoot),
+    };
 
-  const problems = treeQuietProblems(signals);
-  if (problems.length > 0) {
-    process.stderr.write("check-tree-quiet: apps/desktop is not quiet enough to package safely:\n");
-    for (const problem of problems) process.stderr.write(`  - ${problem}\n`);
-    process.exit(1);
-    return;
+    const problems = treeQuietProblems(signals);
+    if (problems.length > 0) {
+      err("check-tree-quiet: apps/desktop is not quiet enough to package safely:\n");
+      for (const problem of problems) err(`  - ${problem}\n`);
+      return 1;
+    }
+    out("check-tree-quiet: OK — apps/desktop is quiet\n");
+    return 0;
+  } catch (error) {
+    err(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
+    return 1;
   }
-  process.stdout.write("check-tree-quiet: OK — apps/desktop is quiet\n");
 }
 
-try { main(); }
-catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
-  process.exitCode = 1;
+/** Run only when this file IS the process, never when a test imports it. */
+if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = runTreeQuietCheck({
+    exec: execFileSync,
+    out: process.stdout.write.bind(process.stdout),
+    err: process.stderr.write.bind(process.stderr),
+  });
 }
+
+export { VERIFIED_RELATIVE_PATHS, runTreeQuietCheck, snapshot };
+export type { ExecPort };
