@@ -78,12 +78,13 @@ export function workerProductRoot(
  *
  * @param fromDir - Override for testing; production callers should omit this and get the real
  *   caller-relative default.
+ * @param optional.thread - Override for testing; defaults to this thread's real context.
  * @throws If no such ancestor is found within {@link MAX_WALK_UP} levels — a silent wrong guess
  *   is worse than a loud failure here — or the parent supplies a relative worker root.
  * @complexity O(depth) filesystem probes, capped at {@link MAX_WALK_UP}; O(1) for an injected root.
  */
-export function resolveProductRoot(fromDir?: string): string {
-  const injected = workerProductRoot({ fromDir });
+export function resolveProductRoot(fromDir?: string, optional: { thread?: ThreadContext } = {}): string {
+  const injected = workerProductRoot({ fromDir }, optional);
   if (injected !== undefined) return injected;
   const origin = fromDir ?? import.meta.dirname;
   const found = findAncestor({

@@ -278,3 +278,9 @@ test("workerProductRoot refuses a relative root, naming it and the fix", () => {
 test("workerProductRoot defaults to this thread's real context (the main thread here)", () => {
   assert.equal(workerProductRoot({}), undefined);
 });
+
+test("resolveProductRoot, inside a worker given an absolute productRoot, returns it without walking the filesystem", () => {
+  const thread: ThreadContext = { isMainThread: false, workerData: { productRoot: "/opt/tovu/product" } };
+  assert.equal(resolveProductRoot(undefined, { thread }), "/opt/tovu/product");
+  assert.throws(() => resolveProductRoot(undefined, { thread: { isMainThread: false, workerData: { productRoot: "relative/root" } } }), /must be an absolute path/);
+});
