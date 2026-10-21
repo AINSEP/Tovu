@@ -234,3 +234,16 @@ test("serve: a dir bootSiteDir refuses releases the running-site claim before th
   const lease = claimSiteRunning({ dir, app: "Web" });
   lease.release();
 });
+
+test("serve: with no port anywhere it binds 3000, and a listen error other than EADDRINUSE propagates as-is after closing the store", async (t) => {
+  withEnv(t, { PORT: undefined });
+  const dir = await pgliteSite();
+  // 192.0.2.1 (TEST-NET-1, RFC 5737) is a valid IP no local interface owns, so the bind itself fails.
+  await assert.rejects(runServeCommand({ dir, host: "192.0.2.1" }, commandEffects), (error: unknown) => {
+    assert.ok(!(error instanceof PortInUseError), "only EADDRINUSE is mapped to PortInUseError");
+    assert.equal((error as NodeJS.ErrnoException).code, "EADDRNOTAVAIL");
+    assert.match((error as Error).message, /192\.0\.2\.1:3000/, "BR-02's last tier: the default port 3000");
+    return true;
+  });
+  await assertOwnerReleased(dir);
+});
