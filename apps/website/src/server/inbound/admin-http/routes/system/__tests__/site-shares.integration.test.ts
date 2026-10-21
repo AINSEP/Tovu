@@ -108,3 +108,43 @@ test("share creation accepts a non-UUID job id (reported, not fixed)", async t =
     { principalId: "owner", jobId: "-".repeat(36), signal: true },
   ]);
 });
+
+test("share artifact routes admit a connected-computer grant, and every route refuses or sanitizes before effects", async t => {
+  let allowed = true, trusted = false, authorizeFault: unknown, registryFault: unknown;
+  const effects: string[] = [];
+  const registry = {
+    directory: "/nonexistent",
+    get: async () => { effects.push("get"); if (registryFault) throw registryFault; return null; },
+    list: async () => { effects.push("list"); if (registryFault) throw registryFault; return []; },
+  };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 }; next(); });
+  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", siteShareBackend: { registry },
+    authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } } as unknown as RouteDeps });
+  const root = (await startTestServer(app, t)) + "/api/admin/v1/workspaces/ws/site-shares";
+  const artifact = root + "/artifacts/" + "a".repeat(64) + "/received.tovu.zip";
+  const sanitized = { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." };
+
+  // A publishing grant (not RBAC) answers for the artifact routes: it reaches the registry.
+  trusted = true;
+  assert.equal((await fetch(artifact, { method: "DELETE" })).status, 404);
+  assert.deepEqual(effects.splice(0), ["list"]);
+  trusted = false;
+
+  allowed = false;
+  assert.equal((await fetch(root + "/share-1/download")).status, 403);
+  assert.equal((await fetch(artifact, { method: "DELETE" })).status, 403);
+  assert.deepEqual(effects, []);
+  allowed = true;
+
+  authorizeFault = new Error("SECRET authorizer detail");
+  const put = await fetch(artifact, { method: "PUT", headers: { "content-type": "application/zip" }, body: Buffer.from([80, 75, 3, 4]) });
+  assert.equal(put.status, 400); assert.deepEqual(await put.json(), sanitized);
+  authorizeFault = undefined;
+
+  registryFault = new Error("SECRET disk detail");
+  for (const response of [await fetch(root + "/share-1/download"), await fetch(artifact, { method: "DELETE" })]) {
+    assert.equal(response.status, 400); assert.deepEqual(await response.json(), sanitized);
+  }
+  assert.deepEqual(effects, ["get", "list"]);
+});
