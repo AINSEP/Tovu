@@ -1,8 +1,21 @@
-/** Mail configuration has no existing feature owner; this read-only diagnostic has its own catalog. */
+/** Mail configuration has no existing feature owner; this diagnostic and its two approval-gated
+ *  controls share one catalog. */
 export const mailStatusAgentToolCatalog = [{
   name: "system_get_mail_status",
   description: "Reports whether this site can send real email, the current mail driver, and a setup note. Use when email is not arriving, a magic link did not arrive, or to check whether sending is configured. Returns {mailDeliveryAvailable, driver, note} plus, when available, state (ready|unconfigured|degraded), lanes (transactional/bulk provider and state), warnings (sender_unverified, sender_unknown) and providers; console means messages are printed locally and never sent, unconfigured means no provider is chosen. This checks configuration, not whether a particular message reached an inbox. Does not expose credentials or send mail. Requires admin.forms.manage, like the admin mail-status route. Immediately after startup it can still show the unresolved console fallback.",
   sideEffects: "none" as const,
+  authorization: { permission: "admin.forms.manage" },
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+}, {
+  name: "mail_set_provider",
+  description: "Chooses which installed mail provider sends ALL of this site's email (sign-in links, confirmations, form notifications and newsletters), for both the transactional and bulk lanes. Pass providerId from system_get_mail_status's providers list. The provider must be installed and its key saved under Access Tokens; nothing is changed otherwise. Shows the person a confirmation card every time (approval cannot be remembered). Does not send mail; follow with mail_send_test. Requires settings.workspace.write.",
+  sideEffects: "mutates-durable-state" as const,
+  authorization: { permission: "settings.workspace.write" },
+  inputSchema: { type: "object", additionalProperties: false, required: ["providerId"], properties: { providerId: { type: "string", description: "An installed provider id, e.g. smtp or resend." } } },
+}, {
+  name: "mail_send_test",
+  description: "Sends one test email to the signed-in operator's own account address through the active provider and the site's delivery rules (suppression, test mode, rate limits), after a confirmation card. Use after mail_set_provider or when checking delivery end to end. Returns {sent, to} and the provider's message id or the refusal code. Never sends to any other address. Requires admin.forms.manage.",
+  sideEffects: "mutates-durable-state" as const,
   authorization: { permission: "admin.forms.manage" },
   inputSchema: { type: "object", additionalProperties: false, properties: {} },
 }];

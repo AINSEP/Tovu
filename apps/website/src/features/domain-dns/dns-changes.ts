@@ -71,6 +71,13 @@ interface Target {
 
 interface Zone { zone: string; ref: string; found: boolean }
 
+/** The registered provider, or a caller error naming the saved id. */
+function providerFor(required: { providerId: string; hostname: string; errorPrefix: string }, ports: DnsChangePorts): DnsProvider {
+  const provider = ports.registry.get({ id: required.providerId })?.provider;
+  if (provider === undefined) throw new ToolInputError({ message: `${required.errorPrefix}: the DNS provider '${required.providerId}' saved for ${required.hostname} is not installed.` });
+  return provider;
+}
+
 /** Caller requirements win; otherwise the binding's persisted ones. No requirements is a caller error. */
 async function resolveTarget(required: { hostname: string; requirements?: DnsPlanRequirement[]; errorPrefix: string }, ports: DnsChangePorts): Promise<Target> {
   const binding = (await ports.bindings?.get({ hostname: required.hostname })) ?? null;
@@ -79,9 +86,7 @@ async function resolveTarget(required: { hostname: string; requirements?: DnsPla
     throw new ToolInputError({ message: `${required.errorPrefix}: no DNS requirements are saved for ${required.hostname}; pass requirements (the records the host or mail provider asked for).` });
   }
   const providerId = binding?.providerId ?? MANUAL_DNS_PROVIDER_ID;
-  const provider = ports.registry.get({ id: providerId })?.provider;
-  if (provider === undefined) throw new ToolInputError({ message: `${required.errorPrefix}: the DNS provider '${providerId}' saved for ${required.hostname} is not installed.` });
-  return { hostname: required.hostname, providerId, provider, requirements, binding };
+  return { hostname: required.hostname, providerId, provider: providerFor({ ...required, providerId }, ports), requirements, binding };
 }
 
 /** The provider's zone for the hostname; the saved zone (or the hostname) when none answers. */

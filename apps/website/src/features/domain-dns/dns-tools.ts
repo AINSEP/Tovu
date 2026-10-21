@@ -97,6 +97,8 @@ export const dnsChangeDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const optionalInt = (value: unknown, min: number, max: number): boolean => value === undefined || (Number.isInteger(value) && (value as number) >= min && (value as number) <= max);
 const optionalText = (value: unknown, max: number): boolean => value === undefined || (typeof value === "string" && value.length <= max);
+const caaIssuerValid = (issuer: unknown): boolean => typeof issuer === "string" && issuer.length > 0 && issuer.length <= 253;
+const optionalCaa = (value: unknown): boolean => value === undefined || (isObject(value) && caaIssuerValid(value.issuer));
 const RECORD_SHAPE = "each requirement record needs type (A, AAAA, CNAME, TXT, MX, CAA, NS or SRV), name and a value of at most 4096 characters; ttl 60-86400, priority 0-65535 and note up to 200 characters are optional.";
 const REQUIREMENT_SHAPE = "requirements must be 1-10 objects with purpose (site, mail or tls) and 1-50 records; domain, providerId (up to 64 characters) and caa.issuer are optional.";
 
@@ -122,7 +124,7 @@ function readRecord(raw: unknown, prefix: string): DomainRecordRequirement {
 const REQUIREMENT_CHECKS: ReadonlyArray<(raw: Record<string, unknown>) => boolean> = [
   raw => (PURPOSES as readonly unknown[]).includes(raw.purpose),
   raw => Array.isArray(raw.records) && raw.records.length > 0 && raw.records.length <= 50,
-  raw => optionalText(raw.providerId, 64) && (raw.caa === undefined || (isObject(raw.caa) && typeof raw.caa.issuer === "string" && raw.caa.issuer.length > 0 && raw.caa.issuer.length <= 253)),
+  raw => optionalText(raw.providerId, 64) && optionalCaa(raw.caa),
 ];
 
 function readRequirement(raw: unknown, hostname: string, prefix: string): DnsPlanRequirement {

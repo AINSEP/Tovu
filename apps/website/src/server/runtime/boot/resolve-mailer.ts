@@ -5,6 +5,7 @@ import {
   laneForPurpose,
   parseSmtpEndpoint as parseJiniSmtpEndpoint,
   type MailDeliveryLane,
+  type MailAdapterCredential,
   type MailDomainState,
   type MailProviderModule,
   type MailProviderSetting,
@@ -116,7 +117,14 @@ export interface ResolvedMailer {
   settle: () => Promise<void>;
   /** Fresh status for the admin route, the banner and `system_get_mail_status`. */
   status: () => Promise<MailStatusReport>;
+  /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
+  checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
 }
+
+export type MailProviderCheck = { ok: true; label: string } | { ok: false; reason: string };
+
+/** A provider's credential, or why it has none. */
+type CredentialLookup = { credential: MailAdapterCredential; reason?: undefined } | { credential?: undefined; reason: string };
 
 const CONSOLE_CAPABILITIES: MailerCapabilities = { driver: "console", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: true };
 
@@ -192,7 +200,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   };
 
   /** The provider's credential, or why there is none (missing, or saved but unusable). */
-  const credentialOrReason = async (catalog: MailProviderCatalog, id: string, label: string) => {
+  const credentialOrReason = async (catalog: MailProviderCatalog, id: string, label: string): Promise<CredentialLookup> => {
     try {
       const credential = await resolveMailCredential({ deps, catalog, id });
       if (credential) return { credential };
@@ -202,14 +210,18 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     return { reason: `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")` };
   };
 
+  /** The catalog names a credential label exactly for the providers that need one (not console). */
+  const providerCredential = (catalog: MailProviderCatalog, id: string): Promise<CredentialLookup> => {
+    const label = catalog.credentialLabelFor({ id });
+    return label === undefined ? Promise.resolve({ credential: { token: "" } }) : credentialOrReason(catalog, id, label);
+  };
+
   const resolveProvider = async (id: string): Promise<MailerPort> => {
     const catalog = await loadMailProviderCatalog(deps);
     const entry = catalog.registry.get({ id });
     const unavailable = (detail: string) => fallback({ catalog, errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `[mail] the selected mail provider '${id}' ${detail}, so outbound mail is NOT being sent` });
     if (!entry) return unavailable(`is not installed${catalog.refusals.length > 0 ? ` (${catalog.refusals.join("; ")})` : ""}`);
-    // The catalog names a credential label exactly for the providers that need one (not console).
-    const label = catalog.credentialLabelFor({ id });
-    const found = label === undefined ? { credential: { token: "" } } : await credentialOrReason(catalog, id, label);
+    const found = await providerCredential(catalog, id);
     if (!found.credential) return unavailable(found.reason);
     const credential = found.credential;
     const mailer = wrap({ providerId: id, provider: entry.provider, mailer: createProviderMailer({ deps, provider: entry.provider, credential }) });
@@ -251,7 +263,15 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   };
 
   const status = (): Promise<MailStatusReport> => computeStatusReport({ deps, setting: currentSetting });
-  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status };
+  const checkProvider = async ({ id }: { id: string }): Promise<MailProviderCheck> => {
+    const catalog = await loadMailProviderCatalog(deps);
+    const provider = catalog.registry.get({ id })?.provider;
+    if (!provider) return { ok: false, reason: `'${id}' is not an installed mail provider (installed: ${catalog.registry.list().map((entry) => entry.id).join(", ")})` };
+    if (!provider.capabilities.hosted) return { ok: false, reason: `'${id}' only prints mail locally and never delivers it` };
+    const found = await providerCredential(catalog, id);
+    return found.credential ? { ok: true, label: provider.label } : { ok: false, reason: `'${id}' ${found.reason}` };
+  };
+  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status, checkProvider };
 }
 
 /** Lane providers whose credential resolves. @complexity O(lanes) lookups. */

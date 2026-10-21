@@ -42,7 +42,7 @@ async function rig(optional: { capture?: MailCapturePort; testMode?: unknown } =
       workspaceId: WS, mode: "local", customCredentialRepo: new InMemoryCustomCredentialSetRepo(), sealer: new AesGcmSecretSealer(keyring),
       httpClient: { send: async () => { throw new Error("unused"); } }, loadMailAdapters: async () => ({ list: () => [], refusals: [] }), log: (line) => lines.push(line),
     },
-    settings: { repo: settingsRepo, deps: { clock, ids, principals }, systemPrincipalId: "system" },
+    settings: { repo: settingsRepo, deps: { clock, ids, principals }, systemPrincipalId: "system", authorize: async ({ principalId }) => ({ allowed: principalId === "owner", reason: principalId === "owner" ? "grant" : "no_grant" }) },
     settingsReady,
     delivery: { ledger: sendLedger, suppression: { isSuppressed: async () => false, suppress: async () => {} }, ...(optional.capture ? { capture: optional.capture } : {}) },
     readSenderEmail: async () => "news@example.com",
@@ -80,4 +80,14 @@ test("the site's test mode is applied through the capture store", async () => {
   const result = await createSiteMailer(required).mailer.send(MESSAGE, OPTIONS);
   assert.equal(result.ok && result.providerMessageId, "captured:c1");
   assert.deepEqual(captured, ["reader@example.com"]);
+});
+
+test("selectProvider writes both lanes as the calling principal, through its own authorization", async () => {
+  const { required, release, settingsRepo } = await rig();
+  release();
+  const mailer = createSiteMailer(required);
+  await mailer.selectProvider({ id: "smtp", principalId: "owner" });
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "smtp", bulk: "smtp" });
+  await assert.rejects(mailer.selectProvider({ id: "console", principalId: "intruder" }));
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "smtp", bulk: "smtp" });
 });

@@ -529,3 +529,15 @@ test("settle waits for the transactional lane; status with no transactional prov
   assert.equal(resolved.mailer.capabilities().driver, "console");
   assert.deepEqual((await resolved.status()).warnings, []);
 });
+
+test("checkProvider: a hosted provider with a usable key passes; unknown, local-only and keyless-in-store providers say why", async () => {
+  const credentialDeps = makeCredentialWriteDeps();
+  await saveSmtpKey(credentialDeps);
+  const { checkProvider } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting: memorySetting({ transactional: null, bulk: null }) }));
+  assert.deepEqual(await checkProvider({ id: "smtp" }), { ok: true, label: "SMTP server" });
+  assert.deepEqual(await checkProvider({ id: "postal" }), { ok: false, reason: "'postal' is not an installed mail provider (installed: smtp, console, resend)" });
+  assert.deepEqual(await checkProvider({ id: "console" }), { ok: false, reason: "'console' only prints mail locally and never delivers it" });
+  assert.deepEqual(await checkProvider({ id: "resend" }), { ok: false, reason: `'resend' has no saved credential "${MAIL_HTTP_API_CREDENTIAL_LABEL}" under Access Tokens (category "ops")` });
+  const keyless = createResolvedMailer(makeResolveDeps({ loadMailAdapters: async () => fixtureRegistry({ create: () => FIXTURE_MAILER }, { credentialKeys: [] }) }));
+  assert.deepEqual(await keyless.checkProvider({ id: "postal" }), { ok: true, label: "Postal" });
+});

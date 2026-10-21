@@ -10,3 +10,9 @@ export interface MailStatusReport extends MailStatus {
   /** Plugin providers that were not loaded, and why (log-safe). */
   readonly refusals: readonly string[];
 }
+
+/** Explicit provider selection: `check` validates without sending, `select` writes both lanes. */
+export interface MailProviderControl {
+  check(required: { id: string }): Promise<{ ok: true; label: string } | { ok: false; reason: string }>;
+  select(required: { id: string; principalId: string }): Promise<void>;
+}

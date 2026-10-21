@@ -639,6 +639,8 @@ export interface MembersDeps {
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
   mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  /** Provider selection for `mail_set_provider` (`server/runtime/composition/site-mailer.ts`). Absent: the tool refuses. */
+  mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;

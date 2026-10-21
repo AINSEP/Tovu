@@ -61,6 +61,13 @@ const FORM_ROUTING_SETTINGS: readonly AgentSettingWriteRule[] = [
   { namespace: FORMS_NAMESPACE, key: "receiver", reason: "Changes which receiver collects your published site's form submissions" },
 ];
 
+/** Which mail provider sends and whether mail is redirected/captured change where every email goes;
+ * only the approval-gated `mail_set_provider` tool (never rememberable) may change the provider. */
+export const MAIL_SETTINGS_WRITE_DENIALS: readonly AgentSettingWriteRule[] = [
+  { namespace: "core.mail", key: "provider", reason: "The mail provider changes only through mail_set_provider, which needs a human approval every time." },
+  { namespace: "core.mail", key: "testMode", reason: "Mail test mode (redirect/capture) is an operator setting the assistant cannot change." },
+];
+
 /** Host-owned assistant configuration: changes are possible only after a human card.
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
@@ -78,7 +85,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
   // The chat-selection how-to lives in this tool's search metadata: descriptions stay the catalog's verbatim.
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
-    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent", reason: "Cookie consent changes require consent_update_settings and consent_publish_settings with a human confirmation card." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent", reason: "Cookie consent changes require consent_update_settings and consent_publish_settings with a human confirmation card." }, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }, ...MAIL_SETTINGS_WRITE_DENIALS],
     setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.

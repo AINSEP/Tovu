@@ -88,9 +88,9 @@ test("a nameserver without a public address is refused as unknown before any rec
   assert.deepEqual(await port.query({ name: "example.com", type: "ALIAS", nameserver: "ns1.dns.test" }), { status: "rejected", error: { code: "unsupported", message: "ALIAS is a DNS-host feature, not a record type a nameserver serves." } });
 });
 
-test("a public address literal is used as given, and an IPv6-only nameserver still answers", async () => {
+test("a public address literal is used as given, and a nameserver whose IPv4 lookup fails still answers over IPv6", async () => {
   const { factory } = fakeFactory({
-    system: { "resolve6:v6.dns.test": ["2001:db8::53"] },
+    system: { "resolve6:v6.dns.test": ["2001:db8::53"], "resolve4:v6.dns.test": dnsError("ETIMEOUT") },
     "198.51.100.53": { "resolveNs:example.com": ["a.test"] },
     "2001:db8::53": { "resolveNs:example.com": ["b.test"] },
   });

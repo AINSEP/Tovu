@@ -16,22 +16,32 @@ const allowSystemMailMigration: AuthorizeFn = async () => ({ allowed: true, reas
 
 export interface SiteMailerRequired {
   resolve: Omit<ResolveMailerDeps, "providerSetting" | "wrapProviderMailer" | "readSenderEmail">;
-  settings: { repo: SettingsRepoPort; deps: Omit<SetValueRequired["deps"], "authorize" | "repo">; systemPrincipalId: string };
+  /** `authorize` checks a principal's own provider change (`mail_set_provider`) at the settings chokepoint. */
+  settings: { repo: SettingsRepoPort; deps: Omit<SetValueRequired["deps"], "authorize" | "repo">; systemPrincipalId: string; authorize: AuthorizeFn };
   /** Resolves once `core.mail.*` definitions are registered; reads wait for it. */
   settingsReady: Promise<unknown>;
   delivery: { ledger: MailSendLedgerPort; suppression: MailSuppressionRepoPort; capture?: MailCapturePort };
   readSenderEmail: () => Promise<string | undefined>;
 }
 
+export interface SiteMailer extends ResolvedMailer {
+  /** Sets both lanes to `id` as `principalId`; the caller already checked `checkProvider` and got approval. */
+  selectProvider: (required: { id: string; principalId: string }) => Promise<void>;
+}
+
 /**
  * Builds the lane-routed, policy-wrapped site mailer.
  * @complexity O(1); see `resolve-mailer.ts` for per-send costs.
  */
-export function createSiteMailer(required: SiteMailerRequired, _optional: Record<string, never> = {}): ResolvedMailer {
+export function createSiteMailer(required: SiteMailerRequired, _optional: Record<string, never> = {}): SiteMailer {
   const { resolve, settings, delivery } = required;
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
-  return createResolvedMailer({
+  const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId }) => {
+    await ready();
+    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } });
+  };
+  const resolved = createResolvedMailer({
     ...resolve,
     providerSetting: {
       read: async () => { await ready(); return readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }); },
@@ -46,4 +56,5 @@ export function createSiteMailer(required: SiteMailerRequired, _optional: Record
     ),
     readSenderEmail: required.readSenderEmail,
   });
+  return { ...resolved, selectProvider };
 }
