@@ -11,10 +11,12 @@ Postgres/Playwright: not installed (owner override) — such tests listed as LOC
 | 041 | merged 17:12 (b84e21359). Subagent: 25/25 at 100%. Coordinator REVERTED restore-points.ts non-null assertion (d248f2a81): guard kept, file 100/97.56/100, 15 tests pass. Re-measured consent/routes + entries create/lifecycle/update/write-error-status at 100/100/100 (77 tests). Review note: new test 'test-agent falls back to the runtime's own detector...' runs the real detector, spawning agent CLIs found on PATH (~3.3 s); asserted outcome is deterministic. | cloud/cov-T3-041 @4a0e17a2f | b84e21359 |
 | 042 | merged 16:55 (a06ea51d8). Subagent: 25/25 at 100%. Coordinator re-measured forms x5 + menus x5 at 100/100/100 (243 tests, 0 fail); other 15 not yet re-measured. Coordinator fix f26e4cab0: subagent had loosened 6 exact not-found assertions to a '.*' regex; pinned to the exact message ('undefined'); 60 tests pass. | cloud/cov-T3-042 @631450c28 | a06ea51d8 |
 | 043 | merged 17:20 (804ca271c). Subagent: 25/25 at 100%; it KEPT the req.params guards per the repo rule and found that rule. Coordinator REVERTED its pages delete/update rollback change (2776f52b1: `if (!priorPost) return;` replaced by a cast); with guard kept, pages delete 100/96.30/100, update 99.59/97.14/100 (line 88); create/get-by-id/list/update-html 100/100/100 (101 tests, 0 fail). | cloud/cov-T3-043 @81574c1f0 | 804ca271c |
-| 044 | in flight; stopped 17:2x by account rate limit, resumed 19:52 | cloud/cov-T3-044 | |
-| 045 | in flight; stopped 17:2x by account rate limit, resumed 19:52 | cloud/cov-T3-045 | |
-| guards | dispatched 19:55: add hand-built-req tests for the 76 restored guards | cloud/cov-T3-guards | |
-Sessions used: 9/15 (an earlier ledger version said 4/15 — undercount, corrected).
+| 044 | merged 20:22 (c3993cbd1). Subagent: 25/25 at 100%, kept every guard. Coordinator REVERTED posts/autosave.ts catch change (3d34800cf): it removed the `instanceof PostValidationError` rethrow so every error became a 400; rethrow kept, file 98.97/98.67/100 (15 tests pass). Review note: destination.ts relies on narrowing disconnectAndForgetDestination's return type (connect-destination.ts, outside lot). | cloud/cov-T3-044 @d22deb1bb | c3993cbd1 |
+| 045 | merged 20:24 (5555f23e5; conflict in redirects-auth.test.ts with 044 resolved keeping both, 9/9 pass). Subagent: 23/25 at 100%. Not 100: system/deployment-overview br 22/23 (default `inspectSiteKeyMaterial` reads live env/homedir/cwd; making siteKey required was REFUSED by the permission classifier as 'Security Weaken' — left unchanged, OWNER DECISION), system/publish-credentials br 74/75 (guard kept in credential code). Coordinator re-measured site-imports 100/100/100 (9 tests) and custom-credentials 100/100/100 (19 tests). | cloud/cov-T3-045 @bafd01a44 | 5555f23e5 |
+| guards | dispatched ~19:52: add hand-built-req tests for the 76 restored guards | cloud/cov-T3-guards | |
+| 046 | dispatched 20:22 (stop 21:15) | cloud/cov-T3-046 | |
+| 049 | dispatched 20:23 (stop 21:15) | cloud/cov-T3-049 | |
+Sessions used: 11/15 (an earlier ledger version said 4/15 — undercount, corrected).
 
 Process fix 16:41: subagents shared one scratch folder; lot 038 found its measuring script overwritten ~16:23. Brief now requires /home/user/wt/scratch-T3-NNN/; lots 041/042 told to re-measure. Lot 039 was fully re-measured by the coordinator; lot 040 only 8/25 files re-measured so far.
 
@@ -23,3 +25,7 @@ Lots 040/041/042 removed 76 `String(req.params.X ?? "")` guards in 53 route file
 
 ## 17:2x–19:51 — account rate limit
 Subagents 044 and 045 stopped on an account session limit (reset 19:40 UTC). Owner lifted it at 19:51 and moved the hard stop to 21:45Z (stop starting work 21:30Z).
+
+## Coordinator fixes outside subagent lots
+- b3de3ba09: sites-workspace-options (lot 040, wrongly reported 'already 100%') — added real-filesystem tests for defaultSourceRoots + posix/blank profile paths; 5 -> 9 tests; now 100/100/100.
+- Deleted untracked test-run artifacts chat.db and content/themes/.preview-refresh.json from the main checkout (not committed).
