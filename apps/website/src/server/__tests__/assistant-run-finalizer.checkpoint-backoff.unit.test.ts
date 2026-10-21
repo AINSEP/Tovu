@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
-import type { ChatRunLedger, RunProgress } from "#src/assistant/index";
+import type { ChatRunLedger } from "#src/assistant/index";
 import { createAssistantRunFinalizer, type AssistantRunFinalizerOptions } from "../runtime/composition/modules/assistant-run-finalizer.js";
 
 /**
@@ -28,7 +28,8 @@ function clockedStream({ frames, clock, stepMs }: { frames: string[]; clock: { n
     pull(controller) {
       if (next >= frames.length) { controller.close(); return; }
       if (next > 0) clock.now += stepMs;
-      controller.enqueue(encoder.encode(frames[next++]!));
+      controller.enqueue(encoder.encode(frames[next]!));
+      next += 1;
     },
   }, { highWaterMark: 0 });
   return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
@@ -37,13 +38,13 @@ function clockedStream({ frames, clock, stepMs }: { frames: string[]; clock: { n
 /** Replays a 20 s run (one frame per 100 ms after the `first` frame) and returns the fake-clock
  * time of every checkpoint the finalizer wrote. */
 async function checkpointTimes(
-  t: { mock: { timers: { enable(o: { apis: string[] }): void; reset(): void } } },
+  t: TestContext,
   { first, options = {} }: { first: string; options?: Partial<AssistantRunFinalizerOptions> },
 ): Promise<number[]> {
   const clock = { now: 1_000_000 };
   const times: number[] = [];
   const ledger = {
-    checkpoint: async (_progress: RunProgress) => { times.push(clock.now - 1_000_000); return true; },
+    checkpoint: async () => { times.push(clock.now - 1_000_000); return true; },
     settle: async () => true,
     reconcileInterrupted: async () => 0,
     unlessSettled: async () => ({ written: false }),
