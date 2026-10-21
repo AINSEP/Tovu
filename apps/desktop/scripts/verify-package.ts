@@ -18,7 +18,8 @@
  * comparison must be byte-for-byte, never size, never asar's own recorded integrity hash — lives in
  * `../src/asar-verify.ts`, so it is unit-tested (including a DELIBERATE-CORRUPTION test) under the
  * normal `npm test` glob. This file only locates the freshly built `app.asar` and turns the result
- * into an exit code.
+ * into an exit code. The lookup and exit-code decision live in `../src/verify-package-cli.ts`
+ * (tested there with fakes); this file only binds the real filesystem, verifier, and streams.
  *
  * Usage: node scripts/verify-package.ts [--asar <path-to-app.asar>]
  * Exit codes: 0 = every file under VERIFIED_PREFIXES is byte-identical to source.
@@ -29,129 +30,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { VERIFIED_PREFIXES, bundledNpmFailures, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
+import { runVerifyPackage } from "../src/verify-package-cli.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Every `*.app` bundle under `dir`, recursively. `release/` can hold leftovers from earlier builds
- *  or probes, so finding ONE bundle is not enough on its own — see {@link resolveAsarPath}.
- *  @complexity O(n) in directory entries under `dir`. */
-function findAppBundles(dir: string): string[] {
-  const found: string[] = [];
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return found;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.name.endsWith(".app")) found.push(full);
-    else found.push(...findAppBundles(full));
-  }
-  return found;
-}
-
-/**
- * Every resources directory a packaged build could have produced — the same two layouts
- * {@link resolveAsarPath} already knows about, but ALL of them (not just the newest), since a
- * leftover probe build from an earlier run must not be reported clean just because it is not the
- * one {@link resolveAsarPath} picked.
- *
- * @complexity O(n) in bundles found under `release/`.
- */
-function findResourcesDirs(): string[] {
-  const releaseDir = path.join(DESKTOP_ROOT, "release");
-  const dirs = findAppBundles(releaseDir).map((bundle) => path.join(bundle, "Contents/Resources"));
-  const winUnpackedResources = path.join(releaseDir, "win-unpacked", "resources");
-  if (existsSync(winUnpackedResources)) dirs.push(winUnpackedResources);
-  return dirs;
-}
-
-/**
- * The `app.asar` to verify: an explicit `--asar` wins (what a deliberate-corruption drill or a
- * one-off probe build uses); otherwise the most-recently-modified candidate found under `release/`,
- * across BOTH packaged layouts electron-builder produces:
- *   - macOS: any `.app` bundle under a `mac`-prefixed output directory, e.g.
- *     `release/mac-arm64/Tovu.app/Contents/Resources/app.asar` — `findAppBundles` already walks the
- *     whole tree, so `mac-arm64`, plain `mac`, or any other `mac`-prefixed directory is found with
- *     no glob needed (NOTE: do not write a literal asterisk immediately followed by a slash in this
- *     comment block — it closes the JSDoc block comment early and the rest parses as code).
- *   - Windows: `release/win-unpacked/resources/app.asar` — `win-unpacked` has no `.app` bundle at
- *     all, so it is checked for directly.
- * A fresh `electron-builder` run is what just produced the newest one; older probes or other arches
- * may still be sitting in the same output directory, so only the candidate's own `app.asar` mtime
- * (not the bundle directory's) decides "newest" across the two shapes uniformly.
- *
- * @complexity O(n) in bundles found under `release/`.
- */
-function resolveAsarPath(argv: string[]): string {
-  const flagAt = argv.indexOf("--asar");
-  // `!`: only read once the check to its left has confirmed the arg after `--asar` is present.
-  if (flagAt !== -1 && argv[flagAt + 1]) return path.resolve(argv[flagAt + 1]!);
-
-  const releaseDir = path.join(DESKTOP_ROOT, "release");
-  const candidates = findAppBundles(releaseDir).map((bundle) => path.join(bundle, "Contents/Resources/app.asar"));
-  const winUnpackedAsar = path.join(releaseDir, "win-unpacked", "resources", "app.asar");
-  candidates.push(winUnpackedAsar);
-
-  const existing = candidates.filter((candidate) => existsSync(candidate));
-  if (existing.length === 0) {
-    throw new Error(
-      `verify-package: no app.asar found under ${releaseDir} (checked *.app bundles and win-unpacked) — did electron-builder run?`,
-    );
-  }
-  existing.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-  // `!`: `existing.length === 0` above already threw, so index 0 exists.
-  return existing[0]!;
-}
-
-function main(): void {
-  const argv = process.argv.slice(2);
-  let asarPath: string;
-  try {
-    asarPath = resolveAsarPath(argv);
-  } catch (error) {
-    process.stderr.write(`${(error as Error).message}\n`);
-    process.exit(1);
-    return;
-  }
-
-  process.stdout.write(`verify-package: checking ${asarPath} against source under ${VERIFIED_PREFIXES.join(", ")}\n`);
-  const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, DESKTOP_ROOT, VERIFIED_PREFIXES);
-  process.stdout.write(`verify-package: ${checkedCount} file(s) checked\n`);
-
-  if (isEmptyVerification(checkedCount)) {
-    process.stderr.write(
-      "verify-package: verified nothing — path-separator or prefix bug (see asar-verify.ts's " +
-        "toArchiveEntryPath doc comment); this is a failure, not a clean pass\n",
-    );
-    process.exit(1);
-    return;
-  }
-
-  if (mismatches.length > 0) {
-    process.stderr.write(`verify-package: ${formatMismatchReport(mismatches)}\n`);
-    process.exit(1);
-    return;
-  }
-
-  // The verified asar's own resources dir always counts, so an explicit `--asar` outside
-  // `release/` is checked too rather than passing with zero dirs.
-  const resourcesDirs = [...new Set([path.dirname(asarPath), ...findResourcesDirs()])];
-  const npmFailures = bundledNpmFailures(resourcesDirs);
-  if (npmFailures.length > 0) {
-    process.stderr.write(
-      `verify-package: bundled npm is missing from the packaged app:\n  ${npmFailures.join("\n  ")}\n` +
-        "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +
-        "electron-builder.yml's two npm extraResources entries and that `npm run stage` ran before packaging.\n"
-    );
-    process.exit(1);
-    return;
-  }
-
-  process.stdout.write(`verify-package: OK — bundled npm present in ${resourcesDirs.length} resources dir(s)\n`);
-  process.stdout.write("verify-package: OK — every file byte-identical to source\n");
-}
-
-main();
+process.exitCode = runVerifyPackage({ argv: process.argv.slice(2), desktopRoot: DESKTOP_ROOT }, {
+  fs: { existsSync, readdirSync, statSync },
+  verify: verifyAsarAgainstSource, isEmptyVerification, formatMismatchReport, bundledNpmFailures,
+  prefixes: VERIFIED_PREFIXES, stdout: process.stdout, stderr: process.stderr,
+});
