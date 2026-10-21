@@ -758,6 +758,9 @@ const assistantPromptAugmenter: PromptAugmenter = {
 const bridgeInjection = {
   ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
   diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
+  // Resolve at launch inside deleteScope.fresh: concurrent runs must not share a delete grant,
+  // and diagnostic IDs must never publish schemas for tools this run cannot discover.
+  startupToolIds: (_required: { readonly runId: string }, _optional = {}) => visibleRegistry.list({}).map(tool => tool.id),
 };
 const agentExecutor = createAgentExecutor({
   lifecycle,
