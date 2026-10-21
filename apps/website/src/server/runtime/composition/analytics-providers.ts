@@ -6,7 +6,6 @@ import { loadAnalyticsProviders } from "#src/features/agent-plugins/analytics-pr
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { cacheAnalyticsProviders, createAnalyticsForwarding, createPluginAnalyticsHooks } from "#src/features/analytics/forwarding";
 import type { AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
-import { resolveCustomCredentialByLabel, type CustomCredentialResolveDeps } from "#src/features/custom-credentials/store";
 import type { HttpClientPort } from "#src/platform/http/ports";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createSiteConsentPorts } from "../../inbound/public-http/middleware/site-consent.js";
@@ -29,16 +28,17 @@ export function buildAnalyticsProviders(
     workspaceId: UUID;
     loadContributions: LoadPluginContributions;
     clock: Pick<ClockPort, "nowMs">;
-    credentials: CustomCredentialResolveDeps;
+    /** `resolveCustomCredentialByLabel` bound to the site's credential repo + sealer. */
+    findCredential: (required: { workspaceId: UUID; label: string }) => Promise<{ baseUrl: string; connection: { token: string; username?: string } } | null>;
     httpClient: HttpClientPort;
   },
   _optional: Record<string, never> = {},
 ): NonNullable<RouteDeps["analyticsProviders"]> {
-  const { workspaceId, loadContributions, clock, credentials, httpClient } = required;
+  const { workspaceId, loadContributions, clock, findCredential, httpClient } = required;
   return {
     load: cacheAnalyticsProviders({ load: () => loadAnalyticsProviders({ workspaceId }, { loadContributions }), clock }),
     resolveCredential: async ({ label }) => {
-      const resolved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label });
+      const resolved = await findCredential({ workspaceId, label });
       if (!resolved) return null;
       const { token, username } = resolved.connection;
       return { token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };

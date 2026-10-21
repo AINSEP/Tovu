@@ -166,6 +166,7 @@ import {
 } from "../configuration/seed.js";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { buildAnalyticsProviders } from "./analytics-providers.js";
+import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
 import {
   SqliteMagicLinkTokenRepo,
   SqliteMemberRepo,
@@ -2369,7 +2370,7 @@ async function composeSiteRouteDeps(
     // Same egress policy as plugin mail adapters: single-hop HTTPS to a vendor API.
     analyticsProviders: buildAnalyticsProviders({
       workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions, clock,
-      credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
+      findCredential: (input) => resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, input),
       httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     }),
     ...identity,
