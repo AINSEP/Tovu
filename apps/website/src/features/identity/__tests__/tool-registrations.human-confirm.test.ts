@@ -455,3 +455,13 @@ test("role confirmation lists principal and policy assignments, and cancellation
   assert.deepEqual(await h.repos.principalRoles.listByRoleId({ workspaceId: WORKSPACE_ID, roleId: "r-editor" }), [principalRole]);
   assert.deepEqual(await h.repos.rolePolicies.listByRoleId({ workspaceId: WORKSPACE_ID, roleId: "r-editor" }), [rolePolicy]);
 });
+
+test("identity disable translates a self-disable into an actionable SELF_DELETE refusal", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const ownerBefore = await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: h.ownerPrincipalId });
+  await assert.rejects(h.tools.get("identity_user_disable")!.handler({ ...ctx(h, { principalId: h.ownerPrincipalId }), principal: { id: h.ownerPrincipalId } }), {
+    name: "ToolInputError", message: "identity_user_disable: SELF_DELETE: you cannot disable your own account. Nothing was changed.",
+  });
+  assert.deepEqual(await h.repos.principals.findById({ workspaceId: WORKSPACE_ID, id: h.ownerPrincipalId }), ownerBefore);
+});
