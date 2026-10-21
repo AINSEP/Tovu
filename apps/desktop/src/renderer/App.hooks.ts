@@ -1185,6 +1185,9 @@ export function useRunnerConversations(
   /** Mirrors the last `conversations` this hook committed, for `remove`'s fallback when its own
    *  `refresh()` lands stale — see `refresh`'s own note. */
   const conversationsRef = useRef<readonly WorkspaceConversationSummary[]>([]);
+  /** Conversations this hook deleted. The store refuses writes to them, so a message the old pane
+   *  settles before `remove`'s follow-up `select` lands is dropped with the thread it belonged to. */
+  const deletedRef = useRef(new Set<string>());
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -1263,7 +1266,11 @@ export function useRunnerConversations(
       if (bridge === undefined) return;
       await bridge.deleteConversation(id);
       writtenRef.current.delete(id);
-      const list = await refresh();
+      deletedRef.current.add(id);
+      // The delete succeeded, so the thread leaves the switcher now — and is filtered out of what
+      // `refresh` returns, whose failure fallback is the list still on screen (deleted row included).
+      setConversations((current) => current.filter((c) => c.id !== id));
+      const list = (await refresh()).filter((c) => c.id !== id);
       if (activeIdRef.current !== id) return;
       const next = list[0]?.id ?? null;
       if (next === null) {
@@ -1306,7 +1313,7 @@ export function useRunnerConversations(
   /** Writes whatever in `messages` has settled and is not already stored, into `conversationId`. */
   const flush = useCallback(
     (conversationId: string, messages: ChatMessage[]) => {
-      if (bridge === undefined) return;
+      if (bridge === undefined || deletedRef.current.has(conversationId)) return;
       const written = writtenRef.current.get(conversationId) ?? new Set<string>();
       writtenRef.current.set(conversationId, written);
       const pending = persistableMessages(messages).filter((m) => !written.has(m.id));

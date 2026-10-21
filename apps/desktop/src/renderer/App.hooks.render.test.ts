@@ -637,7 +637,11 @@ function conversationStore(initial: WorkspaceConversationSummary[] = []) {
     createConversation: async () => { state.created++; const made = convo(`c${state.created}`); state.list.unshift(made); return made; },
     deleteConversation: async (id: string) => { state.deleted.push(id); state.list = state.list.filter((c) => c.id !== id); },
     renameConversation: async ({ id, title }: { id: string; title: string }) => { state.renamed.push(`${id}=${title}`); },
-    saveConversationMessage: async ({ conversationId, message: saved }: { conversationId: string; message: ChatMessage }) => { state.saved.push(`${conversationId}/${saved.id}`); },
+    // Like the real store: a deleted conversation's row is gone, so a message written to it cannot persist.
+    saveConversationMessage: async ({ conversationId, message: saved }: { conversationId: string; message: ChatMessage }) => {
+      if (state.deleted.includes(conversationId)) throw new Error(`conversation ${conversationId} was deleted`);
+      state.saved.push(`${conversationId}/${saved.id}`);
+    },
   };
   return { state, bridge };
 }
@@ -732,8 +736,8 @@ test('useRunnerConversations: removing the open thread lands on the next one, or
   assert.deepEqual(hook.current().conversations, []);
 });
 
-test('useRunnerConversations: a remove whose refresh fails falls back to the list already on screen', async (t) => {
-  const { bridge } = conversationStore([convo('a'), convo('b')]);
+test('useRunnerConversations: a remove whose refresh fails falls back to the on-screen list without the deleted thread', async (t) => {
+  const { bridge, state } = conversationStore([convo('a'), convo('b')]);
   let failLists = false;
   const errors = quietErrors(t);
   const hook = renderConversations(t, { ...bridge, listConversations: () => (failLists ? Promise.reject(new Error('db locked')) : bridge.listConversations()) });
@@ -743,8 +747,15 @@ test('useRunnerConversations: a remove whose refresh fails falls back to the lis
   failLists = true;
   await act(() => hook.current().remove('a'));
   await settle();
-  assert.equal(hook.current().activeId, 'a', 'the stale on-screen list still names a as first, so a is reselected');
+  assert.deepEqual(state.deleted, ['a']);
+  assert.deepEqual([hook.current().activeId, hook.current().paneKey], ['b', 'b'], 'the surviving thread opens, never the deleted one');
+  assert.deepEqual(hook.current().conversations.map((c) => c.id), ['b'], 'the switcher no longer lists the deleted thread');
   assert.equal(errors.length, 1);
+  failLists = false;
+  act(() => hook.current().onMessagesChange([message('b-m1'), message('u1')]));
+  await settle();
+  assert.deepEqual(state.saved, ['b/u1'], 'the next message persists to the surviving thread');
+  assert.equal(errors.length, 1, 'and no write was refused');
 });
 
 test('useRunnerConversations: rename is optimistic, logs a failed write, and re-reads the list either way', async (t) => {
@@ -849,9 +860,10 @@ test('useRunnerConversations: a failed adoption logs and lets the next message t
   assert.deepEqual(state.saved, ['c1/u1']);
 });
 
-test('useRunnerConversations: a message landing between deleting the open thread and loading the next is still written', async (t) => {
+test('useRunnerConversations: a message landing between deleting the open thread and loading the next is not written to the deleted thread', async (t) => {
   const { bridge, state } = conversationStore([convo('a'), convo('b')]);
   const nextLoad = deferred<ChatMessage[]>();
+  const errors = quietErrors(t);
   const hook = renderConversations(t, { ...bridge, loadConversationMessages: (id: string) => (id === 'b' ? nextLoad.promise : bridge.loadConversationMessages(id)) });
   await settle();
   act(() => hook.current().select('a'));
@@ -859,10 +871,14 @@ test('useRunnerConversations: a message landing between deleting the open thread
   await act(() => hook.current().remove('a'));
   act(() => hook.current().onMessagesChange([message('late')]));
   await settle();
-  assert.deepEqual(state.saved, ['a/late']);
+  assert.deepEqual(state.saved, [], 'the deleted thread is gone; nothing is sent to it');
+  assert.equal(errors.length, 0, 'so no write is refused either');
   nextLoad.resolve([]);
   await settle();
   assert.equal(hook.current().activeId, 'b');
+  act(() => hook.current().onMessagesChange([message('u1')]));
+  await settle();
+  assert.deepEqual(state.saved, ['b/u1'], 'the next thread persists normally');
 });
 
 test('useRunnerConversations: without a bridge every action is a no-op', async (t) => {
