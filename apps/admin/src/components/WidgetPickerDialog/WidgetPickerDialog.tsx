@@ -64,11 +64,11 @@ function subHandle(base: string | undefined, suffix: string): string | undefined
   return base ? `${base}-${suffix}` : undefined;
 }
 
-/** `(instances ?? []).map(...)` as a named helper — moves that `??` branch, plus the map's own
- *  shape conversion, out of `WidgetPickerDialog`'s own scope. Same value as the inline expression
- *  it replaces: one `SelectOption` per loaded instance, empty while `instances` is still `null`. */
-function toExistingOptions(instances: AdminWidget[] | null): SelectOption[] {
-  return (instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }));
+/** The existing-instance `Select`'s options as a named helper — the map's shape conversion, out
+ *  of `WidgetPickerDialog`'s own scope: one `SelectOption` per loaded instance. It used to take
+ *  `instances ?? []`; its only caller renders after `hasExisting`, so it now takes the loaded list. */
+function toExistingOptions(instances: readonly AdminWidget[]): SelectOption[] {
+  return instances.map((instance) => ({ value: instance.id, label: instance.title }));
 }
 
 export interface WidgetPickerDialogProps {
@@ -131,7 +131,9 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
                   id={existingSelectId}
                   value={selectedExistingId}
                   onChange={setSelectedExistingId}
-                  options={toExistingOptions(instances)}
+                  // `hasExisting` is `(instances?.length ?? 0) > 0` (the hook), so this section only
+                  // renders once `instances` is a loaded, non-empty list; the old `?? []` here could not fire.
+                  options={toExistingOptions(instances!)}
                   placeholder={t("Choose a widget…")}
                   agentHandle={subHandle(base, "existing-select")}
                   t={t}

@@ -342,6 +342,20 @@ describe("RecentEntriesConfigFields", () => {
     expect(checkbox.getAttribute("data-agent-element")).toBe("widget-instance-config-field-docs-page");
   });
 
+  it("names the filter value input for agents under the host's handle", async () => {
+    const user = userEvent.setup();
+    render(
+      <WidgetConfigFields
+        widgetType="recent-entries"
+        config={{ maxItems: 5, collection: "tovu_feature" }}
+        onChange={vi.fn()}
+        agentHandle="widget-instance-config"
+      />,
+    );
+    await user.selectOptions(await screen.findByLabelText("Filter"), "featured");
+    expect(screen.getByLabelText("Filter value").getAttribute("data-agent-element")).toBe("widget-instance-config-filter-value");
+  });
+
   it("checking a field writes it into config.fields; unchecking the last one removes the key", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

@@ -80,3 +80,15 @@ describe("AdminThemes", () => {
     expect(swatches.map((swatch) => swatch.style.getPropertyValue("--swatch-accent"))).toEqual(ADMIN_THEMES.map((theme) => theme.preview.light?.accent));
   });
 });
+
+describe("AdminThemes — failed save", () => {
+  it("says the theme could not be saved, with the server's reason", async () => {
+    const { port } = setup({ adminTheme: "default" });
+    vi.mocked(port.saveInterface).mockImplementation(() => Promise.reject(new Error("ledger locked")));
+    const user = userEvent.setup();
+    const card = await screen.findByRole("radio", { name: /Tovu Classic/ });
+    await waitFor(() => expect(card).toBeEnabled());
+    await user.click(card);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the theme: ledger locked");
+  });
+});

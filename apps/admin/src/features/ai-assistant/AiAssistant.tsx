@@ -37,6 +37,7 @@ import {
 } from "./hooks/use-ai-assistant.hooks";
 import {
   useWiredVisitorCredentialForm,
+  visitorCredentialSaveIdleMessage,
   visitorCredentialSaveStatusMessage,
   visitorCredentialSettingsStatusMessage,
   type VisitorCredentialFormController,
@@ -133,7 +134,8 @@ function TabIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-function RoadmapChecklist({ t = (key: string) => key }: { t?: (key: string) => string }) {
+// `t` is required: the only caller (`AiAssistant`) always threads its own, so a default never applied.
+function RoadmapChecklist({ t }: { t: (key: string) => string }) {
   return (
     <section className="assistant-roadmap">
       <h2>{t("Not built yet")}</h2>
@@ -182,14 +184,15 @@ interface AdminAssistantSwitchProps {
    */
   useAdminAssistantSwitchHook?: typeof useAdminAssistantSwitch;
   /** `AiAssistant`'s own `t`, threaded rather than read here via `useAdminLocale()` directly — see
-   *  that component's own comment for why. Defaults to English passthrough. */
-  t?: (key: string) => string;
+   *  that component's own comment for why. Required: its only caller always passes one, so the
+   *  English-passthrough default it used to carry never applied. */
+  t: (key: string) => string;
 }
 
 function AdminAssistantSwitch({
   useAdminAssistantSwitchHook = useAdminAssistantSwitch,
-  t = (key: string) => key,
-}: AdminAssistantSwitchProps = {}) {
+  t,
+}: AdminAssistantSwitchProps) {
   const { open, setOpen } = useAdminAssistantSwitchHook();
 
   // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
@@ -541,6 +544,12 @@ type VisitorCredentialSettingsFooterProps = Pick<
  *   English passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct, locale-unaware calls
  *   keep asserting the exact English strings they always have.
  */
+/** {@link visitorCredentialKeyStatusMessage}'s idle line on its own: always a string, so the Test key
+ *  ⓘ reads it without a null fallback that could never apply. */
+function visitorCredentialKeyIdleMessage(t: Translate): string {
+  return t("Checks the key against the provider and lists the models it can use.");
+}
+
 export function visitorCredentialKeyStatusMessage(
   discovery: VisitorCredentialFormController["discovery"],
   t: Translate = (key) => key,
@@ -548,7 +557,7 @@ export function visitorCredentialKeyStatusMessage(
   if (discovery.status === "ok") {
     return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
   }
-  if (discovery.status === "idle") return t("Checks the key against the provider and lists the models it can use.");
+  if (discovery.status === "idle") return visitorCredentialKeyIdleMessage(t);
   if (discovery.status === "loading") return t("Asking the provider which models this key allows…");
   return null;
 }
@@ -575,8 +584,8 @@ export function VisitorCredentialKeyActions({
   const t = resolveT(tProp);
   // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
   // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
-  const testInfo = visitorCredentialKeyStatusMessage({ status: "idle" }, t) ?? "";
-  const saveInfo = visitorCredentialSaveStatusMessage({ status: "idle" }, stored, t, storedKeyIsForOtherEndpoint) ?? "";
+  const testInfo = visitorCredentialKeyIdleMessage(t);
+  const saveInfo = visitorCredentialSaveIdleMessage(stored, t, storedKeyIsForOtherEndpoint);
   return (
     <>
       {/* An explicit "Test Key" control, in addition to the debounced automatic discovery. Two

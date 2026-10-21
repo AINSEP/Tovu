@@ -271,6 +271,22 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
     expect(editor.commands.insertWidgetEmbed).not.toHaveBeenCalled();
   });
 
+  it("Gallery: Cancel closes the dialog and inserts nothing", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Gallery" }));
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(editor.commands.insertWidgetEmbed).not.toHaveBeenCalled();
+  });
+
   it("mints a fresh placementId per insertion — two inserts never reuse the same id", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "menu1", title: "Main nav", widgetType: "menu" })] });

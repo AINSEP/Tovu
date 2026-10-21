@@ -1735,7 +1735,7 @@ const DEPLOYMENT_AUDIT_ES: Record<string, string> = {
  * auditTranslationEntries rejects an incomplete row during module initialisation instead of
  * silently falling back to English.
  */
-function auditTranslationEntries(entries: readonly string[]): Record<string, string> {
+export function auditTranslationEntries(entries: readonly string[]): Record<string, string> {
   const keys = Object.keys(DEPLOYMENT_AUDIT_STRINGS);
   if (entries.length !== keys.length) {
     throw new Error(`Deployment audit translation has ${entries.length} entries; expected ${keys.length}.`);
@@ -1826,7 +1826,7 @@ const DEPLOYMENT_CANDIDATE_GAP_STRINGS: Record<string, string> = {
   "(optional)": "(optional)",
 };
 
-function candidateGapTranslationEntries(entries: readonly string[]): Record<string, string> {
+export function candidateGapTranslationEntries(entries: readonly string[]): Record<string, string> {
   const keys = Object.keys(DEPLOYMENT_CANDIDATE_GAP_STRINGS);
   if (entries.length !== keys.length) {
     throw new Error(`Deployment candidate translation has ${entries.length} entries; expected ${keys.length}.`);

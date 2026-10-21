@@ -64,6 +64,11 @@ describe("AssistantDaemonRestart — rendering from the injected controller", ()
     expect(screen.getByText("Restart refused: shutting down")).toBeInTheDocument();
   });
 
+  it("a refused restart with no reason still says it was refused, with nothing after the colon", () => {
+    render(<AssistantDaemonRestart useAssistantDaemonRestartHook={() => fakeController({ restartResult: { ok: false } })} />);
+    expect(screen.getByRole("status")).toHaveTextContent(/^Restart refused:\s*$/);
+  });
+
   it("an unexpected restart error renders in the error slot, not the ordinary result line", () => {
     render(
       <AssistantDaemonRestart useAssistantDaemonRestartHook={() => fakeController({ restartError: "forbidden" })} />,

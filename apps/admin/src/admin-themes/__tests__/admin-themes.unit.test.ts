@@ -81,6 +81,18 @@ describe("admin theme registry", () => {
     expect(resolveAdminThemeScheme({ theme: darkOnly, scheme: "light" }, {})).toBe("dark");
     expect(resolveAdminThemeScheme({ theme: findAdminTheme({ id: "classic" }), scheme: "dark" }, {})).toBe("dark");
   });
+
+  it("renders light for a theme that declares no schemes at all", () => {
+    const schemeless: AdminThemeManifest = { ...findAdminTheme({ id: "classic" }), schemes: [] };
+    expect(resolveAdminThemeScheme({ theme: schemeless, scheme: "dark" }, {})).toBe("light");
+  });
+
+  it("falls back to the first theme of a registry that has no classic", () => {
+    const classic = findAdminTheme({ id: "classic" });
+    const themes: AdminThemeManifest[] = [{ ...classic, id: "first" }, { ...classic, id: "second" }];
+    expect(findAdminTheme({ id: "second" }, { themes }).id).toBe("second");
+    expect(findAdminTheme({ id: "missing" }, { themes }).id).toBe("first");
+  });
 });
 
 describe("admin theme cascade", () => {

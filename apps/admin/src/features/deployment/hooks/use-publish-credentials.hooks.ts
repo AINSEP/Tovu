@@ -348,7 +348,9 @@ export function usePublishCredentials(
       // account label on this result) leaves whatever the row already had alone, same "only a truthy
       // finding heals forward" rule the server side follows.
       if (result.accountLabel !== undefined) {
-        setCredentials((prev) => (prev ?? []).map((c) => (c.id === connected.id ? { ...c, accountLabel: result.accountLabel! } : c)));
+        // `connected` came from a loaded list, and nothing sets the list back to `undefined` once
+        // loaded, so `prev` is defined here (the old `prev ?? []` could not fire).
+        setCredentials((prev) => prev!.map((c) => (c.id === connected.id ? { ...c, accountLabel: result.accountLabel! } : c)));
       }
       patchRow(providerId, (current) => ({ ...current, verifying: false, verification: result, verifyError: null }));
     } catch (err) {

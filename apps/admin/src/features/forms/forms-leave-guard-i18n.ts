@@ -3,6 +3,7 @@
  * "CSS classes" ⓘ tip (Chrome check, 2026-10-11), merged into `FORMS_DICT` by `forms-i18n.ts`.
  * Same index-aligned layout as `forms-field-settings-i18n.ts`; its test pins the lengths.
  */
+import { indexAlignedTranslations } from "./index-aligned-translations";
 export const FORMS_LEAVE_GUARD_KEYS = [
   "Discard unsaved changes?",
   "Your changes to this form have not been saved.",
@@ -57,9 +58,4 @@ export const FORMS_LEAVE_GUARD_TRANSLATIONS: Record<string, readonly string[]> =
 };
 
 /** `{ locale: { key: translation } }`, built from the two lists above. */
-export const FORMS_LEAVE_GUARD_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(FORMS_LEAVE_GUARD_TRANSLATIONS).map(([locale, values]) => [
-    locale,
-    Object.fromEntries(FORMS_LEAVE_GUARD_KEYS.map((key, index) => [key, values[index] ?? key])),
-  ]),
-);
+export const FORMS_LEAVE_GUARD_I18N: Record<string, Record<string, string>> = indexAlignedTranslations({ keys: FORMS_LEAVE_GUARD_KEYS, translations: FORMS_LEAVE_GUARD_TRANSLATIONS });

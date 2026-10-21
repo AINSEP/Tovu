@@ -15,9 +15,10 @@ export const defaultCollectionEntryEditorPort: CollectionEntryEditorPort = {
   entryLifecycle: (input) => api.entryLifecycle(input),
 };
 
-function fakeEntry(overrides: Partial<AdminEntry> = {}): AdminEntry {
+/** Its one caller (`createEntry` below) always assigns the next id, so `id` is required rather
+ *  than defaulted (the old `?? "fake-entry-1"` default could never apply). */
+function fakeEntry(overrides: Partial<AdminEntry> & { id: string }): AdminEntry {
   return {
-    id: overrides.id ?? "fake-entry-1",
     workspaceId: "fake-ws",
     type: "recipe",
     slug: "untitled",

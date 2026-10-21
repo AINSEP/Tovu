@@ -151,6 +151,20 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     expect(result.current.t("Choose an image") === "Choose an image").toBe(false);
   });
 
+  it("useMediaPickerDialog reads through the real media API when no port is injected", async () => {
+    const row = { id: "m1", slug: "m1", status: "active", title: "One" } as AdminMedia;
+    const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [row] }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchFake);
+    try {
+      const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), {}));
+      expect(result.current.mediaOriginalUrl("m1")).toBe(api.mediaOriginalUrl("m1"));
+      await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
+      expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("useMediaPickerDialog defaults locale/t to English when deps.locale is omitted", () => {
     const port = createFakeMediaPickerPort({ media: [] });
     const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));

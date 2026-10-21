@@ -1,8 +1,9 @@
-import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setPublishToLiveAvailable } from "../../publish-content/hooks/publish-availability.store";
+import { closePublishRequest, usePublishRequest } from "../../publish-content/hooks/publish-request.store";
 import { Dashboard } from "../Dashboard";
 
 /**
@@ -510,4 +511,37 @@ describe("Recently updated accordion (owner 2026-10-13)", () => {
     render(<Dashboard />);
     expect(screen.getByRole("button", { name: "Recently updated" })).toHaveAttribute("aria-expanded", "true");
   });
+});
+
+it("names an untitled activity row Untitled rather than leaving the link empty", async () => {
+  fetchMock.mockImplementation(routeFetch({
+    ...successRoutes(),
+    "/posts": () => Promise.resolve(jsonResponse({
+      posts: [{ post: { id: "post-x", slug: "post-x", kind: "post", title: "", status: "draft", updatedAt: "2026-08-01T09:00:00.000Z" } }],
+    })),
+  }));
+  const { container } = render(<Dashboard />);
+  await waitFor(() => expect(activityTitles(container)).toContain("Untitled"));
+});
+
+it("Publish All opens the App-level publish request with no pre-set criteria", async () => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  render(<Dashboard />);
+  await screen.findByText("editorial");
+  const open = renderHook(() => usePublishRequest());
+  expect(open.result.current).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Publish All" }));
+  expect(open.result.current).toMatchObject({ criteria: {} });
+  act(() => closePublishRequest());
+  expect(open.result.current).toBeNull();
+});
+
+it("shows the empty activity state when there are no posts or pages yet", async () => {
+  fetchMock.mockImplementation(routeFetch({
+    ...successRoutes(),
+    "/posts": () => Promise.resolve(jsonResponse({ posts: [] })),
+    "/pages": () => Promise.resolve(jsonResponse({ posts: [] })),
+  }));
+  render(<Dashboard />);
+  expect(await screen.findByText("Nothing published or drafted yet.")).toBeInTheDocument();
 });

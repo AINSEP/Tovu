@@ -320,3 +320,16 @@ describe("injected port (useWiredX conversion coverage)", () => {
     expect(result.current.copyFallback?.key).toBe("recipe");
   });
 });
+
+describe("locale binding", () => {
+  it("hands the screen a translator bound to the operator's saved admin language", async () => {
+    vi.stubGlobal("fetch", (url: string) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+      }
+      return Promise.resolve(jsonResponse({ items: [] }));
+    });
+    const { result } = renderHook(() => useWiredCollections(), { wrapper });
+    await waitFor(() => expect(result.current.t("Collections")).toBe("Colecciones"));
+  });
+});

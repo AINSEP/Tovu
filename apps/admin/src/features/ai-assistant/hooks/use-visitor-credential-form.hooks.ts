@@ -248,6 +248,16 @@ export function visitorCredentialSaveStatusMessage(
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
   if (saveState.status !== "idle") return null;
+  return visitorCredentialSaveIdleMessage(stored, t, storedKeyIsForOtherEndpoint);
+}
+
+/** {@link visitorCredentialSaveStatusMessage}'s idle line on its own: always a string, so the Save
+ *  key ⓘ (`VisitorCredentialKeyActions`) reads it without a null fallback that could never apply. */
+export function visitorCredentialSaveIdleMessage(
+  stored: VisitorCredentialFormController["stored"],
+  t: Translate,
+  storedKeyIsForOtherEndpoint: boolean,
+): string {
   if (storedKeyIsForOtherEndpoint) return t(STORED_KEY_OTHER_PROVIDER_COPY);
   if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
   return t("Paste your key, check it with Show, then press Save key.");

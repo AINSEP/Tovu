@@ -290,3 +290,73 @@ describe("AdminExecutionMode — OpenAI selected while the saved key is Google's
     expect(screen.queryByText(/save a base URL for the credential first/)).not.toBeInTheDocument();
   });
 });
+
+describe("AdminExecutionMode — local CLI save line and BYOK write-through", () => {
+  it.each([
+    [{ status: "saving" } as const, "Saving…"],
+    [{ status: "saved" } as const, "Saved."],
+  ])("shows the ledger's %o state as one status line in Local CLI mode", (saveState, text) => {
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() => fakeExecutionModeController({ execution: makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG, { saveState }) })}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
+      />,
+    );
+    expect(screen.getByText(text, { selector: "p.assistant-save-line" })).toBeInTheDocument();
+  });
+
+  it("shows a failed Local CLI save's message", () => {
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() => fakeExecutionModeController({
+          execution: makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG, { saveState: { status: "error", message: "Ledger write refused." } }),
+        })}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
+      />,
+    );
+    expect(screen.getByText("Ledger write refused.")).toHaveClass("save-error");
+  });
+
+  it("writes a BYOK change from the credential hook back into the loaded execution config", () => {
+    const execution = makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" });
+    let input: { byok: ByokConfig; onByokChange: (byok: ByokConfig) => void } | undefined;
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() => fakeExecutionModeController({ execution })}
+        useAdminExecutionCredentialHook={(received) => { input = received; return fakeAdminExecutionCredentialController(); }}
+      />,
+    );
+    expect(input?.byok).toEqual(DEFAULT_EXECUTION_CONFIG.byok);
+    const byok = { ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-x" };
+    input!.onByokChange(byok);
+    expect(execution.onChange).toHaveBeenCalledWith({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok", byok });
+  });
+
+  it("before the ledger answers, hands the credential hook the default BYOK config and writes over the defaults", () => {
+    const execution: SettingsSlice<ExecutionConfig> = { ...makeSlice<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG), value: null };
+    let input: { byok: ByokConfig; onByokChange: (byok: ByokConfig) => void } | undefined;
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() => fakeExecutionModeController({ execution })}
+        useAdminExecutionCredentialHook={(received) => { input = received; return fakeAdminExecutionCredentialController(); }}
+      />,
+    );
+    expect(screen.getByText("Loading execution settings…")).toBeInTheDocument();
+    expect(input?.byok).toEqual(DEFAULT_EXECUTION_CONFIG.byok);
+    input!.onByokChange(DEFAULT_EXECUTION_CONFIG.byok);
+    expect(execution.onChange).toHaveBeenCalledWith(DEFAULT_EXECUTION_CONFIG);
+  });
+});
+
+describe("AdminExecutionMode — deployed site", () => {
+  it("explains that Local CLI is hidden on a deployed (production) site and BYOK is used", async () => {
+    render(
+      <RealAdminExecutionMode
+        useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: false, loadRuntime: async () => ({ mode: "production" as const }) })}
+        useAdminExecutionModeHook={() => fakeExecutionModeController()}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
+      />,
+    );
+    expect(await screen.findByText("Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.")).toHaveAttribute("role", "status");
+  });
+});

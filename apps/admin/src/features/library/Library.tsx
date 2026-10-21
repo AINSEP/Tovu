@@ -294,8 +294,9 @@ function MarkdownFrame({ html, title }: { html: string; title: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [colors, setColors] = useState<{ text: string; link: string; border: string } | null>(null);
   useLayoutEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+    // The host div always renders, and React attaches its ref before layout effects run, so the
+    // ref is set here (the old `if (!host) return` guard could never fire).
+    const host = hostRef.current!;
     const computed = getComputedStyle(host);
     setColors({
       text: computed.color || "CanvasText",
