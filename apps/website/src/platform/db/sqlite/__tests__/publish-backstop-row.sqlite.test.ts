@@ -7,6 +7,7 @@ import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import type { ContentKernel } from "../../content-kernel.js";
 import { createRawRowSqlitePort } from "../publish-backstop-row.sqlite.js";
+import type { RawValue } from "#src/features/publish-content/backstop-ports";
 
 /**
  * @file The "send by hand" raw-row port on a real in-memory SQLite content kernel: the policy and
@@ -44,7 +45,8 @@ test("columns() reports a missing table as null and refuses private tables and s
 test("read and removal require an existing table and its complete, scalar primary key", async () => {
   await withPort(async ({ port }) => {
     await assert.rejects(port.read({ table: "p_missing", pk: { id: "a" } }), { message: "Table 'p_missing' does not exist." });
-    for (const pk of [{}, { label: "a" }, { post_id: "p" }, { id: null }, { id: { blobBase64: "AA==" } }]) {
+    const partialKeys: Array<Readonly<Record<string, RawValue>>> = [{}, { label: "a" }, { post_id: "p" }, { id: null }, { id: { blobBase64: "AA==" } }];
+    for (const pk of partialKeys) {
       const table = "post_id" in pk ? "p_tags" : "p_widgets";
       await assert.rejects(port.read({ table, pk }), { message: "Choose a row by its complete primary key." }, JSON.stringify(pk));
     }
