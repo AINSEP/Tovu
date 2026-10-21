@@ -127,6 +127,21 @@ function runGate(targets: SmokeTargets, ports: SmokeNativePorts): void {
 /** Runs {@link buildEntryLoadScript} in the packaged binary: every static import of the shell and
  *  server entries must resolve inside the shipped tree (0.1.15 crashed at launch on one that did not). */
 function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void {
+  const stdout = spawnEntryLoad(targets, ports);
+  let result: ReturnType<typeof parseEntryLoadOutput>;
+  try {
+    result = parseEntryLoadOutput(stdout);
+  } catch (error) {
+    fail((error as Error).message);
+  }
+  if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
+  ports.out("smoke-native: OK — every static import of the shell and server entries resolves\n");
+}
+
+/** The entry-load child run itself, split from {@link checkEntryImports} to keep both under the
+ *  desktop's 9/9 complexity ceiling. Rejects spawn failures, signals and nonzero exits.
+ *  @returns the child's raw stdout. */
+function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
   const spawned = ports.spawn(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
     env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
@@ -136,14 +151,7 @@ function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void
   if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
   if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
-  let result: ReturnType<typeof parseEntryLoadOutput>;
-  try {
-    result = parseEntryLoadOutput(spawned.stdout ?? "");
-  } catch (error) {
-    fail((error as Error).message);
-  }
-  if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
-  ports.out("smoke-native: OK — every static import of the shell and server entries resolves\n");
+  return spawned.stdout ?? "";
 }
 
 /**
