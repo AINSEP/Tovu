@@ -38,7 +38,7 @@
 import { spawnSync } from "node:child_process";
 import { globSync, mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from "node:fs";
 import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -140,9 +140,9 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string)
     ...pass.globs,
   ];
   const result = spawnSync(process.execPath, args, { cwd: DESKTOP_ROOT, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 1_000_000 });
-  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: result.stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
-  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: result.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
-  if (result.error) return { status: null, message: sanitizeUntrustedText({ text: redactText({ text: result.error.message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) };
+  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stdout }) }, { maxLength: 2_000 }) + "\n");
+  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stderr }) }, { maxLength: 2_000 }) + "\n");
+  if (result.error) return { status: null, message: sanitizeUntrustedText({ text: redactLocalText({ text: result.error.message }) }, { maxLength: 2_000 }) };
   return { status: result.signal ? null : result.status };
 }
 
@@ -228,6 +228,6 @@ function main(): void {
 
 try { main(); }
 catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 }
