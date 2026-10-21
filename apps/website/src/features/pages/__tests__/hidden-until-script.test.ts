@@ -115,7 +115,8 @@ test("pages_write_region warns about hidden markup in the fragment it wrote", as
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "Home", kind: "page" } });
   await call("pages_write_html", { id: "page-1", html: `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>` });
 
-  const result = await call("pages_write_region", { id: "page-1", handle: "hero", html: `<h1 data-aos="fade-up">Hi</h1>` });
+  // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
+  const result = await call("pages_write_region", { id: "page-1", regionId: "hero", html: `<h1 data-aos="fade-up">Hi</h1>` });
 
   assert.equal(result.written, true);
   assert.match(result.warning as string, /<h1>.*data-aos/);
