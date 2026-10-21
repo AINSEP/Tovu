@@ -18,7 +18,8 @@ import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDial
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { AgentPluginManageButton } from "./AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "./agent-plugins-visuals";
-import { agentPluginDisplayName } from "./rules";
+import { agentPluginDisplayName, canUpdateAgentPlugin } from "./rules";
+import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
@@ -100,11 +101,14 @@ function AgentPluginList({
   controller,
   uninstallNoteId,
   stateControlFor,
+  updatePort,
 }: {
   agentPlugins: AdminAgentPlugin[];
   controller: AgentPluginsController;
   uninstallNoteId: string;
   stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
+  /** The upload transport an operator-installed row's Update control sends through. */
+  updatePort: AgentPluginInstallPort;
 }) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`). Derived from each id alone (see that function's own
@@ -118,7 +122,6 @@ function AgentPluginList({
         <AgentPluginRow
           key={plugin.pluginId}
           plugin={plugin}
-          onUpdated={controller.onInstalled}
           t={controller.t}
           locale={controller.locale}
           expanded={controller.expandedIds.has(plugin.pluginId)}
@@ -139,6 +142,10 @@ function AgentPluginList({
           ) : undefined}
           uninstallNoteId={uninstallNoteId}
           agentHandleBase={rowHandles[index]!}
+          // Bundled rows never get one: they update with Tovu itself (`canUpdateAgentPlugin`).
+          update={canUpdateAgentPlugin(plugin) ? (
+            <AgentPluginUpdateControl plugin={plugin} t={controller.t} agentHandleBase={rowHandles[index]!} onUpdated={controller.onInstalled} port={updatePort} />
+          ) : undefined}
         />
       ))}
     </ul>
@@ -166,10 +173,12 @@ function AgentPluginListPanel({
   lede,
   emptyMessage,
   visiblePlugins,
+  updatePort,
 }: {
   controller: AgentPluginsController;
   uninstallNoteId: string;
   stateControlFor: (plugin: AdminAgentPlugin) => AgentPluginRowStateControl;
+  updatePort: AgentPluginInstallPort;
   sectionLabel: string;
   lede: string;
   emptyMessage: string;
@@ -194,6 +203,7 @@ function AgentPluginListPanel({
           controller={controller}
           uninstallNoteId={uninstallNoteId}
           stateControlFor={stateControlFor}
+          updatePort={updatePort}
         />
       ) : null}
       {/* `.agent-plugins-footnotes` (styles.css): section-wide facts, not per-plugin details, so
@@ -224,7 +234,7 @@ function AgentPluginListPanel({
 
 type AgentPluginListPanelProps = Pick<
   Parameters<typeof AgentPluginListPanel>[0],
-  "controller" | "uninstallNoteId" | "stateControlFor"
+  "controller" | "uninstallNoteId" | "stateControlFor" | "updatePort"
 >;
 
 /**
@@ -413,6 +423,7 @@ export function AgentPlugins({
       panel: (
         <InstalledOnlyPanel
           controller={controller}
+          updatePort={agentPluginInstallPort}
           uninstallNoteId={uninstallNoteId}
           stateControlFor={(plugin) => ({ kind: "toggle", onToggleEnabled: () => onRequestToggleEnabled(plugin) })}
         />
@@ -427,6 +438,7 @@ export function AgentPlugins({
       panel: (
         <DownloadedPanel
           controller={controller}
+          updatePort={agentPluginInstallPort}
           uninstallNoteId={uninstallNoteId}
           stateControlFor={(plugin) => ({
             kind: "remove-or-enable",

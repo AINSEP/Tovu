@@ -16,6 +16,8 @@ import { buildZipFixture } from "#src/features/agent-plugins/__tests__/fixtures/
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { registerAgentPluginInstallRoute } from "../../install.js";
+import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 
 /**
  * @file `AGENT_PLUGIN_INSTALL_ZIP` — the Agent Plugins "Add a plugin" upload. Real zips (yazl) through
@@ -451,4 +453,139 @@ test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs 
     const body = (await response.json()) as { alreadyInstalled: boolean; agentPlugin: { pluginId: string; enabled: boolean } };
     assert.deepEqual({ alreadyInstalled: body.alreadyInstalled, pluginId: body.agentPlugin.pluginId, enabled: body.agentPlugin.enabled }, { alreadyInstalled: false, pluginId: PLUGIN_ID, enabled: false });
   });
+});
+
+// --- AGENT_PLUGIN_UPDATE_ZIP (2026-10-21): the explicit update shares this handler -------------------
+
+function postUpdate(baseUrl: string, cookie: string, archive: Buffer, query: { expectedOldDigest?: string; pluginId?: string; expectedSha256?: string }) {
+  const params = new URLSearchParams({ expectedSha256: query.expectedSha256 ?? sha(archive), ...(query.expectedOldDigest === undefined ? {} : { expectedOldDigest: query.expectedOldDigest }) });
+  return fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${encodeURIComponent(query.pluginId ?? PLUGIN_ID)}/update/zip?${params}`, {
+    method: "POST", headers: { cookie, "content-type": "application/zip" }, body: Uint8Array.from(archive),
+  });
+}
+
+async function installedDigest(baseUrl: string, cookie: string, archive: Buffer): Promise<string> {
+  const response = await upload(baseUrl, cookie, archive);
+  assert.equal(response.status, 201);
+  return ((await response.json()) as { agentPlugin: { archiveDigest: string } }).agentPlugin.archiveDigest;
+}
+
+test("AGENT_PLUGIN_UPDATE_ZIP: a newer package replaces the installed revision through the composed settings snapshot", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
+    const next = await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]);
+
+    const response = await postUpdate(baseUrl, cookie, next, { expectedOldDigest: digest });
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { alreadyInstalled: boolean; warnings: string[]; agentPlugin: { version: string; enabled: boolean; origin: string; archiveDigest: string } };
+    assert.equal(body.alreadyInstalled, false);
+    assert.deepEqual(body.warnings, []);
+    assert.equal(body.agentPlugin.version, "1.1.0");
+    assert.equal(body.agentPlugin.enabled, false, "a disabled plugin stays disabled");
+    assert.equal(body.agentPlugin.origin, "operator-installed");
+    assert.notEqual(body.agentPlugin.archiveDigest, digest);
+  });
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: lifecycle refusals are 409 with the owner's code and change nothing", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]));
+    const cases: Array<[string, Buffer, { expectedOldDigest: string }]> = [
+      ["PLUGIN_CHANGED", await buildZipFixture([{ path: "plugin.json", content: manifest("2.1.0") }]), { expectedOldDigest: "e".repeat(64) }],
+      ["PLUGIN_DOWNGRADE_REFUSED", await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]), { expectedOldDigest: digest }],
+      ["PLUGIN_ID_MISMATCH", await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "other-plugin", version: "3.0.0" }) }]), { expectedOldDigest: digest }],
+    ];
+    for (const [code, archive, query] of cases) {
+      const response = await postUpdate(baseUrl, cookie, archive, query);
+      assert.equal(response.status, 409, code);
+      const body = (await response.json()) as { code: string; error: string };
+      assert.equal(body.code, code);
+      assert.equal(body.error.includes(process.env.TOVU_AGENT_PLUGINS_DIR!), false, "no host path leaks");
+    }
+    const list = (await loadAgentPluginSearchCandidates(createRouteDeps())).find((entry) => entry.pluginId === PLUGIN_ID);
+    assert.equal(list?.archiveDigest, digest);
+    assert.equal(list?.version, "2.0.0");
+  });
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: a bundled plugin is refused with 409 PLUGIN_BUNDLED", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "seed" }, { origin: "bundled" });
+
+    const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });
+    assert.equal(response.status, 409);
+    assert.equal(((await response.json()) as { code: string }).code, "PLUGIN_BUNDLED");
+    const record = JSON.parse(await readFile(path.join(workspaceRoot, "activations.json"), "utf8")).plugins[PLUGIN_ID];
+    assert.equal(record.enabled, true, "bundled state is untouched");
+    assert.equal(record.origin, "bundled");
+  });
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: the URL plugin id and expectedOldDigest are validated before the body is read", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+  const archive = Buffer.from("not read");
+  const badId = await postUpdate(baseUrl, cookie, archive, { pluginId: "Not_An_Id", expectedOldDigest: "a".repeat(64) });
+  assert.equal(badId.status, 400);
+  assert.deepEqual(await badId.json(), { code: "VALIDATION_ERROR", error: "pluginId is not a valid Agent Plugin id." });
+  for (const expectedOldDigest of [undefined, "A".repeat(64), "short"]) {
+    const response = await postUpdate(baseUrl, cookie, archive, expectedOldDigest === undefined ? {} : { expectedOldDigest });
+    assert.equal(response.status, 400, String(expectedOldDigest));
+    assert.deepEqual(await response.json(), { code: "VALIDATION_ERROR", error: "expectedOldDigest must be the installed revision's lowercase hex SHA-256." });
+  }
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: the upload digest is still checked like an install", async (t) => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
+    const next = await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]);
+    const malformed = await postUpdate(baseUrl, cookie, next, { expectedOldDigest: digest, expectedSha256: "nope" });
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(await malformed.json(), DIGEST_MESSAGE);
+    const damaged = await postUpdate(baseUrl, cookie, next, { expectedOldDigest: digest, expectedSha256: "b".repeat(64) });
+    assert.equal(damaged.status, 400);
+    assert.equal(((await damaged.json()) as { code: string }).code, "AGENT_PLUGIN_DIGEST_MISMATCH");
+  });
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: permission is checked before the update target", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl } = await bootAuthenticated(buildTestApp(deps), t);
+  const bare = await loginAsBarePrincipal(deps, baseUrl);
+  const response = await postUpdate(baseUrl, bare, Buffer.from("x"), { pluginId: "Bad_Id" });
+  assert.equal(response.status, 403);
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answers a redacted 500 and changes nothing", async (t) => {
+  await withTempPluginsDir(async () => {
+    const deps = createRouteDeps();
+    const { snapshotAgentPluginSettings: _unbound, ...withoutSnapshot } = deps;
+    const app = express();
+    app.use(express.json());
+    registerAuthRoutes(app, deps);
+    app.use("/api/admin", requireAdminSession(deps));
+    registerAgentPluginInstallRoute(app, withoutSnapshot as typeof deps);
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
+    const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { code: "INTERNAL_ERROR", error: "internal error" });
+    assert.equal((await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === PLUGIN_ID)?.archiveDigest, digest);
+  });
+});
+
+test("AGENT_PLUGIN_UPDATE_ZIP: the composed settings snapshot is the plugin's setting keys and revisions, never a value", async () => {
+  const deps = createRouteDeps();
+  assert.ok(deps.snapshotAgentPluginSettings);
+  assert.deepEqual(await deps.snapshotAgentPluginSettings({ workspaceId: deps.workspaceId, pluginId: PLUGIN_ID }, {}), { keys: [] });
+  const state = deps.apiConnections!.host.pluginState.forPlugin({ workspaceId: deps.workspaceId, pluginId: PLUGIN_ID });
+  await state.set({ key: "notebook", value: "private-notebook-name" });
+  const snapshot = await deps.snapshotAgentPluginSettings({ workspaceId: deps.workspaceId, pluginId: PLUGIN_ID }, {});
+  assert.deepEqual(snapshot, { keys: [{ key: "notebook", revision: 1 }] });
+  assert.equal(JSON.stringify(snapshot).includes("private-notebook-name"), false);
 });

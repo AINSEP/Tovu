@@ -1,11 +1,10 @@
-import { AgentPluginUpdateControl } from "./AgentPluginUpdateControl";
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
-import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
+import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
@@ -76,7 +75,9 @@ export interface AgentPluginRowProps {
   readonly onToggleExpanded: () => void;
   readonly stateControl: AgentPluginRowStateControl;
   readonly onInspect: () => void;
-  readonly onUpdated?: (plugin: AdminAgentPlugin) => void;
+  /** The row's Update control (an operator-installed package only; see `canUpdateAgentPlugin`),
+   *  shown in the expanded details. The screen builds it, so this row stays props-only. */
+  readonly update?: ReactNode;
   /** The plugin's own "Manage" entry (its admin screens), just left of the actions column; absent for most plugins. */
   readonly manage?: ReactNode;
   /** The id of the section-level note explaining why uninstall is unavailable. Referenced by the
@@ -229,8 +230,11 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
                 a hover tooltip, not a substitute for the unclamped copy below in the expanded
                 panel (screen readers and touch have no hover; that copy is the real fix). */}
-            {plugin.hostOk === false ? <span className="agent-plugin-row-desc">{t("Not for this Tovu version")}</span> : null}
-            {plugin.missingRequires?.length ? <span className="agent-plugin-row-desc">{t("Needs {capabilities}").replace("{capabilities}", plugin.missingRequires.join(", "))}</span> : null}
+            {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
+                turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
+            {agentPluginCompatibilityLines(plugin, t).map((line) => (
+              <span key={line} className="agent-plugin-row-desc">{line}</span>
+            ))}
             {blurb ? (
               <span className="agent-plugin-row-desc" title={blurb}>
                 {blurb}
@@ -242,7 +246,6 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           </span>
         </button>
 
-        {plugin.origin === "operator-installed" && plugin.archiveDigest ? <AgentPluginUpdateControl plugin={plugin} t={t} onUpdated={props.onUpdated} /> : null}
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
         <div className="agent-plugin-row-actions">
@@ -309,6 +312,7 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             and the eye button's package viewer shows the raw manifest for anyone who wants it. */}
         <DetailChips label={t("Skills")} values={plugin.skills.map((skill) => skill.name)} ownId={plugin.pluginId} />
         <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} ownId={plugin.pluginId} />
+        {props.update ?? null}
       </div>
     </li>
   );

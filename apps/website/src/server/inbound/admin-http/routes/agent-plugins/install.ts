@@ -3,11 +3,11 @@ import type { Request, RequestHandler, Response } from "express";
 import { raw } from "express";
 
 import { maxAgentPluginInstallArchiveBytes } from "../../../../../features/agent-plugins/lifecycle.js";
-import { installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
+import { installUploadedAgentPlugin, isAgentPluginId } from "#src/features/agent-plugins/install-upload";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { AgentPluginsRouteRegistrar } from "./deps.js";
+import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.js";
 import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow, type InstallRefusal } from "./install-response.js";
 
 /**
@@ -23,11 +23,25 @@ import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow, type I
  *
  * Answers 201 with the new row in `list.ts`'s shape, or 200 when the same bytes were already there.
  * Error bodies carry a code and a plain message; no host path ever reaches them.
+ *
+ * `AGENT_PLUGIN_UPDATE_ZIP` — `POST .../agent-plugins/:pluginId/update/zip?expectedSha256=&expectedOldDigest=`
+ * (2026-10-21) shares this handler: the same upload checks, then `installUploadedAgentPlugin({ update })`,
+ * which hands the candidate to the lifecycle owner's update transaction. `expectedOldDigest` is the
+ * row's `archiveDigest` the operator saw; a changed, bundled, pending or downgraded plugin is a 409
+ * with the owner's code. Answers 200 with the updated row and any compatibility warnings.
  */
 
 const DIGEST_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "expectedSha256 must be the file's lowercase hex SHA-256." } };
 const NOT_ZIP_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "An application/zip upload is required." } };
 const REPLACE_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "replace must be true or false." } };
+const PLUGIN_ID_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "pluginId is not a valid Agent Plugin id." } };
+const OLD_DIGEST_REFUSAL: InstallRefusal = { status: 400, body: { code: "VALIDATION_ERROR", error: "expectedOldDigest must be the installed revision's lowercase hex SHA-256." } };
+
+/** Which installed revision an update replaces: the URL's plugin id and the digest the operator saw. */
+interface UpdateTarget {
+  readonly pluginId: string;
+  readonly expectedOldDigest: string;
+}
 
 /** A checked upload: the zip bytes, the digest the client computed, and whether to replace. */
 interface ZipUpload {
@@ -61,6 +75,25 @@ async function readZipUpload(required: { req: Request; res: Response; parseZip: 
   return { archive: req.body as Buffer, expectedSha256, replace: replace === "true" };
 }
 
+/** The update target from the URL and query, or the refusal for a malformed one. A plain install
+ *  has no target. Checked after authorization and before the body is read.
+ *  @complexity O(1). */
+function readUpdateTarget(req: Request): { update?: UpdateTarget } | InstallRefusal {
+  if (req.params.pluginId === undefined) return {};
+  const pluginId = req.params.pluginId;
+  if (!isAgentPluginId(pluginId)) return PLUGIN_ID_REFUSAL;
+  const expectedOldDigest = req.query.expectedOldDigest;
+  if (typeof expectedOldDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedOldDigest)) return OLD_DIGEST_REFUSAL;
+  return { update: { pluginId, expectedOldDigest } };
+}
+
+/** The installer's optional ports; an update adds its MCP effects and settings-snapshot owner. */
+function installOptions(deps: AgentPluginsRouteDeps, update: UpdateTarget | undefined, actor: string) {
+  const base = { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost };
+  if (!update) return base;
+  return { ...base, mcpProvisioning: createAgentPluginUpdateEffects({ deps, actor }), snapshotSettings: deps.snapshotAgentPluginSettings };
+}
+
 export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   const parseZip = raw({ type: "application/zip", limit: maxAgentPluginInstallArchiveBytes(), inflate: false });
   const installHandler: RequestHandler = async (req, res) => {
@@ -71,22 +104,16 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
+      const target = readUpdateTarget(req);
+      if ("status" in target) return sendRefusal(res, target);
       const upload = await readZipUpload({ req, res, parseZip });
       if ("status" in upload) return sendRefusal(res, upload);
-      const updating = req.params.pluginId !== undefined;
-      const expectedOldDigest = req.query.expectedOldDigest;
-      if (updating && (typeof expectedOldDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedOldDigest))) {
-        res.status(400).json({ code: "VALIDATION_ERROR", error: "expectedOldDigest must identify the installed revision." });
-        return;
-      }
-      const result = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id,
-        ...(updating ? { update: { pluginId: String(req.params.pluginId), expectedOldDigest: expectedOldDigest as string } } : {}) },
-        { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost,
-          ...(updating ? { mcpProvisioning: createAgentPluginUpdateEffects({ deps, actor: principal.id }),
-            snapshotSettings: deps.snapshotAgentPluginSettings } : {}) });
-      const { plugin, alreadyInstalled } = result;
-      const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === plugin.pluginId);
-      res.status(alreadyInstalled ? 200 : 201).json({ alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
+      const result = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id, ...target },
+        installOptions(deps, target.update, principal.id));
+      const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === result.plugin.pluginId);
+      // An update replaces an existing row, so it is never 201.
+      const status = result.alreadyInstalled || target.update ? 200 : 201;
+      res.status(status).json({ alreadyInstalled: result.alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
     } catch (error) {
       sendRefusal(res, installErrorResponse(error));
     }

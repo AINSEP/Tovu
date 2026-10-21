@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminAgentPlugin } from "@/lib/api";
+import { api, ApiError, type AdminAgentPlugin } from "@/lib/api";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 
@@ -181,6 +181,30 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     expect(result.current.toggleError).toBe("forbidden");
     expect(result.current.error).toBeNull();
     expect(result.current.togglingIds.size).toBe(0);
+  });
+
+  it("a plugin this Tovu cannot run is refused in the operator's language, not the server's sentence", async () => {
+    const refusal = new ApiError("Plugin 'site-compliance' is not compatible with this host's Agent Plugin contract.", 409, "PLUGIN_HOST_INCOMPATIBLE");
+    const port = createFakeAgentPluginsPort({ agentPlugins: [{ ...SITE_COMPLIANCE, enabled: false }], failToggleWith: refusal });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "es", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onToggleEnabled(result.current.agentPlugins![0]!);
+    });
+
+    expect(result.current.toggleError).toBe("Este plugin no está hecho para esta versión de Tovu.");
+    expect(result.current.agentPlugins?.[0]?.enabled).toBe(false);
+  });
+
+  it("a plugin whose interrupted update awaits recovery says to restart Tovu", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE], failToggleWith: new ApiError("Restart the host to recover the interrupted update.", 409, "PLUGIN_UPDATE_PENDING") });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
+    await act(async () => {
+      await result.current.onToggleEnabled(result.current.agentPlugins![0]!);
+    });
+    expect(result.current.toggleError).toBe("An earlier update is still being recovered. Restart Tovu and try again.");
   });
 
   it("ignores a second activation of a row whose own request is still in flight", async () => {

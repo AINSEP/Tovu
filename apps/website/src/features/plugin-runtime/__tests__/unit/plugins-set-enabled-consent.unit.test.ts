@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolInputError, ToolPermissionDeniedError } from "@jini-ai/core";
-import { AgentPluginActivationsBusyError } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
@@ -115,6 +115,37 @@ test("an unwritable Agent Plugin activation record is returned before identity, 
   assert.deepEqual([result.changed, result.reason], [false, "activations-busy"]);
   assert.deepEqual(h.events, ["assertWritable"]);
   assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
+});
+
+test("an Agent Plugin this host cannot run is a nothing-changed result naming PLUGIN_HOST_INCOMPATIBLE, with no MCP provisioning", async () => {
+  const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginHostIncompatibleError({ pluginId: "higgsfield" }); } } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as Record<string, unknown>;
+  assert.deepEqual({ ...result, note: undefined }, {
+    changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield", restartRequired: false,
+    reason: "host-incompatible", code: "PLUGIN_HOST_INCOMPATIBLE", note: undefined,
+  });
+  assert.match(String(result.note), /^Nothing changed: 'higgsfield' is not made for this Tovu version/);
+  assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
+});
+
+test("an Agent Plugin whose interrupted update awaits recovery is a nothing-changed update-pending result", async () => {
+  const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginUpdateError({ code: "PLUGIN_UPDATE_PENDING", message: "pending" }); } } });
+  for (const enabled of [true, false]) {
+    const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled }), { emitSurface: noDialog }) as Record<string, unknown>;
+    assert.deepEqual([result.changed, result.reason, result.code, result.restartRequired], [false, "update-pending", "PLUGIN_UPDATE_PENDING", false]);
+    assert.match(String(result.note), new RegExp(`was NOT ${enabled ? "enabled" : "disabled"}\\. Tell the user to restart Tovu`));
+  }
+  assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
+});
+
+test("Agent Plugin warnings (an unmet requirement, a dependent losing a capability) reach the model", async () => {
+  const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async (input) => ({ pluginId: input.pluginId, enabled: input.enabled, warnings: ["Needs x:y"] }) } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean; warnings: string[] };
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.warnings, ["Needs x:y"]);
+  // A lifecycle result without warnings reports an empty list, never an absent one.
+  const quiet = await harness({ confirmEnable: () => false }).tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: false }), { emitSurface: noDialog }) as { warnings: string[] };
+  assert.deepEqual(quiet.warnings, []);
 });
 
 // ---------------------------------------------------------------------------

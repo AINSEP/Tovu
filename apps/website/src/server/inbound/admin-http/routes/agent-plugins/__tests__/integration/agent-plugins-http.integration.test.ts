@@ -238,3 +238,29 @@ test("AGENT_PLUGINS_LIST: discovery failure is redacted", async (t) => {
   assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
   assert.equal(fault.mock.callCount(), 1);
 });
+
+test("AGENT_PLUGINS_LIST: rows carry origin, host compatibility, unmet and dependent capabilities, and the installed digest", async (t) => {
+  await withAgentPluginsDir(async () => {
+    const tovu = (extension: Record<string, unknown>) => ({ version: "1.0.0", extensions: { tovu: extension } });
+    const future = await installReal(WORKSPACE_A, "future-only", { "plugin.json": manifestJson("future-only", tovu({ hostRange: ">=99" })) }, "seed-list-future");
+    await installReal(WORKSPACE_A, "needs-db", { "plugin.json": manifestJson("needs-db", tovu({ requires: ["db:query"] })) }, "seed-list-needs");
+    await installReal(WORKSPACE_A, "consumer", { "plugin.json": manifestJson("consumer", tovu({ requires: ["mail:send"] })) }, "seed-list-consumer");
+    await installReal(WORKSPACE_A, "mailer", { "plugin.json": manifestJson("mailer", tovu({ provides: ["mail:send"] })) }, "seed-list-mailer");
+
+    const { app } = buildTestApp();
+    const { baseUrl, cookie } = await bootAuthenticated(app, t);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
+    assert.equal(response.status, 200);
+    const { agentPlugins } = (await response.json()) as { agentPlugins: Array<{ pluginId: string; origin: string; hostOk: boolean; missingRequires: string[]; requiredBy: string[]; archiveDigest: string }> };
+    const row = (id: string) => agentPlugins.find((plugin) => plugin.pluginId === id)!;
+
+    assert.equal(row("future-only").hostOk, false);
+    assert.equal(row("future-only").origin, "operator-installed");
+    assert.equal(row("future-only").archiveDigest, future.archiveDigest);
+    assert.equal(row("needs-db").hostOk, true);
+    assert.deepEqual(row("needs-db").missingRequires, ["db:query"]);
+    assert.deepEqual(row("consumer").missingRequires, [], "an enabled provider satisfies the requirement");
+    assert.deepEqual(row("mailer").requiredBy, ["consumer needs mail:send"]);
+    assert.deepEqual(row("needs-db").requiredBy, []);
+  });
+});

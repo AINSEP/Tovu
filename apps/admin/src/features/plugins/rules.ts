@@ -490,6 +490,8 @@ export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: 
 export interface AgentPluginDisableConfirmCopy {
   title: string;
   body: string;
+  /** Present only when other enabled plugins would lose a capability this one provides. */
+  dependents?: string;
 }
 
 /**
@@ -508,24 +510,31 @@ export interface AgentPluginDisableConfirmCopy {
  *     the body's bundled-package sentence is reused VERBATIM across both — the fact that this can't
  *     actually delete anything doesn't change based on which control asked.
  *
- * Origin now reaches the wire. The historical bundled-only explanation below is retained as
- * context for the old copy; live copy follows the row's recorded origin.
- * The bundled-package sentence is unconditional rather than gated on a per-plugin flag: every
- * Agent Plugin installed today ships bundled with Tovu (`AGENT_PLUGINS_LIST`'s three rows are all
- * `origin: "bundled"` — see `AgentPluginRow`'s own header on why its uninstall button is honestly
- * disabled for the same reason), and `AdminAgentPlugin` does not expose `origin` to this screen at
- * all. Stating it as a plugin-specific conditional would require inventing that field; stating it
- * as a fact true of every row today does not. This sentence will need to become conditional once
- * `installAgentPluginFromUrl` gains a production caller and `origin` reaches the wire — tracked
- * here rather than silently assumed permanent.
+ * The provenance sentence follows the row's `origin` (2026-10-21: `AGENT_PLUGINS_LIST` now sends
+ * it, so the earlier "every row is bundled" assumption tracked here is retired). An
+ * `operator-installed` package was added by an operator (an upload or the assistant's install
+ * tool): turning it off keeps its files and memory. A bundled one ships with Tovu and can only be
+ * turned off. A row without `origin` comes from a server that predates the field, when every
+ * installed package was bundled, so it keeps the bundled sentence.
  *
  * @complexity Time/space: O(1) — one ternary, no iteration.
  */
 export function buildAgentPluginDisableConfirmCopy(
-  params: { name: string; variant: "disable" | "remove"; origin?: "bundled" | "operator-installed" },
+  params: { name: string; variant: "disable" | "remove"; origin?: "bundled" | "operator-installed"; requiredBy?: readonly string[] },
   translate: Translate = (key) => key,
 ): AgentPluginDisableConfirmCopy {
-  const bundledFact = params.origin === "operator-installed" ? "This is an operator-installed package. Turning it off keeps its files and memory." : "This package ships with Tovu — it can't be deleted outright, only turned off.";
+  const copy = disableConfirmCopy(params, translate);
+  // Advisory, like the server's own warning: turning it off still goes ahead if confirmed.
+  if (!params.requiredBy?.length) return copy;
+  return { ...copy, dependents: `${translate("Other enabled plugins rely on it:")} ${params.requiredBy.map((warning) => agentPluginWarningText(warning, translate)).join("; ")}` };
+}
+
+/** The title and body of {@link buildAgentPluginDisableConfirmCopy}. @complexity O(1). */
+function disableConfirmCopy(
+  params: { name: string; variant: "disable" | "remove"; origin?: "bundled" | "operator-installed" },
+  translate: Translate,
+): AgentPluginDisableConfirmCopy {
+  const bundledFact = params.origin === "operator-installed" ? "You added this package. Turning it off keeps its files and memory." : "This package ships with Tovu — it can't be deleted outright, only turned off.";
   if (params.variant === "remove") {
     return {
       title: `Turn off ${params.name}?`,
@@ -538,6 +547,52 @@ export function buildAgentPluginDisableConfirmCopy(
     title: `Disable ${params.name} for this site?`,
     body: `${translate("Its skills stop reaching the assistant on the next run. The package stays on disk and can be enabled again.")} ${translate(bundledFact)}`,
   };
+}
+
+/** Server lifecycle warning texts this screen knows, matched in order; anything else shows as sent. */
+const AGENT_PLUGIN_WARNING_PATTERNS: readonly { readonly pattern: RegExp; readonly render: (match: RegExpMatchArray, translate: Translate) => string }[] = [
+  { pattern: /^Needs (\S+)$/, render: (m, translate) => translate("Needs {capabilities}").replace("{capabilities}", m[1]!) },
+  { pattern: /^(\S+) needs (\S+)$/, render: (m, translate) => translate("{plugin} needs {capability}").replace("{plugin}", m[1]!).replace("{capability}", m[2]!) },
+  { pattern: /^Unknown release version;/, render: (_m, translate) => translate("This package has no release version to compare.") },
+  { pattern: /^Same version with different bytes;/, render: (_m, translate) => translate("Same version number as the installed one, with different contents.") },
+];
+
+/**
+ * One Agent Plugin lifecycle warning in the operator's language. The server (Jini's lifecycle owner)
+ * words them in English with plugin and capability ids inside: `Needs x:y` (an unmet requirement),
+ * `<plugin> needs <capability>` (a dependent that would lose it) and the two update-plan notes.
+ * Ids stay as sent; an unknown warning is shown verbatim rather than dropped.
+ * @complexity O(1): four fixed patterns.
+ */
+export function agentPluginWarningText(warning: string, translate: Translate): string {
+  for (const { pattern, render } of AGENT_PLUGIN_WARNING_PATTERNS) {
+    const match = warning.match(pattern);
+    if (match) return render(match, translate);
+  }
+  return warning;
+}
+
+/**
+ * The row's compatibility lines, shown under its name: refused by this Tovu version (the switch
+ * then answers `PLUGIN_HOST_INCOMPATIBLE`), and capabilities no other enabled plugin provides
+ * (advisory: the plugin still turns on). Absent fields, from an older server, show nothing.
+ * @complexity O(r) in missing requirements.
+ */
+export function agentPluginCompatibilityLines(plugin: Pick<AdminAgentPlugin, "hostOk" | "missingRequires">, translate: Translate): string[] {
+  const lines: string[] = [];
+  if (plugin.hostOk === false) lines.push(translate("Not for this Tovu version"));
+  if (plugin.missingRequires?.length) lines.push(translate("Needs {capabilities}").replace("{capabilities}", plugin.missingRequires.join(", ")));
+  return lines;
+}
+
+/**
+ * Only a package an operator added can be updated from this screen, and only when the server named
+ * the installed revision (`archiveDigest`) the update must replace. Bundled packages update with
+ * Tovu itself, so their rows never offer it.
+ * @complexity O(1).
+ */
+export function canUpdateAgentPlugin<P extends Pick<AdminAgentPlugin, "origin" | "archiveDigest">>(plugin: P): plugin is P & { archiveDigest: string } {
+  return plugin.origin === "operator-installed" && typeof plugin.archiveDigest === "string" && plugin.archiveDigest.length > 0;
 }
 
 /**

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError } from "#src/features/agent-plugins/install-upload";
-import { bodyParseRefusal, installErrorResponse, installedAgentPluginRow } from "../../install-response.js";
+import { agentPluginLifecycleFields, bodyParseRefusal, installErrorResponse, installedAgentPluginRow } from "../../install-response.js";
 
 /**
  * @file Pure refusal and row builders behind `AGENT_PLUGIN_INSTALL_ZIP` (`install.ts`). Real error
@@ -121,14 +121,37 @@ test("installedAgentPluginRow: reports the list row fields and leaves out id and
   assert.deepEqual(installedAgentPluginRow(candidate), {
     pluginId: "note-taker", displayName: "Note Taker", summary: "Takes notes.", version: "1.0.0", description: "Longer text.",
     keywords: ["notes"], enabled: false, skills: [{ name: "note-taker", summary: "Takes notes." }], mcpServerIds: ["notes-mcp"],
+    // A candidate without lifecycle metadata reports none: no origin, digest or host verdict, empty lists.
+    origin: undefined, hostOk: undefined, missingRequires: [], requiredBy: [], archiveDigest: undefined,
   });
 });
 
 test("installedAgentPluginRow: omitted display metadata becomes explicit nulls", () => {
   const row = installedAgentPluginRow({ pluginId: "bare", keywords: [], enabled: true, skills: [], mcpServerIds: [] });
-  assert.deepEqual(row, { pluginId: "bare", displayName: null, summary: null, version: null, description: null, keywords: [], enabled: true, skills: [], mcpServerIds: [] });
+  assert.deepEqual(row, { pluginId: "bare", displayName: null, summary: null, version: null, description: null, keywords: [], enabled: true, skills: [], mcpServerIds: [],
+    origin: undefined, hostOk: undefined, missingRequires: [], requiredBy: [], archiveDigest: undefined });
 });
 
 test("installedAgentPluginRow: a plugin the read model does not list is null", () => {
   assert.equal(installedAgentPluginRow(undefined), null);
+});
+
+test("agentPluginLifecycleFields: passes origin, host verdict, requirements, dependents and digest through", () => {
+  const digest = "d".repeat(64);
+  assert.deepEqual(agentPluginLifecycleFields({ ...candidate, origin: "bundled", hostOk: false, missingRequires: ["x:y"], requiredBy: ["consumer needs mail:send"], archiveDigest: digest }), {
+    origin: "bundled", hostOk: false, missingRequires: ["x:y"], requiredBy: ["consumer needs mail:send"], archiveDigest: digest,
+  });
+});
+
+test("installErrorResponse: every update refusal is 409 with the lifecycle owner's code and message", () => {
+  for (const code of ["PLUGIN_CHANGED", "PLUGIN_DOWNGRADE_REFUSED", "PLUGIN_BUNDLED", "PLUGIN_UPDATE_PENDING", "PLUGIN_ID_MISMATCH", "PLUGIN_UPDATE_PATH_UNSAFE"]) {
+    assert.deepEqual(installErrorResponse(new AgentPluginUpdateError({ code, message: `Refused: ${code}.` })), { status: 409, body: { code, error: `Refused: ${code}.` } });
+  }
+});
+
+test("installErrorResponse: an incompatible host is 409 PLUGIN_HOST_INCOMPATIBLE", () => {
+  const response = installErrorResponse(new AgentPluginHostIncompatibleError({ pluginId: "future-only" }));
+  assert.equal(response.status, 409);
+  assert.equal(response.body.code, "PLUGIN_HOST_INCOMPATIBLE");
+  assert.match(response.body.error, /future-only/);
 });

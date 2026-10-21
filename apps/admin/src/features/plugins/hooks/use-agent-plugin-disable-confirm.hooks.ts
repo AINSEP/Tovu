@@ -31,6 +31,8 @@ export function useAgentPluginDisableConfirm(props: {
   name: string;
   variant: "disable" | "remove";
   origin?: "bundled" | "operator-installed";
+  /** Server lines naming enabled plugins that need a capability this one provides. */
+  requiredBy?: readonly string[];
   onCancel: () => void;
   t?: Translate;
 }): AgentPluginDisableConfirmController {
@@ -47,5 +49,5 @@ export function useAgentPluginDisableConfirm(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant, origin: props.origin }, props.t), dialogRef };
+  return { copy: buildAgentPluginDisableConfirmCopy({ name: props.name, variant: props.variant, origin: props.origin, requiredBy: props.requiredBy }, props.t), dialogRef };
 }

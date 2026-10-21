@@ -80,6 +80,10 @@ export interface AgentPluginConnectionsComposition {
   readonly agentPluginTools: AgentPluginExecutableToolHost;
   /** `AgentPluginsRouteDeps.adminSurfaceHost` (call `refresh` once at boot). */
   readonly adminSurfaceHost: AgentPluginAdminSurfaceHandlers;
+  /** The Agent Plugin update's settings-snapshot owner (`UpdateAgentPluginRequired.snapshotSettings`):
+   *  the plugin's setting keys and vault revisions, never values, because the update journal that
+   *  records it is a plaintext file on disk. */
+  readonly snapshotAgentPluginSettings: (required: { workspaceId: string; pluginId: string }, optional: Record<string, never>) => Promise<unknown>;
 }
 
 /** What the admin-surface `deliveryBindings` port writes through: the site's settings ledger and its forms. */
@@ -171,5 +175,6 @@ export function composeAgentPluginConnections(
       } },
     },
     adminSurfaceHost,
+    snapshotAgentPluginSettings: ({ workspaceId: scopeWorkspaceId, pluginId }) => host.pluginState.describe({ workspaceId: scopeWorkspaceId, pluginId }),
   };
 }

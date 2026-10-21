@@ -70,6 +70,7 @@ import {
 } from "#src/features/post/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -1140,6 +1141,9 @@ async function composeSiteRouteDeps(
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+    // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
+    // lazily because that store is composed below.
+    mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
   });
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });

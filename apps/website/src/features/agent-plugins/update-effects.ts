@@ -35,3 +35,26 @@ export function createAgentPluginUpdateEffects(
     remove: unsupported,
   };
 }
+
+/** Who boot recovery provisions as: no operator is signed in while the host starts. */
+export const AGENT_PLUGIN_RECOVERY_ACTOR = "system:agent-plugin-update-recovery";
+
+/**
+ * The composed lifecycle's MCP port, used by boot recovery to re-provision a restored revision's
+ * servers. The lifecycle is bound before the external-MCP store exists in the composition root, so
+ * the deps are read when recovery calls, not when this is built. Without this binding recovery
+ * still restores the bytes but leaves the plugin switched off (Jini's degraded outcome).
+ * @complexity O(1) to build; each call as {@link createAgentPluginUpdateEffects}.
+ */
+export function createDeferredAgentPluginUpdateEffects(
+  { resolveDeps }: { resolveDeps: () => UpdateMcpDeps },
+  optional: Parameters<typeof createAgentPluginUpdateEffects>[1] = {},
+): AgentPluginMcpProvisioningPort {
+  const effects = () => createAgentPluginUpdateEffects({ deps: resolveDeps(), actor: AGENT_PLUGIN_RECOVERY_ACTOR }, optional);
+  return {
+    provision: (input) => effects().provision(input),
+    notifyRosterChanged: (input) => effects().notifyRosterChanged(input),
+    setEnabled: (input) => effects().setEnabled(input),
+    remove: (input) => effects().remove(input),
+  };
+}

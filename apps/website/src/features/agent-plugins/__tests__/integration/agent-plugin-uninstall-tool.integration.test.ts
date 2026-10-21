@@ -507,3 +507,23 @@ test("a run that ends while the dialog is open closes it, reports 'abandoned', a
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
   });
 });
+
+test("an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    const installed = await installReal(WORKSPACE_A, "pending-plugin", "archive-update-pending");
+    const pluginRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).pluginRootDir({ pluginId: "pending-plugin" });
+    await writeFile(path.join(pluginRoot, "update-journal.json"), JSON.stringify({
+      schemaVersion: 1, state: "pending", transactionId: "tx-1", pluginId: "pending-plugin", actor: PRINCIPAL_ID, enabled: false,
+      fromDigest: installed.archiveDigest, toDigest: "f".repeat(64), settingsSnapshot: { keys: [] }, startedAt: new Date(0).toISOString(),
+    }));
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const { result } = await answerDialog(findRegistration(fakeDeps().deps, surfaceExchanges), surfaceExchanges, "pending-plugin", "confirm");
+    const output = result as UninstallToolOutput & { code: string };
+    assert.equal(output.uninstalled, false);
+    assert.equal(output.reason, "update-pending");
+    assert.equal(output.code, "PLUGIN_UPDATE_PENDING");
+    assert.match(output.note, /restart Tovu/);
+    assert.equal(JSON.stringify(output).includes(dir), false);
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+  });
+});

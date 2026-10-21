@@ -33,6 +33,14 @@ export interface AgentPluginStateStore {
   forPlugin(required: AgentPluginStateScope, optional?: Record<string, never>): AdminSurfaceState;
   /** Read-only view (`get` alone) for the plugin's tools and form delivery. */
   readerFor(required: AgentPluginStateScope, optional?: Record<string, never>): AgentPluginStateReader;
+  /** Non-secret summary of the plugin's saved settings: each key with its vault revision, sorted by
+   *  key, never a value. The Agent Plugin update journal records it as its settings snapshot, and that
+   *  journal is a plaintext file on disk, so values must never reach it. */
+  describe(required: AgentPluginStateScope, optional?: Record<string, never>): Promise<AgentPluginStateSummary>;
+}
+
+export interface AgentPluginStateSummary {
+  readonly keys: readonly { readonly key: string; readonly revision: number }[];
 }
 
 const rowPrefix = (pluginId: string): string => `plugin-state:${pluginId}:`;
@@ -57,7 +65,8 @@ const isConflict = (error: unknown): boolean => error instanceof VaultError && e
  * Creates the workspace's plugin-state store over the api-connection vault.
  * @param required.vault - The workspace's api-connection vault (`createApiConnectionVault`).
  * @param required.workspaceId - The only workspace this store serves; any other scope is refused.
- * @complexity get/delete O(1) vault calls; set O(1), plus O(r) rows to count keys when it creates one.
+ * @complexity get/delete O(1) vault calls; set O(1), plus O(r) rows to count keys when it creates one;
+ * describe O(r log r).
  */
 export function createAgentPluginStateStore(
   required: { readonly vault: SecretsVaultService; readonly workspaceId: string },
@@ -66,10 +75,27 @@ export function createAgentPluginStateStore(
   const { vault } = required;
   const scope = apiConnectionVaultScope({ workspaceId: required.workspaceId });
 
-  /** The row id for this scope's key; a foreign workspace or malformed plugin id never reaches the vault. */
-  function rowId(input: AgentPluginStateScope, key: unknown): string {
+  /** This scope's row prefix; a foreign workspace or malformed plugin id never reaches the vault. */
+  function scopedPrefix(input: AgentPluginStateScope): string {
     if (input.workspaceId !== required.workspaceId || !PLUGIN_ID_PATTERN.test(input.pluginId)) throw new Error(PLUGIN_STATE_UNAVAILABLE_MESSAGE);
-    return `${rowPrefix(input.pluginId)}${checkedKey(key)}`;
+    return rowPrefix(input.pluginId);
+  }
+
+  /** The row id for this scope's key. */
+  function rowId(input: AgentPluginStateScope, key: unknown): string {
+    return `${scopedPrefix(input)}${checkedKey(key)}`;
+  }
+
+  /** Lists summaries only: `vault.list` opens no envelope, so no value is decrypted here.
+   *  @complexity O(r log r) in the workspace's api-connection rows. */
+  async function describe(input: AgentPluginStateScope): Promise<AgentPluginStateSummary> {
+    const prefix = scopedPrefix(input);
+    const keys = (await vault.list({ ...scope }))
+      .filter((row) => row.id.startsWith(prefix))
+      .map((row) => ({ key: row.id.slice(prefix.length), revision: row.revision }))
+      // Row ids are unique per plugin, so no two keys compare equal.
+      .sort((a, b) => (a.key < b.key ? -1 : 1));
+    return { keys };
   }
 
   async function keyCount(pluginId: string): Promise<number> {
@@ -101,6 +127,7 @@ export function createAgentPluginStateStore(
 
   return {
     readerFor,
+    describe,
     forPlugin: (input) => ({
       ...readerFor(input),
       set: ({ key, value }) => write(input, key, value),

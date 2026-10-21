@@ -5,7 +5,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
-import { agentPluginDisplayName } from "../rules";
+import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
 /** The server's own cap (`install.ts`'s `maxArchiveBytes`), checked here first so an oversized file
@@ -15,6 +15,7 @@ export const AGENT_PLUGIN_ZIP_MAX_BYTES = 32 * 1024 * 1024;
 const TOO_LARGE = "The .zip is larger than the 32 MiB limit.";
 const UNPACKED_TOO_LARGE = "The .zip is too big once unpacked: at most 4096 files, 16 MiB per file, 64 MiB in all.";
 const RETRY = "Could not install the plugin. Try again.";
+const RETRY_UPDATE = "Could not update the plugin. Try again.";
 const NOT_ZIP = "This file is not a readable .zip.";
 const ONE_ZIP = "Choose one .zip file.";
 
@@ -33,17 +34,32 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   AGENT_PLUGIN_DECOMPRESSION_BOMB: UNPACKED_TOO_LARGE,
   AGENT_PLUGIN_TOTAL_SIZE_EXCEEDED: UNPACKED_TOO_LARGE,
   AGENT_PLUGIN_ACTIVATIONS_BUSY: RETRY,
+  // Update refusals (`AGENT_PLUGIN_UPDATE_ZIP`, 2026-10-21) carry the lifecycle owner's own codes.
+  PLUGIN_CHANGED: "This plugin changed since this page loaded. Reload the page and try again.",
+  PLUGIN_DOWNGRADE_REFUSED: "This package is an older version than the one installed.",
+  PLUGIN_ID_MISMATCH: "This package is a different plugin.",
+  PLUGIN_BUNDLED: "Plugins that ship with Tovu update with Tovu.",
+  PLUGIN_UPDATE_PENDING: "An earlier update is still being recovered. Restart Tovu and try again.",
+  PLUGIN_HOST_INCOMPATIBLE: "This plugin is not made for this Tovu version.",
 };
 
-/** @complexity O(1). */
-function errorKey(error: unknown): string {
-  if (!(error instanceof ApiError)) return RETRY;
+/** A refusal's dictionary key; `retry` is the install's or the update's own try-again line, used
+ *  for anything unrecognised (an unknown 409 never shows the server's untranslated text).
+ *  @complexity O(1). */
+function errorKey(error: unknown, retry: string): string {
+  if (!(error instanceof ApiError)) return retry;
   const known = error.code ? ERROR_KEYS[error.code] : undefined;
   if (known) return known;
   if (error.status === 403) return "You don't have permission to install plugins.";
   if (error.status === 400) return "This .zip contains files or links that plugins may not include.";
-  if (error.status === 409) return error.message;
-  return RETRY;
+  return retry;
+}
+
+/** The success line: same bytes again, an update, or a fresh install (which is always off).
+ *  @complexity O(1). */
+function installedMessageKey({ alreadyInstalled, updating }: { alreadyInstalled: boolean; updating: boolean }): string {
+  if (alreadyInstalled) return "{name} is already installed.";
+  return updating ? "{name} is updated." : "{name} is installed and switched off. Turn it on in Installed.";
 }
 
 /** Why `file` cannot be uploaded, as a dictionary key, or `null` when it can.
@@ -93,13 +109,13 @@ export function useAgentPluginInstall(
     setError(null);
     try {
       const result = await port.installZip({ file, sha256: await port.sha256({ file }), replace, ...(options.update ? { update: options.update } : {}) });
-      setWarnings(result.warnings ?? []);
+      setWarnings((result.warnings ?? []).map((warning) => agentPluginWarningText(warning, t)));
       if (result.agentPlugin) onInstalled(result.agentPlugin);
       setInstalled({ name: result.agentPlugin ? agentPluginDisplayName(result.agentPlugin) : file.name, alreadyInstalled: result.alreadyInstalled });
       setFile(null);
       setReplace(false);
     } catch (e) {
-      setError(t(errorKey(e)));
+      setError(t(errorKey(e, options.update ? RETRY_UPDATE : RETRY)));
     } finally {
       locked.current = false;
       setBusy(false);
@@ -130,9 +146,7 @@ export function useAgentPluginInstall(
     },
   });
 
-  const installedMessage = installed
-    ? t(installed.alreadyInstalled ? "{name} is already installed." : "{name} is installed and switched off. Turn it on in Installed.").replace("{name}", installed.name)
-    : null;
+  const installedMessage = installed ? t(installedMessageKey({ alreadyInstalled: installed.alreadyInstalled, updating: options.update !== undefined })).replace("{name}", installed.name) : null;
 
   return {
     updating: options.update !== undefined,
@@ -146,7 +160,7 @@ export function useAgentPluginInstall(
     folderUpload,
     busy: busy || folderUpload.zipping,
     error,
-    installedMessage: installed && options.update ? t("Plugin updated.") : installedMessage,
+    installedMessage,
     inputRef,
     installDisabled: busy || folderUpload.zipping || !file,
     onChooseFile: () => inputRef.current?.click(),

@@ -1,4 +1,4 @@
-import { AgentPluginHostIncompatibleError } from "@jini-ai/agent-plugins/lifecycle";
+import { AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -471,7 +471,6 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // not installed here IS a caller-input problem with an actionable fix (search first, then use a
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
-    if (error instanceof AgentPluginHostIncompatibleError) return { changed: false, code: error.code, error: error.message };
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
@@ -508,6 +507,40 @@ async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps
     if (refusal !== undefined) return refusal;
     throw error;
   }
+}
+
+/** An interrupted update of this plugin waits for boot recovery (`PLUGIN_UPDATE_PENDING`, or an
+ *  unreadable recovery record): its on/off decision is frozen until then, the same 409 the admin
+ *  switch answers. Nothing changed, so an ADR-055 Decision 6 result. @complexity O(1). */
+function updatePendingResult(request: SetEnabledRequest, error: AgentPluginUpdateError): unknown {
+  return {
+    changed: false,
+    cancelled: false,
+    family: request.family,
+    pluginId: request.pluginId,
+    restartRequired: false,
+    reason: "update-pending",
+    code: error.code,
+    note: `Nothing changed: an interrupted update of '${request.pluginId}' is still waiting to be recovered, so it was NOT ` +
+      `${request.enabled ? "enabled" : "disabled"}. Tell the user to restart Tovu (recovery runs at start) and then try again.`,
+  };
+}
+
+/** The plugin declares a host range this Tovu does not satisfy, so it cannot be enabled: the same
+ *  refusal the admin switch answers with 409 `PLUGIN_HOST_INCOMPATIBLE`. Nothing changed, so it is
+ *  an ADR-055 Decision 6 result, not a failure. @complexity O(1). */
+function hostIncompatibleResult(request: SetEnabledRequest, error: AgentPluginHostIncompatibleError): unknown {
+  return {
+    changed: false,
+    cancelled: false,
+    family: request.family,
+    pluginId: request.pluginId,
+    restartRequired: false,
+    reason: "host-incompatible",
+    code: error.code,
+    note: `Nothing changed: '${request.pluginId}' is not made for this Tovu version, so it was NOT enabled. ` +
+      "Tell the user it needs a version of the plugin that supports this Tovu.",
+  };
 }
 
 /** ADR-055 Decision 6 shape: nothing changed, so it is a RESULT the model can relay, not a redacted
@@ -559,6 +592,8 @@ function activationsBusyResult(request: SetEnabledRequest, error: AgentPluginAct
  *  call sites classify activation failures identically.
  *  @complexity O(1). */
 function activationsRefusalResult(request: SetEnabledRequest, error: unknown): unknown | undefined {
+  if (error instanceof AgentPluginHostIncompatibleError) return hostIncompatibleResult(request, error);
+  if (error instanceof AgentPluginUpdateError) return updatePendingResult(request, error);
   if (error instanceof AgentPluginActivationsUnreadableError) return activationsUnreadableResult(request, error);
   if (error instanceof AgentPluginActivationsBusyError) return activationsBusyResult(request, error);
   return undefined;

@@ -135,6 +135,13 @@ async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint
   return { prefix, pluginId: parsed.manifest.name };
 }
 
+/** The Agent Plugins name grammar (`plugin.json` `name`, Jini `manifest.ts`): alnum runs joined by
+ *  single `-`/`.`, at most 64 characters. Callers that take an id from a URL or a tool input check it
+ *  here before it names anything on disk. @complexity O(n) in the id's length. */
+export function isAgentPluginId(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 64 && /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(value);
+}
+
 export interface InstallUploadedAgentPluginRequired {
   readonly archive: Uint8Array;
   /** Lowercase hex SHA-256 the client computed from the file it chose; catches a corrupted upload. */
@@ -182,14 +189,7 @@ export async function installUploadedAgentPlugin(
 
   const { prefix, pluginId } = await locatePackage(reader, archive);
   if (required.update) {
-    const snapshotSettings = optional.snapshotSettings;
-    if (!snapshotSettings) throw new AgentPluginUpdateError({ code: 'UPDATE_SETTINGS_OWNER_UNBOUND', message: 'The host must bind the plugin settings snapshot owner before updating.' });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout }, {
-      ...(optional.mcpProvisioning ? { mcpProvisioning: optional.mcpProvisioning } : {}),
-      ...(optional.pluginHost ? { identityAdmission: ({ id, localId, run }) => optional.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }) } : {}),
-    });
-    return lifecycle.updateAgentPlugin({ archive, expectedSha256: digest, archiveReader: withinPrefix(reader, prefix),
-      layout, workspaceId, actor, ...required.update, snapshotSettings });
+    return updateUploadedAgentPlugin({ ...required, update: required.update, expectedSha256: digest, archiveReader: withinPrefix(reader, prefix), candidateId: pluginId }, optional);
   }
   const workspaceLayout = layout.forWorkspace(workspaceId);
   let alreadyInstalled = false;
@@ -230,6 +230,31 @@ export async function installUploadedAgentPlugin(
     },
   });
   return { plugin, alreadyInstalled, ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}) };
+}
+
+/**
+ * The explicit update: the candidate must carry the plugin id being updated, and the host must have
+ * bound the settings-snapshot owner. Both are checked before the lifecycle owner opens its
+ * transaction, so a refusal here changes nothing. The owner then re-checks the id, the installed
+ * digest, bundled provenance and downgrades under the plugin lock.
+ * @throws {AgentPluginUpdateError} PLUGIN_ID_MISMATCH, and every refusal of the lifecycle owner.
+ * @throws {Error} A host that did not bind `snapshotSettings` (a wiring fault, not the caller's).
+ * @complexity O(e + b), as the install it delegates to.
+ */
+async function updateUploadedAgentPlugin(
+  required: InstallUploadedAgentPluginRequired & { readonly update: NonNullable<InstallUploadedAgentPluginRequired["update"]>; readonly archiveReader: AgentPluginArchiveReaderPort; readonly candidateId: string },
+  optional: InstallUploadedAgentPluginOptional,
+): Promise<InstalledUploadedAgentPlugin> {
+  if (required.candidateId !== required.update.pluginId) throw new AgentPluginUpdateError({ code: "PLUGIN_ID_MISMATCH", message: "This package is a different plugin. Choose a package for the plugin you are updating." });
+  const snapshotSettings = optional.snapshotSettings;
+  if (!snapshotSettings) throw new Error("Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.");
+  const pluginHost = optional.pluginHost;
+  const lifecycle = createTovuAgentPluginLifecycle({ layout: optional.layout }, {
+    ...(optional.mcpProvisioning ? { mcpProvisioning: optional.mcpProvisioning } : {}),
+    ...(pluginHost ? { identityAdmission: ({ id, localId, run }) => pluginHost.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }) } : {}),
+  });
+  return lifecycle.updateAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256, archiveReader: required.archiveReader,
+    layout: optional.layout, workspaceId: required.workspaceId, actor: required.actor, ...required.update, snapshotSettings });
 }
 
 /** Same id is the upgrade identity; different bytes alone are not evidence of a different plugin.

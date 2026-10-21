@@ -2,7 +2,7 @@ import type { AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hoo
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import { describeApiError, type AdminAgentPlugin } from "@/lib/api";
+import { ApiError, describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { type Translate } from "@jini-ai/ui/panel-kit";
@@ -95,6 +95,13 @@ function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): R
   return next;
 }
 
+/** Set-enabled refusals the switch explains in its own words: a plugin this Tovu cannot run, and one
+ *  whose interrupted update waits for boot recovery. */
+const TOGGLE_REFUSAL_KEYS: Readonly<Record<string, string>> = {
+  PLUGIN_HOST_INCOMPATIBLE: "This plugin is not made for this Tovu version.",
+  PLUGIN_UPDATE_PENDING: "An earlier update is still being recovered. Restart Tovu and try again.",
+};
+
 /**
  * Loads the real installed Agent Plugins for this workspace on mount, and toggles one
  * plugin's activation at a time per row.
@@ -147,7 +154,10 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
         (current ?? []).map((entry) => (entry.pluginId === agentPlugin.pluginId ? agentPlugin : entry)),
       );
     } catch (e) {
-      setToggleError(describeApiError(e, translatePlugins({ locale: locale, key: "failed to update agent plugin" })));
+      // Lifecycle refusals by name (409), in the operator's language rather than the server's English.
+      const known = e instanceof ApiError && e.code ? TOGGLE_REFUSAL_KEYS[e.code] : undefined;
+      setToggleError(known ? translatePlugins({ locale, key: known })
+        : describeApiError(e, translatePlugins({ locale: locale, key: "failed to update agent plugin" })));
     } finally {
       setTogglingIds((ids) => withId(ids, plugin.pluginId, false));
     }
