@@ -95,12 +95,23 @@ async function probeAssistantAgents({ force = false }: { force?: boolean } = {},
     const modelResult = launch.launchPath
       ? await modelProber({ def }, { force, state: runtime.state, env: runtime.hostEnv })
       : { models: def.fallbackModels, source: "fallback" as const };
-    results.push({ ...def, available: Boolean(launch.launchPath), models: modelResult.models,
-      modelsSource: modelResult.source, ...(launch.selectedPath ? { path: launch.selectedPath } : {}),
-      ...(modelResult.catalog ? { modelCatalog: modelResult.catalog } : {}),
-      ...(modelResult.defaultModelResolution ? { defaultModelResolution: modelResult.defaultModelResolution } : {}) });
+    results.push(toDetectedAgent({ def, launch, modelResult }));
   }
   return results;
+}
+
+/** One prober-path detection result: availability from the resolved launch, models from the probe.
+ * Split out of {@link probeAssistantAgents} purely to keep it under the shop complexity ceiling.
+ * @complexity O(1). */
+function toDetectedAgent({ def, launch, modelResult }: {
+  def: AssistantAgentDefs[number];
+  launch: { launchPath?: string; selectedPath?: string };
+  modelResult: Awaited<ReturnType<AgentModelProber>>;
+}): DetectedAgent {
+  return { ...def, available: Boolean(launch.launchPath), models: modelResult.models,
+    modelsSource: modelResult.source, ...(launch.selectedPath ? { path: launch.selectedPath } : {}),
+    ...(modelResult.catalog ? { modelCatalog: modelResult.catalog } : {}),
+    ...(modelResult.defaultModelResolution ? { defaultModelResolution: modelResult.defaultModelResolution } : {}) };
 }
 
 /** The same projection serves cheap PATH-only snapshots and completed live discovery. */
