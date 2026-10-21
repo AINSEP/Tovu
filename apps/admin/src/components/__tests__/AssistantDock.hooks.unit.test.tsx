@@ -1317,6 +1317,40 @@ describe("useAssistantTransport", () => {
   });
 });
 
+describe("useAssistantTransport — the send-time execution re-read", () => {
+  type CreateTransport = NonNullable<NonNullable<Parameters<typeof useAssistantTransport>[1]>["createTransport"]>;
+  type RunInput = Parameters<ReturnType<CreateTransport>["startRun"]>[0];
+  type RunHandlers = Parameters<ReturnType<CreateTransport>["startRun"]>[1];
+  function fakeTransport() {
+    const startRun = vi.fn().mockResolvedValue(undefined);
+    const createTransport = (() => ({ startRun, stopRun: async () => {}, reattachRun: async () => {}, fetchRunStatus: async () => null })) as unknown as CreateTransport;
+    return { startRun, createTransport };
+  }
+  const handlers = {} as RunHandlers;
+
+  it("passes the frozen run input straight through when the caller has no send-time config reader", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport }));
+    const runInput = { agentId: "claude", context: { model: "frozen" } } as unknown as RunInput;
+    await result.current.startRun(runInput, handlers);
+    expect(startRun).toHaveBeenCalledWith(runInput, handlers);
+  });
+
+  it("re-targets a Local CLI send to the saved agent from config alone when no selection reader is given, even with no frozen context", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const saved: ExecutionConfig = { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" };
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, readExecutionConfigForSend: async () => saved }, { createTransport }));
+    await result.current.startRun({ agentId: "claude" } as unknown as RunInput, handlers);
+    expect(startRun).toHaveBeenCalledTimes(1);
+    const sent = startRun.mock.calls[0]![0] as { agentId: string; context: Record<string, unknown> };
+    expect(sent.agentId).toBe("codex");
+    expect(sent.context).toEqual(expect.any(Object));
+    expect(sent.context).not.toHaveProperty("model", "frozen");
+  });
+});
+
 describe("useAttachmentUploader", () => {
   it("returns a callable uploader — the real createDaemonAttachmentUploader output", async () => {
     const file = new File(["attachment bytes"], "notes.txt", { type: "text/plain" });
