@@ -294,3 +294,22 @@ test("a daemon composition started before the owner serves waits for the socket,
     await owner.close();
   }
 });
+
+test("store boot: an unknown workspace id rejects and releases the owned store, so the next boot can own it", async (t) => {
+  await assert.rejects(bootSiteDir({ dir: siteDir }, { workspaceId: "does-not-exist" }), { name: "ValidationError" });
+  const boot = await bootSiteDir({ dir: siteDir });
+  t.after(() => closeSiteDirBoot(boot));
+  assert.equal(boot.storage.kind, "pglite");
+});
+
+test("store boot: an unrecognized templateId is provenance only — it warns and still boots", async (t) => {
+  const metaPath = path.join(siteDir, SITE_META_FILENAME);
+  const original = fs.readFileSync(metaPath, "utf8");
+  t.after(() => fs.writeFileSync(metaPath, original));
+  fs.writeFileSync(metaPath, JSON.stringify({ ...JSON.parse(original), templateId: "mystery-template" }));
+  const warn = t.mock.method(console, "warn", () => undefined);
+  const boot = await bootSiteDir({ dir: siteDir });
+  await closeSiteDirBoot(boot);
+  assert.equal(boot.storage.kind, "pglite");
+  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]).includes('unrecognized .site-meta.json templateId "mystery-template"')));
+});

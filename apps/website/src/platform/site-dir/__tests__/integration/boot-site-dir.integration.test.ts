@@ -119,6 +119,21 @@ test("B1: bootSiteDir({ dir }, { workspaceId }) throws ValidationError when the 
   }
 });
 
+test("a SQLite site whose content.db is missing is refused as invalid before anything is opened", async () => {
+  const dir = buildFixtureDir();
+  try {
+    fs.rmSync(path.join(dir, "content.db"));
+    await assert.rejects(bootSiteDir({ dir }), (err: unknown) => {
+      assert.equal((err as Error).name, "SiteDirInvalidError");
+      assert.match((err as Error).message, /content\.db is missing at /);
+      return true;
+    });
+    assert.equal(fs.existsSync(path.join(dir, "content.db")), false, "boot must not create the missing database");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("AC-09/REQ-06: zero workspace rows -> SiteCorruptError", async () => {
   const dir = buildFixtureDir({ workspaceRows: [] });
   try {
