@@ -886,6 +886,15 @@ test("update-tree logs the original error with or without a stack and returns an
   assert.equal(logged[1], "admin menu update-tree route failed: boom: repo exploded");
 });
 
+test("update-tree: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with no params, is the workspace 404", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+  await handler({ params: {}, body: { items: [] } }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
 test("update-tree: renaming a menu onto another menu's slug is a plain 409 without the VERSION_CONFLICT code, and stores nothing", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

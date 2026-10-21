@@ -213,7 +213,9 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
             },
             captureEntityVersion: ({ result }) => result.post.version,
             rollback: async () => {
-              if (!priorPost) return;
+              // No null guard: `executeCommand` runs `captureInverse` (which sets `priorPost` or throws
+              // `PostNotFoundError`) before `execute`, and calls `rollback` only after `execute` returned, so
+              // `priorPost` is always the captured record here.
               await restorePostForward({
                 deps: {
                   repo: deps.postRepo,
@@ -221,7 +223,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                   outbox: deps.outbox,
                   forgetRemoved: deps.forgetRemovedPost,
                 },
-                input: { prior: priorPost, actorId: principal.id },
+                input: { prior: priorPost as PostRecord, actorId: principal.id },
               });
             },
           },
