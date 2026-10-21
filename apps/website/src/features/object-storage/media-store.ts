@@ -115,15 +115,19 @@ async function loadMediaObjectStore(required: { readonly choice: Exclude<MediaSt
   return createFrom({ loaded: await ports.loadSiteRegistry(), providerId, settings: { bucket, keyPrefix: credential.fields.mediaKeyPrefix }, credential, host: ports.host });
 }
 
-/** @throws {Error} Unknown provider (with the registry's refusals) or a refused configuration. @complexity O(1). */
-function createFrom(required: { readonly loaded: LoadedObjectStoreRegistry; readonly providerId: string } & ObjectStoreCreateInput<ObjectStoreHost>): ObjectStore {
+/**
+ * Both callers always hold a credential (env `s3` validates it at boot; the setting path refuses
+ * without a saved connection), so it is required here rather than optional.
+ * @throws {Error} Unknown provider (with the registry's refusals) or a refused configuration. @complexity O(1).
+ */
+function createFrom(required: { readonly loaded: LoadedObjectStoreRegistry; readonly providerId: string; readonly credential: Credential } & ObjectStoreCreateInput<ObjectStoreHost>): ObjectStore {
   const { loaded, providerId, settings, credential, host } = required;
   const entry = loaded.registry.get({ id: providerId });
   if (!entry) {
     const why = loaded.refusals.length > 0 ? ` (${loaded.refusals.join("; ")})` : "";
     throw new Error(`Media storage provider '${providerId}' is not available${why}.`);
   }
-  const created = entry.provider.create({ settings, ...(credential ? { credential } : {}), host });
+  const created = entry.provider.create({ settings, credential, host });
   if (created.status !== "ok") throw new Error(`Media storage provider '${providerId}' refused its configuration: ${created.error.message}`);
   return created.value;
 }

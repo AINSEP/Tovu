@@ -193,7 +193,7 @@ import {
   purgeMedia,
   SharpImageTransformer,
 } from "#src/features/media/index";
-import { createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -2731,9 +2731,13 @@ async function composeSiteRouteDeps(
               runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
             } : {}),
             s3: async () => {
-              const module = (await routeDeps.loadDeployTargets(workspaceId)).get("s3-compatible")?.module;
-              if (!module?.createArtifactStore) return undefined;
-              const resolved = await credentials.resolve({ workspaceId, target: "s3-compatible" });
+              // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
+              // the site's media choice wins so media and shares share one provider and connection.
+              const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });
+              if (!chosen) return undefined;
+              // Provider ids use underscores; the saved connection is keyed by the hyphenated target id.
+              const target = chosen.id.replace(/_/g, "-");
+              const resolved = await credentials.resolve({ workspaceId, target });
               if (!resolved.ok) return undefined;
               // A new default connection must never turn revocation into deletion in another bucket.
               // Bind non-secret storage coordinates, allowing credentials to rotate for the same store.
@@ -2745,7 +2749,7 @@ async function composeSiteRouteDeps(
                 const response = await guardedOutboundHttpClient.send({ request: { method: "HEAD", url, headers: {}, idleTimeoutMs: options.timeoutMs, totalDeadlineMs: options.timeoutMs, maxResponseBytes: 1024, signal: init.signal ?? undefined } }, { redirect: "error" });
                 return new Response(null, { status: response.status, headers: response.headers });
               } };
-              return { provider: "s3-compatible", binding: storageBinding, store: module.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
+              return { provider: target, binding: storageBinding, store: chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: shareKit }) };
             },
           }, selection),
         });

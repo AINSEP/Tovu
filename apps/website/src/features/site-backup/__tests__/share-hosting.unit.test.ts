@@ -313,9 +313,11 @@ test("a saved S3 binding that differs selects nothing", async () => {
   assert.equal(await resolveShareDelivery(selection().required, { provider: "s3-compatible", binding: "bucket-b" }), undefined);
 });
 
-test("an unknown provider selects nothing without consulting any delivery", async () => {
+test("a saved provider the site's object store does not resolve to selects nothing (the server deliveries are not consulted)", async () => {
+  // Object-store providers are an open set now, so a non-server provider asks the object-store
+  // source and keeps only a delivery of that same provider.
   const { required, calls } = selection();
-  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "ftp" }), calls }, { chosen: undefined, calls: [] });
+  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "ftp" }), calls }, { chosen: undefined, calls: ["s3"] });
 });
 
 test("no configured S3 selects nothing", async () => {

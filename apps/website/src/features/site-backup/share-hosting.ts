@@ -99,11 +99,12 @@ async function resolveServerDelivery(required: ShareDeliverySources, optional: S
   return runtime && bindingMatches({ saved: optional.binding, actual: runtime.binding }) ? runtime : undefined;
 }
 
-/** The configured S3 delivery when its binding matches. */
+/** The configured object-store delivery when its provider and binding match the saved ones. */
 async function resolveS3Delivery(required: ShareDeliverySources, optional: SavedShareDelivery = {}): Promise<ShareDelivery | undefined> {
   try {
     const s3 = await required.s3();
-    return s3 && bindingMatches({ saved: optional.binding, actual: s3.binding }) ? s3 : undefined;
+    if (!s3 || (optional.provider && optional.provider !== s3.provider)) return undefined;
+    return bindingMatches({ saved: optional.binding, actual: s3.binding }) ? s3 : undefined;
   } catch { return undefined; } // Failed credential resolution still leaves a private ZIP download.
 }
 
@@ -114,6 +115,7 @@ export async function resolveShareDelivery(required: ShareDeliverySources, optio
     const server = await resolveServerDelivery(required, optional);
     if (server || optional.provider) return server;
   }
-  if (optional.provider && optional.provider !== "s3-compatible") return undefined;
+  // Any object-store provider exposing an artifact store may deliver (not one hard-coded vendor);
+  // a saved provider must be the one the site's object store resolves to now.
   return resolveS3Delivery(required, optional);
 }
