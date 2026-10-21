@@ -52,7 +52,8 @@ export async function resolveFeaturedImageRef(required: {
 const FEATURED_MEDIA_ID_REFUSALS: Record<"missing" | "trashed" | "not-image", (ref: string, contentType?: string) => string> = {
   missing: (ref) => `featuredMediaId: no media asset has the id '${ref}'.`,
   trashed: (ref) => `featuredMediaId: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
-  "not-image": (ref, contentType) => `featuredMediaId: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
+  // `resolveFeaturedImageRef` only reports "not-image" together with the known type it judged.
+  "not-image": (ref, contentType) => `featuredMediaId: media asset '${ref}' is ${contentType}, not an image. A featured image must be an image.`,
 };
 
 /**
