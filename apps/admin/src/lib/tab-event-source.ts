@@ -19,7 +19,6 @@ export function openTabEventSource(
 ): EventSource {
   let source: Source | undefined;
   let disposed = false;
-  let stop = () => {};
   class ManagedSource extends EventTarget implements EventSource {
     // EventTarget already supports these listeners; expose EventSource's typed event overloads.
     readonly addEventListener = super.addEventListener.bind(this) as EventSource["addEventListener"];
@@ -36,7 +35,8 @@ export function openTabEventSource(
     close(): void { if (disposed) return; disposed = true; stop(); }
   }
   const managed = new ManagedSource();
-  stop = startBrowserStream({ key: url, connect: () => {
+  // Assigned before `managed` is returned, so no caller can reach `close()` while it is unset.
+  const stop = startBrowserStream({ key: url, connect: () => {
     const current = open(url);
     source = current;
     for (const kind of ["message", "error", "open"] as const) {
