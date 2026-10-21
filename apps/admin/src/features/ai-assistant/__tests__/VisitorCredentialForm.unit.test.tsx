@@ -1,4 +1,4 @@
-import { render, screen, within } from "@/__tests__/fetch-query-render";
+import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
@@ -295,6 +295,57 @@ describe("VisitorCredentialForm", () => {
     expect(screen.getByText("On")).toBeInTheDocument();
     expect(screen.getByRole("switch")).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Provider" })).toBeInTheDocument();
+  });
+
+  it("the panel reports a failed credential read instead of the steps", () => {
+    const credential = fakeController({ loadState: { status: "error", message: "Stored settings unavailable" } });
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("the panel shows a save error and turns the assistant on through the switch once a key is stored", () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
+    const setPublicEnabled = vi.fn(async () => undefined);
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: "Could not save.", setPublicEnabled, setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    expect(screen.getByText("Could not save.")).toHaveClass("save-error");
+    const toggle = screen.getByRole("switch");
+    expect(screen.queryByText("Save a key in step 1 first.")).toBeNull();
+    fireEvent.click(toggle);
+    expect(setPublicEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("the panel blocks the switch with its reason until a key is stored", () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: false, hasUsableKey: false });
+    const controller = { settings: { publicEnabled: false, widget: "react" as const }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    const toggle = screen.getByRole("switch");
+    expect(toggle).toBeDisabled();
+    const reason = screen.getByText("Save a key in step 1 first.", { selector: "p.visitor-step-hint" });
+    expect(toggle.getAttribute("aria-describedby")?.split(" ")).toContain(reason.id);
+  });
+
+  it("the panel's widget choice saves vanilla for Pure JS and react otherwise", async () => {
+    const credential = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
+    const setWidget = vi.fn(async () => undefined);
+    const controller = { settings: { publicEnabled: false }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget };
+    render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    const widget = screen.getByLabelText("Widget") as HTMLSelectElement;
+    // No stored widget yet: the React widget is what renders.
+    expect(widget.value).toBe("react");
+    fireEvent.change(widget, { target: { value: "vanilla" } });
+    fireEvent.change(widget, { target: { value: "react" } });
+    expect(setWidget.mock.calls).toEqual([[{ widget: "vanilla" }], [{ widget: "react" }]]);
   });
 
   it("reports a failed settings read without displaying default provider fields", () => {
