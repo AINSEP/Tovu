@@ -63,7 +63,7 @@ describe("useAdminSurfaceFrame with a frame element that outlives navigation", (
   it("passes form choices through the declared destination action and refuses a separate undeclared forms action", async () => {
     const result = { destinations: [], picked: [], forms: [{ slug: "contact", title: "Contact us" }] };
     const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: true, result })) });
-    const surface = { ...SURFACE, id: "form-destinations", actions: [{ name: "list-destinations", input: { type: "object" as const, properties: {}, additionalProperties: false } }] };
+    const surface = { ...SURFACE, id: "form-destinations", actions: [{ name: "list-destinations", input: { type: "object" as const, properties: {}, additionalProperties: false as const } }] };
     const { hook, frameWindow, posted } = mountWithFrame(port, surface);
     act(() => { hook.result.current.onLoad(); });
     await waitFor(() => expect(posted).toHaveBeenCalledTimes(1));
@@ -129,5 +129,34 @@ describe("useAdminSurfaceFrame with a frame element that outlives navigation", (
     await waitFor(() => expect(posted).toHaveBeenCalledTimes(1));
     act(() => { fromFrame(frameWindow, saveRequest); });
     await waitFor(() => expect(port.action).toHaveBeenCalledWith({ pluginId: "acme-office", surfaceId: SURFACE.id, action: "save-selection", payload: { resourceId: "r1" } }));
+  });
+});
+
+describe("useAdminSurfaceFrame after the surface is open", () => {
+  it("re-sends the admin theme to the open surface when it changes", async () => {
+    // Run each scheduled frame immediately so the watcher's re-read is synchronous.
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { callback(0); return 1; });
+    const port = fakePort();
+    const { hook, posted } = mountWithFrame(port);
+    act(() => { hook.result.current.onLoad(); });
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(1));
+    document.body.style.setProperty("--primary", "#0a0b0c");
+    try {
+      await waitFor(() => expect(posted.mock.calls.some(([message]) => JSON.stringify(message).includes("#0a0b0c"))).toBe(true));
+    } finally {
+      document.body.style.removeProperty("--primary");
+    }
+  });
+
+  it("ignores frame messages once its frame element is gone", async () => {
+    const port = fakePort();
+    const { hook, frameWindow, posted } = mountWithFrame(port);
+    act(() => { hook.result.current.onLoad(); });
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(1));
+    hook.result.current.frameRef.current = null;
+    act(() => { fromFrame(frameWindow, saveRequest); });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(port.action).not.toHaveBeenCalled();
+    expect(posted).toHaveBeenCalledTimes(1);
   });
 });

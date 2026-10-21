@@ -305,3 +305,18 @@ describe("AgentPluginDetailsModal admin surfaces", () => {
     await waitFor(() => expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Package files", "Memory", "Manage connection"]));
   });
 });
+
+describe("AgentPluginSurfaceFrame sizing", () => {
+  it("starts at 28rem and then follows the surface's reported content height", async () => {
+    const { iframe, frameWindow, init } = await mounted(fakePort());
+    expect(iframe.style.height).toBe("28rem");
+    act(() => {
+      window.dispatchEvent(new MessageEvent("message", {
+        data: { protocol: "jini.admin-surface", version: 1, kind: "resize", mountId: init.mountId, height: 512 },
+        origin: "null",
+        source: frameWindow,
+      }));
+    });
+    await waitFor(() => expect(iframe.style.height).toBe("512px"));
+  });
+});
