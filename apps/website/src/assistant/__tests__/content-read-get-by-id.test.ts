@@ -21,8 +21,9 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createContributionRegistry, ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry, normalizeToolInput, withBatchInput, ToolInputError, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import { createToolExecutor } from "@jini-ai/daemon";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { buildFormsRegistrations } from "../../features/forms/tool-registrations.js";
@@ -43,7 +44,7 @@ function fakeRegistration(id: string, handler: ToolHandler, inputSchema: Record<
   return {
     descriptor: { id, description: `${id} description.`, inputSchema },
     handler,
-    policy: { authorize: async () => ({ allowed: true }) },
+    policy: { authorize: async () => "allow" },
   } as unknown as ToolRegistration;
 }
 
@@ -95,7 +96,7 @@ test("not found: exact model-facing text, as a ToolInputError", async () => {
   const theme = card([fakeRegistration("theme_list", recordingList({ themes: THEMES }).handler)], "content_read.theme");
   await assert.rejects(theme.handler(executionContext({ themeId: "missing" })), (error: unknown) => {
     assert.ok(error instanceof ToolInputError);
-    assert.equal(error.message, "theme 'missing' was not found — call content_read.theme without themeId to list valid ids");
+    assert.equal(error.message, "theme 'missing' was not found — call content_read.theme without id to list valid ids");
     return true;
   });
 });
@@ -167,9 +168,9 @@ test("the card schema gains the id as an OPTIONAL property; the list's own prope
   const theme = card([fakeRegistration("theme_list", recordingList({ themes: [] }).handler, listSchema)], "content_read.theme");
   const schema = theme.descriptor.inputSchema as { required: string[]; properties: Record<string, { type?: string; description?: string }> };
   assert.deepEqual(schema.required, []);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["themeId", "tier"]);
-  assert.equal(schema.properties.themeId?.type, "string");
-  assert.match(schema.properties.themeId?.description ?? "", /Omit to list instead of fetching a single item\.$/);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["id", "tier"]);
+  assert.equal(schema.properties.id?.type, "string");
+  assert.match(schema.properties.id?.description ?? "", /Omit to list instead of fetching a single item\.$/);
 });
 
 test("a card with a hand-written get keeps dispatching to it; the list is never consulted for an id", async () => {
@@ -245,7 +246,7 @@ test("forms (real handler): read one definition by formId; a miss is the exact n
   const result = (await formDefinition.handler(executionContext({ formId: "form-2" }))) as { definitions: Array<{ id: string; slug: string }> };
   assert.deepEqual(result.definitions.map((row) => [row.id, row.slug]), [["form-2", "signup"]]);
   await assert.rejects(formDefinition.handler(executionContext({ formId: "form-9" })), {
-    message: "form_definition 'form-9' was not found — call content_read.form_definition without formId to list valid ids",
+    message: "form_definition 'form-9' was not found — call content_read.form_definition without id to list valid ids",
   });
 });
 
@@ -280,7 +281,159 @@ test("the real composition: every list-lookup card publishes its id as an option
   for (const [cardId, idProperty] of Object.entries(LIST_LOOKUP_ID_PROPERTIES)) {
     const schema = byId.get(cardId)?.descriptor.inputSchema as { required?: string[]; properties?: Record<string, { type?: string }> } | undefined;
     assert.ok(schema, `expected '${cardId}' in the production catalog`);
-    assert.equal(schema.properties?.[idProperty]?.type, "string", `${cardId} must publish '${idProperty}'`);
-    assert.ok(!(schema.required ?? []).includes(idProperty), `${cardId}: '${idProperty}' must stay optional, its absence means "list"`);
+    assert.equal(schema.properties?.id?.type, "string", `${cardId} must publish canonical id for ${idProperty}`);
+    assert.ok(!(schema.required ?? []).includes("id"), `${cardId}: '${idProperty}' must stay optional, its absence means "list"`);
   }
 });
+
+// These cases pin source contracts independently of the card declaration table. Removing the
+// canonical-to-source adapter must fail on the handler input, not merely on a schema snapshot.
+const GET_SELECTORS = [
+  ["comment", "comments_get_comment", "commentId"],
+  ["content_post", "content_post_get", "id", "content_post_list"],
+  ["member", "members_get_by_id", "memberId", "members_list"],
+  ["menu", "menus_get_menu", "menuId", "menus_list_menus"],
+  ["newsletter_campaign", "newsletter_get_campaign", "campaignId", "newsletter_list_campaigns"],
+  ["redirect", "redirects_get", "id", "redirects_list"],
+  ["seo_entry_meta", "seo_get_entry_meta", "entryId"],
+  ["site", "sites_get_site", "name", "sites_list"],
+  ["term", "taxonomy_get_term", "termId"],
+  ["widget_instance", "widgets_get_instance", "widgetInstanceId", "widgets_list_instances"],
+  ["widget_region", "widgets_get_region", "regionKey", "widgets_list_regions"],
+  ["workspace", "workspace_get", "workspaceId", "workspace_list"],
+] as const;
+
+for (const [resource, getId, selector, listId] of GET_SELECTORS) {
+  test(`${resource}: canonical/legacy selectors preserve the source ABI, dispatch and required context`, async () => {
+    const inputs: unknown[] = [];
+    const schema = { type: "object", additionalProperties: false, required: [selector, "context"], properties: {
+      [selector]: { type: "string", minLength: 1 }, context: { type: "string" },
+    } };
+    const originalSchema = structuredClone(schema);
+    const get = fakeRegistration(getId, async (ctx) => { inputs.push(ctx.input); return { found: resource }; }, schema);
+    const list = recordingList({ listed: resource });
+    const sources = [get];
+    if (listId) sources.push(fakeRegistration(listId, list.handler, { type: "object", required: ["context"], properties: { context: { type: "string" } } }));
+    const registration = card(sources, `content_read.${resource}`);
+    const projected = registration.descriptor.inputSchema as { required: string[]; properties: Record<string, unknown> };
+    assert.deepEqual(projected.properties.id, { type: "string", minLength: 1,
+      ...(listId ? { description: "Omit to list instead of fetching a single item." } : {}),
+    });
+    assert.equal(projected.required.includes("id"), !listId);
+    assert.ok(projected.required.includes("context"));
+    if (selector !== "id") assert.ok(!Object.hasOwn(projected.properties, selector));
+    for (const key of new Set(["id", selector])) {
+      const normalized = await normalizeToolInput({ input: { [key]: "natural-key", context: "ctx" }, registration });
+      assert.deepEqual(await registration.handler(executionContext(normalized.input)), { found: resource });
+    }
+    assert.deepEqual(inputs, Array.from(new Set(["id", selector]), () => ({ [selector]: "natural-key", context: "ctx" })));
+    assert.deepEqual(schema, originalSchema, "projection must not mutate a contributor's schema");
+    if (listId) {
+      assert.deepEqual(await registration.handler(executionContext({ context: "ctx" })), { listed: resource });
+      assert.deepEqual(list.inputs, [{ context: "ctx" }]);
+    }
+    if (selector !== "id") {
+      for (const value of ["natural-key", "other"]) await assert.rejects(
+        normalizeToolInput({ input: { id: "natural-key", [selector]: value }, registration }), /Conflicting inputs/,
+      );
+    }
+  });
+}
+
+const LOOKUP_SELECTORS = [
+  ["backup_restore_point", "backup_list_restore_points", "restorePointId", "items", "id"],
+  ["collection_content_type", "collections_content_type_list", "key", "contentTypes", "key"],
+  ["collection_entry", "collections_entry_list", "id", "items", "id"],
+  ["custom_credential", "custom_credential_list", "label", "credentials", "label"],
+  ["external_mcp", "external_mcp_list", "id", "servers", "serverId"],
+  ["form_definition", "forms_list_definitions", "formId", "definitions", "id"],
+  ["identity_policy", "identity_policy_list", "policyId", "policies", "id"],
+  ["identity_role", "identity_role_list", "roleId", "roles", "id"],
+  ["identity_user", "identity_user_list", "principalId", "users", "principalId"],
+  ["plugin", "plugins_list", "pluginId", "plugins", "id"],
+  ["taxonomy", "taxonomy_list", "taxonomyId", "items", "taxonomy"],
+  ["theme", "theme_list", "themeId", "themes", "id"],
+  ["theme_page_publication", "theme_list_page_publications", "page", "pages", "page"],
+  ["webhook_subscription", "webhooks_list_subscriptions", "subscriptionId", "subscriptions", "id"],
+] as const;
+
+for (const [resource, listId, selector, itemsKey, itemKey] of LOOKUP_SELECTORS) {
+  test(`${resource}: canonical/legacy lookup preserves natural keys, filters, misses and conflicts`, async () => {
+    const match = { [itemKey]: itemKey === "taxonomy" ? { id: "folder-or-label" } : "folder-or-label" };
+    const listed = { [itemsKey]: [match], ...(resource === "plugin" ? { agentPlugins: [] } : {}) };
+    const list = recordingList(listed);
+    const registration = card([fakeRegistration(listId, list.handler, {
+      type: "object", additionalProperties: false, required: [], properties: { filter: { type: "string" } },
+    })], `content_read.${resource}`);
+    for (const key of new Set(["id", selector])) {
+      const normalized = await normalizeToolInput({ input: { [key]: "folder-or-label", filter: "active" }, registration });
+      assert.deepEqual(await registration.handler(executionContext(normalized.input)), listed);
+      assert.deepEqual(list.inputs.at(-1), { filter: "active" });
+    }
+    const normalized = await normalizeToolInput({ input: { id: "missing" }, registration });
+    await assert.rejects(registration.handler(executionContext(normalized.input)), /was not found/);
+    if (selector !== "id") for (const value of ["folder-or-label", "other"]) await assert.rejects(
+      normalizeToolInput({ input: { id: "folder-or-label", [selector]: value }, registration }), /Conflicting inputs/,
+    );
+    assert.deepEqual(await registration.handler(executionContext({})), listed);
+  });
+}
+
+test("canonical truncated misses and permission refusals preserve the list owner's answer", async () => {
+  const list = recordingList({ users: [{ principalId: "p-1" }], truncated: true });
+  const user = card([fakeRegistration("identity_user_list", list.handler)], "content_read.identity_user");
+  await assert.rejects(user.handler(executionContext({ id: "p-999" })), /list is truncated, so it may still exist/);
+  const denied = await realThemeCard(false).handler(executionContext({})).then(() => undefined, (error: unknown) => error);
+  assert.ok(denied instanceof Error);
+  for (const input of [{}, { id: "hb" }, { themeId: "hb" }]) {
+    const normalized = await normalizeToolInput({ input, registration: realThemeCard(false) });
+    await assert.rejects(realThemeCard(false).handler(executionContext(normalized.input)), { message: denied.message });
+  }
+  const result = await realThemeCard(true).handler(executionContext({ id: "hb" })) as { themes: Array<{ id: string }> };
+  assert.deepEqual(result.themes.map((theme) => theme.id), ["hb"]);
+});
+
+test("batch canonical and legacy selectors reach the original gated get; missing ids never list", async () => {
+  const inputs: unknown[] = [];
+  const list = recordingList({ instances: [] });
+  const get = withBatchInput({ registration: fakeRegistration("widgets_get_instance", async (ctx) => {
+    const input = ctx.input as Record<string, unknown>;
+    requireWidgetSelector(input);
+    inputs.push(input);
+    return { instance: { id: input.widgetInstanceId } };
+  }, { type: "object", additionalProperties: false, required: ["widgetInstanceId"], properties: { widgetInstanceId: { type: "string" } } }), tool: { toolId: "widgets_get_instance", maxItems: 3 } });
+  const registration = card([get, fakeRegistration("widgets_list_instances", list.handler)], "content_read.widget_instance");
+  const registry = createToolRegistry({});
+  registry.register(registration);
+  const executor = createToolExecutor({ registry });
+  const execute = (input: unknown) => executor.execute({ principal: { id: "owner" }, run: { id: "batch-card" }, toolId: registration.descriptor.id, input });
+  const input = { items: [{ id: "w-1" }, { widgetInstanceId: "w-2" }, {}] };
+  const result = await execute(input);
+  assert.equal(result.status, "completed");
+  const output = result.output as { batch: boolean; results: Array<{ ok: boolean; result?: unknown }> };
+  assert.equal(output.batch, true);
+  assert.deepEqual(output.results.map((item) => item.ok), [true, true, false]);
+  assert.deepEqual(output.results.slice(0, 2).map((item) => item.result), [{ instance: { id: "w-1" } }, { instance: { id: "w-2" } }]);
+  assert.deepEqual(inputs, [{ widgetInstanceId: "w-1" }, { widgetInstanceId: "w-2" }]);
+  assert.deepEqual(list.inputs, []);
+  assert.deepEqual(input, { items: [{ id: "w-1" }, { widgetInstanceId: "w-2" }, {}] });
+  const conflict = await execute({ items: [{ id: "w-3" }, { id: "private", widgetInstanceId: "different" }] });
+  assert.equal(conflict.status, "failed");
+  assert.equal(conflict.errorKind, "validation");
+  assert.ok(!conflict.error?.includes("private"));
+  assert.equal(inputs.length, 2, "conflicting batch spellings must fail before any read");
+  const capped = await execute({ items: [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }] });
+  assert.equal(capped.status, "failed");
+  assert.equal(inputs.length, 2);
+  const shorthand = await execute({ items: { id: "w-4" } });
+  assert.equal(shorthand.status, "completed");
+  assert.deepEqual(inputs.at(-1), { widgetInstanceId: "w-4" });
+  const shared = await execute({ id: "default", items: [{ widgetInstanceId: "override" }] });
+  assert.equal(shared.status, "completed");
+  assert.deepEqual(inputs.at(-1), { widgetInstanceId: "override" });
+});
+
+/** The fake source enforces its own ABI, so a bypass or wrong mapping cannot pass. */
+function requireWidgetSelector(input: Record<string, unknown>): void {
+  if (typeof input.widgetInstanceId !== "string") throw new ToolInputError({ message: "widgetInstanceId required" });
+}

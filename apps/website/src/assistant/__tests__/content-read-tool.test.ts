@@ -132,51 +132,57 @@ test("the real composition publishes exactly the 32 content_read cards", () => {
   assert.deepEqual(cards, [...EXPECTED_CARD_IDS].sort());
 });
 
-test("content_read.menu declares optional menuId and explicitly names it in both model-visible descriptions", () => {
+test("content_read.menu publishes optional canonical id and documents its legacy selector", () => {
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
   const schema = menu.descriptor.inputSchema as { required: string[]; properties: Record<string, { description?: string }> };
-  const guidance = "menuId: the menu's id (use this name, not 'id').";
-  assert.ok(Object.hasOwn(schema.properties, "menuId"));
-  assert.ok(!Object.hasOwn(schema.properties, "id"));
-  assert.ok(!schema.required.includes("menuId"));
-  assert.ok(schema.properties.menuId?.description?.startsWith(guidance));
-  assert.match(schema.properties.menuId?.description ?? "", /Omit to list instead of fetching a single item\.$/);
-  assert.ok(menu.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes(guidance));
+  assert.ok(Object.hasOwn(schema.properties, "id"));
+  assert.ok(!Object.hasOwn(schema.properties, "menuId"));
+  assert.ok(!schema.required.includes("id"));
+  assert.match(schema.properties.id?.description ?? "", /Omit to list instead of fetching a single item\.$/);
+  assert.ok(menu.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes("legacy 'menuId' (accepted for 90 days from release)"));
 });
 
-test("content_read.menu refuses id through the execution gate with a menuId correction before any read", async () => {
+test("the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading", async () => {
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
-  let handlerCalled = false;
+  const inputs: unknown[] = [];
   const registry = createToolRegistry({});
-  registry.register({ ...menu, handler: async () => { handlerCalled = true; throw new Error("invalid input reached a read handler"); } });
+  registry.register({ ...menu, handler: async (ctx) => { inputs.push(ctx.input); return { menu: { id: "m-1" } }; } });
   const executor = createToolExecutor({ registry });
-  const result = await executor.execute({
-    principal: { id: "owner" }, run: { id: "menu-input-regression" }, toolId: "content_read.menu",
-    input: { id: "58371ca4-private-menu-value" },
+  const execute = (input: unknown) => executor.execute({
+    principal: { id: "owner" }, run: { id: "menu-input-regression" }, toolId: "content_read.menu", input,
   });
-  assert.equal(result.status, "failed");
-  assert.equal(result.errorKind, "validation");
-  assert.equal(result.error, "Unknown input 'id'. Declared inputs: menuId (optional). Did you mean 'menuId'? Resend with the declared name.");
-  assert.equal(handlerCalled, false);
+  for (const input of [{ id: "m-1" }, { menuId: "m-1" }]) {
+    const result = await execute(input);
+    assert.equal(result.status, "completed");
+  }
+  assert.deepEqual(inputs, [{ id: "m-1" }, { id: "m-1" }]);
+  for (const menuId of ["m-1", "m-2"]) {
+    const result = await execute({ id: "m-1", menuId });
+    assert.equal(result.status, "failed");
+    assert.equal(result.errorKind, "validation");
+    assert.match(result.error ?? "", /Conflicting inputs 'menuId' and 'id'/);
+  }
+  assert.equal(inputs.length, 2);
 });
 
-test("id-name guidance is shared by get-only and list-lookup cards while canonical id cards retain their prose", () => {
+test("canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards", () => {
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   for (const [resource, idProperty] of [["comment", "commentId"], ["theme", "themeId"]]) {
     const registration = registrations.find((entry) => entry.descriptor.id === `content_read.${resource}`);
     assert.ok(registration);
-    const schema = registration.descriptor.inputSchema as { properties: Record<string, { description?: string }> };
-    const guidance = `${idProperty}: the ${resource}'s id (use this name, not 'id').`;
-    assert.ok(schema.properties[idProperty]?.description?.startsWith(guidance));
-    assert.ok(registration.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes(guidance));
+    const schema = registration.descriptor.inputSchema as { required: string[]; properties: Record<string, { description?: string }> };
+    assert.ok(schema.properties.id);
+    assert.ok(!schema.properties[idProperty]);
+    assert.ok(registration.descriptor.description?.split(KEYWORD_MARKER)[0]?.includes(`legacy '${idProperty}'`));
+    assert.ok(!registration.descriptor.description?.includes("use this name, not 'id'"));
   }
   const redirect = registrations.find((entry) => entry.descriptor.id === "content_read.redirect");
   assert.ok(redirect);
-  assert.ok(!redirect.descriptor.description?.includes("use this name, not 'id'"));
+  assert.ok(!redirect.descriptor.description?.includes("legacy 'id'"));
 });
 
 test("not one of the 41 retired Tier-1 read ids survives into the collapsed catalog", () => {

@@ -1,5 +1,5 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/content-read.js';
-import { buildDomainRegistrations, isRecord, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, isRecord, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolInputNormalizer, type NormalizedToolInput, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";
 
@@ -22,6 +22,7 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  *
  * The literal card table pins resource grouping independently of evaluation changes. Paired get/list
  * tools share a card; idProperty comes from each source schema and is not universally "id".
+ * Cards publish canonical `id`; the factory translates it back to that source selector.
  * newsletter_list is intentional: newsletter_list_lists lists mailing lists, so "newsletter list"
  * is the resource noun and does not collide with newsletter_campaign.
  *
@@ -49,7 +50,7 @@ interface ContentReadCard {
   readonly listLookup?: ListLookup;
 }
 
-/** Where the id lives in a list result. `idProperty` is the caller-facing parameter, named the way
+/** Where the id lives in a list result. `idProperty` is the source selector (and legacy ingress alias), named the way
  *  the resource's own write tools address it (`themeId`, `formId`, `label`, ...). Each source is one
  *  array in the list result and the path to an item's id inside it (most are `["id"]`; taxonomy rows
  *  are `{ taxonomy, terms }`; plugins_list carries two families with different id fields). */
@@ -112,7 +113,8 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   { resource: "redirect", permission: "admin.redirects.manage", get: { toolId: "redirects_get", idProperty: "id" }, list: { toolId: "redirects_list" } },
   // Get-only, single member: `seo_get_entry_meta` has no `_list` counterpart in Tier 1 (per-entry
   // SEO meta is not a collection with its own listing tool), so this card always calls `get` — its
-  // own inputSchema already requires `entryId`, so no dispatch wrapper is needed or used.
+  // own inputSchema already requires `entryId`, so no get/list dispatch wrapper is needed or used.
+  // The shared card adapter still translates canonical `id` to that source selector.
   { resource: "seo_entry_meta", permission: "admin.seo.manage", get: { toolId: "seo_get_entry_meta", idProperty: "entryId" } },
   { resource: "setting_definition", permission: "settings.read.definitions", list: { toolId: "settings_list_definitions" } },
   { resource: "site", permission: "system.read", get: { toolId: "sites_get_site", idProperty: "name" }, list: { toolId: "sites_list" } },
@@ -353,7 +355,7 @@ function lookupInList(required: { resource: string; listToolId: string; lookup: 
       message:
         listed.value.truncated === true
           ? `${resource} '${id}' was not found among the listed items, but ${cardId}'s list is truncated, so it may still exist`
-          : `${resource} '${id}' was not found — call ${cardId} without ${lookup.idProperty} to list valid ids`,
+          : `${resource} '${id}' was not found — call ${cardId} without id to list valid ids`,
     });
   };
 }
@@ -410,7 +412,9 @@ function cardDescription(
 }
 
 /** Put the exact id parameter name in both model-visible surfaces so generic "id" prose cannot
- * obscure it. Copies only the id property's description; validation and dispatch stay unchanged.
+ * obscure it. The card publishes `id`; the source selector remains an ingress alias for 90 days
+ * from release. Natural keys (labels, folder names, page names) keep their source meaning.
+ * Copies only selector schema keys and descriptions; validation and dispatch stay with their owners.
  * @complexity O(p) time and space for p schema properties; no I/O or input mutation.
  */
 function describeCardIdInput(
@@ -419,17 +423,74 @@ function describeCardIdInput(
 ): { inputSchema: Readonly<Record<string, unknown>>; idDescription: string } {
   const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
   if (!idProperty || idProperty === "id") return { inputSchema, idDescription: "" };
-  const idDescription = `${idProperty}: the ${card.resource.replace(/_/g, " ")}'s id (use this name, not 'id').`;
+  const idDescription = `id: the ${card.resource.replace(/_/g, " ")}'s selector, using the same value as legacy '${idProperty}' (accepted for 90 days from release).`;
+  return { inputSchema: canonicalCardSchema({ inputSchema, idProperty }), idDescription };
+}
+
+/** Project the source selector to `id`, including a source-owned batch's item schema.
+ * Other filters, required context and natural-key constraints are preserved verbatim.
+ * @complexity O(p) time/space in the single and batch-item properties; no effects.
+ */
+function canonicalCardSchema(
+  { inputSchema, idProperty }: { inputSchema: Readonly<Record<string, unknown>>; idProperty: string },
+  _options = {},
+): Readonly<Record<string, unknown>> {
   const properties = (inputSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
-  const idSchema = properties[idProperty] as Readonly<Record<string, unknown>> | undefined;
-  if (!idSchema) return { inputSchema, idDescription };
-  return {
-    idDescription,
-    inputSchema: { ...inputSchema, properties: { ...properties, [idProperty]: {
-      ...idSchema,
-      description: `${idDescription} ${(idSchema.description as string | undefined) ?? ""}`.trim(),
-    } } },
+  const projected = Object.fromEntries(Object.entries(properties).map(([key, value]) => [key === idProperty ? "id" : key, value]));
+  const batch = properties.items as Readonly<Record<string, unknown>> | undefined;
+  if (batch?.items) projected.items = { ...batch, items: canonicalCardSchema({ inputSchema: batch.items as Readonly<Record<string, unknown>>, idProperty }) };
+  return { ...inputSchema, properties: projected,
+    required: ((inputSchema.required as readonly string[] | undefined) ?? []).map((key) => key === idProperty ? "id" : key),
   };
+}
+
+/** Rename one selector without mutating caller input or exposing values in errors/notes.
+ * @throws ToolInputError for conflicting spellings, even when their values are equal.
+ * @complexity O(k) time/space for k input keys; no I/O.
+ */
+function renameCardSelector(
+  { input, from, to }: { input: unknown; from: string; to: string }, _options = {},
+): NormalizedToolInput {
+  const candidate = { value: input };
+  if (!isRecord(candidate) || !Object.hasOwn(candidate.value, from)) return { input, notes: [] };
+  if (Object.hasOwn(candidate.value, to)) throw new ToolInputError({ message: `Conflicting inputs '${from}' and '${to}' both name '${to}'. Send only '${to}'.` });
+  const { [from]: selector, ...rest } = candidate.value;
+  return { input: { ...rest, [to]: selector }, notes: [`${from}→${to}`] };
+}
+
+/** Translate only the target selector at the root and in source-owned batch items.
+ * Batch execution, limits, per-item authorization and result envelopes remain with Jini.
+ * @throws ToolInputError if any single item contains both spellings, before a read begins.
+ * @complexity O(k) time/space in root and batch-item keys; no per-item I/O.
+ */
+function mapCardSelectors(
+  { input, from, to }: { input: unknown; from: string; to: string }, _options = {},
+): NormalizedToolInput {
+  const renamed = renameCardSelector({ input, from, to });
+  const candidate = { value: renamed.input };
+  if (!isRecord(candidate) || !Array.isArray(candidate.value.items)) return renamed;
+  const notes = [...renamed.notes];
+  const items = candidate.value.items.map((item, index) => {
+    const result = renameCardSelector({ input: item, from, to });
+    notes.push(...result.notes.map((note) => `items[${index}].${note}`));
+    return result.input;
+  });
+  return { input: { ...candidate.value, items }, notes };
+}
+
+/** Adapt canonical card input back to the original handler ABI; aliases belong to the gate hook.
+ * The direct handler also refuses collisions for callers that already own their execution gate.
+ * @complexity O(k) time/space in supplied keys, plus the unchanged source handler cost.
+ */
+function canonicalCardDispatch(
+  { card, byId }: { card: ContentReadCard; byId: ReadonlyMap<string, ToolRegistration> }, _options = {},
+) {
+  const dispatch = cardDispatch({ card, byId });
+  const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
+  if (!idProperty || idProperty === "id") return { ...dispatch, normalizeInput: undefined };
+  const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => mapCardSelectors({ input, from: idProperty, to: "id" });
+  const handler: ToolHandler = (ctx, options) => dispatch.handler({ ...ctx, input: mapCardSelectors({ input: ctx.input, from: "id", to: idProperty }).input }, options);
+  return { ...dispatch, handler, normalizeInput };
 }
 
 /**
@@ -503,13 +564,14 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
   const retiredIds = new Set<string>();
   const catalog = new Map<string, AgentToolDefinition>();
   const handlers: Record<string, ToolHandler> = {};
+  const inputNormalizers: Record<string, ToolInputNormalizer> = {};
   const derivedRisk = new Map<string, AgentToolSideEffect>();
 
   for (const card of CONTENT_READ_CARDS) {
     if (!cardIsAvailable(byId, card)) continue;
 
     const id = contentReadToolId(card.resource);
-    const { memberIds, handler, inputSchema } = cardDispatch({ card, byId });
+    const { memberIds, handler, inputSchema, normalizeInput } = canonicalCardDispatch({ card, byId });
 
     for (const memberId of memberIds) retiredIds.add(memberId);
 
@@ -526,6 +588,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       inputSchema: described.inputSchema,
     });
     handlers[id] = handler;
+    if (normalizeInput) inputNormalizers[id] = normalizeInput;
     derivedRisk.set(id, "none");
   }
 
@@ -534,6 +597,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     catalogModule: "assistant/content-read-tool.ts",
     catalog,
     handlers,
+    inputNormalizers,
     derivedRisk: derivedRisk as DerivedRiskByToolId,
   });
 
