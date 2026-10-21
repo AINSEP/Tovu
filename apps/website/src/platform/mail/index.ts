@@ -12,6 +12,10 @@ export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort } from "./
 export type { MailAdapterCreateContext, MailAdapterCredential, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
 export { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "./delivery-availability.js";
 export {
+  createMailSenderIdentityResolver, mailSenderIdentityFor, SenderIdentityNotConfiguredError,
+  type ConfiguredMailSender, type CreateMailSenderIdentityResolverOptional, type MailSenderIdentityPort,
+} from "./sender-identity.js";
+export {
   createNodemailerSmtpTransport, SmtpMailerAdapter,
   type CreateNodemailerSmtpTransportConfig, type SmtpMailerAdapterDeps,
   type SmtpMailPayload, type SmtpTransport,

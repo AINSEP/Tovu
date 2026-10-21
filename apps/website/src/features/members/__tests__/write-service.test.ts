@@ -9,6 +9,7 @@ import type {
   MailerSendResult,
   OutboundEmail,
 } from "#src/platform/mail/index";
+import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import {
@@ -786,4 +787,57 @@ test("L298 completeSignIn accepts an email_change-purpose token (reported, not f
   const result = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } });
   assert.equal(result.member.status, "active");
   assert.ok(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }));
+});
+
+// ---- sender identity (platform/mail/sender-identity.ts) ----
+
+/** `makeMailer`'s fake reporting a delivering driver, as a real provider would. */
+function makeDeliveringMailer() {
+  const made = makeMailer();
+  const capabilities = made.mailer.capabilities();
+  made.mailer.capabilities = () => ({ ...capabilities, driver: "smtp" });
+  return made;
+}
+
+test("requestSignInLink sends from the site's configured sender through the composed resolver", async () => {
+  const { mailer, sent } = makeDeliveringMailer();
+  const senderIdentity = createMailSenderIdentityResolver({ mailer }, { readConfiguredSender: async () => ({ email: "hello@example.com", name: "Example Site" }) });
+  const { deps } = makeDeps({ mailer, senderIdentity });
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "sender@example.com" } });
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0]!.message.from, { email: "hello@example.com", name: "Example Site" });
+});
+
+test("requestSignInLink keeps the no-reply@members.local placeholder while the mailer is non-delivering", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "local@example.com" } });
+  assert.deepEqual(sent[0]!.message.from, { email: "no-reply@members.local", name: "Members" });
+});
+
+test("requestSignInLink on a delivering mailer with no sender refuses before writing a member or a token", async () => {
+  const { mailer, sent } = makeDeliveringMailer();
+  const { deps } = makeDeps({ mailer });
+  let tokensSaved = 0;
+  const saveToken = deps.magicLinks.save.bind(deps.magicLinks);
+  deps.magicLinks.save = async (record) => { tokensSaved += 1; return saveToken(record); };
+  await assert.rejects(
+    requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "nobody@example.com" } }),
+    (error: unknown) => error instanceof SenderIdentityNotConfiguredError && error.code === "mail_sender_not_configured"
+  );
+  assert.equal(await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "nobody@example.com" }), null, "no pending member is pre-created");
+  assert.equal(tokensSaved, 0, "no token is minted for a link that cannot be sent");
+  assert.equal(sent.length, 0);
+});
+
+test("requestSignInLink's missing-sender refusal is the same for a disabled member (anti-enumeration)", async () => {
+  const { mailer } = makeDeliveringMailer();
+  const { deps } = makeDeps({ mailer });
+  await deps.members.save({
+    id: "member-disabled", workspaceId: WORKSPACE_ID, email: "disabled@example.com", status: "disabled",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1,
+  });
+  await assert.rejects(
+    requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "disabled@example.com" } }),
+    SenderIdentityNotConfiguredError
+  );
 });

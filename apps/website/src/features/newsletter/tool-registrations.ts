@@ -12,7 +12,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../platform/mail/index.js";
+import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ToolContributor } from "#src/assistant/index";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -92,6 +92,8 @@ export interface NewsletterToolDeps {
   membersConsentCapability: MembersConsentCapability | null;
   /** Optional binding to the launch setting; absent preserves the existing fail-closed default. */
   newsletterSendingEnabled?: (workspaceId: string) => Promise<boolean>;
+  /** The site's system-email From resolver — see `ConfirmationDeps.senderIdentity`. */
+  mailSenderIdentity?: MailSenderIdentityPort;
 }
 
 /**
@@ -125,6 +127,7 @@ function toConfirmationDeps(deps: NewsletterToolDeps): ConfirmationDeps {
     originRegistry: deps.originRegistry,
     clock: deps.clock,
     ids: deps.idGen,
+    senderIdentity: deps.mailSenderIdentity,
   };
 }
 

@@ -51,7 +51,7 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "../../features/members/index.js";
-import type { MailerPort } from "../../platform/mail/index.js";
+import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
 import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
@@ -636,6 +636,9 @@ export interface MembersDeps {
   /** Refreshes and settles lazy mail configuration without sending; keeps tool responses
    * independent of whether a member is disabled and therefore skips send(). */
   settleMailer?: () => Promise<void>;
+  /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
+   *  sign-in links, newsletter confirmations and form notifications. */
+  mailSenderIdentity?: MailSenderIdentityPort;
 }
 
 /**

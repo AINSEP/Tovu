@@ -17,7 +17,7 @@
  */
 import { registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { EventBusPort } from "@jini-ai/cms/core";
-import type { MailerPort } from "#src/platform/mail/index";
+import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {
@@ -25,7 +25,13 @@ export interface FormsModuleDeps {
   mailer: MailerPort;
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
+  /** Resolves each notification's From (`platform/mail/sender-identity.ts`); absent, the placeholder
+   *  is used only while `mailer` is non-delivering. */
+  senderIdentity?: MailSenderIdentityPort;
 }
+
+/** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
+const FORMS_FALLBACK_SENDER = { email: "no-reply@forms.local", name: "Forms" } as const;
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — the `forms` module: owns starting the C-009 notify
@@ -38,11 +44,20 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
   return {
     name: "forms",
     start: () => {
+      const senderIdentity = mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity });
       void registerFormNotifySubscriber({
         ...deps,
-        sender: { email: "no-reply@forms.local", name: "Forms" },
+        // The Jini subscriber takes one fixed sender, but the From is per workspace and read fresh
+        // per send, so the mailer seam below replaces it. A `SenderIdentityNotConfiguredError` thrown
+        // there is logged by the subscriber as a failed send, like any other send failure.
+        sender: FORMS_FALLBACK_SENDER,
         logger: { warn: ({ message }, { error } = {}) => console.warn(message, ...(error === undefined ? [] : [error])) },
-        mailer: { send: ({ message, options }) => deps.mailer.send(message, options) },
+        mailer: {
+          send: async ({ message, options }) => {
+            const from = await senderIdentity.resolve({ workspaceId: message.workspaceId, fallback: FORMS_FALLBACK_SENDER });
+            return deps.mailer.send({ ...message, from }, options);
+          },
+        },
       }, {});
     },
   };

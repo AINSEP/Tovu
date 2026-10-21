@@ -26,6 +26,7 @@ import type {
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 
 /**
@@ -50,6 +51,8 @@ export interface MemberPublicRouteDeps {
   principalRepo: Pick<PrincipalRepoPort, "save">;
   /** ADR-040 canonical-origin registry — optional, see `MembersWriteServiceDeps.origin`'s doc. */
   origin?: OriginRegistryPort;
+  /** The site's system-email From resolver — see `MembersWriteServiceDeps.senderIdentity`. */
+  mailSenderIdentity?: MailSenderIdentityPort;
   magicLinkPerEmailLimiter: RateLimiter;
   magicLinkPerIpLimiter: RateLimiter;
   magicLinkCompleteAttemptLimiter: RateLimiter;
@@ -68,5 +71,6 @@ export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps): Me
     mailer: deps.mailer,
     principals: deps.principalRepo,
     origin: deps.origin,
+    senderIdentity: deps.mailSenderIdentity,
   };
 }

@@ -10,7 +10,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import type { MailerPort } from "../../platform/mail/index.js";
+import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import { NewsletterConfirmTokenInvalidError } from "./errors.js";
@@ -33,7 +33,13 @@ export interface ConfirmationDeps {
   originRegistry: OriginRegistryPort;
   clock: { nowIso(): string };
   ids: { newId(): string };
+  /** Resolves the confirmation email's From (`platform/mail/sender-identity.ts`); absent, the
+   *  `no-reply@newsletter.local` placeholder is used only while `mailer` is non-delivering. */
+  senderIdentity?: MailSenderIdentityPort;
 }
+
+/** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
+const NEWSLETTER_FALLBACK_SENDER = { email: "no-reply@newsletter.local", name: "Newsletter" } as const;
 
 const hashToken = (raw: string): string => createHash("sha256").update(raw).digest("hex");
 
@@ -49,6 +55,9 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
  * Mint a new confirmation token, invalidating every prior unconsumed token for this subscription
  * first ("newest wins" — behavior.spec.md §2.1), then send the confirm email. Does NOT change
  * `SubscriptionRow.status` (stays `pending` until `consumeConfirmationToken` succeeds).
+ *
+ * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
+ *   sender configured — before any token is written.
  */
 export async function issueConfirmationToken(required: {
   deps: ConfirmationDeps;
@@ -56,6 +65,10 @@ export async function issueConfirmationToken(required: {
 }): Promise<{ tokenId: UUID; expiresAt: string }> {
   const { deps, input } = required;
   const now = deps.clock.nowIso();
+  // Resolved first: a missing sender refuses before any prior token is superseded, so the
+  // subscriber's last working link survives a send that could never have gone out.
+  const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
+    .resolve({ workspaceId: input.workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER });
 
   // "Newest wins": mark every prior unconsumed token superseded (consumed) before minting the new one.
   const prior = await deps.tokenRepo.findUnconsumedBySubscription({
@@ -90,7 +103,7 @@ export async function issueConfirmationToken(required: {
     {
       workspaceId: input.workspaceId,
       to: { email: input.recipientEmail },
-      from: { email: "no-reply@newsletter.local", name: "Newsletter" },
+      from,
       subject: "Confirm your subscription",
       text: `Please confirm your subscription: ${confirmUrl}`,
       html: `<p>Please confirm your subscription: <a href="${confirmUrl}">${confirmUrl}</a></p>`,
@@ -99,6 +112,11 @@ export async function issueConfirmationToken(required: {
       idempotencyKey: `newsletter:confirm-email:${tokenId}`,
       workspaceId: input.workspaceId,
       sourceContext: { module: "newsletter", ref: tokenId },
+      // A double-opt-in confirmation is transactional mail the subscriber is waiting on right
+      // now, sent synchronously like the members sign-in link — the interactive lane, not the
+      // background-notification lane (SPEC-022 REQ-09; `members/write-service.ts`).
+      purpose: "transactional",
+      lane: "interactive",
     }
   );
 

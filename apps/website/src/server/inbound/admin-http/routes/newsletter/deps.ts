@@ -93,6 +93,7 @@ export function toConfirmationDeps(deps: NewsletterRouteDeps): ConfirmationDeps 
     originRegistry: deps.originRegistry,
     clock: deps.clock,
     ids: deps.idGen,
+    senderIdentity: deps.mailSenderIdentity,
   };
 }
 

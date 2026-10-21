@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError, type MailerPort, type MailerSendOptions, type OutboundEmail } from "#src/platform/mail/index";
 import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
 import { NewsletterConfirmTokenInvalidError } from "../errors.js";
 import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
@@ -307,3 +308,57 @@ async function issueRawToken(deps: ConfirmationDeps, captureUrl?: (url: URL) => 
   assert.ok(token);
   return token;
 }
+
+// ---- sender identity and send lane ----
+
+/** A fake that records the full message and options, reporting the given driver. */
+function makeRecordingMailer(driver: string): { mailer: MailerPort; sends: { message: OutboundEmail; options: MailerSendOptions }[] } {
+  const sends: { message: OutboundEmail; options: MailerSendOptions }[] = [];
+  const mailer: MailerPort = {
+    capabilities: () => ({ driver, supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
+    send: async (message, options) => { sends.push({ message, options }); return { ok: true, providerMessageId: "m1", acceptedAt: now }; },
+    sendBatch: async () => [],
+  };
+  return { mailer, sends };
+}
+
+test("issueConfirmationToken sends as transactional mail on the interactive lane", async () => {
+  const { mailer, sends } = makeRecordingMailer("console");
+  const { deps } = makeDeps(null);
+  await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  assert.equal(sends.length, 1);
+  assert.equal(sends[0]!.options.purpose, "transactional");
+  assert.equal(sends[0]!.options.lane, "interactive");
+});
+
+test("issueConfirmationToken keeps the no-reply@newsletter.local placeholder while the mailer is non-delivering", async () => {
+  const { mailer, sends } = makeRecordingMailer("console");
+  const { deps } = makeDeps(null);
+  await issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  assert.deepEqual(sends[0]!.message.from, { email: "no-reply@newsletter.local", name: "Newsletter" });
+});
+
+test("issueConfirmationToken sends from the site's configured sender through the composed resolver", async () => {
+  const { mailer, sends } = makeRecordingMailer("smtp");
+  const senderIdentity = createMailSenderIdentityResolver({ mailer }, {
+    readConfiguredSender: async ({ workspaceId }) => (workspaceId === WS ? { email: "news@example.com" } : null),
+  });
+  const { deps } = makeDeps(null);
+  await issueConfirmationToken({ deps: { ...deps, mailer, senderIdentity }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  assert.deepEqual(sends[0]!.message.from, { email: "news@example.com", name: "Newsletter" });
+});
+
+test("issueConfirmationToken on a delivering mailer with no sender refuses before superseding the prior token", async () => {
+  const { deps } = makeDeps(null);
+  await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } });
+  const [prior] = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+  assert.ok(prior);
+  const { mailer, sends } = makeRecordingMailer("smtp");
+  await assert.rejects(
+    issueConfirmationToken({ deps: { ...deps, mailer }, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@b.test" } }),
+    (error: unknown) => error instanceof SenderIdentityNotConfiguredError && error.code === "mail_sender_not_configured"
+  );
+  assert.equal(sends.length, 0);
+  const unconsumed = await deps.tokenRepo.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" });
+  assert.deepEqual(unconsumed.map((token) => token.id), [prior.id], "the subscriber's last working link survives");
+});

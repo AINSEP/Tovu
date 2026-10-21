@@ -168,6 +168,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     newsletterConfirmationTokenRepo,
     newsletterSubscriberDirectory,
     mailer,
+    // The fake reports no non-delivering driver, so a send needs the site's configured sender.
+    mailSenderIdentity: { resolve: async () => ({ email: "hello@example.test", name: "Example Site" }) },
     membersConsentCapability: null,
     originRegistry,
   };
@@ -475,8 +477,9 @@ test("newsletter_resend_confirmation: sends the confirmation link, preserving th
   // newsletter_resend_confirmation catalog description in features/newsletter/agent-tools.ts.
   assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
   assert.equal(sentMail.length, 1);
-  const message = sentMail[0] as { to: { email: string }; html: string; text: string };
+  const message = sentMail[0] as { to: { email: string }; from: unknown; html: string; text: string };
   assert.equal(message.to.email, "subscriber1@example.test");
+  assert.deepEqual(message.from, { email: "hello@example.test", name: "Example Site" }, "the tool path must send from the site's configured sender");
   const link = message.html.match(/href="(https:\/\/example.test\/newsletter\/confirm\?token=[a-f0-9]{64})"/);
   assert.ok(link);
   assert.ok(message.text.includes(link[1]));

@@ -22,7 +22,7 @@
  * Interfaces and types only — no feature logic.
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
-import type { MailerPort } from "../../platform/mail/index.js";
+import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
@@ -214,6 +214,13 @@ export interface MembersWriteServiceDeps {
    * an absolute magic-link URL instead of today's relative path.
    */
   origin?: OriginRegistryPort;
+  /**
+   * Resolves the sign-in email's From (`platform/mail/sender-identity.ts`). Optional so hermetic
+   * compositions keep working: absent, the `no-reply@members.local` placeholder is used only while
+   * `mailer` is a non-delivering one, and a delivering mailer refuses with
+   * `SenderIdentityNotConfiguredError`.
+   */
+  senderIdentity?: MailSenderIdentityPort;
 }
 
 export interface MembersWriteService {

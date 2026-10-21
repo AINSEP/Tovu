@@ -32,7 +32,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  */
 import { createHash, randomBytes } from "node:crypto";
 
-import type { MailerSendOptions, OutboundEmail } from "../../platform/mail/index.js";
+import { mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
 import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
 import {
   MemberAuthError,
@@ -49,6 +49,9 @@ import type { MembersWriteService, MembersWriteServiceDeps } from "./ports.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
+/** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
+const MEMBERS_FALLBACK_SENDER = { email: "no-reply@members.local", name: "Members" } as const;
+
 /**
  * No session lifetime is specified by ADR-030; 30 days is a reasonable default
  * "remember me" duration for a passwordless member portal (Ghost's own default is
@@ -200,6 +203,8 @@ async function resolveSignInLinkPath(required: {
  * mitigation ADR-030 OQ-8 flags as a launch-gate precondition; a distinguishable
  * response (error vs success) would let a caller probe which emails exist.
  *
+ * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
+ *   sender configured — for every address alike, before any member or token is written.
  * @complexity O(1) — single member lookup/create + one token write + one mail send.
  * @overallScore 100
  */
@@ -210,6 +215,11 @@ async function requestSignInLink(required: {
   const { deps, input } = required;
   const email = assertValidEmail(input.email);
   const nowIso = clockNowIso({ clock: deps.clock });
+  // Resolved before the member lookup: a missing sender must fail the same way for every address,
+  // so the error itself never tells a caller which emails are registered (see doc above), and no
+  // token is minted for a link that could not be sent.
+  const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
+    .resolve({ workspaceId: input.workspaceId, fallback: MEMBERS_FALLBACK_SENDER });
 
   const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso });
   if (!member) {
@@ -247,7 +257,7 @@ async function requestSignInLink(required: {
   const message: OutboundEmail = {
     workspaceId: input.workspaceId,
     to: { email },
-    from: { email: "no-reply@members.local", name: "Members" },
+    from,
     subject: "Your sign-in link",
     text: `Sign in using this link (expires in 15 minutes): ${linkPath}`,
   };
