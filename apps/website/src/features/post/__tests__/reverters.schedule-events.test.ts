@@ -90,3 +90,15 @@ test("an undo whose event enqueue fails rolls the restore back", async () => {
   await assert.rejects(undo({ repo, outbox, nowIso: LATER, item: { operation: "delete", inversePayload: { deletedAt: null } } }), /outbox unavailable/);
   assert.equal((await repo.findById({ workspaceId: WS, id: "p1" }))?.deletedAt, SAVED, "still in the Trash");
 });
+
+test("both reverters' currentActor: the actor of the current revision, else null (missing row or ledger)", async () => {
+  const repo = new InMemoryPostRepo([row()]);
+  const reverters = createPostRevertRegistry({ postRepo: repo, clock: { nowMs: () => Date.parse(SAVED) }, outbox: recordingOutbox(), forgetRemoved: async () => {} });
+  const update = reverters.resolve("post", "update")!;
+  const remove = reverters.resolve("post", "delete")!;
+  assert.equal(await update.currentActor!({ workspaceId: WS, entityId: "p1" }), null, "no ledger row at the current version");
+  await repo.appendRevision({ postId: "p1", workspaceId: WS, seq: 2, op: "update", stateJson: row(), actorId: "editor-1", recordedAt: SAVED });
+  assert.equal(await update.currentActor!({ workspaceId: WS, entityId: "p1" }), "editor-1");
+  assert.equal(await remove.currentActor!({ workspaceId: WS, entityId: "p1" }), "editor-1");
+  assert.equal(await remove.currentActor!({ workspaceId: WS, entityId: "missing" }), null);
+});
