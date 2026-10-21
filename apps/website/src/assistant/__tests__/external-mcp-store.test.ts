@@ -1518,6 +1518,7 @@ for (const [label, input, field] of [
   ["a whitespace-only environment block", validInput({ env: "   " }), "env"],
   ["an environment line whose value exceeds the token limit", validInput({ env: `GITHUB_TOKEN=${"x".repeat(8193)}` }), "env"],
   ["a JSON environment block that is not valid JSON", validInput({ env: "{ not json" }), "env"],
+  ["an over-long OAuth client secret", oauthHttpInput({ clientSecret: "s".repeat(8193) }), "oauth.clientSecret"],
   ["a stdio access token with an invalid env var name", validInput({ authMode: "static_env", env: "",
     accessToken: ["tok", "en", "-value"].join(""), accessTokenEnvName: "1BAD" } as never), "accessTokenEnvName"],
 ] as const) {
