@@ -184,3 +184,76 @@ test("deskfx S2: removing the only extra restores a previously absent shared con
   folders.remove({ root: extra }); assert.equal(fs.existsSync(file), false);
   assert.deepEqual(folders.read({}).extraRoots, []); assert.ok(folders.read({}).roots.includes(root));
 });
+
+test("shared settings: the one-time import also adopts the parent folders of sites this app created", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, root, statePath } = fixture(t);
+  const options = { homeDir: dir, cwd: dir, env: {}, platform: "linux" as const, sourceRoots: [] };
+  const workspace = createSitesWorkspace({}, options);
+  createSiteFolders({ statePath, defaultRoots: [], workspace, createdSiteDirs: () => [path.join(root, "made-here")] });
+  assert.deepEqual(createSitesWorkspace({}, options).config({}).siteRoots, [root]);
+  assert.equal(workspace.registry({}).hasMigration({ migration: "desktop-roots-config-v1" }), true);
+});
+
+test("shared settings: an import that cannot complete warns, keeps the port usable, and retries next boot", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, root, statePath } = fixture(t);
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  fs.writeFileSync(path.join(path.dirname(statePath), "desktop-site-folders.json"), JSON.stringify({ creationRoots: [root], extraRoots: [] }));
+  const real = createSitesWorkspace({}, { homeDir: dir, cwd: dir, env: {}, platform: "linux", sourceRoots: [] });
+  // The real workspace, except that saving the imported roots fails (e.g. a locked or full disk).
+  const workspace = { ...real, updateRoots: () => { throw new Error("settings write failed"); } };
+  const warn = t.mock.method(console, "warn", () => {});
+  const folders = createSiteFolders({ statePath, defaultRoots: [], workspace });
+  assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments), [["tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."]]);
+  assert.equal(workspace.registry({}).hasMigration({ migration: "desktop-roots-config-v1" }), false, "not marked, so the next boot retries");
+  assert.equal(typeof folders.add, "function");
+});
+
+test("shared settings: adding a regular file reports the real folder error and saves nothing", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, statePath } = fixture(t);
+  const file = path.join(dir, "Documents", "not-a-folder");
+  fs.writeFileSync(file, "");
+  const options = { homeDir: dir, cwd: dir, env: {}, platform: "linux" as const, sourceRoots: [] };
+  const folders = createSiteFolders({ statePath, defaultRoots: [], workspace: createSitesWorkspace({}, options) });
+  assert.throws(() => folders.add({ root: file }), { message: `Sites folder is not a directory: ${file}` });
+  assert.deepEqual(createSitesWorkspace({}, options).config({}).siteRoots, []);
+});
+
+test("shared settings: a created site's folder is remembered once, and never when it is already a root", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, root, statePath } = fixture(t);
+  const options = { homeDir: dir, cwd: dir, env: {}, platform: "linux" as const, sourceRoots: [] };
+  const folders = createSiteFolders({ statePath, defaultRoots: [], workspace: createSitesWorkspace({}, options) });
+  folders.rememberCreated({ siteDir: path.join(root, "first") });
+  assert.deepEqual(createSitesWorkspace({}, options).config({}).siteRoots, [root]);
+  const configPath = createSitesWorkspace({}, options).config({}).configPath;
+  const before = fs.readFileSync(configPath, "utf8");
+  folders.rememberCreated({ siteDir: path.join(root, "second") });
+  assert.equal(fs.readFileSync(configPath, "utf8"), before, "an existing root is not rewritten");
+});
+
+test("damaged settings that cannot be preserved block the change and keep the damaged bytes", (t) => {
+  const { root, statePath } = fixture(t);
+  fs.mkdirSync(path.dirname(statePath));
+  const damagedPath = path.join(path.dirname(statePath), "desktop-site-folders.json");
+  fs.writeFileSync(damagedPath, "{broken");
+  const folders = createSiteFolders({ statePath, defaultRoots: [] }, { quarantine: () => false });
+  assert.throws(() => folders.add({ root }), { message: `Could not preserve damaged sites folders settings at ${damagedPath}. Nothing was saved.` });
+  assert.equal(fs.readFileSync(damagedPath, "utf8"), "{broken");
+});
+
+test("shared settings: damaged legacy bytes that cannot be preserved leave the import unmarked for a retry", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, statePath } = fixture(t);
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  const legacy = path.join(path.dirname(statePath), "desktop-site-folders.json");
+  fs.writeFileSync(legacy, "{broken");
+  const warn = t.mock.method(console, "warn", () => {});
+  const workspace = createSitesWorkspace({}, { homeDir: dir, cwd: dir, env: {}, platform: "linux", sourceRoots: [] });
+  createSiteFolders({ statePath, defaultRoots: [], workspace }, { quarantine: () => false });
+  assert.equal(warn.mock.callCount(), 1);
+  assert.equal(workspace.registry({}).hasMigration({ migration: "desktop-roots-config-v1" }), false);
+  assert.equal(fs.readFileSync(legacy, "utf8"), "{broken");
+});
