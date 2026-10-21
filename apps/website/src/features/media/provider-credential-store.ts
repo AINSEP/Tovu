@@ -323,8 +323,9 @@ function buildProviderUpsertRow(input: {
 /**
  * Replaces the workspace's ENTIRE provider set and resolves the authoritative copy afterward.
  *
- * Whole-map semantics, because that is what the port promises: a provider absent from `providers`
- * is DELETED, not left in place. A present entry with a blank/absent `apiKey` keeps whatever key is
+ * Whole-map semantics over the BUILT-IN vendors, because that is what the port promises: a built-in
+ * provider absent from `providers` is DELETED, not left in place; any other stored row (a plugin
+ * vendor's, registered or not) is kept. A present entry with a blank/absent `apiKey` keeps whatever key is
  * already stored, so an operator editing only `baseUrl` never has to re-paste a key they cannot
  * see.
  *
@@ -380,9 +381,11 @@ export async function saveMediaProviderCredentials(
       upserts,
       // A plugin vendor's row is never tombstoned by omission: the admin tab renders only built-in
       // vendors, so its whole-map save would otherwise silently delete a key saved for a plugin vendor.
+      // Keyed on "not built-in", not "registry holds it": a disabled plugin, a restart or a loader
+      // fault drops the vendor from the registry, and its stored key must survive that too.
       tombstoneProviderIds: existingRows
         .map((row) => row.providerId)
-        .filter((providerId) => !submittedIds.has(providerId) && !isPluginProviderId(providerId, deps.providerCatalog)),
+        .filter((providerId) => !submittedIds.has(providerId) && KNOWN_PROVIDER_IDS.has(providerId)),
     };
   };
 
