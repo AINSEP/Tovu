@@ -138,7 +138,7 @@ test("installedAgentPluginRow: a plugin the read model does not list is null", (
 
 test("agentPluginLifecycleFields: passes origin, host verdict, requirements, dependents and digest through", () => {
   const digest = "d".repeat(64);
-  assert.deepEqual(agentPluginLifecycleFields({ ...candidate, origin: "bundled", hostOk: false, missingRequires: ["x:y"], requiredBy: ["consumer needs mail:send"], archiveDigest: digest }), {
+  assert.deepEqual(agentPluginLifecycleFields({ candidate: { ...candidate, origin: "bundled", hostOk: false, missingRequires: ["x:y"], requiredBy: ["consumer needs mail:send"], archiveDigest: digest } }), {
     origin: "bundled", hostOk: false, missingRequires: ["x:y"], requiredBy: ["consumer needs mail:send"], archiveDigest: digest,
   });
 });

@@ -72,7 +72,8 @@ function toModelFacingUninstallError(error: unknown): unknown {
  *  or its recovery record is unreadable: removing it now would let recovery resurrect the old revision.
  *  Nothing was removed, so this is the same ADR-055 Decision 6 result as the refusals below.
  *  @complexity O(1). */
-function updateJournalRefusedResult(pluginId: string, error: AgentPluginUpdateError): unknown {
+function updateJournalRefusedResult(required: { pluginId: string; error: AgentPluginUpdateError }, _optional: Record<string, never> = {}): unknown {
+  const { pluginId, error } = required;
   return {
     uninstalled: false,
     cancelled: false,
@@ -81,14 +82,14 @@ function updateJournalRefusedResult(pluginId: string, error: AgentPluginUpdateEr
     reason: "update-pending",
     code: error.code,
     note: `Nothing was removed: an interrupted update of '${pluginId}' is still waiting to be recovered, so it was NOT ` +
-      `uninstalled. ${updateJournalNextStep(error)}`,
+      `uninstalled. ${updateJournalNextStep({ error })}`,
   };
 }
 
 /** Only a pending update recovers at start. Any other journal refusal (an unreadable record, an
  *  unsafe recorded path) survives a restart, so telling the user to restart would loop them.
  *  @complexity O(1). */
-function updateJournalNextStep(error: AgentPluginUpdateError): string {
+function updateJournalNextStep({ error }: { error: AgentPluginUpdateError }, _optional: Record<string, never> = {}): string {
   return error.code === "PLUGIN_UPDATE_PENDING"
     ? "Tell the user to restart Tovu (recovery runs at start) and then try again."
     : `Its update recovery record needs manual repair (${error.code}); restarting Tovu will not fix it. Tell the user an operator has to repair it first.`;
@@ -108,7 +109,7 @@ function updateJournalNextStep(error: AgentPluginUpdateError): string {
  * @complexity O(1).
  */
 function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
-  if (error instanceof AgentPluginUpdateError) return updateJournalRefusedResult(pluginId, error);
+  if (error instanceof AgentPluginUpdateError) return updateJournalRefusedResult({ pluginId, error });
   if (error instanceof AgentPluginActivationsBusyError) {
     console.warn(`[agent-plugins] '${pluginId}': plugins_uninstall (family agent-plugin) refused — ${error.message}`);
     return {

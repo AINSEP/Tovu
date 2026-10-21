@@ -98,7 +98,7 @@ export function installErrorResponse(error: unknown): InstallRefusal {
  * responses cannot drift.
  * @complexity O(1).
  */
-export function agentPluginLifecycleFields(candidate: AgentPluginSearchCandidate) {
+export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate }, _optional: Record<string, never> = {}) {
   return {
     origin: candidate.origin,
     hostOk: candidate.hostOk,
@@ -140,7 +140,7 @@ export function installedAgentPluginRow(candidate: AgentPluginSearchCandidate | 
     description: candidate.description ?? null,
     keywords: candidate.keywords,
     enabled: candidate.enabled,
-    ...agentPluginLifecycleFields(candidate),
+    ...agentPluginLifecycleFields({ candidate }),
     skills: candidate.skills,
     mcpServerIds: candidate.mcpServerIds,
   };

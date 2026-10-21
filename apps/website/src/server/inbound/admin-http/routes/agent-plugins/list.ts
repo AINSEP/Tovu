@@ -64,7 +64,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
           provides: candidate.provides ?? [],
           keywords: candidate.keywords,
           enabled: candidate.enabled,
-          ...agentPluginLifecycleFields(candidate),
+          ...agentPluginLifecycleFields({ candidate }),
           skills: candidate.skills,
           mcpServerIds: candidate.mcpServerIds,
         })),

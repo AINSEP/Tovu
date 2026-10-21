@@ -79,7 +79,7 @@ async function readZipUpload(required: { req: Request; res: Response; parseZip: 
 /** The update target from the URL and query, or the refusal for a malformed one. A plain install
  *  has no target. Checked after authorization and before the body is read.
  *  @complexity O(1). */
-function readUpdateTarget(req: Request): { update?: UpdateTarget } | InstallRefusal {
+function readUpdateTarget({ req }: { req: Request }, _optional: Record<string, never> = {}): { update?: UpdateTarget } | InstallRefusal {
   if (req.params.pluginId === undefined) return {};
   const pluginId = req.params.pluginId;
   // The Agent Plugins name grammar (`plugin.json` `name`), owned by Jini's manifest parser: the URL id
@@ -108,7 +108,7 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
-      const target = readUpdateTarget(req);
+      const target = readUpdateTarget({ req });
       if ("status" in target) return sendRefusal(res, target);
       const upload = await readZipUpload({ req, res, parseZip });
       if ("status" in upload) return sendRefusal(res, upload);

@@ -123,7 +123,7 @@ function sendUpdatedRow(
       description: candidate.description ?? null,
       keywords: candidate.keywords,
       enabled,
-      ...agentPluginLifecycleFields(candidate),
+      ...agentPluginLifecycleFields({ candidate }),
       skills: candidate.skills,
       mcpServerIds: candidate.mcpServerIds,
     },
