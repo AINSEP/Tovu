@@ -11,7 +11,7 @@ import { registerConsentHttp } from '@jini-ai/cms/consent/express';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { applySiteConsent, CONSENT_RECEIPTS_DIR_NAME, createSiteConsentPorts } from '../site-consent.js';
+import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
@@ -136,4 +136,56 @@ test('a missing or malformed receipt in opt-out mode still denies optional categ
     assert.deepEqual(state.choices, { necessary: true, functional: false, analytics: false, marketing: false });
     dom.window.close();
   }
+});
+
+test('auto-enable treats only a site stamped at or after launch as new, reads the stamp once, and checks privacy links', async t => {
+  const deps = createRouteDeps();
+  const siteFor = async (meta: string | null) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-auto-'));
+    t.after(() => fs.rm(dir, { recursive: true, force: true }));
+    if (meta !== null) await fs.writeFile(path.join(dir, '.site-meta.json'), meta);
+    return createSiteConsentAutoEnable({ deps: { ...deps, siteBinding: { ...deps.siteBinding, dir } } });
+  };
+  const launched = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
+  assert.equal(await launched.isNewLiveSite({}), true);
+  const older = await siteFor(JSON.stringify({ createdAt: '2026-01-01T00:00:00.000Z' }));
+  assert.equal(await older.isNewLiveSite({}), false);
+  assert.equal(await (await siteFor(JSON.stringify({ createdAt: 20261021 }))).isNewLiveSite({}), false);
+  assert.equal(await (await siteFor('{not json')).isNewLiveSite({}), false);
+  const missing = await siteFor(null);
+  assert.equal(await missing.isNewLiveSite({}), false);
+
+  const memo = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
+  const first = memo.isNewLiveSite({});
+  assert.equal(memo.isNewLiveSite({}), first, 'the stamp is read once per port');
+
+  assert.equal(await launched.privacyPageExists({ url: 'https://example.com/privacy' }), true);
+  assert.equal(await launched.privacyPageExists({ url: '/Not A Slug' }), false);
+  assert.equal(await launched.privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+});
+
+test('an auto-region published policy is refused without a trusted region header and served with one', async t => {
+  const f = await publicFixture({ t });
+  const state = await f.store.read({});
+  assert.ok(state?.published);
+  const published = state.published;
+  f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), regionMode: 'auto' } } }) };
+  await assert.rejects(() => createSiteConsentPorts({ deps: f.deps }).config.get({}), { message: 'Published consent policy is invalid.' });
+  const trusted = await createSiteConsentPorts({ deps: f.deps }, { trustedRegionHeader: 'x-region' }).config.get({});
+  assert.equal(trusted.regionMode, 'auto');
+  assert.equal(trusted.policyVersion, `${f.config.policyVersion}:${published.id}`);
+});
+
+test('an accepted choice is durably written under the site receipts directory, created on first save', async t => {
+  const f = await publicFixture({ t });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-receipts-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  f.deps.siteBinding = { ...f.deps.siteBinding, dir };
+  const app = express(); applySiteConsent({ app, deps: f.deps }, { trustedRegionHeader: 'x-region' });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/api/site-consent`, { method: 'POST', redirect: 'manual', headers: { origin: base, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'accept', policyVersion: `${f.config.policyVersion}:${f.revisionId}` }) });
+  assert.ok(res.status < 400, `status ${res.status}`);
+  assert.match(res.headers.get('set-cookie') ?? '', /jini_consent=/);
+  const receipts = await fs.readdir(path.join(dir, CONSENT_RECEIPTS_DIR_NAME), { recursive: true });
+  assert.ok(receipts.length > 0);
 });
