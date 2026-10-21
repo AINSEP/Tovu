@@ -1,0 +1,5 @@
+packages/devops/src/packaging/electron/typescript.ts	lines 0/10	branches 0/8	functions 0/3	NEVER-LOADED
+packages/devops/src/source-control/commit.ts	lines 0/48	branches 0/24	functions 0/10	NEVER-LOADED
+packages/devops/src/source-control/entry.ts	lines 0/5	branches 0/0	functions 0/0	NEVER-LOADED
+packages/devops/src/source-control/kit.ts	lines 0/6	branches 0/2	functions 0/8	NEVER-LOADED
+packages/devops/src/source-control/registry.ts	lines 0/106	branches 0/108	functions 0/44	NEVER-LOADED

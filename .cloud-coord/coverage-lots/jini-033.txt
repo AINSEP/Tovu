@@ -1,0 +1,3 @@
+packages/chat/src/react/components/McpUiSurfaceCard.tsx	lines 0/56	branches 0/58	functions 0/14	NEVER-LOADED
+packages/chat/src/react/components/MessageList.hooks.ts	lines 0/43	branches 0/22	functions 0/11	NEVER-LOADED
+packages/chat/src/react/components/MessageList.rules.ts	lines 0/12	branches 0/8	functions 0/5	NEVER-LOADED

@@ -1,0 +1,10 @@
+packages/agent-runtime/src/providers/elevenlabs.ts	lines 141/148	branches 73/76	functions 17/17	LOADED
+packages/agent-runtime/src/providers/google-schema.ts	lines 242/249	branches 117/132	functions 33/34	LOADED
+packages/agent-runtime/src/providers/model-catalog.ts	lines 373/373	branches 220/221	functions 25/25	LOADED
+packages/agent-runtime/src/providers/ollama-chat.ts	lines 285/285	branches 141/142	functions 23/23	LOADED
+packages/agent-runtime/src/providers/operation-schema.ts	lines 163/163	branches 147/164	functions 23/23	LOADED
+packages/agent-runtime/src/providers/response-text.ts	lines 19/19	branches 12/13	functions 1/1	LOADED
+packages/agent-runtime/src/providers/tool-turn.ts	lines 314/316	branches 197/214	functions 37/37	LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/Root.tsx	lines 0/5	branches 0/0	functions 0/1	NEVER-LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/chatSpec.ts	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/agent-runtime/src/skills/chat-motion-overlay/assets/remotion-template/src/components/BubbleScene.tsx	lines 0/100	branches 0/56	functions 0/18	NEVER-LOADED

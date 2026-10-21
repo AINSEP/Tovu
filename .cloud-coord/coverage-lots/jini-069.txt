@@ -1,0 +1,17 @@
+packages/cms/src/taxonomy/content-lookup.ts	lines 31/31	branches 12/13	functions 6/6	LOADED
+packages/cms/src/taxonomy/index.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/cms/src/taxonomy/merge-term.ts	lines 29/41	branches 4/5	functions 2/4	LOADED
+packages/cms/src/taxonomy/repo.memory.ts	lines 0/145	branches 0/1	functions 0/1	LOADED
+packages/cms/src/trash/adapters/record-store.ts	lines 32/34	branches 21/23	functions 5/5	LOADED
+packages/cms/src/trash/cursor.ts	lines 14/16	branches 11/12	functions 2/2	LOADED
+packages/cms/src/trash/follow-ups.ts	lines 34/36	branches 15/17	functions 4/4	LOADED
+packages/cms/src/trash/repo.memory.ts	lines 93/95	branches 56/58	functions 13/13	LOADED
+packages/cms/src/trash/sweeper.ts	lines 74/74	branches 32/33	functions 8/8	LOADED
+packages/cms/src/trash/write-service.ts	lines 168/168	branches 63/67	functions 14/14	LOADED
+packages/cms/src/widgets/entry-payload.ts	lines 105/105	branches 22/24	functions 13/13	LOADED
+packages/cms/src/widgets/errors.ts	lines 85/93	branches 16/17	functions 16/19	LOADED
+packages/cms/src/widgets/html/index.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/cms/src/widgets/html/resolve-html-page-embeds.ts	lines 0/31	branches 0/1	functions 0/1	LOADED
+packages/cms/src/widgets/index.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/cms/src/widgets/markers/index.ts	lines 0/4	branches 0/1	functions 0/1	LOADED
+packages/cms/src/widgets/markers/marker.ts	lines 283/296	branches 106/112	functions 27/29	LOADED

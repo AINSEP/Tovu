@@ -1,0 +1,5 @@
+packages/chat/src/react/components/ConversationTitleEditor.tsx	lines 0/30	branches 0/14	functions 0/9	NEVER-LOADED
+packages/chat/src/react/components/ExtEventErrorBoundary.tsx	lines 0/8	branches 0/2	functions 0/3	NEVER-LOADED
+packages/chat/src/react/components/Icon.tsx	lines 0/5	branches 0/4	functions 0/1	NEVER-LOADED
+packages/chat/src/react/components/JiniChatProvider.tsx	lines 0/17	branches 0/14	functions 0/3	NEVER-LOADED
+packages/chat/src/react/components/Markdown.tsx	lines 0/216	branches 0/118	functions 0/46	NEVER-LOADED

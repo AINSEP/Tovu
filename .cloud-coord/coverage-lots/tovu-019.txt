@@ -1,0 +1,13 @@
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	lines 362/362	branches 28/29	functions 14/14	LOADED
+apps/desktop/src/renderer/SiteGrid.hooks.ts	lines 239/239	branches 34/36	functions 12/12	LOADED
+apps/desktop/src/renderer/SiteGrid.tsx	lines 638/689	branches 15/28	functions 8/25	LOADED
+apps/desktop/src/renderer/SitesFolders.tsx	lines 0/14	branches 0/24	functions 0/4	NEVER-LOADED
+apps/desktop/src/renderer/find-query-scheduler.ts	lines 33/33	branches 8/8	functions 5/7	LOADED
+apps/desktop/src/renderer/main.tsx	lines 0/7	branches 0/0	functions 0/0	NEVER-LOADED
+apps/desktop/src/renderer/site-port.rules.ts	lines 60/60	branches 22/22	functions 3/5	LOADED
+apps/desktop/src/renderer/site-shell-policy.ts	lines 59/59	branches 47/49	functions 9/9	LOADED
+apps/desktop/src/renderer/site-theme-preview.hooks.ts	lines 56/56	branches 37/39	functions 8/8	LOADED
+apps/desktop/src/renderer/source-test-harness.ts	lines 71/72	branches 45/46	functions 14/16	LOADED
+apps/desktop/src/renderer/use-add-site.hooks.ts	lines 104/119	branches 9/9	functions 4/5	LOADED
+apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	lines 101/109	branches 16/16	functions 7/10	LOADED
+apps/desktop/src/renderer/use-find-in-page.hooks.ts	lines 572/677	branches 54/55	functions 16/18	LOADED

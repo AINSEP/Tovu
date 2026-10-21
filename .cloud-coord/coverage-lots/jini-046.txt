@@ -1,0 +1,4 @@
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneSuggestion.hooks.ts	lines 0/5	branches 0/0	functions 0/2	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneSurface.hooks.ts	lines 0/3	branches 0/8	functions 0/1	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts	lines 0/101	branches 0/36	functions 0/14	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/hooks/useRuntimeDropUp.hooks.ts	lines 0/68	branches 0/34	functions 0/16	NEVER-LOADED

@@ -1,0 +1,2 @@
+packages/chat/src/embed-widget/react/header.tsx	lines 0/4	branches 0/4	functions 0/1	NEVER-LOADED
+packages/chat/src/embed-widget/transports/fetch-sse.ts	lines 0/99	branches 0/80	functions 0/30	NEVER-LOADED

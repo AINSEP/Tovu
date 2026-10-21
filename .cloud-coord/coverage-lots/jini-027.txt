@@ -1,0 +1,3 @@
+packages/chat/src/react/artifact-types.ts	lines 0/9	branches 0/4	functions 0/4	NEVER-LOADED
+packages/chat/src/react/chat-pane.ts	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/react/components/A2uiSurfaceCard.tsx	lines 0/114	branches 0/70	functions 0/22	NEVER-LOADED

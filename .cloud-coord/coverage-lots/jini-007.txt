@@ -1,0 +1,2 @@
+packages/agent-plugins/persistent-state.js	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/agent-plugins/core/persistent-state.js	lines 0/198	branches 0/108	functions 0/32	NEVER-LOADED

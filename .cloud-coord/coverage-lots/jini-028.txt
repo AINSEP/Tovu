@@ -1,0 +1,3 @@
+packages/chat/src/react/components/AttachmentGallery.hooks.ts	lines 0/7	branches 0/8	functions 0/7	NEVER-LOADED
+packages/chat/src/react/components/AttachmentGallery.rules.ts	lines 0/11	branches 0/6	functions 0/5	NEVER-LOADED
+packages/chat/src/react/components/AttachmentPreviewModal.hooks.ts	lines 0/84	branches 0/60	functions 0/26	NEVER-LOADED

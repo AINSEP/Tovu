@@ -1,0 +1,9 @@
+packages/capability-providers/src/visitor-auth/registry.ts	lines 63/69	branches 19/22	functions 8/8	LOADED
+packages/charts-recharts/scripts/build-artifact.mjs	lines 0/29	branches 0/1	functions 0/1	LOADED
+packages/charts-recharts/src/mount.tsx	lines 53/53	branches 25/36	functions 13/13	LOADED
+packages/chat/src/contracts/chat-bubble-style.ts	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/core/accepted-input.ts	lines 139/139	branches 134/138	functions 13/13	LOADED
+packages/chat/src/core/ag-ui/entry.ts	lines 136/171	branches 58/70	functions 22/25	LOADED
+packages/chat/src/core/assistant-client/a2ui-action-poster.ts	lines 0/62	branches 1/1	functions 1/1	LOADED
+packages/chat/src/core/assistant-client/ag-ui-transport.ts	lines 64/105	branches 9/15	functions 6/17	LOADED
+packages/chat/src/core/assistant-client/attachment-liveness.ts	lines 0/48	branches 1/1	functions 1/1	LOADED

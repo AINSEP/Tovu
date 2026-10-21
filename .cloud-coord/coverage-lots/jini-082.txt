@@ -1,0 +1,7 @@
+packages/devops/src/core/deploy-types.ts	lines 0/6	branches 0/0	functions 0/1	NEVER-LOADED
+packages/devops/src/core/export-failure-summary.ts	lines 0/7	branches 0/4	functions 0/1	NEVER-LOADED
+packages/devops/src/core/redirect-guard.ts	lines 0/6	branches 0/6	functions 0/2	NEVER-LOADED
+packages/devops/src/deploy/node.ts	lines 31/35	branches 16/18	functions 6/7	LOADED
+packages/devops/src/deploy/tool.ts	lines 36/36	branches 15/16	functions 5/5	LOADED
+packages/devops/src/local-dev/index.ts	lines 0/46	branches 0/26	functions 0/12	NEVER-LOADED
+packages/devops/src/packaging/electron/archive.ts	lines 0/47	branches 0/30	functions 0/18	NEVER-LOADED

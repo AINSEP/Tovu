@@ -1,0 +1,15 @@
+apps/website/src/server/inbound/assistant/assistant-system-overlay.ts	lines 225/235	branches 22/23	functions 6/6	LOADED
+apps/website/src/server/inbound/assistant/attempt-process-identity.ts	lines 18/19	branches 5/5	functions 2/3	LOADED
+apps/website/src/server/inbound/assistant/early-run-session.ts	lines 43/43	branches 25/28	functions 5/6	LOADED
+apps/website/src/server/inbound/assistant/federation-reload-route.ts	lines 55/55	branches 6/7	functions 3/3	LOADED
+apps/website/src/server/inbound/public-http/http/shared/post.ts	lines 68/68	branches 16/18	functions 3/3	LOADED
+apps/website/src/server/inbound/public-http/http/site/external-links.ts	lines 132/132	branches 34/35	functions 11/11	LOADED
+apps/website/src/server/inbound/public-http/http/site/form-render.ts	lines 735/735	branches 132/138	functions 44/82	LOADED
+apps/website/src/server/inbound/public-http/http/site/form-validation-i18n.ts	lines 0/5	branches 0/10	functions 0/2	NEVER-LOADED
+apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts	lines 181/181	branches 23/24	functions 12/19	LOADED
+apps/website/src/server/inbound/public-http/http/site/handlebars-sandbox.ts	lines 74/74	branches 11/13	functions 8/12	LOADED
+apps/website/src/server/inbound/public-http/http/site/handlebars-worker.ts	lines 28/31	branches 2/4	functions 1/1	LOADED
+apps/website/src/server/inbound/public-http/http/site/liquid-render.ts	lines 135/135	branches 25/27	functions 16/26	LOADED
+apps/website/src/server/inbound/public-http/http/site/liquid-sandbox.ts	lines 55/55	branches 11/13	functions 8/12	LOADED
+apps/website/src/server/inbound/public-http/http/site/liquid-worker.ts	lines 19/21	branches 2/3	functions 1/1	LOADED
+apps/website/src/server/inbound/public-http/http/site/render.ts	lines 3741/3742	branches 918/962	functions 237/438	LOADED

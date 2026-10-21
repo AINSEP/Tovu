@@ -1,0 +1,2 @@
+packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	lines 0/23	branches 0/28	functions 0/9	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/create-daemon-attachment-uploader.ts	lines 0/96	branches 0/52	functions 0/23	NEVER-LOADED

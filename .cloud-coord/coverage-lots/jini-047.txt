@@ -1,0 +1,3 @@
+packages/chat/src/react/features/chat-pane/index.ts	lines 0/12	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/model-options.ts	lines 0/42	branches 0/48	functions 0/12	NEVER-LOADED
+packages/chat/src/react/features/chat-pane/rules.ts	lines 0/97	branches 0/96	functions 0/28	NEVER-LOADED

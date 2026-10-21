@@ -1,0 +1,4 @@
+apps/desktop/bin/mcp-bridge.ts	lines 229/235	branches 32/35	functions 14/15	LOADED
+apps/desktop/bin/tovu-desktop.ts	lines 184/189	branches 29/32	functions 7/7	LOADED
+apps/desktop/scripts/check-complexity.ts	lines 0/52	branches 0/18	functions 0/5	NEVER-LOADED
+apps/desktop/scripts/check-coverage.ts	lines 0/97	branches 0/62	functions 0/18	NEVER-LOADED

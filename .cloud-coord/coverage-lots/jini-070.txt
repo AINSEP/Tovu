@@ -1,0 +1,7 @@
+packages/cms/src/widgets/region-area-service.ts	lines 134/143	branches 27/33	functions 10/10	LOADED
+packages/cms/src/widgets/resolvers/create-core-resolvers.ts	lines 2/9	branches 0/0	functions 0/1	LOADED
+packages/cms/src/widgets/resolvers/index.ts	lines 89/96	branches 30/34	functions 7/8	LOADED
+packages/cms/src/widgets/resolvers/recent-entries.ts	lines 7/127	branches 0/0	functions 0/12	LOADED
+packages/cms/src/widgets/resolvers/taxonomy.ts	lines 30/30	branches 6/10	functions 1/1	LOADED
+packages/cms/src/widgets/sql/index.ts	lines 0/2	branches 0/1	functions 0/1	LOADED
+packages/cms/src/widgets/write-service.ts	lines 174/251	branches 45/62	functions 13/17	LOADED

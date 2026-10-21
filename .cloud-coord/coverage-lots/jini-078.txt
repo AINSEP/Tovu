@@ -1,0 +1,17 @@
+packages/desktop-host/src/logging.ts	lines 92/92	branches 53/56	functions 14/14	LOADED
+packages/desktop-host/src/render-bridge.ts	lines 108/110	branches 68/68	functions 9/10	LOADED
+packages/desktop-host/src/render-service.ts	lines 59/59	branches 38/39	functions 7/7	LOADED
+packages/desktop-host/src/sidecar.ts	lines 127/127	branches 62/63	functions 17/17	LOADED
+packages/desktop-host/src/url-capture.ts	lines 29/29	branches 23/24	functions 4/4	LOADED
+packages/desktop-host/src/electron/electron-shell.ts	lines 31/31	branches 14/15	functions 6/6	LOADED
+packages/desktop-host/src/electron/testing.ts	lines 137/139	branches 49/50	functions 35/36	LOADED
+packages/desktop-host/src/electron/updates/auto-update-controller.ts	lines 160/162	branches 84/92	functions 31/38	LOADED
+packages/desktop-host/src/node-toolchain/index.ts	lines 67/67	branches 29/30	functions 6/6	LOADED
+packages/desktop-host/src/shutdown/quit-signals.ts	lines 12/12	branches 5/7	functions 2/2	LOADED
+packages/desktop-host/src/speech/macos/mac-on-device-transcriber.ts	lines 87/89	branches 60/63	functions 10/10	LOADED
+packages/desktop-host/src/speech/speech-ipc.ts	lines 32/32	branches 28/29	functions 5/5	LOADED
+packages/desktop-host/src/tauri/tauri-shell.ts	lines 29/31	branches 17/18	functions 7/7	LOADED
+packages/desktop-host/src/tauri/testing.ts	lines 124/124	branches 41/42	functions 25/25	LOADED
+packages/devops/src/agent-jobs/entry.ts	lines 0/3	branches 0/0	functions 0/0	NEVER-LOADED
+packages/devops/src/agent-jobs/jobs.ts	lines 0/69	branches 0/60	functions 0/17	NEVER-LOADED
+packages/devops/src/agent-jobs/node.ts	lines 0/31	branches 0/8	functions 0/15	NEVER-LOADED

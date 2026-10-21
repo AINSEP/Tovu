@@ -1,0 +1,1 @@
+apps/desktop/src/renderer/App.tsx	lines 0/128	branches 0/148	functions 0/43	NEVER-LOADED

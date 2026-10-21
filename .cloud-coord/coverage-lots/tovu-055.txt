@@ -1,0 +1,4 @@
+content/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx	lines 0/17	branches 0/0	functions 0/6	NEVER-LOADED
+content/agent-plugins/vercel/targets/vercel.mjs	lines 491/493	branches 175/183	functions 32/36	LOADED
+packages/sdk/src/hooks.ts	lines 79/79	branches 7/9	functions 6/6	LOADED
+packages/sdk/src/index.ts	lines 219/222	branches 19/21	functions 16/16	LOADED

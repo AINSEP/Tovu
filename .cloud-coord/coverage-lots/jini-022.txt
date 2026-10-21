@@ -1,0 +1,11 @@
+packages/chat/src/core/assistant-client/durable-run-subscription.ts	lines 64/76	branches 22/34	functions 9/10	LOADED
+packages/chat/src/core/assistant-client/entry.ts	lines 0/1	branches 0/1	functions 0/1	LOADED
+packages/chat/src/core/assistant-client/messages.ts	lines 8/14	branches 2/3	functions 1/3	LOADED
+packages/chat/src/core/browser/page-actions.ts	lines 89/89	branches 62/65	functions 17/17	LOADED
+packages/chat/src/core/persistence/title.ts	lines 90/90	branches 33/37	functions 8/8	LOADED
+packages/chat/src/core/question-form/secret-answers.ts	lines 39/39	branches 23/24	functions 6/6	LOADED
+packages/chat/src/core/transcript.ts	lines 120/120	branches 62/63	functions 10/10	LOADED
+packages/chat/src/core/user-text-redaction.ts	lines 73/73	branches 52/53	functions 7/8	LOADED
+packages/chat/src/embed-widget/browser/lazy-loader.ts	lines 0/73	branches 0/30	functions 0/18	NEVER-LOADED
+packages/chat/src/embed-widget/browser/page-actions.ts	lines 0/1	branches 0/0	functions 0/0	NEVER-LOADED
+packages/chat/src/embed-widget/browser/session-store.ts	lines 0/41	branches 0/36	functions 0/10	NEVER-LOADED
