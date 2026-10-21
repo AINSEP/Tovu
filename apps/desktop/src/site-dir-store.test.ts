@@ -711,3 +711,33 @@ test("deskfx M1: corrupt markers are refused while legacy null metadata remains 
     assert.equal(classifySiteDirSafely(dir), "incomplete");
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("with shared settings, remembering a folder imports the old MRU once and returns the catalog's most-recent-first view", async () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-shared-mru-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", cwd: root, sourceRoots: [] });
+    const makeSite = (name: string) => {
+      const dir = path.join(root, "sites", name);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
+      fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: `${name}-id` }));
+      return dir;
+    };
+    const legacy = makeSite("legacy"), older = makeSite("older"), first = makeSite("first"), second = makeSite("second");
+    const statePath = path.join(root, "profile", "desktop-state.json");
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    // An MRU written before shared settings: imported, but never opened through the catalog.
+    fs.writeFileSync(statePath, JSON.stringify({ recentSiteDirs: [legacy, older] }));
+
+    const afterFirst = rememberSiteDir(statePath, first, { workspace });
+    assert.equal(afterFirst[0], first, "an opened site outranks ones only imported");
+    assert.deepEqual([...afterFirst.slice(1)].sort(), [legacy, older].sort());
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const afterSecond = rememberSiteDir(statePath, second, { workspace });
+    assert.deepEqual(afterSecond.slice(0, 2), [second, first], "most recently opened first");
+    assert.deepEqual(existingRecentSiteDirs(statePath, { workspace }), afterSecond);
+    assert.equal(fs.readFileSync(statePath, "utf8"), JSON.stringify({ recentSiteDirs: [legacy, older] }), "the legacy MRU file is never rewritten");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
