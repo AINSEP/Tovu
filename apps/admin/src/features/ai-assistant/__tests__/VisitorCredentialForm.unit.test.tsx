@@ -445,7 +445,7 @@ describe("in-flight and settled states of the visitor key and settings controls"
   });
 
   it("confirms saved settings and shows a failed save's message", () => {
-    const { unmount } = render(<VisitorCredentialSettingsFooter {...fakeController({ settingsSaveState: { status: "saved" } })} />);
+    const { unmount } = render(<VisitorCredentialSettingsFooter {...fakeController({ settingsSaveState: { status: "saved", at: null } })} />);
     expect(screen.getByText("Settings saved.")).toHaveClass("assistant-save-line");
     unmount();
     render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "error", message: "Model not allowed." } })} />);

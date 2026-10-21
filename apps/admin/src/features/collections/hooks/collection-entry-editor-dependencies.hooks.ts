@@ -19,7 +19,6 @@ export const defaultCollectionEntryEditorPort: CollectionEntryEditorPort = {
  *  than defaulted (the old `?? "fake-entry-1"` default could never apply). */
 function fakeEntry(overrides: Partial<AdminEntry> & { id: string }): AdminEntry {
   return {
-    id: overrides.id,
     workspaceId: "fake-ws",
     type: "recipe",
     slug: "untitled",

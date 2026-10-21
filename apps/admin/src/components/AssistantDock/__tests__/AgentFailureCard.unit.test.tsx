@@ -171,9 +171,9 @@ it.each([
   ["the run succeeded after all", { runStreaming: false, runSucceeded: true }],
 ])("renders nothing while %s", (_label, run) => {
   const failure = { reason: "Agent exited", details: "Agent exited with code 1", agentId: "codex" };
-  const { container, rerender } = render(<AgentFailureCard name={AGENT_FAILURE_EVENT} events={[failure]} {...run} />);
+  const { container, rerender } = render(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} {...run} />);
   expect(container.innerHTML).toBe("");
   // Control: the same failure event, once the run has stopped without succeeding, does render.
-  rerender(<AgentFailureCard name={AGENT_FAILURE_EVENT} events={[failure]} runStreaming={false} runSucceeded={false} />);
+  rerender(<AgentFailureCard name={AGENT_FAILURE_EVENT} runId="run-1" events={[failure]} runStreaming={false} runSucceeded={false} />);
   expect(screen.getByRole("status")).toBeInTheDocument();
 });
