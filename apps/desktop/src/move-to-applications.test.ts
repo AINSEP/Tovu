@@ -99,6 +99,8 @@ test("compareVersions orders numeric dotted versions and returns null for anythi
   assert.equal(compareVersions("0.1.7", "0.1.8"), -1);
   assert.equal(compareVersions("0.1.10", "0.1.9"), 1);
   assert.equal(compareVersions("1.0", "1.0.0"), 0);
+  assert.equal(compareVersions("1.0.0", "1.0"), 0, "the missing part reads as 0 on either side");
+  assert.equal(compareVersions("1.0.1", "1.0"), 1);
   assert.equal(compareVersions("0.2.0-beta.1", "0.1.9"), 1);
   assert.equal(compareVersions("garbage", "0.1.9"), null);
   assert.equal(compareVersions(null, "0.1.9"), null);
@@ -113,6 +115,9 @@ test("readBundleVersion reads CFBundleShortVersionString from an XML Info.plist,
     '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n<key>CFBundleShortVersionString</key>\n\t<string>0.1.7</string>\n</dict></plist>',
   );
   assert.equal(readBundleVersion(bundle), "0.1.7");
+  // A readable plist that simply has no version key (a hand-built or foreign bundle) is unknown too.
+  fs.writeFileSync(path.join(bundle, "Contents", "Info.plist"), '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n</dict></plist>');
+  assert.equal(readBundleVersion(bundle), null);
 });
 
 // --- A Tovu already in /Applications -------------------------------------------------------------
