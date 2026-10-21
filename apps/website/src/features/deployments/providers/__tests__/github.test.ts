@@ -570,3 +570,16 @@ test("mapGitHubDeploymentStatus reports absent and non-string descriptions as nu
     assert.equal(mapGitHubDeploymentStatus({ id: 7, state: "success", description }).message, null);
   }
 });
+
+test("a non-Error transport throw at each call site (mint, create, poll) is reported by its string form", async () => {
+  const provider = createGitHubDeploymentProvider();
+  const thrown = (value: unknown) => () => { throw value; };
+  const mint = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(new ScriptedHttpClient([thrown("mint refused")])));
+  const create = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), thrown(503)])));
+  const poll = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), thrown({ toString: () => "poll refused" })])));
+  for (const [result, message] of [[mint, "mint refused"], [create, "503"], [poll, "poll refused"]] as const) {
+    assert.equal(!result.ok && result.error.code, "TRANSPORT_ERROR");
+    assert.equal(!result.ok && result.error.message, message);
+    assert.equal(!result.ok && result.error.retryable, true);
+  }
+});
