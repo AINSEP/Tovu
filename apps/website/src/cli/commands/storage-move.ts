@@ -28,6 +28,22 @@ function writeLine(line: string): void {
   process.stdout.write(`${line}\n`);
 }
 
+/** Where the target connection string comes from: `--storage-env`'s variable (kept as an env
+ * reference) or, without it, the prompt/stdin reader (sealed in the site).
+ * @throws {ValidationError} an invalid or unset `--storage-env`, or an empty prompted value. */
+async function resolveMoveConnection(input: RunStorageMoveCommandInput): Promise<{ connectionString: string; secretRef: "site" | { env: string } }> {
+  const { env = process.env, readConnectionString = readConnectionStringFromUser } = input;
+  if (input.storageEnv === undefined) {
+    const connectionString = (await readConnectionString()).trim();
+    if (connectionString === "") throw new ValidationError("storage move: no connection string was given");
+    return { connectionString, secretRef: "site" };
+  }
+  if (!/^[A-Za-z_]\w*$/.test(input.storageEnv)) throw new ValidationError("storage move: --storage-env must be an environment variable name");
+  const value = env[input.storageEnv]?.trim();
+  if (!value) throw new ValidationError(`storage move: the environment variable ${input.storageEnv} is not set`);
+  return { connectionString: value, secretRef: { env: input.storageEnv } };
+}
+
 /**
  * @throws {ValidationError} `--to` is not `postgres`, `--storage-env` is not a set variable, or
  *   whatever `moveSiteStorage` refuses (not a PGlite site, site running, target not empty).
@@ -36,20 +52,8 @@ export async function runStorageMoveCommand(input: RunStorageMoveCommandInput): 
   if (input.to !== "postgres") throw new ValidationError("storage move: --to must be postgres (the only target a PGlite site moves to)");
   const siteDir = resolveInstallDirTarget(input.dir);
   // Default ports are wired here, at the command's composition edge; tests inject their own.
-  const { env = process.env, readConnectionString = readConnectionStringFromUser, write = writeLine, moveStorage = moveSiteStorage } = input;
-  let connectionString: string;
-  let secretRef: "site" | { env: string };
-  if (input.storageEnv !== undefined) {
-    if (!/^[A-Za-z_]\w*$/.test(input.storageEnv)) throw new ValidationError("storage move: --storage-env must be an environment variable name");
-    const value = env[input.storageEnv]?.trim();
-    if (!value) throw new ValidationError(`storage move: the environment variable ${input.storageEnv} is not set`);
-    connectionString = value;
-    secretRef = { env: input.storageEnv };
-  } else {
-    connectionString = (await readConnectionString()).trim();
-    if (connectionString === "") throw new ValidationError("storage move: no connection string was given");
-    secretRef = "site";
-  }
+  const { write = writeLine, moveStorage = moveSiteStorage } = input;
+  const { connectionString, secretRef } = await resolveMoveConnection(input);
   const result = await moveStorage({ siteDir, connectionString, secretRef });
   const rows = result.tables.reduce((sum, t) => sum + t.rows, 0);
   write(`moved site at ${siteDir} to postgres: ${result.tables.length} tables, ${rows} rows`);

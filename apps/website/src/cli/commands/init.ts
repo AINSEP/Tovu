@@ -88,7 +88,9 @@ export async function readConnectionStringFromUser(
     const chunks: Buffer[] = [];
     for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
     // Only the first line is the connection string; anything after it is ignored.
-    return Buffer.concat(chunks).toString("utf8").replace(/\r?\n[\s\S]*$/, "");
+    const text = Buffer.concat(chunks).toString("utf8");
+    const lineEnd = text.search(/\r?\n/);
+    return lineEnd === -1 ? text : text.slice(0, lineEnd);
   }
   output.write("Postgres connection string (not shown): ");
   const muted = new Writable({ write: (_chunk, _encoding, done) => done() });
