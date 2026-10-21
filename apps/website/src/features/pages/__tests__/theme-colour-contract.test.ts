@@ -14,7 +14,8 @@ import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
  * heading rendered dark gray on near-black.
  */
 
-const THEMES_DIR = fileURLToPath(new URL("../../../sites/tovu-dev/themes/", import.meta.url));
+// Shipped theme tokens live in content/themes; a developer's site folder is not a fixture.
+const THEMES_DIR = fileURLToPath(new URL("../../../../../../content/themes/", import.meta.url));
 
 /** The token names every `--fg`-vocabulary theme in this repo defines in BOTH modes. */
 function sharedThemeTokens(): Set<string> {

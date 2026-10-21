@@ -1,3 +1,4 @@
+// openid-client validates token_type; successful provider fixtures include the required wire field.
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
@@ -57,7 +58,7 @@ const DECLARED: Readonly<Record<string, McpServerConfig>> = {
 };
 
 const tokenFetch = (async () =>
-  new Response(JSON.stringify({ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }), {
+  new Response(JSON.stringify({ token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }), {
     status: 200,
     headers: { "content-type": "application/json" },
   })) as typeof fetch;

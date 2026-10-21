@@ -135,6 +135,9 @@ test("custom_credential_write_files runs normally and cannot be executed by a su
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
+  // Consent writes now use the same principal-bound policy exchange as other publish cards.
+  "consent_update_settings",
+  "consent_publish_settings",
   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.
   "change_sets_revert",
   "collections_content_type_tombstone",

@@ -216,7 +216,8 @@ test("verifyPublishCredential: Vercel accepts (200) — captures ONLY `user.user
 test("verifyPublishCredential: Netlify and Cloudflare Pages acceptances leave accountLabel undefined — neither's checked endpoint carries a safe public identity field", async () => {
   for (const target of ["netlify", "cloudflare-pages"] as const) {
     const cache = new InMemoryPublishCredentialVerificationCache();
-    const fetchFn = (async () => new Response(JSON.stringify({ id: "x", email: "x@example.test", full_name: "X", result: { status: "active" } }), { status: 200 })) as typeof fetch;
+    // The Cloudflare adapter now requires its success envelope as well as an active token status.
+    const fetchFn = (async () => new Response(JSON.stringify({ success: true, id: "x", email: "x@example.test", full_name: "X", result: { status: "active" } }), { status: 200 })) as typeof fetch;
     const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets }, { workspaceId: WORKSPACE, target });
     assert.ok(result);
     assert.equal(result!.status, "valid");

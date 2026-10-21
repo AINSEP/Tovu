@@ -1,3 +1,4 @@
+// openid-client validates token_type; successful provider fixtures include the required wire field.
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -74,7 +75,7 @@ async function harness(fetchFn?: typeof fetch) {
     workspaceId: WORKSPACE, repo, sealer, keyring, clock,
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
-      fetchFn: ({ url }, init) => (fetchFn ?? scriptedFetch([{ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }]))(url, init) },
+      fetchFn: ({ url }, init) => (fetchFn ?? scriptedFetch([{ token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }]))(url, init) },
     lookupProvider: () => PROVIDER,
   });
 
@@ -186,7 +187,8 @@ for (const registerClient of [false, true]) {
         token_endpoint: PROVIDER.tokenEndpoint, registration_endpoint: "https://auth.example.com/register",
         grant_types_supported: ["authorization_code"], token_endpoint_auth_methods_supported: ["client_secret_post"],
       },
-      { client_id: "dcr-client", client_secret: "dcr-secret", token_endpoint_auth_method: "client_secret_post" },
+      // RFC 7591 requires an expiry when a client secret is issued; zero means no expiry.
+      { client_id: "dcr-client", client_secret: "dcr-secret", client_secret_expires_at: 0, token_endpoint_auth_method: "client_secret_post" },
     ]));
     const tokens = { accessToken: "legacy-at", refreshToken: "legacy-rt", tokenType: "Bearer" };
     await seedVaultPayload(repo, sealer, keyring, { clientSecret: "s3cr3t", tokens });
@@ -210,7 +212,7 @@ for (const registerClient of [false, true]) {
 test("a normalized vault row survives device-code token persistence", async () => {
   const { repo, sealer, keyring, service, clock } = await harness(scriptedFetch([
     { device_code: "dc-1", user_code: "UC-1", verification_uri: "https://auth.example.com/device", expires_in: 600, interval: 1 },
-    { access_token: "device-at", refresh_token: "device-rt", expires_in: 3600 },
+    { token_type: "Bearer", access_token: "device-at", refresh_token: "device-rt", expires_in: 3600 },
   ]));
   await seedVaultPayload(repo, sealer, keyring);
   const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });

@@ -349,6 +349,9 @@ function buildSkillToolResult({ source, content, file }: {
  * {@link loadInstalledSkillToolSources}, so this is the half a unit test exercises without touching
  * disk. Uses the SAME `buildDomainRegistrations` gate every other domain's `tool-registrations.ts`
  * uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) — not a parallel mechanism.
+ * Handlers reject non-object inputs and keys other than `file` before invoking the injected reader.
+ * @throws Error when a handler receives invalid input; reader errors propagate unchanged.
+ * @complexity O(s) registration time/space for s sources; a handler validates O(k) keys before one read.
  */
 export function buildSkillToolRegistrations(sources: readonly SkillToolSource[]): ToolRegistration[] {
   const catalog: AgentToolDefinition[] = sources.map((source) => ({
@@ -363,7 +366,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
   for (const source of sources) {
     handlers[source.id] = async (ctx) => {
       const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
-      if (Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
+      if (Array.isArray(input) || Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
       const file = optionalString({ input, key: "file" });
       const content = source.readFile ? await source.readFile({}, file !== undefined ? { file } : {}) : undefined;
       return buildSkillToolResult({ source, content, file });

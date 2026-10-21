@@ -27,7 +27,8 @@ before(t => {
 
 test('unique well-formed descriptors are accepted without mutating the caller', () => {
   fc.assert(fc.property(fc.uniqueArray(descriptor, { minLength: 1, maxLength: 20, selector: field => field.id }), fields => {
-    const before = structuredClone(fields);
+    // fast-check also emits null-prototype records; structuredClone erases that valid input shape.
+    const before = fields.map(field => Object.assign(Object.create(Object.getPrototypeOf(field)), field));
     assert.deepEqual(validateFieldDescriptors({ fields }), { valid: true });
     assert.deepEqual(fields, before);
   }), parameters);

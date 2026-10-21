@@ -10,7 +10,6 @@
     "library_list": "library documents document files markdown txt pdf docx csv json saved uploads earlier chat",
     "library_read": "library document read open source text markdown txt csv json saved file next page",
     "library_save_attachment": "library document save attachment attached file persist keep permanent markdown pdf docx",
-
     "media_replace_file": "replace swap change image photo picture file bytes existing media in place same id slug version url local",
     "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
     "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",
@@ -309,7 +308,14 @@
     "site_share_list": "list site exports shares links archive downloads",
     "site_share_revoke": "revoke remove delete site export share link",
     "theme_import_local_file": "theme import local file folder drop tovuize font woff woff2 ttf otf image logo icon favicon binary asset copy",
-    "tool_gaps_list": "tool gaps fallback Bash shell direct file edit write missing tools audit"
+    "tool_gaps_list": "tool gaps fallback Bash shell direct file edit write missing tools audit",
+    "consent_get_settings": "cookie consent banner current settings draft published privacy",
+    "consent_get_readiness": "cookie consent readiness preview dry run trackers scripts categories placement",
+    "consent_explain_blocked": "cookie consent blocked scripts trackers iframe fonts why paused",
+    "consent_update_settings": "edit change cookie consent banner text appearance position css rules draft",
+    "consent_publish_settings": "publish enable disable cookie consent banner draft privacy policy",
+    "theme_get_preview_switcher": "theme preview switcher banner demo installed choices read settings",
+    "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings"
   },
   "queries": {
     "media_replace_file": [
@@ -1833,6 +1839,21 @@
     "theme_import_local_file": [
       "Copy the dropped website's fonts into its theme.",
       "Import a local favicon into this theme."
+    ],
+    "consent_get_settings": [
+      "Read the cookie banner settings."
+    ],
+    "consent_get_readiness": [
+      "Is my cookie banner ready to turn on?"
+    ],
+    "consent_explain_blocked": [
+      "Why are my scripts blocked before consent?"
+    ],
+    "consent_update_settings": [
+      "Change my cookie banner settings."
+    ],
+    "consent_publish_settings": [
+      "Publish the reviewed cookie consent draft."
     ]
   },
   "approvals": {
@@ -1852,7 +1873,6 @@
       "class": "edit",
       "confirmation": "direct"
     },
-
     "media_replace_file": {
       "class": "edit",
       "confirmation": "direct"
@@ -3256,6 +3276,34 @@
     "tool_gaps_list": {
       "class": "read",
       "confirmation": "direct"
+    },
+    "consent_get_settings": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "consent_get_readiness": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "consent_explain_blocked": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "consent_update_settings": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "consent_publish_settings": {
+      "class": "publish",
+      "confirmation": "plan"
+    },
+    "theme_get_preview_switcher": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_update_preview_switcher": {
+      "class": "edit",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3302,7 +3350,9 @@
     "trash_purge_item",
     "webhooks_delete_subscription",
     "widgets_trash_instance",
-    "plugin_source_delete"
+    "plugin_source_delete",
+    "consent_update_settings",
+    "consent_publish_settings"
   ],
   "secretForms": {
     "credential_save": {
@@ -3386,7 +3436,9 @@
     "assistant_tool_failure_recovery",
     "external_mcp_reauth_prompt",
     "plugin_source_delete",
-    "credential_copy_from_project"
+    "credential_copy_from_project",
+    "consent_update_settings",
+    "consent_publish_settings"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3437,7 +3489,9 @@
     "webhooks_delete_subscription",
     "widgets_trash_instance",
     "plugin_source_delete",
-    "credential_copy_from_project"
+    "credential_copy_from_project",
+    "consent_update_settings",
+    "consent_publish_settings"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

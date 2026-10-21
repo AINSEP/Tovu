@@ -227,7 +227,8 @@ test("a redirect to a private address is 'refused' at that hop; endless redirect
 
   const loop = redirectingClient({ "https://example.com/": "https://example.com/" });
   const looping = createPlaywrightPageCapture({ httpClient: loop }, { loadLauncher: async () => fakeBrowser().launcher });
-  await assert.rejects(looping.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "failed" && error.message === "too many redirects");
+  // Jini's redirect diagnostic carries an origin; the capture boundary exposes only its safe fallback.
+  await assert.rejects(looping.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "failed" && error.message === "navigation failed");
   await looping.close();
   assert.equal(loop.urls.length, MAX_REDIRECT_HOPS + 1);
 });

@@ -19,6 +19,7 @@ const baseline = JSON.parse(readFileSync(new URL('./fixtures/tool-metadata.basel
   policyConfirmationIds: string[]; secretForms: Record<string, unknown>; redeemableIds: string[]; exchangeOnlyIds: string[];
 };
 
+// Consent policy cards and the opt-in theme preview switcher extend the reviewed metadata inventory.
 test('projected search, approval and callback metadata exactly matches the reviewed baseline', () => {
   assert.deepEqual(TOOL_SEARCH_KEYWORDS, baseline.keywords);
   assert.deepEqual(DOC2QUERY, baseline.queries);

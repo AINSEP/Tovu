@@ -1,3 +1,4 @@
+// openid-client validates token_type; successful provider fixtures include the required wire field.
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -133,7 +134,10 @@ for (const field of ["device_code", "user_code"] as const) {
         () => beginDeviceAuthorization({ provider: TEST_PROVIDER, clock: createTestClock(), ...createTestOAuthPorts({ fetchFn: http.fetchFn }), client: TEST_CLIENT }),
         "OAUTH_MALFORMED_RESPONSE",
       );
-      assert.equal(error.message, `the device authorization response is missing '${field}'`);
+      // openid-client owns malformed-wire diagnostics; the facade keeps provider fields private.
+      assert.equal(error.message, "the device authorization endpoint did not return a JSON object");
+      assert.equal(error.retryable, false);
+      assert.equal(http.callCount(), 1);
     });
   }
 }
@@ -165,7 +169,8 @@ for (const completeUri of [
 
 test("a javascript: verification URI is refused — it would be rendered to an operator as a link", async () => {
   const clock = createTestClock();
-  const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, verification_uri: "javascript:alert(1)", verification_uri_complete: null } }]);
+  // Omit the optional complete URI: null is rejected upstream before the unsafe-link check.
+  const http = createFetchDouble([{ json: { ...DEVICE_RESPONSE, verification_uri: "javascript:alert(1)", verification_uri_complete: undefined } }]);
 
   const error = await assertOAuthRejects(
     () => beginDeviceAuthorization({ provider: TEST_PROVIDER, clock, ...createTestOAuthPorts({ fetchFn: http.fetchFn }), client: TEST_CLIENT }),
@@ -177,7 +182,8 @@ test("a javascript: verification URI is refused — it would be rendered to an o
 test("a verification URI embedding credentials is refused", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([
-    { json: { ...DEVICE_RESPONSE, verification_uri: "https://auth.example.com@evil.example.net/activate", verification_uri_complete: null } },
+    // Keep the optional complete URI absent so this case reaches the credential-bearing link guard.
+    { json: { ...DEVICE_RESPONSE, verification_uri: "https://auth.example.com@evil.example.net/activate", verification_uri_complete: undefined } },
   ]);
 
   const error = await assertOAuthRejects(
@@ -303,7 +309,7 @@ test("access_denied ends the flow — the operator said no, retrying would just 
 test("an expired device authorization is detected locally and costs no outbound request", async () => {
   const clock = createTestClock();
   clock.advance(16 * 60 * 1000);
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   const error = await assertOAuthRejects(
     () =>
@@ -327,7 +333,7 @@ test("an expired device authorization is detected locally and costs no outbound 
 
 test("an approved poll returns the token set with the RFC 8628 grant type on the wire", async () => {
   const clock = createTestClock();
-  const http = createFetchDouble([{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }]);
 
   const tokens = await pollDeviceAuthorizationOnce(
     {

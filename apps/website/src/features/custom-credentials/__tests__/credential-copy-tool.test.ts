@@ -335,7 +335,8 @@ for (const results of [[], [{ kind: 'vendor' as const, id: 'one', status: 'faile
     f.deps.localCredentialCopy!.copy = async () => results;
     const pending = f.run(); await keys(f); f.answer({ ids: ['one'], overwrite: false });
     assert.deepEqual(await pending, { results });
-    assert.match(f.resource().text, new RegExp(`data-state="${results.length ? 'failure' : 'success'}"`));
+    // The shared outcome renderer maps failure/success to its DOM states failed/done.
+    assert.match(f.resource().text, new RegExp(`data-state="${results.length ? 'failed' : 'done'}"`));
     assert.equal(f.surfaceExchanges.size(), 0);
   });
 }

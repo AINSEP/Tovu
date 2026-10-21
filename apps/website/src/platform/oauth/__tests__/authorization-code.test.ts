@@ -1,3 +1,4 @@
+// openid-client validates token_type; successful provider fixtures include the required wire field.
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import test from "node:test";
@@ -229,7 +230,7 @@ test("expires_in becomes an absolute expiresAt computed from the injected clock"
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at", expires_in: 60 } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at", expires_in: 60 } }]);
 
   const tokens = await completeAuthorizationCode(
     {
@@ -260,7 +261,7 @@ test("a provider that omits expires_in yields a null expiry rather than a fabric
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   const tokens = await completeAuthorizationCode(
     {
@@ -292,7 +293,7 @@ test("a replayed callback is refused and never reaches the token endpoint a seco
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
   const deps = { provider, pending, clock, fetchFn: http.fetchFn };
   const params = { state: started.state, code: "c" };
 
@@ -319,7 +320,7 @@ test("a state belonging to another connection is refused before any exchange", a
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   await assertOAuthRejects(
     () =>
@@ -341,7 +342,7 @@ test("a state belonging to another connection is refused before any exchange", a
 
 test("a missing state is refused without contacting the provider", async () => {
   const { clock, pending, provider } = makeFlow();
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   await assertOAuthRejects(
     () =>
@@ -375,7 +376,7 @@ test("an oversized authorization code is refused before it is put in a form body
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   const error = await assertOAuthRejects(
     () =>
@@ -410,7 +411,7 @@ test("a callback carrying error=access_denied is terminal, not retryable", async
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
 
   const error = await assertOAuthRejects(
     () =>
@@ -731,7 +732,7 @@ test("a state minted for a different provider is refused before any exchange", a
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
   await assertOAuthRejects(
     () => completeAuthorizationCode(
       {
@@ -768,7 +769,7 @@ test("PKCE-disabled providers omit challenge and verifier and honor a scope over
   assert.equal(url.searchParams.get("code_challenge"), null);
   assert.equal(url.searchParams.get("code_challenge_method"), null);
   assert.equal(url.searchParams.get("scope"), "custom:read custom:write");
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
   await completeAuthorizationCode(
     {
       provider,
@@ -797,7 +798,7 @@ test("a callback with neither code nor error is refused without an exchange", as
       redirectUri: REDIRECT_URI,
     },
   );
-  const http = createFetchDouble([{ json: { access_token: "at" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
   await assertOAuthRejects(
     () => completeAuthorizationCode(
       {

@@ -82,7 +82,8 @@ for (const [input, expectedOptions] of [
   });
 }
 
-for (const input of [null, [], "text", 1, { file: 42 }, { unexpected: true }, { file: "guide.md", unexpected: true }]) {
+// The generic object reader accepts arrays; the skill handler must enforce its object-only schema.
+for (const input of [null, [], Object.assign([], { file: "references/guide.md" }), "text", 1, { file: 42 }, { unexpected: true }, { file: "guide.md", unexpected: true }]) {
   test(`handler rejects invalid arguments before reading for ${JSON.stringify(input)}`, async () => {
     let reads = 0;
     const tool = registration({ readFile: async () => {

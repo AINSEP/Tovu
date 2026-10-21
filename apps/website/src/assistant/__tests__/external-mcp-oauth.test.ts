@@ -1,3 +1,4 @@
+// openid-client validates token_type; successful provider fixtures include the required wire field.
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { createOAuthProviderRegistry, MAX_AUTHORIZATION_STATE_LENGTH, OAuthError } from "@jini-ai/oauth";
 import { formatAad } from "@jini-ai/platform/secrets";
@@ -180,7 +181,7 @@ test("saving an OAuth connection stores its identity in plaintext and its secret
 
 test("the admin read model never carries a token, a refresh token, or a client secret", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
 
@@ -197,7 +198,7 @@ test("the admin read model never carries a token, a refresh token, or a client s
 
 test("a completed handshake writes expiresAt in PLAINTEXT — readable with no sealer at all", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
 
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
@@ -243,7 +244,7 @@ test("a provider that is unreachable at connect time fails ONCE, fast, and is no
 test("a replayed code reaches the provider once and its single-use check rejects it", async () => {
   const { http, service } = await makeHarness({
     rejectReplayedCodes: true,
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
@@ -261,8 +262,8 @@ test("a replayed code reaches the provider once and its single-use check rejects
 test("a refresh reseals the token WITHOUT losing the client secret sharing its blob", async () => {
   const { repo, sealer, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
-      { json: { access_token: "at-2", refresh_token: "rt-2", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-2", refresh_token: "rt-2", expires_in: 3600 } },
     ],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
@@ -283,8 +284,8 @@ test('refresh POST carries the saved refresh token and unsealed client secret to
   const { clock, http, service } = await makeHarness({
     clientAuth: 'client_secret_post',
     script: [
-      { json: { access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 } },
-      { json: { access_token: 'at-2', refresh_token: 'rt-2', expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: 'at-2', refresh_token: 'rt-2', expires_in: 3600 } },
     ],
   });
   await connect(service);
@@ -294,7 +295,8 @@ test('refresh POST carries the saved refresh token and unsealed client secret to
   const request = http.requests[1]!;
   assert.equal(request.url, PROVIDER.tokenEndpoint);
   assert.equal(request.init?.method, 'POST');
-  assert.equal(new Headers(request.init?.headers).get('content-type'), 'application/x-www-form-urlencoded');
+  // openid-client serializes the form with an explicit UTF-8 charset.
+  assert.equal(new Headers(request.init?.headers).get('content-type'), 'application/x-www-form-urlencoded;charset=UTF-8');
   const body = new URLSearchParams(String(request.init?.body));
   assert.equal(body.get('grant_type'), 'refresh_token');
   assert.equal(body.get('refresh_token'), 'rt-1');
@@ -305,7 +307,7 @@ test('refresh POST carries the saved refresh token and unsealed client secret to
 test("a provider answering invalid_grant transitions to needs_reauth, clears the token, and surfaces a non-retryable error", async () => {
   const { repo, sealer, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -343,7 +345,7 @@ test("markNeedsReauth clears the token but PRESERVES the client secret sharing i
   // here means the row can never be re-authorized again — only deleted and recreated from scratch.
   const { repo, sealer, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -363,7 +365,7 @@ test("markNeedsReauth clears the token but PRESERVES the client secret sharing i
 test("needs_reauth is DURABLE — a second call does not re-probe the provider", async () => {
   const { http, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -382,7 +384,7 @@ test("needs_reauth is DURABLE — a second call does not re-probe the provider",
 test("a TRANSIENT refresh failure does not mark the connection needs_reauth", async () => {
   const { repo, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { throws: Object.assign(new Error("timed out"), { name: "TimeoutError" }) },
     ],
   });
@@ -403,7 +405,7 @@ test("a TRANSIENT refresh failure does not mark the connection needs_reauth", as
 
 test("boot-time federation injects the access token into the operator's chosen env variable", async () => {
   const { repo, sealer, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
@@ -422,7 +424,7 @@ test("boot-time federation injects the access token into the operator's chosen e
 test("a needs_reauth connection is REPORTED at boot, not silently dropped", async () => {
   const { repo, sealer, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -458,7 +460,7 @@ test("an OAuth row read by a process with no token resolver is reported rather t
 
 test("reportAuthFailure marks needs_reauth, preserves the client secret, and surfaces the same terminal error tokenResolver throws", async () => {
   const { repo, sealer, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
 
@@ -489,7 +491,7 @@ test("reportAuthFailure marks needs_reauth, preserves the client secret, and sur
 test("reportAuthFailure is idempotent against a connection already needs_reauth — it does not re-clear or re-timestamp the row", async () => {
   const { repo, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -538,7 +540,7 @@ test("reportAuthFailure passes a non-OAuth connection's error through unchanged 
 
 test("disconnect clears the token, preserves the client secret, and returns the row to disconnected", async () => {
   const { repo, sealer, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
@@ -556,7 +558,7 @@ test("disconnect clears the token, preserves the client secret, and returns the 
 
 test("disconnect stops the read model claiming a stored token — even though the sealed blob survives", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
   assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE))[0]?.oauth.hasStoredToken, true);
@@ -655,7 +657,7 @@ test("polling a device authorization reports pending, then connects, and stores 
     script: [
       { json: { device_code: "device-secret", user_code: "WDJB-MJHT", verification_uri: "https://auth.example.com/activate", expires_in: 900, interval: 5 } },
       { status: 400, json: { error: "authorization_pending" } },
-      { json: { access_token: "at-device", refresh_token: "rt-device", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-device", refresh_token: "rt-device", expires_in: 3600 } },
     ],
   });
   await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
@@ -696,7 +698,7 @@ test("a declined device authorization is terminal and drops the in-flight attemp
 
 test("re-pointing an OAuth connection's client id discards the token it no longer matches", async () => {
   const { repo, sealer, keyring, clock, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
@@ -728,7 +730,7 @@ test("re-pointing an OAuth connection's client id discards the token it no longe
 
 test("a save that changes nothing about the OAuth binding leaves the live connection alone", async () => {
   const { repo, sealer, keyring, clock, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
@@ -782,7 +784,7 @@ async function rosterCallTarget(repo: InMemoryExternalMcpServerRepo, serverId: s
 
 test("the connection gate lets a healthy OAuth connection through", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
@@ -793,7 +795,7 @@ test("the connection gate lets a healthy OAuth connection through", async () => 
 test("the connection gate refuses a needs_reauth connection with the terminal, model-legible error", async () => {
   const { repo, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -822,7 +824,7 @@ test("the gate still refuses a needs_reauth ROSTER connection with the unchanged
   // admission), so the gate must still fall through to the ORIGINAL `needs_reauth` check below it.
   const { repo, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -848,7 +850,7 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
   // in-memory flag is shared; only the row is.
   const { repo, clock, service } = await makeHarness({
     script: [
-      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
     ],
   });
@@ -883,7 +885,7 @@ test("a preset call is not refused for a missing row, even for a connection id t
 
 test("the gate refuses an OAuth connection the operator disconnected", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
   await service.disconnect({ serverId: SERVER });
@@ -907,7 +909,7 @@ test("the gate refuses an OAuth connection the operator disconnected", async () 
 
 test("the gate refuses a non-preset call with no admission origin", async () => {
   const { repo, service } = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
@@ -1054,7 +1056,7 @@ function serviceWithBrokenDependency(
   });
 }
 
-const CONNECTED_SCRIPT: readonly ScriptStep[] = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
+const CONNECTED_SCRIPT: readonly ScriptStep[] = [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
 
 test("sealed redirect state survives rebuilding the service and carries only encrypted verifier material", async () => {
   const h = await makeHarness({ script: CONNECTED_SCRIPT });
@@ -1181,7 +1183,7 @@ test("disconnect does NOT wipe the client secret when the KEYRING re-seal leg ke
 
 test("markNeedsReauth records the durable state even when the blob became unopenable mid-session", async () => {
   const base = await makeHarness({
-    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }, { status: 400, json: { error: "invalid_grant" } }],
+    script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }, { status: 400, json: { error: "invalid_grant" } }],
   });
   await connect(base.service);
   base.clock.advance(60 * 60 * 1000);
@@ -1242,9 +1244,9 @@ test("a clear-token failure that is NOT the secret store still propagates — th
 // REGRESSION: fails if refreshAccessToken is replaced by requestOAuthToken without carrying the old refresh token.
 test("a nonrotating refresh token stays sealed for the next refresh", async () => {
   const { clock, http, service } = await makeHarness({ script: [
-    { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
-    { json: { access_token: "at-2", expires_in: 3600 } },
-    { json: { access_token: "at-3", expires_in: 3600 } },
+    { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+    { json: { token_type: "Bearer", access_token: "at-2", expires_in: 3600 } },
+    { json: { token_type: "Bearer", access_token: "at-3", expires_in: 3600 } },
   ] });
   await connect(service);
   clock.advance(60 * 60 * 1000);
@@ -1336,7 +1338,7 @@ async function requestedScope(h: Harness): Promise<string | null> {
   return new URL(started.authorizationUrl).searchParams.get("scope");
 }
 
-const TOKEN_SCRIPT = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
+const TOKEN_SCRIPT = [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
 
 test("a post-connect step that throws is logged and does not fail the sign-in", async (t) => {
   const h = await makeHarness({ script: TOKEN_SCRIPT });

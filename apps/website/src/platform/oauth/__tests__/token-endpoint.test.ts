@@ -5,12 +5,11 @@ import { requestOAuthToken } from "@jini-ai/oauth";
 import { createTestOAuthPorts, assertOAuthRejects, createFetchDouble, createTestClock, TEST_CLIENT } from "./helpers.js";
 
 /**
- * @file Direct characterization tests for {@link requestOAuthToken}'s field-normalization branches.
+ * @file Wire-contract tests for {@link requestOAuthToken} through Jini's openid-client owner.
  *
  * The higher-level grant tests (`authorization-code.test.ts`, `device-code.test.ts`) exercise this
- * function's error paths thoroughly but never happen to send a `token_type`-less or empty-string
- * response, nor an empty-string `refresh_token`. Pinned here before an internal-only refactor
- * (extraction only, no field-handling behavior changed).
+ * function's error paths thoroughly. These cases additionally pin strict token_type, refresh_token
+ * and expiry validation after the intended openid-client migration.
 
  *
  * Design history from the retired Tovu token-endpoint module. The implementation now lives in
@@ -52,14 +51,8 @@ import { createTestOAuthPorts, assertOAuthRejects, createFetchDouble, createTest
  *  A non-numeric or non-positive value yields `null` — "unknown expiry" — rather than a fabricated
  *  one, because a wrong `expiresAt` is worse than none: it schedules a refresh that will not help.
  * RFC 6749 §3.3: space-delimited. Providers also emit comma-delimited in the wild, so both split.
- * RFC 6749 §5.1's `refresh_token` is optional. A provider-sent empty string is treated the same as
- *  an absent one — `null`, never `""` — so callers have one falsy-but-present case to handle, not
- *  two. Split out of {@link requestOAuthToken} purely to keep that function's own branch count
- *  under the repo's complexity ceiling.
- * RFC 6749 §5.1's `token_type` is REQUIRED, but real providers omit or empty it. Defaulting to
- *  `"Bearer"` (the only type every grant here actually uses) matches the pre-extraction behavior
- *  exactly. Split out of {@link requestOAuthToken} for the same reason as
- *  {@link nonEmptyStringOrNull}.
+ * RFC 6749 §5.1's optional `refresh_token` must be non-empty when present; `token_type` is
+ * required and must identify a supported token type. The upstream processor owns these checks.
  * Posts one grant to a token endpoint and normalizes the result.
  *
  * @param deps.clock - Supplies the instant `expiresAt` is computed from.
@@ -78,7 +71,7 @@ const TOKEN_ENDPOINT = "https://auth.example.com/token";
 
 for (const authMethod of ["none", "client_secret_post", "client_secret_basic"] as const) {
   test(`token requests authenticate using ${authMethod}`, async () => {
-    const http = createFetchDouble([{ json: { access_token: "at" } }]);
+    const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at" } }]);
     const client = { clientId: "id: /+", clientSecret: "secret: /+", authMethod };
     await requestOAuthToken(
       {
@@ -92,17 +85,18 @@ for (const authMethod of ["none", "client_secret_post", "client_secret_basic"] a
     const request = http.requests[0];
     assert.equal(request.body.get("client_id"), authMethod === "client_secret_basic" ? null : client.clientId);
     assert.equal(request.body.get("client_secret"), authMethod === "client_secret_post" ? client.clientSecret : null);
-    // Literal fixture pins URL encoding before the id/secret pair is base64 encoded.
+    // openid-client uses RFC 6749 form encoding, including + for spaces, before Base64.
     assert.equal(request.headers.authorization, authMethod === "client_secret_basic"
-      ? `Basic ${Buffer.from("id%3A%20%2F%2B:secret%3A%20%2F%2B").toString("base64")}` : undefined);
+      ? `Basic ${Buffer.from("id%3A+%2F%2B:secret%3A+%2F%2B").toString("base64")}` : undefined);
   });
 }
 
-test("a missing token_type defaults to Bearer", async () => {
+test("a missing token_type is rejected", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ json: { access_token: "at" } }]);
 
-  const tokens = await requestOAuthToken(
+  // openid-client rejects malformed wire fields instead of fabricating defaults.
+  const error = await assertOAuthRejects(() => requestOAuthToken(
     {
       clock,
       ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
@@ -110,16 +104,18 @@ test("a missing token_type defaults to Bearer", async () => {
       client: TEST_CLIENT,
       params: { grant_type: "authorization_code" },
     },
-  );
+  ), "OAUTH_MALFORMED_RESPONSE");
 
-  assert.equal(tokens.tokenType, "Bearer");
+  assert.equal(error.retryable, false);
+  assert.equal(http.callCount(), 1);
 });
 
-test("an empty-string token_type defaults to Bearer rather than being passed through", async () => {
+test("an empty-string token_type is rejected", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ json: { access_token: "at", token_type: "" } }]);
 
-  const tokens = await requestOAuthToken(
+  // openid-client rejects malformed wire fields instead of fabricating defaults.
+  const error = await assertOAuthRejects(() => requestOAuthToken(
     {
       clock,
       ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
@@ -127,16 +123,18 @@ test("an empty-string token_type defaults to Bearer rather than being passed thr
       client: TEST_CLIENT,
       params: { grant_type: "authorization_code" },
     },
-  );
+  ), "OAUTH_MALFORMED_RESPONSE");
 
-  assert.equal(tokens.tokenType, "Bearer");
+  assert.equal(error.retryable, false);
+  assert.equal(http.callCount(), 1);
 });
 
-test("a non-default token_type passes through unchanged", async () => {
+test("an unsupported token_type is rejected", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ json: { access_token: "at", token_type: "mac" } }]);
 
-  const tokens = await requestOAuthToken(
+  // openid-client rejects malformed wire fields instead of fabricating defaults.
+  const error = await assertOAuthRejects(() => requestOAuthToken(
     {
       clock,
       ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
@@ -144,16 +142,18 @@ test("a non-default token_type passes through unchanged", async () => {
       client: TEST_CLIENT,
       params: { grant_type: "authorization_code" },
     },
-  );
+  ), "OAUTH_MALFORMED_RESPONSE");
 
-  assert.equal(tokens.tokenType, "mac");
+  assert.equal(error.retryable, false);
+  assert.equal(http.callCount(), 1);
 });
 
-test("an empty-string refresh_token normalizes to null, same as an absent one", async () => {
+test("an empty-string refresh_token is rejected", async () => {
   const clock = createTestClock();
-  const http = createFetchDouble([{ json: { access_token: "at", refresh_token: "" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at", refresh_token: "" } }]);
 
-  const tokens = await requestOAuthToken(
+  // openid-client rejects malformed wire fields instead of fabricating defaults.
+  const error = await assertOAuthRejects(() => requestOAuthToken(
     {
       clock,
       ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
@@ -161,14 +161,15 @@ test("an empty-string refresh_token normalizes to null, same as an absent one", 
       client: TEST_CLIENT,
       params: { grant_type: "authorization_code" },
     },
-  );
+  ), "OAUTH_MALFORMED_RESPONSE");
 
-  assert.equal(tokens.refreshToken, null);
+  assert.equal(error.retryable, false);
+  assert.equal(http.callCount(), 1);
 });
 
 test("a non-empty refresh_token passes through unchanged", async () => {
   const clock = createTestClock();
-  const http = createFetchDouble([{ json: { access_token: "at", refresh_token: "rt-1" } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at", refresh_token: "rt-1" } }]);
 
   const tokens = await requestOAuthToken(
     {
@@ -213,7 +214,7 @@ test("HTTP 200 without an access_token is a malformed response", async () => {
 });
 
 test("scope accepts comma and whitespace separators without empty scopes", async () => {
-  const http = createFetchDouble([{ json: { access_token: "at", scope: "  read,write  profile,  email " } }]);
+  const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at", scope: "  read,write  profile,  email " } }]);
   const tokens = await requestOAuthToken(
     {
       clock: createTestClock(),
@@ -227,9 +228,10 @@ test("scope accepts comma and whitespace separators without empty scopes", async
 });
 
 for (const expiresIn of [0, -1, "abc"]) {
-  test(`expires_in ${JSON.stringify(expiresIn)} yields unknown expiry`, async () => {
-    const http = createFetchDouble([{ json: { access_token: "at", expires_in: expiresIn } }]);
-    const tokens = await requestOAuthToken(
+  test(`expires_in ${JSON.stringify(expiresIn)} ${expiresIn === 0 ? "yields unknown expiry" : "is rejected"}`, async () => {
+    const http = createFetchDouble([{ json: { token_type: "Bearer", access_token: "at", expires_in: expiresIn } }]);
+    // openid-client validates expiry values before Tovu projects the token set.
+    const request = () => requestOAuthToken(
       {
         clock: createTestClock(),
         ...createTestOAuthPorts({ fetchFn: http.fetchFn }),
@@ -238,6 +240,8 @@ for (const expiresIn of [0, -1, "abc"]) {
         params: { grant_type: "authorization_code" },
       },
     );
-    assert.equal(tokens.expiresAt, null);
+    if (expiresIn === 0) assert.equal((await request()).expiresAt, null);
+    else await assertOAuthRejects(request, "OAUTH_MALFORMED_RESPONSE");
+    assert.equal(http.callCount(), 1);
   });
 }

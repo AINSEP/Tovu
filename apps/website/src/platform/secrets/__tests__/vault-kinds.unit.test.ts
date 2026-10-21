@@ -126,9 +126,10 @@ test("legacy AAD markers are rejected on every kind's metadata", () => {
 test("a legacy AAD marker is refused before migration labels are inspected for credentials", () => {
   invalid("vendor", { credentialType: "vendor", worksFor: ["host"], legacyAad: "v1", migration: { originalLabel: credentialUrl } });
 });
-test("a recovery status wrapped in an array is accepted and returned as-is (reported, not fixed)", () => {
+test("a recovery status wrapped in an array is rejected", () => {
   const meta = { credentialType: "vendor", worksFor: ["host"], normalization: ["conflict"] };
-  assert.deepEqual(parsers.vendor({ meta }), meta);
+  // Recovery metadata now requires a scalar status; retain the former bug as a refusal regression.
+  invalid("vendor", meta);
 });
 test("migration credentials are refused before ordinary structural checks", () => {
   assert.throws(() => parsers.vendor({ meta: { credentialType: "vendor", worksFor: ["host"], unknown: 1, migration: { originalLabel: credentialUrl } } }), credentialIn("originalLabel"));
