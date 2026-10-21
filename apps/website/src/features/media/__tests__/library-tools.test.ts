@@ -118,3 +118,26 @@ test('library_read explains download-only formats without loading their blob byt
   for (const id of ids) await assert.rejects(read.handler(libraryContext({ documentId: id })), /download only; text extraction is unavailable/);
   assert.equal(reads, 0);
 });
+
+test('Library save allows by policy, refuses before the store is ready, reports upload-policy refusals as input errors and rethrows storage faults', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'library-save-refusals-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const store = await createDiskAttachmentStore({ uploadDirectory: dir });
+  t.after(() => store.dispose());
+  const batch = await store.createBatchDirectory({ batchId: 'batch-bbb' });
+  const exePath = join(batch, 'tool.exe'); const mdPath = join(batch, 'notes.md');
+  await writeFile(exePath, 'MZ binary'); await writeFile(mdPath, '# Notes');
+  const exe = await store.register({ input: { batchId: 'batch-bbb', path: exePath, name: 'tool.exe', kind: 'file', size: 9, ownerId: 'owner' } });
+  const md = await store.register({ input: { batchId: 'batch-bbb', path: mdPath, name: 'notes.md', kind: 'file', size: 7, ownerId: 'owner' } });
+  await store.claim({ runId: 'run-a', attachments: [exe, md] });
+  const { deps } = libraryFixture();
+  const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps, getStore, readFile,
+    getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader({}) });
+  const tool = build(() => store);
+  assert.equal(tool.policy?.authorize?.({} as never), 'allow');
+  await assert.rejects(build(() => undefined).handler(libraryContext({ attachmentRef: md.path })), { message: 'attachment store is not ready' });
+  await assert.rejects(tool.handler(libraryContext({ attachmentRef: exe.path })), { name: 'ToolInputError', message: 'document type must be .md, .txt, .csv, .json, .doc, .xls, .rtf, .xlsx, .pptx, .pages, .key, .pdf, .docx' });
+  const fault = new Error('blob store offline');
+  deps.blobStore.put = async () => { throw fault; };
+  await assert.rejects(tool.handler(libraryContext({ attachmentRef: md.path })), (error: unknown) => error === fault);
+  assert.deepEqual(await deps.mediaRepo.list({ workspaceId: deps.workspaceId }), []);
+});
