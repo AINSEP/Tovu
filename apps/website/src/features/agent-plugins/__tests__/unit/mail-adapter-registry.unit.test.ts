@@ -200,7 +200,7 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
 
 test("parseMailAdaptersFile refuses every malformed top-level shape and descriptor field", () => {
   for (const raw of ["null", "[]", "\"x\"", JSON.stringify({ adapters: [] })]) {
-    assert.deepEqual(parseMailAdaptersFile(raw), { ok: false, reason: "schemaVersion must be 1" }, raw);
+    assert.deepEqual(parseMailAdaptersFile(raw), { ok: false, reason: "schemaVersion must be 1 or 2" }, raw);
   }
   assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: {} })), { ok: false, reason: "adapters must be an array" });
   assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: ["entry"] })), { ok: false, reason: "adapters[0] must be an object" });
