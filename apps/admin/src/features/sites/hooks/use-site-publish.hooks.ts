@@ -92,11 +92,11 @@ const PERMISSIONS_KEY = ["sites", "publish-permissions"] as const;
 
 /** The one row a run belongs to; `state` is only set for content pushes (static state is read off
  *  the static controller). */
-interface ActiveRun {
-  readonly id: string;
-  readonly via: "static" | "peer";
-  readonly state?: SitePublishRowState;
-}
+/** A static run's state is read off the shared static controller; a content push carries its own,
+ *  so `state` exists exactly on the `"peer"` arm. */
+type ActiveRun =
+  | { readonly id: string; readonly via: "static" }
+  | { readonly id: string; readonly via: "peer"; readonly state: SitePublishRowState };
 
 export function useSitePublish(deps: SitePublishDependencies, options: { now?: () => number } = {}): SitePublishController {
   const { port, peerPort, t, locale, liveAvailable } = deps;
@@ -146,8 +146,9 @@ export function useSitePublish(deps: SitePublishDependencies, options: { now?: (
       void staticPublish.publish(staticReplayOptions(destination));
       return;
     }
-    const peerId = destinationPeerId(destination);
-    if (peerId !== null) void pushContent(id, peerId, destination.url);
+    // `destinationAction` only answers "publish" for a non-static row when `destinationPeerId` is
+    // non-null (site-publish-rules.ts), so the peer id is always present here.
+    void pushContent(id, destinationPeerId(destination)!, destination.url);
   }
 
   const rowContext = { active, staticState, permissions, liveAvailable, nowMs: (options.now ?? Date.now)(), locale, t };
@@ -224,7 +225,7 @@ function rowState(id: string, context: RowContext): SitePublishRowState | null {
   const { active } = context;
   if (active?.id !== id) return null;
   if (active.via === "static") return context.staticState;
-  return active.state ?? null;
+  return active.state;
 }
 
 /** A failed refresh takes precedence over cached data; stale empty copy would hide the failure. */
@@ -244,7 +245,7 @@ function listRows(destinations: readonly AdminPublishDestination[] | undefined, 
 function runFlags(active: ActiveRun | null, staticPublish: StaticPublishController) {
   const staticActive = active?.via === "static";
   const staticState = staticActive ? staticRowState(staticPublish) : null;
-  const busy = staticState?.kind === "running" || active?.state?.kind === "running";
+  const busy = staticState?.kind === "running" || (active?.via === "peer" && active.state.kind === "running");
   return { staticState, busy, staticActive };
 }
 
