@@ -136,7 +136,9 @@ export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestH
 
   return (req: Request, res: Response) => {
     const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, req), (proxyRes) => {
-      res.writeHead(proxyRes.statusCode ?? 502, stripHopByHopHeaders(proxyRes.headers));
+      // A client-side `IncomingMessage` handed to a `request()` response callback always carries the
+      // parsed status line, so `statusCode` is set here (it is only optional on the server-side type).
+      res.writeHead(proxyRes.statusCode!, stripHopByHopHeaders(proxyRes.headers));
       proxyRes.pipe(res);
     });
     proxyReq.on("error", (error) => {
@@ -153,13 +155,15 @@ export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestH
   };
 }
 
-/** Formats an upstream upgrade response's raw headers back into wire format for the client socket. */
-function formatUpgradeResponseHead(statusCode: number | undefined, statusMessage: string | undefined, rawHeaders: string[]): string {
+/** Formats an upstream upgrade response's raw headers back into wire format for the client socket.
+ *  The `upgrade` event only fires for a parsed `101` response, so its status code and reason phrase
+ *  (possibly empty, never absent) are always present on the client-side `IncomingMessage`. */
+function formatUpgradeResponseHead(statusCode: number, statusMessage: string, rawHeaders: string[]): string {
   let headerLines = "";
   for (let i = 0; i < rawHeaders.length; i += 2) {
     headerLines += `${rawHeaders[i]}: ${rawHeaders[i + 1]}\r\n`;
   }
-  return `HTTP/1.1 ${statusCode ?? 502} ${statusMessage ?? "Bad Gateway"}\r\n${headerLines}\r\n`;
+  return `HTTP/1.1 ${statusCode} ${statusMessage}\r\n${headerLines}\r\n`;
 }
 
 /**
@@ -197,11 +201,11 @@ function destroyOnTermination(terminator: Socket, victim: Socket): void {
  *
  * @complexity O(1) setup; the connection then runs as a plain byte pipe for its lifetime.
  */
-function proxyAdminUpgrade(upstream: AdminDevProxyUpstream, req: IncomingMessage, clientSocket: Socket, head: Buffer): void {
-  const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, { method: req.method, headers: req.headers, url: req.url ?? "/admin/" }));
+function proxyAdminUpgrade(upstream: AdminDevProxyUpstream, req: IncomingMessage & { url: string }, clientSocket: Socket, head: Buffer): void {
+  const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, { method: req.method, headers: req.headers, url: req.url }));
 
   proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-    clientSocket.write(formatUpgradeResponseHead(proxyRes.statusCode, proxyRes.statusMessage, proxyRes.rawHeaders));
+    clientSocket.write(formatUpgradeResponseHead(proxyRes.statusCode!, proxyRes.statusMessage!, proxyRes.rawHeaders));
     if (proxyHead.length > 0) clientSocket.write(proxyHead);
     if (head.length > 0) proxySocket.write(head);
     proxySocket.pipe(clientSocket);
@@ -215,6 +219,11 @@ function proxyAdminUpgrade(upstream: AdminDevProxyUpstream, req: IncomingMessage
   proxyReq.on("error", () => clientSocket.destroy());
   clientSocket.on("error", () => proxyReq.destroy());
   proxyReq.end();
+}
+
+/** Narrows an `upgrade` request to one this proxy claims: a present URL under `/admin`. @complexity O(1). */
+function isAdminUpgradeRequest(req: IncomingMessage): req is IncomingMessage & { url: string } {
+  return req.url?.startsWith("/admin") === true;
 }
 
 /**
@@ -238,7 +247,8 @@ export function registerAdminDevProxyUpgrade(server: { on(event: "upgrade", list
 
   const upstream = resolveAdminDevProxyUpstream(devProxyUrl);
   server.on("upgrade", (req, socket, head) => {
-    if (!req.url?.startsWith("/admin")) return;
+    // Only `/admin*` upgrades are claimed, so the URL is known to be present past this check.
+    if (!isAdminUpgradeRequest(req)) return;
     proxyAdminUpgrade(upstream, req, socket, head);
   });
 }
