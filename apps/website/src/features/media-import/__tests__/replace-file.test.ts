@@ -163,3 +163,16 @@ test("null URL counts as a supplied remote source before URL string validation",
   await assert.rejects(f.run({ mediaId: "missing-media", url: null }), /Media was not found or is in Trash/);
   assert.equal(f.fetches(), 0);
 });
+
+test("a traversal path or a file that is not valid media is refused as input, and the media is unchanged", async t => {
+  const f = await fixture(t);
+  fs.writeFileSync(path.join(f.root, "notes.txt"), "plain text, not an image");
+  const errors: Error[] = [];
+  for (const input of [{ root: "repo", path: "../../etc/passwd" }, { root: "repo", path: "notes.txt" }]) {
+    await assert.rejects(f.run({ mediaId: f.media.id, ...input }), (error: Error) => { errors.push(error); return true; });
+  }
+  assert.deepEqual(errors.map(e => e.name), ["ToolInputError", "ToolInputError"]);
+  assert.match(errors[0]!.message, /^path '\.\.\/\.\.\/etc\/passwd' resolves outside the allowed root\. Fix the input and retry .*Schema for 'media_replace_file'/s);
+  assert.match(errors[1]!.message, /^'notes\.txt' is not an importable file: its actual bytes are 'application\/octet-stream'\./);
+  assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }), f.media);
+});
