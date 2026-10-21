@@ -752,6 +752,17 @@ test("an unknown provider id is refused with the engine-canonical hint", async (
     'unknown media provider "xai-grok-imagine" — expected an engine-canonical id from @jini-ai/integrations/media-providers');
 });
 
+test("a registry-held plugin vendor id is accepted; an alias it would resolve is still refused", async () => {
+  // A fake registry: holds `acme-media` exactly, and resolves the alias `acme` to it (as aliases resolve).
+  const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" || id === "acme" ? { id: "acme-media" } : null) };
+  const { repo, deps } = makeDeps();
+  const saved = await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" } } });
+  assert.equal(saved["acme-media"]?.apiKeyConfigured, true);
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId), ["acme-media"]);
+  await assert.rejects(saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { acme: {} } }),
+    validation('unknown media provider "acme" — expected an engine-canonical id from @jini-ai/integrations/media-providers'));
+});
+
 test("a primitive provider entry is refused as not-an-object", async () => {
   await saveRejects({ openai: "str" }, 'provider "openai" must be an object');
 });

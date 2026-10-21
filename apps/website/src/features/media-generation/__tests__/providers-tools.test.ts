@@ -11,6 +11,7 @@ import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExe
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
+import { createMediaProviderRegistry } from '@jini-ai/integrations/media-providers';
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '../../media/provider-credential-store.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
@@ -76,7 +77,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const auth: unknown[] = [];
-  const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer,
+  const deps = { workspaceId: 'ws-t10', mediaProviderCredentialRepo: repo, siteAssistantSecretSealer: sealer, mediaProviderRegistry: createMediaProviderRegistry(),
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });

@@ -686,9 +686,10 @@ test("a plugin vendor generates end to end through the composition-built registr
       return { status: 200, headers: { "content-type": "image/png" }, bodyText: "", bodyBytes: FAKE_PNG_BYTES, finalUrl: request.url };
     },
   };
-  const fixture = fakeRouteDeps({ generateMedia: null, httpClient, mediaProviderRegistry: registryWithAcme() });
+  const registry = registryWithAcme();
+  const fixture = fakeRouteDeps({ generateMedia: null, httpClient, mediaProviderRegistry: registry });
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }), providerCatalog: registry },
     { workspaceId: WORKSPACE_ID, providers: { "acme-media": { apiKey: "acme-key-1" } } }
   );
   await seedPublicTransform(fixture.transformDefinitionRepo);
