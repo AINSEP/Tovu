@@ -92,7 +92,9 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
     const context = buildContext(req, receivedAt);
 
     try {
-      const binding = createAnalyticsIngestBinding({ deps });
+      // Never throws (fails toward no vendor); resolved before ingest because consent is per request.
+      const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
+      const binding = createAnalyticsIngestBinding({ deps }, { forwarders });
       await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
     } catch {
       // Never let an ingest-side failure surface to the public beacon caller — see file header.
