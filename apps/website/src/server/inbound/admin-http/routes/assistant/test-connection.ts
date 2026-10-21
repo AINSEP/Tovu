@@ -50,7 +50,7 @@ async function fetchTestConnectionResponse(
   // key; undefined uses fetch's default.
   const requestInit = { ...deps.probeRequestInit, redirect: "error", dispatcher: deps.probeRequestInit?.dispatcher } satisfies
     RequestInit & NonNullable<NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"]>;
-  const result = await testProviderConnection({
+  const result = await (deps.testProviderConnection ?? testProviderConnection)({
     protocol,
     baseUrl: credential.baseUrl,
     apiKey: credential.apiKey,
@@ -88,7 +88,7 @@ async function fetchTestConnectionResponse(
  */
 export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

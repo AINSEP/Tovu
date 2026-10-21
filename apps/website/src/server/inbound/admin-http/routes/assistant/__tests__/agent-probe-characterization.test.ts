@@ -86,3 +86,58 @@ for (const force of [undefined, false, "true", true]) {
     } finally { await inventory.dispose({}); }
   });
 }
+
+test("test-agent probes through the assistant inventory's runtime when no detector is injected", async () => {
+  const inventory = createAssistantAgentInventory({
+    runtime: createNativeAgentRuntime({ env: { PATH: "/missing", HOME: "/missing" } }),
+    detector: async () => [],
+  });
+  const forces: unknown[] = [];
+  const app = express();
+  registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
+    assistantAgentInventory: {
+      ...inventory,
+      runtime: { ...inventory.runtime, detectAgents: async (_input, options) => { forces.push(options); return [agent]; } },
+    },
+  } }));
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
+    params: { workspaceId: "workspace-test" }, body: { agentId: "fixture-cli" },
+  }, res);
+  assert.equal(capture.statusCode, 200);
+  assert.deepEqual(capture.jsonBody, { ok: true, message: "Fixture CLI is installed and authenticated." });
+  assert.deepEqual(forces, [{ force: true }]);
+});
+
+test("test-agent refuses another workspace before authorizing or probing", async () => {
+  let authorizeCalls = 0;
+  let probes = 0;
+  const app = express();
+  registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
+    authorize: async () => { authorizeCalls++; return { allowed: true, reason: "granted" }; },
+    detectAgents: async () => { probes++; return [agent]; },
+  } }));
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
+    params: { workspaceId: "other-workspace" }, body: { agentId: "fixture-cli" },
+  }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  assert.equal(authorizeCalls, 0);
+  assert.equal(probes, 0);
+});
+
+test("test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired; an unknown id is reported not found", async () => {
+  const app = express();
+  registerAdminAssistantTestAgentRoute(app, dependencies({}));
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  // No catalog entry has this id, so the verdict is the same whichever real CLIs this host has.
+  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
+    params: { workspaceId: "workspace-test" }, body: { agentId: "no-such-agent-cli" },
+  }, res);
+  assert.equal(capture.statusCode, 200);
+  assert.deepEqual(capture.jsonBody, { ok: false, message: "'no-such-agent-cli' was not found on this server's PATH." });
+});
