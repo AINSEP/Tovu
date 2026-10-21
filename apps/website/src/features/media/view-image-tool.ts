@@ -173,8 +173,10 @@ async function renderForModel(asset: MediaRecord, bytes: Uint8Array, contentType
       data: data.toString("base64"),
       width: info.width,
       height: info.height,
-      originalWidth: (swap ? metadata.height : metadata.width) ?? info.width,
-      originalHeight: (swap ? metadata.width : metadata.height) ?? info.height,
+      // sharp's `Metadata.width`/`height` are always set for a decodable raster image (typed
+      // non-optional), so the original dimensions need no fallback to the encoded output's.
+      originalWidth: swap ? metadata.height : metadata.width,
+      originalHeight: swap ? metadata.width : metadata.height,
     };
   } catch {
     throw refusal(`media asset '${asset.id}' could not be decoded as an image (${contentType}) — its stored file may be damaged.`);
