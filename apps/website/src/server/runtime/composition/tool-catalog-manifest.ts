@@ -32,7 +32,7 @@ import { contributeContentTypesTools } from "#src/features/content-types/tool-re
 import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
-import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
+import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
@@ -46,6 +46,7 @@ import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-i
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
@@ -381,7 +382,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
   const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
-  contributions.contributors.register({ contribution: contributeDomainDnsTools({ createDeps: routeDeps => ({
+  contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
     resolver: createPublicDnsResolver(domainDnsHttpClient, domainDnsDiagnostics),
