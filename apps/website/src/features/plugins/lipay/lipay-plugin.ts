@@ -45,7 +45,7 @@ import {
   type PaymentsServiceOptional,
   type PaymentsServiceRequired,
 } from "@jini-ai/commerce/payments/kernel";
-import { migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
+import { type LegacyLipayMapping, migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
 import { declareDataModule } from "../data-module.js";
 import { type PluginStore, pluginKernel } from "../plugin-store.js";
 
@@ -58,12 +58,15 @@ export const LIPAY_PLUGIN_ID = "lipay";
 type MigrationKernel = Parameters<typeof migrateCommercePayments>[0]["kernel"];
 
 /** CMS adapter: preserve provenance and snapshot/journal guarantees before constructing Jini's runtime.
- * This adapter is deliberately absent from Tovu's boot, routes and tool catalog. */
+ * This adapter is deliberately absent from Tovu's boot, routes and tool catalog.
+ * `optional.legacyLipay` names the site, provider account and mode of rows the retired runtime left
+ * in `p_lipay__*`; the ledger import refuses to boot over such rows without it rather than guess. */
 export async function activateLipay(
   required: Omit<PaymentsServiceRequired, "ledger"> & { db: PluginStore; dbPath: string },
-  optional: PaymentsServiceOptional = {}
+  optional: PaymentsServiceOptional & { legacyLipay?: LegacyLipayMapping } = {}
 ): Promise<PaymentsPort> {
   const { db, dbPath, ...service } = required;
+  const { legacyLipay, ...serviceOptional } = optional;
   const kernel = pluginKernel(db);
   const declaration = await declareDataModule({ db: kernel, dbPath, decl: LIPAY_MANIFEST });
   if (!declaration.ok) {
@@ -72,6 +75,6 @@ export async function activateLipay(
   // The plugin store's kernel is the same storage-kernel shape `@jini-ai/db` defines (the legacy
   // runtime took it through the same cast).
   const storage = kernel as unknown as MigrationKernel;
-  await migrateCommercePayments({ kernel: storage });
-  return createPaymentsService({ ...service, ledger: sqlPaymentsLedger({ kernel: storage }) }, optional);
+  await migrateCommercePayments({ kernel: storage }, legacyLipay === undefined ? {} : { legacyLipay });
+  return createPaymentsService({ ...service, ledger: sqlPaymentsLedger({ kernel: storage }) }, serviceOptional);
 }

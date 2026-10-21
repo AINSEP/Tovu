@@ -19,6 +19,7 @@ import {
   type ProviderContextPort,
 } from "@jini-ai/commerce/payments/kernel";
 import { createLipayFake, lipayFakeContext, type LipayFakeServer } from "@jini-ai/commerce/payments/testkit";
+import type { LegacyLipayMapping } from "@jini-ai/commerce/payments/ledger/sql";
 import type { PluginStore } from "../../plugin-store.js";
 import { activateLipay } from "../lipay-plugin.js";
 
@@ -57,7 +58,11 @@ export interface Harness {
 }
 
 /** A fully wired lipay adapter on `db`, with the kernel's LiPay fake registered. */
-export async function lipayOn(db: PluginStore, dbPath: string, optional: { startAt?: number } = {}): Promise<Harness> {
+export async function lipayOn(
+  db: PluginStore,
+  dbPath: string,
+  optional: { startAt?: number; legacyLipay?: LegacyLipayMapping } = {}
+): Promise<Harness> {
   const clock = new TestClock(optional.startAt ?? Date.UTC(2026, 6, 30, 12, 0, 0));
   const now = () => clock.now();
   let seq = 0;
@@ -72,7 +77,7 @@ export async function lipayOn(db: PluginStore, dbPath: string, optional: { start
     grants,
     now,
     newId: () => `pay-${++seq}`,
-  });
+  }, optional.legacyLipay === undefined ? {} : { legacyLipay: optional.legacyLipay });
   return { api, server, grants, clock };
 }
 
