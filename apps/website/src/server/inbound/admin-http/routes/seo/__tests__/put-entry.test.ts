@@ -274,3 +274,20 @@ test("put-entry: an unexpected repo failure 500s", async (t) => {
   assert.equal(reached, true, "the conditional write must be the failing operation");
   assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
 });
+
+test("put-entry: losing the row to another writer on every merge attempt 409s (SEO_CONCURRENT_WRITE) without writing", async (t) => {
+  const base = createRouteDeps();
+  await base.seoReady;
+  const before = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  // Every conditional write reports a lost race (another save bumped the version first).
+  const lostRace = t.mock.method(base.postRepo, "saveIfVersion", async () => ({ applied: false }));
+  const app = buildApp({ postRepo: base.postRepo });
+  const { status, json } = await put(t, app, { title: "x" });
+  assert.equal(status, 409);
+  assert.deepEqual(json, {
+    error: `entry '${ENTRY_ID}' is being written by another save; the SEO overrides were not applied`,
+    code: "SEO_CONCURRENT_WRITE",
+  });
+  assert.equal(lostRace.mock.callCount(), 3, "the merge retries until MAX_MERGE_ATTEMPTS reads all lose the row");
+  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+});
