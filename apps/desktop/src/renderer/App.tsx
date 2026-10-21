@@ -35,6 +35,7 @@ import { useAppVersion } from './use-app-version.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { SitesFolders, SitesFoldersDialog } from './SitesFolders.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
+import type { useSiteFolders } from './use-site-folders.hooks.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
@@ -57,6 +58,13 @@ function createImportSiteAction(
   return importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
 }
 
+/** The sites-settings hooks `App` threads down; see `App`'s own doc. Each one left out falls back to
+ *  the real hook at the component that calls it (`SettingsControl`, `SitesFolders`). */
+export interface SitesSettingsHooks {
+  useFolders?: typeof useSiteFolders;
+  useSiteSettings?: typeof useSiteStorageSettings;
+}
+
 /**
  * Runner's root component.
  *
@@ -77,17 +85,26 @@ function createImportSiteAction(
  * `typeof` the real hook is the annotation on purpose. A stub with the wrong return shape, or the
  * wrong arity, fails `npm run typecheck` rather than at assertion time — that type safety is most
  * of what injection buys.
+ *
+ * `sitesSettings` holds the two seams onto the sites-settings preload state: `useFolders` (the
+ * Projects header's own `SitesFolders`) and `useSiteSettings` (the Settings menu's "Sites settings…"
+ * dialog). Both defaults end in Jini's `useAsyncAction` and its dialog shell, which a test of this
+ * component cannot render against its own React; threading them as props keeps every other default
+ * real. One prop for the pair, not two, keeps `App` under the complexity ceiling (each defaulted
+ * prop is a branch).
  */
 export function App({
   useProjects = useSitesPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
+  sitesSettings = {},
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
+  sitesSettings?: SitesSettingsHooks;
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
@@ -151,6 +168,7 @@ export function App({
         onThemeChange={setTheme}
         onOpenAppearance={openAppearance}
         onSelectSection={selectSection}
+        useSiteSettings={sitesSettings.useSiteSettings}
       />
       )}
 
@@ -190,6 +208,7 @@ export function App({
           adding={adding}
           addError={addError}
           onImportSite={importSite}
+          useFolders={sitesSettings.useFolders}
         />
 
         <CreateWebsiteHost
@@ -324,6 +343,7 @@ function TopNav({
   onThemeChange,
   onOpenAppearance,
   onSelectSection,
+  useSiteSettings,
 }: {
   activeId: RunnerSectionId;
   onSitesHome: boolean;
@@ -332,6 +352,7 @@ function TopNav({
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
+  useSiteSettings?: typeof useSiteStorageSettings;
 }) {
   const { version, error } = useAppVersion({});
   return (
@@ -366,7 +387,7 @@ function TopNav({
       </div>
 
       <div className="topnav__tools">
-        <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} />
+        <SettingsControl theme={theme} onThemeChange={onThemeChange} onOpenAppearance={onOpenAppearance} useSiteSettings={useSiteSettings} />
       </div>
     </nav>
   );
@@ -422,19 +443,23 @@ function SettingsControl({
   theme,
   onThemeChange,
   onOpenAppearance,
+  useSiteSettings = useSiteStorageSettings,
 }: {
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
+  useSiteSettings?: typeof useSiteStorageSettings;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
-  const sitesSettings = useSiteStorageSettings({});
+  const sitesSettings = useSiteSettings({});
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
-  const disabled = false;
+  // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
+  // none of NavLink's `aria-disabled`/`tabIndex`/`--disabled` styling, which a constant `false`
+  // could never switch on.
   const { toggleOpen, chooseTheme, openAppearancePage } = settingsControlHandlers({
-    disabled,
+    disabled: false,
     setOpen,
     onThemeChange,
     onOpenAppearance,
@@ -446,13 +471,11 @@ function SettingsControl({
       <button
         ref={triggerRef}
         type="button"
-        className={`topnav__link ${open ? 'is-active' : ''} ${disabled ? 'topnav__link--disabled' : ''}`}
+        className={`topnav__link ${open ? 'is-active' : ''}`}
         onClick={toggleOpen}
         aria-expanded={open}
         aria-haspopup="true"
-        aria-disabled={disabled || undefined}
-        tabIndex={disabled ? -1 : undefined}
-        {...navAvailability({ label: "Settings", disabled })}
+        {...navAvailability({ label: "Settings", disabled: false })}
         aria-label="Settings"
       >
         <GearIcon />
@@ -991,6 +1014,7 @@ function MainArea({
   adding,
   addError,
   onImportSite,
+  useFolders,
 }: {
   appearanceOpen: boolean;
   onCloseAppearance: () => void;
@@ -1015,6 +1039,8 @@ function MainArea({
   addError: string | null;
   /** Absent when there is no site to import into, which hides the button. */
   onImportSite?: () => void;
+  /** The header's `SitesFolders` settings hook — see `App`'s own `sitesSettings`. */
+  useFolders?: typeof useSiteFolders;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -1032,6 +1058,7 @@ function MainArea({
         onAddSite={onAddSite}
         adding={adding}
         onImportSite={onImportSite}
+        useFolders={useFolders}
       />
       <MainContent
         activeId={activeId}
@@ -1063,6 +1090,7 @@ function MainHeader({
   onAddSite,
   adding,
   onImportSite,
+  useFolders,
 }: {
   activeId: RunnerSectionId;
   isCreating: boolean;
@@ -1073,6 +1101,7 @@ function MainHeader({
   onAddSite: () => Promise<void>;
   adding: boolean;
   onImportSite?: () => void;
+  useFolders?: typeof useSiteFolders;
 }) {
   return (
     <header className="main__head">
@@ -1085,7 +1114,7 @@ function MainHeader({
           <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
             {rescanning ? 'Scanning…' : 'Rescan'}
           </button>
-          <SitesFolders />
+          <SitesFolders useSettings={useFolders} />
           {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
               for websites that already exist. The difference is who chooses: Rescan looks under the
               scan roots automatically, this one asks the operator for one folder. Styled solid on
@@ -1242,18 +1271,15 @@ function MainContent({
               runs `tovu init`, and a port is not allocated until `openSiteWindow` actually spawns
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Stopped records use the same
-              sentinel; `sitePortPresentation` applies that rule across the renderer. */}
+              sentinel; `sitePortPresentation` applies that rule across the renderer.
+
+              The notice only ever describes a STOPPED site: `useProjectMutations` withdraws it the
+              moment `readyNoticeStillTrue` stops holding, and that requires the created row to be
+              on the grid with `status === 'stopped'`. A "provisioned on port N" variant for a
+              running record used to sit here and could never outlive its first commit, so it was
+              removed rather than kept as copy no operator can read. */}
           <span className="creation-notice__text">
-            {!sitePortPresentation(lastCreated).running ? (
-              <>
-                <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
-              </>
-            ) : (
-              <>
-                <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
-                {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
-              </>
-            )}
+            <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
             {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
           </span>
         </p>
