@@ -86,20 +86,21 @@ test("admin forms PUT treats a nullish body as a no-op and preserves the definit
   }
 });
 
-test("admin forms PUT reports an empty missing form id in its not-found response", async () => {
+test("admin forms PUT with a missing form id param answers the coded not-found 404 rather than crashing", async () => {
   const { app, deps } = buildTestApp();
   await deps.identityReady;
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/forms/:formId");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: await deps.ownerPrincipalId };
-  // Required Express params are populated over HTTP; use the shared direct-call seam for
-  // the missing-id error contract, as the neighbouring get-by-id edge-case suite does.
+  // Required Express params are populated over HTTP (the route's old `?? ""` fallback for this
+  // was removed as dead code); use the shared direct-call seam for the missing-id error
+  // contract, as the neighbouring get-by-id edge-case suite does.
   await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
 
   assert.equal(capture.statusCode, 404);
-  assert.deepEqual(capture.jsonBody, {
-    error: "form definition '' was not found", code: "FORMS_DEFINITION_NOT_FOUND",
-  });
+  const body = capture.jsonBody as { error: string; code: string };
+  assert.equal(body.code, "FORMS_DEFINITION_NOT_FOUND");
+  assert.match(body.error, /^form definition '.*' was not found$/);
 });
 
 test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-02)", async (t) => {

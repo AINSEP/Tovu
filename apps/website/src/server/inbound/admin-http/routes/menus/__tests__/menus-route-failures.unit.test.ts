@@ -6,6 +6,7 @@ import { registerAdminMenuAssignLocationRoute } from '../assign-location.js';
 import { registerAdminMenuCreateRoute } from '../create.js';
 import { registerAdminMenuDeleteRoute } from '../delete.js';
 import { registerAdminMenuGetRoute } from '../get-by-id.js';
+import { registerAdminMenuListRoute } from '../list.js';
 import { MenuConflictError, MenuVersionConflictError } from '#src/features/navigation/index';
 import { WS, BASE, INTERNAL, fixture, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 
@@ -14,6 +15,7 @@ const routes: RouteFailureCase[] = [
   { name: 'menus create', register: registerAdminMenuCreateRoute, method: 'POST', path: `${BASE}/menus` },
   { name: 'menus delete', register: registerAdminMenuDeleteRoute, method: 'DELETE', path: `${BASE}/menus/menu` },
   { name: 'menus get', register: registerAdminMenuGetRoute, method: 'GET', path: `${BASE}/menus/menu` },
+  { name: 'menus list', register: registerAdminMenuListRoute, method: 'GET', path: `${BASE}/menus` },
 ];
 
 testRouteFailureMatrix(routes);
@@ -55,3 +57,16 @@ for (const [error, code] of [[new MenuConflictError({ message: 'assignment confl
     });
   });
 }
+
+test('menu delete: a row that changed between the read and the trash move is a 409 conflict, not a success', async () => {
+  const removals: unknown[] = [];
+  const { app } = fixture(registerAdminMenuDeleteRoute, {
+    menuRepo: { findById: async () => ({ id: 'menu', workspaceId: WS, title: 'Main', slug: 'main', version: 3 }) },
+    removeMenu: async (input: unknown) => { removals.push(input); return { ok: false, reason: 'version-changed' }; },
+  });
+  const result = await dispatchJsonRequest(app, 'DELETE', `${BASE}/menus/menu`);
+  assert.equal(result.status, 409);
+  assert.match((result.body as { error: string }).error, /menu 'menu' changed while it was being deleted/);
+  assert.equal(removals.length, 1);
+  assert.equal((removals[0] as { expectedVersion: number }).expectedVersion, 3);
+});

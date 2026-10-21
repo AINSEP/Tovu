@@ -225,6 +225,30 @@ test('media list: documents include only active records and keep their type tied
   assert.deepEqual(body.media.map(row => ({ id: row.id, contentType: row.contentType, publicUrl: row.publicUrl })), [{ id: 'active-doc', contentType: 'text/plain', publicUrl: null }]);
 });
 
+test('media list: an unknown ?kind is a 400 before authorization or any repository read', async () => {
+  let authorizations = 0;
+  let reads = 0;
+  const { app } = fixture(registerAdminMediaListRoute, {
+    authorize: async () => { authorizations++; return { allowed: true, reason: 'matched' }; },
+    mediaRepo: { list: async () => { reads++; return []; } },
+  });
+  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media?kind=video`), { status: 400, body: { error: 'invalid media kind' } });
+  assert.equal(authorizations, 0);
+  assert.equal(reads, 0);
+});
+
+test('media import: with no injected logger, an egress refusal\'s full diagnosis goes to the operator console only', async t => {
+  const warnings: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
+  const { app } = fixture((app, deps) => registerAdminMediaImportUrlRoute({ app, deps }), {
+    mediaImportHttpClient: { send: async () => { throw new EgressRefusedError({ message: 'DNS 10.0.0.1' }, { callerSafeMessage: 'Target is not public' }); } },
+  });
+  assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, { url: 'https://example.com/photo.png' }), {
+    status: 400, body: { error: 'Target is not public' },
+  });
+  assert.deepEqual(warnings, [['[media-import] admin URL import refused: DNS 10.0.0.1']]);
+});
+
 test('media text: valid paging of an absent document is 404 and repository failure is 500', async () => {
   for (const [findById, status] of [[async () => null, 404], [async () => { throw new Error('private'); }, 500]] as const) {
     const { app } = fixture((app, deps) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById } });

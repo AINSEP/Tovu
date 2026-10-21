@@ -81,3 +81,12 @@ test("POST create accepts mode/html under the same permission", async (t) => {
   assert.equal(body.menu.html, "<p>f</p>");
   assert.ok(asked.includes("pages.edit_html"));
 });
+
+test("POST create with html but no raw-HTML permission is 403 and creates nothing", async (t) => {
+  const { menuRepo, asked, send } = await setup(t, ["pages.edit_html"]);
+  const res = await send("POST", "", { title: "Footer", slug: "footer", mode: "html", html: "<p>f</p>" });
+  assert.equal(res.status, 403);
+  assert.equal(((await res.json()) as { details: { permission: string } }).details.permission, "pages.edit_html");
+  assert.deepEqual(asked, ["admin.menus.create", "pages.edit_html"]);
+  assert.deepEqual((await menuRepo.list({ workspaceId: "ws-1" })).map((menu) => menu.slug), ["header-main"]);
+});

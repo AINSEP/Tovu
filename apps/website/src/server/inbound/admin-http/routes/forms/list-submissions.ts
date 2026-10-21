@@ -40,12 +40,12 @@ function parseSubmissionsQuery(query: Request["query"]): ParsedSubmissionsQuery 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
 export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const formId = String(req.params.formId ?? "");
+    const formId = String(req.params.formId);
 
     try {
       const principal = getAuthedPrincipal(res);

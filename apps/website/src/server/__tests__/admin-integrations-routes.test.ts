@@ -29,12 +29,12 @@ import { registerAdminIntegrationsPauseRoute } from "../inbound/admin-http/route
 /** Express's own (internal, untyped) per-route layer shape — same technique
  *  `route-class-precedence.unit.test.ts` uses for structural inspection, borrowed here to reach
  *  in and call a registered handler DIRECTLY with a hand-built `req`. This is the only way to
- *  exercise `delete.ts`'s `String(req.params.workspaceId ?? "")` / `subscriptionId` fallbacks:
+ *  exercise `delete.ts`'s handling of a missing `workspaceId` / `subscriptionId` param:
  *  the route pattern declares `:workspaceId`/`:subscriptionId` as REQUIRED segments, so Express's
  *  own router can never dispatch to this handler with either left `undefined` — a real HTTP
- *  request literally cannot trigger the `??` side. Forcing it here is not a trick to inflate a
- *  number: it genuinely executes the fallback assignment and proves what the response becomes
- *  when it fires, the same way a malformed upstream proxy or a future refactor that loosens the
+ *  request literally cannot leave either missing. (The routes' old `?? ""` fallbacks for that
+ *  case were removed as dead code.) Forcing it here proves what the response becomes if it ever
+ *  happens -- a 404, never a crash -- the same way a malformed upstream proxy or a future refactor that loosens the
  *  route pattern could. */
 interface ExpressHandlerLayer {
   route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
@@ -250,7 +250,7 @@ test("integrations routes: pause surfaces an unexpected repo failure as 500 (gen
   assert.deepEqual(await res.json(), { error: "internal error" });
 });
 
-test("integrations routes: pause's workspaceId/subscriptionId params can never actually be undefined through real routing (Express only invokes a matched `:param` handler with populated segments) -- their `?? \"\"` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async (t) => {
+test("integrations routes: pause's workspaceId/subscriptionId params can never actually be undefined through real routing (Express only invokes a matched `:param` handler with populated segments) -- a direct handler call with either missing still answers 404 rather than crashing", async (t) => {
   const { app, deps } = buildTestApp();
   const handler = extractRouteHandler(
     app,
@@ -258,7 +258,7 @@ test("integrations routes: pause's workspaceId/subscriptionId params can never a
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause"
   );
 
-  // workspaceId undefined -> `String(undefined ?? "") !== deps.workspaceId` -> the mismatch 404.
+  // workspaceId undefined -> `String(undefined) !== deps.workspaceId` -> the mismatch 404.
   {
     const { res, capture } = createCapturingResponse();
     const req = { params: { workspaceId: undefined, subscriptionId: "sub-1" }, body: {} } as unknown as Parameters<
@@ -269,8 +269,8 @@ test("integrations routes: pause's workspaceId/subscriptionId params can never a
     assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
   }
 
-  // subscriptionId undefined -> `String(undefined ?? "")` resolves to "", which `findById` (real
-  // in-memory repo, no subscription ever has an empty-string id) genuinely can't find, surfacing
+  // subscriptionId undefined -> `String(undefined)` is an id `findById` (real in-memory repo, no
+  // subscription is ever stored under it) genuinely can't find, surfacing
   // `pauseSubscription`'s own real `WebhookSubscriptionNotFoundError` -> 404. `getAuthedPrincipal`
   // and `authorize` both run before that (no `requireAdminSession` middleware here, since the
   // handler is invoked directly), so both are stood up by hand exactly as this route needs them.
@@ -289,7 +289,7 @@ test("integrations routes: pause's workspaceId/subscriptionId params can never a
     } as unknown as Parameters<typeof handler>[0];
     await handler(req, res);
     assert.equal(capture.statusCode, 404);
-    assert.deepEqual(capture.jsonBody, { error: "webhook subscription '' was not found" });
+    assert.match((capture.jsonBody as { error: string }).error, /^webhook subscription '.*' was not found$/);
   }
 });
 
@@ -399,7 +399,7 @@ test("integrations routes: delete surfaces an unexpected repo failure as 500 (ge
   assert.equal(res.status, 500);
 });
 
-test("integrations routes: delete's `req.params.workspaceId ?? \"\"` fallback -- forced via a direct handler call with workspaceId omitted, since Express itself can never leave a required :workspaceId segment unset -- still 404s as a mismatch, not a crash", async () => {
+test("integrations routes: delete with workspaceId omitted -- forced via a direct handler call, since Express itself can never leave a required :workspaceId segment unset -- still 404s as a mismatch, not a crash", async () => {
   const { app } = buildTestApp();
   const handler = extractHandler(
     app,
@@ -413,7 +413,7 @@ test("integrations routes: delete's `req.params.workspaceId ?? \"\"` fallback --
   assert.deepEqual(getBody(), { error: "workspace was not found" });
 });
 
-test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback -- forced via a direct handler call with subscriptionId omitted -- falls through to deleteSubscription with id:\"\", which 404s with the not-found message for an empty id", async () => {
+test("integrations routes: delete with subscriptionId omitted -- forced via a direct handler call, since Express can never leave a required :subscriptionId segment unset -- falls through to deleteSubscription, which 404s with the not-found message rather than crashing", async () => {
   const deps: IntegrationsRouteDeps = {
     ...createRouteDeps(),
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
@@ -431,7 +431,7 @@ test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback
   await handler({ params: { workspaceId: deps.workspaceId } }, res);
 
   assert.equal(getStatus(), 404);
-  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
+  assert.match((getBody() as { error: string }).error, /^webhook subscription '.*' was not found$/);
 });
 
 test("integrations routes: list's lastDelivery picks the newest row by createdAt, not insertion order", async (t) => {

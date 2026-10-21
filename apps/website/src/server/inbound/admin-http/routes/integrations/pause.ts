@@ -8,7 +8,7 @@ import {
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps.js";
+import { toWebhookSubscriptionDeps, type IntegrationsRouteRegistrar } from "./deps.js";
 
 /** `{ paused?: boolean }` body — defaults to pausing (`true`) for any non-boolean value,
  *  including absent, so `{ "paused": false }` is the only way to resume. */
@@ -28,13 +28,13 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      if (String(req.params.workspaceId) !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
 
       const paused = resolvePausedFlag(req);
-      const subscriptionId = String(req.params.subscriptionId ?? "");
+      const subscriptionId = String(req.params.subscriptionId);
 
       try {
         const principal = getAuthedPrincipal(res);
@@ -49,12 +49,8 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
 
         const { subscription } = await pauseSubscription(
           {
-            deps: {
-              clock: deps.clock,
-              repo: deps.webhookSubscriptionRepo,
-              idGenerator: deps.idGen,
-              isAllowedTarget: async () => true, // not exercised: pause never re-validates targetUrl
-            },
+            // The shared egress policy is not exercised here: pause never re-validates targetUrl.
+            deps: toWebhookSubscriptionDeps(deps),
             input: {
               workspaceId: deps.workspaceId,
               id: subscriptionId,
