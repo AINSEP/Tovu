@@ -95,6 +95,17 @@ test("writeNodeToolchain writes exactly the three POSIX shims, mode 0o700, with 
   assert.ok(fs.statSync(paths.npmPrefixDir).isDirectory());
 });
 
+test("writeNodeToolchain propagates a failed publish and removes its temp file, never leaving a half-written shim", () => {
+  const userDataDir = tempDir();
+  // A non-empty folder squatting on bin/node makes the atomic rename onto it fail.
+  const squatter = path.join(userDataDir, "node-toolchain", "bin", "node");
+  fs.mkdirSync(path.join(squatter, "keep"), { recursive: true });
+  assert.throws(() => writeNodeToolchain({ userDataDir, electronPath: ELECTRON, npmRoot: NPM_ROOT, platform: "darwin" }), (error: NodeJS.ErrnoException) => typeof error.code === "string");
+  const binEntries = fs.readdirSync(path.join(userDataDir, "node-toolchain", "bin"));
+  assert.deepEqual(binEntries.filter((name) => name.endsWith(".tmp")), [], "the temp shim was unlinked after the failed rename");
+  assert.ok(fs.statSync(squatter).isDirectory(), "the squatting folder is not clobbered");
+});
+
 test("writeNodeToolchain's returned paths are node-toolchain/{bin,npm-cache,npm-prefix} under userData — literals pinned with the website file", () => {
   // apps/website/src/mcp-federation/stdio-launch-resolver.ts reads TOVU_NODE_TOOLCHAIN_DIR and joins
   // the same three names onto it; a rename on this side without that one silently loses the toolchain
