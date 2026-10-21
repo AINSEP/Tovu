@@ -7,7 +7,7 @@ ENV (listed, not fixed): 122 entries — *.postgres.test.ts, pg-fixture (pg part
 |---|---|---|---|---|---|---|---|
 | L3 pages-regions | merged | 0 | 21 | 0 | 1 follow-up (assign-location.not-live stubs nowIso, passes) | 6a699e08 | 166/166 pass |
 | L4 oauth | merged | 2 (api-connections host.ts wrapped unreadable-token cause) | 20 | 0 | 0 | 1d75dba6 | 142/142 pass |
-| L5 | dispatched 08:52 | | | | | | |
+| L5 assistant-tools | merged | 4 (schema-less reader fallback, consent/theme-preview-switcher cross-site classification, deployment_preview_static_publish search queries) | 13 | 0 | 0 | e2f17c05 | 180/180 pass |
 | L1 admin-media | merged | 0 | 10 | 0 | 0 | e1c9f896 | 59/59 pass |
 | L2 redaction/desktop | merged | 7 (home-path leak when HOME outside /home,/Users → redactLocalText at 13 sites; smoke-bridge over-redacted tool id) | 1 (mcp spawn NODE_V8_COVERAGE) | 0 | 1 d (preload-speech needs pretest build:preload); Jini redaction.ts homeDir option follow-up | fa0a922c | desktop 127/127, website 39/39 |
 | L6 vault-db | merged | 1 (surfaces.ts required.run false-positive in raw-SQLite ratchet) | 9 (parity fixture module:{}, consent tables 0021) | 0 | vault-cascade sqlite FK RESTRICT after migration 0020 (needs new migration, forbidden); pg-fixture ENV | eb96e45b | 88 pass / 1 fail (listed) / 1 skip |
