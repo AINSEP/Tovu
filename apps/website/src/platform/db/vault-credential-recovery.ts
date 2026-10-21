@@ -55,9 +55,8 @@ async function unlinkMcp({ deps, record }: { deps: SealedCredentialKeyDeps; reco
 async function discardVaultValue({ deps, value }: { deps: SealedCredentialKeyDeps; value: VaultCredentialValue }): Promise<number> {
   if (!value.record) return mutateOther({ deps, value });
   const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
-  // currentValues() just confirmed this row under the workspace locks, and no discard in this
-  // transaction deletes any row but its own, so the fresh read (for a promoted revision) always finds it.
-  const record = (await repo.find(value.record))!;
+  const record = await repo.find(value.record);
+  if (!record) return 0;
   if (OPTIONAL_ENVELOPES.has(record.kind)) {
     const { legacyAad: _legacy, normalization: _flag, ...meta } = record.meta;
     await repo.put({ expectedRevision: record.revision, record: { ...record, meta, sealed: null,
@@ -75,8 +74,7 @@ async function mutateOther({ deps, value, sealed }: {
 }): Promise<number> {
   const { ref } = value;
   const siblings = siblingColumns(ref.column);
-  // Every record-less snapshot value comes from otherValue(), which always builds this guard.
-  const envelope = value.guard!;
+  const envelope = value.guard ?? { [ref.column]: value.ciphertext };
   const guards = Object.entries(envelope).map(([column, value]) => value === null
     ? sql`${sql.id(column)} IS NULL` : sql`${sql.id(column)}=${value}`);
   if (value.device) guards.push(sql`workspace_id=${value.device.workspaceId}`, sql`server_id=${value.device.serverId}`);
@@ -126,10 +124,9 @@ export async function resealVaultCredentialsOpeningUnder(deps: ResealCredentials
     for (const { value, previous } of moves) {
       if (!eligible.has(value)) continue;
       if (value.record) { await deps.resealRecord({ record: value.record, previous }); moved += 1; continue; }
-      // Only an opened value is ever moved: opensVaultCredential() requires a sealed envelope, and a
-      // record-less value opens only as a device row, whose AAD otherValue() always derives.
-      const plaintext = await previous.open({ sealed: value.sealed! }, { aad: value.aad });
-      const sealed = await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad! });
+      if (!value.sealed) continue;
+      const plaintext = await previous.open({ sealed: value.sealed }, { aad: value.aad });
+      const sealed = await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad ?? "" });
       if (await deps.sealer.open({ sealed }, { aad: value.aad }) !== plaintext) throw new Error("Credential recovery verification failed");
       moved += await mutateOther({ deps, value, sealed });
     }
