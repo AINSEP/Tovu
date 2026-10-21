@@ -114,6 +114,29 @@ describeEachDialect("trash marker adapters", { tables: TABLES, make: (kernel: Co
     assert.equal(await count(kernel, "post_revisions"), 0);
   });
 
+  test("post: a failed search-table probe fails that purge and is asked again on the next one", async () => {
+    const kernel = make();
+    await seedPost(kernel, "p-probe");
+    await kernel.run((db) => db.updateTable("posts").set({ deleted_at: AT }).execute());
+    const probeError = new Error("schema probe failed");
+    let failNextQuery = true;
+    let queries = 0;
+    // The real kernel, except that its first raw query (the table probe) fails once.
+    const flaky: ContentKernel = Object.create(kernel, {
+      query: { value: async (...args: Parameters<ContentKernel["query"]>) => {
+        queries += 1;
+        if (failNextQuery) { failNextQuery = false; throw probeError; }
+        return kernel.query(...args);
+      } },
+    });
+    const post = createPostTrashAdapter(flaky);
+
+    await assert.rejects(post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), (caught) => caught === probeError);
+    assert.equal(await post.purge({ workspaceId: WS, entityId: "p-probe", expectedVersion: 1 }), "purged", "the failed probe was not cached as an answer");
+    assert.equal(queries, 2, "the probe ran again after its failure");
+    assert.equal(await count(kernel, "posts"), 0);
+  });
+
   test("redirect: hide disables, unhide re-activates, purge takes revisions and hits", async () => {
     const kernel = make();
     await seedRedirect(kernel, "r-1");
