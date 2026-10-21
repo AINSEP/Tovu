@@ -83,16 +83,37 @@ export function fail(message) {
  *  scenarios below have a real target to resolve against without needing a second HTML fixture. */
 const PAGE_CONTENT_HTML = `<article class="entry"><h1 class="entry-title">Example Published Post</h1><p>Some body text.</p></article>`;
 
-/**
- * @param {{ scenario: { name: string; seed?: Function; verify?: Function }; bundleSource: string }} input
- * @param {{ settleMs?: number; log?: (line: string) => void }} [options] `settleMs` is the post-eval
- *   wait (see the comment at that wait); `log` receives the one OK line.
- */
 /** Whether a jsdom `jsdomError` is its "Not implemented: navigation" report. */
 export function isNavigationError(error) {
   return typeof error?.message === "string" && error.message.includes("navigation");
 }
 
+/** Fail with every caught error listed under `heading`, when there are any. */
+function failOnErrors({ caughtErrors, heading }) {
+  if (caughtErrors.length === 0) return;
+  fail(`${heading}\n` + caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"));
+}
+
+/** Install the three page APIs jsdom lacks and every real browser has — see this file's header. */
+function stubBrowserGaps({ window }) {
+  window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(Date.now()), 0);
+  window.Element.prototype.scrollIntoView = function scrollIntoViewStub(options) {
+    this.__tovuScrollIntoViewCalls = (this.__tovuScrollIntoViewCalls ?? 0) + 1;
+    this.__tovuLastScrollIntoViewOptions = options;
+  };
+  window.matchMedia = (query) => ({
+    matches: false, // no scenario here exercises prefers-reduced-motion — highlight.test.ts covers that directly.
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
+}
+
+/**
+ * @param {{ scenario: { name: string; seed?: Function; verify?: Function }; bundleSource: string }} input
+ * @param {{ settleMs?: number; log?: (line: string) => void }} [options] `settleMs` is the post-eval
+ *   wait (see the comment at that wait); `log` receives the one OK line.
+ */
 export async function runScenario({ scenario, bundleSource }, { settleMs = 150, log = console.log } = {}) {
   const dom = new JSDOM(`<!doctype html><html><body><div id="${MOUNT_ID}"></div>${PAGE_CONTENT_HTML}</body></html>`, {
     // Mirrors what `render.ts` actually injects: the mount div present ahead of the script, same as a
@@ -116,17 +137,7 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
   // See this file's header (SPEC-046 REQ-2/§4) for why these three are stubbed rather than left
   // absent: jsdom implements none of them, but every real browser does, so an absent stub would fail
   // scenarios that exercise real page-content DOM behavior for a jsdom limitation, not a real bug.
-  dom.window.requestAnimationFrame = (callback) => dom.window.setTimeout(() => callback(Date.now()), 0);
-  dom.window.Element.prototype.scrollIntoView = function scrollIntoViewStub(options) {
-    this.__tovuScrollIntoViewCalls = (this.__tovuScrollIntoViewCalls ?? 0) + 1;
-    this.__tovuLastScrollIntoViewOptions = options;
-  };
-  dom.window.matchMedia = (query) => ({
-    matches: false, // no scenario here exercises prefers-reduced-motion — highlight.test.ts covers that directly.
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  });
+  stubBrowserGaps({ window: dom.window });
 
   scenario.seed?.(dom.window.sessionStorage);
 
@@ -147,12 +158,7 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
     caughtErrors.push(error);
   }
 
-  if (caughtErrors.length > 0) {
-    fail(
-      `[${scenario.name}] the bundle threw during execution — it would have crashed on load in a real browser:\n` +
-        caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"),
-    );
-  }
+  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw during execution — it would have crashed on load in a real browser:` });
 
   // React 19's `createRoot(...).render(...)` schedules the initial commit through its own scheduler
   // (message-channel/timeout-based), not synchronously within the `eval` call above — measured: without
@@ -162,12 +168,7 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
   // adds one more macrotask hop after the mount commit, for scenarios that queue a real page action.
   await new Promise((resolve) => setTimeout(resolve, settleMs));
 
-  if (caughtErrors.length > 0) {
-    fail(
-      `[${scenario.name}] the bundle threw after mounting (a post-mount effect or async error):\n` +
-        caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"),
-    );
-  }
+  failOnErrors({ caughtErrors, heading: `[${scenario.name}] the bundle threw after mounting (a post-mount effect or async error):` });
 
   const mountEl = dom.window.document.getElementById(MOUNT_ID);
   if (!mountEl) {
@@ -397,6 +398,15 @@ export async function checkBundleMounts({ bundleSource }, options = {}) {
   }
 }
 
+/** The built bundle's text; an unreadable file is a check failure naming the likely cause. */
+function readBundle({ bundlePath, readText }) {
+  try {
+    return readText(bundlePath);
+  } catch (cause) {
+    return fail(`could not read ${bundlePath} — did the build run first? (${cause.message})`);
+  }
+}
+
 /**
  * The CLI: read the built bundle and run every scenario, reporting a failure on stderr with exit
  * status 1. Ports default to the real file system, console and process; a test injects fakes.
@@ -407,13 +417,7 @@ export async function main(
   { readText = (file) => readFileSync(file, "utf8"), check = checkBundleMounts, error = console.error, exit = process.exit } = {},
 ) {
   try {
-    let bundleSource;
-    try {
-      bundleSource = readText(bundlePath);
-    } catch (cause) {
-      fail(`could not read ${bundlePath} — did the build run first? (${cause.message})`);
-    }
-    await check({ bundleSource });
+    await check({ bundleSource: readBundle({ bundlePath, readText }) });
     return 0;
   } catch (cause) {
     if (!(cause instanceof BundleCheckError)) throw cause;
