@@ -596,3 +596,10 @@ for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${too
   await assert.rejects(f.call(toolId, input), /consent_update_settings|consent_publish_settings/);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
 });
+
+for (const key of ['provider', 'testMode']) for (const toolId of ['settings_set_value', 'settings_clear_value']) test(`${toolId} cannot change core.mail.${key}; only the approval-gated mail tool can`, async () => {
+  const f = fixture('core.mail', key, { type: 'json' });
+  const input = toolId === 'settings_set_value' ? { namespace: 'core.mail', key, value: { transactional: 'smtp', bulk: 'smtp' } } : { namespace: 'core.mail', key };
+  await assert.rejects(f.call(toolId, input), key === 'provider' ? /mail_set_provider/ : /test mode/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: 'setting-1' }), []);
+});

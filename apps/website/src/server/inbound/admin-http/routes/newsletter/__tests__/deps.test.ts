@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toConfirmationDeps, toSubscriptionsDeps, toUnsubscribeDeps, type NewsletterRouteDeps } from "../deps.js";
+import { toConfirmationDeps, toSendPipelineDeps, toSubscriptionsDeps, toUnsubscribeDeps, type NewsletterRouteDeps } from "../deps.js";
 
 /**
  * @file `routes/newsletter/deps.ts`'s bundle assemblers forward the composition root's own instances
@@ -47,4 +47,14 @@ test("toConfirmationDeps hands confirmation mail the composed sender resolver, a
   assert.equal(toConfirmationDeps(routeDeps({ mailSenderIdentity: undefined })).senderIdentity, undefined);
   // `saveSubscription` triggers a confirmation, so the nested bundle carries the same resolver.
   assert.equal(toSubscriptionsDeps(deps).confirmationDeps.senderIdentity, deps.mailSenderIdentity);
+});
+
+/** The send pipeline's production `sleep` port is a real timer wait (quota waits, review email#4). */
+
+test("toSendPipelineDeps: sleep resolves after a real timer wait", async () => {
+  const deps = toSendPipelineDeps({} as NewsletterRouteDeps);
+  assert.ok(deps.sleep, "the production bundle always waits short quota hints inline");
+  const started = performance.now();
+  assert.equal(await deps.sleep(5), undefined);
+  assert.ok(performance.now() - started >= 4);
 });

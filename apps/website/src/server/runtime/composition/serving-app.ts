@@ -7,6 +7,7 @@ import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
 import { createApp } from "./app.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
+import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
@@ -36,6 +37,10 @@ import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from ".
  * The webhook delivery loop (`webhook-delivery-worker.ts`) sends what `createApp`'s integrations
  * module enqueued, so it too runs only here: a POST of a site's data from a process nobody serves
  * is the drainer's loss in reverse.
+ *
+ * The due-bindings DNS sweep (`domain-binding-sweeper.ts`, 2026-10-21) re-checks `domain_binding`
+ * rows on their backoff schedule; same rule — only a serving process writes a site's tracking state.
+ * It runs only when the root pre-bound `verifyDueDomainBindings` (the hermetic root does not).
  */
 
 /**
@@ -46,6 +51,7 @@ import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from ".
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
  * @param optional.webhookDeliveryIntervalMs idle wait between webhook delivery ticks (default: the worker's own 15 s).
+ * @param optional.domainBindingSweepIntervalMs idle wait between due-bindings DNS sweeps (default: the sweeper's own minute).
  * @returns the Express app, background handles (stop all at shutdown; `formPullTrigger.stop` waits
  *   for a running pull), and
  *   `bootWork`: the background passes `createApp` started and returned before they finished
@@ -54,8 +60,8 @@ import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from ".
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
-  optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; bootWork: Promise<void>[] } {
+  optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number; webhookDeliveryIntervalMs?: number; domainBindingSweepIntervalMs?: number } = {}
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
@@ -83,7 +89,11 @@ export function createServingApp(
     { deps: routeDeps },
     optional.webhookDeliveryIntervalMs === undefined ? {} : { intervalMs: optional.webhookDeliveryIntervalMs }
   );
+  const domainBindingSweeper = startDomainBindingSweeper(
+    { sweep: routeDeps.verifyDueDomainBindings },
+    optional.domainBindingSweepIntervalMs === undefined ? {} : { intervalMs: optional.domainBindingSweepIntervalMs }
+  );
   // After `createApp`: the pulled submissions' events need their subscribers attached.
   formPull.pullNow();
-  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, bootWork };
+  return { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger: { stop: formPull.stop }, webhookDeliveryWorker, domainBindingSweeper, bootWork };
 }

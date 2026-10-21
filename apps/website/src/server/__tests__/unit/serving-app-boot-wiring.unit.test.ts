@@ -179,3 +179,19 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
     assert.match(source, /workers: \[[^\]]*\bwebhookDeliveryWorker\b[^\]]*\]/);
   });
 }
+
+/**
+ * Same "only there" rule for the due-bindings DNS sweep (2026-10-21): it writes a site's
+ * `domain_binding` tracking state. Never stopped, a sweep would outlive the store close.
+ */
+test("the due-bindings DNS sweep starts only in createServingApp", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartDomainBindingSweeper\(/), ["server/runtime/composition/serving-app.ts"]);
+});
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} stops the due-bindings DNS sweep at shutdown`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const \{[^}]*\bdomainBindingSweeper\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /workers: \[[^\]]*\bdomainBindingSweeper\b[^\]]*\]/);
+  });
+}

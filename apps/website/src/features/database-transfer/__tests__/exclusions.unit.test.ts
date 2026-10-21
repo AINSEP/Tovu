@@ -31,7 +31,9 @@ test("every excluded name is a current or migrated-away core table, and none of 
   const retiredNames = ["admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
     "media_provider_credentials", "oauth_pending_authorizations", "publish_content_peers", "publish_credential_sets",
     "site_assistant_credentials", "source_control_credential_sets", "vendor_credential_sets"];
-  assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => !coreNames.has(name)).sort(), retiredNames.sort());
+  // Raw-SQL migration tables have no Drizzle declaration, so they are not "core" by that catalog.
+  const rawSqlNames = ["mail_capture"];
+  assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => !coreNames.has(name)).sort(), [...retiredNames, ...rawSqlNames].sort());
   const copied = new Set(collectTransferTables().map((table) => table.name));
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => copied.has(name)), []);
 });
@@ -62,7 +64,7 @@ test("the copy excludes every agreed login, saved-key, confirmation and running-
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
     "publish_credential_sets", "site_assistant_credentials", "source_control_credential_sets",
-    "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault", "form_receiver_pulls",
+    "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault", "form_receiver_pulls", "mail_capture",
   ].sort());
 });
 

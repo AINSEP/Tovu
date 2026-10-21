@@ -44,6 +44,9 @@
     "domain_lookup_dns": "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
     "domain_check_dns": "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
     "domain_tls_status": "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
+    "dns_plan": "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
+    "dns_instructions": "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
+    "dns_verify": "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
     "media_list_assets": "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
     "media_upload_asset": "image images photo upload uploads uploading add attach file files picture logo library uplaod",
     "media_trash_asset": "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
@@ -315,7 +318,9 @@
     "consent_update_settings": "edit change cookie consent banner text appearance position css rules draft",
     "consent_publish_settings": "publish enable disable cookie consent banner draft privacy policy",
     "theme_get_preview_switcher": "theme preview switcher banner demo installed choices read settings",
-    "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings"
+    "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings",
+    "mail_set_provider": "email mail provider switch change choose smtp resend sending service configure set up",
+    "mail_send_test": "send test email mail check delivery works inbox try verify"
   },
   "queries": {
     "media_replace_file": [
@@ -627,6 +632,22 @@
       "Is HTTPS trusted on this domain?",
       "Has my site's certificate expired?",
       "Does the certificate match the domain hostname?"
+    ],
+    "dns_plan": [
+      "What DNS changes does my domain need?",
+      "Plan the DNS records for connecting my custom domain.",
+      "Which records must I add for my mail provider's SPF, DKIM and DMARC?",
+      "Is my domain delegated to the right nameservers?"
+    ],
+    "dns_instructions": [
+      "Give me the DNS records to enter at my registrar.",
+      "What exactly do I type into my DNS host?",
+      "Show copyable DNS rows for my domain setup."
+    ],
+    "dns_verify": [
+      "I added the DNS records, are they live yet?",
+      "Verify the required DNS records on the authoritative nameservers.",
+      "Track whether my domain's records have propagated."
     ],
     "external_mcp_list": [
       "Which external MCP servers are configured and enabled?",
@@ -1859,6 +1880,15 @@
     ],
     "consent_publish_settings": [
       "Publish the reviewed cookie consent draft."
+    ],
+    "mail_set_provider": [
+      "Switch my site's email to SMTP.",
+      "Use Resend to send this site's email.",
+      "Set up which provider sends my email."
+    ],
+    "mail_send_test": [
+      "Send me a test email.",
+      "Check that my site can actually send email."
     ]
   },
   "approvals": {
@@ -2425,6 +2455,18 @@
     },
     "domain_tls_status": {
       "class": "read",
+      "confirmation": "direct"
+    },
+    "dns_plan": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "dns_instructions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "dns_verify": {
+      "class": "edit",
       "confirmation": "direct"
     },
     "external_mcp_delete": {
@@ -3309,6 +3351,14 @@
     "theme_update_preview_switcher": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "mail_set_provider": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "mail_send_test": {
+      "class": "publish",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3357,7 +3407,9 @@
     "widgets_trash_instance",
     "plugin_source_delete",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "mail_set_provider",
+    "mail_send_test"
   ],
   "secretForms": {
     "credential_save": {
@@ -3443,7 +3495,9 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "mail_set_provider",
+    "mail_send_test"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3496,7 +3550,9 @@
     "plugin_source_delete",
     "credential_copy_from_project",
     "consent_update_settings",
-    "consent_publish_settings"
+    "consent_publish_settings",
+    "mail_set_provider",
+    "mail_send_test"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

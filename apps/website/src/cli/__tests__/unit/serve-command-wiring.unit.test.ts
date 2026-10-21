@@ -215,6 +215,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       themeWatcher: { stop: async () => { stopped.push("themes"); } },
       formPullTrigger: { stop: async () => { stopped.push("form-pull"); } },
       webhookDeliveryWorker: { stop: async () => { stopped.push("webhooks"); } },
+      domainBindingSweeper: { stop: async () => { stopped.push("dns-sweep"); } },
       bootWork: [byokWork.promise],
     }),
   });
@@ -316,7 +317,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       assert.ok(signals.has("SIGINT"));
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks"], "shutdown must stop all workers before closing storage");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks", "dns-sweep"], "shutdown must stop all workers before closing storage");
       assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
       legacyWork.resolve();
       await new Promise(resolve => setImmediate(resolve));
@@ -328,7 +329,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       releaseClose();
       await new Promise(resolve => setImmediate(resolve));
       assert.equal(exitCode, 0);
-      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks"], "each worker stops exactly once");
+      assert.deepEqual(stopped, ["outbox", "trash", "themes", "form-pull", "webhooks", "dns-sweep"], "each worker stops exactly once");
     }
 
     // Refusals after the boot: nothing keeps serving, and what the boot opened is closed again.

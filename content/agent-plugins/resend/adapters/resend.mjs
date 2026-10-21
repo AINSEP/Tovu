@@ -1,4 +1,6 @@
 // @ts-check
+import { domainRequirements, domainStatus, retryAfterMs } from '../lib/domains.mjs';
+import { feedback } from '../lib/feedback.mjs';
 
 /**
  * @file Resend mail adapter for the Tovu `resend` plugin.
@@ -17,15 +19,20 @@
  * per-message results with partial failure allowed, and Resend's batch endpoint reports success or
  * failure for the whole request only. `maxBatchSize` is `1` accordingly.
  *
+ * The default export is a full Jini `MailProviderModule` (2026-10-21): id, credential keys,
+ * capabilities (Resend's documented 2 requests/second default), the Svix feedback parser
+ * (`../lib/feedback.mjs`) and sending-domain verification (`../lib/domains.mjs`). `create()` keeps its
+ * original call shape (`send(message, opts)`), which the host's mailer still uses.
+ *
  * @typedef {{ email: string, name?: string }} EmailAddress
  * @typedef {{ filename: string, contentType: string, contentBase64: string }} EmailAttachment
  * @typedef {{ to: EmailAddress, from: EmailAddress, replyTo?: EmailAddress, subject: string, html?: string,
  *   text?: string, headers?: Readonly<Record<string, string>>, attachments?: readonly EmailAttachment[] }} OutboundEmail
  * @typedef {{ idempotencyKey: string, timeoutMs?: number }} SendOptions
  * @typedef {{ ok: true, providerMessageId: string, acceptedAt: string }
- *   | { ok: false, retryable: boolean, errorCode: string, message: string }} SendResult
+ *   | { ok: false, retryable: boolean, errorCode: string, message: string, retryAfterMs?: number }} SendResult
  * @typedef {{ send(request: { method: string, url: string, headers: Record<string, string>, body?: string,
- *   timeoutMs: number }): Promise<{ status: number, bodyText: string }> }} HttpClient
+ *   timeoutMs: number }): Promise<{ status: number, bodyText: string, headers?: Readonly<Record<string, string>> }> }} HttpClient
  * @typedef {{ credential: { token: string, baseUrl?: string }, kit: { httpClient: HttpClient } }} CreateContext
  */
 
@@ -62,22 +69,43 @@ function isRetryableStatus(status) {
   return status === 429 || status === 409 || status >= 500;
 }
 
+/** Shared mail contract's throttling code (`@jini-ai/platform/mail` `MAIL_RATE_LIMITED`); a literal,
+ * since an installed plugin has no npm imports. Callers defer it instead of failing the recipient. */
+const MAIL_RATE_LIMITED = "MAIL_RATE_LIMITED";
+
+/** A non-empty string field of a parsed body, else the fallback. @param {unknown} value @param {string} fallback */
+function nonEmpty(value, fallback) {
+  return typeof value === "string" && value !== "" ? value : fallback;
+}
+
 /**
  * Resend's error body is `{statusCode, message, name}`; `name` becomes `errorCode`. A non-JSON body
  * (a proxy error page) still yields a usable result. Never throws.
- * @param {number} status @param {string} bodyText @returns {SendResult}
+ * @param {number} status @param {string} bodyText @returns {{ errorCode: string, message: string }}
  */
-function classifyError(status, bodyText) {
-  let errorCode = `HTTP_${status}`;
-  let message = bodyText || `Resend responded with HTTP ${status}`;
+function parseErrorBody(status, bodyText) {
+  const fallback = { errorCode: `HTTP_${status}`, message: bodyText || `Resend responded with HTTP ${status}` };
   try {
     const parsed = JSON.parse(bodyText);
-    if (typeof parsed?.name === "string" && parsed.name !== "") errorCode = parsed.name;
-    if (typeof parsed?.message === "string" && parsed.message !== "") message = parsed.message;
+    return { errorCode: nonEmpty(parsed?.name, fallback.errorCode), message: nonEmpty(parsed?.message, fallback.message) };
   } catch {
     // Non-JSON body: keep the raw text above.
+    return fallback;
   }
-  return { ok: false, retryable: isRetryableStatus(status), errorCode, message };
+}
+
+/**
+ * Maps a non-2xx response to a send result. Never throws.
+ * A 429 carries Resend's `Retry-After` as `retryAfterMs` so the caller backs off for that long, and is
+ * normalized to {@link MAIL_RATE_LIMITED} (Resend's own name kept in the message) so it is deferred,
+ * not recorded as a failed recipient.
+ * @param {number} status @param {string} bodyText @param {Readonly<Record<string, string>>} [headers] @returns {SendResult}
+ */
+function classifyError(status, bodyText, headers) {
+  const { errorCode, message } = parseErrorBody(status, bodyText);
+  if (status !== 429) return { ok: false, retryable: isRetryableStatus(status), errorCode, message };
+  const wait = retryAfterMs(headers);
+  return { ok: false, retryable: true, errorCode: MAIL_RATE_LIMITED, message: `${message} (${errorCode})`, ...(wait === undefined ? {} : { retryAfterMs: wait }) };
 }
 
 /** Builds the mailer from a saved credential. @param {CreateContext} context */
@@ -105,7 +133,7 @@ function create({ credential, kit }) {
       // the mail port.
       return { ok: false, retryable: true, errorCode: "TRANSPORT_ERROR", message: err instanceof Error ? err.message : String(err) };
     }
-    if (response.status < 200 || response.status >= 300) return classifyError(response.status, response.bodyText);
+    if (response.status < 200 || response.status >= 300) return classifyError(response.status, response.bodyText, response.headers);
 
     let parsed;
     try {
@@ -138,4 +166,14 @@ function create({ credential, kit }) {
   };
 }
 
-export default { create };
+export default {
+  id: 'resend',
+  label: 'Resend',
+  credentialKeys: ['token'],
+  webhookSecretKey: 'webhookSecret',
+  capabilities: { hosted: true, feedback: true, domainVerification: true, rateLimit: { perSecond: 2, burst: 2 } },
+  create,
+  feedback,
+  domainRequirements,
+  domainStatus,
+};

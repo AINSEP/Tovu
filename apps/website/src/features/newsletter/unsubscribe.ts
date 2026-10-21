@@ -26,8 +26,10 @@ export interface UnsubscribeTokenClaims {
   subscriberId: UUID;
   listId: UUID;
   campaignId: UUID | null;
-  /** The consent-revision id the token was minted against — compared to the subscription's CURRENT value (INV-04). */
-  consentRevisionId: string;
+  /** The consent-revision id the token was minted against — compared to the subscription's CURRENT value (INV-04).
+   *  `null` when the subscription recorded none (no consent capability bound); it must stay `null`
+   *  rather than be coerced, or the comparison would reject the subscriber's own token. */
+  consentRevisionId: string | null;
 }
 
 export interface UnsubscribeDeps {

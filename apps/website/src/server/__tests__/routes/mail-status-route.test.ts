@@ -79,3 +79,24 @@ test("mail-status: a signed-in user without admin.forms.manage is refused", asyn
   assert.deepEqual(body.details, { permission: "admin.forms.manage", reason: "no_grant" });
   assert.equal("mailDeliveryAvailable" in body, false);
 });
+
+test("mail-status: with a status source, the body also carries state, lanes, warnings and providers", async (t) => {
+  const report = {
+    state: "unconfigured" as const,
+    lanes: [{ lane: "transactional" as const, providerId: null, state: "unconfigured" as const }, { lane: "bulk" as const, providerId: null, state: "unconfigured" as const }],
+    warnings: ["sender_unknown" as const],
+    providers: [{ id: "smtp", label: "SMTP server", hosted: true, origin: "core" as const }],
+    refusals: [],
+  };
+  const res = await getMailStatus({ ...createRouteDeps(), mailStatus: async () => report }, t);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { mailDeliveryAvailable: false, ...report });
+});
+
+test("mail-status: a failing status source is a 500 without detail", async (t) => {
+  const logged = t.mock.method(console, "error", () => {});
+  const res = await getMailStatus({ ...createRouteDeps(), mailStatus: async () => { throw new Error("db down"); } }, t);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(logged.mock.callCount(), 1);
+});

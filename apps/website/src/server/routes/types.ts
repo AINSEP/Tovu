@@ -639,6 +639,15 @@ export interface MembersDeps {
   /** Refreshes and settles lazy mail configuration without sending; keeps tool responses
    * independent of whether a member is disabled and therefore skips send(). */
   settleMailer?: () => Promise<void>;
+  /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
+   *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
+  mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  /** Provider selection for `mail_set_provider` (`server/runtime/composition/site-mailer.ts`). Absent: the tool refuses. */
+  mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
+  /** The active transactional provider's DNS records for the configured sender domain
+   *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
+   *  Absent in roots without a resolved mailer: that include then refuses. */
+  mailDomainRequirements?: (required: { workspaceId: string }) => Promise<import("@jini-ai/core/provider-registry").DomainRequirement | null>;
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
@@ -809,6 +818,8 @@ export interface SettingsDeps {
   consentStore?: import('#src/features/consent/revisions').SiteConsentStore;
   siteConsent?: import('#src/features/consent/service').SiteConsentService;
   consentTrustedRegionHeader?: string;
+  /** `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks); omitted by hermetic callers. */
+  mailFeedbackRoute?: import('#src/features/mail/index').MailFeedbackRoute;
   /**
    * The real `features/settings`'s own `getEffective` — threaded through `RouteDeps` (rather than
    * each consumer importing it directly) so `assistant/public-assistant-settings.ts`'s
@@ -1012,6 +1023,13 @@ export interface DatabaseOpsDeps {
    * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
    * composition has no content database. */
   contentKernel?: ContentKernel;
+  /**
+   * One sweep of this workspace's due `domain_binding` checks (`verifyDueDomainBindings`), pre-bound
+   * like `sweepTrash` so no route holds the DNS ports. `server/runtime/composition/serving-app.ts` is
+   * the only caller — it owns the timer. Set only by `server/deps.ts` (it needs the content
+   * database); absent elsewhere, including the hermetic root, so no sweep runs there.
+   */
+  verifyDueDomainBindings?: (required: { limit: number }) => Promise<string[]>;
   /** Local source reader/transfer; absent in the hermetic root, which has no target content DB. */
   localCredentialCopy?: LocalCredentialCopy;
   /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */

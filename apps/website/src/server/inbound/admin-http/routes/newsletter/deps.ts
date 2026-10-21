@@ -13,6 +13,7 @@
  * the construction site — once `RouteDeps` is amended upstream to declare these fields directly,
  * that widened annotation becomes provably redundant and can be deleted with no behavior change.
  */
+import { setTimeout as delay } from "node:timers/promises";
 import type {
   MembersConsentCapability,
   NewsletterCampaignRepoPort,
@@ -154,9 +155,13 @@ export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps 
       originRegistry: deps.originRegistry,
       mailer: deps.mailer,
     },
+    // Campaign mail is bulk: each recipient gets signed RFC 8058 one-click unsubscribe headers.
+    unsubscribe: toUnsubscribeDeps(deps),
     outbox: deps.outbox,
     bus: deps.bus,
     clock: deps.clock,
     ids: deps.idGen,
+    // Short provider quota hints are waited out inside the batch (send-pipeline.ts, quota waits).
+    sleep: (ms) => delay(ms),
   };
 }
