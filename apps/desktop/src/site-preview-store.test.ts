@@ -149,6 +149,21 @@ test("the boot sweep removes only previews no tracked site claims", () => {
   assert.equal(readPreviewVersion(userData, "/sites/orphan-two"), null);
 });
 
+test("a preview path that cannot be removed is left in place without failing the delete or the sweep", () => {
+  const userData = tempDir();
+  writePreview(userData, "/sites/orphan", PNG);
+  // A FOLDER where a site's preview file belongs: non-recursive removal refuses it.
+  const stuck = previewPath(userData, "/sites/stuck");
+  fs.mkdirSync(path.join(stuck, "inside"), { recursive: true });
+
+  assert.doesNotThrow(() => deletePreview(userData, "/sites/stuck"));
+  assert.ok(fs.statSync(stuck).isDirectory(), "best-effort: an unremovable entry stays for the next boot");
+
+  assert.equal(sweepOrphanedPreviews(userData, []), 1, "only the entry actually removed is counted");
+  assert.equal(readPreviewVersion(userData, "/sites/orphan"), null);
+  assert.ok(fs.statSync(stuck).isDirectory());
+});
+
 test("the boot sweep is a no-op on a first run, with no previews directory at all", () => {
   assert.equal(sweepOrphanedPreviews(tempDir(), ["/sites/kept"]), 0);
 });

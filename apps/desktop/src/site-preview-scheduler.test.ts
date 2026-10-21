@@ -127,3 +127,16 @@ test("P1: an old in-flight failure cannot erase the replacement lifecycle's rese
   assert.equal(h.timers.size, 0);
   assert.deepEqual(h.captures.map((capture) => capture.port), [8123, 9004]);
 });
+
+test("P1: a timer callback that was already dispatched when Stop cancelled it captures nothing", async () => {
+  const h = harness();
+  h.scheduler.schedule({ siteDir: SITE }, {});
+  // Grab the queued work before cancel removes it, as a host timer that already fired would still run it.
+  const [dispatched] = [...h.timers.values()];
+  h.scheduler.cancel({ siteDir: SITE }, {});
+  dispatched!.work();
+  await h.tick(0);
+  assert.deepEqual(h.captures, [], "the cancelled lifecycle's late callback owns no work");
+  h.scheduler.schedule({ siteDir: SITE }, {});
+  assert.equal(h.timers.size, 1, "and it left no reservation blocking the next Start");
+});
