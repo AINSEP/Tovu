@@ -40,11 +40,7 @@ export function RecentErrorsPanel({ useRecentServerErrorsHook }: { useRecentServ
 
       {error ? <p className="observability-alert" role="alert">{error}</p> : null}
       {loading && !logs ? <p role="status">{t("Loading recent errors…")}</p> : null}
-      {logs && !logs.capturing ? (
-        <p className="jini-field-hint" role="note">{t("This server is not recording its log yet, so errors cannot be listed. Restart the site to start recording.")}</p>
-      ) : null}
-      {logs && logs.capturing && rows.length === 0 ? <p role="status">{t("No errors recorded.")}</p> : null}
-      {logs?.truncated ? <p className="jini-field-hint">{t("Showing the newest 50 errors.")}</p> : null}
+      <RecentErrorsCaptureStatus logs={logs} empty={rows.length === 0} t={t} />
 
       {rows.length > 0 ? (
         <ol className="observability-errors-list" {...agentHandle({ handle: "observability-errors-list" }, { role: "list", label: "Recent server errors, newest first" })}>
@@ -55,6 +51,18 @@ export function RecentErrorsPanel({ useRecentServerErrorsHook }: { useRecentServ
       ) : null}
     </section>
   );
+}
+
+/** Independent capture, empty-list and truncation notices; cached logs remain visible on refresh. */
+function RecentErrorsCaptureStatus({ logs, empty, t }: { logs: RecentServerErrorsController["logs"]; empty: boolean; t: Translate }) {
+  if (!logs) return null;
+  return <>
+    {!logs.capturing ? (
+      <p className="jini-field-hint" role="note">{t("This server is not recording its log yet, so errors cannot be listed. Restart the site to start recording.")}</p>
+    ) : null}
+    {logs.capturing && empty ? <p role="status">{t("No errors recorded.")}</p> : null}
+    {logs.truncated ? <p className="jini-field-hint">{t("Showing the newest 50 errors.")}</p> : null}
+  </>;
 }
 
 /**

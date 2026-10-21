@@ -68,7 +68,7 @@ test('tracked fixture: type-only exclusion, never-loaded AST denominator, remote
     assert.equal(report.totals.lines.total, 10);
     assert.ok(report.totals.lines.pct === 20);
     assert.deepEqual(Object.fromEntries(report.exclusions.map(group => [group.group, group.count])), {
-      'non-source': 1, 'dependencies/build/output': 5, 'test/fixture': 6, declaration: 1, generated: 2, 'type-only': 1,
+      explicit: 0, vendor: 0, 'non-source': 1, 'dependencies/build/output': 5, 'test/fixture': 6, declaration: 1, generated: 2, 'type-only': 1,
     });
     assert.equal(report.exclusions.find(group => group.group === 'test/fixture')!.examples.length, 5);
     assert.equal(report.unmatched.length, 4);
@@ -153,4 +153,76 @@ test('a malformed LCOV record is skipped with a warning instead of failing the r
   });
   assert.equal(report.neverLoaded, 0);
   assert.ok(report.warnings.some(w => w.includes('skipped malformed LCOV record')));
+});
+
+test('vendor directories at any depth are excluded, while similar path segments remain counted', () => {
+  const vendors = ['vendor/root.ts', 'apps/desktop/src/renderer/public/vendor/kuinetic/engine.js', 'packages/a/vendor/component.tsx'];
+  const owned = ['packages/vendorized/src/run.ts', 'src/my-vendor/run.ts', 'src/vendor.ts'];
+  const sources = new Map([...vendors, ...owned].map(file => [file, 'export const runtime = 1;']));
+  const report = buildReport({ sources, inputs: [{ name: 'vendor.info', text: lcov(vendors[1]) }] });
+  assert.deepEqual(report.files.map(row => row.file).sort(), [...owned].sort());
+  assert.deepEqual(report.exclusions.find(group => group.group === 'vendor'), { group: 'vendor', count: 3, examples: [...vendors].sort() });
+  assert.deepEqual(report.excludedCoverage, [{ input: 'vendor.info', file: vendors[1], matched: vendors[1] }]);
+  assert.deepEqual(report.unmatched, []);
+  assert.equal(report.totals.lines.total, 3);
+  assert.equal(report.neverLoaded, 3);
+});
+
+test('explicit exclusions match directory boundaries, normalize trailing slashes, and count overlapping matches once', () => {
+  const omitted = ['packages/commerce/src/cart.ts', 'packages/commerce/vendor/payment.js', 'apps/demo/src/main.ts'];
+  const kept = ['packages/commerce-extra/src/cart.ts', 'packages/commerce.ts', 'apps/demo-copy/src/main.ts'];
+  const sources = new Map([...omitted, ...kept].map(file => [file, 'export const runtime = 1;']));
+  const inputs = [{ name: 'remote.info', text: omitted.map(file => lcov(`/runner/${file}`)).join('') }];
+  const report = buildReport({ sources, inputs }, { excludes: ['packages/commerce/', 'packages/commerce/src', 'apps/demo', 'absent'] });
+  assert.deepEqual(report.files.map(row => row.file).sort(), [...kept].sort());
+  assert.deepEqual(report.exclusions.find(group => group.group === 'explicit'), { group: 'explicit', count: 3, examples: [...omitted].sort() });
+  assert.equal(report.exclusions.find(group => group.group === 'vendor')!.count, 0);
+  assert.deepEqual(report.excludedCoverage.map(row => row.matched), omitted);
+  assert.deepEqual(report.unmatched, []);
+  assert.equal(report.totals.lines.total, 3);
+  const baseline = buildReport({ sources, inputs: [] });
+  assert.equal(baseline.files.length, 5, 'commerce is included unless its owner explicitly excludes it');
+});
+
+test('repeatable --exclude reaches both reports without reading vendor or explicitly excluded source', () => {
+  const written = new Map<string, string>(), reads: string[] = [], logs: string[] = [];
+  const vendor = 'apps/desktop/src/renderer/public/vendor/kuinetic/runtime.js';
+  const omitted = ['packages/commerce/src/cart.ts', 'apps/demo/src/main.ts'];
+  const ports: CoveragePorts = {
+    listFiles: () => [vendor, ...omitted, 'apps/website/src/main.ts', 'outside/root.ts'],
+    readText: ({ file }) => {
+      reads.push(file);
+      if (file === '/cov.info') return [vendor, ...omitted].map(file => lcov(file)).join('');
+      assert.equal(file, '/repo/apps/website/src/main.ts', 'excluded sources must not be read');
+      return 'export const runtime = 1;';
+    },
+    writeText: ({ file, text }) => { written.set(file, text); },
+  };
+  main({ args: ['--repo', '/repo', '--coverage', '/cov.info', '--out', '/out', '--root', 'apps', '--root', 'packages',
+    '--exclude', 'packages/commerce/', '--exclude', 'apps/demo', '--exclude', 'apps/demo/src'], ports, log: message => logs.push(message) });
+  assert.deepEqual(reads, ['/repo/apps/website/src/main.ts', '/cov.info']);
+  assert.equal(written.size, 2);
+  const report = JSON.parse(written.get('/out/coverage-all-files.json')!);
+  assert.deepEqual(report.files.map((row: { file: string }) => row.file), ['apps/website/src/main.ts']);
+  assert.equal(report.exclusions.find((group: { group: string }) => group.group === 'vendor').count, 1);
+  assert.equal(report.exclusions.find((group: { group: string }) => group.group === 'explicit').count, 2);
+  assert.equal(report.excludedCoverage.length, 3);
+  assert.match(written.get('/out/coverage-all-files.md')!, /\| explicit \| 2 \|/);
+  assert.match(written.get('/out/coverage-all-files.md')!, /\| vendor \| 1 \|/);
+  assert.match(logs[0], /1 files; 1 NEVER-LOADED/);
+});
+
+test('--exclude requires a directory value and remains a report-only CLI error', () => {
+  const logs: string[] = [];
+  const ports: CoveragePorts = {
+    listFiles: () => assert.fail('invalid CLI input must not access the repository'),
+    readText: () => assert.fail('invalid CLI input must not read files'),
+    writeText: () => assert.fail('invalid CLI input must not write reports'),
+  };
+  const before = process.exitCode;
+  for (const tail of [['--exclude'], ['--exclude', '--root', 'apps']]) {
+    main({ args: ['--repo', '/repo', '--coverage', '/cov.info', '--out', '/out', ...tail], ports, log: message => logs.push(message) });
+  }
+  assert.deepEqual(logs, Array(2).fill('Coverage report unavailable: Missing value for --exclude'));
+  assert.equal(process.exitCode, before);
 });

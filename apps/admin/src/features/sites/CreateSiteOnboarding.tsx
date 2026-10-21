@@ -312,7 +312,6 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
         <DetailsSection controller={controller} />
         <div className="onboarding-section">
           <p className="field-hint site-admin-login-hint">
-            {controller.t("Sign in as")} <strong>admin</strong> {controller.t("with password")} <strong>{DEFAULT_NEW_SITE_ADMIN_PASSWORD}</strong>.
             <InfoTip
               label={controller.t("This is a starter password for this site only. Change it after your first sign-in under Users → admin, or set a different one below.")}
               triggerLabel={controller.t("About the default admin login")}
@@ -347,9 +346,6 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
     </form>
   );
 }
-
-/** Starter password every new site is created with when none is chosen (website `DEFAULT_OWNER_PASSWORD`, identity/wiring.ts). */
-const DEFAULT_NEW_SITE_ADMIN_PASSWORD = "tovu-dev";
 
 /** Eye (shown) / struck-through eye (hidden) glyph for the password reveal toggle. */
 function PasswordEyeIcon({ revealed }: { revealed: boolean }) {

@@ -37,12 +37,11 @@ function setup() {
 }
 
 describe("new-site admin credentials", () => {
-  it("describes the default login without sending its password, then repeats the guidance in the created-site notice", async () => {
+  it("keeps the seeded password private, sends no default password, and retains the created-site guidance", async () => {
     const { requests, user } = setup();
     await waitFor(() => expect(screen.getByLabelText("Folder name")).toBeEnabled());
-    const hint = screen.getByText("tovu-dev").closest("p")!;
-    expect(hint.textContent).toContain("Sign in as admin with password tovu-dev.");
-    expect(screen.getByText("admin").tagName).toBe("STRONG");
+    expect(document.body.textContent).not.toContain("tovu-dev");
+    expect(document.body.textContent).not.toContain("Sign in as admin with password");
     expect(screen.getByRole("button", { name: "About the default admin login" })).toBeVisible();
     const password = screen.getByLabelText("Set a different admin password");
     expect(password).toHaveValue("");
@@ -58,6 +57,7 @@ describe("new-site admin credentials", () => {
     await waitFor(() => expect(screen.getByText(DEFAULT_LOGIN)).toBeVisible());
     const notice = screen.getByText("new-site").closest("p")!;
     expect(notice.textContent).toContain(DEFAULT_LOGIN);
+    expect(document.body.textContent).not.toContain("tovu-dev");
   });
 
   it("reveals and masks the optional password, preserves it exactly, and confirms it without echoing it", async () => {

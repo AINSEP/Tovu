@@ -8,9 +8,11 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { isInExcludedDir } from '@jini-ai/devops/checks/coverage';
 import { mergeLcov } from './coverage-changed-model.js';
 
 type Options = Record<string, never>;
+interface ExclusionOptions { excludes?: readonly string[] }
 type Hits = Record<string, number>;
 interface Image { file: string; lines: Hits; branches: Hits; functions: Hits }
 interface Metric { covered: number; total: number; pct: number }
@@ -31,7 +33,14 @@ export interface CoveragePorts {
   writeText(input: { file: string; text: string }): void;
 }
 
-function exclusionGroup({ file }: { file: string }, _options: Options = {}): string | undefined {
+function exclusionGroup({ file }: { file: string }, { excludes = [] }: ExclusionOptions = {}): string | undefined {
+  if (isInExcludedDir({ file, excludeDirs: excludes })) return 'explicit';
+  if (/(^|\/)vendor\//.test(file)) return 'vendor';
+  return sourceExclusionGroup({ file });
+}
+
+/** Existing filename-based exclusions, after owner-selected directories and third-party vendor code. */
+function sourceExclusionGroup({ file }: { file: string }, _options: Options = {}): string | undefined {
   const basename = file.split('/').at(-1)!;
   if (!/\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file)) return 'non-source';
   if (/(^|\/)(node_modules|dist|build|out|coverage)(\/|$)/.test(file)) return 'dependencies/build/output';
@@ -177,16 +186,15 @@ function areaFor({ file }: { file: string }, _options: Options = {}): string {
   return parts.length > 1 ? parts[0] : '(root)';
 }
 
-/** Build an all-tracked-source report from text inputs; no filesystem or process access.
- * @returns Full report, including unmatched records and mutually exclusive exclusion groups.
- * @throws Malformed coverage input. O(source AST size + coverage size + files log files).
+/** Classify sources once into mutually exclusive exclusions and AST estimates. No I/O.
+ * O(total source AST size + files × excluded directories) time, O(source AST size) space.
  */
-export function buildReport({ sources, inputs }: { sources: ReadonlyMap<string, string>; inputs: Input[] }, _options: Options = {}): AllFilesReport {
+function classifySources({ sources }: { sources: ReadonlyMap<string, string> }, { excludes = [] }: ExclusionOptions = {}) {
   const excluded = new Map<string, string[]>();
-  for (const group of ['non-source', 'dependencies/build/output', 'test/fixture', 'declaration', 'generated', 'type-only']) excluded.set(group, []);
+  for (const group of ['explicit', 'vendor', 'non-source', 'dependencies/build/output', 'test/fixture', 'declaration', 'generated', 'type-only']) excluded.set(group, []);
   const estimates = new Map<string, Image>();
   for (const [file, text] of sources) {
-    let group = exclusionGroup({ file });
+    let group = exclusionGroup({ file }, { excludes });
     if (!group) {
       const analysis = analyzeSource({ file, text });
       if (analysis.typeOnly) group = 'type-only';
@@ -194,20 +202,47 @@ export function buildReport({ sources, inputs }: { sources: ReadonlyMap<string, 
     }
     if (group) excluded.get(group)!.push(file);
   }
+  return { excluded, estimates };
+}
+
+/** Merge each hit identity by maximum into the report-local target. O(image size) time, O(keys) space. */
+function mergeImage({ target, image }: { target: Image; image: Image }, _options: Options = {}): void {
+  for (const axis of ['lines', 'branches', 'functions'] as const) {
+    for (const [key, hits] of Object.entries(image[axis])) putMax({ target: target[axis], key, hits });
+  }
+}
+
+/** Resolve input records and accumulate hits or diagnostics into report-local collections.
+ * Excluded records remain evidence, but never re-enter the denominator. O(coverage size) time/space.
+ */
+function mergeCoverageImages({ images, input, index, estimates, coverage, unmatched, excludedCoverage }: {
+  images: Image[]; input: string; index: Map<string, string | null>; estimates: Map<string, Image>;
+  coverage: Map<string, Image>; unmatched: AllFilesReport['unmatched']; excludedCoverage: AllFilesReport['excludedCoverage'];
+}, _options: Options = {}): void {
+  for (const image of images) {
+    const file = matchPath({ file: image.file, index });
+    if (!file) { unmatched.push({ input, file: image.file }); continue; }
+    if (!estimates.has(file)) { excludedCoverage.push({ input, file: image.file, matched: file }); continue; }
+    const target = coverage.get(file) ?? { file, lines: {}, branches: {}, functions: {} };
+    mergeImage({ target, image });
+    coverage.set(file, target);
+  }
+}
+
+/** Build an all-tracked-source report from text inputs; no filesystem or process access.
+ * @returns Full report, including unmatched records and mutually exclusive exclusion groups.
+ * @throws Malformed coverage input. O(source AST size + coverage size + files log files + files × excluded directories).
+ * @example buildReport({ sources, inputs }, { excludes: ['packages/commerce'] });
+ */
+export function buildReport({ sources, inputs }: { sources: ReadonlyMap<string, string>; inputs: Input[] }, { excludes = [] }: ExclusionOptions = {}): AllFilesReport {
+  const { excluded, estimates } = classifySources({ sources }, { excludes });
   const index = suffixIndex({ files: [...sources.keys()] });
   const coverage = new Map<string, Image>();
   const unmatched: AllFilesReport['unmatched'] = [], excludedCoverage: AllFilesReport['excludedCoverage'] = [];
   const malformed: string[] = [];
   for (const input of inputs) {
     const images = input.text.trimStart().startsWith('{') ? parseJsonImages({ text: input.text }) : parseLcovImages({ text: input.text }, { onMalformed: message => malformed.push(`${input.name}: skipped malformed LCOV record — ${message}`) });
-    for (const image of images) {
-      const file = matchPath({ file: image.file, index });
-      if (!file) { unmatched.push({ input: input.name, file: image.file }); continue; }
-      if (!estimates.has(file)) { excludedCoverage.push({ input: input.name, file: image.file, matched: file }); continue; }
-      const target = coverage.get(file) ?? { file, lines: {}, branches: {}, functions: {} };
-      for (const axis of ['lines', 'branches', 'functions'] as const) for (const [key, hits] of Object.entries(image[axis])) putMax({ target: target[axis], key, hits });
-      coverage.set(file, target);
-    }
+    mergeCoverageImages({ images, input: input.name, index, estimates, coverage, unmatched, excludedCoverage });
   }
   const files = [...estimates].map(([file, estimate]): Row => {
     const image = coverage.get(file) ?? estimate, never = !coverage.has(file);
@@ -250,34 +285,40 @@ export function renderReport({ report }: { report: AllFilesReport }, _options: O
 }
 
 /** Read inputs and write both reports through injected ports. Errors propagate to the CLI edge. */
-export function runReport({ repo, coverage, out, ports }: { repo: string; coverage: string[]; out: string; ports: CoveragePorts }, { roots = [] }: { roots?: string[] } = {}): AllFilesReport {
+export function runReport({ repo, coverage, out, ports }: { repo: string; coverage: string[]; out: string; ports: CoveragePorts }, { roots = [], excludes = [] }: { roots?: string[] } & ExclusionOptions = {}): AllFilesReport {
   // --root scopes the denominator to product code (e.g. Jini vendors AI-Dev-Shop as tracked files);
   // no roots = the whole repo.
   const inRoots = (file: string) => !roots.length || roots.some(root => file === root || file.startsWith(`${root.replace(/\/+$/, '')}/`));
-  const sources = new Map(ports.listFiles({ repo }).filter(inRoots).map(file => [file, exclusionGroup({ file }) ? '' : ports.readText({ file: path.join(repo, file) })]));
+  const sources = new Map(ports.listFiles({ repo }).filter(inRoots).map(file => [file, exclusionGroup({ file }, { excludes }) ? '' : ports.readText({ file: path.join(repo, file) })]));
   const inputs = coverage.map(file => ({ name: file, text: ports.readText({ file }) }));
-  const report = buildReport({ sources, inputs });
+  const report = buildReport({ sources, inputs }, { excludes });
   ports.writeText({ file: path.join(out, 'coverage-all-files.json'), text: JSON.stringify(report, null, 2) + '\n' });
   ports.writeText({ file: path.join(out, 'coverage-all-files.md'), text: renderReport({ report }) });
   return report;
 }
 
+/** Parse valued flags, retaining repeatable directory options and the existing CLI error contract.
+ * Throws TypeError for missing/unknown options. O(args) time and space; no I/O.
+ */
+function parseReportArgs({ args }: { args: string[] }, _options: Options = {}) {
+  const values = new Map<string, string[]>(['--repo', '--out', '--coverage', '--root', '--exclude'].map(flag => [flag, []]));
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index], value = args[index + 1];
+    if (!value || value.startsWith('--')) throw new TypeError(`Missing value for ${flag}`);
+    const entries = values.get(flag);
+    if (!entries) throw new TypeError(`Unknown option ${flag}`);
+    entries.push(value);
+  }
+  const repo = values.get('--repo')!.at(-1), out = values.get('--out')!.at(-1), coverage = values.get('--coverage')!;
+  if (!repo || !out || !coverage.length) throw new TypeError('Usage: --repo <root> --coverage <file>... --out <dir> [--root <dir>...] [--exclude <dir>...]');
+  return { repo, out, coverage, roots: values.get('--root')!, excludes: values.get('--exclude')! };
+}
+
 /** CLI adapter, intentionally report-only: diagnostics never change the exit status. */
 export function main({ args, ports, log }: { args: string[]; ports: CoveragePorts; log: (message: string) => void }, _options: Options = {}): void {
   try {
-    let repo: string | undefined, out: string | undefined;
-    const coverage: string[] = [], roots: string[] = [];
-    for (let index = 0; index < args.length; index += 2) {
-      const flag = args[index], value = args[index + 1];
-      if (!value || value.startsWith('--')) throw new TypeError(`Missing value for ${flag}`);
-      if (flag === '--repo') repo = value;
-      else if (flag === '--out') out = value;
-      else if (flag === '--coverage') coverage.push(value);
-      else if (flag === '--root') roots.push(value);
-      else throw new TypeError(`Unknown option ${flag}`);
-    }
-    if (!repo || !out || !coverage.length) throw new TypeError('Usage: --repo <root> --coverage <file>... --out <dir> [--root <dir>...]');
-    const report = runReport({ repo: path.resolve(repo), coverage, out, ports }, { roots });
+    const { repo, out, coverage, roots, excludes } = parseReportArgs({ args });
+    const report = runReport({ repo: path.resolve(repo), coverage, out, ports }, { roots, excludes });
     log(`All-files: ${report.files.length} files; ${report.neverLoaded} NEVER-LOADED; lines ${display({ metric: report.totals.lines })}`);
   } catch (error) { log(`Coverage report unavailable: ${error instanceof Error ? error.message : String(error)}`); }
 }
