@@ -120,3 +120,16 @@ test("the CLI writes a YAML manifest electron-updater's parser reads back, and f
   assert.equal(bad.status, 1);
   assert.match(bad.stderr, /merge-latest-mac: expected one arm64 zip and one x64 zip/);
 });
+
+test("the CLI refuses too few arguments with its usage line and writes nothing", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-latest-mac-usage-"));
+  const out = path.join(dir, "latest-mac.yml");
+  const script = path.join(DESKTOP_ROOT, "scripts", "merge-latest-mac.ts");
+
+  for (const args of [[], [out], [out, path.join(dir, "only-one.yml")]]) {
+    const run = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+    assert.equal(run.status, 1, `accepted ${JSON.stringify(args)}`);
+    assert.match(run.stderr, /^usage: node scripts\/merge-latest-mac\.ts <out\.yml> <in-arm64\.yml> <in-x64\.yml>$/m);
+  }
+  assert.equal(fs.existsSync(out), false);
+});

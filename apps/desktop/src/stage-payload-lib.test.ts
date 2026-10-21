@@ -21,7 +21,9 @@ import test from "node:test";
 
 import {
   assertClosureComplete,
+  declaredDependencies,
   diskBytes,
+  findPackageDir,
   hasNativeBinaryMagic,
   newestMtime,
   parseNpmLsPaths,
@@ -30,6 +32,7 @@ import {
   resolveNpmLsCommand,
   resolveTargets,
   stageBundledNpm,
+  stageDir,
   stageTransitiveDependencies,
   strippableReason,
   stripNonRuntimeFiles,
@@ -127,6 +130,41 @@ test("returns 0 for an empty directory", () => {
   const dir = tempDir();
   fs.mkdirSync(dir, { recursive: true });
   assert.equal(newestMtime(dir), 0);
+});
+
+test("stageDir keeps a package's nested node_modules unless asked to drop them", () => {
+  const tmp = tempDir();
+  const src = path.join(tmp, "pkg");
+  fs.mkdirSync(path.join(src, "node_modules", "inner"), { recursive: true });
+  fs.writeFileSync(path.join(src, "index.js"), "module.exports = 1;\n");
+  fs.writeFileSync(path.join(src, "node_modules", "inner", "index.js"), "module.exports = 2;\n");
+
+  stageDir(src, path.join(tmp, "kept", "pkg"), false);
+  stageDir(src, path.join(tmp, "dropped", "pkg"), true);
+
+  assert.equal(fs.readFileSync(path.join(tmp, "kept", "pkg", "node_modules", "inner", "index.js"), "utf8"), "module.exports = 2;\n");
+  assert.equal(fs.existsSync(path.join(tmp, "dropped", "pkg", "node_modules")), false);
+  assert.equal(fs.readFileSync(path.join(tmp, "dropped", "pkg", "index.js"), "utf8"), "module.exports = 1;\n");
+});
+
+test("declaredDependencies: a folder with no package.json, or a manifest with no dependencies field, declares none", () => {
+  const tmp = tempDir();
+  assert.deepEqual(declaredDependencies(tmp), []);
+  fs.writeFileSync(path.join(tmp, "package.json"), JSON.stringify({ name: "bare" }));
+  assert.deepEqual(declaredDependencies(tmp), []);
+  writePackage(tmp, { foo: "1", bar: "2" });
+  assert.deepEqual(declaredDependencies(tmp), ["foo", "bar"]);
+});
+
+test("findPackageDir: a dependency found nowhere up to the filesystem root is undefined, not a guess", () => {
+  const tmp = tempDir();
+  const deep = path.join(tmp, "a", "b");
+  fs.mkdirSync(deep, { recursive: true });
+  const unique = `tovu-no-such-package-${path.basename(tmp)}`;
+
+  assert.equal(findPackageDir(deep, unique), undefined);
+  writePackage(path.join(tmp, "node_modules", unique));
+  assert.equal(findPackageDir(deep, unique), path.join(tmp, "node_modules", unique));
 });
 
 test("stageTransitiveDependencies: stages nothing and returns 0 when a root declares no dependencies", () => {
@@ -820,6 +858,19 @@ test("stageBundledNpm copies the package tree, preserving bin/*.js and node_modu
   for (const relative of ['bin/npx-cli.js', 'bin/npm-cli.js', 'bin/npx.cmd', 'node_modules/@npmcli/arborist/package.json', 'package.json']) {
     assert.deepEqual(fs.readFileSync(path.join(outDir, relative)), fs.readFileSync(path.join(npmSrc, relative)), relative);
   }
+});
+
+test("stageBundledNpm skips an entry it cannot stat (a dangling symlink) instead of failing the build", () => {
+  const npmSrc = path.join(tempDir(), "npm");
+  writeNpmFixture(npmSrc);
+  fs.symlinkSync(path.join(npmSrc, "does-not-exist.js"), path.join(npmSrc, "bin", "dangling.js"));
+  const outDir = path.join(tempDir(), "staging", "npm");
+
+  stageBundledNpm({ npmSrc, outDir });
+
+  assert.ok(fs.existsSync(path.join(outDir, "bin", "npx-cli.js")));
+  assert.equal(fs.existsSync(path.join(outDir, "bin", "dangling.js")), false);
+  assert.throws(() => fs.lstatSync(path.join(outDir, "bin", "dangling.js")), { code: "ENOENT" });
 });
 
 test("stageBundledNpm drops docs/ and man/ entirely", () => {
