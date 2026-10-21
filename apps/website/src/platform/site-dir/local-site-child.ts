@@ -1,6 +1,8 @@
 /** Full-site boot, shared with journeys: same static admin bundle + ordinary index entrypoint.
  * The watchdog runs before bundle work too; a killed host cannot strand a Vite build process.
  */
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { journeyAdminBundle } from "./local-admin-bundle.js";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
@@ -130,4 +132,18 @@ function failBoot(error: unknown): void {
   process.exit(1);
 }
 
-if (import.meta.main) await runLocalSiteChild({}).catch(failBoot);
+export interface EntrypointOptional {
+  /** Resolves symlinks the way the ESM loader does for the main module; throws when the path is gone. */
+  realpath?: (file: string) => string;
+}
+
+/** Whether this module is the launched script. `import.meta.main` needs Node >=24.2 but the engines floor is
+ * 24.0, where it is undefined and the child would exit without booting the site or its watchdog. */
+export function isEntrypoint({ moduleUrl, argv }: { moduleUrl: string; argv: readonly string[] },
+  { realpath = realpathSync }: EntrypointOptional = {}): boolean {
+  const script = argv[1];
+  if (!script) return false;
+  try { return pathToFileURL(realpath(script)).href === moduleUrl; } catch { return false; }
+}
+
+if (isEntrypoint({ moduleUrl: import.meta.url, argv: process.argv })) await runLocalSiteChild({}).catch(failBoot);

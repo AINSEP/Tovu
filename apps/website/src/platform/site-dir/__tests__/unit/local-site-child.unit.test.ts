@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import type { StopProcessesResult } from "@jini-ai/platform/process";
 import {
-  createOwnTreeReaper, NO_REGISTRY, ownerPidFrom, parentGone, runLocalSiteChild, selfAsDaemonProcess,
+  createOwnTreeReaper, isEntrypoint, NO_REGISTRY, ownerPidFrom, parentGone, runLocalSiteChild, selfAsDaemonProcess,
   type LocalSiteChildProcess, type WatchdogHandle, type WatchdogTimers,
 } from "../../local-site-child.js";
 
@@ -169,4 +169,19 @@ test("run as a process entry, a missing owner pid fails before any boot work", (
   const result = spawnSync(process.execPath, ["--import", "tsx", entry], { env, encoding: "utf8", timeout: 60_000 });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Local site owner is required/);
+});
+
+// `import.meta.main` needs Node >=24.2 while the engines floor is 24.0; on 24.0-24.1 it is undefined and the
+// child would exit without booting. The entry check therefore compares the launched script with this module.
+test("isEntrypoint is true when the launched script resolves to this module", () => {
+  const realpath = (p: string): string => (p === "/link/child.ts" ? "/real/child.ts" : p);
+  assert.equal(isEntrypoint({ moduleUrl: "file:///real/child.ts", argv: ["/node", "/real/child.ts"] }, { realpath }), true);
+  assert.equal(isEntrypoint({ moduleUrl: "file:///real/child.ts", argv: ["/node", "/link/child.ts"] }, { realpath }), true);
+});
+
+test("isEntrypoint is false when the module is imported or no script was launched", () => {
+  assert.equal(isEntrypoint({ moduleUrl: "file:///real/child.ts", argv: ["/node", "/real/runner.ts"] }, { realpath: (p) => p }), false);
+  assert.equal(isEntrypoint({ moduleUrl: "file:///real/child.ts", argv: ["/node"] }), false);
+  const missing = (): string => { throw new Error("ENOENT"); };
+  assert.equal(isEntrypoint({ moduleUrl: "file:///real/child.ts", argv: ["/node", "/gone/child.ts"] }, { realpath: missing }), false);
 });
