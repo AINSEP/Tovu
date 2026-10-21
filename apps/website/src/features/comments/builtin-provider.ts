@@ -41,6 +41,38 @@ function entryPath({ canonicalUrl }: { canonicalUrl: string }, _options = {}) {
   return url.pathname.startsWith('//') ? '/' : url.pathname;
 }
 
+/** Puts each reply right after its parent (depth-first, in page order). A reply whose parent is on
+ * an earlier page, and any row caught in a malformed parent cycle, still renders, after the threads.
+ * @complexity O(p) for p rows on the page. */
+function threadOrder({ rows }: { rows: readonly CommentRecord[] }, _options = {}): CommentRecord[] {
+  const byId = new Map(rows.map(row => [row.id, row]));
+  const children = new Map<string, CommentRecord[]>();
+  for (const row of rows) if (row.parentId && byId.has(row.parentId)) children.set(row.parentId, [...children.get(row.parentId) ?? [], row]);
+  const out: CommentRecord[] = []; const seen = new Set<string>();
+  const visit = (row: CommentRecord) => {
+    if (seen.has(row.id)) return;
+    seen.add(row.id); out.push(row);
+    for (const child of children.get(row.id) ?? []) visit(child);
+  };
+  for (const row of rows) if (!row.parentId || !byId.has(row.parentId)) visit(row);
+  for (const row of rows) visit(row);
+  return out;
+}
+
+/** A visitor-supplied cursor that no longer names a row (comment purged, or a hand-edited URL) is
+ * the repo's `invalid cursor` refusal; on a public page that means "start at the first page", never a 500.
+ * @complexity One bounded query, two when the cursor is refused. */
+async function approvedPage({ repo, siteId, entryId, cursor }: { repo: CommentRepoPort; siteId: string; entryId: string; cursor?: string }, _options = {}) {
+  const query = { workspaceId: siteId, entryId, status: 'approved' as const, limit: 200 };
+  if (cursor === undefined) return repo.listModerationQueue(query);
+  try {
+    return await repo.listModerationQueue({ ...query, cursor });
+  } catch (error) {
+    if (!(error instanceof ToolInputError)) throw error;
+    return repo.listModerationQueue(query);
+  }
+}
+
 /** One entry-scoped database page (201 rows at most), with no thread recursion or page cache.
  * Every response re-reads selection/settings/approved rows, so moderation and disable are immediately visible.
  * @complexity O(p) rendering and one bounded query for p <= 200 comments. */
@@ -58,12 +90,13 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
     await deps.ready;
     const settings = await deps.getSettings({ siteId });
     if (!settings.enabled) return { html: '' };
-    const page = await deps.repo.listModerationQueue({ workspaceId: siteId, entryId: entry.id, status: 'approved', limit: 200, cursor: optional.cursor });
+    const page = await approvedPage({ repo: deps.repo, siteId, entryId: entry.id, cursor: optional.cursor });
     const path = entryPath({ canonicalUrl: entry.canonicalUrl });
     const maxDepth = Math.min(20, Math.max(0, settings.maxDepth));
     const rows = page.items.filter(row => row.status === 'approved' && row.entryId === entry.id && row.workspaceId === siteId);
     const more = page.nextCursor ? `<a rel="next" href="${escapeHtml(`${path}?commentCursor=${encodeURIComponent(page.nextCursor)}#comments`)}">More comments</a>` : '';
-    return { html: `<section id="comments" aria-label="Comments"><h2>Comments</h2><ol>${rows.map(row => commentHtml({ row, maxDepth })).join('')}</ol>${more}${submissionForm({ entryId: entry.id, path })}</section>` };
+    const first = optional.cursor === undefined ? '' : `<a href="${escapeHtml(`${path}#comments`)}">First comments</a>`;
+    return { html: `<section id="comments" aria-label="Comments"><h2>Comments</h2><ol>${threadOrder({ rows }).map(row => commentHtml({ row, maxDepth })).join('')}</ol>${first}${more}${submissionForm({ entryId: entry.id, path })}</section>` };
   } };
   return { kind: 'stored', renderer,
     submission: { async submit(input) {

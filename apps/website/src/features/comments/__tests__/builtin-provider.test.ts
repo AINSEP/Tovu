@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { CommentRecord, CommentRepoPort, CommentsSettings } from '@jini-ai/cms/comments';
 import { createBuiltinCommentsProvider, BUILTIN_COMMENTS_DEFINITION, type BuiltinCommentsDeps } from '../builtin-provider.js';
 import { renderCommentsMarkers } from '../public-markers.js';
+import { ToolInputError } from '@jini-ai/core';
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 
 const entry = { id: 'e', slug: 'post', title: 'Post', canonicalUrl: '/post', status: 'published' };
@@ -99,4 +100,29 @@ test('theme markers resolve once, preserve wrappers and remove draft/unavailable
   assert.ok(!(await renderCommentsMarkers({ ...args, providers: undefined })).includes('<section'));
   providers.active = async () => ({ providerId: null, revision: 1, adapter: undefined });
   assert.ok(!(await renderCommentsMarkers(args)).includes('<section'));
+});
+
+test('replies follow their parent; orphans and malformed cycles still render once, after the threads', async () => {
+  const f = fixture();
+  f.items([row({ id: 'a' }), row({ id: 'b' }), row({ id: 'a1', parentId: 'a', depth: 1 }), row({ id: 'a1x', parentId: 'a1', depth: 2 }),
+    row({ id: 'orphan', parentId: 'earlier-page', depth: 1 }), row({ id: 'x', parentId: 'y', depth: 1 }), row({ id: 'y', parentId: 'x', depth: 1 })]);
+  const { html } = await f.provider.renderer.renderThread({ siteId: 's', entry, locale: 'en' });
+  assert.deepEqual([...html.matchAll(/<li id="comment-([^"]+)"/g)].map(match => match[1]), ['a', 'a1', 'a1x', 'b', 'orphan', 'x', 'y']);
+});
+
+test('a stale or hand-edited cursor falls back to the first page; other repo failures still surface', async () => {
+  const f = fixture();
+  const queries: unknown[] = [];
+  const base = f.deps.repo.listModerationQueue;
+  f.deps.repo.listModerationQueue = async input => {
+    queries.push(input.cursor);
+    if (input.cursor === 'gone') throw new ToolInputError({ message: 'invalid cursor' });
+    if (input.cursor === 'boom') throw new Error('database down');
+    return base(input);
+  };
+  const { html } = await f.provider.renderer.renderThread({ siteId: 's', entry, locale: 'en' }, { cursor: 'gone' });
+  assert.deepEqual(queries, ['gone', undefined]);
+  assert.match(html, /<a href="\/post#comments">First comments<\/a>/);
+  assert.ok(!(await f.provider.renderer.renderThread({ siteId: 's', entry, locale: 'en' })).html.includes('First comments'));
+  await assert.rejects(f.provider.renderer.renderThread({ siteId: 's', entry, locale: 'en' }, { cursor: 'boom' }), /database down/);
 });
