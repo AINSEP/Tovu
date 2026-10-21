@@ -258,3 +258,27 @@ test("registers unconditionally — no environment can switch this tool off", ()
     if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
   }
 });
+
+test("a call with no input at all is treated as a first call and falls back to returning the surface", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const handler = buildHandler(surfaceExchanges);
+  const result = (await handler({
+    executionId: "exec-1", principal: { id: "principal-1" }, run: { id: "run-1" }, input: undefined,
+    signal: new AbortController().signal,
+  } as Parameters<typeof handler>[0], {})) as { content: Array<{ type: string }> };
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.deepEqual(result.content.map((block) => block.type), ["text", "resource"]);
+});
+
+test("an answer that omits the plan reports it as undefined rather than inventing one", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const handler = buildHandler(surfaceExchanges);
+  const emitted: unknown[] = [];
+  const pending = call(handler, { emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setImmediate(resolve));
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, extras: ["backups"] } }, { toolId: DEMO_CHOICES_TOOL_ID });
+  const result = await pending as Record<string, unknown>;
+  assert.equal(result.plan, undefined);
+  assert.deepEqual(result.extras, ["backups"]);
+});
