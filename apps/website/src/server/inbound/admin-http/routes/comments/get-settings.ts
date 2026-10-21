@@ -12,7 +12,7 @@ import type { CommentsModerationRouteDeps } from "./deps.js";
  * field set. */
 export const registerAdminCommentsGetSettingsRoute = (app: Express, deps: CommentsModerationRouteDeps): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/settings", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
