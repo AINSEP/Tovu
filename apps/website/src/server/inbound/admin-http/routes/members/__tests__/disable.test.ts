@@ -21,8 +21,8 @@ import type { MemberRecord } from "#src/features/members/index";
  * @file Route-level branch coverage for `POST .../members/:memberId/disable` (ADR-021 §5). The
  * 403 FORBIDDEN branch (caller lacks `member.manage`) is already covered end-to-end with a real
  * login in `src/server/__tests__/routes/members-auth.test.ts` (AC-20) — this file targets every
- * other branch: workspace mismatch, the pre-try `req.params.memberId ?? ""` fallback (only
- * reachable via direct invoke, mirroring this directory's `users/__tests__` convention), success
+ * other branch: workspace mismatch, a missing `memberId` param (only reachable via direct
+ * invoke, mirroring this directory's `users/__tests__` convention), success
  * (with session-revocation proof), idempotent re-disable, not-found, and the default 500.
  */
 
@@ -91,14 +91,14 @@ test("MEMBER_DISABLE route: direct invoke fallback for nullish params.workspaceI
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
-test("MEMBER_DISABLE route: direct invoke fallback for nullish params.memberId (`req.params.memberId ?? \"\"`)", async () => {
+test("MEMBER_DISABLE route: direct invoke with nullish params.memberId (impossible via real routing) still answers the member-not-found 404", async () => {
   const { app, ownerId } = await buildApp();
   const handler = extractRouteHandler(app, "post", ROUTE_PATH);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: ownerId };
   await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
   assert.equal(capture.statusCode, 404);
-  assert.match((capture.jsonBody as { error: string }).error, /'' was not found/);
+  assert.match((capture.jsonBody as { error: string }).error, /^member '.*' was not found$/);
 });
 
 test("MEMBER_DISABLE route: 200 on success, revokes every live member session", async (t) => {

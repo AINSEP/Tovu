@@ -1,7 +1,7 @@
 import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps.js";
+import { toWebhookSubscriptionDeps, type IntegrationsRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE a webhook subscription. Soft-deletes (never row-deletes) — `deleteSubscription` sets
@@ -40,12 +40,8 @@ export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = 
         }
 
         const { subscription } = await deleteSubscription({
-          deps: {
-            clock: deps.clock,
-            repo: deps.webhookSubscriptionRepo,
-            idGenerator: deps.idGen,
-            isAllowedTarget: async () => true, // not exercised: delete never re-validates targetUrl
-          },
+          // The shared egress policy is not exercised here: delete never re-validates targetUrl.
+          deps: toWebhookSubscriptionDeps(deps),
           input: {
             workspaceId: deps.workspaceId,
             id: subscriptionId,
