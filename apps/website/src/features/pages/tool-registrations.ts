@@ -421,6 +421,28 @@ async function readDocPageFallback(
   };
 }
 
+/**
+ * Normalize the page-region target before canonical validation without changing its DOM handle.
+ * Keep legacy spellings for at least 90 days from release; reject dual spellings even when equal
+ * so callers cannot depend on silent precedence. Other fields and caller input stay untouched.
+ * @returns Canonical input and value-free alias notes.
+ * @throws {ToolInputError} When more than one target spelling is present.
+ * @complexity O(n) time and space for copying n input fields; three fixed selector checks, no I/O.
+ */
+function normalizePageRegionInput(
+  { input }: { input: Record<string, unknown> },
+  _options: Record<string, never> = {},
+) {
+  const selectors = ["regionId", "handle", "region"].filter((key) => Object.hasOwn(input, key));
+  if (selectors.length > 1) {
+    throw new ToolInputError({ message: "regionId, handle and region name the same target. Send only regionId." });
+  }
+  const [selector] = selectors;
+  if (!selector || selector === "regionId") return { input, notes: [] };
+  const { [selector]: regionId, ...rest } = input;
+  return { input: { ...rest, regionId }, notes: [`${selector}→regionId`] };
+}
+
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     pages_read_html: async (ctx) => {
@@ -492,7 +514,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
-      const handle = requireString({ input: input, key: "handle" });
+      const handle = requireString({ input: input, key: "regionId" });
       const fragment = requireString({ input: input, key: "html" });
       const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
@@ -560,7 +582,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
-      const handle = requireString({ input: input, key: "handle" });
+      const handle = requireString({ input: input, key: "regionId" });
       const { placement, targetHandle } = parseMovePlacement(input);
       const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
@@ -616,12 +638,8 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
     inputNormalizers: {
-      pages_write_region: ({ input }) => {
-        if (!Object.hasOwn(input, "region")) return { input, notes: [] };
-        if (Object.hasOwn(input, "handle")) throw new ToolInputError({ message: "pages_write_region: region and handle both name the target. Send only handle." });
-        const { region, ...rest } = input;
-        return { input: { ...rest, handle: region }, notes: ["region→handle"] };
-      },
+      pages_write_region: normalizePageRegionInput,
+      pages_move_region: normalizePageRegionInput,
     },
   });
 }

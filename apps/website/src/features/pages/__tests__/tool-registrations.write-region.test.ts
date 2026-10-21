@@ -1,3 +1,5 @@
+import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
+import { withBatchInput, type BatchResult } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -59,7 +61,9 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
-    return entry.handler({ ...ctx, input } as never);
+    // Direct-handler regressions apply only the domain alias hook; scalar validation stays visible.
+    const normalized = entry.normalizeInput ? await entry.normalizeInput({ input }) : { input };
+    return entry.handler({ ...ctx, input: normalized.input } as never);
   }
 
   return { repo, byName, call };
@@ -486,12 +490,12 @@ test('normalization: real region alias keeps expectedVersion protection; dual ta
   const result = await executeRegisteredTool({ registration, input });
   assert.equal(result.status, 'completed');
   assert.equal((result.output as { written: boolean }).written, true);
-  assert.deepEqual((result.output as { normalizationNotes: string[] }).normalizationNotes, ['region→handle']);
+  assert.deepEqual((result.output as { normalizationNotes: string[] }).normalizationNotes, ['region→regionId']);
   const current = await call('pages_read_html', { id: 'mingjie' }) as { html: string; version: number };
   assert.match(current.html, /Mingjie Zhai/);
   const ambiguous = await executeRegisteredTool({ registration, input: { ...input, handle: 'other', expectedVersion: current.version } });
   assert.equal(ambiguous.errorKind, 'validation');
-  assert.match(ambiguous.error!, /Send only handle/);
+  assert.match(ambiguous.error!, /Send only regionId/);
   const stale = await executeRegisteredTool({ registration, input });
   assert.equal(stale.errorKind, 'validation');
   assert.equal((await call('pages_read_html', { id: 'mingjie' }) as { version: number }).version, current.version);
@@ -512,7 +516,7 @@ test('delegated normalization: region aliases persist; foreign targets in single
   const visible = JSON.parse(delegatedText(reply));
   assert.equal(visible.status, 'completed');
   assert.equal(visible.output.written, true);
-  assert.match(delegatedText(reply), /region→handle/);
+  assert.match(delegatedText(reply), /region→regionId/);
   assert.match((await call('pages_read_html', { id: 'mingjie' }) as { html: string }).html, /Mingjie Zhai/);
   const before = await repo.findById({ workspaceId: WS, id: 'mingjie' });
   const save = repo.save.bind(repo);
@@ -535,4 +539,130 @@ test('delegated normalization: region aliases persist; foreign targets in single
     assert.deepEqual(await repo.findById({ workspaceId: WS, id: 'mingjie' }), before);
     assert.equal(writes, 0);
   }
+});
+
+// N3: exercise aliases at the real executor boundary, not by calling handlers with legacy input.
+for (const selector of ["regionId", "handle", "region"]) {
+  test(`pages_write_region: ${selector} preserves DOM handles, placement and versioning`, async () => {
+    const h = harness();
+    await seedThreeRegionPage(h.call, h.repo, "landing");
+    const before = (await h.repo.findById({ workspaceId: WS, id: "landing" }))!;
+    const registration = h.byName.get("pages_write_region")!;
+    const input = Object.freeze({ id: "landing", [selector]: "page-hero", html: "<h1>Canonical edit</h1>", expectedVersion: before.version });
+    const result = await executeRegisteredTool({ registration, input });
+    assert.equal(result.status, "completed", result.error);
+    const output = result.output as { written: boolean; handle: string; version: number; normalizationNotes?: string[] };
+    assert.equal(output.written, true);
+    assert.equal(output.handle, "page-hero");
+    assert.equal(output.version, before.version + 1);
+    if (selector !== "regionId") assert.deepEqual(output.normalizationNotes, [`${selector}→regionId`]);
+    const after = (await h.repo.findById({ workspaceId: WS, id: "landing" }))!;
+    assert.equal(after.bodyHtml, THREE_REGIONS.replace("<h1>Old headline</h1>", "<h1>Canonical edit</h1>"));
+    assert.equal(input[selector], "page-hero");
+
+    const stale = await executeRegisteredTool({ registration, input });
+    assert.equal(stale.errorKind, "validation");
+    assert.match(stale.error!, /^VERSION_CONFLICT:/);
+    assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), after);
+  });
+
+  test(`pages_write_region: ${selector} refuses absent and duplicate DOM regions without writes`, async () => {
+    const h = harness();
+    await seedThreeRegionPage(h.call, h.repo, "landing");
+    const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "landing" }, { repo: h.repo, clock });
+    await store.read();
+    await store.write(THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>');
+    const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
+    for (const region of ["absent", "dup"]) {
+      const result = await executeRegisteredTool({ registration: h.byName.get("pages_write_region")!,
+        input: { id: "landing", [selector]: region, html: "<h1>Canonical edit</h1>" } });
+      assert.equal(result.errorKind, "validation");
+      assert.match(result.error!, region === "absent" ? /has no region/ : /2 elements/);
+      assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
+    }
+  });
+
+  test(`pages_write_region: ${selector} requires pages.edit_html before opening a store`, async () => {
+    const h = harness();
+    await seedThreeRegionPage(h.call, h.repo, "landing");
+    const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
+    const permissions: string[] = [];
+    let opened = 0;
+    const registration = buildPagesRegistrations({
+      workspaceId: WS, postRepo: h.repo,
+      authorize: async (request) => {
+        assert.equal(request.workspaceId, WS);
+        assert.equal(request.principalId, "caller");
+        permissions.push(request.permission);
+        return { allowed: false, reason: "permission denied" };
+      },
+      pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
+    }).find((entry) => entry.descriptor.id === "pages_write_region")!;
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", [selector]: "page-hero", html: "<h1>Canonical edit</h1>" } });
+    assert.equal(result.status, "failed");
+    assert.match(result.error!, /PAGES_FORBIDDEN/);
+    assert.deepEqual(permissions, ["pages.edit_html"]);
+    assert.equal(opened, 0);
+    assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
+  });
+}
+
+test("pages_write_region: only canonical regionId is published; missing or invalid targets cannot write", async () => {
+  const h = harness();
+  await seedThreeRegionPage(h.call, h.repo, "landing");
+  const registration = h.byName.get("pages_write_region")!;
+  const schema = registration.descriptor.inputSchema as { required: string[]; properties: Record<string, unknown> };
+  assert.ok(schema.required.includes("regionId"));
+  assert.ok(Object.hasOwn(schema.properties, "regionId"));
+  assert.equal(Object.hasOwn(schema.properties, "handle"), false);
+  assert.equal(Object.hasOwn(schema.properties, "region"), false);
+  const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
+  for (const target of [{}, { regionId: "" }, { regionId: null }, { handle: null }, { region: null }]) {
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", ...target, html: "<h1>Canonical edit</h1>" } });
+    assert.equal(result.errorKind, "validation");
+    assert.match(result.error!, /regionId/);
+    assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
+  }
+});
+
+test("pages_write_region: all coexisting target spellings are rejected, including equal values, before I/O", async () => {
+  const h = harness();
+  await seedThreeRegionPage(h.call, h.repo, "landing");
+  const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
+  let opened = 0;
+  const registration = buildPagesRegistrations({
+    workspaceId: WS, postRepo: h.repo, authorize: async () => ({ allowed: true, reason: "matched" }),
+    pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
+  }).find((entry) => entry.descriptor.id === "pages_write_region")!;
+  for (const targets of [
+    { regionId: "page-hero", handle: "other" }, { regionId: "page-hero", region: "other" },
+    { handle: "page-hero", region: "other" }, { regionId: "page-hero", handle: "page-hero" },
+    { regionId: "page-hero", region: "page-hero" }, { handle: "page-hero", region: "page-hero" },
+    { regionId: "page-hero", handle: "page-hero", region: "page-hero" },
+    { regionId: "page-hero", handle: null },
+  ]) {
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", ...targets, html: "<h1>Canonical edit</h1>" } });
+    assert.equal(result.errorKind, "validation");
+    assert.match(result.error!, /Send only regionId/);
+    assert.equal(opened, 0);
+    assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
+  }
+});
+
+test("pages_write_region: mixed batch keeps valid canonical/legacy items and refuses conflicting aliases", async () => {
+  const h = harness();
+  await seedThreeRegionPage(h.call, h.repo, "landing");
+  const registration = withBatchInput({ registration: h.byName.get("pages_write_region")!, tool: { toolId: "pages_write_region" } });
+  const result = await executeRegisteredTool({ registration, input: { id: "landing", items: [
+    { regionId: "page-hero", html: "<h1>Canonical edit</h1>" },
+    { handle: "page-hero", html: "<h1>Legacy edit</h1>" },
+    { region: "page-hero", regionId: "other", html: "<h1>Canonical edit</h1>" },
+  ] } });
+  const output = result.output as BatchResult;
+  assert.equal(output.outcome, "partial_failure");
+  assert.deepEqual([output.succeeded, output.failed], [2, 1]);
+  assert.equal(output.results[2].ok, false);
+  if (!output.results[2].ok) assert.match(output.results[2].error, /Send only regionId/);
+  const after = (await h.repo.findById({ workspaceId: WS, id: "landing" }))!;
+  assert.equal(after.bodyHtml, THREE_REGIONS.replace("<h1>Old headline</h1>", "<h1>Legacy edit</h1>"));
 });

@@ -255,7 +255,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "Edit or update one section of a page — a hero headline, pricing block, or call to action — " +
       "without rewriting it. Replaces that editable region's CONTENTS, leaving the rest of the page " +
       "alone and every other byte exactly as it was.\n\n" +
-      "Address the region by the handle from pages_read_html's 'regions' list (the value of that " +
+      "Send regionId with the handle from pages_read_html's 'regions' list (the value of that " +
       "section's data-agent-element attribute). A handle that is not in the page, or that two " +
       "elements both carry, is REJECTED rather than guessed at — nothing is written and the error " +
       "tells you which handles the page actually has.\n\n" +
@@ -277,10 +277,10 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "handle", "html"],
+      required: ["id", "regionId", "html"],
       properties: {
         id: PAGE_ID_SCHEMA,
-        handle: {
+        regionId: {
           type: "string",
           minLength: 1,
           description:
@@ -304,7 +304,7 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "reorder, swap, or rearrange the page's sections in place. The section moves as one " +
       "piece: its tag, handle, contents and any regions nested inside it all travel together, and every other " +
       "byte of the page stays exactly as it was.\n\n" +
-      "Address both sections by the handles in pages_read_html's 'regions' list (in page order). Send " +
+      "Send regionId for the section to move, and before or after for its destination, using the handles in pages_read_html's 'regions' list (in page order). Send " +
       "exactly one of 'before' or 'after'. To swap two adjacent sections, move the second one before the " +
       "first. The result lists the handles in their new order.\n\n" +
       "This only reorders; to change what a section says use pages_write_region, and to add or remove a " +
@@ -316,10 +316,10 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "handle"],
+      required: ["id", "regionId"],
       properties: {
         id: PAGE_ID_SCHEMA,
-        handle: {
+        regionId: {
           type: "string",
           minLength: 1,
           description: "The handle of the section to move, exactly as pages_read_html reported it in 'regions'.",
