@@ -613,3 +613,31 @@ describe("Sites — Export Site and Import Site tabs (owner, 2026-10-18)", () =>
     } finally { vi.unstubAllGlobals(); }
   });
 });
+
+describe("Sites — local management states", () => {
+  const localSites = (overrides: Partial<NonNullable<SitesController["localSites"]>> = {}): NonNullable<SitesController["localSites"]> => ({
+    busyName: null, error: null, checked: {}, toggleChecked() {}, async run() {}, ...overrides,
+  });
+
+  it("renders the Trash tab's panel when that tab is open", () => {
+    renderSites({ snapshot: snapshotFixture({ localManagementEnabled: true, trash: [] }), localSites: localSites() }, "trash");
+    expect(screen.getByText("Site Trash is empty.")).toBeInTheDocument();
+  });
+
+  it("shows a local lifecycle action's failure", () => {
+    renderSites({ snapshot: snapshotFixture({ localManagementEnabled: true }), localSites: localSites({ error: "Couldn't stop beta." }) });
+    expect(screen.getByText("Couldn't stop beta.")).toHaveClass("notice", "error");
+  });
+
+  it("puts the Sites settings control beside the tabs when the snapshot names a sites home", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ sitesHome: "/home/me/Sites", siteRoots: [], databases: "inSite", configPath: "/cfg", appData: "/data", overrides: { sitesHome: false, siteRoots: false } })));
+    try {
+      const controller = controllerFixture({ snapshot: snapshotFixture({ sitesHome: "/home/me/Sites" }) });
+      render(<FetchQueryProvider><Sites useSitesHook={() => controller} /></FetchQueryProvider>);
+      expect(screen.getByRole("button", { name: "Sites settings" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sites settings" }).closest(".sites-tabs-row")!.querySelector('[role="tablist"]')).not.toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
