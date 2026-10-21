@@ -124,9 +124,11 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
       if (sender.isDestroyed()) return detach(subscriptionId);
       sender.send(WORKSPACE_CHAT_IPC.event, message);
     };
+    let ended = false;
     const onEvent = (event: RunProtocolEvent) => {
       push({ subscriptionId, kind: "event", event });
       if (event.kind === "end") {
+        ended = true;
         push({ subscriptionId, kind: "closed", reason: "terminal" });
         // Deferred: `stream()` may deliver a replayed `end` before it has returned its unsubscribe.
         queueMicrotask(() => detach(subscriptionId));
@@ -135,6 +137,13 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     try {
       const result = await (await lifecycleOf()).stream({ runId, onEvent }, { afterCursor });
       if (result.kind === "ok") {
+        // A REPLAYED `end` (an already-finished run) queues its detach before `stream()`'s promise
+        // settles, so that detach runs first and finds nothing to drop; registering now would leave a
+        // dead subscription in the table for good. Release it instead.
+        if (ended) {
+          result.unsubscribe();
+          return;
+        }
         if (!subscriptions.has(subscriptionId)) subscriptions.set(subscriptionId, result.unsubscribe);
         return;
       }
