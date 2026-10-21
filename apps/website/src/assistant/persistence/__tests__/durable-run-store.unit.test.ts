@@ -16,11 +16,11 @@ test("a run with no attempt row is classified by Tovu's run-ID prefixes", async 
   await history.appendMessage({ conversationId: "chat", message: { id: "daemon-answer", role: "assistant", content: "draft", runId: "run-7", runStatus: "running" } });
 
   const store = createDurableRunStore({ kernel });
-  const byok = await store.find({ runId: "byok:r1" });
-  const daemon = await store.find({ runId: "run-7" });
+  const byok = await store.find({ runId: "byok:r1" }, {});
+  const daemon = await store.find({ runId: "run-7" }, {});
   assert.equal(byok?.engine, "request");
   assert.equal(byok?.messageId, "byok-answer");
   assert.equal(daemon?.engine, "daemon");
   assert.equal(daemon?.principalId, "admin");
-  assert.equal(await store.find({ runId: "missing" }), null);
+  assert.equal(await store.find({ runId: "missing" }, {}), null);
 });

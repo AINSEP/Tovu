@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { runImportSiteCommand } from "../../commands/import-site.js";
 
@@ -47,8 +50,6 @@ test("import accepts an external setup URL (reported, not fixed)", async () => {
 });
 
 test("import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged", async (t) => {
-  const { createServer } = await import("node:http");
-  const { once } = await import("node:events");
   const seen: Array<{ method?: string; url?: string; authorization?: string; body: unknown }> = [];
   const server = createServer((req, res) => {
     let body = "";
@@ -62,7 +63,7 @@ test("import posts to the real daemon client over loopback HTTP and returns a re
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const { port } = server.address() as import("node:net").AddressInfo;
+  const { port } = server.address() as AddressInfo;
   const result = await runImportSiteCommand({ server: `http://127.0.0.1:${port}`, workspaceId: "ws one" }, {
     readRequest: async () => JSON.stringify({ authorization: "Bearer loopback-key", url: "https://share.example/site.tovu.zip" }),
   });
