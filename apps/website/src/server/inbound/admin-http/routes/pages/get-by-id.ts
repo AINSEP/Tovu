@@ -25,14 +25,14 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
     // Route param kept as `pageId` (external URL shape, untouched) — the value it carries is
     // either the row's id or its slug, resolved below by `getAdminPostByIdOrSlug`.
-    const idOrSlug = String(req.params.pageId);
+    const idOrSlug = String(req.params.pageId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

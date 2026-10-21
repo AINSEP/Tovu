@@ -6,7 +6,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { registerAdminNewsletterArchiveListRoute } from "../archive-list.js";
 import { registerAdminNewsletterCreateCampaignRoute } from "../create-campaign.js";
@@ -26,6 +26,10 @@ import type { NewsletterRouteDeps } from "../deps.js";
  * route's own permission (and nothing is read), and a failure after the gate (here: the
  * `newsletterReady` boot promise rejecting) is mapped to the generic 500 envelope rather than
  * escaping as an unhandled rejection. `newsletter-routes.test.ts` covers the happy paths end to end.
+ *
+ * The fourth case per route keeps this directory's convention for `String(req.params.workspaceId ?? "")`
+ * (see `posts/__tests__/update.test.ts`'s 2026-09-03 note): Express always populates a matched
+ * `:workspaceId`, so the fallback is exercised with a hand-built `req` that omits it.
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -45,21 +49,23 @@ interface RouteCase {
   register: RouteRegistrar;
   method: "GET" | "POST" | "DELETE";
   path: string;
+  /** The Express route pattern the registrar mounts, for direct handler extraction. */
+  pattern: string;
   permission: string;
   body?: unknown;
 }
 
 const ROUTES: readonly RouteCase[] = [
-  { name: "archive-list", register: registerAdminNewsletterArchiveListRoute, method: "POST", path: "/lists/list-1/archive", permission: "admin.newsletter.list.manage" },
-  { name: "create-campaign", register: registerAdminNewsletterCreateCampaignRoute, method: "POST", path: "/campaigns", permission: "admin.newsletter.campaign.compose", body: VALID_CAMPAIGN_BODY },
-  { name: "create-subscription", register: registerAdminNewsletterCreateSubscriptionRoute, method: "POST", path: "/lists/list-1/subscriptions", permission: "admin.newsletter.subscriber.manage", body: { subscriberId: "member-1" } },
-  { name: "get-campaign", register: registerAdminNewsletterGetCampaignRoute, method: "GET", path: "/campaigns/camp-1", permission: "admin.newsletter.read" },
-  { name: "list-campaigns", register: registerAdminNewsletterListCampaignsRoute, method: "GET", path: "/campaigns", permission: "admin.newsletter.read" },
-  { name: "list-lists", register: registerAdminNewsletterListListsRoute, method: "GET", path: "/lists", permission: "admin.newsletter.read" },
-  { name: "list-subscriptions", register: registerAdminNewsletterListSubscriptionsRoute, method: "GET", path: "/lists/list-1/subscriptions", permission: "admin.newsletter.subscriber.read" },
-  { name: "remove-subscription", register: registerAdminNewsletterRemoveSubscriptionRoute, method: "DELETE", path: "/lists/list-1/subscriptions/sub-1", permission: "admin.newsletter.subscriber.manage" },
-  { name: "resend-confirmation", register: registerAdminNewsletterResendConfirmationRoute, method: "POST", path: "/subscriptions/sub-1/resend-confirmation", permission: "admin.newsletter.subscriber.manage" },
-  { name: "send-campaign", register: registerAdminNewsletterSendCampaignRoute, method: "POST", path: "/campaigns/camp-1/send", permission: "admin.newsletter.campaign.send" },
+  { name: "archive-list", register: registerAdminNewsletterArchiveListRoute, method: "POST", path: "/lists/list-1/archive", pattern: "/lists/:id/archive", permission: "admin.newsletter.list.manage" },
+  { name: "create-campaign", register: registerAdminNewsletterCreateCampaignRoute, method: "POST", path: "/campaigns", pattern: "/campaigns", permission: "admin.newsletter.campaign.compose", body: VALID_CAMPAIGN_BODY },
+  { name: "create-subscription", register: registerAdminNewsletterCreateSubscriptionRoute, method: "POST", path: "/lists/list-1/subscriptions", pattern: "/lists/:listId/subscriptions", permission: "admin.newsletter.subscriber.manage", body: { subscriberId: "member-1" } },
+  { name: "get-campaign", register: registerAdminNewsletterGetCampaignRoute, method: "GET", path: "/campaigns/camp-1", pattern: "/campaigns/:id", permission: "admin.newsletter.read" },
+  { name: "list-campaigns", register: registerAdminNewsletterListCampaignsRoute, method: "GET", path: "/campaigns", pattern: "/campaigns", permission: "admin.newsletter.read" },
+  { name: "list-lists", register: registerAdminNewsletterListListsRoute, method: "GET", path: "/lists", pattern: "/lists", permission: "admin.newsletter.read" },
+  { name: "list-subscriptions", register: registerAdminNewsletterListSubscriptionsRoute, method: "GET", path: "/lists/list-1/subscriptions", pattern: "/lists/:listId/subscriptions", permission: "admin.newsletter.subscriber.read" },
+  { name: "remove-subscription", register: registerAdminNewsletterRemoveSubscriptionRoute, method: "DELETE", path: "/lists/list-1/subscriptions/sub-1", pattern: "/lists/:listId/subscriptions/:id", permission: "admin.newsletter.subscriber.manage" },
+  { name: "resend-confirmation", register: registerAdminNewsletterResendConfirmationRoute, method: "POST", path: "/subscriptions/sub-1/resend-confirmation", pattern: "/subscriptions/:id/resend-confirmation", permission: "admin.newsletter.subscriber.manage" },
+  { name: "send-campaign", register: registerAdminNewsletterSendCampaignRoute, method: "POST", path: "/campaigns/camp-1/send", pattern: "/campaigns/:id/send", permission: "admin.newsletter.campaign.send" },
 ];
 
 function buildApp(route: RouteCase, depsOverrides: Partial<NewsletterRouteDeps> = {}) {
@@ -133,6 +139,16 @@ for (const route of ROUTES) {
     const { status, json } = await call(t, app, route, WORKSPACE_ID);
     assert.equal(status, 500);
     assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  });
+
+  test(`${route.name}: a hand-built request with no workspaceId param falls back to "" and is 404`, async () => {
+    const app = buildApp(route);
+    const method = route.method.toLowerCase() as "get" | "post" | "delete";
+    const handler = extractRouteHandler(app, method, `/api/admin/v1/workspaces/:workspaceId/newsletter${route.pattern}`);
+    const { res, capture } = createCapturingResponse();
+    await handler({ params: {}, body: route.body, query: {} }, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
   });
 }
 

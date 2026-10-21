@@ -19,7 +19,7 @@ export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = (a
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.delete("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/:id", async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

@@ -130,12 +130,12 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId) !== deps.workspaceId) {
+      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
 
-      const pageId = String(req.params.pageId);
+      const pageId = String(req.params.pageId ?? "");
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
       // Full pre-edit record, captured in captureInverse and reused verbatim by
