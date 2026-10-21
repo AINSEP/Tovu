@@ -34,3 +34,19 @@ test("import refuses tampered portable plugin DDL and private plugin tables", as
     } finally { db.close(); }
   }
 });
+
+test("import refuses a portable row owned by a workspace the archive does not contain", async t => {
+  const h = await importFixture(t);
+  const clean = await sanitizeShareDatabase({ snapshot: h.db.$client.serialize() });
+  const db = new Database(clean.bytes);
+  try {
+    db.pragma("foreign_keys = OFF");
+    const [{ id: workspaceId }] = db.prepare("SELECT id FROM workspaces").all() as [{ id: string }];
+    const [menu] = db.prepare("SELECT * FROM menus WHERE workspace_id = ? LIMIT 1").all(workspaceId) as Record<string, unknown>[];
+    assert.ok(menu, "the starter fixture ships a menu to clone");
+    const columns = Object.keys(menu);
+    db.prepare(`INSERT INTO menus (${columns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`)
+      .run(...columns.map(column => column === "workspace_id" ? "ghost-workspace" : column === "id" ? "ghost-menu" : column === "slug" ? "ghost-slug" : menu[column]));
+    await assert.rejects(rebuildImportDatabase({ snapshot: db.serialize() }), (error: unknown) => (error as { code: string }).code === "INVALID_DATABASE");
+  } finally { db.close(); }
+});
