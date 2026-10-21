@@ -358,8 +358,8 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
   it("refreshes, tests and edits a configured server through the list port, showing its test result", async () => {
     const user = userEvent.setup();
     const { port } = renderWith({ sources: [{ id: "higgsfield", fields: { id: "higgsfield", transport: "stdio", authMode: "none", command: "npx" } }] });
-    const refresh = vi.spyOn(port, "refreshSource" as never);
-    const update = vi.spyOn(port, "updateSource" as never);
+    const refresh = vi.spyOn(port as Required<typeof port>, "refreshSource");
+    const update = vi.spyOn(port as Required<typeof port>, "updateSource");
     const [card] = await screen.findAllByTestId("source-config-item-card");
     await user.click(within(card!).getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledWith("higgsfield"));
@@ -369,20 +369,20 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
     await user.click(within(card!).getByRole("button", { name: "Edit" }));
     await user.click(within(card!).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
-    expect((update.mock.calls[0] as unknown[])[0]).toBe("higgsfield");
+    expect(update.mock.calls[0]![0]).toBe("higgsfield");
   });
 
   it("tests the unsaved add-form draft and shows the result inside the form", async () => {
     const user = userEvent.setup();
     const { port } = renderWith({ sources: [] });
-    const test = vi.spyOn(port, "testSource" as never);
+    const test = vi.spyOn(port as Required<typeof port>, "testSource");
     await openAddForm(user);
     await user.type(screen.getByLabelText(/^ID/), "linear");
     await user.selectOptions(screen.getByLabelText(/^Credentials/), "None needed");
     await user.type(screen.getByLabelText(/^Command/), "npx");
     await user.click(screen.getByRole("button", { name: "Test" }));
     expect(await screen.findByText(/Connection ok\./)).toBeInTheDocument();
-    expect((test.mock.calls[0] as unknown[])[0]).toBeUndefined();
+    expect(test.mock.calls[0]![0]).toBeUndefined();
   });
 
   it("shows the add form's submit failure inline", async () => {
@@ -413,7 +413,7 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
     const user = userEvent.setup();
     const builtIn: SourceConfigItem = { id: "tovu-site", enabled: true, fields: { id: "tovu-site", builtIn: "true" } };
     const { port } = renderWith({ sources: [builtIn] });
-    const update = vi.spyOn(port, "updateSource" as never);
+    const update = vi.spyOn(port as Required<typeof port>, "updateSource");
     await user.click(await screen.findByRole("checkbox", { name: "Enable" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith("tovu-site", { enabled: false }));
   });
@@ -444,13 +444,13 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
     });
     const connection = (connectionId: string) => ({ connectionId, liveToolCount: 1, notLoaded: [], savedToolCount: 1, entries: [entry(connectionId)] });
     const { port } = renderWith({ sources: [HIGGSFIELD], connections: [connection("higgsfield"), connection("ghost")] });
-    const update = vi.spyOn(port, "updateSource" as never);
+    const update = vi.spyOn(port as Required<typeof port>, "updateSource");
     await screen.findAllByTestId("source-config-item-card");
     await user.click(document.querySelector<HTMLInputElement>('[data-agent-element="mcp-drift-grant-ghost-create_issue"]')!);
     expect(update).not.toHaveBeenCalled();
     await user.click(document.querySelector<HTMLInputElement>('[data-agent-element="mcp-drift-grant-higgsfield-create_issue"]')!);
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
-    const [id, patch] = update.mock.calls[0] as unknown as [string, { fields: Record<string, string> }];
+    const [id, patch] = update.mock.calls[0]! as [string, { fields: Record<string, string> }];
     expect(id).toBe("higgsfield");
     expect(patch.fields.writeAllowedToolNames).toContain("create_issue");
   });

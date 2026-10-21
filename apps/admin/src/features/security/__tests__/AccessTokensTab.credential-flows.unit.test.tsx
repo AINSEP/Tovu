@@ -874,7 +874,7 @@ describe("AccessTokensTab remaining field and row states", () => {
 
   it("renders an optional secret extra field as a password input marked optional, with no hint when it has no help", () => {
     const base = groupFor("publish", "netlify", [], addForm({ visible: true }));
-    const info = { ...base.info, extraFields: [{ name: "signingSecret", label: "Signing secret", secret: true }] };
+    const info = { ...base.info, extraFields: [{ name: "signingSecret", label: "Signing secret", secret: true as const }] };
     renderTab({ groups: [{ ...base, info }] });
     const input = screen.getByLabelText("Signing secret (optional)");
     expect(input).toHaveAttribute("type", "password");
