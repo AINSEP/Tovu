@@ -103,7 +103,7 @@ export async function renderApp(t: TestContext, overrides: Partial<RunnerInvento
   const container = document.body.appendChild(document.createElement('div'));
   const root = createRoot(container);
   t.after(() => { act(() => root.unmount()); container.remove(); });
-  const props: NonNullable<Parameters<typeof App>[0]> = { useFolders: useFakeFolders, useSiteSettings };
+  const props: NonNullable<Parameters<typeof App>[0]> = { sitesSettings: { useFolders: useFakeFolders, useSiteSettings } };
   // `App`'s whole props object is optional (production calls `<App />`), which `createElement`'s
   // overloads cannot infer through; the cast only restates that signature with props required.
   act(() => root.render(createElement(App as (required: typeof props) => ReturnType<typeof App>, props)));

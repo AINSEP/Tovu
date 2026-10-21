@@ -58,6 +58,14 @@ function createImportSiteAction(
   return importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
 }
 
+/** The sites-settings hooks `App` threads down; see `App`'s own doc. */
+export interface SitesSettingsHooks {
+  useFolders: typeof useSiteFolders;
+  useSiteSettings: typeof useSiteStorageSettings;
+}
+
+const SITES_SETTINGS_HOOKS: SitesSettingsHooks = { useFolders: useSiteFolders, useSiteSettings: useSiteStorageSettings };
+
 /**
  * Runner's root component.
  *
@@ -79,25 +87,25 @@ function createImportSiteAction(
  * wrong arity, fails `npm run typecheck` rather than at assertion time — that type safety is most
  * of what injection buys.
  *
- * `useFolders` (the Projects header's own `SitesFolders`) and `useSiteSettings` (the Settings menu's
- * "Sites settings…" dialog) are the two seams onto the sites-settings preload state. Both defaults
- * end in Jini's `useAsyncAction` and its dialog shell, which a test of this component cannot render
- * against its own React; threading them as props keeps every other default real.
+ * `sitesSettings` holds the two seams onto the sites-settings preload state: `useFolders` (the
+ * Projects header's own `SitesFolders`) and `useSiteSettings` (the Settings menu's "Sites settings…"
+ * dialog). Both defaults end in Jini's `useAsyncAction` and its dialog shell, which a test of this
+ * component cannot render against its own React; threading them as props keeps every other default
+ * real. One prop for the pair, not two, keeps `App` under the complexity ceiling (each defaulted
+ * prop is a branch).
  */
 export function App({
   useProjects = useSitesPolling,
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
-  useFolders = useSiteFolders,
-  useSiteSettings = useSiteStorageSettings,
+  sitesSettings: { useFolders, useSiteSettings } = SITES_SETTINGS_HOOKS,
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
-  useFolders?: typeof useSiteFolders;
-  useSiteSettings?: typeof useSiteStorageSettings;
+  sitesSettings?: SitesSettingsHooks;
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();

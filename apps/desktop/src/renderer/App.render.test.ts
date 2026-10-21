@@ -86,7 +86,10 @@ test('App: the nav badges running sites, inert links do nothing, and an agent na
   assert.match(app.text(), /isn’t built yet/);
   assert.equal(app.byText('Rescan'), undefined, 'the Projects tools belong to Projects only');
   await app.click(app.byLabel('Websites'));
-  assert.ok(app.byText('Import site'), 'with a site present Import site is offered');
+  await app.click(app.byText('Import site'));
+  assert.ok(app.all('[role="tab"]').some((tab) => tab.textContent?.includes('Site a') && tab.getAttribute('aria-selected') === 'true'),
+    'Import site opens the running site\'s own tab');
+  assert.match(app.container.querySelector('webview')?.getAttribute('src') ?? '', /\/admin\/.*import/, 'on its Import page');
 });
 
 test('App: the Settings menu opens, moves with the arrows, picks a theme, opens Sites settings and Appearance', async (t) => {
