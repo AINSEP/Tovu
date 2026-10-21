@@ -1,5 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
@@ -75,6 +75,8 @@ export interface AgentPluginRowProps {
   readonly onToggleExpanded: () => void;
   readonly stateControl: AgentPluginRowStateControl;
   readonly onInspect: () => void;
+  /** The plugin's own "Manage" entry (its admin screens), just left of the actions column; absent for most plugins. */
+  readonly manage?: ReactNode;
   /** The id of the section-level note explaining why uninstall is unavailable. Referenced by the
    *  disabled uninstall control rather than repeated once per row. */
   readonly uninstallNoteId: string;
@@ -174,7 +176,7 @@ function DetailChips({ label, values, ownId }: { label: string; values: readonly
 }
 
 export function AgentPluginRow(props: AgentPluginRowProps) {
-  const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, uninstallNoteId, agentHandleBase } = props;
+  const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, manage, uninstallNoteId, agentHandleBase } = props;
   const displayName = agentPluginDisplayName(plugin);
   // The owner-facing explainer (`extensions.tovu.summary`) when the package wrote one; else the
   // spec `description`, which is written for the assistant and can be dense with tool ids.
@@ -236,6 +238,8 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           </span>
         </button>
 
+        {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
+        {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
         <div className="agent-plugin-row-actions">
           <AgentPluginRowStateArea
             plugin={plugin}

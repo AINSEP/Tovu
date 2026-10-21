@@ -16,6 +16,7 @@ import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soo
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
+import { AgentPluginManageButton } from "./AgentPluginManageButton";
 import { InstalledIcon, MarketplaceIcon, UploadIcon } from "./agent-plugins-visuals";
 import { agentPluginDisplayName } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
@@ -126,6 +127,15 @@ function AgentPluginList({
           onInspect={() =>
             controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin) })
           }
+          manage={plugin.enabled ? (
+            <AgentPluginManageButton
+              pluginId={plugin.pluginId}
+              displayName={agentPluginDisplayName(plugin)}
+              t={controller.t}
+              agentHandleBase={rowHandles[index]!}
+              onManage={(surfaces) => controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), surfaces })}
+            />
+          ) : undefined}
           uninstallNoteId={uninstallNoteId}
           agentHandleBase={rowHandles[index]!}
         />

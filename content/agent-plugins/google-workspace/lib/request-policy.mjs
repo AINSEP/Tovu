@@ -31,7 +31,7 @@ const SAFE_ERRORS = Object.freeze({
   'uncertain-outcome': { retryable: false, nextAction: 'review-outcome', message: 'Google did not confirm whether the change was applied. Check the spreadsheet before trying again.' },
   'unexpected-response': { retryable: false, nextAction: 'report', message: 'Google returned a response Tovu does not understand. Report this to the plugin author.' },
   'product-disabled': { retryable: false, nextAction: 'enable-product', message: 'This Google product is turned off. Turn it on in the Google Workspace panel, then retry; the Google sign-in is kept.' },
-  'picker-not-configured': { retryable: false, nextAction: 'contact-admin', message: "Choosing an existing spreadsheet is not set up on this site yet (the Google file picker is not configured). Ask the site operator, or create a new spreadsheet." },
+  'picker-not-configured': { retryable: false, nextAction: 'contact-admin', message: "Choosing an existing spreadsheet is not set up on this site yet (the Google file picker is not configured). Add this site's Google Picker browser key and app ID, or create a new spreadsheet." },
   'invalid-selection': { retryable: false, nextAction: 're-pick-file', message: 'The file picker returned a selection Tovu cannot use. Choose the spreadsheet again.' },
   'not-a-spreadsheet': { retryable: false, nextAction: 're-pick-file', message: 'The chosen file is not a Google Sheets spreadsheet. Choose a spreadsheet, or create a new one.' },
   // Refused by the plugin before anything was sent to Google (bounds and input checks of the Sheets tools).

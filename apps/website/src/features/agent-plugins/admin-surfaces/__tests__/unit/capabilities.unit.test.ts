@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { AdminSurfaceConnections, AdminSurfaceDeliveryBindings, AdminSurfacePublicConfig, AdminSurfaceState } from '@jini-ai/agent-plugins/admin-surfaces';
+import type { AdminSurfaceConnections, AdminSurfaceDeliveryBindings, AdminSurfaceForms, AdminSurfacePublicConfig, AdminSurfaceState } from '@jini-ai/agent-plugins/admin-surfaces';
 import type { AgentPluginToolCapabilities, AgentPluginToolCapabilityScope } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { createAdminSurfaceCapabilities } from '../../capabilities.js';
@@ -89,5 +89,19 @@ test('a delivery bindings port bound: each call gets the port built for its full
     tools: () => toolCapabilities(false), connectionsFor: () => connections, stateFor: () => state, publicConfig,
   }, { deliveryBindingsFor: (scope) => { scopes.push(scope); return deliveryBindings; } });
   assert.equal(port(SCOPE).deliveryBindings, deliveryBindings);
+  assert.deepEqual(scopes, [SCOPE]);
+});
+
+test('no forms port bound: the surface gets no forms capability', () => {
+  assert.equal(Object.hasOwn(build(false).port(SCOPE), 'forms'), false);
+});
+
+test('a forms reader bound: each call gets the reader for its authenticated scope', () => {
+  const forms: AdminSurfaceForms = { list: async () => [{ slug: 'contact', title: 'Contact' }] };
+  const scopes: AgentPluginToolCapabilityScope[] = [];
+  const port = createAdminSurfaceCapabilities({
+    tools: () => toolCapabilities(false), connectionsFor: () => connections, stateFor: () => state, publicConfig,
+  }, { formsFor: (scope) => { scopes.push(scope); return forms; } });
+  assert.equal(port(SCOPE).forms, forms);
   assert.deepEqual(scopes, [SCOPE]);
 });

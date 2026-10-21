@@ -32,7 +32,8 @@ export function AgentPluginSurfaceFrame({ pluginId, surface, port, t }: AgentPlu
         sandbox={attributes.sandbox}
         referrerPolicy={attributes.referrerPolicy}
         onLoad={frame.onLoad}
-        style={{ width: "100%", minHeight: "28rem", border: 0 }}
+        // Sized to the surface's own reported height; 28rem only until the first report arrives.
+        style={{ width: "100%", height: frame.height === null ? "28rem" : `${frame.height}px`, border: 0, display: "block" }}
       />
       {frame.signIns.map((link) => (
         <p key={link.authorizationUrl} className="field-hint" role="status">

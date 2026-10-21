@@ -65,7 +65,7 @@ test('a failed first status shows the host sentence in place of the panel', asyn
   initConnectionPanel({ window: frame.window, document: frame.document });
   frame.init();
   await flush();
-  assert.equal(frame.document.getElementById('app').innerHTML, '<p class="notice">Google Workspace is not set up on this site.</p>');
+  assert.equal(frame.document.getElementById('app').innerHTML, '<p class="notice" role="status">Google Workspace is not set up on this site.</p>');
 });
 
 test('Connect asks the host for a connect sign-in and says where to continue', async () => {
@@ -157,7 +157,7 @@ test('Disconnect and revoke: a pending revocation never reads as revoked, and of
   button(frame, 'Disconnect and revoke').click();
   button(frame, 'Yes, disconnect and revoke').click();
   await flush();
-  assert.equal(notice(frame).className, 'notice');
+  assert.equal(notice(frame).className, 'notice warn');
   assert.ok(notice(frame).textContent.startsWith(`${REVOCATION_PENDING_TEXT}.`));
   assert.equal(frame.document.getElementById('account-heading').textContent, REVOCATION_PENDING_TEXT);
   assert.deepEqual(buttonLabels(frame).slice(0, 3), ['Retry Google revocation', 'Connect again', 'Open Google Account page']);
@@ -232,7 +232,7 @@ test('confirming a switch sends only the ticked destinations, then says what mov
   await flush();
   assert.deepEqual(frame.requests().at(-1), { action: 'confirm-switch', payload: { reassign: ['contact', 'signup'] } });
   assert.equal(notice(frame).textContent, 'Switched account. Now delivering as the new account: contact. Not moved, signup: Tovu cannot open this file. Still using the old account (deliveries fail until you choose the spreadsheet again in Form destinations): signup, survey.');
-  assert.equal(notice(frame).className, 'notice');
+  assert.equal(notice(frame).className, 'notice warn');
 });
 
 test('a switch where every ticked destination moved reads as a success', async () => {

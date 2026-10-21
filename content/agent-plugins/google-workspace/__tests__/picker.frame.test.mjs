@@ -76,7 +76,7 @@ test('an unavailable bootstrap shows why and offers no Choose button', async () 
 
 test('a ready bootstrap shows the intro and the Choose button', async () => {
   await openPanel(SYSTEM);
-  assert.equal(frame.document.querySelector('.muted').textContent, pickerIntro({ bootstrap: SYSTEM }));
+  assert.equal(frame.document.querySelector('.intro').textContent, pickerIntro({ bootstrap: SYSTEM }));
   assert.deepEqual(buttonLabels(frame), ['Choose spreadsheet']);
 });
 
@@ -185,7 +185,7 @@ test('a first list that fails shows the host sentence', async () => {
   initPickerPanel({ window: frame.window, document: frame.document });
   frame.init({ bootstrap: SYSTEM });
   await flush();
-  assert.equal(frame.document.getElementById('app').innerHTML, '<p class="notice">Reconnect Google, then open this panel again.</p>');
+  assert.equal(frame.document.getElementById('app').innerHTML, '<p class="notice" role="status">Reconnect Google, then open this panel again.</p>');
 });
 
 test('security: the bootstrap access token goes to the Picker builder only, never into the DOM', async () => {

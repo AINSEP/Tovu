@@ -20,6 +20,7 @@ import { createAdminSurfaceCapabilities } from "#src/features/agent-plugins/admi
 import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { createAdminSurfacePublicConfig } from "#src/features/agent-plugins/admin-surfaces/public-config";
 import { createSurfaceDeliveryBindings, type FormDeliveryBindingsStore } from "#src/features/agent-plugins/admin-surfaces/delivery-bindings";
+import { createSurfaceForms } from "#src/features/agent-plugins/admin-surfaces/forms";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 
@@ -150,7 +151,14 @@ export function composeAgentPluginConnections(
     connectionsFor: ({ pluginId, workspaceId: scopeWorkspaceId, principalId }) => createSurfaceConnections({
       host, pluginId, workspaceId: scopeWorkspaceId, principalId, onSignInIssued: (issued) => signIns.record(issued),
     }),
-  }, deliveryBindingsFor ? { deliveryBindingsFor } : {});
+  }, delivery && deliveryBindingsFor ? {
+    deliveryBindingsFor,
+    formsFor: ({ workspaceId: scopeWorkspaceId, principalId }) => createSurfaceForms({
+      siteWorkspaceId: workspaceId, workspaceId: scopeWorkspaceId,
+      ...(principalId === undefined ? {} : { principalId }),
+      forms: delivery.forms, authorize: delivery.settings.authorize,
+    }),
+  } : {});
   return {
     apiConnections: { host },
     agentPluginTools: { loadContributions, connections, http, limiter, state, apiOrigins, issuedTokens },

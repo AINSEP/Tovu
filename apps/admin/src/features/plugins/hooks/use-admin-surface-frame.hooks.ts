@@ -2,18 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   adminSurfaceActionResponse,
   adminSurfaceInitMessage,
+  adminSurfaceThemeMessage,
   createAdminSurfaceMount,
   openAdminSurfaceLink,
+  readAdminSurfaceResize,
   validateAdminSurfaceMessage,
   type AdminSurfaceActionOutcome,
   type AdminSurfaceOpenLinkPort,
 } from "@jini-ai/agent-plugins/admin-surfaces";
+import { readAdminTheme, watchAdminTheme } from "../admin-surface-theme";
 import type { AgentPluginSurfaceActionAnswer, AgentPluginSurfacesPort, AgentPluginSurfaceSummary, HostSignInLink } from "./agent-plugin-surfaces-port.hooks";
 
 /**
  * @file The host page's half of one mounted plugin admin surface (Jini's admin-surface protocol):
  * the per-mount nonce, the single `init` (with the server's bootstrap) after the frame's first
- * load, and the message gate that forwards valid action requests to the server and posts each
+ * load (with the admin's design tokens, re-sent on every theme change), and the message gate that forwards valid action requests to the server and posts each
  * answer back.
  *
  * Why the "first load only" checks are repeated at post time: the bootstrap and every action
@@ -45,6 +48,8 @@ export interface AdminSurfaceFrameController {
   readonly frameRef: RefObject<HTMLIFrameElement | null>;
   readonly status: AdminSurfaceFrameStatus;
   readonly onLoad: () => void;
+  /** The surface's reported content height in CSS px (clamped by Jini), or null until it reports one. */
+  readonly height: number | null;
   /** Host-issued sign-in links for this mount, not yet opened or expired. */
   readonly signIns: readonly HostSignInLink[];
   /** Forgets a link once the person opened it (each attempt is single use). */
@@ -78,6 +83,8 @@ export function useAdminSurfaceFrame(
   const mount = useMemo(() => createAdminSurfaceMount({ surfaceId: surface.id }), [surface.id]);
   const [status, setStatus] = useState<AdminSurfaceFrameStatus>("open");
   const [issued, setIssued] = useState<readonly HostSignInLink[]>([]);
+  const [initialized, setInitialized] = useState(false);
+  const [height, setHeight] = useState<number | null>(null);
   /** The frame's window while it still shows the document this mount initialized, else null. */
   const liveFrame = useCallback(() => (loads.current === 1 ? frameRef.current?.contentWindow ?? null : null), []);
 
@@ -86,10 +93,19 @@ export function useAdminSurfaceFrame(
     // A second load means the frame navigated away from the surface: unmount, never re-init.
     if (loads.current > 1) return setStatus("navigated");
     void port.bootstrap({ pluginId, surfaceId: surface.id }).then(
-      (bootstrap) => liveFrame()?.postMessage(adminSurfaceInitMessage({ mountId: mount.mountId }, { bootstrap }), "*"),
+      (bootstrap) => {
+        liveFrame()?.postMessage(adminSurfaceInitMessage({ mountId: mount.mountId }, { bootstrap, theme: readAdminTheme() }), "*");
+        setInitialized(true);
+      },
       () => setStatus("failed"),
     );
   }, [port, pluginId, surface.id, mount.mountId, liveFrame]);
+
+  // The surface follows the admin's look: every theme or light/dark change after init is re-sent.
+  useEffect(() => {
+    if (!initialized || status !== "open") return undefined;
+    return watchAdminTheme({ onChange: (theme) => liveFrame()?.postMessage(adminSurfaceThemeMessage({ mountId: mount.mountId, theme }), "*") });
+  }, [initialized, status, mount.mountId, liveFrame]);
 
   useEffect(() => {
     if (status !== "open") return undefined;
@@ -97,6 +113,9 @@ export function useAdminSurfaceFrame(
       const frame = liveFrame();
       // No live frame: nothing may match (a null `source` must never equal a missing frame).
       if (frame === null) return;
+      // The frame fits its content (no inner scrollbar); a height is cosmetic, so it is never answered.
+      const reported = readAdminSurfaceResize({ event, mount: { mountId: mount.mountId, frame } });
+      if (reported !== null) return setHeight(reported);
       const record = { mountId: mount.mountId, frame, descriptor: { actions: surface.actions, linkOrigins: surface.linkOrigins ?? [] } };
       // Each gate ignores the other's messages; a link verdict with a response is this mount's open-link.
       void openAdminSurfaceLink({ event, mount: record, openLink: openInNewTab }).then((link) => { if ("response" in link) liveFrame()?.postMessage(link.response, "*"); });
@@ -120,5 +139,5 @@ export function useAdminSurfaceFrame(
 
   const onSignInOpened = useCallback((link: HostSignInLink) => setIssued((current) => current.filter((entry) => entry !== link)), []);
   const signIns = issued.filter((link) => Date.parse(link.expiresAt) > Date.now());
-  return { frameRef, status, onLoad, signIns, onSignInOpened };
+  return { frameRef, status, onLoad, height, signIns, onSignInOpened };
 }

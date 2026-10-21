@@ -1,3 +1,4 @@
+import type { AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hooks";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
@@ -44,6 +45,8 @@ import { AGENT_PLUGINS_RESOURCE } from "../rules";
 export interface InspectedAgentPlugin {
   readonly id: string;
   readonly displayName: string;
+  /** Set by the row's "Manage" button: the screens it already listed, so the modal opens on the first. */
+  readonly surfaces?: readonly AgentPluginSurfaceSummary[];
 }
 
 export interface AgentPluginsDependencies {

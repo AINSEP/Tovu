@@ -79,7 +79,9 @@ export function createHostPorts(options = {}) {
     },
     async remove({ bindingId }) { bindings.splice(bindings.findIndex((entry) => entry.bindingId === bindingId), 1); },
   };
-  return { state, inbox, calls, connection, connections, stateStore, bindings, deliveryBindings, publicConfig: { async get({ name }) { return config[name] ?? null; } } };
+  return { state, inbox, calls, connection, connections, stateStore, bindings, deliveryBindings,
+    ...(options.forms === undefined ? {} : { forms: { async list() { return structuredClone(options.forms); } } }),
+    publicConfig: { async get({ name }) { return config[name] ?? null; } } };
 }
 
 /**
@@ -121,6 +123,7 @@ export async function bootSurfaces(required, optional = {}) {
     limiter: { async check() { return { allowed: true }; } },
     artifacts: { async write() { throw new Error('admin surfaces write no artifacts'); } },
     connections: ports.connections, state: ports.stateStore, publicConfig: ports.publicConfig, deliveryBindings: ports.deliveryBindings,
+    ...(ports.forms === undefined ? {} : { forms: ports.forms }),
   });
   const host = createAdminSurfaceHandlerHost({ capabilities, issuedTokens: createIssuedTokenMemories(), hostKind: optional.hostKind ?? 'hosted' });
   const { refusals } = host.sync({ loaded: descriptors.map((descriptor) => ({ pluginId: PLUGIN, descriptor, module: modules[descriptor.id] })), refusals: [] });

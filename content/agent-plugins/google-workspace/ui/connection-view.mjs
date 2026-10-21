@@ -34,16 +34,17 @@ export const DISCONNECT_CONFIRM_TEXT = 'Disconnect and revoke? Tovu stops using 
 const button = (action, label) => ({ action, label });
 
 const STATES = Object.freeze({
-  disconnected: () => ({ heading: 'Not connected', detail: 'Connect a Google account to let Tovu work with the spreadsheets you choose or create. Tovu asks only for access to files you pick or it creates.', buttons: [button('connect', 'Connect Google account')] }),
-  connected: ({ accountLabel }) => ({ heading: `Connected as ${accountLabel ?? 'a Google account'}`, detail: 'Reconnect keeps this account and its settings. Switch account asks you to confirm the new account before anything changes.', buttons: [button('reconnect', 'Reconnect'), button('switch', 'Switch account'), button('disconnect', 'Disconnect and revoke')] }),
-  'reconnect-required': () => ({ heading: 'Reconnect required', detail: 'Google no longer accepts the saved sign-in. Form deliveries fail while it is like this and stay listed as failed; they are not sent again after you reconnect. Reconnect the same account so new submissions are delivered.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
-  'revocation-pending': () => ({ heading: REVOCATION_PENDING_TEXT, detail: REVOCATION_TEXT.pending, buttons: [button('retry-revocation', 'Retry Google revocation'), button('connect', 'Connect again')] }),
+  disconnected: () => ({ heading: 'Not connected', tone: 'neutral', detail: 'Connect a Google account to let Tovu work with the spreadsheets you choose or create. Tovu asks only for access to files you pick or it creates.', buttons: [button('connect', 'Connect Google account')] }),
+  connected: ({ accountLabel }) => ({ heading: `Connected as ${accountLabel ?? 'a Google account'}`, tone: 'ok', detail: 'Reconnect keeps this account and its settings. Switch account asks you to confirm the new account before anything changes.', buttons: [button('reconnect', 'Reconnect'), button('switch', 'Switch account'), button('disconnect', 'Disconnect and revoke')] }),
+  'reconnect-required': () => ({ heading: 'Reconnect required', tone: 'warn', detail: 'Google no longer accepts the saved sign-in. Form deliveries fail while it is like this and stay listed as failed; they are not sent again after you reconnect. Reconnect the same account so new submissions are delivered.', buttons: [button('reconnect', 'Reconnect'), button('disconnect', 'Disconnect and revoke')] }),
+  'revocation-pending': () => ({ heading: REVOCATION_PENDING_TEXT, tone: 'warn', detail: REVOCATION_TEXT.pending, buttons: [button('retry-revocation', 'Retry Google revocation'), button('connect', 'Connect again')] }),
 });
 
 /**
- * Heading, explanation and buttons for the connection; a staged switch takes precedence.
+ * Heading, status tone (the dot beside the heading), explanation and buttons for the connection; a
+ * staged switch takes precedence.
  * @param {{ connection: { status: string, accountLabel?: string, pendingSwitchAccountLabel?: string } }} required
- * @returns {{ heading: string, detail: string, buttons: Array<{ action: string, label: string }> }}
+ * @returns {{ heading: string, tone: 'ok' | 'warn' | 'info' | 'neutral', detail: string, buttons: Array<{ action: string, label: string }> }}
  * @complexity O(1).
  */
 export function connectionSummary(required, _optional = {}) {
@@ -51,6 +52,7 @@ export function connectionSummary(required, _optional = {}) {
   if (connection.pendingSwitchAccountLabel) {
     return {
       heading: `Switch to ${connection.pendingSwitchAccountLabel}?`,
+      tone: 'info',
       detail: `Signed in now as ${connection.accountLabel ?? 'the current account'}. Nothing changes until you confirm. ${SWITCH_NOTE}`,
       buttons: [button('confirm-switch', `Use ${connection.pendingSwitchAccountLabel}`), button('cancel-switch', 'Keep the current account')],
     };
@@ -88,22 +90,30 @@ export function reassignmentMessage(required, _optional = {}) {
 
 /** A product's state line: on/off is a setting; Google's permission is a separate fact. @complexity O(1). */
 function productNote(product, connected) {
-  if (!product.enabled) return 'Off. Its tools stop. Its form deliveries are retried for about a day, then marked failed. The Google sign-in and its permissions are kept.';
+  // Neutral wording: on a fresh install "off" is the normal starting point, not a failure.
+  if (!product.enabled) return `Not in use. Turn it on to use ${product.label} in assistant tools and form deliveries. Turning it off later keeps the Google sign-in; deliveries already queued retry for about a day.`;
   if (!connected) return 'On. Connect a Google account to use it.';
   return product.granted ? 'On. Google has granted the permission it needs.' : 'On, but Google has not granted its permission yet. Grant it to use this product.';
 }
 
+/** The few words under a product's name; the full sentence (`productNote`) is its explanation. @complexity O(1). */
+function productState(product, connected) {
+  if (!product.enabled) return 'Not in use';
+  if (!connected) return 'Needs a Google account';
+  return product.granted ? 'Ready' : 'Needs Google permission';
+}
+
 /**
- * One row per product: label, note, the on/off toggle and, when on but not granted, the separate
- * "Grant permission" sign-in.
+ * One row per product: label, short state, note, the on/off toggle and, when on but not granted,
+ * the separate "Grant permission" sign-in.
  * @param {{ products: Array<{ id: string, label: string, enabled: boolean, granted: boolean }>, connection: { status: string } }} required
- * @returns {Array<{ id: string, label: string, note: string, enabled: boolean, toggleLabel: string, grant: boolean }>}
+ * @returns {Array<{ id: string, label: string, state: string, note: string, enabled: boolean, toggleLabel: string, grant: boolean }>}
  * @complexity O(p).
  */
 export function productRows(required, _optional = {}) {
   const connected = required.connection.status === 'connected';
   return required.products.map((product) => ({
-    id: product.id, label: product.label, enabled: product.enabled, note: productNote(product, connected),
+    id: product.id, label: product.label, enabled: product.enabled, state: productState(product, connected), note: productNote(product, connected),
     toggleLabel: product.enabled ? `Turn ${product.label} off` : `Turn ${product.label} on`,
     grant: connected && product.enabled && !product.granted,
   }));

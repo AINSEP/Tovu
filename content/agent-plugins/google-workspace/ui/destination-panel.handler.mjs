@@ -35,15 +35,20 @@ async function currentAccountId(capabilities) {
   return (await sheetsUnavailableReason({ capabilities })) === null ? (await surfaceAccount({ capabilities })).accountId : null;
 }
 
-/** The panel's list: saved destinations and the picked spreadsheets. @complexity O(d + p). */
-async function listView(capabilities) {
+/** The panel's list: saved destinations, picked spreadsheets and, when supported, site forms.
+ * Absence preserves older hosts' typed fallback; denied access must fail, never enable typing.
+ * @complexity O(d + p + f), with forms bounded by the host capability session. */
+async function listView({ capabilities }, _options = {}) {
   const accountId = await currentAccountId(capabilities);
   const saved = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
   const destinations = Object.entries(saved).map(([formSlug, destination]) => ({
     formSlug, ...metadataOf(destination), sheetId: destination.sheetId, tabTitle: destination.tabTitle,
     ...(accountId === null ? {} : { sameAccount: destination.accountId === accountId }),
   }));
-  return { destinations, picked: (await readPickedSpreadsheets({ state: capabilities.state })).map(metadataOf) };
+  return {
+    destinations, picked: (await readPickedSpreadsheets({ state: capabilities.state })).map(metadataOf),
+    ...(capabilities.forms === undefined ? {} : { forms: await capabilities.forms.list({}) }),
+  };
 }
 
 /** Refuses a save the person has not fully confirmed or that names no valid form. @complexity O(1). */
@@ -64,7 +69,7 @@ async function saveDestination({ capabilities, input, fail }) {
   if (existing === undefined && Object.keys(destinations).length >= MAX_FORM_DESTINATIONS) throw surfaceRefusal({ fail, code: 'too-many-destinations' });
   const destination = { spreadsheetId: spreadsheet.spreadsheetId, title: spreadsheet.title, sheetId: tab.sheetId, tabTitle: tab.title, accountId: account.accountId };
   await saveFormDestination({ deliveryBindings: capabilities.deliveryBindings, formSlug: input.formSlug, destination }, existing === undefined ? {} : { bindingId: existing.bindingId });
-  return listView(capabilities);
+  return listView({ capabilities });
 }
 
 /**
@@ -82,7 +87,7 @@ export function createDestinationPanelHandlers(_required = {}, optional = {}) {
     bootstrap: picker.bootstrap,
     actions: {
       ...picker.actions,
-      'list-destinations': ({ capabilities, fail }) => act(fail, () => listView(capabilities)),
+      'list-destinations': ({ capabilities, fail }) => act(fail, () => listView({ capabilities })),
       'list-tabs': ({ capabilities, input, fail }) => act(fail, async () => {
         const { spreadsheet, tabs } = await spreadsheetTabs(capabilities, input.spreadsheetId);
         return { spreadsheet: metadataOf(spreadsheet), tabs };
@@ -92,7 +97,7 @@ export function createDestinationPanelHandlers(_required = {}, optional = {}) {
       'remove-destination': ({ capabilities, input, fail }) => act(fail, async () => {
         const destinations = await readFormDestinations({ deliveryBindings: capabilities.deliveryBindings });
         if (Object.hasOwn(destinations, input.formSlug)) await capabilities.deliveryBindings.remove({ bindingId: destinations[input.formSlug].bindingId });
-        return listView(capabilities);
+        return listView({ capabilities });
       }),
     },
   };

@@ -40,7 +40,11 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
   const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
   const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
-  const surfaces = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
+  const listed = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
+  // Opened from "Manage": the row already listed the screens, so the first render has their tabs
+  // (the shell picks its starting view once, at mount).
+  const surfaces = listed.length > 0 ? listed : plugin.surfaces ?? [];
+  const firstSurface = plugin.surfaces?.[0];
   const surfaceViews = surfaces.map((surface) => ({
     id: `plugin-surface-${surface.id}`,
     label: surface.title,
@@ -51,6 +55,7 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
     <PackageFilesModal
       title={view.title}
       onView={view.onView}
+      initialViewId={firstSurface ? `plugin-surface-${firstSurface.id}` : undefined}
       files={files}
       selectedFile={selectedFile}
       onSelectFile={selectFile}

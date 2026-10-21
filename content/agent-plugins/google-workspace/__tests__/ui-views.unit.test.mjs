@@ -58,7 +58,7 @@ test('reassignment message: an unticked destination is named as still using the 
 
 test('product rows: off says deliveries are retried for about a day then fail (never "paused"), keeps the sign-in, with a turn-on toggle and no grant button', () => {
   const [row] = productRows({ products: [{ ...SHEETS, enabled: false, granted: true }], connection: { status: 'connected' } });
-  assert.deepEqual(row, { id: 'sheets', label: 'Google Sheets', enabled: false, note: 'Off. Its tools stop. Its form deliveries are retried for about a day, then marked failed. The Google sign-in and its permissions are kept.', toggleLabel: 'Turn Google Sheets on', grant: false });
+  assert.deepEqual(row, { id: 'sheets', label: 'Google Sheets', enabled: false, state: 'Not in use', note: 'Not in use. Turn it on to use Google Sheets in assistant tools and form deliveries. Turning it off later keeps the Google sign-in; deliveries already queued retry for about a day.', toggleLabel: 'Turn Google Sheets on', grant: false });
 });
 
 test('product rows: on while not connected asks to connect, with no grant button', () => {

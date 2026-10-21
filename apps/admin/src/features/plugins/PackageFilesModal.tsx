@@ -45,6 +45,8 @@ export interface PackageFilesModalProps {
   readonly additionalViews?: readonly { id: string; label: string; custom: ReactNode }[];
   /** Forward the shared shell's selected-view notification so the host can update its header. */
   readonly onView?: (viewId: string) => void;
+  /** The view to open on (an additional view's id); the package files otherwise. */
+  readonly initialViewId?: string | undefined;
 }
 
 /** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). Used by the
@@ -227,6 +229,7 @@ export function PackageFilesModal({
   onClose,
   additionalViews = [],
   onView,
+  initialViewId,
 }: PackageFilesModalProps) {
   const selectedFileHeadingId = useId();
   // File paths are stable and unique within one package, same per-row-handle derivation every
@@ -242,6 +245,7 @@ export function PackageFilesModal({
       title={title}
       subtitle={subtitle}
       onView={onView}
+      initialViewId={initialViewId}
       views={[
         {
           id: "package-source",

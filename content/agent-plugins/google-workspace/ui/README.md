@@ -34,6 +34,12 @@ frame (static files, served without credentials, CSP-locked)        server (hand
 
 ## Public API (handler modules)
 
+Form destinations declares the read-only `forms: ["list"]` capability. Its list/save/remove
+results optionally include `forms: [{slug,title}]` (at most 200), so the panel offers site forms by
+title and saves the chosen slug. An empty list keeps an empty selector; a failed initial read shows
+the error without an editor. Only hosts without the capability use the typed short-name fallback.
+The server's existing binding writer still checks that the selected form belongs to this workspace.
+
 Each `*.handler.mjs` default-exports `{ actions, bootstrap? }` for its surface and exports its factory
 (`createConnectionPanelHandlers()`, `createPickerHandlers({}, { now, randomId })`,
 `createDestinationPanelHandlers({}, { now, randomId })`) for tests.

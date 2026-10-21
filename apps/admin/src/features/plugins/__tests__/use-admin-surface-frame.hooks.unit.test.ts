@@ -40,14 +40,14 @@ afterEach(() => {
 });
 
 /** Mounts the hook with a predictable nonce and a frame element the test owns. */
-function mountWithFrame(port: AgentPluginSurfacesPort) {
+function mountWithFrame(port: AgentPluginSurfacesPort, surface = SURFACE) {
   vi.spyOn(globalThis.crypto, "getRandomValues").mockImplementation((array) => array);
   const iframe = document.createElement("iframe");
   document.body.appendChild(iframe);
   frames.push(iframe);
   const frameWindow = iframe.contentWindow!;
   const posted = vi.spyOn(frameWindow, "postMessage").mockImplementation(() => {});
-  const hook = renderHook(() => useAdminSurfaceFrame({ pluginId: "acme-office", surface: SURFACE, port }));
+  const hook = renderHook(() => useAdminSurfaceFrame({ pluginId: "acme-office", surface, port }));
   hook.result.current.frameRef.current = iframe;
   return { hook, frameWindow, posted };
 }
@@ -60,6 +60,22 @@ const saveRequest = { protocol: "jini.admin-surface", version: 1, kind: "action-
 const linkRequest = { protocol: "jini.admin-surface", version: 1, kind: "open-link", mountId: ZERO_NONCE, requestId: "link-1", url: "https://accounts.acme.test/connections" };
 
 describe("useAdminSurfaceFrame with a frame element that outlives navigation", () => {
+  it("passes form choices through the declared destination action and refuses a separate undeclared forms action", async () => {
+    const result = { destinations: [], picked: [], forms: [{ slug: "contact", title: "Contact us" }] };
+    const port = fakePort({ action: vi.fn<AgentPluginSurfacesPort["action"]>(async () => ({ ok: true, result })) });
+    const surface = { ...SURFACE, id: "form-destinations", actions: [{ name: "list-destinations", input: { type: "object" as const, properties: {}, additionalProperties: false } }] };
+    const { hook, frameWindow, posted } = mountWithFrame(port, surface);
+    act(() => { hook.result.current.onLoad(); });
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(1));
+    const request = { ...saveRequest, action: "list-destinations", payload: {} };
+    act(() => { fromFrame(frameWindow, request); });
+    await waitFor(() => expect(port.action).toHaveBeenCalledWith({ pluginId: "acme-office", surfaceId: "form-destinations", action: "list-destinations", payload: {} }));
+    await waitFor(() => expect(posted).toHaveBeenCalledWith(expect.objectContaining({ kind: "action-response", ok: true, result }), "*"));
+    act(() => { fromFrame(frameWindow, { ...request, requestId: "req-2", action: "list-forms" }); });
+    expect(port.action).toHaveBeenCalledTimes(1);
+    expect(posted).toHaveBeenCalledWith(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "action-undeclared" }) }), "*");
+  });
+
   it("posts no bootstrap into a frame that loaded again while the bootstrap was pending", async () => {
     let resolve: (value: AdminSurfaceBootstrap) => void = () => {};
     const port = fakePort({ bootstrap: vi.fn<AgentPluginSurfacesPort["bootstrap"]>(() => new Promise((done) => { resolve = done; })) });

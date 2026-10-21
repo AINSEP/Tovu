@@ -6,6 +6,13 @@ format, contained paths, the sandboxed-iframe attributes, the CSP and headers, t
 protocol, the action dispatcher and the bootstrap envelope. This folder is Tovu's thin adapter.
 Nothing here knows any provider.
 
+`forms.ts` binds the optional read-only `forms.list({})` handler capability to the existing form
+definition repository. It refuses a foreign workspace or missing principal before reading, then
+checks the same `admin.forms.manage` permission as the forms-list API. Only `{slug,title}` is
+returned. Jini's capability session exposes it only to surfaces declaring `forms: ["list"]` and
+caps the result at 200 choices (64-character slugs, 1024-character titles). The admin frame carries
+these through declared action results; no additional browser capability endpoint is needed.
+
 ## How it fits
 
 ```

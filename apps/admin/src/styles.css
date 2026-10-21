@@ -3949,6 +3949,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    read as a control floating between the description and the switch, belonging to neither — seen
    rendered before this rule existed. Two zones, one divider, and the chevron is visibly the end of
    the first one. */
+/* A plugin's "Manage" entry (its own admin screens) sits against the actions divider, outside that
+   column, so the switch keeps one x position down the list. */
+.agent-plugin-row-manage { flex: 0 0 auto; margin-left: auto; }
+.agent-plugin-row-manage .btn-secondary { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+.agent-plugin-row-manage + .agent-plugin-row-actions { margin-left: 0; }
 .agent-plugin-row-actions {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   margin-left: auto; padding-left: 14px;
@@ -5092,6 +5097,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* Agent Plugin package inspector — Jini's exported `PreviewModalShell` supplies the accessible
    dialog/Escape/close behaviour and `CodeWithLines` supplies the read-only line-number pane. Tovu
    owns only this host layout around its compile-time source allowlist. */
+/* The assistant button sits under this modal's backdrop yet still shows through at its corner; hide it while open. */
+body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .agent-plugin-source-modal {
   z-index: 80;
   padding: var(--space-4);
@@ -5248,8 +5255,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .agent-plugin-source-modal { padding: var(--space-2); }
   .agent-plugin-source-modal [data-preview-modal] { max-height: calc(100dvh - 1rem); }
   .agent-plugin-source-modal [data-preview-modal-header] { padding: var(--space-3); }
-  .agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; }
-  .agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1; }
+  /* Full width, and a plugin's extra tabs (Memory, its own screens) scroll sideways instead of
+     squeezing every label into an equal slice that overflows the modal at 375px. */
+  .agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1 0 auto; white-space: nowrap; }
   .agent-plugin-source-modal { --agent-plugin-tree-pane: 11rem; }
   .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: var(--agent-plugin-tree-pane) minmax(0, 1fr); }
   .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }

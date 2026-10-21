@@ -44,7 +44,7 @@ afterEach(() => { mock.timers.reset(); frame?.close(); frame = undefined; });
 /** A fresh panel whose host answers `list-destinations` with `listed`, initialised with `bootstrap`. */
 async function openPanel(bootstrap, listed = { destinations: [], picked: [] }) {
   frame = createFrame();
-  frame.respond.set('list-destinations', () => listed);
+  frame.respond.set('list-destinations', typeof listed === 'function' ? listed : () => listed);
   initDestinationPanel({ window: frame.window, document: frame.document });
   frame.init(bootstrap === undefined ? {} : { bootstrap });
   await flush();
@@ -79,13 +79,13 @@ test('starts itself on load: lists the saved destinations once the host init arr
 
 test('without start data the panel says so and offers no Picker button (nothing it could open)', async () => {
   await openPanel(undefined);
-  assert.equal(frame.document.querySelector('.muted').textContent, pickerIntro({ bootstrap: undefined }));
+  assert.equal(frame.document.querySelector('.intro').textContent, pickerIntro({ bootstrap: undefined }));
   assert.deepEqual(buttonLabels(frame), ['Save destination']);
 });
 
 test('an unavailable bootstrap offers no Picker button, but already-picked spreadsheets stay choosable', async () => {
   await openPanel({ mode: 'unavailable', reason: 'sheets-off', message: 'Turn Google Sheets on first.' }, { destinations: [], picked: [LEADS] });
-  assert.equal(frame.document.querySelector('.muted').textContent, 'Turn Google Sheets on first.');
+  assert.equal(frame.document.querySelector('.intro').textContent, 'Turn Google Sheets on first.');
   assert.deepEqual({ buttons: buttonLabels(frame), options: [...selects()[0].options].map((option) => option.textContent) }, { buttons: ['Save destination'], options: ['Choose…', 'Leads'] });
 });
 
@@ -154,13 +154,70 @@ test('the typed form name, chosen tab and confirmation survive a re-render', asy
   }, { status: 'Google did not answer. Try again.', name: 'contact', tab: '42', confirmed: true });
 });
 
-test('a save without a chosen spreadsheet sends an empty id (which the declared schema refuses) and shows the refusal', async () => {
+test('a save with missing details says what is missing and sends nothing', async () => {
   await openPanel(SYSTEM);
-  frame.respond.set('save-destination', () => { throw refusal('Choose a spreadsheet first.', { code: 'invalid-input' }); });
   button(frame, 'Save destination').click();
   await flush();
-  assert.deepEqual(frame.requests().at(-1), { action: 'save-destination', payload: { formSlug: '', spreadsheetId: '', sheetId: 0, confirmExternalRows: false } });
-  assert.equal(statusLine().textContent, 'Choose a spreadsheet first.');
+  assert.equal(frame.requests().some((request) => request.action === 'save-destination'), false);
+  assert.equal(statusLine().textContent, "Enter the form's short name.");
+});
+
+test('a host with forms offers site forms by title and saves the chosen slug', async () => {
+  const listed = { destinations: [], picked: [LEADS], forms: [{ slug: 'contact', title: 'Contact us' }, { slug: 'support', title: 'Support request' }] };
+  await openPanel(SYSTEM, listed);
+  const form = () => frame.document.querySelector('select[name="formSlug"]');
+  assert.equal(frame.document.querySelector('input[type="text"]'), null);
+  assert.deepEqual([...form().options].map((option) => [option.value, option.textContent]), [['', 'Choose a form…'], ['contact', 'Contact us'], ['support', 'Support request']]);
+  await change(form(), 'support');
+  frame.respond.set('list-tabs', () => ({ spreadsheet: LEADS, tabs: TABS }));
+  await change(selects()[1], FILE_ID);
+  assert.equal(form().value, 'support', 'selection survives the tab-load render');
+  frame.document.querySelector('input[type="checkbox"]').click();
+  frame.respond.set('save-destination', () => ({ ...listed, destinations: [saved({ formSlug: 'support' })] }));
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.deepEqual(frame.requests().at(-1), { action: 'save-destination', payload: { formSlug: 'support', spreadsheetId: FILE_ID, sheetId: 0, confirmExternalRows: true } });
+  assert.equal(form().value, 'support');
+  assert.equal(frame.document.querySelector('input[type="text"]'), null, 'save keeps the picker');
+});
+
+test('an available forms capability with no forms never falls back to typing a slug', async () => {
+  await openPanel(SYSTEM, { destinations: [], picked: [], forms: [] });
+  const form = frame.document.querySelector('select[name="formSlug"]');
+  assert.equal(form.disabled, true);
+  assert.equal(form.options[0].textContent, 'No forms available');
+  assert.equal(frame.document.querySelector('input[type="text"]'), null);
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.equal(statusLine().textContent, 'Choose a form.');
+  assert.deepEqual(frame.requests(), [{ action: 'list-destinations', payload: {} }]);
+});
+
+test('failed initial discovery shows its failure without offering the typed fallback', async () => {
+  await openPanel(SYSTEM, () => { throw refusal('You do not have permission to list forms.', { code: 'forbidden' }); });
+  assert.equal(statusLine().textContent, 'You do not have permission to list forms.');
+  assert.equal(frame.document.querySelector('input[type="text"]'), null);
+  assert.equal(frame.document.querySelector('select[name="formSlug"]'), null);
+  assert.equal(buttonLabels(frame).includes('Save destination'), false);
+});
+
+test('form titles are text, and Remove keeps the forms selector', async () => {
+  const listed = { destinations: [saved()], picked: [], forms: [{ slug: 'contact', title: MARKUP }] };
+  await openPanel(SYSTEM, listed);
+  frame.respond.set('remove-destination', () => ({ ...listed, destinations: [] }));
+  button(frame, 'Remove').click();
+  await flush();
+  assert.equal(frame.document.querySelector('img'), null);
+  assert.equal(frame.document.querySelector('select[name="formSlug"]').options[1].textContent, MARKUP);
+  assert.equal(frame.document.querySelector('input[type="text"]'), null);
+});
+
+test("the host's schema refusal (JSON paths) shows as plain words, not developer text", async () => {
+  await openPanel(SYSTEM, { destinations: [saved()], picked: [LEADS] });
+  frame.respond.set('remove-destination', () => { throw refusal("The request does not match the action's input: $.formSlug has the wrong length.", { code: 'invalid-payload' }); });
+  button(frame, 'Remove').click();
+  await flush();
+  assert.equal(statusLine().textContent, 'Some details are missing or not valid. Check them and try again.');
 });
 
 test('guarantee: the declared save-destination input refuses an empty spreadsheet id, so a successful save always had a chosen spreadsheet', () => {
@@ -172,6 +229,8 @@ test('guarantee: the declared save-destination input refuses an empty spreadshee
 test('a spreadsheet the server reports without tabs shows an empty tab list and saves tab id 0 for the server to re-verify', async () => {
   await openPanel(SYSTEM, { destinations: [], picked: [LEADS] });
   await choosePicked(LEADS, []);
+  await change(frame.document.querySelector('input[type="text"]'), 'contact', 'input');
+  frame.document.querySelector('input[type="checkbox"]').click();
   frame.respond.set('save-destination', () => { throw refusal('That tab no longer exists. Choose a tab again.'); });
   button(frame, 'Save destination').click();
   await flush();
@@ -252,6 +311,8 @@ test('security: everything the panel posts is a declared form-destinations actio
   await choosePicked(LEADS);
   button(frame, 'Remove').click();
   await flush();
+  await change(frame.document.querySelector('input[type="text"]'), 'contact', 'input');
+  frame.document.querySelector('input[type="checkbox"]').click();
   button(frame, 'Save destination').click();
   await flush();
   button(frame, 'Choose another spreadsheet').click();

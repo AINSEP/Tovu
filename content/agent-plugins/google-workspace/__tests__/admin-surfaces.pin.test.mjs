@@ -25,6 +25,13 @@ test('tovu-admin-surfaces.json: the connection surface keeps its id, title and e
   assert.deepEqual({ id: connection.id, title: connection.title, entry: connection.entry }, { id: 'connection', title: 'Google Workspace', entry: 'ui/connection-panel.html' });
 });
 
+test('only the form-destinations surface declares read-only form discovery', async () => {
+  const surfaces = await descriptors();
+  assert.deepEqual(surfaces.map((surface) => [surface.id, surface.forms]), [
+    ['connection', undefined], ['picker', undefined], ['form-destinations', ['list']],
+  ]);
+});
+
 test('surface files: every served file is static (no inline script or style) and holds nothing secret-shaped', async () => {
   const secretShaped = /ya29\.|1\/\/[0-9A-Za-z_-]{20,}|GOCSPX-|AIza[0-9A-Za-z_-]{20,}|-----BEGIN|sk-[A-Za-z0-9]{20,}/;
   for (const surface of await descriptors()) {
