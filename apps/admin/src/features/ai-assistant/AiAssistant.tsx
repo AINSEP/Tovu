@@ -419,7 +419,11 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
   const controller = useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
   const statusMessage = assistantDaemonStatusMessage(controller, t);
-  const executionPolicy = useTovuSettingsExecution({ config: DEFAULT_EXECUTION_CONFIG, onChange: () => {}, locale: useAdminLocale() }, { usePolicy: props.useExecutionPolicy });
+  // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
+  // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
+  // whose required config-change sink would have been a no-op nobody could ever invoke here.
+  const usePolicy = props.useExecutionPolicy ?? useTovuExecutionPolicy;
+  const executionPolicy = usePolicy({ config: DEFAULT_EXECUTION_CONFIG, locale: useAdminLocale() });
   if (!executionPolicy.allowed) return null;
 
   return (
