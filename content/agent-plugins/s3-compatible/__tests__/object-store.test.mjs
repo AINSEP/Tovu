@@ -1,7 +1,7 @@
 /**
  * @file Pins `object-stores/s3-compatible.mjs`, the `s3_compatible` `ObjectStoreProvider` that absorbed
- * Tovu core's `S3BlobStore` (`apps/website/src/features/media/blob-store.s3.ts`). Every case of that
- * adapter's suite (`media/__tests__/blob-store.s3.test.ts`) is ported here against the object-store
+ * Tovu core's former `S3BlobStore` (deleted; see git history of `media/blob-store.s3.ts`). Every unit case
+ * of that adapter's former suite is ported here against the object-store
  * contract (`get`/`head` report absence as `null` instead of throwing / `false`), plus the provider's
  * own surface: refused configuration, `host.wrapFetch`, `keyPrefix`, endpoint derivation, signal and
  * timeout bounds, and the share-capability delegation to the publish target.
