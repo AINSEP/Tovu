@@ -392,3 +392,85 @@ test("DELETE page: req.params.workspaceId is likewise always populated by Expres
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
+
+test("DELETE post: req.params.workspaceId / postId fallbacks (direct invoke past Express's routing contract) 404 the workspace, then 404 ENTRY_NOT_FOUND for the empty id", async () => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/posts/:postId");
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {}, get: () => undefined }, noWorkspace.res);
+  assert.equal(noWorkspace.capture.statusCode, 404);
+  assert.deepEqual(noWorkspace.capture.jsonBody, { error: "workspace was not found" });
+
+  const noPostId = createCapturingResponse();
+  noPostId.res.locals.principal = ownerPrincipal;
+  await handler({ params: { workspaceId: WS }, get: () => undefined }, noPostId.res);
+  assert.equal(noPostId.capture.statusCode, 404);
+  assert.equal((noPostId.capture.jsonBody as { code: string }).code, "ENTRY_NOT_FOUND");
+});
+
+test("DELETE post: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND", async (t) => {
+  const { baseUrl, cookie } = await startServerWithDeps(t);
+  const first = await createRow(baseUrl, cookie, "posts", { title: "Delete once" });
+  const second = await createRow(baseUrl, cookie, "posts", { title: "Delete twice" });
+  const headers = { cookie, "Idempotency-Key": "post-delete-idempotency-retry" };
+
+  const ok = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${first.id}`, { method: "DELETE", headers });
+  assert.equal(ok.status, 200);
+  const replay = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${second.id}`, { method: "DELETE", headers });
+  assert.equal(replay.status, 409);
+  const body = (await replay.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.ok(body.changeSetId);
+  const untouched = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${second.id}`, { headers: { cookie } });
+  assert.equal(untouched.status, 200, "the replayed key must not have trashed the second post");
+});
+
+test("DELETE post: losing the trash compare-and-set (the row moved mid-delete) is a 409 ENTRY_CONFLICT", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { id } = await createRow(baseUrl, cookie, "posts", { title: "Moving target" });
+  deps.removePost = async () => ({ ok: false, reason: "version-conflict" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/${id}`, { method: "DELETE", headers: { cookie } });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: `post '${id}' changed while it was being deleted`, code: "ENTRY_CONFLICT" });
+});
+
+test("DELETE post: when the row was invisible to captureInverse but present for the delete (a create racing in between), a failed change-set record cannot compensate and surfaces as a 500", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Racing row", slug: "racing-row" }),
+  });
+  assert.equal(created.status, 201);
+  const { post } = (await created.json()) as { post: { id: string } };
+
+  // Addressed by SLUG, so the route's up-front resolve reads `findBySlug`; the first `findById` is
+  // therefore captureInverse's own read, which this hides, and the second is deletePost's.
+  const realFindById = deps.postRepo.findById.bind(deps.postRepo);
+  let findByIdCalls = 0;
+  deps.postRepo.findById = async (input) => (++findByIdCalls === 1 ? null : realFindById(input));
+  deps.changeSets.insert = async () => {
+    throw new Error("change-set store unavailable");
+  };
+  let restoreAttempted = false;
+  const realForget = deps.forgetRemovedPost;
+  deps.forgetRemovedPost = async (...args) => {
+    restoreAttempted = true;
+    return realForget(...args);
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/racing-row`, { method: "DELETE", headers: { cookie } });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+  assert.equal(restoreAttempted, false, "with no captured prior row, rollback must not fabricate a restore");
+  const stored = await realFindById({ workspaceId: WS, id: post.id });
+  assert.ok(stored?.deletedAt, "the uncompensated trash marker is left in place, not silently undone");
+});

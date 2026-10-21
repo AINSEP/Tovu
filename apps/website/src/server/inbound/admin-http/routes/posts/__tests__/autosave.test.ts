@@ -9,6 +9,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { PostAutosaveSnapshot } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
+import { lastRouteHandler } from "./route-handler.js";
 
 /**
  * @file HTTP surface for standing-draft autosave (2026-09-06 dispatch) — PUT/GET/DELETE
@@ -405,16 +406,6 @@ test("an unknown post id/slug falls back to the raw URL segment: PUT reports app
   assert.deepEqual(await del.json(), { ok: true });
   assert.equal(await deps.postRepo.readAutosave({ workspaceId: WS, id: "no-such-post" }), null);
 });
-
-/** The route's own handler (not `rejectOversizedJsonBody`, which precedes it on PUT) — the LAST
- *  layer of the registered route, pulled straight off Express's router stack the same way
- *  `extractRouteHandler` (`helpers/http-test-server.ts`) does for single-handler routes. */
-function lastRouteHandler(app: unknown, method: "get" | "put" | "delete", path: string): (req: unknown, res: unknown) => Promise<unknown> {
-  const stack = (app as { _router: { stack: Array<{ route?: { path: string; methods: Record<string, boolean>; stack: Array<{ handle: (req: unknown, res: unknown) => Promise<unknown> }> } }> } })._router.stack;
-  const layer = stack.find((l) => l.route?.path === path && l.route.methods[method]);
-  assert.ok(layer?.route, `no ${method} route for ${path}`);
-  return layer.route.stack[layer.route.stack.length - 1].handle;
-}
 
 /** Express guarantees matched `:workspaceId`/`:postId` segments and body-parser always assigns
  *  `req.body`, so each handler's `?? ""`/`?? {}` fallback is only reachable via a hand-built `req`
