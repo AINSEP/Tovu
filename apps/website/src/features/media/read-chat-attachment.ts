@@ -89,7 +89,8 @@
  *    name a file directly inside the upload root.
  * 4. the file itself must pass `isUnchangedAttachment`: a regular non-symlink file whose `realpath`
  *    equals its own path (so neither it nor any parent directory became a symlink after
- *    registration) and whose `dev`/`ino`/`size` still match what was recorded.
+ *    registration) and whose `dev`/`ino`/`size` and recorded `mtimeMs`/`ctimeMs` still match.
+ *    Legacy sidecars may omit timestamps, matching the store's compatibility contract.
  * 5. bytes come from one opened descriptor, with `O_NOFOLLOW` where supported. Its `fstat`
  *    identity must match the validated file before reading, so a later path swap cannot redirect
  *    the read. The descriptor is closed on success, refusal, or read failure.
@@ -125,12 +126,14 @@ interface SidecarRecord {
   readonly batchId: string;
   readonly dev: number;
   readonly ino: number;
+  readonly mtimeMs?: number;
+  readonly ctimeMs?: number;
   readonly ownerId?: string;
 }
 
 /** The attachment's metadata and bytes must come from the same opened descriptor. */
 interface ChatAttachmentReadHandle {
-  stat(): Promise<Pick<Stats, "isFile" | "dev" | "ino" | "size">>;
+  stat(): Promise<Pick<Stats, "isFile" | "dev" | "ino" | "size" | "mtimeMs" | "ctimeMs">>;
   readFile(): Promise<Buffer>;
   close(): Promise<void>;
 }
@@ -164,15 +167,19 @@ export function chatAttachmentSidecarFileName(ref: string): string {
   return `${ref.replaceAll(/[^a-zA-Z0-9-]/gu, "_")}.json`;
 }
 
-function hasSidecarFieldTypes(candidate: Record<string, unknown>): boolean {
-  return Object.entries(SIDECAR_FIELD_TYPES).every(([field, type]) => typeof candidate[field] === type);
+/** Validates required field types and optional legacy timestamps. Pure, O(1) time/space. */
+function hasSidecarFieldTypes({ candidate }: { candidate: Record<string, unknown> }, _options = {}): boolean {
+  return Object.entries(SIDECAR_FIELD_TYPES).every(([field, type]) => typeof candidate[field] === type)
+    && ["mtimeMs", "ctimeMs"].every(field => candidate[field] === undefined || typeof candidate[field] === "number");
 }
 
-/** `true` when `raw` is shaped like a record `persistRecord` wrote. */
+/** `true` when `raw` has the writer's required fields and optional legacy timestamps.
+ * Pure, O(1) time/space; malformed fields return `false`.
+ */
 export function isChatAttachmentSidecarShape(raw: unknown): raw is SidecarRecord & Record<string, unknown> {
   if (typeof raw !== "object" || raw === null) return false;
   const candidate = raw as Record<string, unknown>;
-  if (!hasSidecarFieldTypes(candidate)) return false;
+  if (!hasSidecarFieldTypes({ candidate })) return false;
   return candidate.ownerId === undefined || typeof candidate.ownerId === "string";
 }
 
@@ -214,10 +221,13 @@ async function loadSidecar(
   return { record: raw, filePath };
 }
 
-/** The file's current identity, or `undefined` when it is gone or cannot be canonicalized. */
+/** Observes one path's identity, including timestamps for Jini's shared integrity gate.
+ * Returns `undefined` when the file is gone or cannot be canonicalized; never writes.
+ * @complexity O(1) metadata space and two filesystem calls for one path.
+ */
 async function observeAttachment(
-  filePath: string
-): Promise<{ isRegularFile: boolean; dev: number; ino: number; size: number; canonicalPath: string } | undefined> {
+  { filePath }: { filePath: string }, _options = {},
+): Promise<(Pick<Stats, "dev" | "ino" | "size" | "mtimeMs" | "ctimeMs"> & { isRegularFile: boolean; canonicalPath: string }) | undefined> {
   try {
     const info = await lstat(filePath);
     // `lstat`, never `stat`: a symlink must be SEEN as a symlink rather than followed. `isFile()`
@@ -233,6 +243,8 @@ async function observeAttachment(
       dev: info.dev,
       ino: info.ino,
       size: info.size,
+      mtimeMs: info.mtimeMs,
+      ctimeMs: info.ctimeMs,
       // `realpath` resolves every parent component too, so a batch directory swapped for a symlink
       // after registration produces a canonical path that no longer equals `filePath`.
       canonicalPath: await realpath(filePath),
@@ -279,13 +291,15 @@ function exceedsPreviewCap({ size, maxBytes }: { size: number; maxBytes?: number
 
 /** Validates the path, then checks and reads one descriptor. Open/identity failures refuse;
  * stat/read/close faults propagate. The handle is closed even when reading fails.
+ * Both observations carry timestamps so Jini can reject same-size rewrites, including
+ * changes between path validation and open. Legacy records still get the descriptor check.
  * @complexity O(n) time/space for n attachment bytes, bounded by upload/preview limits.
  */
 async function readUnchangedAttachment(
   loaded: { record: SidecarRecord; filePath: string },
   { openFile = open }: { openFile?: OpenAttachmentFile } = {},
 ): Promise<ChatAttachmentReadResult> {
-  const observed = await observeAttachment(loaded.filePath);
+  const observed = await observeAttachment({ filePath: loaded.filePath });
   if (observed === undefined) return refuse("integrity");
   if (!isUnchangedAttachment({ recorded: { ...loaded.record, filePath: loaded.filePath }, observed })) return refuse("integrity");
 
@@ -297,11 +311,13 @@ async function readUnchangedAttachment(
   }
   try {
     const info = await handle.stat();
+    const opened = { isRegularFile: info.isFile(), dev: info.dev, ino: info.ino, size: info.size,
+      mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, canonicalPath: observed.canonicalPath };
     // A pathname can change after validation; compare the opened object to that validated identity
     // through the shared Jini gate, then read only this handle, never the pathname again.
     if (!isUnchangedAttachment({
       recorded: { ...observed, filePath: loaded.filePath },
-      observed: { isRegularFile: info.isFile(), dev: info.dev, ino: info.ino, size: info.size, canonicalPath: observed.canonicalPath },
+      observed: opened,
     })) return refuse("integrity");
     const bytes = await handle.readFile();
     return bytes.length === observed.size ? { ok: true, bytes } : refuse("integrity");
@@ -312,7 +328,7 @@ async function readUnchangedAttachment(
 
 /**
  * The bytes of the chat attachment `ref` names, if and only if `ownerId` is the principal the store
- * recorded for it and the file retains its registered identity and size.
+ * recorded for it and the file retains its registered identity, size and recorded timestamps.
  *
  * Non-mutating: nothing here claims, deletes, or otherwise changes store state, so previewing an
  * attachment cannot consume it (see this file's header for why that rules out `resolveForRun`).

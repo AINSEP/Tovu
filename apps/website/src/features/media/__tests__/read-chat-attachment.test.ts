@@ -86,6 +86,8 @@ async function writeSidecar(
     batchId: BATCH,
     dev: info.dev,
     ino: info.ino,
+    mtimeMs: info.mtimeMs,
+    ctimeMs: info.ctimeMs,
     createdAt: Date.now(),
     ownerId: OWNER,
     ...overrides,
@@ -117,6 +119,33 @@ test("read-chat-attachment: the recorded owner gets the exact bytes on disk", as
   assert.ok(result.ok);
   assert.deepEqual(new Uint8Array(result.bytes), BYTES);
 });
+
+test("read-chat-attachment: legacy sidecars without timestamps remain readable without mutation", async (t) => {
+  const staged = await stage(t);
+  await writeSidecar(staged, { mtimeMs: undefined, ctimeMs: undefined });
+  const sidecarPath = resolve(staged.sidecarDirectory, chatAttachmentSidecarFileName(REF));
+  const before = await readFile(sidecarPath, "utf8");
+
+  assert.deepEqual(await read(staged), { ok: true, bytes: Buffer.from(BYTES) });
+  assert.equal(await readFile(sidecarPath, "utf8"), before);
+});
+
+for (const timestamp of ["mtimeMs", "ctimeMs"] as const) {
+  test(`read-chat-attachment: a changed ${timestamp} with matching device, inode and size is refused before open`, async (t) => {
+    const staged = await stage(t);
+    const info = await lstat(staged.filePath);
+    await writeSidecar(staged, { [timestamp]: info[timestamp] - 1000 });
+    let opened = false;
+
+    const result = await readChatAttachmentForOwner({
+      uploadDirectory: staged.uploadDirectory,
+      openFile: async (filePath, flags) => { opened = true; return open(filePath, flags); },
+    }, { ref: REF, ownerId: OWNER });
+
+    assert.deepEqual(result, { ok: false, refusal: "integrity" });
+    assert.equal(opened, false);
+  });
+}
 
 test("read-chat-attachment: a DIFFERENT principal is refused their peer's attachment", async (t) => {
   const staged = await stage(t);
@@ -231,6 +260,12 @@ test("read-chat-attachment: the shape check rejects a non-object, a wrong field 
   assert.equal(isChatAttachmentSidecarShape({ ...valid, ownerId: "who" }), true);
   assert.equal(isChatAttachmentSidecarShape({ ...valid, ownerId: 7 }), false);
   assert.equal(isChatAttachmentSidecarShape({ ...valid, size: "1" }), false);
+  assert.equal(isChatAttachmentSidecarShape({ ...valid, mtimeMs: 1, ctimeMs: 2 }), true);
+  for (const timestamp of ["mtimeMs", "ctimeMs"]) {
+    for (const malformed of ["1", null, {}]) {
+      assert.equal(isChatAttachmentSidecarShape({ ...valid, [timestamp]: malformed }), false);
+    }
+  }
   assert.equal(isChatAttachmentSidecarShape(null), false);
   assert.equal(isChatAttachmentSidecarShape("a string"), false);
 });
@@ -334,6 +369,8 @@ test("read-chat-attachment: changed descriptor identity is refused before readin
     { dev: validated.dev + 1 },
     { ino: validated.ino + 1 },
     { size: validated.size + 1 },
+    { mtimeMs: validated.mtimeMs + 1000 },
+    { ctimeMs: validated.ctimeMs + 1000 },
     { isFile: () => false },
   ]) {
     const calls: string[] = [];

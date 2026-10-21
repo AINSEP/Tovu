@@ -93,8 +93,8 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const output = result.value.result.output as { attachments: { attachmentRef: string }[] };
     assert.deepEqual(output.attachments.map(item => item.attachmentRef), [video.path]);
     const read = await readChatAttachmentForOwner({ uploadDirectory: root }, { ref: output.attachments[0]!.attachmentRef, ownerId: context.principalId });
-    assert.equal(read.ok, true, "the discovered opaque ref must pass the video tool's actual owner-scoped reader");
-    if (read.ok) assert.deepEqual(Uint8Array.from(read.bytes), bytes);
+    assert.deepEqual(read, { ok: true, bytes: Buffer.from(bytes) },
+      "the discovered opaque ref must pass the video tool's actual owner-scoped reader and return the accepted bytes");
     assert.equal((await readChatAttachmentForOwner({ uploadDirectory: root }, { ref: otherOwner.path, ownerId: context.principalId })).ok, false);
 
     // Unknown bindings fail closed even while this owner has other pending uploads.
