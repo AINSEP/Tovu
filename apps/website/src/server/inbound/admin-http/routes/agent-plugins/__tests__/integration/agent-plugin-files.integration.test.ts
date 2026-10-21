@@ -14,7 +14,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../../../../../features/agent-plugins/lifecycle.js";
@@ -172,4 +172,41 @@ test("AGENT_PLUGIN_FILES: layout I/O failure returns a fixed error without discl
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
   assert.equal(fault.mock.callCount(), 1);
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` / `String(req.params.pluginId ?? "")` (extractRouteHandler's own
+ * doc, `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always populated, so the
+ * right side of every `??` below is unreachable through any real HTTP request. Restored 2026-09-03 after
+ * being wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard
+ * and exercise it with a hand-built `req` that deliberately violates that contract.
+ */
+const FILES_ROUTE = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files";
+
+test("AGENT_PLUGIN_FILES: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is the workspace 404", async () => {
+  const handler = extractRouteHandler(buildTestApp(), "get", FILES_ROUTE);
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: { pluginId: PLUGIN_ID } }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+});
+
+test("AGENT_PLUGIN_FILES: `req.params.pluginId ?? \"\"` fallback, forced via a direct handler call past auth, matches no installed plugin", async () => {
+  await withSwitchedOffPlugin(async () => {
+    const baseDeps = createRouteDeps();
+    await baseDeps.identityReady;
+    const ownerUser = await baseDeps.userRepo.findByUsername({ workspaceId: baseDeps.workspaceId, username: "admin" });
+    assert.ok(ownerUser, "expected the seeded admin user");
+    const ownerPrincipal = await baseDeps.principalRepo.findById({ workspaceId: baseDeps.workspaceId, id: ownerUser.principalId });
+    assert.ok(ownerPrincipal, "expected the seeded admin principal");
+    const handler = extractRouteHandler(buildTestApp(baseDeps), "get", FILES_ROUTE);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = ownerPrincipal;
+
+    await handler({ params: { workspaceId: WORKSPACE } }, res);
+
+    // The installed `` package is present, yet the empty id selects none of it.
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" } });
+  });
 });
