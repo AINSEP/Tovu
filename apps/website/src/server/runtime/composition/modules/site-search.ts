@@ -91,6 +91,8 @@ export interface SiteSearchPorts {
   readonly httpClient: HttpClientPort;
   /** Plugin-contributed vendor providers (`loadSearchProviderContributions` in production). */
   loadPluginProviders(): Promise<LoadedSearchProviders>;
+  /** Whether a plugin is STILL active, from its durable activation record (re-read per call; fail closed). */
+  isPluginActive(required: { readonly pluginId: string }): Promise<boolean>;
   /** A viewer's audiences from their member session cookie; `[]` for an anonymous viewer. */
   audiencesForSession(required: { readonly sessionToken?: string }): Promise<readonly string[]>;
   readProviderSetting(): Promise<string>;
@@ -162,7 +164,7 @@ function pickCredentials(provider: SearchProvider, saved: SearchVaultCredential)
  * @complexity At most one vault read per call; the install id is read once per resolver.
  */
 export function createSearchContextResolver(
-  required: Pick<SiteSearchPorts, "installId" | "resolveCredential" | "httpClient" | "now"> & { readonly registry: SearchProviderRegistry; readonly log: (message: string) => void },
+  required: Pick<SiteSearchPorts, "installId" | "resolveCredential" | "httpClient" | "now" | "isPluginActive"> & { readonly registry: SearchProviderRegistry; readonly log: (message: string) => void },
   optional: { readonly storage?: unknown; readonly timeoutMs?: number } = {},
 ): (input: { readonly target: SearchTarget; readonly workspaceId: string }) => Promise<SearchProviderContext | null> {
   const { registry, log } = required;
@@ -199,9 +201,31 @@ export function createSearchContextResolver(
     return picked;
   };
 
+  // Plugins whose provider was found disabled; only the transition is logged, not every call.
+  const revoked = new Set<string>();
+  /**
+   * A plugin's provider is usable only while the plugin is STILL active. Boot loading checked
+   * activation once; the registry caches the provider for the process lifetime, so without this
+   * recheck a plugin disabled afterwards would keep receiving vendor queries and content uploads.
+   * Every provider call (query, write, reconcile, drop) resolves its context here first, so a
+   * disabled plugin's provider is revoked at its very next use, and restored if it is re-enabled.
+   */
+  const pluginStillActive = async (pluginId: string | undefined): Promise<boolean> => {
+    if (pluginId === undefined) return true;
+    const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
+      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText(error)}); its search provider is not used`);
+      return false;
+    });
+    if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
+    if (active) revoked.delete(pluginId);
+    else revoked.add(pluginId);
+    return active;
+  };
+
   return async ({ target, workspaceId }) => {
-    const provider = registry.get({ id: target.providerId })?.provider;
-    if (!provider) return null;
+    const registered = registry.get({ id: target.providerId });
+    if (!registered || !(await pluginStillActive(registered.pluginId))) return null;
+    const { provider } = registered;
     const credentials = await credentialsFor(provider);
     if (credentials === null) return null;
     const id = await readInstallId();
@@ -396,6 +420,8 @@ export interface SiteSearchBindings {
   resolveMemberContext(required: { readonly workspaceId: string; readonly sessionToken?: string; readonly nowIso: string }): Promise<MemberContext>;
   readonly httpClient: HttpClientPort;
   readonly loadContributions: LoadPluginContributions;
+  /** The durable, fail-closed activation read (`resolveAgentPluginActivation(...).verdict === "active"`). */
+  isPluginActive(required: { readonly pluginId: string }): Promise<boolean>;
 }
 
 /**
@@ -421,6 +447,7 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
     },
     httpClient: required.httpClient,
     loadPluginProviders: () => loadSearchProviderContributions({ workspaceId }, { loadContributions: required.loadContributions }),
+    isPluginActive: input => required.isPluginActive(input),
     audiencesForSession: async ({ sessionToken }) => memberSearchAudiences({
       context: await required.resolveMemberContext({ workspaceId, nowIso: new Date(now()).toISOString(), ...(sessionToken === undefined ? {} : { sessionToken }) }),
     }),

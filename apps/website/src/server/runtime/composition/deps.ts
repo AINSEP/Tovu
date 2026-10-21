@@ -2731,6 +2731,8 @@ async function composeSiteRouteDeps(
     }).resolveContext(input),
     httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     loadContributions: agentPluginLifecycle.loadPluginContributions,
+    // Fail closed: an unreadable activations file is `undetermined`, never active.
+    isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
   }), { storage: kernel, settingsReady: siteTitleReady });
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);

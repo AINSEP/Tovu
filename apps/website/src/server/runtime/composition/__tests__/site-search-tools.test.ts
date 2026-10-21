@@ -42,7 +42,7 @@ function harness(options: { deny?: boolean } = {}): Harness {
     workspaceId: WS, siteId: WS, sources: [], indexState: state.indexState, targets: state.targets,
     access: createStaticAccessPort({ visible: [] }), installId: async () => "inst", resolveCredential: async () => null,
     httpClient: { send: async () => ({}) as HttpResponse }, loadPluginProviders: async () => ({ items: [], refusals: [] }),
-    audiencesForSession: async () => [], readProviderSetting: async () => "builtin",
+    isPluginActive: async () => true, audiencesForSession: async () => [], readProviderSetting: async () => "builtin",
     writeProviderSetting: async input => { writes.push(input); }, now: () => 0,
   }, { builtinProvider: createInMemorySearchProvider({}, { id: "builtin", label: "Built-in", acceptsRestricted: true }), log: () => undefined });
   const permissions: string[] = [];

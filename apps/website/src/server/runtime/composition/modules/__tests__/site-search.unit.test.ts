@@ -67,6 +67,7 @@ function harness(overrides: Partial<SiteSearchPorts> = {}, options: { active?: {
     resolveCredential: async ({ label }) => { credentialLabels.push(label); return null; },
     httpClient: { send: async (request: HttpRequest): Promise<HttpResponse> => { sent.push(request); return { status: 204, headers: {}, body: new Uint8Array() } as unknown as HttpResponse; } },
     loadPluginProviders: async () => ({ items: [], refusals: [] }),
+    isPluginActive: async () => true,
     audiencesForSession: async ({ sessionToken }) => (sessionToken ? ["members"] : []),
     readProviderSetting: async () => "builtin",
     writeProviderSetting: async () => undefined,
@@ -240,6 +241,56 @@ test("a vendor without a saved credential is not configured; a saved one supplie
   await runtime2.ready;
   await runtime2.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } });
   assert.deepEqual(hostOnly.contexts[0]!.credentials, { host: "https://meili.example" }, "never more than declared");
+});
+
+test("a plugin provider disabled after boot is revoked at its next use, restored when re-enabled; an unreadable activation fails closed", async () => {
+  const saved = { baseUrl: "https://meili.example", token: "key-123" };
+  let activation: boolean | Error = true;
+  const checked: string[] = [];
+  const isPluginActive = async ({ pluginId }: { pluginId: string }) => {
+    checked.push(pluginId);
+    if (activation instanceof Error) throw activation;
+    return activation;
+  };
+  const h = harness({ resolveCredential: async () => saved, isPluginActive }, { active: { providerId: "vendor" } });
+  const { provider, contexts } = capturing(vendor());
+  const writes: string[] = [];
+  const tracked: SearchProvider = { ...provider, remove: (ctx, required) => { writes.push(required.tombstones[0]!.key.documentId); return provider.remove(ctx, required); } };
+  const runtime = runtimeOf({ ...h, ports: { ...h.ports, loadPluginProviders: async () => loaded({ id: "vendor", pluginId: "meili", provider: tracked }) } });
+  await runtime.ready;
+  assert.equal((await runtime.indexer.backfill({ siteId: WS, workspaceId: WS })).done, true);
+  const query = () => runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } });
+  const publish = (id: string) => runtime.indexer.handleEvent({ event: { name: "entry.published", workspaceId: WS, occurredAt: new Date(NOW).toISOString(), aggregateId: id } });
+  assert.equal((await query()).status, "ok");
+  await publish("gone-1");
+  assert.deepEqual([contexts.length, writes], [1, ["gone-1"]]);
+
+  activation = false;
+  assert.deepEqual(await query(), { status: "unavailable", reason: "not_configured" });
+  await publish("gone-2");
+  assert.deepEqual([contexts.length, writes], [1, ["gone-1"]], "no vendor query and no content upload once the plugin is disabled");
+  assert.deepEqual(h.logs.filter(line => line.includes("plugin 'meili'")), ["[site-search] plugin 'meili' is no longer active; its search provider is revoked"], "the revocation is logged once");
+
+  activation = true;
+  assert.equal((await query()).status, "ok");
+  assert.equal(contexts.length, 2);
+  assert.equal(h.logs.at(-1), "[site-search] plugin 'meili' is active again; its search provider is restored");
+
+  activation = new Error("activations.json is corrupt");
+  assert.deepEqual(await query(), { status: "unavailable", reason: "not_configured" });
+  assert.equal(contexts.length, 2);
+  assert.ok(h.logs.some(line => line.includes("the activation of plugin 'meili' could not be read (activations.json is corrupt)")));
+  assert.ok(checked.every(id => id === "meili") && checked.length >= 6, "re-read on every provider use");
+});
+
+test("a core (built-in) provider never consults plugin activation", async () => {
+  let consulted = 0;
+  const h = harness({ isPluginActive: async () => { consulted += 1; return false; } }, { active: { providerId: "builtin" } });
+  const runtime = runtimeOf(h, { builtinProvider: createInMemorySearchProvider({}, { id: "builtin", label: "Built-in", acceptsRestricted: true }) });
+  await runtime.ready;
+  assert.equal((await runtime.indexer.backfill({ siteId: WS, workspaceId: WS })).written, 2);
+  assert.equal((await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } })).status, "ok");
+  assert.equal(consulted, 0);
 });
 
 test("an unreadable credential and an unsupported credential key are logged and leave the vendor unconfigured", async () => {
@@ -466,7 +517,10 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
     },
     httpClient,
     loadContributions: (async (input: unknown) => { contributionCalls.push(input); return { items: [], refusals: [] }; }) as unknown as LoadPluginContributions,
+    isPluginActive: async ({ pluginId }) => pluginId === "meilisearch",
   });
+  assert.equal(await ports.isPluginActive({ pluginId: "meilisearch" }), true);
+  assert.equal(await ports.isPluginActive({ pluginId: "other" }), false);
   assert.equal(ports.siteId, WS, "v1: the workspace id is the site id");
   assert.equal(ports.workspaceId, WS);
   assert.deepEqual(ports.sources.map(s => s.collection), ["post", "page"]);
