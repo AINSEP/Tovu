@@ -48,7 +48,8 @@ export interface GoLiveCandidatesPort {
 export function wentLiveSinceSave(required: { post: PostRecord; nowIso: string }, _optional: Record<string, never> = {}): boolean {
   const { post, nowIso } = required;
   const { publishAt } = post;
-  return post.status === "published" && !isTrashed(post) && typeof publishAt === "string" && publishAt > post.updatedAt && publishAt <= nowIso;
+  if (post.status !== "published" || isTrashed(post) || typeof publishAt !== "string") return false;
+  return publishAt > post.updatedAt && publishAt <= nowIso;
 }
 
 /** The `entry.published` a scheduled row emits when it goes live; `occurredAt` is the go-live
