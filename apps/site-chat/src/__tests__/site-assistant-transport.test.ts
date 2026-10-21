@@ -13,14 +13,15 @@ import { createSiteAssistantTransport } from "../site-assistant-transport";
  * through the public `ChatTransport` surface with `globalThis.fetch` stubbed per test (save/restore,
  * matching `remixicon-override.test.ts`'s pattern) rather than reaching into internals.
  *
- * One documented finding, not exercised here: `priorTurnsBeforeLatestUserMessage`'s post-loop
- * `return history;` fallback (no `role === "user"` entry found) is unreachable through this public
- * API. `startRun` calls `latestUserPromptFromHistory(input.history)` first and throws before
+ * One documented finding, since resolved: `priorTurnsBeforeLatestUserMessage`'s post-loop
+ * `return history;` fallback (no `role === "user"` entry found) was unreachable through this public
+ * API, and was removed in favour of a stated precondition (see that function). `startRun` calls `latestUserPromptFromHistory(input.history)` first and throws before
  * `boundHistoryForRequest` ever runs if it finds no user turn — and that helper scans for the exact
  * same condition (last `role === "user"` entry, from the end) `priorTurnsBeforeLatestUserMessage`
  * scans for, over the same unmutated array. Reaching the fallback would require history to contain a
- * user turn for the first scan and not for the second, which is impossible for the same input. Not
- * deleted here per the coverage-triage rule (report, don't delete without sign-off).
+ * user turn for the first scan and not for the second, which is impossible for the same input.
+ * Removed in the T2 coverage wave under the owner's standing rule for unreachable code (remove in a
+ * behaviour-preserving refactor and list it).
  */
 
 const CHAT_URL = "/api/site-assistant/chat";
@@ -641,5 +642,31 @@ describe("createSiteAssistantTransport", () => {
     it("is a no-op for an unknown or already-finished runId", async () => {
       await assert.doesNotReject(() => transport.stopRun("never-started"));
     });
+  });
+});
+
+describe("history scanning when the latest user turn is not the last entry", () => {
+  it("sends the latest user turn as the message and only the turns before it as history", async () => {
+    let capturedBody: { message: string; history: { role: string; content: string }[] } | undefined;
+    const transport = createSiteAssistantTransport({}, {
+      fetch: (async (_url: string, init: RequestInit) => {
+        capturedBody = JSON.parse(init.body as string);
+        return streamResponse([sseFrame("end", { reason: "stop" })]);
+      }) as typeof fetch,
+    });
+    const history: ChatMessage[] = [
+      userMessage("first question"),
+      { id: "a1", role: "assistant", content: "first answer" },
+      userMessage("second question"),
+      { id: "a2", role: "assistant", content: "partial reply still streaming" },
+    ];
+    const { handlers, donePromise } = makeHandlers();
+    await transport.startRun(baseInput(history), handlers);
+    await donePromise;
+    assert.equal(capturedBody?.message, "second question");
+    assert.deepEqual(capturedBody?.history, [
+      { role: "user", content: "first question" },
+      { role: "assistant", content: "first answer" },
+    ]);
   });
 });
