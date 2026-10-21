@@ -258,7 +258,8 @@ test("discovery retains a device endpoint and refuses an unsafe advertised devic
   for (const deviceEndpoint of [`${origin}/device`, "https://169.254.169.254/device"]) {
     const fetchFn: typeof fetch = async (url) => new Response(JSON.stringify(
       String(url).includes("oauth-protected-resource")
-        ? { authorization_servers: [origin] }
+        // why: RFC 9728 §3.3 `resource` is required since Jini rebased discovery on openid-client (b0853b6d).
+        ? { resource: `${origin}/mcp`, authorization_servers: [origin] }
         : { issuer: origin, token_endpoint: `${origin}/token`, device_authorization_endpoint: deviceEndpoint },
     ));
     if (deviceEndpoint.startsWith(origin)) {
@@ -363,7 +364,8 @@ test("the bare protected-resource path is a FALLBACK, tried only after the path-
     const path = (req.url ?? "/").split("?")[0] ?? "/";
     seen.push(path);
     if (path === "/.well-known/oauth-protected-resource") {
-      sendJson(res, 200, { authorization_servers: [], scopes_supported: ["email"] });
+      // why: RFC 9728 §3.3 `resource` is required since Jini rebased discovery on openid-client (b0853b6d).
+      sendJson(res, 200, { resource: `${origin}/mcp`, authorization_servers: [], scopes_supported: ["email"] });
       return;
     }
     if (path === "/.well-known/oauth-authorization-server") {
@@ -475,7 +477,9 @@ test("when EVERY advertised authorization server fails, the error names the reso
   const fixture = await startDiscoveryFixture({
     deadAuthorizationServers: [dead.origin],
     // The fixture's own well-known AS path is removed, so both candidates fail.
-    metadata: { issuer: null, token_endpoint: null, authorization_endpoint: null, registration_endpoint: null },
+    // why: keeps `issuer` — an issuer-less RFC 8414 document is now a terminal malformed response
+    // (openid-client), not a skipped candidate; the missing token endpoint still makes it unusable.
+    metadata: { token_endpoint: null, authorization_endpoint: null, registration_endpoint: null },
   });
   try {
     const error = await assertOAuthRejects(
