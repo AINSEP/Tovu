@@ -1367,6 +1367,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    removed once already (commit `09923d75`, reverting a DIFFERENT feature that also depended on it)
    and had to be restored for this one. */
 .admin-main-col { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+/* `ScrollJumpButtons` (@jini-ai/ui) sits in this column's bottom-right, stacked just above the
+   assistant FAB's resting spot and centred on it, so neither covers the other. */
+.admin-main-col {
+  --jini-scroll-jump-right: calc(var(--admin-chat-fab-inset, 20px) + (var(--admin-chat-fab-size, 56px) - 32px) / 2);
+  --jini-scroll-jump-bottom: calc(var(--admin-chat-fab-inset, 20px) + var(--admin-chat-fab-size, 56px) + 12px + env(safe-area-inset-bottom, 0px));
+}
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 /* The page's REAL width, as a named size container (2026-10-11, owner: "horrendous" with the side
    nav expanded and the dock open). Page layouts used to key their breakpoints on the VIEWPORT, but

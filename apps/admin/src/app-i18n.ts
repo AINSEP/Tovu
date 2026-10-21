@@ -22,6 +22,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const APP_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Scroll to top": "Ir al principio", "Scroll to bottom": "Ir al final",
     Assistant: "Asistente", "Loading Tovu…": "Cargando Tovu…", "Skip to content": "Saltar al contenido", "Close navigation": "Cerrar navegación", "Open navigation": "Abrir navegación",
     "Log out?": "¿Cerrar sesión?",
     "Are you sure you want to log out?": "¿Seguro que quieres cerrar sesión?",
@@ -29,6 +30,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Pide acceso al propietario del sitio si necesitas esta sección.",
   },
   id: {
+    "Scroll to top": "Gulir ke atas", "Scroll to bottom": "Gulir ke bawah",
     Assistant: "Asisten", "Loading Tovu…": "Memuat Tovu…", "Skip to content": "Lewati ke konten", "Close navigation": "Tutup navigasi", "Open navigation": "Buka navigasi",
     "Log out?": "Keluar?",
     "Are you sure you want to log out?": "Yakin ingin keluar?",
@@ -36,6 +38,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Minta akses kepada pemilik situs jika Anda memerlukan bagian ini.",
   },
   de: {
+    "Scroll to top": "Nach oben scrollen", "Scroll to bottom": "Nach unten scrollen",
     Assistant: "Assistent", "Loading Tovu…": "Tovu wird geladen…", "Skip to content": "Zum Inhalt springen", "Close navigation": "Navigation schließen", "Open navigation": "Navigation öffnen",
     "Log out?": "Abmelden?",
     "Are you sure you want to log out?": "Möchten Sie sich wirklich abmelden?",
@@ -43,6 +46,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Bitten Sie den Websiteinhaber um Zugriff, wenn Sie diesen Bereich benötigen.",
   },
   "zh-CN": {
+    "Scroll to top": "滚动到顶部", "Scroll to bottom": "滚动到底部",
     Assistant: "助手", "Loading Tovu…": "正在加载 Tovu…", "Skip to content": "跳到内容", "Close navigation": "关闭导航", "Open navigation": "打开导航",
     "Log out?": "退出登录?",
     "Are you sure you want to log out?": "确定要退出登录吗?",
@@ -50,6 +54,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "如需使用此部分，请联系网站所有者。",
   },
   "zh-TW": {
+    "Scroll to top": "捲動至頂端", "Scroll to bottom": "捲動至底部",
     Assistant: "助理", "Loading Tovu…": "正在載入 Tovu…", "Skip to content": "跳至內容", "Close navigation": "關閉導覽", "Open navigation": "開啟導覽",
     "Log out?": "登出?",
     "Are you sure you want to log out?": "確定要登出嗎?",
@@ -57,6 +62,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "如需使用此區段，請聯絡網站擁有者。",
   },
   "pt-BR": {
+    "Scroll to top": "Ir para o topo", "Scroll to bottom": "Ir para o final",
     Assistant: "Assistente", "Loading Tovu…": "Carregando Tovu…", "Skip to content": "Ir para o conteúdo", "Close navigation": "Fechar navegação", "Open navigation": "Abrir navegação",
     "Log out?": "Sair?",
     "Are you sure you want to log out?": "Tem certeza de que deseja sair?",
@@ -64,6 +70,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Peça acesso ao proprietário do site se precisar desta seção.",
   },
   ru: {
+    "Scroll to top": "Прокрутить вверх", "Scroll to bottom": "Прокрутить вниз",
     Assistant: "Помощник", "Loading Tovu…": "Загрузка Tovu…", "Skip to content": "Перейти к содержимому", "Close navigation": "Закрыть навигацию", "Open navigation": "Открыть навигацию",
     "Log out?": "Выйти?",
     "Are you sure you want to log out?": "Вы уверены, что хотите выйти?",
@@ -71,6 +78,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Если вам нужен этот раздел, обратитесь к владельцу сайта.",
   },
   fa: {
+    "Scroll to top": "رفتن به بالا", "Scroll to bottom": "رفتن به پایین",
     Assistant: "دستیار", "Loading Tovu…": "در حال بارگیری Tovu…", "Skip to content": "پرش به محتوا", "Close navigation": "بستن ناوبری", "Open navigation": "باز کردن ناوبری",
     "Log out?": "خروج؟",
     "Are you sure you want to log out?": "آیا مطمئن هستید که می‌خواهید خارج شوید؟",
@@ -78,6 +86,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اگر به این بخش نیاز دارید، از مالک سایت دسترسی بخواهید.",
   },
   ar: {
+    "Scroll to top": "التمرير إلى الأعلى", "Scroll to bottom": "التمرير إلى الأسفل",
     Assistant: "المساعد", "Loading Tovu…": "جارٍ تحميل Tovu…", "Skip to content": "انتقل إلى المحتوى", "Close navigation": "إغلاق التنقل", "Open navigation": "فتح التنقل",
     "Log out?": "تسجيل الخروج؟",
     "Are you sure you want to log out?": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
@@ -85,6 +94,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اطلب الوصول من مالك الموقع إذا كنت بحاجة إلى هذا القسم.",
   },
   ja: {
+    "Scroll to top": "一番上へ", "Scroll to bottom": "一番下へ",
     Assistant: "アシスタント", "Loading Tovu…": "Tovu を読み込んでいます…", "Skip to content": "コンテンツに移動", "Close navigation": "ナビゲーションを閉じる", "Open navigation": "ナビゲーションを開く",
     "Log out?": "ログアウトしますか?",
     "Are you sure you want to log out?": "本当にログアウトしますか?",
@@ -92,6 +102,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "このセクションが必要な場合は、サイトのオーナーに依頼してください。",
   },
   ko: {
+    "Scroll to top": "맨 위로", "Scroll to bottom": "맨 아래로",
     Assistant: "도우미", "Loading Tovu…": "Tovu를 불러오는 중…", "Skip to content": "콘텐츠로 건너뛰기", "Close navigation": "탐색 닫기", "Open navigation": "탐색 열기",
     "Log out?": "로그아웃하시겠습니까?",
     "Are you sure you want to log out?": "정말로 로그아웃하시겠습니까?",
@@ -99,6 +110,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "이 섹션이 필요하면 사이트 소유자에게 요청하세요.",
   },
   pl: {
+    "Scroll to top": "Przewiń na górę", "Scroll to bottom": "Przewiń na dół",
     Assistant: "Asystent", "Loading Tovu…": "Ładowanie Tovu…", "Skip to content": "Przejdź do treści", "Close navigation": "Zamknij nawigację", "Open navigation": "Otwórz nawigację",
     "Log out?": "Wylogować się?",
     "Are you sure you want to log out?": "Czy na pewno chcesz się wylogować?",
@@ -106,6 +118,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Jeśli potrzebujesz tej sekcji, poproś o dostęp właściciela witryny.",
   },
   hu: {
+    "Scroll to top": "Ugrás a tetejére", "Scroll to bottom": "Ugrás az aljára",
     Assistant: "Asszisztens", "Loading Tovu…": "Tovu betöltése…", "Skip to content": "Ugrás a tartalomhoz", "Close navigation": "Navigáció bezárása", "Open navigation": "Navigáció megnyitása",
     "Log out?": "Kijelentkezés?",
     "Are you sure you want to log out?": "Biztosan ki szeretne jelentkezni?",
@@ -113,6 +126,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Ha szükséged van erre a részre, kérj hozzáférést a webhely tulajdonosától.",
   },
   fr: {
+    "Scroll to top": "Aller en haut", "Scroll to bottom": "Aller en bas",
     Assistant: "Assistant IA", "Loading Tovu…": "Chargement de Tovu…", "Skip to content": "Aller au contenu", "Close navigation": "Fermer la navigation", "Open navigation": "Ouvrir la navigation",
     "Log out?": "Se déconnecter ?",
     "Are you sure you want to log out?": "Voulez-vous vraiment vous déconnecter ?",
@@ -120,6 +134,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Demandez l'accès au propriétaire du site si vous avez besoin de cette section.",
   },
   uk: {
+    "Scroll to top": "Прокрутити вгору", "Scroll to bottom": "Прокрутити вниз",
     Assistant: "Помічник", "Loading Tovu…": "Завантаження Tovu…", "Skip to content": "Перейти до вмісту", "Close navigation": "Закрити навігацію", "Open navigation": "Відкрити навігацію",
     "Log out?": "Вийти?",
     "Are you sure you want to log out?": "Ви впевнені, що хочете вийти?",
@@ -127,6 +142,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Якщо вам потрібен цей розділ, зверніться до власника сайту.",
   },
   tr: {
+    "Scroll to top": "Başa git", "Scroll to bottom": "Sona git",
     Assistant: "Asistan", "Loading Tovu…": "Tovu yükleniyor…", "Skip to content": "İçeriğe geç", "Close navigation": "Gezinmeyi kapat", "Open navigation": "Gezinmeyi aç",
     "Log out?": "Çıkış yapılsın mı?",
     "Are you sure you want to log out?": "Çıkış yapmak istediğinizden emin misiniz?",
@@ -134,6 +150,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Bu bölüme ihtiyacınız varsa site sahibinden erişim isteyin.",
   },
   th: {
+    "Scroll to top": "เลื่อนไปด้านบนสุด", "Scroll to bottom": "เลื่อนไปด้านล่างสุด",
     Assistant: "ผู้ช่วย", "Loading Tovu…": "กำลังโหลด Tovu…", "Skip to content": "ข้ามไปยังเนื้อหา", "Close navigation": "ปิดการนำทาง", "Open navigation": "เปิดการนำทาง",
     "Log out?": "ออกจากระบบ?",
     "Are you sure you want to log out?": "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?",
@@ -141,6 +158,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "หากต้องการใช้ส่วนนี้ โปรดขอสิทธิ์จากเจ้าของเว็บไซต์",
   },
   it: {
+    "Scroll to top": "Torna su", "Scroll to bottom": "Vai in fondo",
     Assistant: "Assistente", "Loading Tovu…": "Caricamento di Tovu…", "Skip to content": "Vai al contenuto", "Close navigation": "Chiudi navigazione", "Open navigation": "Apri navigazione",
     "Log out?": "Uscire?",
     "Are you sure you want to log out?": "Sei sicuro di voler uscire?",
@@ -148,6 +166,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "Chiedi l'accesso al proprietario del sito se ti serve questa sezione.",
   },
   hi: {
+    "Scroll to top": "ऊपर जाएँ", "Scroll to bottom": "नीचे जाएँ",
     Assistant: "सहायक", "Loading Tovu…": "Tovu लोड हो रहा है…", "Skip to content": "सामग्री पर जाएँ", "Close navigation": "नेविगेशन बंद करें", "Open navigation": "नेविगेशन खोलें",
     "Log out?": "लॉग आउट करें?",
     "Are you sure you want to log out?": "क्या आप वाकई लॉग आउट करना चाहते हैं?",
@@ -155,6 +174,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "यदि आपको इस अनुभाग की आवश्यकता है, तो साइट के स्वामी से पहुँच माँगें।",
   },
   ur: {
+    "Scroll to top": "اوپر جائیں", "Scroll to bottom": "نیچے جائیں",
     Assistant: "معاون", "Loading Tovu…": "Tovu لوڈ ہو رہا ہے…", "Skip to content": "مواد پر جائیں", "Close navigation": "نیویگیشن بند کریں", "Open navigation": "نیویگیشن کھولیں",
     "Log out?": "لاگ آؤٹ کریں؟",
     "Are you sure you want to log out?": "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟",
@@ -162,6 +182,7 @@ const APP_DICT: Record<string, Record<string, string>> = {
     "Ask the site owner if you need this section.": "اگر آپ کو اس حصے کی ضرورت ہے تو سائٹ کے مالک سے رسائی مانگیں۔",
   },
   bn: {
+    "Scroll to top": "উপরে যান", "Scroll to bottom": "নিচে যান",
     Assistant: "সহকারী", "Loading Tovu…": "Tovu লোড হচ্ছে…", "Skip to content": "বিষয়বস্তুতে যান", "Close navigation": "নেভিগেশন বন্ধ করুন", "Open navigation": "নেভিগেশন খুলুন",
     "Log out?": "লগ আউট করবেন?",
     "Are you sure you want to log out?": "আপনি কি নিশ্চিতভাবে লগ আউট করতে চান?",

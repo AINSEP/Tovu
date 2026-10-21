@@ -23,6 +23,7 @@ import { ADMIN_PANELS } from "./panels";
 import { resolvePanelAccessGate, withoutInaccessiblePanels } from "./lib/panel-access";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
+import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useDrawerActiveItemCentring } from "./hooks/use-drawer-active-item-centring.hooks";
@@ -779,6 +780,12 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
             {content}
           </main>
+          {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` offsets it
+              above the assistant FAB. */}
+          <ScrollJumpButtons
+            container={contentEl ?? null}
+            labels={{ toTop: tApp({ locale: navLocale, key: "Scroll to top" }), toBottom: tApp({ locale: navLocale, key: "Scroll to bottom" }) }}
+          />
         </div>
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
             decides, not a ternary here. */}
