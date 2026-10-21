@@ -9,8 +9,13 @@ import { installSiteChatComparisonSend } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
 
 /** Binds the existing product adapters; Jini owns the DOM widget and conversation state. */
-export function createSiteVanillaArgs({ element }: { element: HTMLElement }, options: { document?: Document } = {}) {
+export function createSiteVanillaArgs({ element }: { element: HTMLElement }, options: {
+  document?: Document;
+  /** Full-page navigation for a `navigate` page action; defaults to the page's `location.assign`. */
+  assign?: (input: { path: string }) => void;
+} = {}) {
   const document = options.document ?? window.document;
+  const assign = options.assign ?? (({ path }: { path: string }) => window.location.assign(path));
   const { t } = createSiteChatI18n({ document });
   return { element, document, transport: createSiteAssistantTransport(), agentId: 'site-assistant',
     suggestions: [t('What can I find on this site?'), t('Show me the latest posts')],
@@ -23,7 +28,7 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
       allows: allowsSitePageAction,
       navigate: ({ action }: { action: Extract<PageAction, { type: 'navigate' }> }) => {
         if (!allowsSitePageAction({ action })) return false;
-        window.location.assign(action.target.path); return true;
+        assign({ path: action.target.path }); return true;
       },
       execute: ({ action }: { action: Exclude<PageAction, { type: 'navigate' }> }) => {
         if (!allowsSitePageAction({ action })) return false;
