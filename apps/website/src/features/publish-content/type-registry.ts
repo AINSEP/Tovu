@@ -561,6 +561,9 @@ function catalogDependencies(
   _options: Record<string, never> = {}
 ) {
   const known = new Set(originalOrder);
+  // Seeded with every registered type, so a lookup by a registered type (each contributor's own
+  // `entityType`, every dependent, every `originalOrder` entry) always finds a count; the
+  // non-null reads below rely on that instead of a fallback that could never be taken.
   const inDegree = new Map<string, number>(originalOrder.map((entityType) => [entityType, 0]));
   const dependents = new Map<string, string[]>();
 
@@ -571,7 +574,7 @@ function catalogDependencies(
           `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'`
         );
       }
-      inDegree.set(contributor.entityType, (inDegree.get(contributor.entityType) ?? 0) + 1);
+      inDegree.set(contributor.entityType, inDegree.get(contributor.entityType)! + 1);
       const waiting = dependents.get(dependency) ?? [];
       waiting.push(contributor.entityType);
       dependents.set(dependency, waiting);
@@ -597,7 +600,7 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
   const remaining = new Set(originalOrder);
   while (remaining.size > 0) {
     const next = originalOrder.find(
-      (entityType) => remaining.has(entityType) && (inDegree.get(entityType) ?? 0) === 0
+      (entityType) => remaining.has(entityType) && inDegree.get(entityType) === 0
     );
     if (!next) {
       const cycleMembers = originalOrder.filter((entityType) => remaining.has(entityType));
@@ -608,7 +611,7 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
     applyOrder.push(next);
     remaining.delete(next);
     for (const dependent of dependents.get(next) ?? []) {
-      inDegree.set(dependent, (inDegree.get(dependent) ?? 0) - 1);
+      inDegree.set(dependent, inDegree.get(dependent)! - 1);
     }
   }
 
