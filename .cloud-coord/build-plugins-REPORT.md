@@ -9,8 +9,7 @@ and the owner extended the hard stop to 23:00Z. Agents used: 8 (all Opus), at mo
 | J1 compat + requires | DONE | d61908b7, 98500b71 (review fixes) | – |
 | J3 update transaction | DONE | 4242b710, 6918e4eb (review fixes) | – |
 | T1 wiring + update route/tool/button | DONE | – | 848bcd6b (wip), 7bbbac9a (final + review fixes) |
-Progress/report commits (Tovu): ee0203ea, 7274a132, edcf27de, b2d6186c, bcab1897, plus this one.
-Each lot was reviewed by a separate subagent, and every blocking and should-fix finding was fixed before commit.
+Progress/report commits (Tovu): ee0203ea, 7274a132, edcf27de, b2d6186c, bcab1897, d8afd466+. Each lot got a separate review subagent; all blocking and should-fix findings were fixed.
 
 ## Kept from the WIP vs changed
 - J1, kept: compatibility API (`AGENT_PLUGIN_CONTRACT_VERSION` 1.0.0, `PLUGIN_HOST_INCOMPATIBLE`, describe/check/dependent warnings) and update-plan.
