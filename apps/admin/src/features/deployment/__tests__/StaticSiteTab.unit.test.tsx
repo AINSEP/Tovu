@@ -1408,7 +1408,7 @@ describe("StaticSiteTab — descriptors that omit optional copy", () => {
   });
 
   it("shows the project-name field without a help line when the host gives none, and labels it for the agent by its label key", () => {
-    renderTab({ publishController: { projectNameCopy: { labelKey: "Site name" } } });
+    renderTab({ publishController: { projectNameCopy: { labelKey: "Site name", helpKey: undefined } } });
     const input = screen.getByLabelText("Site name");
     expect(input).toHaveAttribute("data-agent-label", "Human-facing label for this publish — Site name");
     expect(input.closest(".field")?.querySelector(".deployment-action-reason")).toBeNull();
