@@ -85,7 +85,7 @@ export function goLiveEvent(required: { post: GoLiveRow }, _optional: Record<str
  *
  * @complexity O(1) — at most one enqueue.
  */
-export async function announcePendingGoLive(required: { outbox: OutboxPort; post: GoLiveRow; nowIso: string }, _optional: Record<string, never> = {}): Promise<void> {
+export async function announcePendingGoLive(required: { outbox: Pick<OutboxPort, "enqueue">; post: GoLiveRow; nowIso: string }, _optional: Record<string, never> = {}): Promise<void> {
   const { outbox, post, nowIso } = required;
   if (wentLiveSinceSave({ post, nowIso })) await outbox.enqueue(goLiveEvent({ post }));
 }

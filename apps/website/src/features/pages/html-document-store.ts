@@ -145,7 +145,7 @@ export interface PagesHtmlDocumentStoreDeps {
    * without it the announcement would be lost for good. Optional for the same reason as the two
    * above; real composition roots supply the outbox `updatePost` already writes to.
    */
-  outbox?: OutboxPort;
+  outbox?: Pick<OutboxPort, "enqueue">;
 }
 
 /** The `posts` columns a go-live catch-up reads off a write's own SELECT. */
