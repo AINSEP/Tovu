@@ -780,8 +780,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
           <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
             {content}
           </main>
-          {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` offsets it
-              above the assistant FAB. */}
+          {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` places it
+              beside the assistant FAB. */}
           <ScrollJumpButtons
             container={contentEl ?? null}
             labels={{ toTop: tApp({ locale: navLocale, key: "Scroll to top" }), toBottom: tApp({ locale: navLocale, key: "Scroll to bottom" }) }}
