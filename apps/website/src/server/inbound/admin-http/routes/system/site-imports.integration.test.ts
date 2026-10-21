@@ -162,3 +162,64 @@ test("disconnecting during import cancels the backend signal", async t => {
   const rejected = assert.rejects(fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: "https://share.example/site.zip" }), signal: controller.signal }), { name: "AbortError" });
   await started; assert.equal(observed?.aborted, false); controller.abort(); await rejected; await aborted; assert.equal(observed?.aborted, true);
 });
+
+/** Sends headers plus part of a declared body, then stalls; resolves when the server drops the socket. */
+async function stallUpload(url: string): Promise<void> {
+  const { request } = await import("node:http");
+  const pending = request(url, { method: "POST", headers: { "content-type": "application/zip", "content-length": 10 } });
+  const dropped = new Promise<void>(resolve => { pending.once("error", () => resolve()); pending.once("response", res => { res.resume(); res.once("close", () => resolve()); }); });
+  pending.write("PK\u0003");
+  await dropped;
+}
+
+for (const [limit, timings] of [
+  ["idle timeout", { uploadIdleMs: 50, uploadDeadlineMs: 60_000 }],
+  ["whole-upload deadline", { uploadIdleMs: 60_000, uploadDeadlineMs: 50 }],
+] as const) {
+  test(`a stalled upload is dropped by the ${limit} and frees the single upload lane`, { timeout: 10_000 }, async t => {
+    let uploads = 0;
+    const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+    registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+      siteImportBackend: { ...unexpectedBackend, upload: async () => { uploads++; return { uploadId: "uploaded" }; } } } }, timings);
+    const root = await startTestServer(app, t) + "/api/admin/v1/workspaces/ws/site-imports/uploads";
+    await stallUpload(root);
+    assert.equal(uploads, 0);
+    const next = await fetch(root, { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
+    assert.equal(next.status, 201); assert.equal(uploads, 1);
+  });
+}
+
+test("a client that aborts mid-body during owner setup cancels the backend signal", { timeout: 10_000 }, async t => {
+  const { request } = await import("node:http");
+  let entered!: () => void, cancelled!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; }), aborted = new Promise<void>(resolve => { cancelled = resolve; });
+  const backend: SiteImportBackend = { ...unexpectedBackend, get: () => ({ importId: "00000000-0000-4000-8000-000000000001", source: { url: "https://share.example/site.zip" }, newSiteId: null, newSiteName: null, state: "needs-owner", status: "needs-owner", createdAt: "2026-10-19", instructions: "Choose an owner password" }),
+    completeOwner: async (_input, options) => {
+      const signal = options?.signal; assert.ok(signal);
+      entered();
+      return new Promise<never>((_resolve, reject) => { signal.addEventListener("abort", () => { cancelled(); reject(new SiteShareRefusal({ code: "CANCELLED", message: "cancelled" })); }, { once: true }); });
+    } };
+  const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), siteImportBackend: backend } });
+  const origin = await startTestServer(app, t);
+  // A non-form body is left unparsed by the urlencoded parser, so the handler runs while the request is still incomplete.
+  const pending = request(origin + "/api/admin/v1/workspaces/ws/site-imports/00000000-0000-4000-8000-000000000001/owner",
+    { method: "POST", headers: { origin, "content-type": "text/plain", "content-length": 64 } });
+  pending.once("error", () => {});
+  pending.write("partial");
+  await started;
+  pending.destroy();
+  await aborted;
+});
+
+test("upload admission failures and a refused owner gate on POST answer without reaching the backend", async t => {
+  const app = express(); app.use(express.json());
+  app.use((req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = req.get("x-kind") ?? "session"; next(); });
+  registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", authorize: async () => { throw new Error("authorizer down at /private/db"); }, siteImportBackend: unexpectedBackend } });
+  const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
+  const upload = await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
+  assert.equal(upload.status, 400);
+  assert.deepEqual(await upload.json(), { code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed." });
+  const machine = await fetch(root + "/00000000-0000-4000-8000-000000000001/owner", { method: "POST", headers: { origin, "x-kind": "api_key", "content-type": "application/x-www-form-urlencoded" }, body: "adminPassword=x" });
+  assert.equal(machine.status, 403);
+});
