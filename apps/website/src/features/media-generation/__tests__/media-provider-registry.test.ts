@@ -145,11 +145,23 @@ test("an unreadable manifest or a module I/O fault refuses only that plugin; hea
   assert.equal(registry.findProvider({ id: "charlie-media" }), null);
 });
 
+test("a vendor that throws in Tovu's own id check is one plugin's refusal; later plugins still load", async () => {
+  const base = vendorExport("bravo-media") as { provider: object };
+  // Throws only when read by Tovu's id check, so the engine's export validation still passes it.
+  const provider = { ...base.provider, get id(): string { if (new Error().stack?.includes("keepMatchingIds")) throw new Error("boom"); return "bravo-media"; } };
+  const loadContributions = fakeLoader([{ pluginId: "alpha" }, { pluginId: "bravo", exported: { ...base, provider } }, { pluginId: "charlie" }]);
+  const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
+  assert.deepEqual(refusals, ["media provider 'bravo_media' from 'bravo' was not loaded: its contribution could not be registered"]);
+  assert.equal(registry.findProvider({ id: "alpha-media" })?.label, "alpha-media");
+  assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");
+});
+
 test("a contribution that throws inside the registry is one plugin's refusal; later plugins still load", async () => {
   const exploding = { ...(vendorExport("bravo-media") as object), models: [{ provider: "bravo-media", get id(): string { throw new Error("boom"); } }] };
   const loadContributions = fakeLoader([{ pluginId: "alpha" }, { pluginId: "bravo", exported: exploding }, { pluginId: "charlie" }]);
   const { registry, refusals } = await loadMediaProviderRegistry({ workspaceId: "ws" }, { loadContributions });
-  assert.deepEqual(refusals, ["media provider 'bravo_media' from 'bravo' was not loaded: its contribution could not be registered"]);
+  // The shared registry (Jini core) now refuses a throwing definition itself, before Tovu's guard.
+  assert.deepEqual(refusals, ["media provider from plugin 'bravo' was not loaded: its definition could not be validated"]);
   assert.equal(registry.findProvider({ id: "bravo-media" }), null);
   assert.equal(registry.findProvider({ id: "alpha-media" })?.label, "alpha-media");
   assert.equal(registry.findProvider({ id: "charlie-media" })?.label, "charlie-media");
