@@ -27,7 +27,8 @@ const commandEffects: RunServeCommandOptional = {
     const outbox = { name: "outboxDrainer", stopped: false };
     const trash = { name: "trashSweeper", stopped: false };
     const formPull = { name: "formPullTrigger", stopped: false };
-    workerStops.push(outbox, trash, formPull);
+    const goLive = { name: "postGoLiveSweep", stopped: false };
+    workerStops.push(outbox, trash, formPull, goLive);
     return { ...serving,
       outboxDrainer: { ...serving.outboxDrainer, stop: async () => {
         await serving.outboxDrainer.stop();
@@ -40,6 +41,10 @@ const commandEffects: RunServeCommandOptional = {
       formPullTrigger: { stop: async () => {
         await serving.formPullTrigger.stop();
         formPull.stopped = true;
+      } },
+      postGoLiveSweep: { stop: async () => {
+        await serving.postGoLiveSweep.stop();
+        goLive.stopped = true;
       } },
     };
   },
@@ -140,6 +145,7 @@ test("serve: EADDRINUSE stops the started workers and closes the store", async (
       { name: "outboxDrainer", stopped: true },
       { name: "trashSweeper", stopped: true },
       { name: "formPullTrigger", stopped: true },
+      { name: "postGoLiveSweep", stopped: true },
     ]);
     await assertOwnerReleased(dir);
   } finally {
