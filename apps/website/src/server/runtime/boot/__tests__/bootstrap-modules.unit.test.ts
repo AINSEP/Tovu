@@ -48,3 +48,25 @@ test("plugin-runtime-attach starts one activation poll at a time, honouring an e
     await attach.stop();
   }
 });
+
+test("plugin-runtime-attach: a second start replaces the running poll, and stop leaves no poll running", async (t) => {
+  const deps = createRouteDeps();
+  await deps.pluginRuntimeReady;
+  const reads = t.mock.method(deps.pluginActivationRepo, "listAll");
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const attach = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:", pluginActivationPollIntervalMs: 1_000 })
+    .find((module) => module.name === "plugin-runtime-attach");
+  assert.ok(attach);
+  const settle = async (): Promise<void> => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+  /** Durable activation reads made by interval passes only (each start's seeding read is excluded). */
+  const pollReadsDuring = async (ms: number): Promise<number> => {
+    await settle(); const before = reads.mock.callCount();
+    t.mock.timers.tick(ms); await settle();
+    return reads.mock.callCount() - before;
+  };
+  await attach.start();
+  await attach.start();
+  assert.equal(await pollReadsDuring(1_000), 1);
+  await attach.stop();
+  assert.equal(await pollReadsDuring(5_000), 0);
+});
