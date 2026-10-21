@@ -203,8 +203,15 @@ export interface UseZoom {
  *   `useFindInPage`'s).
  * @complexity O(1) per command, beyond `applyZoomCommand`'s own cost.
  */
-export function useZoom(activeGuestId: string | null): UseZoom {
-  const bridge = runnerInventoryBridge();
+export function useZoom(
+  activeGuestId: string | null,
+  { bridge = runnerInventoryBridge(), storage = window.localStorage }: {
+    /** The bridge port; defaults to the preload's `window.tovuRunner`. */
+    bridge?: RunnerInventoryBridge | undefined;
+    /** Where per-site zoom levels persist; defaults to the shell's own `localStorage`. */
+    storage?: Storage;
+  } = {},
+): UseZoom {
   // A ref, not state, for the same reason `useFindInPage`'s own `guests` map is: registering a
   // guest must never itself trigger a render, and the map's contents are only ever read at the
   // moment a command actually runs.
@@ -214,12 +221,12 @@ export function useZoom(activeGuestId: string | null): UseZoom {
     (projectId: string, element: ZoomableGuest | null) => {
       if (element) {
         guests.set(projectId, element);
-        applyStoredZoom(element, projectId, window.localStorage);
+        applyStoredZoom(element, projectId, storage);
       } else {
         guests.delete(projectId);
       }
     },
-    [guests],
+    [guests, storage],
   );
 
   // The app menu's Zoom In / Zoom Out / Actual Size: resolve the live target at the moment the
@@ -229,11 +236,11 @@ export function useZoom(activeGuestId: string | null): UseZoom {
     if (!bridge) return undefined;
     return bridge.onZoomCommand((direction) => {
       const target = resolveZoomTarget({ activeGuestId, guests, bridge });
-      applyZoomCommand(target, bridge, direction, window.localStorage);
+      applyZoomCommand(target, bridge, direction, storage);
     });
     // `guests` is a ref (stable identity, never itself a trigger); `activeGuestId` is what actually
     // changes which entry a fired command should resolve to.
-  }, [bridge, activeGuestId, guests]);
+  }, [bridge, activeGuestId, guests, storage]);
 
   return { registerGuest };
 }
