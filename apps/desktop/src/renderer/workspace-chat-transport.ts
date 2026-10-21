@@ -55,10 +55,30 @@ interface SubscriptionRecord {
 
 let nextSubscriptionSeq = 0;
 
+/** The clock/entropy ports {@link subscriptionRandomPart} reads; defaults are the real globals. */
+export interface SubscriptionEntropy {
+  crypto?: { randomUUID?: () => string } | null;
+  now?: () => number;
+  random?: () => number;
+}
+
+/**
+ * The random half of a subscription id: a UUID where the runtime has one, else a time+random token.
+ * Uniqueness within this module comes from the sequence number; this part only keeps ids from two
+ * transports (or two renderer reloads) from colliding in main's subscription table.
+ * Pure given its ports; no errors.
+ * @complexity O(1).
+ */
+export function subscriptionRandomPart(
+  _input: Record<string, never> = {},
+  { crypto = globalThis.crypto, now = Date.now, random = Math.random }: SubscriptionEntropy = {},
+): string {
+  return crypto?.randomUUID?.() ?? `${now().toString(36)}-${random().toString(36).slice(2)}`;
+}
+
 function mintSubscriptionId(): string {
   nextSubscriptionSeq += 1;
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `sub-${nextSubscriptionSeq}-${random}`;
+  return `sub-${nextSubscriptionSeq}-${subscriptionRandomPart()}`;
 }
 
 /** `@jini-ai/protocol` spells it `cancelled`; `@jini-ai/chat` spells it `canceled`. One L, one place. */
