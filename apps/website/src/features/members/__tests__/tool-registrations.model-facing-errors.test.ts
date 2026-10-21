@@ -50,6 +50,8 @@ function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean }
       send: async () => ({ ok: true, providerMessageId: "message", acceptedAt: NOW }),
       sendBatch: async () => [],
     },
+    // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
+    mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },
     magicLinkPerEmailLimiter: {
       check: async ({ key: _key }) => (options.allowEveryRequest === false ? { allowed: false, retryAfterSeconds: 42 } : { allowed: true }),
     },

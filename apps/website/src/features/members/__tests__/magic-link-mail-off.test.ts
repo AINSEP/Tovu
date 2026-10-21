@@ -16,6 +16,8 @@ function harness(driver = "console", allowed = true) {
   const deps: MembersToolDeps = { workspaceId: "ws", clock: createFakeClock({ startIso: NOW }), idGen: { newId: () => `m${++next}` }, memberRepo: new InMemoryMemberRepo(), memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}),
     authorize: async () => ({ allowed, reason: "fixture grant" }), magicLinkPerEmailLimiter: { check: async ({ key: _key }) => ({ allowed: true }) },
     mailer: { capabilities: () => ({ ...new ConsoleMailerAdapter().capabilities(), driver }), send: async (message) => { sent.push(message.to.email); return { ok: true, providerMessageId: "message", acceptedAt: NOW }; }, sendBatch: async () => assert.fail("must not batch") },
+    // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
+    mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },
   };
   const tool = buildMembersRegistrations(deps).find((r) => r.descriptor.id === "members_request_magic_link")!;
   const call = (email: string) => tool.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: { email }, signal: new AbortController().signal } satisfies ToolExecutionContext);

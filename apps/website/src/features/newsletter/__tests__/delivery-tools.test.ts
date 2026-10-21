@@ -33,6 +33,8 @@ async function fixture(driver = "smtp", status = "draft") {
     newsletterConfirmationTokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     newsletterSubscriberDirectory: { getContact: async () => null, getContacts: async () => [] },
     newsletterHooks: createHookRegistry(), membersConsentCapability: null,
+    // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
+    mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },
     ownerPrincipalId: Promise.resolve("owner"), userRepo: { findByPrincipalId: async (input) => { assert.deepEqual(input, { workspaceId: "ws", principalId: "owner" }); return { workspaceId: "ws", principalId: "owner", username: "owner", passwordHash: "hash", email: "owner@example.com" }; } },
   };
   await deps.newsletterListRepo.save({ id: "list", workspaceId: "ws", name: "Readers", slug: "readers", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW });
