@@ -1912,7 +1912,7 @@ export async function updatePost(
   // written) still propagates out of this `transaction()` call correctly — its `catch` rolls back
   // (a no-op when nothing landed) and rethrows unchanged, so `PostVersionConflictError`/
   // `PostNotFoundError` reach the caller exactly as they did before this change.
-  const result = await deps.repo.transaction(async () => {
+  return deps.repo.transaction(async () => {
     if (isDeepStrictEqual(savedPostContent(existing), savedPostContent(post))) {
       const current = await unchangedLiveRow({ repo: deps.repo, input, post });
       if (current) return { post: current, revisionId: null, previousRevisionId: null };
@@ -1926,8 +1926,6 @@ export async function updatePost(
     await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: post, nowIso: now });
     return { post, revisionId, previousRevisionId };
   });
-
-  return result;
 }
 
 /** The status the public sees at `nowIso`: a trashed row is "not public" whatever its stored
@@ -2106,9 +2104,10 @@ export function classifyStatusTransition(
  * Every write path's event step: classifies `previous` -> `next` by what the public sees at
  * `nowIso` ({@link publicFacingStatus}); `previous` is `null` for a brand-new row (classified as
  * never-published). A `previous` row saved while scheduled that has gone live since
- * ({@link wentLiveSinceSave}) may not have been announced by the go-live sweep yet, and after this
+ * (`go-live.ts`'s `wentLiveSinceSave`) may not have been announced by the go-live sweep yet, and after this
  * write the sweep will no longer see it (its `updatedAt` passes `publishAt`), so its go-live event
- * is enqueued here first — the same id the sweep uses, which the outbox de-duplicates.
+ * is enqueued here first ({@link announcePendingGoLive}) — the same id the sweep uses, which the
+ * outbox de-duplicates.
  *
  * Exported for `reverters.ts` (2026-10-21): an undo writes through `repo.save` directly (no
  * before-save hooks, BR-08) but its event must be the same schedule-aware one every save emits.
