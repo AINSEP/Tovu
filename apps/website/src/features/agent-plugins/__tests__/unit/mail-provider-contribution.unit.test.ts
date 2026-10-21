@@ -99,3 +99,12 @@ test("contributeMailProviders surfaces registry refusals: a v1 hyphenated id and
   assert.match(result.refusals[0]!, /my-mail/);
   assert.match(result.refusals[1]!, /already registered by the built-in provider/);
 });
+
+test("parseMailAdaptersFile v1 still refuses a non-array list, a non-object entry, a bad id and a blank label", () => {
+  const v1 = (adapters: unknown) => parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters }));
+  const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
+  assert.deepEqual(v1("x"), { ok: false, reason: "adapters must be an array" });
+  assert.deepEqual(v1([7]), { ok: false, reason: "adapters[0] must be an object" });
+  assert.deepEqual(v1([{ ...entry, id: "Bad Id" }]), { ok: false, reason: "adapters[0].id must be a lowercase hyphenated id" });
+  assert.deepEqual(v1([{ ...entry, label: " " }]), { ok: false, reason: "adapters[0].label must be a non-empty string" });
+});

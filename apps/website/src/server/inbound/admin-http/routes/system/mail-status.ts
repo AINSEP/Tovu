@@ -23,7 +23,8 @@ export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | 
 // Delivery predicate: Jini/packages/platform/src/mail/delivery-availability.ts; boot-race caveat: platform/mail/delivery-availability.ts.
 export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatusDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-status", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    // Express always binds the `:workspaceId` segment for this path, so no fallback is needed.
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

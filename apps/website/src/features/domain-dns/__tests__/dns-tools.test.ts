@@ -158,8 +158,6 @@ test("only dns_verify is a durable write; plan and instructions are read-only", 
 
 test("one domain-dns contributor builds the diagnostics and the DNS change tools with a merged risk map", () => {
   const h = harness();
-  const dnsDeps = { ...h, workspaceId: "ws" };
-  void dnsDeps;
   const contributor = contributeDomainDnsAndChangeTools({
     createDeps: () => ({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), resolver: { query: async ({ type }) => ({ type, status: "no-data", records: [] }) }, listExpectedHosts: async () => [], probeTls: async () => ({ status: "verified", httpStatus: 200 }) }),
     createDnsDeps: () => ({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), registry: createDnsProviderRegistry({ resolver: h.resolver }), resolver: h.resolver, context, now: () => T0 }),
