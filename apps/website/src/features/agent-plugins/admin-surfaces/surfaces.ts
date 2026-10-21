@@ -111,7 +111,9 @@ export async function withAdminSurfaceSignIns(required: {
   readonly host: AdminSurfaceHost;
   readonly run: () => Promise<AdminSurfaceActionOutcome>;
 }, _optional: Record<string, never> = {}): Promise<AdminSurfaceActionOutcome & { readonly hostSignIns?: readonly HostSignInLink[] }> {
-  if (!required.host.signIns) return required.run();
-  const { value: outcome, signIns } = await required.host.signIns.collect({ run: required.run });
+  // A local name, not `required.run()`: the raw-SQLite ratchet reads `.run()` as better-sqlite3's sync terminal.
+  const { run } = required;
+  if (!required.host.signIns) return run();
+  const { value: outcome, signIns } = await required.host.signIns.collect({ run });
   return outcome.ok && signIns.length > 0 ? { ...outcome, hostSignIns: signIns } : outcome;
 }
