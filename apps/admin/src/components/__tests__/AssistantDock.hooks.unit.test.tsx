@@ -128,6 +128,7 @@ import {
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { localCliSelectionFromConfig } from "../AssistantDock/execution-config-write";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 import {
   emptyComposerCapabilityProjection,
@@ -837,6 +838,21 @@ describe("useLocalCliSelection", () => {
       expect(setExecutionConfig).not.toHaveBeenCalled();
       rerender({ executionConfig: { ...config, byok: { ...config.byok, model: "gpt-5" } } });
       expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  it("a send-time read keeps ChatPane's normalized model while the saved axes are unchanged, and follows the ledger once they change", () => {
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    try {
+      const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
+      const { result } = renderHook(() => useLocalCliSelection({ executionConfig: config, setExecutionConfig: stubSetExecutionConfig(config), configLoaded: true }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
+      expect(result.current.readLocalCliSelectionForSend(config)).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+      const elsewhere = localCliConfig({ agentId: "codex", modelByAgentId: {} });
+      expect(result.current.readLocalCliSelectionForSend(elsewhere)).toEqual(localCliSelectionFromConfig({ config: elsewhere }));
+      expect(result.current.readLocalCliSelectionForSend(elsewhere).agentId).toBe("codex");
     } finally {
       localStorage.clear();
     }
