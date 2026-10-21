@@ -78,9 +78,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
             }),
           captureEntityVersion: ({ result }) => result.post.version,
           rollback: async () => {
-            // No null guard: `executeCommand` runs `captureInverse` (which sets `priorPost` or throws
-            // `PostNotFoundError`) before `execute`, and calls `rollback` only after `execute` returned, so
-            // `priorPost` is always the captured record here.
+            if (!priorPost) return;
             // See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row
             // `deletePost` wrote, inside the same transaction as the restore.
             await restorePostForward({
@@ -90,7 +88,7 @@ export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) =
                 outbox: deps.outbox,
                 forgetRemoved: deps.forgetRemovedPost,
               },
-              input: { prior: priorPost as PostRecord, actorId: principal.id },
+              input: { prior: priorPost, actorId: principal.id },
             });
           },
         },
