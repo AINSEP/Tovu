@@ -43,7 +43,7 @@ function GitBackupBody({ controller, t }: GitBackupCardProps) {
 function NoConnection({ t }: { t: Translate }) {
   return (
     <>
-      <p className="field-hint">{t("No Git connection yet.")}</p>
+      <p className="git-backup-note">{t("No Git connection yet.")}</p>
       <a className="btn-secondary" href={SOURCE_CONTROL_HREF} {...agentHandle({ handle: "import-export-git-backup-source-control-link" }, { role: "link", label: "Open Source Control to connect a Git host" })}>
         {t("Open Source Control")}
       </a>

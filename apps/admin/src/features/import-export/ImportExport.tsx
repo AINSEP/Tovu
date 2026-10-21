@@ -51,8 +51,8 @@ export function ImportExport({ useTranslate = useImportExportTranslate, useGitBa
       </div>
       <div className="import-export-grid">
         {IMPORT_EXPORT_LINKS.map((link) => <ImportExportCard key={link.id} link={link} t={t} />)}
-        <GitBackupCard controller={gitBackup} t={t} />
       </div>
+      <GitBackupCard controller={gitBackup} t={t} />
     </div>
   );
 }

@@ -5455,8 +5455,10 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .import-export-card .card-title { margin: 0; }
 .import-export-card .card-lead { margin: 0; }
 .import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
-/* Git backup: the one Import & Export card with its own flow, so it takes the full row. */
-.import-export-card-wide { grid-column: 1 / -1; }
+/* Git backup: the one Import & Export card with its own flow, so it sits full-width under the grid
+   (inside it, a full-row card would keep an empty fourth track beside the three link cards). */
+.import-export-card-wide { margin-top: var(--space-4); }
+.git-backup-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
 .git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .import-export-card .git-backup-actions .btn-secondary { margin-top: 0; }
