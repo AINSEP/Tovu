@@ -12,4 +12,4 @@ ENV (listed, not fixed): 122 entries — *.postgres.test.ts, pg-fixture (pg part
 | L2 redaction/desktop | merged | 7 (home-path leak when HOME outside /home,/Users → redactLocalText at 13 sites; smoke-bridge over-redacted tool id) | 1 (mcp spawn NODE_V8_COVERAGE) | 0 | 1 d (preload-speech needs pretest build:preload); Jini redaction.ts homeDir option follow-up | fa0a922c | desktop 127/127, website 39/39 |
 | L6 vault-db | merged | 1 (surfaces.ts required.run false-positive in raw-SQLite ratchet) | 9 (parity fixture module:{}, consent tables 0021) | 0 | vault-cascade sqlite FK RESTRICT after migration 0020 (needs new migration, forbidden); pg-fixture ENV | eb96e45b | 88 pass / 1 fail (listed) / 1 skip |
 | L7 server-composition | dispatched 09:05 | | | | | | |
-| L8 identity-publish | dispatched 09:08 | | | | | | |
+| L8 identity-publish | merged | 0 | 7 (+2 new tests) | 0 | default-credential-exposure x2 = real security regression (a8e48d3d hardcodes default admin password in CreateSiteOnboarding.tsx:352) — product decision, listed | 6558282a | 142/144 (2 listed) |
