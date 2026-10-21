@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
@@ -174,4 +174,105 @@ test("taxonomy mergeTerm: replaying an already-redeemed confirmation token is re
   assert.equal(replayRes.status, 409);
   const body = (await replayRes.json()) as { code: string };
   assert.equal(body.code, "TOKEN_ALREADY_REDEEMED");
+});
+
+// ---- Direct-invoke contracts (hand-built req, fake ports layered over the real composition) ----
+
+const MERGE_BASE = "/api/admin/v1/taxonomy/terms/:id/merge";
+/** Every method of this repo/store port throws a non-Error value, as a broken driver might. */
+function throwingNonErrorPort<T extends object>(): T {
+  const methods: Record<string, unknown> = {};
+  return new Proxy(methods, { get: () => async () => { throw "storage offline"; } }) as T;
+}
+async function invokeMerge(app: express.Express, step: "plan" | "confirm" | "execute", req: { params: Record<string, string>; body?: unknown }, principalId = "owner") {
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: principalId };
+  await extractRouteHandler(app, "post", `${MERGE_BASE}/${step}`)(req, res);
+  return capture;
+}
+function mergeApp(deps: RouteDeps): express.Express {
+  const app = express();
+  registerAdminTaxonomyMergeTermRoutes(app, deps);
+  return app;
+}
+async function ownerOf(deps: RouteDeps): Promise<string> {
+  return (await deps.ownerPrincipalId) as string;
+}
+
+test("taxonomy mergeTerm: each step rejects a missing or non-string body field with 400 before any gateway call", async () => {
+  const { deps } = buildTestApp();
+  const app = mergeApp({ ...deps, gatedMutations: { gatewayDeps: throwingNonErrorPort<RouteDeps["gatedMutations"]["gatewayDeps"]>() } });
+  const cases: Array<["plan" | "confirm" | "execute", unknown, string]> = [
+    ["plan", undefined, "'intoTermId' (string) is required"],
+    ["plan", { intoTermId: 7 }, "'intoTermId' (string) is required"],
+    ["confirm", undefined, "'planId' and 'planHash' (strings) are required"],
+    ["confirm", { planId: "plan-1" }, "'planId' and 'planHash' (strings) are required"],
+    ["execute", undefined, "'intoTermId' and 'confirmationToken' (strings) are required"],
+    ["execute", { intoTermId: "term-2" }, "'intoTermId' and 'confirmationToken' (strings) are required"],
+  ];
+  for (const [step, body, error] of cases) {
+    assert.deepEqual(await invokeMerge(app, step, { params: { id: "term-1" }, body }), { statusCode: 400, jsonBody: { error, code: "VALIDATION_ERROR" } });
+  }
+});
+
+test("taxonomy mergeTerm: merging a term into itself is rejected 400 SAME_TERM_MERGE", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const { fromTermId } = await createTermPair(baseUrl, cookie);
+  assert.deepEqual(await invokeMerge(mergeApp(deps), "plan", { params: { id: fromTermId }, body: { intoTermId: fromTermId } }, await ownerOf(deps)), {
+    statusCode: 400, jsonBody: { error: `cannot merge term '${fromTermId}' into itself`, code: "SAME_TERM_MERGE" },
+  });
+});
+
+test("taxonomy mergeTerm: a caller without admin.taxonomy.manage is refused 403 with the gateway's reason code", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const { fromTermId, intoTermId } = await createTermPair(baseUrl, cookie);
+  const capture = await invokeMerge(mergeApp(deps), "plan", { params: { id: fromTermId }, body: { intoTermId } }, "stranger");
+  assert.equal(capture.statusCode, 403);
+  assert.equal(typeof (capture.jsonBody as { code: unknown }).code, "string");
+  assert.notEqual((capture.jsonBody as { code: string }).code, "INTERNAL_ERROR");
+});
+
+test("taxonomy mergeTerm: an expired confirmation token is rejected 409 TOKEN_EXPIRED", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const { fromTermId, intoTermId } = await createTermPair(baseUrl, cookie);
+  const planRes = await fetch(`${baseUrl}${MERGE_BASE.replace(":id", fromTermId)}/plan`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ intoTermId }),
+  });
+  const plan = (await planRes.json()) as { planId: string; planHash: string };
+  const confirmRes = await fetch(`${baseUrl}${MERGE_BASE.replace(":id", fromTermId)}/confirm`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(plan),
+  });
+  const { confirmationToken } = (await confirmRes.json()) as { confirmationToken: string };
+  const farFuture = Date.parse("2100-01-01T00:00:00.000Z");
+  const lateClock = { nowIso: () => new Date(farFuture).toISOString(), nowMs: () => farFuture };
+  const lateApp = mergeApp({ ...deps, gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, clock: lateClock } } });
+  const capture = await invokeMerge(lateApp, "execute", { params: { id: fromTermId }, body: { intoTermId, confirmationToken } }, await ownerOf(deps));
+  assert.equal(capture.statusCode, 409);
+  assert.equal((capture.jsonBody as { code: string }).code, "TOKEN_EXPIRED");
+});
+
+test("taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 INTERNAL_ERROR", async () => {
+  const { deps } = buildTestApp();
+  const owner = await ownerOf(deps);
+  const broken = mergeApp({ ...deps, termRepo: throwingNonErrorPort<RouteDeps["termRepo"]>(), entryTermRepo: throwingNonErrorPort<RouteDeps["entryTermRepo"]>(),
+    gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, tokens: throwingNonErrorPort<RouteDeps["gatedMutations"]["gatewayDeps"]["tokens"]>(), authorize: async () => { throw "authz offline"; } } } });
+  const expected = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
+  assert.deepEqual(await invokeMerge(broken, "plan", { params: { id: "term-1" }, body: { intoTermId: "term-2" } }, owner), expected);
+  assert.deepEqual(await invokeMerge(broken, "confirm", { params: { id: "term-1" }, body: { planId: "plan-1", planHash: "hash-1" } }, owner), expected);
+  assert.deepEqual(await invokeMerge(broken, "execute", { params: { id: "term-1" }, body: { intoTermId: "term-2", confirmationToken: "token-1" } }, owner), expected);
+});
+
+test("taxonomy mergeTerm: an Error thrown by a step keeps its message on the 500 (no authenticated principal)", async () => {
+  const { deps } = buildTestApp();
+  const app = mergeApp(deps);
+  for (const [step, body] of [["plan", { intoTermId: "t" }], ["confirm", { planId: "p", planHash: "h" }], ["execute", { intoTermId: "t", confirmationToken: "c" }]] as const) {
+    const { res, capture } = createCapturingResponse();
+    await extractRouteHandler(app, "post", `${MERGE_BASE}/${step}`)({ params: { id: "term-1" }, body }, res);
+    assert.equal(capture.statusCode, 500);
+    assert.equal((capture.jsonBody as { code: string }).code, "INTERNAL_ERROR");
+    assert.notEqual((capture.jsonBody as { error: string }).error, "internal error");
+  }
 });

@@ -13,6 +13,7 @@ import {
 import { registerAdminUserDisableRoute } from "../disable.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createUser, createSessionForPrincipal, validateSession } from "@jini-ai/user-management/server";
+import { IdentityValidationError } from "@jini-ai/user-management";
 
 /**
  * @file Route-level branch coverage for `POST .../users/:principalId/disable` (`DISABLE_PRINCIPAL`,
@@ -328,4 +329,15 @@ test("DISABLE_PRINCIPAL route: 500 internal error when an unexpected error is th
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
+});
+
+test("DISABLE_PRINCIPAL route: an IdentityValidationError from the transaction maps to 400 VALIDATION_ERROR", async (t) => {
+  const { app } = await buildApp({
+    transactions: { run: async () => { throw new IdentityValidationError({ message: "target is not disableable" }); } },
+  });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/users/any-id/disable`, { method: "POST" });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "target is not disableable", code: "VALIDATION_ERROR" });
 });

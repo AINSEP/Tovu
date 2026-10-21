@@ -53,8 +53,9 @@ function sendUserCreateError(res: Response, err: unknown): void {
  * @complexity O(1): one normalize, one indexed `findByUsername`, one `isInTrash` check.
  */
 async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: string): Promise<boolean> {
+  // No empty-username check: `createUser` rejects a blank normalized username with
+  // `IdentityValidationError` before it can ever raise the `IdentityConflictError` this runs after.
   const username = normalizeUsername({ raw: rawUsername });
-  if (!username) return false;
   const existingUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username });
   if (!existingUser) return false;
   return deps.isInTrash(existingUser.principalId);

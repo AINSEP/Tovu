@@ -345,3 +345,14 @@ test("DELETE_USER route: 500 internal error when an unexpected error is thrown",
   const body = (await res.json()) as { error: string };
   assert.equal(body.error, "internal error");
 });
+
+test("DELETE_USER route: 400 VALIDATION_ERROR when the target is a system principal", async (t) => {
+  const { app, deps } = await buildApp();
+  await deps.principalRepo.save({ id: "system-1", workspaceId: WORKSPACE_ID, kind: "system", displayName: "system-1", status: "active", createdAt: NOW });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${urlFor("system-1")}`, { method: "DELETE" });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "DELETE_USER target must be a user or api_key principal, got kind='system'", code: "VALIDATION_ERROR" });
+  assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: "system-1" }))?.status, "active");
+});

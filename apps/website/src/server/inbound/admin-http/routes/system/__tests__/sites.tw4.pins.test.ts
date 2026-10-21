@@ -2,6 +2,10 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { readPersistedActiveSite as readPersistedActiveSiteForTest } from "#src/platform/site-dir/index";
 import { registerAdminSitesRoutes, type AdminSitesDeps } from "../sites.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
@@ -23,7 +27,7 @@ function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
     ...overrides,
   };
   const app = express(); registerAdminSitesRoutes(app, deps);
-  return { calls, async request({ method = "get", body, workspaceId = "ws" }: { method?: "get" | "post"; body?: unknown; workspaceId?: string | null } = {}, _options = {}) {
+  return { app, calls, async request({ method = "get", body, workspaceId = "ws" }: { method?: "get" | "post"; body?: unknown; workspaceId?: string | null } = {}, _options = {}) {
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
     await extractRouteHandler(app, method, route)({ params: { workspaceId }, body, socket: { localPort: 3000 } }, res);
     return capture;
@@ -140,4 +144,74 @@ test("create reports unexpected creation errors as internal", async () => {
   assert.deepEqual(await f.request({ method: "post", body: { name: "new" } }), {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
   });
+});
+
+/** Invoke any sites route on a fixture's app with a hand-built request. */
+async function invokeOn(app: express.Express, method: "get" | "post", path: string, req: Record<string, unknown>) {
+  const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
+  await extractRouteHandler(app, method, `${route}${path}`)({ socket: { localPort: 3000 }, ...req }, res);
+  return capture;
+}
+
+// Route-param guards (`String(req.params.X ?? "")`): absent params read as "" — kept, and covered here.
+test("token sign-in plugins and activate 404 an absent workspace param; activate reads an absent name as ''", async () => {
+  const persisted: unknown[] = [];
+  const { app } = fixture({ persistActiveSite: ((input: unknown) => { persisted.push(input); }) as never });
+  for (const [method, path] of [["get", "/token-sign-in-plugins"], ["post", "/:name/activate"]] as const) {
+    assert.deepEqual(await invokeOn(app, method, path, { params: {} }), { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  }
+  const unnamed = await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws" }, body: {} });
+  assert.notEqual(unnamed.statusCode, 200);
+  assert.deepEqual(persisted, []);
+});
+
+test("token sign-in plugins and activate hide unexpected failures behind a logged generic 500", async (t) => {
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (message: unknown) => { logged.push(message); });
+  const { app } = fixture({
+    listTokenSignInPlugins: async () => { throw new Error("SECRET plugin detail"); },
+    listSites: () => { throw new Error("SECRET disk detail"); },
+  });
+  const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
+  assert.deepEqual(await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), internal);
+  assert.deepEqual(await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), internal);
+  assert.deepEqual(logged, ["[system/sites] unexpected error listing token sign-in plugins", "[system/sites] unexpected error activating a site"]);
+});
+
+test("trashing the persisted next-launch site re-points the default at the served site; any other site leaves it", async () => {
+  const persisted: unknown[] = [];
+  let persistedName = "doomed";
+  const trashed: unknown[] = [];
+  const { app } = fixture({
+    readPersistedActiveSite: () => persistedName,
+    persistActiveSite: ((input: unknown, options: unknown) => { persisted.push([input, options]); }) as never,
+    siteTrash: {
+      trash: ((input: { base: string; name: string }) => { trashed.push(input); return { name: input.name }; }) as never,
+      restore: (() => { throw new Error("not used"); }) as never, remove: (() => { throw new Error("not used"); }) as never,
+    },
+  });
+  const first = await invokeOn(app, "post", "/:name/trash", { params: { workspaceId: "ws", name: "doomed" }, body: { confirmed: true } });
+  assert.equal(first.statusCode, 200, JSON.stringify(first.jsonBody));
+  assert.equal(trashed.length, 1);
+  const base = (trashed[0] as { base: string }).base;
+  assert.deepEqual(persisted, [[{ name: "owner" }, { cwd: base }]]);
+  persistedName = "keeper";
+  assert.equal((await invokeOn(app, "post", "/:name/trash", { params: { workspaceId: "ws", name: "doomed" }, body: { confirmed: true } })).statusCode, 200);
+  assert.equal(persisted.length, 1);
+});
+
+test("without an injected persister, trashing the persisted site writes the served site as the next-launch default", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "sites-after-trash-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let base = "";
+  const { app } = fixture({
+    siteBinding: { name: "owner", dir: path.join(root, "sites", "owner"), dirOverridden: false, switcherCompatible: true },
+    readPersistedActiveSite: () => "doomed",
+    siteTrash: {
+      trash: ((input: { base: string; name: string }) => { base = input.base; return { name: input.name }; }) as never,
+      restore: (() => { throw new Error("not used"); }) as never, remove: (() => { throw new Error("not used"); }) as never,
+    },
+  });
+  assert.equal((await invokeOn(app, "post", "/:name/trash", { params: { workspaceId: "ws", name: "doomed" }, body: { confirmed: true } })).statusCode, 200);
+  assert.equal(readPersistedActiveSiteForTest({ cwd: base }), "owner");
 });

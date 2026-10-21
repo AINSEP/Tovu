@@ -78,17 +78,18 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) =>
     try {
       const caller = getAuthedPrincipal(res);
       const seededOwnerPrincipalId = await deps.ownerPrincipalId;
+      const principalId = String(req.params.principalId ?? "");
 
       const { principal } = await deps.transactions.run({ workspaceId: deps.workspaceId, execute: async () => {
         const serviceDeps = identityServiceDepsFrom(deps);
-        await assertUserAccountAction({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId: String(req.params.principalId ?? ""), action: "disable" },
+        await assertUserAccountAction({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId, action: "disable" },
           { callerPrincipalId: caller.id, seededOwnerPrincipalId });
         return disablePrincipal({
           deps: serviceDeps,
           input: {
             workspaceId: deps.workspaceId,
             callerPrincipalId: caller.id,
-            principalId: String(req.params.principalId ?? ""),
+            principalId,
             seededOwnerPrincipalId,
           },
         });
