@@ -1064,3 +1064,29 @@ test("L106 a vault row disappearing after DTO lookup remains a typed not-found",
   await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id }), PublishCredentialNotFoundError);
   assert.equal(reads, 2);
 });
+
+test("a label longer than 200 characters is refused before anything is sealed", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x".repeat(201), connection: { providerId: "vercel", token: "t" } }),
+    (err: unknown) => err instanceof PublishCredentialValidationError && err.message === "label must be 200 characters or fewer",
+  );
+  assert.deepEqual(await listPublishCredentials(deps, { workspaceId: WORKSPACE }), []);
+  const ok = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x".repeat(200), connection: { providerId: "vercel", token: "t" } });
+  assert.equal(ok.label.length, 200);
+});
+
+test("the providerId refusal names only hosts that declare a credential; an unknown default provider resolves to null", async () => {
+  const withCredential = pluginOnlyHostRegistry();
+  const credentialless: LoadedDeployTarget = { pluginId: "local", module: { create: () => { throw new Error("not used"); } },
+    descriptor: { id: "local-folder", label: "Local folder", module: "targets/local.mjs", configFields: [] } };
+  const registry: DeployTargetRegistry = { ...withCredential, get: (id) => withCredential.get(id) ?? (id === "local-folder" ? credentialless : undefined), list: () => [...withCredential.list(), credentialless] };
+  const deps = makeDeps({ loadDeployTargets: async () => registry });
+  for (const providerId of ["local-folder", 42]) {
+    await assert.rejects(
+      () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId, token: "t" } as never }),
+      (err: unknown) => err instanceof PublishCredentialValidationError && err.message === "connection.providerId must be one of: fixture-host",
+    );
+  }
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "not-installed" }), null);
+});

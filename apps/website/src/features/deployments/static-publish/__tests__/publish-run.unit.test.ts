@@ -361,3 +361,31 @@ for (const explicit of [false, true]) {
     assert.equal((await history.list({ workspaceId: input.workspaceId })).length, 1);
   });
 }
+
+test("an unexpected non-Error publish failure settles the run with its string form and is rethrown unchanged", { timeout: 5000 }, async () => {
+  const routeDeps = testRouteDeps();
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
+  const history = new InMemoryPublishHistoryStore();
+  const input = { ...githubInput(routeDeps), idGen: { newId: () => { throw "opaque failure value"; } }, exportSiteBound: async () => assert.fail("must not export") };
+  await assert.rejects(runPublishAndAwait(deps, input, clock, history), (error) => error === "opaque failure value");
+  assert.equal(getPublishRunSnapshot().status, "errored");
+  assert.equal(getPublishRunSnapshot().error, "opaque failure value");
+});
+
+test("a host's destinationConfig refines the recorded replay config from the provider's own metadata", async () => {
+  const routeDeps = testRouteDeps();
+  const history = new InMemoryPublishHistoryStore();
+  const seen: unknown[] = [];
+  const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async (workspaceId) => {
+    const registry = await routeDeps.loadDeployTargets(workspaceId);
+    return { ...registry, get: (id) => {
+      const target = registry.get(id);
+      return target && id === "vercel" ? { ...target, module: { ...target.module, destinationConfig: (input: { providerMetadata?: unknown }) => { seen.push(input.providerMetadata); return { teamId: "team-from-provider" }; } } } : target;
+    } };
+  };
+  const input: StaticPublishInput = { ...githubInput(routeDeps), config: { target: "vercel", teamId: "team-a" }, projectName: "my-site", credentialId: "connection-a" };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets, buildTarget: () => fakeDeployTarget("https://my-site.vercel.app") };
+  assert.equal((await runPublishAndAwait(deps, input, clock, history)).ok, true);
+  assert.equal(seen.length, 1);
+  assert.deepEqual((await history.getLast({ workspaceId: input.workspaceId, target: "vercel" }))!.configFields, { teamId: "team-from-provider" });
+});

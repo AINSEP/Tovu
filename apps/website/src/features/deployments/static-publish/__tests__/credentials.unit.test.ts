@@ -710,3 +710,37 @@ test('historical Pages env variables do not silently configure Workers; its expl
   const workers = createEnvPublishCredentialSource(WORKSPACE, loadBundledDeployTargets, { CLOUDFLARE_WORKERS_TOKEN: 'workers-token', CLOUDFLARE_ACCOUNT_ID: 'account' });
   assert.deepEqual(await workers.resolve({ workspaceId: WORKSPACE, target: 'cloudflare-workers' }), { ok: true, token: 'workers-token', accountId: 'account' });
 });
+
+// --- registry changes between the decrypt and the projection ----------------------------------
+
+test("env source: a target the workspace registry does not know is refused with the plugin hint", async () => {
+  const empty: DeployTargetRegistry = { get: () => undefined, list: () => [], refusals: [] };
+  const source = createEnvPublishCredentialSource(WORKSPACE, async () => empty, { GITHUB_TOKEN: "ghp_fake" } as NodeJS.ProcessEnv);
+  assert.deepEqual(await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" }), {
+    ok: false, reason: "'github-pages' is not a deploy target this workspace knows — turn on a hosting plugin under Agent Plugins",
+  });
+});
+
+for (const chosen of [false, true]) {
+  test(`db source (${chosen ? "chosen" : "default"} connection): a host removed or re-specified while the row is decrypted is refused, never projected`, async () => {
+    for (const mode of ["removed", "respecified"] as const) {
+      const writeDeps = makeWriteDeps();
+      const row = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "Main", connection: { providerId: "vercel", token: "vercel-token" }, isDefault: true });
+      const bundled = await loadBundledDeployTargets();
+      const changedHosts = bundled.list().filter(host => mode !== "removed" || host.descriptor.id !== "vercel").map(host => host.descriptor.id !== "vercel" ? host : {
+        ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
+      });
+      const changed: DeployTargetRegistry = { get: id => changedHosts.find(host => host.descriptor.id === id), list: () => changedHosts, refusals: [] };
+      let decrypted = false;
+      const source = createDbPublishCredentialSource({ ...writeDeps,
+        sealer: { seal: writeDeps.sealer.seal.bind(writeDeps.sealer), open: (...args: Parameters<typeof writeDeps.sealer.open>) => { decrypted = true; return writeDeps.sealer.open(...args); } },
+        loadDeployTargets: async () => (decrypted ? changed : bundled),
+      });
+      const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel", ...(chosen ? { credentialId: row.id } : {}) });
+      assert.equal(decrypted, true);
+      assert.deepEqual(result, { ok: false, reason: mode === "removed"
+        ? "'vercel' is not a deploy target this workspace knows — turn on a hosting plugin under Agent Plugins"
+        : "the saved 'vercel' credential has no newToken — save the connection again" });
+    }
+  });
+}

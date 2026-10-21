@@ -127,7 +127,8 @@ async function startFakeS3(): Promise<FakeS3Server> {
           res.end();
           return;
         }
-        res.writeHead(200, { etag: `"${createHash("md5").update(body).digest("hex")}"` });
+        // Real S3 answers HEAD with the object's Content-Length (what `sizeOf()` reads).
+        res.writeHead(200, { etag: `"${createHash("md5").update(body).digest("hex")}"`, "content-length": String(body.length) });
         res.end();
         return;
       }
@@ -562,4 +563,32 @@ test("S3BlobStore with an observability port records a transport failure by erro
   assert.equal(span.name, "DELETE 127.0.0.1");
   assert.equal(span.status.code, SpanStatusCode.ERROR);
   assert.equal(typeof span.attributes["error.type"], "string");
+});
+
+test("S3BlobStore.sizeOf() reads Content-Length from a HEAD, is null for a 404, and refuses a failed or length-less answer", async (t) => {
+  const fakeS3 = await startFakeS3();
+  t.after(() => fakeS3.close());
+  const store = makeStore(fakeS3.baseUrl);
+  const { storageKey } = await store.put({ workspaceId: "ws-size", sha256: "ab".repeat(32), bytes: new Uint8Array([1, 2, 3, 4, 5]) } as never);
+  assert.equal(await store.sizeOf({ storageKey }), 5);
+  assert.equal(fakeS3.lastRequest()?.method, "HEAD");
+  assert.equal(await store.sizeOf({ storageKey: "ws-size/missing/blobs/ab/abc" }, {}), null);
+  // 403, not a 5xx: the signing client retries 5xx responses with backoff, which only slows the test.
+  fakeS3.setForcedStatus("HEAD", storageKey, 403);
+  await assert.rejects(store.sizeOf({ storageKey }), { message: "S3BlobStore.sizeOf: failed to check object — HTTP 403" });
+  fakeS3.setForcedStatus("HEAD", storageKey, 200);
+  await assert.rejects(store.sizeOf({ storageKey }), { message: "S3BlobStore.sizeOf: storage did not return a valid content length" });
+});
+
+test("S3BlobStore names the operation and key when the request itself cannot be sent", async () => {
+  const fakeS3 = await startFakeS3();
+  const baseUrl = fakeS3.baseUrl;
+  await fakeS3.close();
+  const store = makeStore(baseUrl);
+  const key = "ws/x/blobs/ab/abc";
+  const bytes = new Uint8Array([1]);
+  await assert.rejects(store.put({ workspaceId: "ws", sha256: "ab".repeat(32), bytes } as never), /^Error: S3BlobStore\.put: request failed for '.+' — /);
+  await assert.rejects(store.putIfAbsent({ workspaceId: "ws", sha256: "ab".repeat(32), bytes } as never), /^Error: S3BlobStore\.putIfAbsent: request failed for '.+' — /);
+  await assert.rejects(store.get({ storageKey: key }), { message: new RegExp(`^S3BlobStore\\.get: request failed for '${key}' — `) });
+  await assert.rejects(store.exists({ storageKey: key }), { message: new RegExp(`^S3BlobStore\\.exists: request failed for '${key}' — `) });
 });

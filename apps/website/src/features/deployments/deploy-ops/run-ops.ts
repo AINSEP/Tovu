@@ -250,18 +250,20 @@ async function recordAcceptedDeploy({ deps, platform, normalized }: { deps: Depl
   }
 }
 
-/** Race an in-flight status against the deadline and cancellation. Listeners/timers always cleaned up. */
+/** Race an in-flight status against the deadline and cancellation. Listeners/timers always cleaned up.
+ * The signal is never already aborted here: the one caller chain (`waitForDeployOps` ->
+ * `pollBeforeDeadline`) checks `signal.aborted` and reaches this function synchronously, with no await
+ * in between, so a pre-aborted guard here could never fire and was removed. */
 async function boundedPoll(status: (signal: AbortSignal) => Promise<DeployOpsStatus>, remaining: number, signal?: AbortSignal): Promise<DeployOpsStatus> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
   const stopped = new Promise<never>((_, reject) => {
     onAbort = () => { controller.abort(); reject(aborted()); };
-    if (signal?.aborted) { onAbort(); return; }
     signal?.addEventListener("abort", onAbort, { once: true });
     timer = setTimeout(() => { controller.abort(); reject(TIMEOUT); }, remaining);
   });
-  try { if (signal?.aborted) return await stopped; return await Promise.race([status(controller.signal), stopped]); }
+  try { return await Promise.race([status(controller.signal), stopped]); }
   finally { if (timer) clearTimeout(timer); if (onAbort) signal?.removeEventListener("abort", onAbort); }
 }
 

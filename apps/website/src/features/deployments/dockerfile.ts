@@ -66,9 +66,10 @@ function dockerfilePath(): string {
  *  chars): nothing a real file's contents could hash to would ever collide with this string. */
 const MISSING_DOCKERFILE_ETAG = 'W/"missing"';
 
-/** @complexity O(c) in `contents`' byte size — one hash pass. */
-function computeDockerfileEtag(contents: string | null): string {
-  if (contents === null) return MISSING_DOCKERFILE_ETAG;
+/** @complexity O(c) in `contents`' byte size — one hash pass. Only existing contents are hashed:
+ *  both callers handle absence first (`readDockerfileSource` returns {@link MISSING_DOCKERFILE_ETAG}
+ *  before reading), so this takes a string, never null. */
+function computeDockerfileEtag(contents: string): string {
   return `"${createHash("sha256").update(contents, "utf8").digest("hex")}"`;
 }
 

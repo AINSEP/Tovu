@@ -95,3 +95,24 @@ test("the bundled plugin's real file loads and resolves its hosting target to th
   assert.equal(resolved?.module.pull, lib.pullFormSubmissions);
   assert.equal(resolved?.module.ack, lib.acknowledgeFormSubmissions);
 });
+
+test("a destination module whose default export is not an object is refused by name; installed loading orders by plugin id", async () => {
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-form-dest-"));
+  try {
+    await writeFile(path.join(root, "tovu-form-destinations.json"), file([{ id: "bad", label: "Bad", module: "bad.mjs", receive: "external", credentialLabel: "Key" }]));
+    await writeFile(path.join(root, "bad.mjs"), "export default 42;\n");
+    const registry = await loadFormDestinationRegistryFromSource({ pluginId: "relay", packageRoot: root }, {});
+    assert.deepEqual(registry.refusals, ["form destination 'bad' from 'relay' was not loaded: its module's default export is not an object"]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+
+  const { loadFormDestinationRegistry } = await import("../registry.js");
+  const seen: unknown[] = [];
+  const registry = await loadFormDestinationRegistry({ workspaceId: "ws" }, { loadContributions: (async (input: { workspaceId: string }, options: unknown) => {
+    seen.push({ workspaceId: input.workspaceId, options });
+    return { items: [loaded(cohosted as FormDestinationDescriptor, "cloudflare")], refusals: ["an upstream refusal"] };
+  }) as never });
+  assert.deepEqual(seen, [{ workspaceId: "ws", options: { orderByPluginId: true } }]);
+  assert.deepEqual(registry.refusals, ["an upstream refusal"]);
+});

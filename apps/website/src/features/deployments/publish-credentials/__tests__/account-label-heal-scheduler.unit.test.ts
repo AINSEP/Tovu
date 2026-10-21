@@ -172,3 +172,25 @@ test("createAccountLabelHealScheduler — an id that failed is eligible again on
 
   assert.equal(callCount, 2);
 });
+
+test("createAccountLabelHealScheduler — an error reporter that itself throws is caught once more and reported under '*', never thrown back", () => {
+  const reports: Array<{ id: string; message: string }> = [];
+  const scheduler = createAccountLabelHealScheduler({
+    heal: () => { throw new Error("sync heal failure"); },
+    onHealError: (id, err) => {
+      reports.push({ id, message: (err as Error).message });
+      if (id !== "*") throw new Error("reporter failed");
+    },
+  });
+  assert.doesNotThrow(() => scheduler.triggerFor(["a", "b"]));
+  assert.deepEqual(reports, [{ id: "a", message: "sync heal failure" }, { id: "*", message: "reporter failed" }]);
+});
+
+test("createAccountLabelHealScheduler — without an onHealError, a failed heal is logged to console.error with its id", async (t) => {
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const failure = new Error("vault locked");
+  createAccountLabelHealScheduler({ heal: async () => { throw failure; } }).triggerFor(["cred-9"]);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(logged, [["[publish-credentials] background account-label heal failed for 'cred-9'", failure]]);
+});

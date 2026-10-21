@@ -139,3 +139,59 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     assert.deepEqual(registry.refusals, ["deploy ops from 'github-pages' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"]);
   } finally { await forceRemove(root); }
 });
+
+test("secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason", async t => {
+  const caps = 'secretCapabilities: { appliesOn: "next-deploy", supportsStaging: false }';
+  for (const [name, body, reason] of [
+    ["capabilities without verbs", `export default { status() {}, logs() {}, ${caps} };`, "secretCapabilities and readSecret need listSecrets(), setSecret() and unsetSecret()"],
+    ["readSecret without verbs", "export default { status() {}, logs() {}, readSecret() {} };", "secretCapabilities and readSecret need listSecrets(), setSecret() and unsetSecret()"],
+    ["unknown appliesOn", 'export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, unsetSecret() {}, secretCapabilities: { appliesOn: "never", supportsStaging: false } };', "secretCapabilities must declare appliesOn and supportsStaging"],
+    ["non-boolean supportsStaging", 'export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, unsetSecret() {}, secretCapabilities: { appliesOn: "immediately", supportsStaging: "no" } };', "secretCapabilities must declare appliesOn and supportsStaging"],
+    ["non-function optional verb", "export default { status() {}, logs() {}, deploy: 1 };", "module must export status() and logs()"],
+  ] as const) {
+    await t.test(name, async () => {
+      const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-secret-shape-"));
+      try {
+        await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+        await writeFile(path.join(root, "ops.mjs"), body);
+        const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root }, {});
+        assert.deepEqual(registry.refusals, [`deploy ops platform 'example' was not loaded: ${reason}`]);
+        assert.deepEqual(registry.list(), []);
+      } finally { await forceRemove(root); }
+    });
+  }
+  await t.test("a complete secrets adapter loads", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-secret-ok-"));
+    try {
+      await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example", label: "Example", module: "ops.mjs", hosts: ["api.example.com"] }] }));
+      await writeFile(path.join(root, "ops.mjs"), `export default { status() {}, logs() {}, listSecrets() {}, setSecret() {}, unsetSecret() {}, readSecret() {}, ${caps} };`);
+      const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: root });
+      assert.deepEqual(registry.refusals, []);
+      assert.equal(registry.get("example")?.descriptor.label, "Example");
+    } finally { await forceRemove(root); }
+  });
+});
+
+test("an unreadable manifest is a refusal for the registry and is skipped by enum discovery", async () => {
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-ops-unreadable-"));
+  try {
+    const packageRoot = path.join(sourceRoot, "broken");
+    await mkdir(path.join(packageRoot, "tovu-deploy-ops.json"), { recursive: true });
+    await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ name: "broken", version: "1.0.0" }));
+    const invalidRoot = path.join(sourceRoot, "invalid");
+    await mkdir(invalidRoot);
+    await writeFile(path.join(invalidRoot, "plugin.json"), JSON.stringify({ name: "invalid", version: "1.0.0" }));
+    await writeFile(path.join(invalidRoot, "tovu-deploy-ops.json"), "{}");
+    assert.deepEqual((await loadDeployOpsRegistryFromSource({ pluginId: "broken", packageRoot })).refusals, ["deploy ops from 'broken' were not loaded: tovu-deploy-ops.json could not be read"]);
+    assert.deepEqual(readBundledDeployOpsDescriptors({ sourceRoot }, {}), []);
+    assert.deepEqual((await loadBundledDeployOpsRegistry({ sourceRoot }, {})).list(), []);
+  } finally { await forceRemove(sourceRoot); }
+});
+
+test("a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal", async () => {
+  const { loadDeployOpsRegistry } = await import("../registry.js");
+  const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async () => { throw new Error("EIO"); } });
+  assert.deepEqual(registry.list(), []);
+  assert.deepEqual(registry.refusals, ["deploy ops were not loaded: installed plugin packages could not be read"]);
+  assert.throws(() => requirePlatform(registry, "fly"), { message: "Unknown deployment ops platform 'fly'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
+});
