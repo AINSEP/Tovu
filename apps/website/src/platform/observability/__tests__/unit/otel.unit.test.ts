@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 
 import { createAsyncLocalSpanScope, createOtelFactories, createOtelObservabilityPort } from "../../otel.js";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
@@ -109,6 +110,21 @@ test("SDK factories reject an exporter of the wrong kind before starting a provi
       name: "TypeError", message: "OpenTelemetry requires an OTLP trace exporter",
     });
   }
+});
+
+test("without test processors the SDK factories build a real OTLP exporter and accept it into the batch pipeline", async () => {
+  const { exporterFactory, tracerProviderFactory } = createOtelFactories({});
+  const exporter = exporterFactory.create({ endpoint: "http://127.0.0.1:9/v1/traces" });
+  assert.ok(exporter instanceof OTLPTraceExporter);
+  const tracer = tracerProviderFactory.create({ serviceName: "tovu-default", exporter }).getTracer({ name: "tovu.test" });
+  const span = tracer.startSpan({ name: "unended", kind: "internal", attributes: {} });
+  assert.equal(typeof span.end, "function", "a provider built on the OTLP batch processor hands out live spans");
+  await exporter.shutdown();
+});
+
+test("explicit test processors suppress the network exporter entirely", () => {
+  const { exporterFactory } = createOtelFactories({}, { spanProcessors: [new SimpleSpanProcessor(new InMemorySpanExporter())] });
+  assert.equal(exporterFactory.create({ endpoint: "http://collector.test/v1/traces" }), undefined);
 });
 
 test("structural span methods preserve names, attributes, events and both error description shapes", () => {
