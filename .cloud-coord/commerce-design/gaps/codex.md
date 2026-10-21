@@ -1,0 +1,25 @@
+CommercePeer(Review): Direction holds, but **scope identity and crash recovery must be specified before the cloud build**. Ranked by likely first harm; S/M/L are implementation sizes.
+
+1. **Tenant, site, merchant account, environment — v1; L1–L3/L7; M.** Scope records, credentials, approvals, idempotency, webhook routing and uniqueness by tenant/site + provider account + test/live mode. `(provider, refundId)` alone is insufficient. Establish ownership from verified endpoint/account configuration, never payload-supplied tenant IDs. Reads auto-run only after authorization; bind approvals additionally to operation and principal. Existing authorization already requires workspace scope ([ports.ts:8](packages/core/src/gated-mutations/ports.ts#L8)).
+
+2. **Durable operation protocol — v1; L2–L4; L.** Persist command, request fingerprint, reservation and stable provider idempotency key before outbound I/O; call outside the database transaction; apply evidence afterward. Reserve pending/unknown refunds as well as succeeded ones. Define recovery when provider success precedes our commit, provider references are missing, or provider idempotency retention expires. Single-use approval consumption must atomically create a retriable command. Use StorageKernel’s explicit locking contract ([port.ts:71](packages/db/src/kernel/port.ts#L71)).
+
+3. **Replace ambiguous “statuses only move forward” — v1; L1/L3; M.** Specify transition graphs separately for payment intent, attempt, authorization, capture, refund and dispute; preserve immutable observations and append corrections. Define snapshot authority without assuming event timestamps provide total ordering. Quarantine inconsistent evidence without deleting the externally observed fact. Existing normalized events lack refund identity ([ports.ts:163](packages/commerce/src/payments/ports.ts#L163)); that contract needs replacement.
+
+4. **Risk enforcement — v1 seam; L1/L4; M.** Outbox-only *analytics ingestion* is sound; outbox-only *fraud prevention* is insufficient. Inject a synchronous `RiskDecisionPort` before authorization/automatic capture and recheck before delayed capture. Define timeout, stale-result and allow/deny/review policy; audit decision version. Only the money service executes the resulting command. Advanced graph scoring: **later; post-L5; L**.
+
+5. **Operational recovery — v1; L4/L5; M.** Alert on unknown amount/age, expiring authorizations, pending refunds, reconciliation failures, inbox/outbox lag and dead letters. Include worker leases, retry budgets, manual resolution and replay runbooks. Signed webhooks need overlapping rotation keys, replay tolerance and durable deduplication; Stripe explicitly documents [rotation and delivery handling](https://docs.stripe.com/webhooks).
+
+6. **Settlement and accounting — v1 minimum; L2/L4/L6; L.** Capture provider balance transactions, fees, adjustments, settlement currency and payout references; reconcile reports to payments and payouts, with exception queues. Payment retrieval alone cannot reconcile bank deposits. Provide immutable balanced journal/export records for processor clearing, fees, refunds and disputes; full general ledger, revenue recognition and merchant payout initiation: **later/out of scope**. Stripe exposes distinct [balance, refund and payout events](https://docs.stripe.com/api/events/retrieve).
+
+7. **Refund destination and disputes — v1; L1/L4/L6; M.** Refund to original method; never silently substitute store credit. Stripe mandates [original-method refunds](https://docs.stripe.com/refunds). Store credit: **later**, separate liability ledger. Record dispute deadlines, evidence references and alerts now; provider-dashboard submission is an acceptable v1 workflow. Automated evidence submission: **later; L6; M**.
+
+8. **Money, FX and migration — v1; L1/L8; M.** Enforce safe integer bounds, provider limits and currency-specific operation rules. Keep presentment and settlement Money separate; never sum currencies. Persist actual conversion rate/source/time and rounding when available; merchant FX quoting: **later; L4/L6; L**. Existing catalog uses cents and lowercase currency ([types.ts:70](packages/commerce/src/catalog/types.ts#L70)); migrate before live catalog checkout.
+
+9. **Documents — v1 hooks; L1/L5/L9; M.** Snapshot seller/buyer, line items, tax amounts and document references; deliver receipts idempotently. Consumers own invoice numbering, credit notes and jurisdiction-specific tax documents. Full tax engine: **out of scope**.
+
+10. **Privacy/retention — v1; L2/L5; M.** Separate erasable PII from durable financial facts; configure retention, holds, backup expiry and payload minimization. Treat pseudonymous graph links as sensitive. Prefer coarse location, tenant-isolated identifiers and short retention. Start with portable risk storage/queries; PostGIS/graph accelerators **later; post-L5; L**.
+
+Sequence correction: prove these invariants with one real provider before parallel L6 implementations. LiPay gets a contract-tested stub until a real API exists.
+
+<<SWARM_END>>
