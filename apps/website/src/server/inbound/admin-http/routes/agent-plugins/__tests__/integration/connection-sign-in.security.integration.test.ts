@@ -58,7 +58,13 @@ test("F1: authenticated hosted start binds only its actor's browser; wrong brows
   assert.equal(burned.status, 400, "wrong-actor use consumes the handoff");
 
   const second = await begin();
+  const handoffId = new URL(second.link).pathname.split("/").at(-1)!;
+  const otherWorkspaceLink = hostedSignInLink({ callbackUrl: `${baseUrl}${API_CONNECTION_OAUTH_CALLBACK_PATH}`, workspaceId: `${deps.workspaceId}-other`, handoffId });
+  const otherWorkspace = await fetch(otherWorkspaceLink, { redirect: "manual", headers: { cookie: session } });
+  assert.equal(otherWorkspace.status, 400, "a handoff is only redeemable under the workspace that issued it");
+  assert.equal(otherWorkspace.headers.get("set-cookie"), null);
   const opened = await fetch(second.link, { redirect: "manual", headers: { cookie: session } });
+  assert.equal(opened.status, 302, "the wrong-workspace attempt never consumed the real handoff");
   assert.equal(opened.status, 302);
   assert.equal(opened.headers.get("location"), second.start.authorizationUrl);
   assert.equal(opened.headers.get("cache-control"), "no-store");
