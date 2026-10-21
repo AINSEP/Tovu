@@ -35,7 +35,7 @@ import { useAppVersion } from './use-app-version.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
 import { SitesFolders, SitesFoldersDialog } from './SitesFolders.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
-import { useSiteFolders } from './use-site-folders.hooks.js';
+import type { useSiteFolders } from './use-site-folders.hooks.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
@@ -58,13 +58,12 @@ function createImportSiteAction(
   return importTarget ? () => openProjectTab(importTarget, { adminPage: 'import' }) : undefined;
 }
 
-/** The sites-settings hooks `App` threads down; see `App`'s own doc. */
+/** The sites-settings hooks `App` threads down; see `App`'s own doc. Each one left out falls back to
+ *  the real hook at the component that calls it (`SettingsControl`, `SitesFolders`). */
 export interface SitesSettingsHooks {
-  useFolders: typeof useSiteFolders;
-  useSiteSettings: typeof useSiteStorageSettings;
+  useFolders?: typeof useSiteFolders;
+  useSiteSettings?: typeof useSiteStorageSettings;
 }
-
-const SITES_SETTINGS_HOOKS: SitesSettingsHooks = { useFolders: useSiteFolders, useSiteSettings: useSiteStorageSettings };
 
 /**
  * Runner's root component.
@@ -99,7 +98,7 @@ export function App({
   useTabs = useProjectTabs,
   useNav = useSectionNav,
   useExpanded = useExpandedMode,
-  sitesSettings: { useFolders, useSiteSettings } = SITES_SETTINGS_HOOKS,
+  sitesSettings = {},
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
@@ -169,7 +168,7 @@ export function App({
         onThemeChange={setTheme}
         onOpenAppearance={openAppearance}
         onSelectSection={selectSection}
-        useSiteSettings={useSiteSettings}
+        useSiteSettings={sitesSettings.useSiteSettings}
       />
       )}
 
@@ -209,7 +208,7 @@ export function App({
           adding={adding}
           addError={addError}
           onImportSite={importSite}
-          useFolders={useFolders}
+          useFolders={sitesSettings.useFolders}
         />
 
         <CreateWebsiteHost
@@ -353,7 +352,7 @@ function TopNav({
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
-  useSiteSettings: typeof useSiteStorageSettings;
+  useSiteSettings?: typeof useSiteStorageSettings;
 }) {
   const { version, error } = useAppVersion({});
   return (
@@ -444,21 +443,23 @@ function SettingsControl({
   theme,
   onThemeChange,
   onOpenAppearance,
-  useSiteSettings,
+  useSiteSettings = useSiteStorageSettings,
 }: {
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
-  useSiteSettings: typeof useSiteStorageSettings;
+  useSiteSettings?: typeof useSiteStorageSettings;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteSettings({});
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
-  const disabled = false;
+  // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
+  // none of NavLink's `aria-disabled`/`tabIndex`/`--disabled` styling, which a constant `false`
+  // could never switch on.
   const { toggleOpen, chooseTheme, openAppearancePage } = settingsControlHandlers({
-    disabled,
+    disabled: false,
     setOpen,
     onThemeChange,
     onOpenAppearance,
@@ -470,13 +471,11 @@ function SettingsControl({
       <button
         ref={triggerRef}
         type="button"
-        className={`topnav__link ${open ? 'is-active' : ''} ${disabled ? 'topnav__link--disabled' : ''}`}
+        className={`topnav__link ${open ? 'is-active' : ''}`}
         onClick={toggleOpen}
         aria-expanded={open}
         aria-haspopup="true"
-        aria-disabled={disabled || undefined}
-        tabIndex={disabled ? -1 : undefined}
-        {...navAvailability({ label: "Settings", disabled })}
+        {...navAvailability({ label: "Settings", disabled: false })}
         aria-label="Settings"
       >
         <GearIcon />
@@ -1040,8 +1039,8 @@ function MainArea({
   addError: string | null;
   /** Absent when there is no site to import into, which hides the button. */
   onImportSite?: () => void;
-  /** The header's `SitesFolders` settings hook — see `App`'s own `useFolders`. */
-  useFolders: typeof useSiteFolders;
+  /** The header's `SitesFolders` settings hook — see `App`'s own `sitesSettings`. */
+  useFolders?: typeof useSiteFolders;
 }) {
   if (appearanceOpen) {
     return <AppearancePage onBack={onCloseAppearance} />;
@@ -1102,7 +1101,7 @@ function MainHeader({
   onAddSite: () => Promise<void>;
   adding: boolean;
   onImportSite?: () => void;
-  useFolders: typeof useSiteFolders;
+  useFolders?: typeof useSiteFolders;
 }) {
   return (
     <header className="main__head">
