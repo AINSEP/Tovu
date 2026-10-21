@@ -6,59 +6,17 @@ Branch `cloud/build-search-2026-10-21` in both repos (base `cloud/integration-20
 - Time lost: every builder hit the account usage limit around 17:30Z and resumed at ~19:56Z when the limit lifted.
 
 ## What was built
-- **`@jini-ai/search`** (new Jini package):
-  - Frozen contract (`contract.ts`, `ports.ts`, `api.ts`).
-  - Registry on the shared `createProviderRegistry`.
-  - `./contribution`: plugin providers. **acceptsRestricted=true is refused for plugins**, so vendors are public-only.
-  - Tokens.
-  - Single-writer **indexer**:
-    - It re-loads each document; it never trusts the event payload.
-    - It writes to the active and building targets.
-    - A restricted document going to a public-only provider becomes a tombstone.
-    - A `unknown` result is never turned into `failed`.
-    - Backfill is resumable with watermarks, and the generation switch is a compare-and-swap promote. The old index is dropped after the switch.
-  - **Query service**:
-    - Deadline-bounded (3 s).
-    - Audiences are passed only to providers that accept restricted content.
-    - Cross-site hits are dropped and every hit is revalidated through the access port. This fails closed and reports an explicit `unavailable` reason.
-  - **Tools** `search_query`, `search_status`, `search_reindex` and `search_set_provider`.
-    - The two write tools ask for human approval.
-    - A reindex approval is remembered per provider; a provider switch never is.
-  - **Conformance kit** `runSearchProviderConformance` (test runner is injected):
-    - Covers audience isolation, stale writes, removing a never-indexed key, no resurrection, published→draft removes, async completion via `awaitTask`, index and site isolation, locale, collections, pagination, empty text, `revisionOf`, `dropIndex`, and the unavailable case.
-    - 50 tests prove the kit catches broken providers.
-  - Tiny **in-memory reference provider**, for tests only.
-- **Tovu:**
-  - Migration **0023_search_index**: tables `search_index_state`, `search_index_watermarks` and `search_index_targets`, on SQLite and Postgres.
-  - SQL state/target store with an atomic CAS promote.
-  - CMS `post` and `page` document sources.
-    - Revision = instant×1000 + version%1000, so a scheduled post's go-live outranks its embargo tombstone.
-    - Members gates become the audiences `members`, `paid` and `tier:<id>`.
-  - Fail-closed access port.
-  - Per-site setting `core.search/provider`, default `builtin`.
-  - Composition module (`modules/site-search.ts`):
-    - Built-in slot, **empty today**, so status reports `not_configured`.
-    - Plugin vendors arrive through the contribution loader.
-    - Vault credentials by label `Tovu Search — <Provider>`.
-    - Guarded HTTP client.
-    - Index names come from `deriveInstallationId`, plus site and generation.
-  - Bus subscription next to SEO.
-  - Maintenance loop in serving-app: reconcile + backfill every 30 s; at boot it starts a rebuild when the site has no target. It stops on shutdown.
-  - Public `GET /api/search`:
-    - Audiences come only from the member session.
-    - Results are plain-text snippets with highlight ranges.
-    - Bad input gets 400; an unavailable provider gets 503 `search_unavailable`.
-  - Agent tools are registered through the tool-catalog manifest, with human confirm.
-- **Meilisearch example vendor**, a bundled Agent Plugin at `content/agent-plugins/meilisearch/`:
-  - Plain `.mjs`, no npm imports.
-  - **Seeds disabled**: it gets site content only after the owner opts in.
-  - Public-only, with versioned tombstone documents and a stale-revision check.
-  - Async tasks are settled via `awaitTask`.
-  - Snippets are built from sentinel highlight tags.
-  - It never throws and never puts the API key in a message.
-- **Indexing assumption:** indexing runs on `entry.published`, `entry.updated` and `entry.unpublished`. It assumes the scheduled-post fix (cloud/fix-scheduled-2026-10-21) makes `entry.published` fire at go-live.
-  - Until that fix lands, a scheduled post reaches the index only through a later event or a reindex.
-  - The design's new delete event was dropped: trash already emits `entry.unpublished`.
+- **`@jini-ai/search`** (new Jini package): frozen contract (`contract.ts`, `ports.ts`, `api.ts`); registry on the shared `createProviderRegistry`; `./contribution` for plugin providers (**plugins declaring acceptsRestricted=true are refused**, so vendors are public-only); tokens.
+  - **Indexer** (the one writer): re-loads each document (never trusts the event payload); writes to active + building targets; a restricted doc for a public-only provider becomes a tombstone; `unknown` is never turned into `failed`; resumable watermark backfill; compare-and-swap generation promote, then the old index is dropped.
+  - **Query service**: 3 s deadline; audiences only for providers accepting restricted content; drops cross-site hits and revalidates every hit through the access port (fails closed, explicit `unavailable` reason).
+  - **Tools** `search_query`, `search_status`, `search_reindex`, `search_set_provider`; the two writes need human approval (reindex remembered per provider, provider switch never).
+  - **Conformance kit** `runSearchProviderConformance` (injected test runner): audience isolation, stale writes, never-indexed remove, no resurrection, published→draft removes, async completion via `awaitTask`, index/site isolation, locale, collections, pagination, empty text, `revisionOf`, `dropIndex`, unavailable case. 50 tests prove it catches broken providers. Plus a tiny in-memory reference provider, for tests only.
+- **Tovu:** migration **0023_search_index** (`search_index_state`, `search_index_watermarks`, `search_index_targets`; SQLite + Postgres); SQL state/target store with atomic promote; CMS `post`/`page` sources (revision = instant×1000 + version%1000, so a scheduled post's go-live outranks its embargo tombstone; members gates → audiences `members`/`paid`/`tier:<id>`); fail-closed access port; per-site setting `core.search/provider` (default `builtin`).
+  - Composition `modules/site-search.ts`: built-in slot **empty today**, so status reports `not_configured`; vendors via the contribution loader; vault credentials by label `Tovu Search — <Provider>`; guarded HTTP; index names from `deriveInstallationId` + site + generation.
+  - Bus subscription next to SEO; serving-app maintenance loop (reconcile + backfill every 30 s, boot rebuild when the site has no target, stops on shutdown).
+  - Public `GET /api/search`: audiences only from the member session; plain-text snippets + highlight ranges; 400 on bad input, 503 `search_unavailable`. Agent tools registered via the tool-catalog manifest with human confirm.
+- **Meilisearch example vendor**, a bundled Agent Plugin (`content/agent-plugins/meilisearch/`, plain `.mjs`): **seeds disabled** (gets content only after the owner opts in); public-only; versioned tombstone docs + stale-revision check; async tasks via `awaitTask`; snippets from sentinel highlight tags; never throws or leaks the API key.
+- Indexing uses `entry.published|updated|unpublished` and **assumes the scheduled-post fix (cloud/fix-scheduled-2026-10-21) fires `entry.published` at go-live**; until then a scheduled post is indexed only by a later event or a reindex. The design's new delete event was dropped (trash already emits `entry.unpublished`).
 
 ## Tests run here (all green)
 - **Jini `packages/search`:**
