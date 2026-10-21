@@ -136,16 +136,19 @@ function signalInit(required, optional = {}) {
 /**
  * The request headers for one `put`: caller headers, then `content-type`, then the create-only
  * precondition — so neither of the latter two can be overridden by a stray caller header.
+ * A native `Headers` with `.set()`, not an object spread: header names are case-insensitive, so a
+ * caller's `if-none-match` and an enforced `If-None-Match` would otherwise both be sent and combine
+ * into one `etag-1, *` value instead of the required `*`.
  * @param {{ contentType?: string, headers?: Readonly<Record<string, string>>, ifAbsent?: boolean }} required
+ * @returns {Headers}
  * @complexity O(headers).
  */
 function putHeaders(required) {
   const { contentType, headers, ifAbsent } = required;
-  return {
-    ...headers,
-    ...(contentType === undefined ? {} : { "content-type": contentType }),
-    ...(ifAbsent ? { "If-None-Match": "*" } : {}),
-  };
+  const merged = new Headers(headers);
+  if (contentType !== undefined) merged.set("content-type", contentType);
+  if (ifAbsent) merged.set("if-none-match", "*");
+  return merged;
 }
 
 /**

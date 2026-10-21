@@ -316,14 +316,30 @@ test("put() sends contentType as content-type and passes caller headers through;
     ifAbsent: true,
     headers: { "content-disposition": "attachment", "cache-control": "no-store", "content-type": "text/plain", "If-None-Match": "etag-1" },
   });
-  assert.deepEqual(s3.requests[0].init.headers, {
+  assert.deepEqual(Object.fromEntries(new Headers(s3.requests[0].init.headers)), {
     "content-disposition": "attachment",
     "cache-control": "no-store",
     "content-type": "image/png",
-    "If-None-Match": "*",
+    "if-none-match": "*",
   });
   await store.put({ key: KEY, bytes: BYTES });
-  assert.deepEqual(s3.requests[1].init.headers, {}, "no options means no extra headers");
+  assert.deepEqual(Object.fromEntries(new Headers(s3.requests[1].init.headers)), {}, "no options means no extra headers");
+});
+
+test("put(): enforced content-type and If-None-Match replace a caller header of ANY casing — never a combined 'etag-1, *' value", async () => {
+  const s3 = fakeS3();
+  const store = makeStore({ host: s3.host });
+  await store.put({ key: KEY, bytes: BYTES }, {
+    contentType: "image/png",
+    ifAbsent: true,
+    headers: { "if-none-match": "etag-1", "Content-Type": "text/plain", "X-Custom": "kept" },
+  });
+  const sent = new Headers(s3.requests[0].init.headers);
+  assert.equal(sent.get("if-none-match"), "*");
+  assert.equal(sent.get("content-type"), "image/png");
+  assert.equal(sent.get("x-custom"), "kept");
+  assert.deepEqual([...sent.keys()].sort(), ["content-type", "if-none-match", "x-custom"]);
+  assert.equal(await store.put({ key: KEY, bytes: BYTES }, { ifAbsent: true, headers: { "IF-NONE-MATCH": "etag-2" } }).then((r) => r.written), false, "the stored object makes the precondition fail");
 });
 
 test("delete() is idempotent — deleting an already-absent key is not an error", async () => {
