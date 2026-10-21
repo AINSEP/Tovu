@@ -5,6 +5,8 @@ ENV (listed, not fixed): 122 entries — *.postgres.test.ts, pg-fixture (pg part
 
 | lot | status | a | b | c fixed | listed | merged commit | rerun |
 |---|---|---|---|---|---|---|---|
-| L3 | dispatched 08:52 | | | | | | |
-| L4 | dispatched 08:52 | | | | | | |
+| L3 pages-regions | merged | 0 | 21 | 0 | 1 follow-up (assign-location.not-live stubs nowIso, passes) | 6a699e08 | 166/166 pass |
+| L4 oauth | merged | 2 (api-connections host.ts wrapped unreadable-token cause) | 20 | 0 | 0 | 1d75dba6 | 142/142 pass |
 | L5 | dispatched 08:52 | | | | | | |
+| L1 admin-media | dispatched 08:58 | | | | | | |
+| L2 redaction/desktop | dispatched 09:00 | | | | | | |
