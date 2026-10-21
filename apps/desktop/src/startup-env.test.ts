@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { describeRejectedDefault, explicitStartupSiteDirs, resolveCliMode, sitesUiRequested } from "./startup-env.ts";
+import { describeRejectedDefault, explicitStartupSiteDirs, isUnattendedSiteLaunch, resolveCliMode, sitesUiRequested } from "./startup-env.ts";
 
 test("the sites home opens by default, and any pinned destination bypasses it", () => {
   assert.equal(sitesUiRequested({ env: {} }), true);
@@ -40,4 +40,11 @@ test("a rejected startup default is explained by its own reason, naming the miss
   assert.equal(describeRejectedDefault({ dir: "/s", kind: "incomplete", missing: ["tovu.config.json", "content.db"] }),
     "is missing tovu.config.json and content.db — it looks like a half-initialized site");
   assert.equal(describeRejectedDefault({ dir: "/s", kind: "occupied", missing: ["tovu.config.json"] }), "is not a Tovu site (missing tovu.config.json)");
+});
+
+test("a launch is unattended exactly when it pinned its site dir(s) by env var", () => {
+  assert.equal(isUnattendedSiteLaunch({ env: {} }), false);
+  assert.equal(isUnattendedSiteLaunch({ env: { TOVU_DESKTOP_SITE_DIR: "/sites/a" } }), true);
+  assert.equal(isUnattendedSiteLaunch({ env: { TOVU_DESKTOP_SITE_DIRS: "/sites/a" } }), true);
+  assert.equal(isUnattendedSiteLaunch({ env: { TOVU_DESKTOP_SITE_DIR: " ", TOVU_DESKTOP_URL: "http://127.0.0.1:1" } }), false);
 });

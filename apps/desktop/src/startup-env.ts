@@ -78,3 +78,17 @@ export function describeRejectedDefault(rejectedDefault: RejectedDefault, _optio
     ? `is missing ${missing} — it looks like a half-initialized site`
     : `is not a Tovu site (missing ${missing})`;
 }
+
+/**
+ * `true` when this launch named its site dir(s) directly via env var rather than through the
+ * interactive picker — `TOVU_DESKTOP_SITE_DIR`/`TOVU_DESKTOP_SITE_DIRS`, documented at the top of
+ * `main.ts` as "chiefly for verification/automation". `main.ts`'s `reportBootFailure` uses this to decide
+ * whether a boot failure may show a blocking native dialog at all: measured live (2026-09-06), a
+ * `dialog.showErrorBox` shown from one of these launches — no interactive user to dismiss it — left
+ * the whole Electron process hung indefinitely rather than exiting, defeating the entire point of a
+ * "fail fast" policy for an automation-facing arm. An interactive picker failure still gets the
+ * dialog, because a human is at the keyboard there to see and dismiss it.
+ */
+export function isUnattendedSiteLaunch({ env }: { env: StartupEnv }, _optional = {}): boolean {
+  return Boolean(env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs({ env }) !== null;
+}

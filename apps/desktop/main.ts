@@ -114,7 +114,8 @@ import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
 import { isSupervisedSiteUrl } from "./src/supervised-site-url.ts";
-import { describeRejectedDefault, explicitStartupSiteDirs, resolveCliMode, sitesUiRequested, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
+import { readSiteName } from "./src/site-name.ts";
+import { describeRejectedDefault, explicitStartupSiteDirs, isUnattendedSiteLaunch, resolveCliMode, sitesUiRequested, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
 import { createExternalSiteStopper } from "./src/external-site-stop.ts";
@@ -461,19 +462,6 @@ async function promptForSiteDir(rejectedDefault: RejectedDefault | null): Promis
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]!; // `!`: the length check rules out an empty list.
 }
 
-/** The site's own display name — `config.json`'s `name` field, falling back to the folder's own
- *  basename when that is missing or unreadable. Used only for the window title, which is what makes
- *  Electron's native Window menu double as a site switcher (distinct titles, distinct entries).
- *  @complexity O(1). */
-function readSiteName(siteDir: string): string {
-  try {
-    const config = JSON.parse(fs.readFileSync(path.join(siteDir, "config.json"), "utf8"));
-    if (typeof config.name === "string" && config.name.trim().length > 0) return config.name;
-  } catch {
-    // Missing, unreadable, or not JSON — the folder's own name is still a reasonable title.
-  }
-  return path.basename(siteDir);
-}
 
 function createWindow(url: string, title?: string, partition?: string): BrowserWindow {
   const window = new BrowserWindow({
@@ -1013,7 +1001,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
 
   let window;
   try {
-    window = createWindow(server.adminUrl, readSiteName(siteDir), partition);
+    window = createWindow(server.adminUrl, readSiteName({ siteDir }), partition);
   } catch (error) {
     if (!already) {
       recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
@@ -1253,19 +1241,6 @@ function refreshAppMenu(ctx: SiteOpenCtx): void {
  * indistinguishable from the app being broken. A short info dialog closes that gap without turning a
  * legitimate decline into an error.
  */
-/**
- * `true` when this launch named its site dir(s) directly via env var rather than through the
- * interactive picker — `TOVU_DESKTOP_SITE_DIR`/`TOVU_DESKTOP_SITE_DIRS`, documented at the top of
- * this file as "chiefly for verification/automation". {@link reportBootFailure} uses this to decide
- * whether a boot failure may show a blocking native dialog at all: measured live (2026-09-06), a
- * `dialog.showErrorBox` shown from one of these launches — no interactive user to dismiss it — left
- * the whole Electron process hung indefinitely rather than exiting, defeating the entire point of a
- * "fail fast" policy for an automation-facing arm. An interactive picker failure still gets the
- * dialog, because a human is at the keyboard there to see and dismiss it.
- */
-function isUnattendedSiteLaunch(): boolean {
-  return Boolean(process.env.TOVU_DESKTOP_SITE_DIR?.trim()) || explicitStartupSiteDirs({ env: process.env }) !== null;
-}
 
 async function reportBootFailure(error: Error): Promise<void> {
   if (error instanceof SiteDirSelectionCancelled) {
@@ -1282,7 +1257,7 @@ async function reportBootFailure(error: Error): Promise<void> {
   }
   console.error(`tovu desktop: ${error.message}`);
   process.exitCode = 1;
-  if (!SELFTEST && !isUnattendedSiteLaunch()) dialog.showErrorBox("Tovu could not start", error.message);
+  if (!SELFTEST && !isUnattendedSiteLaunch({ env: process.env })) dialog.showErrorBox("Tovu could not start", error.message);
   // `app.exit(1)` ONLY when nothing is open — a boot failure this early (resolving which site
   // dir(s) to serve, before any window exists) always has `openSites` empty, so there is nothing
   // for the graceful `before-quit` drain to do, and `app.exit` guarantees the process actually
@@ -1580,7 +1555,7 @@ async function offerMoveToApplications(): Promise<void> {
     isPackaged: app.isPackaged,
     isMas: process.mas === true,
     selftest: SELFTEST,
-    unattended: isUnattendedSiteLaunch(),
+    unattended: isUnattendedSiteLaunch({ env: process.env }),
     inApplications: process.platform === "darwin" && app.isInApplicationsFolder(),
     otherInstancesOpen: createInstancePresence({ directory: presenceDirPath(userDataDir) }).readLive().filter((record) => record.pid !== process.pid).length,
     currentVersion: app.getVersion(),
