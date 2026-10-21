@@ -577,3 +577,23 @@ test("admin redirects tombstone route: workspace mismatch, happy path, not found
     deps.redirectRepo.findById = origFindById;
   }
 });
+
+/** Same contract-violating direct-handler technique as the import route test above: both
+ *  `req.params.workspaceId ?? ""` and `req.params.id ?? ""` on get-by-id are unreachable through
+ *  real HTTP, so each is forced with a hand-built `req` whose `params` omit the field. */
+test("admin redirects get-by-id route: missing :workspaceId and :id params fall back to \"\" (404 workspace, then 404 for the empty id)", async () => {
+  const { app, deps } = buildTestApp();
+  deps.authorize = async () => ({ allowed: true, reason: "test_allowed" });
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/redirects/:id");
+
+  const noWorkspace = createCapturingResponse();
+  await handler({ params: {} }, noWorkspace.res);
+  assert.equal(noWorkspace.capture.statusCode, 404);
+  assert.deepEqual(noWorkspace.capture.jsonBody, { error: "workspace was not found" });
+
+  const noId = createCapturingResponse();
+  noId.res.locals.principal = { id: "direct-invoke-principal" };
+  await handler({ params: { workspaceId: deps.workspaceId } }, noId.res);
+  assert.equal(noId.capture.statusCode, 404);
+  assert.deepEqual(noId.capture.jsonBody, { error: "redirect '' was not found", code: "REDIRECT_NOT_FOUND" });
+});
