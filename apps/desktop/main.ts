@@ -113,6 +113,7 @@ import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.
 import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
+import { isSupervisedSiteUrl } from "./src/supervised-site-url.ts";
 import { describeRejectedDefault, explicitStartupSiteDirs, resolveCliMode, sitesUiRequested, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
 import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
 import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
@@ -1106,13 +1107,7 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
  * @complexity O(n) in currently open sites.
  */
 function isSupervisedGuestUrl(raw: string): boolean {
-  let url;
-  try {
-    url = new URL(raw);
-  } catch {
-    return false;
-  }
-  return [...openSites.values()].some((entry) => entry.server && new URL(entry.server.origin).origin === url.origin);
+  return isSupervisedSiteUrl({ raw, sites: openSites.values() });
 }
 
 /**
