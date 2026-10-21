@@ -20,9 +20,9 @@ import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../rule
  *
  * jsdom (29.1.1, this repo's pinned version) does not implement `HTMLDialogElement.prototype
  * .showModal`/`.close` at all — real browsers all do, so this is a test-environment gap, not a
- * product bug — same reasoning `use-media-lightbox.unit.test.ts`'s own `fakeDialog` helper
- * documents. `OtherCredentialRemoveDialog` calls both unconditionally (unlike `ImagePreviewModal
- * .hooks.tsx`'s guarded `typeof dialog.showModal === "function"` check), so the prototype is
+ * product bug — same reasoning Jini's `Lightbox.unit.test.tsx` (`@jini-ai/ui` admin-widgets)
+ * documents. `OtherCredentialRemoveDialog` calls both unconditionally (unlike Jini's `Lightbox
+ * .hooks.ts`'s guarded `typeof dialog.showModal === "function"` check), so the prototype is
  * polyfilled once here to keep `open`/`close()` behaving the way a real `<dialog>` would.
  */
 if (typeof HTMLDialogElement.prototype.showModal !== "function") {

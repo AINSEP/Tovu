@@ -21,7 +21,7 @@ import { resetPlaygroundRenderTargetBus } from "@/lib/playground-render-target-b
  * Stays in `AssistantDock/__tests__/` (not a nested `hooks/__tests__/`) even though the hook itself
  * moved into `hooks/` — matches how `features/ai-assistant/hooks/*.hooks.ts` are tested from the
  * feature's own top-level `__tests__/`, not from a `hooks/__tests__/` subfolder (see e.g.
- * `use-media-lightbox.unit.test.ts` living in `features/media/__tests__/`, alongside its hook in
+ * `use-media-tabs.hooks.unit.test.tsx` living in `features/media/__tests__/`, alongside its hook in
  * `features/media/hooks/`).
  *
  * `RoutedA2uiSurfaceCard.unit.test.tsx` already proves the end-to-end behavior these helpers feed

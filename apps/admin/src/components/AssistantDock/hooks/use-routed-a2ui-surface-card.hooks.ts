@@ -29,7 +29,7 @@ import {
  * already-a-plain-module store that ships its own direct test seam
  * (`setPlaygroundRenderTarget`/`resetPlaygroundRenderTargetBus`) — `RoutedA2uiSurfaceCard.unit
  * .test.tsx` already drives every branch of this hook that way, with no mock and no friction, the
- * same way `use-media-lightbox.hooks.ts`/`use-escape-to-cancel.hooks.ts` (both plain hooks, no port,
+ * same way `use-media-tabs.hooks.ts`/`use-escape-to-cancel.hooks.ts` (both plain hooks, no port,
  * no wired pair) get driven directly. The rest of this hook's state (`dismissed`, the refused-
  * surfaceId tracking) is local component state, not I/O at all. Per this workspace's ratified rule —
  * "a hook doing NO I/O gets NO port; injection with nothing to inject is ceremony" — wrapping the bus

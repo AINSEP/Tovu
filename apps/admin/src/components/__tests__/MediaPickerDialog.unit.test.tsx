@@ -277,8 +277,8 @@ describe("MediaPickerDialog — focus management", () => {
   // picker (e.g. the Posts/Pages editor's "Insert from Media Library" toolbar button). Real
   // keyboard/screen-reader defect: a keyboard user closing the dialog was dropped back to the top
   // of the page instead of staying where they were. Mirrors the `triggerRef`/`document.activeElement`
-  // technique `ConfirmDialog.hooks.tsx` (`@jini-ai/admin`) and this app's own `useMediaLightbox`
-  // (`features/media/hooks/use-media-lightbox.hooks.ts`) already use, adapted to a
+  // technique `ConfirmDialog.hooks.tsx` (`@jini-ai/admin`) and the media lightbox's shared `useLightbox`
+  // (`@jini-ai/ui` admin-widgets `Lightbox.hooks.ts`) already use, adapted to a
   // conditionally-mounted div dialog rather than an always-mounted native `<dialog>`: this
   // component only ever exists in the DOM while open, so mount/unmount IS the open/close
   // transition.

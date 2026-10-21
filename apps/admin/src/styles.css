@@ -779,14 +779,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .theme-explore-fullscreen-trigger:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
 .theme-explore-fullscreen-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Explore preview, fullscreen — same native-`<dialog>` foundation as `.confirm-dialog`/
-   `.image-preview-modal` (see those rules' own comments for the full rationale) and the SAME
+/* Explore preview, fullscreen — same native-`<dialog>` foundation as `.confirm-dialog` (see that
+   rule's own comment for the full rationale; the image preview this once also mirrored is Jini's
+   shared `.jini-lightbox` since 2026-10-21) and the SAME
    `[open]`-scoped `display` split: an unscoped `display` rule on the bare class beats the UA
    stylesheet's `dialog:not([open]) { display: none }` regardless of specificity, so `display` only
    ever lives on the `[open]` variant below. Sized to most of the viewport rather than the image
    lightbox's content-sized box — a page preview has no intrinsic size to shrink-wrap. The close
-   button is the lightbox's own corner-badge treatment (`.image-preview-modal-close`), reused rather
-   than reinvented, since this is the same "one close affordance over the content" shape. */
+   button keeps the image lightbox's former corner-badge treatment (the retired
+   `.image-preview-modal-close`) rather than reinventing one, since this is the same "one close
+   affordance over the content" shape. */
 .theme-explore-preview-dialog {
   position: relative;
   border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: var(--space-5);
@@ -4951,14 +4953,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    (`@jini-ai/ui/admin-widgets.css`, `.jini-lightbox*`) since 2026-10-21 — no host rules. */
 
 /* `MessageOverflowModal.tsx` — the chat pane's "Show in modal" affordance (chat-overflow fix,
-   2026-08-30). Same native-`<dialog>` foundation as `.image-preview-modal` above, but sized like
+   2026-08-30). Same native-`<dialog>` foundation as `.confirm-dialog`, but sized like
    `.theme-explore-preview-dialog` instead: this shows arbitrary chat content (a wide code block, a
    full-size MCP-UI surface), not a single image with an intrinsic size to shrink-wrap to, so the
    box is sized to most of the viewport and its body scrolls independently. Close button mirrors
-   `.theme-explore-preview-dialog-close`'s reasoning, not `.image-preview-modal-close`'s: this
-   dialog's content sits on the app's own light surface (a table, a code block, an MCP-UI card), so
-   a token-based badge reads correctly there the way `.image-preview-modal-close`'s fixed dark
-   overlay (tuned for sitting on top of a photograph) would not. */
+   `.theme-explore-preview-dialog-close`'s reasoning, not the image lightbox's (now Jini's
+   `.jini-lightbox-button`): this dialog's content sits on the app's own light surface (a table, a
+   code block, an MCP-UI card), so a token-based badge reads correctly there the way the lightbox's
+   fixed dark-stage chip (tuned for sitting around a photograph) would not. */
 .message-overflow-modal {
   position: relative;
   border: var(--jini-border-width, 1px) solid var(--border-strong);

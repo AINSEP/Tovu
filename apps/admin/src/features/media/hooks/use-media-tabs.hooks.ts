@@ -50,7 +50,8 @@ export function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
  * No port: purely local UI state derived from a prop plus a `navigate()` call, so there is
  * nothing to inject a dependency for — `Media.tsx` takes this hook itself as an overridable prop
  * (`useMediaTabsHook`, defaulted to this hook) rather than through a `useWiredX()` pair, the same
- * no-port treatment `use-media-lightbox.hooks.ts` gets for the identical reason.
+ * no-port, overridable-hook-prop treatment Jini's shared `Lightbox` gives `useLightbox`
+ * (`useLightboxHook`), which the media lightbox now uses, for the identical reason.
  *
  * @param tabId - The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get`
  * returns `null` when the param is absent).
