@@ -163,6 +163,9 @@
      20px margin: that 44px read as a gap above the composer (owner, 2026-10-06). */
   padding-bottom: 8px;
 }
+/* The package floats "Jump to latest" above its composer OVERLAY; here the controls are a flex
+   sibling below the list, so the scrollport's own bottom edge is already the composer's top. */
+.admin-chat-dock .jini-chat-pane .jini-message-list__jump { bottom: 8px; }
 
 .admin-chat-dock .jini-chat-pane .jini-message-list > :last-child {
   margin-bottom: 0;
