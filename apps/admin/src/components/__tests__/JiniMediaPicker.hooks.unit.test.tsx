@@ -1,12 +1,12 @@
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
-import { act, cleanup, renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaPickerPort } from "@jini-ai/admin/contracts/media-picker";
 import { useJiniMediaPicker } from "../MediaPickerDialog/JiniMediaPicker.hooks";
 import { AdminModulesContext } from "../../integrations/jini-admin/modules.hooks";
 import type { AdminMedia } from "../../lib/api";
-import type { MediaPickerDialogProps } from "../MediaPickerDialog/MediaPickerDialog";
+import { MediaPickerDialog, type MediaPickerDialogProps } from "../MediaPickerDialog/MediaPickerDialog";
 
 /**
  * The bridge from the Jini picker service to the legacy dialog contract: the service picks an id,
@@ -185,4 +185,22 @@ it("resolves the selected CMS row through the injected port without transport ac
   await act(async () => { calls[0]!.resolve({ id: chosen.id }); });
   await waitFor(() => expect(onSelect).toHaveBeenCalledExactlyOnceWith(chosen));
   expect(network).not.toHaveBeenCalled();
+});
+
+describe("MediaPickerDialog under the host picker", () => {
+  it("renders nothing of its own while the host picker is open, then an alert with Cancel if choosing fails", async () => {
+    const { picker, calls } = deferredPicker();
+    stubMediaList([media("m1")]);
+    const onCancel = vi.fn();
+    const Wrapper = scope(picker);
+    const { container } = render(<Wrapper><MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} /></Wrapper>);
+    expect(container.innerHTML).toBe("");
+    expect(picker.pick).toHaveBeenCalledTimes(1);
+
+    await act(async () => { calls[0]!.resolve({ id: "gone" }); });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Unable to choose media. Please try again.");
+    fireEvent.click(within(alert).getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
 });
