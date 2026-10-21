@@ -103,7 +103,7 @@ function childPathsOf(root: string): string[] {
  * @complexity O(n + r * c) bounded marker reads and candidate space — n tracked dirs,
  *   r search roots, c children each. The gate bounds scans to at most once per idle minute.
  */
-function relocationTarget({ row, context }: { row: TrackedSiteRow; context: PlanContext }, _options = {}): string | null {
+function relocationTarget({ row, context }: { row: TrackedSiteRow; context: PlanContext }, _options = {}): { dir: string; id: string } | null {
   // Created rows already saved the site id before relocationId existed. Never infer identity
   // from the name: different sites can legitimately share it. An invalid folder may retain a marker.
   const identity = row.siteId ?? row.relocationId ?? readRelocationId(row.siteDir);
@@ -112,7 +112,8 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
   const candidates = new Set([...context.knownDirs, ...[...roots].flatMap(childPathsOf)]);
   const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId(dir) === identity);
   if (matches.length !== 1 || context.dismissed.includes(matches[0]!)) return null; // length checked on the same line, so index 0 exists
-  return matches[0]!;
+  // The target was matched BY this id, so the id travels with it rather than being read off disk again.
+  return { dir: matches[0]!, id: identity };
 }
 
 /**
@@ -121,9 +122,8 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
  *
  * @complexity O(1).
  */
-function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string | null | undefined): WritableTrackedRow {
-  const next: WritableTrackedRow = { siteDir, createdAt: row.createdAt, origin: SITE_ORIGIN.adopted };
-  return typeof relocationId === "string" ? { ...next, relocationId } : next;
+function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string): WritableTrackedRow {
+  return { siteDir, createdAt: row.createdAt, origin: SITE_ORIGIN.adopted, relocationId };
 }
 
 /**
@@ -144,13 +144,13 @@ function planRow({ plan, row, context }: { plan: RelocationPlan; row: TrackedSit
     return;
   }
   plan.changed = true;
-  if (context.claimed.has(target)) {
+  if (context.claimed.has(target.dir)) {
     plan.report.merged.push(row.siteDir);
     return;
   }
-  context.claimed.add(target);
-  plan.report.moved.push({ from: row.siteDir, to: target });
-  plan.rows.push(movedRow(row, target, readRelocationId(target)));
+  context.claimed.add(target.dir);
+  plan.report.moved.push({ from: row.siteDir, to: target.dir });
+  plan.rows.push(movedRow(row, target.dir, target.id));
 }
 
 /**

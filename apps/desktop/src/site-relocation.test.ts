@@ -329,3 +329,35 @@ test("stalecard: recomputing inside the registry lock preserves a twin adopted a
   assert.deepEqual(relocateMovedSites({ projectsPath: file }, { classifySiteDir }), { moved: [], merged: [stale] });
   assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [target, unrelated]);
 });
+
+test("relocateMovedSites writes nothing when another instance healed the file between its unlocked look and the lock", () => {
+  const root = tempDir();
+  const oldDir = path.join(root, "tovu-com");
+  const file = projectsFile([{ siteDir: oldDir, createdAt: CREATED, origin: "adopted", relocationId: "key-1" }]);
+  const newDir = makeSite(path.join(root, "tovu-dev"), { siteKeyId: "key-1" });
+  let raced = false;
+  const reports: string[] = [];
+  const classifySiteDir = (dir: string) => {
+    if (!raced) {
+      raced = true;
+      // The other instance's whole pass lands after this one's unlocked plan has already read the file.
+      relocateMovedSites({ projectsPath: file }, { report: () => {} });
+    }
+    return classifySiteDirSafely(dir);
+  };
+  const beforeRace = fs.readFileSync(file, "utf8");
+
+  const report = relocateMovedSites({ projectsPath: file }, { classifySiteDir, report: (line) => reports.push(line) });
+
+  assert.deepEqual(report, { moved: [], merged: [] }, "the locked re-plan found nothing left to do");
+  assert.deepEqual(reports, [], "and so reports no heal it did not perform");
+  assert.deepEqual(readTrackedSites(file), [{ siteDir: newDir, createdAt: CREATED, origin: "adopted", relocationId: "key-1" }]);
+  assert.notEqual(fs.readFileSync(file, "utf8"), beforeRace, "sanity: the racing instance did write");
+});
+
+test("createRelocationGate with no injected clock uses the wall clock: the first poll runs, an immediate repeat does not", () => {
+  const gate = createRelocationGate({}, { maxIdleMs: 60_000 });
+  const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
+  assert.equal(gate.shouldRun(file), true);
+  assert.equal(gate.shouldRun(file), false, "well inside one idle minute of real time");
+});
