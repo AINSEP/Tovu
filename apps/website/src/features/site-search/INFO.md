@@ -10,9 +10,12 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
 - `index-state-store.ts` — `createSqlSearchIndexStore({ kernel, now })` returns
   `{ indexState, targets }`: `SearchIndexStatePort` and `SearchTargetPort` on the
   tables of migration `0023_search_index` (`search_index_state`,
-  `search_index_watermarks`, `search_index_targets`). One Kysely body for SQLite,
-  PGlite and Postgres. `promote` is a single compare-and-swap UPDATE on the
-  building AND active pointers, so `replaced` is exactly what the switch displaced.
+  `search_index_watermarks`, `search_index_targets`) and `0024_search_index_retired`
+  (`search_index_retired`). One Kysely body for SQLite, PGlite and Postgres.
+  `promote` is a single compare-and-swap UPDATE on the building AND active
+  pointers, so `replaced` is exactly what the switch displaced; the same
+  transaction records `replaced` as retired until its index drop is confirmed.
+  `settle` is a compare-and-swap UPDATE on the observed revision and task id.
 - `cms-document-source.ts` — `createCmsSearchDocumentSources({ kernel, now })`:
   `post` and `page` sources (the two `kind`s of `posts`). `documentIdOf` claims
   only post.ts's `entry.published|updated|unpublished` with its own
@@ -40,8 +43,10 @@ plugin loader are wired elsewhere (`server/runtime/composition`).
 
 ## Known gaps
 
-- A bespoke HTML page edit (`SqlPagesHtmlDocumentStore.write`) emits no outbox
-  event, so it reaches the index only through a backfill/reindex `scan`.
+- A bespoke HTML page edit now enqueues `entry.updated` from
+  `SqlPagesHtmlDocumentStore` (when built with an `outbox`, as `deps.ts` does);
+  the in-memory store and the peer-site store do not, so an edit there still
+  reaches the index only through a backfill/reindex `scan`.
 - A scheduled post's `entry.published` currently fires at save time; the go-live
   sweep is a separate fix. Until it lands, a scheduled post is indexed only by a
   later event or a reindex.
