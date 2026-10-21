@@ -223,3 +223,77 @@ describe("useAdminThemePicker", () => {
     expect(env.root.hasAttribute("data-admin-theme")).toBe(false);
   });
 });
+
+describe("useAdminThemeState — server render", () => {
+  it("reports Classic light before any document exists to observe", async () => {
+    const { renderToString } = await import("react-dom/server");
+    function Probe() {
+      const state = useAdminThemeState({}, { root: document.createElement("html") });
+      return <output>{`${state.themeId}/${state.scheme}`}</output>;
+    }
+    expect(renderToString(<Probe />)).toContain("classic/light");
+  });
+});
+
+describe("useAdminThemeDocument — browser defaults", () => {
+  it("still paints the real document when the browser refuses localStorage access", async () => {
+    const root = document.documentElement;
+    const refused = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new DOMException("storage disabled", "SecurityError");
+    });
+    try {
+      renderHook(() => useAdminThemeDocument({}, { port: fakePort({ adminTheme: "classic", theme: "dark" }) }));
+      await waitFor(() => expect(root.getAttribute("data-color-scheme")).toBe("dark"));
+      expect(root.getAttribute("data-admin-theme")).toBe("classic");
+      expect(refused).toHaveBeenCalled();
+    } finally {
+      refused.mockRestore();
+      for (const name of ["data-admin-theme", "data-color-scheme", "data-theme"]) root.removeAttribute(name);
+    }
+  });
+});
+
+describe("useAdminThemePicker — browser defaults and odd rejections", () => {
+  it("paints the real document when no env is injected", async () => {
+    const root = document.documentElement;
+    const port = fakePort({ adminTheme: "default", theme: "light" });
+    try {
+      const { result } = renderHook(() => useAdminThemePicker({}, { port }));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      act(() => result.current.selectPreference("dark"));
+      expect(root.getAttribute("data-color-scheme")).toBe("dark");
+      await waitFor(() => expect(port.saveAppearance).toHaveBeenCalledWith(expect.objectContaining({ theme: "dark" }), expect.anything()));
+    } finally {
+      for (const name of ["data-admin-theme", "data-color-scheme", "data-theme"]) root.removeAttribute(name);
+    }
+  });
+
+  it("reports a non-Error rejection by its string form and restores the stored scheme", async () => {
+    const port = fakePort({ theme: "light" });
+    port.saveAppearance = vi.fn(() => Promise.reject("ledger busy"));
+    const { env } = fakeEnv();
+    const { result } = renderHook(() => useAdminThemePicker({}, { port, env }));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.selectPreference("dark"));
+    expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
+    await waitFor(() => expect(result.current.error).toBe("ledger busy"));
+    expect(result.current.preference).toBe("light");
+    expect(env.root.getAttribute("data-color-scheme")).toBe("light");
+  });
+});
+
+describe("useAdminThemeDocument — a browser without matchMedia", () => {
+  it("paints \"system\" as light and does not try to follow the OS", async () => {
+    const root = document.documentElement;
+    const original = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", { value: undefined, writable: true, configurable: true });
+    try {
+      renderHook(() => useAdminThemeDocument({}, { port: fakePort({ theme: "system" }) }));
+      await waitFor(() => expect(root.getAttribute("data-color-scheme")).toBe("light"));
+      expect(root.hasAttribute("data-theme")).toBe(false);
+    } finally {
+      Object.defineProperty(window, "matchMedia", { value: original, writable: true, configurable: true });
+      for (const name of ["data-admin-theme", "data-color-scheme", "data-theme"]) root.removeAttribute(name);
+    }
+  });
+});
