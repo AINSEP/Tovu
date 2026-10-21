@@ -2142,7 +2142,7 @@ export async function renderGenericPostPage(
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
     resolveAssignedTermsForRender(deps, post),
   ]);
-  const html = renderSite({
+  const html = await renderSite({
     theme,
     route: "post",
     siteTitle,

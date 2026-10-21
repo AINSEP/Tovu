@@ -3,19 +3,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { registerHooks } from 'node:module';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
-// Exercise workspace source without building or installing the new Jini entry.
-const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
-  return specifier === '@jini-ai/cms/comments/express'
-    ? { url: pathToFileURL(resolve('../jini-int/packages/cms/src/comments/express/index.ts')).href, shortCircuit: true }
-    : nextResolve(specifier, context);
-} });
-const { registerCommentsSubmitRoute, commentFormReturnTo } = await import('../comments-submit.js');
-hooks.deregister();
+import { registerCommentsSubmitRoute, commentFormReturnTo } from "../comments-submit.js";
+
 
 /**
  * @file Unit-tier coverage for `POST /api/site/comments` (`registerCommentsSubmitRoute`) — this

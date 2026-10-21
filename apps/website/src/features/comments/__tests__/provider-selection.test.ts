@@ -1,19 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { registerHooks } from 'node:module';
-import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
 import { InMemorySettingsRepo } from '../../settings/index.js';
 import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
 import type { CommentRepoPort, CommentIngressPolicy, CommentWriteService } from '@jini-ai/cms/comments';
-
-// The dispatch forbids builds/installs. Resolve the new, unpublished package entry to workspace source.
-const source = pathToFileURL(resolve('../jini-int/packages/capability-providers/src/comments/index.ts')).href;
-const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
-  return specifier === '@jini-ai/capability-providers/comments' ? { url: source, shortCircuit: true } : nextResolve(specifier, context);
-} });
-const { createCommentsSelectionStore, ensureCommentsProviderDefinition, createCommentsCapability } = await import('../provider-selection.js');
-hooks.deregister();
+import { createCommentsSelectionStore, ensureCommentsProviderDefinition, createCommentsCapability } from '../provider-selection.js';
 
 async function fixture() {
   let nextId = 0; let allowed = true; let writes = 0;
