@@ -11,7 +11,11 @@ test("the BYOK route places prepared pixels only on the newest user message, rea
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
   const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "resolveTurnInputsOrRespond");
   assert.ok(declaration);
-  const code = ts.transpileModule(`return (${declaration.getText(source)});`, {
+  // why: 540014db (complexity <=10) moved the attachment step into attachTurnMessagesOrRespond(),
+  // which resolveTurnInputsOrRespond() awaits; both real declarations are evaluated together.
+  const attach = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "attachTurnMessagesOrRespond");
+  assert.ok(attach);
+  const code = ts.transpileModule(`${attach.getText(source)}\nreturn (${declaration.getText(source)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
   const calls: unknown[] = [];

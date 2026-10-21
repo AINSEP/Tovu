@@ -51,18 +51,26 @@ function functionBody(source: string, signature: string): string {
 }
 
 test("index.ts main(): the content.db schema guard and site key run before the composition root opens the database", () => {
-  const main = functionBody(readCode("index.ts"), "async function main(");
-  const guard = indexOfAnchor(main, "guardContentDbSchemaOrExit(defaultContentDbPath())");
-  const siteKey = indexOfAnchor(main, "await ensureSiteKeyForBoot(");
+  const index = readCode("index.ts");
+  // why: 50579f4f (complexity <=10) moved main()'s pre-listener steps into prepareSiteBoot(), which
+  // main() awaits first; the guard → key order is pinned there and prepare → compose in main().
+  const prepare = functionBody(index, "async function prepareSiteBoot(");
+  const guard = indexOfAnchor(prepare, "await guardContentDbSchemaOrExit(defaultContentDbPath())");
+  const siteKey = indexOfAnchor(prepare, "await ensureSiteKeyForBoot(");
+  const main = functionBody(index, "async function main(");
+  const prepared = indexOfAnchor(main, "await prepareSiteBoot({ useMemory }, {})");
   const compose = indexOfAnchor(main, "await createSiteRouteDeps(defaultContentDbPath(),");
   assert.ok(guard < siteKey, "the schema guard must run before the site-key step");
-  assert.ok(siteKey < compose, "the site key must be resolved before createSiteRouteDeps reads it");
+  assert.ok(prepared < compose, "the site key must be resolved before createSiteRouteDeps reads it");
 });
 
 test("index.ts main(): a refusing schema guard stops a disk boot before site-key preparation or store opening", async () => {
   // Execute the actual main function with its boot ports isolated. Stop at the guard so no
   // server, process handler, environment mutation or database can be opened by this test.
-  const main = functionBody(readCode("index.ts"), "async function main(");
+  const index = readCode("index.ts");
+  // why: 50579f4f moved the guard and site key into prepareSiteBoot(), which main() awaits first;
+  // both functions run here so the refusal is still observed through the real main().
+  const main = `${functionBody(index, "async function prepareSiteBoot(")}\n}\n${functionBody(index, "async function main(")}`;
   const compiled = ts.transpileModule(main, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const calls: string[] = [];
   const refusal = new Error("schema too new");
@@ -102,10 +110,13 @@ test("createSiteRouteDeps: storage choice, then hydration, then the store open (
   indexOfAnchor(body, "await openCompositionStore(dbPath, overrides)");
 
   const prelude = functionBody(deps, "async function openCompositionStore(");
-  const storage = indexOfAnchor(prelude, "const storage = resolveSiteStorage(");
+  // why: 20d451f6 (complexity <=10) moved the storage choice into prepareCompositionStorage(),
+  // which still resolves it with resolveSiteStorage; `overrides` now defaults to `{}` (no `?.`).
+  assert.match(functionBody(deps, "function prepareCompositionStorage("), /const storage = resolveSiteStorage\(/);
+  const storage = indexOfAnchor(prelude, "const storage = prepareCompositionStorage({ dbPath, overrides })");
   const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded(dbPath, storage, overrides)");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
-  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat, overrides?.chatExpirySweep)");
+  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat, overrides.chatExpirySweep)");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");

@@ -263,5 +263,13 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
   const continuation = JSON.stringify(requests[1]);
   // Each attempted native call must get a refusal, rather than silently invoking a native transport.
   for (const name of forbidden) assert.ok(continuation.includes(name), name);
-  assert.match(continuation, /unknown|not.allowed|not.available|unsupported/i);
+  // why: Jini 9ab5ab46 (per-request tool snapshot) refuses an unpublished call as "Tool is not
+  // exposed in this turn."; each forbidden call is pinned to that error response individually.
+  const responses = ((requests[1] as { contents: Array<{ parts: Array<{ functionResponse?: { name: string; response: { content: string; isError: boolean } } }> }> }).contents)
+    .flatMap((entry) => entry.parts).flatMap((part) => (part.functionResponse ? [part.functionResponse] : []));
+  assert.deepEqual(responses.map((response) => response.name), forbidden);
+  for (const response of responses) {
+    assert.equal(response.response.isError, true, response.name);
+    assert.match(response.response.content, /unknown|not.allowed|not.available|not.exposed|unsupported/i, response.name);
+  }
 });

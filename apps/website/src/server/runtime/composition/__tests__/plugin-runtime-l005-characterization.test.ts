@@ -3,7 +3,7 @@ import test, { type TestContext } from 'node:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { InMemoryPluginActivationRepo, createPluginSourcePolicy, setPluginEnabled } from '@jini-ai/plugins/host';
+import { InMemoryPluginActivationRepo, createPluginSourcePolicy, pluginCapabilitySet, setPluginEnabled } from '@jini-ai/plugins/host';
 import { definePlugin } from '@tovu/sdk';
 import { WORD_COUNT_MANIFEST } from '#src/features/plugin-runtime/built-ins/word-count/index';
 import { composePluginRuntime, type PluginRuntimeSource } from '../plugin-runtime.js';
@@ -103,7 +103,13 @@ for (const mode of ['success', 'foreign', 'rollback', 'quarantine', 'approval'] 
   test(`L005: source reload preserves ${mode} activation behavior`, async t => {
     const h = await sourceFixture({ t });
     const workspaceId = mode === 'foreign' ? 'other' : 'ws';
-    await setPluginEnabled({ deps: { clock, repo: h.repo, discovery: await h.runtime.discoverPlugins(),
+    const discovery = await h.runtime.discoverPlugins();
+    const approved = discovery.find(record => record.id === 'pin')?.manifest;
+    assert.ok(approved);
+    // why: 1c97a499's consent gate refuses a re-seal that adds to the owner's recorded approval;
+    // the owner's enable (set-enabled.ts) records it first, so this direct enable does the same.
+    await h.source.recordApproval({ id: 'pin', capabilities: pluginCapabilitySet({ manifest: approved }) }, {});
+    await setPluginEnabled({ deps: { clock, repo: h.repo, discovery,
       onEnabled: mode === 'foreign' ? async () => {} : h.runtime.onPluginEnabled,
       onDisabled: h.runtime.onPluginDisabled }, input: { workspaceId, pluginId: 'pin', enabled: true } });
     await editReloadDraft({ h, mode });
