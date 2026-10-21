@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -175,7 +175,8 @@ for (const state of ["live", "missing", "denied"] as const) {
       assert.equal(page.items[0]?.displayTitle, "Contact");
       assert.equal(page.items[0]?.actorPluginId, "assistant");
     } else {
-      await assert.rejects(call(registration, { entityType: "form", entityId }), ToolInputError);
+      // why: the permission gate throws the kernel's denial class, never an input error; a missing row stays ToolInputError.
+      await assert.rejects(call(registration, { entityType: "form", entityId }), state === "denied" ? ToolPermissionDeniedError : ToolInputError);
       assert.equal((await trash.list({ workspaceId, now: at, limit: 10 })).items.length, 0);
       assert.deepEqual(db.$client.prepare("SELECT deleted_at, version FROM form_definitions WHERE id = 'f1'").get(), { deleted_at: null, version: 1 });
     }
