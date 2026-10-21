@@ -7,5 +7,6 @@ OWNER UPDATE (15:13): no Postgres or browser test runs in cloud; such tests are 
 |---|---|---|---|
 | S1 | 019 | cloud/cov-T2-019 | MERGED 58f16d0b; merged rerun 566/566 pass, 12/12 loadable files 100/100/100; main.tsx unloadable composition root (logic in mount-renderer.ts); websites-width.test.ts LOCAL-RUN |
 | S4 | 024,025 | cloud/cov-T2-024 | running |
-| S2 | 020,021 | cloud/cov-T2-020 | running (15:12) |
+| S2 | 020,021 | cloud/cov-T2-020 | MERGED; rerun renderer 602/602, speech 56/56, site-chat 231/231, all loaded lot files 100/100/100; preload-speech.cts unloadable without electron module-mock (listed) |
+| S5 | 026,027 | cloud/cov-T2-026 | running |
 | S3 | 022,023 | cloud/cov-T2-022 | running (15:12) |
