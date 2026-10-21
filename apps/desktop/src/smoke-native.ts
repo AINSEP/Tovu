@@ -15,8 +15,7 @@
  * `scripts/verify-package.ts` stays outside `asar-verify.ts`.
  */
 import path from "node:path";
-import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 
 /** Where the smoke check found the packaged executable and its staged `tovu/node_modules`. */
@@ -75,7 +74,7 @@ export function resolveSmokeTargets(platformDir: string, entryNames: string[]): 
       nodeModulesDir: path.join(winDir, "resources", "tovu", "node_modules"),
     };
   }
-  throw new Error(`smoke-native: no mac-prefixed *.app layout or win-unpacked layout found under ${sanitizeUntrustedText({ text: redactText({ text: platformDir }, { username: path.basename(os.homedir()) }) })} — did electron-builder run?`);
+  throw new Error(`smoke-native: no mac-prefixed *.app layout or win-unpacked layout found under ${sanitizeUntrustedText({ text: redactLocalText({ text: platformDir }) })} — did electron-builder run?`);
 }
 
 /**
@@ -164,7 +163,7 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
   try {
     parsed = JSON.parse(stdout.trim());
   } catch {
-    throw new Error(`smoke-native: could not parse smoke output as JSON\n${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
+    throw new Error(`smoke-native: could not parse smoke output as JSON\n${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) }, { maxLength: 2_000 })}`);
   }
 
   const record: Record<string, unknown> =
@@ -176,7 +175,7 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
       const candidate = raw as { ok?: unknown; error?: unknown };
       return {
         ok: candidate.ok === true,
-        error: typeof candidate.error === "string" ? sanitizeUntrustedText({ text: redactText({ text: candidate.error }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) : undefined,
+        error: typeof candidate.error === "string" ? sanitizeUntrustedText({ text: redactLocalText({ text: candidate.error }) }, { maxLength: 2_000 }) : undefined,
       };
     }
     return { ok: false, error: `missing "${key}" result in smoke output` };
@@ -267,9 +266,9 @@ export function parseEntryLoadOutput(stdout: string): { ok: boolean; unresolved:
   try {
     parsed = JSON.parse(stdout.trim()) ?? {};
   } catch {
-    throw new Error(`smoke-native: could not parse entry-load output as JSON\n${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
+    throw new Error(`smoke-native: could not parse entry-load output as JSON\n${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) }, { maxLength: 2_000 })}`);
   }
-  const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.slice(0, 20).map(value => sanitizeUntrustedText({ text: redactText({ text: String(value) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })) : ["malformed entry-load output"];
+  const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.slice(0, 20).map(value => sanitizeUntrustedText({ text: redactLocalText({ text: String(value) }) }, { maxLength: 2_000 })) : ["malformed entry-load output"];
   return { ok: parsed.ok === true && unresolved.length === 0, unresolved };
 }
 

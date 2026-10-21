@@ -16,10 +16,9 @@
  */
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { treeQuietProblems } from "../src/tree-quiet.ts";
@@ -55,7 +54,7 @@ function isViteWatchRunning(): boolean {
   } catch (error) {
     // `as`: execFileSync throws a plain Error decorated with the spawned process's own `status`.
     if ((error as { status?: number }).status === 1) return false;
-    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${sanitizeUntrustedText({ text: redactText({ text: (error as Error).message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}`);
+    throw new Error(`check-tree-quiet: pgrep failed unexpectedly: ${sanitizeUntrustedText({ text: redactLocalText({ text: (error as Error).message }) }, { maxLength: 2_000 })}`);
   }
 }
 
@@ -146,6 +145,6 @@ function main(): void {
 
 try { main(); }
 catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 }

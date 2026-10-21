@@ -17,8 +17,7 @@ import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
 import net from "node:net";
 import path from "node:path";
 import fs from "node:fs";
-import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -61,8 +60,7 @@ const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
  * @complexity O(n) in the text length.
  */
 function redactBootToken(text: string): string {
-  return redactText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text },
-    { username: path.basename(os.homedir()) }).slice(0, 2_000);
+  return redactLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text }).slice(0, 2_000);
 }
 
 /**

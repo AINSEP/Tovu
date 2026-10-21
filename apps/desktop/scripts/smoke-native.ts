@@ -21,10 +21,9 @@
  *                 or the child's output could not be parsed.
  */
 import { existsSync, readdirSync } from "node:fs";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
@@ -77,7 +76,7 @@ function locateTargets(platformDir: string): SmokeTargets {
 /** Spawns the packaged binary as Node, prints safe excerpts and returns raw stdout for parsing.
  * Rejects spawn failures, signals and nonzero exits; the final script sink redacts failure details. */
 function spawnSmoke(targets: SmokeTargets): string {
-  process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: `smoke-native: running against ${targets.executablePath}` }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: `smoke-native: running against ${targets.executablePath}` }) }, { maxLength: 2_000 }) + "\n");
   const script = buildSmokeScript(targets.nodeModulesDir);
   const spawned = spawnSync(targets.executablePath, ["-e", script], {
     env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
@@ -88,8 +87,8 @@ function spawnSmoke(targets: SmokeTargets): string {
   if (spawned.error) {
     fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
   }
-  if (spawned.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: spawned.stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: spawned.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.status !== 0) fail(`smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
   return spawned.stdout ?? "";
 }
@@ -121,7 +120,7 @@ function checkEntryImports(targets: SmokeTargets): void {
     encoding: "utf8",
   });
   if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
-  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: spawned.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
   let result: ReturnType<typeof parseEntryLoadOutput>;
   try {
@@ -140,6 +139,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(error => {
-  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 });

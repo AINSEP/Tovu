@@ -24,8 +24,7 @@
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { fileURLToPath } from "node:url";
 
@@ -88,6 +87,6 @@ function main(): void {
 
 try { main(); }
 catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 }
