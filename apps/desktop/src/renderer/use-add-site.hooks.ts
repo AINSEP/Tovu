@@ -14,7 +14,7 @@ import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { SiteRecord } from '../contracts/project.js';
-import { runnerInventoryBridge } from './runner-api.js';
+import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import { humanSiteError, siteOperationError, addedSiteMessage } from './site-shell-policy.js';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
@@ -40,7 +40,11 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  * @complexity O(n) in the current project count, for the duplicate check.
  */
 export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
-  { onAlreadyTracked }: { onAlreadyTracked?: (id: string) => void } = {},
+  { onAlreadyTracked, getBridge = runnerInventoryBridge }: {
+    onAlreadyTracked?: (id: string) => void;
+    /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
+    getBridge?: () => Pick<RunnerInventoryBridge, 'addSite'> | undefined;
+  } = {},
 ): {
   adding: boolean;
   addError: string | null;
@@ -56,7 +60,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 
   const addSite = useCallback(async () => {
     setAddNotice(null);
-    const bridge = runnerInventoryBridge();
+    const bridge = getBridge();
     if (bridge === undefined) {
       setAddError(NO_BRIDGE_MESSAGE);
       return;
@@ -76,7 +80,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     } finally {
       setAdding(false);
     }
-  }, [setProjects, onAlreadyTracked]);
+  }, [setProjects, onAlreadyTracked, getBridge]);
 
   return { adding, addError, addNotice, addSite, clearAddError };
 }

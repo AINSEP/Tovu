@@ -214,3 +214,23 @@ test("a connect timeout produces a human-readable connectFailures entry with no 
   assert.deepEqual(result.reports, []);
   assert.deepEqual(result.connectFailures, [{ connectionId: "namecom", reason: timeoutMessage }]);
 });
+
+test("createDefaultConnect: a resolved stdio launch is handed to the injected spawnChannel, and a channel that closes fails only that connection", async () => {
+  const { createDefaultConnect } = await import("../mcp-federation/bootstrap.js");
+  const resolved: ResolvedStdioLaunch = { command: "/opt/tools/vendor-mcp", args: ["--stdio"], env: {}, launchEnv: {} };
+  const spawned: ResolvedStdioLaunch[] = [];
+  const closingChannel = (launch: ResolvedStdioLaunch): McpStdioChannel => {
+    spawned.push(launch);
+    let onClose: ((required: { reason: string }) => void) | undefined;
+    return {
+      send: () => { onClose?.({ reason: "vendor exited during startup" }); },
+      onMessage: () => undefined,
+      onClose: ({ listener }) => { onClose = listener; },
+      close: () => undefined,
+    };
+  };
+  const { logger } = collectingLogger();
+  const connect = createDefaultConnect({ resolver: { resolve: () => resolved } }, { spawnChannel: closingChannel, logger });
+  await assert.rejects(connect({ config: { ...CONFIG, connectionId: "closing-vendor" }, launch: { command: "vendor-mcp", args: ["--stdio"], env: {} } }));
+  assert.deepEqual(spawned, [resolved], "the resolver's launch, not the raw spec, is what gets spawned");
+});

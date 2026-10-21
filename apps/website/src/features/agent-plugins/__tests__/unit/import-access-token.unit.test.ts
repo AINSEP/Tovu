@@ -1,6 +1,7 @@
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
 
@@ -19,6 +20,7 @@ import {
 } from "../../import-access-token.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
 
 /**
@@ -508,4 +510,22 @@ test("env import logs an operator-off save once and remains silent on its creden
   assert.deepEqual(logs.info, ["[agent-plugins] copied TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin's connection; it stays off because an operator turned it off (Add-Ons → Agent Plugins). The env var is no longer needed."]);
   assert.deepEqual((await readRow())?.sealedOAuth, saved?.sealedOAuth);
   assert.deepEqual(logs.warn, []);
+});
+
+test("without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing", async (t) => {
+  const { deps, log, logs, connected, readRow } = await setup();
+  const before = await readRow();
+  const temporary = await mkdtemp(path.join(tmpdir(), "import-env-default-list-"));
+  t.after(() => forceRemove(temporary));
+  const { listPlugins: _injected, ...withoutListing } = deps;
+  await importAgentPluginAccessTokensFromEnv({ ...withoutListing, agentPluginLayout: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) }, { [ENV_VAR]: TOKEN }, log);
+  assert.deepEqual(logs, { info: [], warn: [] });
+  assert.deepEqual(connected, []);
+  assert.deepEqual(await readRow(), before);
+});
+
+test("an Error thrown while listing plugins is reported by its message", async () => {
+  const { deps, log, logs } = await setup();
+  await importAgentPluginAccessTokensFromEnv({ ...deps, listPlugins: async () => { throw new Error("disk unavailable"); } }, {}, log);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: disk unavailable"]);
 });

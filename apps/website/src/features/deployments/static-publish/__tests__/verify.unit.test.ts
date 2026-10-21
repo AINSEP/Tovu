@@ -737,3 +737,41 @@ test("verification pins invalid primary tokens, unexpected validation errors, an
     if (mode === "validation-error") assert.equal(result!.message, "Could not reach the server.");
   }
 });
+
+test("verifyPublishCredentialById: a host removed or re-specified between the resolve and the check is reported unverifiable, never probed", async () => {
+  for (const mode of ["removed", "respecified"] as const) {
+    const writeDeps = makeWriteDeps();
+    const row = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "chosen", connection: { providerId: "github-pages", token: "chosen-token" } });
+    const bundled = await loadBundledDeployTargets();
+    const changed = bundled.list().filter((host) => mode !== "removed" || host.descriptor.id !== "github-pages").map((host) => host.descriptor.id !== "github-pages" ? host : {
+      ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
+    });
+    let loads = 0;
+    const cache = new InMemoryPublishCredentialVerificationCache();
+    const result = await verifyPublishCredentialById({ ...writeDeps, cache, clock,
+      // First read (the resolve) sees the installed host; the second (the check) sees it changed.
+      loadDeployTargets: async () => (++loads === 1 ? bundled : { get: (id) => changed.find((host) => host.descriptor.id === id), list: () => changed, refusals: [] }),
+      fetchFn: (async () => assert.fail("an unprojectable or removed host must not be probed")) as typeof fetch,
+    }, { workspaceId: WORKSPACE, id: row.id });
+    assert.equal(loads, 2);
+    assert.equal(result?.status, "unreachable");
+    if (mode === "removed") assert.equal(result?.message, "Could not verify this credential: no turned-on hosting plugin can check 'github-pages' credentials.");
+    else assert.equal(result?.message, "Could not verify this credential: the saved 'github-pages' credential has no newToken — save the connection again.");
+    assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result, "the default row's answer is cached");
+  }
+});
+
+test("verifyPublishCredential: a provider-side timeout (408 or 504) reads as the fixed timeout text, not a rejection", async () => {
+  const { credentialText } = await import("#src/contracts/core/credential-copy");
+  for (const status of [408, 504]) {
+    const cache = new InMemoryPublishCredentialVerificationCache();
+    const fetchFn = (async () => new Response(JSON.stringify({ message: "gateway body" }), { status })) as typeof fetch;
+    const result = await verifyPublishCredential(
+      { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn, loadDeployTargets: loadBundledDeployTargets },
+      { workspaceId: WORKSPACE, target: "github-pages" }
+    );
+    assert.equal(result!.message, credentialText({ id: "timeout" }));
+    assert.notEqual(result!.status, "valid");
+    assert.equal(JSON.stringify(result).includes("gateway body"), false);
+  }
+});

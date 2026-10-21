@@ -129,3 +129,14 @@ test("missing media with an empty or absent slug is identified by its source id"
     "Media 'absent-slug' was published but is not on the site.",
   ]);
 });
+
+test("a packed entity without a source hash is left out of the batched type read but still checked against the site row", async () => {
+  const p = ports([media({ id: "no-hash" })]);
+  const asked: string[][] = [];
+  const getMany = p.contentTypeStore.getMany.bind(p.contentTypeStore);
+  p.contentTypeStore.getMany = async (input) => { asked.push([...input.sha256s]); return getMany(input); };
+  const entity = packed(media({ id: "no-hash" }));
+  delete entity.state.source;
+  assert.deepEqual(await verifyPublishedMedia(p, WS, [entity]), ["Media 'intro' is on the site without its file, so it cannot be shown."]);
+  assert.deepEqual(asked, [[]]);
+});

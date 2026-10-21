@@ -72,9 +72,8 @@ export async function buildUnsubscribeLink(required: {
   return `${composeOriginUrl(origin)}/newsletter/unsubscribe?token=${token}`;
 }
 
-function decodeToken(rawToken: string): UnsubscribeTokenClaims {
-  const [encoded, sig] = rawToken.split(".");
-  if (!encoded || !sig) throw new NewsletterUnsubscribeTokenInvalidError("malformed unsubscribe token", "signature_invalid");
+/** Decodes the claims half of a token whose two-part shape `processUnsubscribe` already checked. */
+function decodeClaims(encoded: string): UnsubscribeTokenClaims {
   try {
     return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as UnsubscribeTokenClaims;
   } catch {
@@ -95,7 +94,7 @@ export async function processUnsubscribe(required: {
   if (!encoded || !providedSig) {
     throw new NewsletterUnsubscribeTokenInvalidError("malformed unsubscribe token", "signature_invalid");
   }
-  const claims = decodeToken(input.rawToken);
+  const claims = decodeClaims(encoded);
 
   const expectedSig = await signature(deps.keyring, claims);
   if (!timingSafeEqualHex(expectedSig, providedSig)) {

@@ -924,3 +924,35 @@ test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free
   assert.deepEqual(received, [{ secret: "value-not-for-telemetry", arbitrary: { retained: true } }]);
   assert.deepEqual(fallbacks, [{ toolId: "t2_open_map", protocol: "openai", reason: "open-map" }]);
 });
+
+test("resolveByokProtocol narrows a stored provider string to a dispatchable protocol, case- and whitespace-insensitively", async () => {
+  const { resolveByokProtocol } = await import("../byok-provider-turn.js");
+  assert.equal(resolveByokProtocol({ provider: "anthropic" }), "anthropic");
+  assert.equal(resolveByokProtocol({ provider: "  OpenAI " }), "openai");
+  assert.equal(resolveByokProtocol({ provider: "Google" }), "google");
+  assert.equal(resolveByokProtocol({ provider: "azure" }), "azure");
+  // An unknown provider, a blank one, and an inherited Object key are all refused.
+  assert.equal(resolveByokProtocol({ provider: "mistral" }), null);
+  assert.equal(resolveByokProtocol({ provider: "   " }), null);
+  assert.equal(resolveByokProtocol({ provider: "constructor" }), null);
+});
+
+test("runByokProviderTurn forwards maxTokens and sends the live tool snapshot instead of the initial tools", async (t) => {
+  const capture = await captureOutboundRequest(t);
+  const snapshotTool: ToolDescriptor = { ...TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES, id: "snapshot_tool" };
+  await runByokProviderTurn({ ...baseInput("anthropic", capture.baseUrl), maxTokens: 321, maxToolTurns: 2,
+    getToolSnapshot: () => [snapshotTool], onSchemaFallback: () => {} });
+  const body = capture.body();
+  assert.equal(body.max_tokens, 321);
+  assert.deepEqual((body.tools as Array<{ name: string }>).map(tool => tool.name), ["snapshot_tool"]);
+});
+
+test("runByokProviderTurn honours an already-aborted signal: no provider request is sent", async (t) => {
+  let calls = 0;
+  const baseUrl = await startStubProviderServer(t, () => { calls++; return { status: 400, body: "{}" }; });
+  const controller = new AbortController();
+  controller.abort();
+  const result = await runByokProviderTurn({ ...baseInput("anthropic", baseUrl), signal: controller.signal });
+  assert.equal(calls, 0);
+  assert.deepEqual(result, { stopReason: "error", toolTurns: 0 });
+});

@@ -296,3 +296,23 @@ test("mixed projection pins empty deploy URLs, exact peer paths, pending status 
     { id: "tovu-peer:saved", kind: "tovu-peer", peerId: "saved", label: "Current label", url: "https://live.test", lastPublishedAt: rows[0]!.publishedAt },
   ]);
 });
+
+test("a deploy that neither reached its host nor was accepted is not a destination; more than 200 history rows is refused", async () => {
+  const registry = await loadBundledDeployTargets();
+  // Both shipped stores pre-filter; the listing still refuses a port that hands back an unconfirmed row.
+  const failed = entry({ kind: "deploy", target: "vercel", projectName: "site", configFields: undefined, reachable: false, status: "failed", url: "https://failed.test/" });
+  const unfiltered = { listDestinationHistory: async () => [failed] } as unknown as InMemoryPublishHistoryStore;
+  assert.deepEqual(await listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: unfiltered, registry, peers: [] }), []);
+  const crowded = { listDestinationHistory: async () => Array.from({ length: 201 }, (_, i) => entry({ projectName: `p-${i}` })) } as unknown as InMemoryPublishHistoryStore;
+  await assert.rejects(listPublishDestinations({ workspaceId: WORKSPACE_A, historyStore: crowded, registry, peers: [] }), { message: "publish destination limit exceeded (200)" });
+});
+
+test("in-memory listLiveUrls returns the workspace's distinct URLs sorted, stopping after 201", async () => {
+  const historyStore = new InMemoryPublishHistoryStore();
+  assert.deepEqual(await historyStore.listLiveUrls({ workspaceId: WORKSPACE_A }), []);
+  for (const url of ["https://b.example", "https://a.example", "https://b.example"]) await historyStore.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url }) });
+  await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: entry({ url: "https://foreign.example" }) });
+  assert.deepEqual(await historyStore.listLiveUrls({ workspaceId: WORKSPACE_A }), ["https://a.example", "https://b.example"]);
+  for (let i = 0; i < 250; i++) await historyStore.recordSuccess({ workspaceId: WORKSPACE_B, entry: entry({ url: `https://s${i}.example` }) });
+  assert.equal((await historyStore.listLiveUrls({ workspaceId: WORKSPACE_B })).length, 201);
+});

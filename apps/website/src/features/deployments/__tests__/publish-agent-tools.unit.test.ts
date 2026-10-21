@@ -1985,3 +1985,51 @@ for (const available of [true, false]) test(`L210 execute consent refusal preser
   assert.equal(result.cancelled, false);
   assert.equal(result.code, 'CONSENT_REVIEW_REQUIRED');
 });
+
+test("deployment_generate_bucket_hosting_setup reports a host module's own refusal (Error or not) as a ToolInputError with its text", async () => {
+  for (const thrown of [new Error("bucket names must be lowercase"), "bucket names must be lowercase"]) {
+    const { deps } = fakeDeps();
+    const registry = await loadBundledDeployTargets();
+    const bundled = registry.get("s3-compatible")!;
+    const target: LoadedDeployTarget = { ...bundled, module: { ...bundled.module, hostingSetup: () => { throw thrown; } } };
+    deps.loadDeployTargets = async () => ({ ...registry, get: id => id === "s3-compatible" ? target : registry.get(id), list: () => registry.list().map(entry => entry.descriptor.id === "s3-compatible" ? target : entry) });
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+    await assert.rejects(() => call(hostingSetupTool, { input: { target: "s3-compatible", bucket: "B", region: "us-east-1" } }),
+      (err: unknown) => err instanceof ToolInputError && err.message === "bucket names must be lowercase");
+  }
+});
+
+test("deployment_execute_static_publish: a call cancelled while readiness is checked is abandoned before any export or publish", async () => {
+  const controller = new AbortController();
+  let resolves = 0;
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { resolves += 1; return { ok: false, reason: "must not be reached" }; },
+      async isConfigured() { controller.abort(); return { configured: true }; },
+    },
+    buildTarget: () => assert.fail("a cancelled call must not build a target"),
+  });
+  let exports = 0;
+  deps.exportSiteBound = async () => { exports += 1; throw new Error("a cancelled call must not export"); };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+  const result = await call(executeTool, { input: { target: "vercel", projectName: "demo" }, emitSurface: async () => undefined, signal: controller.signal });
+  assert.deepEqual(result, { published: false, cancelled: false, reason: "abandoned" });
+  assert.equal(resolves, 0);
+  assert.equal(exports, 0);
+});
+
+test("hosts that declare no config or credential fields name that in their refusals", async () => {
+  const registry = await loadBundledDeployTargets();
+  const plain: LoadedDeployTarget = { pluginId: "plain", descriptor: { id: "plain-host", label: "Plain host", module: "targets/plain.mjs", configFields: [] },
+    module: { create: () => assert.fail("refused before any target is built"), hostingSetup: () => assert.fail("refused before setup runs") } };
+  const { deps } = fakeDeps();
+  deps.loadDeployTargets = async () => ({ ...registry, get: id => id === "plain-host" ? plain : registry.get(id), list: () => [...registry.list(), plain] });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  await assert.rejects(() => call(tool(registrations, "deployment_execute_static_publish"), { input: { target: "plain-host", projectName: "demo", region: "eu" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'region' is not a field of plain-host. It takes no config fields.");
+  await assert.rejects(() => call(tool(registrations, "deployment_generate_bucket_hosting_setup"), { input: { target: "plain-host", bucket: "b" } }),
+    (err: unknown) => err instanceof ToolInputError && err.message === "'bucket' is not a credential field of plain-host. It takes none.");
+});

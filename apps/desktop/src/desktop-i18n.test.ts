@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { desktopCopy } from './desktop-i18n.ts';
+import { desktopCopy, runtimeLocale } from './desktop-i18n.ts';
 
 test('new desktop copy is translated in all Tovu locales', () => {
   const english = desktopCopy({ locale: 'en' });
@@ -26,4 +26,10 @@ test('the external-Stop confirm is translated in every locale and keeps `npm run
     assert.ok(copy.devBody.includes('`npm run dev`'), `${locale} dev body keeps the command`);
     assert.ok(copy.otherBody.includes('{app}'), `${locale} other body names the app`);
   }
+});
+
+test('runtimeLocale reads the navigator language and falls back to en without a navigator', () => {
+  assert.equal(runtimeLocale({}, { navigator: { language: 'de-DE' } }), 'de-DE');
+  assert.equal(runtimeLocale({}, { navigator: null }), 'en');
+  assert.equal(runtimeLocale(), globalThis.navigator.language, 'the default port is the runtime navigator');
 });

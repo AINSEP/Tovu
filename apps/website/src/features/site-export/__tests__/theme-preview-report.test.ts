@@ -23,3 +23,22 @@ test("size multiplier counts normal HTML/CSS/shared media once and includes vari
     assert.equal(result.additionalPages, 1);
   }
 });
+
+test("an export with no main HTML reports neutral multipliers instead of dividing by zero", () => {
+  const empty: ExportReport = { outputDir: "/tmp/test", routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] },
+    skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
+  assert.deepEqual(themePreviewExportSize({ report: empty, themeCount: 1 }), { themeCount: 1, additionalPages: 0, htmlSizeMultiplier: 1, sizeMultiplier: 1 });
+});
+
+test("routes and assets without a content type are counted as bytes but never parsed as HTML or CSS", () => {
+  const report: ExportReport = { outputDir: "/tmp/test", routes: { succeeded: [
+    { path: "/feed", kind: "home", outputFile: "feed", data: "<link href=\"/theme-assets/x.css\">" },
+  ], failed: [] }, assets: { succeeded: [
+    { url: "/theme-assets/x.css", outputFile: "theme-assets/x.css", data: Buffer.from("body{background:url(/m/never.jpg)}") },
+    { url: "/m/never.jpg", outputFile: "m/never.jpg", data: Buffer.from("img"), contentType: "image/jpeg" },
+  ], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
+  const result = themePreviewExportSize({ report, themeCount: 1 });
+  assert.equal(result.htmlSizeMultiplier, 1, "a route without text/html is not main HTML");
+  const main = Buffer.byteLength("<link href=\"/theme-assets/x.css\">") + Buffer.byteLength("body{background:url(/m/never.jpg)}");
+  assert.equal(result.sizeMultiplier, (main + 3) / main, "an untyped stylesheet's urls are not followed");
+});

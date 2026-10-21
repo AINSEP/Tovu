@@ -181,3 +181,40 @@ test('loader defaults use the browser document, location, events and session sta
   assert.equal(config.deepLink, true);
   assert.equal(config.preload, false);
 });
+
+test('a later hash change to #open-chat activates the loader; any other hash does not', () => {
+  const dom = new JSDOM('<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader></button>', { url: 'https://example.test/' });
+  let activations = 0;
+  const location = { hash: '', search: '' };
+  const listeners = new Map<string, (event: Event) => void>();
+  startSiteChatLoader({ install: () => ({ activate: async () => { activations += 1; } }), loadAssets: async () => {} },
+    { document: dom.window.document, location, events: { addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) } as unknown as Window,
+      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+  location.hash = '#comments';
+  listeners.get('hashchange')!(new dom.window.Event('hashchange'));
+  assert.equal(activations, 0);
+  location.hash = '#open-chat';
+  listeners.get('hashchange')!(new dom.window.Event('hashchange'));
+  assert.equal(activations, 1);
+  dom.window.close();
+});
+
+test('a focused open still announces itself in a document with no window of its own', () => {
+  const dom = new JSDOM('', { url: 'https://example.test/' });
+  const document = dom.window.document.implementation.createHTMLDocument('detached');
+  document.body.innerHTML = '<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader></button>';
+  assert.equal(document.defaultView, null);
+  let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
+  startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async () => {} },
+    { document, location: { hash: '', search: '' }, events: { addEventListener: () => {} } as unknown as Window,
+      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+  const root = document.getElementById('tovu-site-assistant-root')!;
+  const opened: string[] = [];
+  root.addEventListener('jini-chat-open', event => opened.push(event.type));
+  // In a browser the global Event is the page realm's; stand jsdom's in for it, as a page would have.
+  const nodeEvent = globalThis.Event;
+  globalThis.Event = dom.window.Event as unknown as typeof Event;
+  try { config!.open({ focus: true }); } finally { globalThis.Event = nodeEvent; }
+  assert.deepEqual(opened, ['jini-chat-open']);
+  dom.window.close();
+});

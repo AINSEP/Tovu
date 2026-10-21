@@ -6,7 +6,7 @@ import { createToolRegistry, ToolInputError } from "@jini-ai/core";
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import type { PluginActivationRecord } from "@jini-ai/plugins/host";
-import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo, type PluginContributionRegistry } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
@@ -546,4 +546,44 @@ test("an activation read that throws a non-Error denies the call and logs the th
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
     "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (locked)",
   ]);
+});
+
+/** A hand-written contribution registry that records whether executable plugin tools were attached. */
+function recordingContributions(): PluginContributionRegistry & { subscriptions: number; lists: number } {
+  const state = { subscriptions: 0, lists: 0 };
+  return Object.assign(state, {
+    replace: () => {},
+    detach: () => {},
+    list: () => { state.lists += 1; return []; },
+    subscribe: () => { state.subscriptions += 1; return () => {}; },
+  });
+}
+
+test("registerEnabledPluginCapabilityTools attaches executable plugin tools to the registry it was given when no separate executable registry is wired", async () => {
+  const registry = createToolRegistry({});
+  const contributions = recordingContributions();
+  await registerEnabledPluginCapabilityTools(registry, {
+    ...deps(),
+    pluginContributions: contributions,
+    discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
+    pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
+  });
+
+  assert.ok(registry.has({ toolId: "plugin_capability_word_count" }));
+  assert.equal(contributions.subscriptions, 1, "the executable-tool scope subscribes to contribution changes");
+});
+
+test("registerEnabledPluginCapabilityTools skips executable plugin tools for a register-only sink with no executable registry", async () => {
+  const registered: string[] = [];
+  const contributions = recordingContributions();
+  await registerEnabledPluginCapabilityTools({ register: (registration) => { registered.push(registration.descriptor.id); } }, {
+    ...deps(),
+    pluginContributions: contributions,
+    discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
+    pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
+  });
+
+  assert.deepEqual(registered, ["plugin_capability_word_count"]);
+  assert.equal(contributions.subscriptions, 0);
+  assert.equal(contributions.lists, 0);
 });

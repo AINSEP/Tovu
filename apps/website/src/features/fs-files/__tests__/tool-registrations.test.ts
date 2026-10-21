@@ -8,7 +8,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { getFsFilesAgentToolCatalog, FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID } from "../agent-tools.js";
 import { FS_ROOT_IDS, type FsRootId } from "../layout.js";
-import { buildFsFilesRegistrations, fsFilesDerivedRisk, type FsFilesToolDeps } from "../tool-registrations.js";
+import { buildFsFilesRegistrations, fsFilesDerivedRisk, type FsFilesToolDeps, contributeFsFilesTools } from "../tool-registrations.js";
 
 /**
  * @file The `fs_list_files`/`fs_read_file` registrations — their catalog shape, their permission
@@ -250,4 +250,29 @@ test("fs_list_files forwards truncation for a directory exceeding the file cap",
   } finally {
     fs.rmSync(path.dirname(roots.site), { recursive: true, force: true });
   }
+});
+
+test("fs_list_files refuses an unrecognized root and a traversal path the same way fs_read_file does", async () => {
+  const handler = handlerFor(buildFsFilesRegistrations(toolDeps()), FS_LIST_FILES_TOOL_ID);
+  await assert.rejects(() => handler(toolContext({ root: "not-a-real-root" }, FS_LIST_FILES_TOOL_ID)), /is not a recognized root/);
+  await assert.rejects(() => handler(toolContext({ root: "site", path: "../../../etc" }, FS_LIST_FILES_TOOL_ID)), /resolves outside the allowed root/);
+});
+
+test("without a resolveRoots override, the 'site' root is the bound site directory and 'custom' is unset", async () => {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-default-roots-"));
+  try {
+    fs.writeFileSync(path.join(siteDir, "notes.txt"), "hello");
+    const deps = toolDeps({ resolveRoots: undefined, siteBinding: { dir: siteDir } });
+    const registrations = buildFsFilesRegistrations(deps);
+    const listed = await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(toolContext({ root: "site" }, FS_LIST_FILES_TOOL_ID)) as { files: Array<{ path: string } | string> };
+    assert.ok(JSON.stringify(listed.files).includes("notes.txt"));
+    await assert.rejects(() => handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: "x.txt" }, FS_READ_FILE_TOOL_ID)), /no folder has been set for the 'custom' root yet/);
+  } finally { fs.rmSync(siteDir, { recursive: true, force: true }); }
+});
+
+test("contributeFsFilesTools contributes this domain's registrations and derived risk", () => {
+  const contributor = contributeFsFilesTools();
+  assert.equal(contributor.domain, "fs-files");
+  assert.equal(contributor.build, buildFsFilesRegistrations);
+  assert.equal(contributor.risk, fsFilesDerivedRisk);
 });

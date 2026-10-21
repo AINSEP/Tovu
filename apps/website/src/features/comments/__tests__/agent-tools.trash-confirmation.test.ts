@@ -183,3 +183,17 @@ test("trashing a comment preserves the caller's note in its moderation audit log
   ]);
   assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" }))?.status, "trash");
 });
+
+test("approving a comment records a string note and treats a non-string note as no note", async () => {
+  const { deps, commentRepo } = await fakeRouteDeps();
+  await commentRepo.save(seedComment());
+  await commentRepo.save(seedComment({ id: "comment-2" }));
+  const approve = buildCommentsRegistrations(deps).find(r => r.descriptor.id === "comments_approve_comment");
+  assert.ok(approve);
+  assert.deepEqual(await call(approve, { input: { commentId: "comment-1", expectedVersion: 1, note: "Looks fine" } }), { moderated: { commentId: "comment-1", toStatus: "approved" } });
+  assert.deepEqual(await call(approve, { input: { commentId: "comment-2", expectedVersion: 1, note: 42 } }), { moderated: { commentId: "comment-2", toStatus: "approved" } });
+  const notes = async (commentId: string) => (await commentRepo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId })).map(log => ({ action: log.action, note: log.note }));
+  assert.deepEqual(await notes("comment-1"), [{ action: "approve", note: "Looks fine" }]);
+  assert.deepEqual(await notes("comment-2"), [{ action: "approve", note: null }]);
+  assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id: "comment-2" }))?.status, "approved");
+});

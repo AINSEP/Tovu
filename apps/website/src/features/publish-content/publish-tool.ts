@@ -160,11 +160,11 @@ async function destinationCredential({ deps, input }: { deps: PublishContentTool
   }
   const peerId = typeof input.peerId === "string" ? input.peerId : defaultPeerId({ peers });
   if (!peerId) throw new ToolInputError({ message: peers.length ? "Several destinations are saved. Choose a peerId before publishing." : "No live destination is connected. Connect this computer with publish_content_connect, then publish again." });
-  return resolvePublishDestinationCredential({
+  return resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo,
     sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient
   },
-    { workspaceId: deps.workspaceId, id: peerId });
+    input: { workspaceId: deps.workspaceId, id: peerId } });
 }
 
 function defaultPeerId({ peers }: { peers: Awaited<ReturnType<PublishContentToolDeps["publishContentPeerRepo"]["listByWorkspace"]>> }, _optional: Record<string, never> = {}) {

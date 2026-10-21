@@ -10,7 +10,7 @@ import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from '
 import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS } from './config.js';
 import { consentPagePath } from './request.js';
-import { consentDryRun } from './readiness.js';
+import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
 
 export interface ConsentServicePorts {
   workspaceId: string;
@@ -26,6 +26,8 @@ export interface ConsentServicePorts {
   necessaryScripts: readonly { content: string }[];
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
+  /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
+  consentGate?: ConsentDryRunGate;
 }
 
 /** Unsaved input takes precedence over the draft, then the effective published/legacy policy. */
@@ -79,11 +81,13 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     try { receipts = await ports.receiptStorage({}); }
     catch { receipts = { writable: false, count: null }; }
     if (!receipts.writable || receipts.count === null) blockingProblems.push({ code: 'RECEIPT_STORAGE_UNAVAILABLE', message: 'Consent receipt storage is unavailable or not writable. Visitor choices cannot be saved reliably.' });
-    const metadata = { receipts, enabled: state.effective.enabled, placement: config.placement ?? 'bottom-bar', regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, blockingProblems };
+    // `config` came through parseConsentConfig, which refuses a config without a string placement,
+    // so no default placement is needed here.
+    const metadata = { receipts, enabled: state.effective.enabled, placement: config.placement, regionMode: config.regionMode, delivery: 'live', staticSupported: false, sampledPaths: [path], sampleOnly: true, blockingProblems };
     try {
       const page = await ports.renderPage({ path });
       if (!isCompleteConsentPage({ page })) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
-      const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts });
+      const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts }, { gate: ports.consentGate });
       blockingProblems.push(...dryRun.problems);
       return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
@@ -100,7 +104,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     path = consentPagePath({ path });
     const page = await ports.renderPage({ path });
     if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
-    const result = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts });
+    const result = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts }, { gate: ports.consentGate });
     if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
     return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };

@@ -135,3 +135,14 @@ test("hermetic catalog discovers platform enums from all bundled packages", asyn
   const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
   assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, ["fly", "github-actions"]);
 });
+
+test("an unreadable bundled plugin tree yields a catalog with no platforms instead of failing module load", async () => {
+  const { getDeployOpsAgentToolCatalog } = await import("../agent-tools.js");
+  const roots: string[] = [];
+  const catalog = getDeployOpsAgentToolCatalog(undefined, { readBundledDescriptors: ({ sourceRoot }) => { roots.push(sourceRoot); throw new Error("EACCES"); } });
+  assert.equal(roots.length, 1);
+  assert.match(roots[0] ?? "", /content[\\/]agent-plugins$/);
+  const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
+  assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, []);
+  assert.match(status.description, /Platforms: none available\./);
+});

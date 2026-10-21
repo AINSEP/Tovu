@@ -131,6 +131,18 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
   assert.equal(errors.length, 2, "both appends failed and both were reported — loud, but not fatal");
 });
 
+test("without an onSinkError hook a throwing sink is reported once per append on stderr, never with the error text", async (t) => {
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const hostileSink: ToolAttemptAuditSink = { append: async () => { throw new Error("disk full at /private/path"); } };
+  const catalog = withToolCatalogAudit({ catalog: buildToolCatalogQuery(fakeRegistry()), sink: hostileSink, identity: { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID } });
+
+  assert.ok(catalog.describe({ id: "forms_create_definition" }));
+  await new Promise((resolve) => setImmediate(resolve));
+  t.mock.restoreAll();
+  assert.deepEqual(logged, [["[tool-audit] sink threw; execution is unaffected"]]);
+});
+
 test("searchToolsAuditDetail/describeToolAuditDetail are pure JSON builders", () => {
   assert.equal(searchToolsAuditDetail({ query: "q", limit: 10, hits: [{ id: "a" }] }, {}), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
   assert.equal(describeToolAuditDetail({ id: "a", entry: null }, {}), JSON.stringify({ id: "a", found: false }));

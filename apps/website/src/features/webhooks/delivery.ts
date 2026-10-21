@@ -46,18 +46,26 @@ export function enqueueDelivery({ deps, input }: EnqueueDeliveryRequired, option
   }, input }, optional);
 }
 
+/** Adapt Tovu's outbound HTTP port to the canonical delivery worker's `send({ request }, options)`.
+ * Preserve the signed body bytes; only unwrap the canonical HTTP request object.
+ * Redirect policy comes from host composition; unsupported per-call controls fail closed.
+ * @throws {Error} When a caller asks for a per-request redirect control.
+ * @complexity O(1) per send, plus the wrapped client's own cost.
+ */
+export function adaptWebhookHttpClient({ httpClient }: { httpClient: HttpClientPort }, _optional: Record<string, never> = {}): JiniProcessDeps["httpClient"] {
+  return { send: ({ request }, options = {}) => {
+    if (options.redirect !== undefined) throw new Error("webhook HTTP adapter does not support per-request redirect controls");
+    return httpClient.send(request);
+  } };
+}
+
 /** Jini owns claim/retry/hooks/sign/send; host adapters preserve transport and signature headers.
  * @complexity O(batch size × bounded envelope bytes), with one bounded HTTP request per delivery.
  */
 export function processDueDeliveries({ deps }: ProcessDueDeliveriesRequired, optional: ProcessDueDeliveriesOptional = {}): Promise<ProcessDueDeliveriesResult> {
   return processWebhookDeliveries({ deps: {
     ...deps,
-    // Preserve the signed body bytes; only unwrap the canonical HTTP request object.
-    // Redirect policy comes from host composition; unsupported per-call controls fail closed.
-    httpClient: { send: ({ request }, options = {}) => {
-      if (options.redirect !== undefined) throw new Error("webhook HTTP adapter does not support per-request redirect controls");
-      return deps.httpClient.send(request);
-    } },
+    httpClient: adaptWebhookHttpClient({ httpClient: deps.httpClient }),
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     headers: { signature: "tovu-signature", deliveryId: "tovu-delivery-id", eventId: "tovu-event-id" },
   } }, optional);

@@ -62,3 +62,27 @@ test("TW2 pins unavailable ports, covered addresses, read failures and unrelated
   assert.equal((await preview(entity, failing)).unavailableReason, "These values could not be inspected safely. Check again before sending.");
   assert.deepEqual(await buildBackstopPreview({ entities: [{ ...entity, entityType: "post" }], backstop, workspaceId: "ws" }), []);
 });
+
+test("file review reports an executable live file as mode 755, and a file absent on the destination as no before value", async () => {
+  const file = { entityType: "raw-file", id: "extras/run.sh", state: { path: "extras/run.sh", sha256: "after-sha", size: 4, mode: 0o755 } } as unknown as PackedEntity;
+  let live: { bytes: Buffer; mode: number; absPath: string } | null = { bytes: Buffer.from("#!/bin/sh"), mode: 0o100750, absPath: "/private/site/extras/run.sh" };
+  const backstop: BackstopPorts = { coveredTables: [], coveredRoots: [], files: { check: async () => null, read: async () => live, capture: unused, replace: unused, restore: unused } };
+  const [executable] = await buildBackstopPreview({ entities: [file], backstop, workspaceId: "ws" });
+  assert.equal((executable!.before as { mode: number }).mode, 0o755);
+  live = null;
+  const [absent] = await buildBackstopPreview({ entities: [file], backstop, workspaceId: "ws" });
+  assert.equal(absent!.before, null);
+  assert.deepEqual(absent!.after, file.state);
+});
+
+test("a blob-valued column is checked as its decoded text, so a secret hidden in a blob is still refused", async () => {
+  const blob = (text: string) => ({ blobBase64: Buffer.from(text).toString("base64") });
+  const safeRow: RawRowSnapshot = { ...row, values: { id: "one", title: blob("Plain footer") } as unknown as RawRowSnapshot["values"] };
+  const safeEntity = { ...entity, state: safeRow } as unknown as PackedEntity;
+  const [safe] = await buildBackstopPreview({ entities: [safeEntity], backstop: ports(safeRow), workspaceId: "ws" });
+  assert.equal(safe!.unavailableReason, null);
+  const secretRow: RawRowSnapshot = { ...row, values: { id: "one", title: blob("-----BEGIN PRIVATE KEY-----\nabc") } as unknown as RawRowSnapshot["values"] };
+  const [secret] = await buildBackstopPreview({ entities: [{ ...entity, state: secretRow } as unknown as PackedEntity], backstop: ports(row), workspaceId: "ws" });
+  assert.ok(secret!.unavailableReason, "a private key hidden in a blob column is refused");
+  assert.equal(secret!.after, null);
+});

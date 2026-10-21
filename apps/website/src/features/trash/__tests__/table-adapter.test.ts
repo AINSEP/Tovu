@@ -772,3 +772,22 @@ test("purge: null expectedVersion permits a hidden row but never permits a live 
   assert.equal(readFormRow(h.client, "l128-hidden"), undefined);
   assert.equal(readFormRow(h.client, "l128-live")?.deleted_at, null);
 });
+
+test("a snapshot read for an entry with no version column returns the display lines and no version", async () => {
+  const h = harness();
+  seedForm(h.client, "unversioned-form", { version: 7 });
+  const registry = buildTrashRegistry();
+  const db = createSqliteTrashDb({ db: h.db });
+  // Hand-built, test-only: the form entry minus its optional `versionColumn` (every registered entry has one).
+  const { versionColumn: _versionColumn, ...unversioned } = registry.get("form")!;
+  const entry: TrashEntry = unversioned;
+
+  const snapshot = await readLiveSnapshot({ entry, workspaceId: WS, entityId: "unversioned-form" }, { kernel: db, registry });
+
+  assert.deepEqual(snapshot, { title: "Form unversioned-form", subtitle: "slug-unversioned-form" });
+  assert.deepEqual(
+    await readLiveSnapshot({ entry: registry.get("form")!, workspaceId: WS, entityId: "unversioned-form" }, { kernel: db, registry }),
+    { title: "Form unversioned-form", subtitle: "slug-unversioned-form", version: 7 },
+    "the registered entry reads the version column alongside the display lines"
+  );
+});

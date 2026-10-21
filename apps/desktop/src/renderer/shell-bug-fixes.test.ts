@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { hookHarness, sourceFunction, elements } from './source-test-harness.js';
 import { siteNameError, SITE_NAME_ERROR, namePasteHandler } from '../contracts/site-name.js';
-import { humanSiteError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape, addedSiteMessage } from './site-shell-policy.js';
+import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape, addedSiteMessage } from './site-shell-policy.js';
 import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
 import { revealActiveTab, tabOverflow } from './use-tab-strip.hooks.js';
 import { computeCanCreate, buildCreateProjectInput, siteSlug } from './App.hooks.js';
@@ -123,7 +123,7 @@ test('D-12: Escape closes the menu and Rename even when focus is on a panel butt
   const renameHarness = hookHarness();
   const renameKeys = keyboard();
   const useRename = sourceFunction(readFileSync(new URL('./use-site-rename.hooks.ts', import.meta.url), 'utf8'), 'useSiteRename', {
-    ...renameHarness.bindings, document: renameKeys.document, dismissOnEscape, canSubmitRename,
+    ...renameHarness.bindings, document: renameKeys.document, dismissOnEscape, canSubmitRename, runnerInventoryBridge: () => undefined,
   });
   const rename = () => renameHarness.render(() => useRename());
   rename().startRename(site()); rename(); renameKeys.press('Escape');
@@ -272,4 +272,18 @@ test('D-19: the mutation hook permanently dismisses the ready notice once its si
   assert.equal(render().lastCreated, null);
   projects = [site({ status: 'stopped' })];
   assert.equal(render().lastCreated, null, 'stopping again must not resurrect the notice');
+});
+
+test('tabAfterClose: closing the active tab that is not in the strip leaves no active tab', () => {
+  assert.equal(tabAfterClose({ tabs: ['a', 'b'], active: 'gone', closing: 'gone' }), null);
+});
+
+test('siteOperationError falls back to English copy in a host with no navigator', (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: undefined });
+  t.after(() => { if (descriptor) Object.defineProperty(globalThis, 'navigator', descriptor); });
+  assert.equal(typeof navigator, 'undefined');
+  assert.equal(siteOperationError({ error: 'Error: /tmp/x has no Tovu site in it yet.', operation: 'add' }),
+    'No Tovu website was found in this folder. Choose an existing website or use Create website.');
+  assert.equal(siteOperationError({ error: new Error('Port 4300 is busy.'), operation: 'start' }), 'Port 4300 is busy.');
 });

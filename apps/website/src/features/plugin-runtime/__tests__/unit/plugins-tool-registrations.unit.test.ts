@@ -65,6 +65,13 @@ test("an unversioned Agent Plugin digest still changes the identity but is left 
   assert.equal(both.version, "1.0.0");
 });
 
+test("approval identity refuses an Agent Plugin that is not installed and a site plugin missing from discovery, by name", async () => {
+  const agent = pluginApprovalIdentity({ deps: harness({ agentHost: { listInstalled: async () => [installedAgentPlugin({ pluginId: "other" })] } }).deps, request: { family: "agent-plugin", pluginId: "higgsfield" } });
+  await assert.rejects(agent, (error: unknown) => error instanceof ToolInputError && error.message === "Agent Plugin 'higgsfield' is not installed");
+  const site = pluginApprovalIdentity({ deps: harness({ discovery: () => [siteRecord({ id: "quiet", name: "Quiet" })] }).deps, request: { family: "site-runtime", pluginId: "ghost-plugin" } });
+  await assert.rejects(site, (error: unknown) => error instanceof ToolInputError && error.message === "plugin 'ghost-plugin' was not found in the current discovery snapshot");
+});
+
 /** The composed assistant registry deps with this harness's Plugins ports laid over them, minus any
  *  bound host. The composed clock is kept: other domains in the registry need its `nowIso`. */
 function registryDepsWithoutHost(deps: PluginsToolDeps): Omit<AssistantToolRegistryDeps, "pluginHost"> {

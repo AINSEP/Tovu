@@ -40,10 +40,12 @@ function isImportProtocolAllowed({ server }: { server: URL }, _options: Record<s
   return server.protocol === "https:" || Boolean(server.protocol === "http:" && isIP(hostname) && isLoopbackHost(hostname));
 }
 
-function parseImportRequest({ text }: { text: string | undefined }, _options: Record<string, never> = {}): Record<string, unknown> {
+function parseImportRequest({ text }: { text: string | null }, _options: Record<string, never> = {}): Record<string, unknown> {
   let raw: Record<string, unknown>;
   try {
-    raw = JSON.parse(text ?? "") as Record<string, unknown>;
+    // `readPromptFromFlags` with `prompt-file: "-"` always yields the stdin text; a missing value
+    // would stringify to non-JSON or `null` and fail the shape check below, never parse as a request.
+    raw = JSON.parse(String(text)) as Record<string, unknown>;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("shape");
   } catch { throw new ValidationError("import: stdin must contain one JSON request object."); }
   return raw;

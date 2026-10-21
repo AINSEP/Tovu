@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { runImportSiteCommand } from "../../commands/import-site.js";
 
@@ -44,4 +47,30 @@ test("import accepts an external setup URL (reported, not fixed)", async () => {
     readRequest: async () => JSON.stringify({ authorization: "Bearer fixture", url: "https://share.example/site.zip" }),
     post: async () => ({ setupUrl: "https://untrusted.example/owner" }),
   }), { setupUrl: "https://untrusted.example/owner" });
+});
+
+test("import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged", async (t) => {
+  const seen: Array<{ method?: string; url?: string; authorization?: string; body: unknown }> = [];
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => { body += String(chunk); });
+    req.on("end", () => {
+      seen.push({ method: req.method, url: req.url, authorization: req.headers.authorization, body: JSON.parse(body) });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ state: "queued", importId: "imp-1" }));
+    });
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const { port } = server.address() as AddressInfo;
+  const result = await runImportSiteCommand({ server: `http://127.0.0.1:${port}`, workspaceId: "ws one" }, {
+    readRequest: async () => JSON.stringify({ authorization: "Bearer loopback-key", url: "https://share.example/site.tovu.zip" }),
+  });
+  assert.deepEqual(result, { state: "queued", importId: "imp-1" });
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]!.method, "POST");
+  assert.equal(seen[0]!.url, "/api/admin/v1/workspaces/ws%20one/site-imports");
+  assert.equal(seen[0]!.authorization, "Bearer loopback-key");
+  assert.equal((seen[0]!.body as Record<string, unknown>).authorization, undefined);
 });

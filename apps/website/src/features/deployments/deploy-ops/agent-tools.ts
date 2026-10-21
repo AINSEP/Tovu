@@ -9,15 +9,17 @@ interface AgentToolDefinition {
   authorization: { permission: string }; inputSchema: Readonly<Record<string, unknown>>;
 }
 /** Data-only source snapshot for hermetic catalog construction; never used to authorize or import modules. */
-function bundledDescriptors(): readonly DeployOpsDescriptor[] {
+function bundledDescriptors(read: BundledDescriptorReader): readonly DeployOpsDescriptor[] {
   try {
-    return readBundledDeployOpsDescriptors({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
+    return read({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
   } catch { return []; }
 }
+/** Reads the bundled deploy-ops descriptors from a plugin source root (injectable for tests). */
+export type BundledDescriptorReader = (input: { sourceRoot: string }) => readonly DeployOpsDescriptor[];
 const platformList = (platforms: readonly DeployOpsDescriptor[]) => ` Platforms: ${platforms.map(p => `${p.id} (${p.label})`).join(", ") || "none available"}.`;
 /** Build schemas from the loaded registry. O(platforms + eight tools); a missing registry uses bundled data only. */
-export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): AgentToolDefinition[] {
-  const platforms = registry ? registry.list().map(p => p.descriptor) : bundledDescriptors();
+export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry, optional: { readBundledDescriptors?: BundledDescriptorReader } = {}): AgentToolDefinition[] {
+  const platforms = registry ? registry.list().map(p => p.descriptor) : bundledDescriptors(optional.readBundledDescriptors ?? readBundledDeployOpsDescriptors);
   const ids = platforms.map(p => p.id);
   const listed = platformList(platforms);
   // Secrets are an optional adapter verb set, so their tools advertise only adapters that export it

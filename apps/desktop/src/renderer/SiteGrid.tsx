@@ -80,6 +80,7 @@ export function SiteGrid({
   useActions = useSiteActions,
   usePower = useSitePower,
   useLocate = useSiteLocate,
+  usePreview = useSitePreview,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -101,6 +102,9 @@ export function SiteGrid({
   usePower?: typeof useSitePower;
   /** A missing-folder card's Locate. Injectable for the same reason as the others. */
   useLocate?: typeof useSiteLocate;
+  /** Each card's preview-capture URL. Defaults to the bridge-backed `useSitePreview`; injectable for
+   *  the same reason as the others, so a test can render a card with a capture. */
+  usePreview?: typeof useSitePreview;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
     useDeleteState(onDelete);
@@ -136,6 +140,7 @@ export function SiteGrid({
           onRequestDelete={requestDelete}
           onCancelDelete={cancelDelete}
           onConfirmDelete={confirmDelete}
+          usePreview={usePreview}
         />
       ))}
     </div>
@@ -156,6 +161,7 @@ function SiteCard({
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
+  usePreview = useSitePreview,
 }: {
   project: SiteRecord;
   showParent: boolean;
@@ -170,6 +176,7 @@ function SiteCard({
   onRequestDelete: (id: string) => void;
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => Promise<void>;
+  usePreview?: typeof useSitePreview;
 }) {
   // ANY overlay makes the card inert, which is why the two are one value rather than two booleans:
   // the click that commits or dismisses an overlay must not also open the site underneath it, and
@@ -183,7 +190,7 @@ function SiteCard({
   const copy = deleteActionCopy(project);
   // `null` until main has actually captured this site once (or the fetch is still in flight) — see
   // `use-site-preview.hooks.ts`.
-  const previewUrl = useSitePreview(project.id, project.previewVersion);
+  const previewUrl = usePreview({ id: project.id, previewVersion: project.previewVersion });
   // The polled status, or the transition THIS window started and is still waiting on — see
   // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
   const status = power.statusOf(project);

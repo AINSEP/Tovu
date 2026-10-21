@@ -316,6 +316,34 @@ test("active theme: the row is named by the theme's theme.json name, without tou
   assert.equal(report.rows[0]!.entityLabel, "Tovu Theme");
 });
 
+test("active theme: a blank theme.json name is no display name, and an invalid theme folder is not an installed tree", async () => {
+  const { source, sourceDeps } = await sites();
+  source.themes.push({ ...theme("static", "paper"), manifest: { id: "paper", name: "   " } } as unknown as DiscoveredTheme);
+  await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
+
+  const [blank] = await packAll(sourceDeps);
+  assert.equal(blank!.displayLabel, undefined);
+  assert.deepEqual(blank!.state, { label: "paper", themeId: "paper", tree: "static/paper" });
+
+  source.themes.splice(0, source.themes.length, { ...theme("static", "paper"), status: "invalid" } as unknown as DiscoveredTheme);
+  const [invalid] = await packAll(sourceDeps);
+  assert.deepEqual(invalid!.state, { label: "paper", themeId: "paper", tree: null });
+  const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
+  assert.deepEqual(handler.references!(invalid!), [], "no installed folder, so no theme-files dependency");
+});
+
+test("active theme: only the 'site' row exists, and an unparsable updatedAt inspects as version 0", async () => {
+  const { source, sourceDeps } = await sites();
+  source.themes.push(theme("static", "paper"));
+  await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: "not-a-timestamp" });
+  const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
+
+  assert.equal(await handler.inspect!("some-other-row"), null);
+  const inspected = await handler.inspect!("site");
+  assert.equal(inspected?.version, 0);
+  assert.equal(typeof inspected?.hash, "string");
+});
+
 test("active theme: a destination with no presentation row is refused cleanly", async () => {
   const { source, destination, sourceDeps, destinationDeps } = await sites();
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });

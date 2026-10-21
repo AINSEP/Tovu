@@ -532,3 +532,22 @@ test("a connection that fails again on every reload is listed once, with its lat
 
   assert.deepEqual(runtime.connectFailures(), [{ connectionId: "y", reason: "failure-3" }], "repeated failures must replace, not accumulate");
 });
+
+test("a boot pass rejecting with a non-Error value logs that raw value and still settles", async (t) => {
+  const warnLines: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => {
+    warnLines.push(args.map(String).join(" "));
+  });
+  const runtime = createFederationRuntime({
+    registry: fakeRegistry(),
+    deps: FEDERATION_DEPS,
+    resolveConnections: () => Promise.reject("roster locked"),
+    log: "[assistant-byok]",
+  });
+  await runtime.start();
+  assert.equal(runtime.started, true);
+  assert.ok(
+    warnLines.includes("[assistant-byok] mcp-federation: boot pass failed, continuing without federated tools — roster locked"),
+    `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
+  );
+});

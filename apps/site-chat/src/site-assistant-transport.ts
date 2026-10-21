@@ -57,10 +57,14 @@ interface HistoryTurn {
  * caller's `history` does not end in the user turn.
  */
 function priorTurnsBeforeLatestUserMessage(history: ChatMessage[]): ChatMessage[] {
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    if (history[i]?.role === "user") return history.slice(0, i);
-  }
-  return history;
+  // Precondition: `history` holds a user turn. `startRun` calls `latestUserPromptFromHistory` first,
+  // which throws when there is none and scans for the same condition (last `role === "user"`, from
+  // the end) over the same unmutated array — so this scan always stops at an index >= 0. The former
+  // "no user turn" fallback (`return history`) was unreachable through the public API and was
+  // removed; a caller breaking the precondition now fails fast instead of sending everything.
+  let i = history.length - 1;
+  while (history[i]!.role !== "user") i -= 1;
+  return history.slice(0, i);
 }
 
 /** Bounds the prior turns sent alongside a message. Not the security boundary (see file header) —

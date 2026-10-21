@@ -120,6 +120,11 @@ test('reload replaces route/tool/widget generations; disable removes catalog and
   assert.doesNotMatch(await render(),/<strong>/);
   await h.setEnabled(); assert.ok(h.catalog.describe({id:'p_site_sample__echo'}));
 });
+test('a partial marker that names no partial id is left untouched, even with a partial-contributing plugin enabled', async t => {
+  const h = await harness(t); await h.author(); await h.setEnabled();
+  const markup = '<div data-embed-config=\'{"type":"partial"}\'></div>';
+  assert.equal(await renderPluginWidgetPartials({ html: markup, workspaceId, contributions: h.runtime.pluginContributions, activationRepo: h.activationRepo }), markup);
+});
 test('claim collision refuses activation before publishing any candidate handler', async t => {
   const h = await harness(t, { coreClaims: [{ kind: 'route', key: 'POST /api/p/site-other/public', mode: 'exclusive' }] }); await h.author(); await h.setEnabled();
   await h.author('site-other');

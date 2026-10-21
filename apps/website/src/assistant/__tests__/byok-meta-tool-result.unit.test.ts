@@ -72,3 +72,50 @@ test("resolveDelegatedInput refuses an unparseable string, naming the fix", () =
 test("resolveDelegatedInput refuses a boolean, naming its type", () => {
   assert.deepEqual(resolveDelegatedInput(true), { ok: false, message: "'input' must be a JSON object of the tool's input fields, not boolean." });
 });
+
+test("a cancellation maps to a message naming the tool", () => {
+  assert.deepEqual(mapToolExecutionResult(executionResult({ status: "cancelled" }), "demo"),
+    { content: 'tool "demo" was cancelled', isError: true });
+});
+
+test("ok renders a string output verbatim and a plain object as JSON text", () => {
+  assert.deepEqual(ok("plain text"), { content: "plain text" });
+  assert.deepEqual(ok({ a: 1 }), { content: '{"a":1}' });
+  assert.deepEqual(ok(undefined), { content: "null" });
+});
+
+test("ok keeps text and image blocks together as provider content when at least one is an image", () => {
+  const output = { content: [{ type: "text", text: "caption" }, { type: "image", mimeType: "image/png", data: "AAAA" }] };
+  assert.deepEqual(ok(output), { content: [{ type: "text", text: "caption" }, { type: "image", mimeType: "image/png", data: "AAAA" }] });
+});
+
+test("ok falls back to JSON text when the content envelope has no image, an unknown block, or a malformed block", () => {
+  const cases: unknown[] = [
+    { content: [{ type: "text", text: "only text" }] },
+    { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }, { type: "audio", data: "x" }] },
+    { content: [{ type: "image", mimeType: "image/png", data: "AAAA" }, "not-a-block"] },
+    { content: [{ type: "image", mimeType: "image/png" }] },
+    { content: [{ type: "text", text: 5 }] },
+    { content: "not-an-array" },
+    [{ type: "image", mimeType: "image/png", data: "AAAA" }],
+  ];
+  for (const output of cases) {
+    assert.deepEqual(ok(output), { content: JSON.stringify(output) }, JSON.stringify(output));
+  }
+});
+
+test("resolveDelegatedInput accepts absent input and a record, and parses a JSON-object string", () => {
+  assert.deepEqual(resolveDelegatedInput(undefined), { ok: true, input: undefined });
+  assert.deepEqual(resolveDelegatedInput(null), { ok: true, input: undefined });
+  assert.deepEqual(resolveDelegatedInput({ id: "x" }), { ok: true, input: { id: "x" } });
+  assert.deepEqual(resolveDelegatedInput('  {"id":"x"}  '), { ok: true, input: { id: "x" } });
+});
+
+test("resolveDelegatedInput refuses JSON that is not an object, and an array value, naming each", () => {
+  const parsedNonObject = resolveDelegatedInput("[1,2]");
+  assert.equal(parsedNonObject.ok, false);
+  assert.match(parsedNonObject.ok ? "" : parsedNonObject.message, /parsed as JSON but is not an object/);
+  const array = resolveDelegatedInput([1]);
+  assert.equal(array.ok, false);
+  assert.match(array.ok ? "" : array.message, /not an array\.$/);
+});

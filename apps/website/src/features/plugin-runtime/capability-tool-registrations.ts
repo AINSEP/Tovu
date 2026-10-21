@@ -500,15 +500,15 @@ export async function registerEnabledPluginCapabilityTools(
     registry.register(registration);
   }
   if (deps.pluginContributions && (deps.executablePluginToolRegistry || (registry.has && registry.list))) {
-    attachPluginContributionTools({ ...executablePluginToolPorts({ deps }), registry: deps.executablePluginToolRegistry ?? registry as ToolRegistry });
+    attachPluginContributionTools({ ...executablePluginToolPorts({ deps, contributions: deps.pluginContributions }), registry: deps.executablePluginToolRegistry ?? registry as ToolRegistry });
   }
 }
 
 /** Product authorization and approval inputs for Jini's executable registration owner. */
-function executablePluginToolPorts({ deps }: { deps: PluginCapabilityToolDeps }): PluginToolContributionPorts {
-  if (!deps.pluginContributions) throw new Error('plugin contributions are not bound');
+function executablePluginToolPorts({ deps, contributions }: { deps: PluginCapabilityToolDeps; contributions: PluginContributionRegistry }): PluginToolContributionPorts {
+  // The caller passes the bound registry it just checked, so there is no unbound case to refuse here.
   return {
-    contributions: deps.pluginContributions,
+    contributions,
     isEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     resolveAuth: async ({ pluginId, principalId }) => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission: 'admin.plugins.enable' }, { entityType: 'plugin', entityId: pluginId });

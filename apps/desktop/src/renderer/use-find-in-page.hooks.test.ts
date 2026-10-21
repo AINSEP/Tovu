@@ -450,6 +450,14 @@ function mountedFindEffects() {
     cancelAnimationFrame: (id: number) => frames.delete(id),
     setTimeout: (callback: () => void) => { timers.set(++nextId, callback); return nextId; },
     clearTimeout: (id: number) => timers.delete(id),
+    // The hook's default clock port, wired to the same controlled frames/timers as the globals.
+    liveFindClock: {
+      now: () => now,
+      requestFrame: (callback: () => void) => { frames.set(++nextId, callback); return nextId; },
+      cancelFrame: (id: number) => frames.delete(id),
+      schedule: (callback: () => void) => { timers.set(++nextId, callback); return nextId; },
+      cancel: (id: number) => timers.delete(id),
+    },
   }) as (id: string) => { inputRef: (input: unknown) => void; close: () => void };
   const controller = createHook('guest');
   controller.inputRef(input);

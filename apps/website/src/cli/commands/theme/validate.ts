@@ -29,6 +29,21 @@ export interface RunThemeValidateCommandInput {
 
 const VALID_PROFILES: ReadonlySet<string> = new Set(["author", "publish", "install"]);
 
+/** Injectable effects of {@link runThemeValidateCommand}. */
+export interface RunThemeValidateCommandPorts {
+  validate?: typeof validateThemePackage;
+  output?: (message: string) => void;
+  setExitCode?: (code: number) => void;
+}
+
+function writeStdout(message: string): void {
+  process.stdout.write(message);
+}
+
+function setProcessExitCode(code: number): void {
+  process.exitCode = code;
+}
+
 function formatFinding(finding: ThemeValidationFinding): string {
   const location = finding.path ? ` (${finding.path})` : "";
   return `  [${finding.ruleId}]${location} ${finding.message}`;
@@ -36,13 +51,13 @@ function formatFinding(finding: ThemeValidationFinding): string {
 
 /** The `--json`-off branch of `runThemeValidateCommand` — split out so that function's own
  * cognitive complexity isn't compounded by nesting this printing logic inside its `if/else`. */
-function printHumanReadableResult(id: string, profile: string, result: ValidateThemePackageResult): void {
-  process.stdout.write(`theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n`);
+function printHumanReadableResult(id: string, profile: string, result: ValidateThemePackageResult, output: (message: string) => void): void {
+  output(`theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n`);
   if (result.errors.length > 0) {
-    process.stdout.write(`errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n`);
+    output(`errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n`);
   }
   if (result.warnings.length > 0) {
-    process.stdout.write(`warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n`);
+    output(`warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n`);
   }
 }
 
@@ -53,7 +68,12 @@ function printHumanReadableResult(id: string, profile: string, result: ValidateT
  * @complexity O(1) beyond `validateThemePackage`'s own bounded cost.
  * @overallScore 100
  */
-export async function runThemeValidateCommand(input: RunThemeValidateCommandInput): Promise<void> {
+export async function runThemeValidateCommand(
+  input: RunThemeValidateCommandInput,
+  optional: RunThemeValidateCommandPorts = {}
+): Promise<void> {
+  // Default ports are wired here, at the command edge; tests inject their own.
+  const { validate = validateThemePackage, output = writeStdout, setExitCode = setProcessExitCode } = optional;
   const profile = input.profile ?? "author";
   if (!VALID_PROFILES.has(profile)) {
     throw new ValidationError(`--profile must be one of: author, publish, install (got "${profile}")`);
@@ -61,15 +81,15 @@ export async function runThemeValidateCommand(input: RunThemeValidateCommandInpu
 
   const dir = path.resolve(input.dir);
   const id = path.basename(dir);
-  const result = validateThemePackage({ themeDir: dir, id, profile: profile as ThemeValidationProfile });
+  const result = validate({ themeDir: dir, id, profile: profile as ThemeValidationProfile });
 
   if (input.json) {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    output(`${JSON.stringify(result, null, 2)}\n`);
   } else {
-    printHumanReadableResult(id, profile, result);
+    printHumanReadableResult(id, profile, result, output);
   }
 
   if (!result.valid) {
-    process.exitCode = 1;
+    setExitCode(1);
   }
 }

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { migrateThemeToV2 } from "../migrate-theme.js";
+import { cleanupMigrationOutput, migrateThemeToV2 } from "../migrate-theme.js";
 
 function snapshotTree(dir: string): Record<string, string | null> {
   const entries: Record<string, string | null> = {};
@@ -245,4 +245,71 @@ test("migrateThemeToV2 (static) rewrites a moved page's/partial's own ../css/sty
 
   const partial = fs.readFileSync(path.join(result.outputDir!, "render/partials/nav.html"), "utf8");
   assert.equal(partial, '<nav><link rel="stylesheet" href="../css/theme.css" /></nav>');
+});
+
+test("cleanupMigrationOutput removes a dry run's staged output and leaves the real theme alone", () => {
+  const dir = makeDeclarativeThemeDir();
+  const before = snapshotTree(dir);
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
+  assert.ok(result.outputDir && fs.existsSync(result.outputDir));
+
+  cleanupMigrationOutput(result.outputDir!);
+
+  assert.equal(fs.existsSync(result.outputDir!), false);
+  assert.deepEqual(snapshotTree(dir), before);
+  assert.doesNotThrow(() => cleanupMigrationOutput(result.outputDir!), "cleaning an already-removed output is a no-op");
+});
+
+test("migrateThemeToV2 dryRun of a theme that fails verification reports failed, with the staged output kept for inspection", () => {
+  const dir = makeDeclarativeThemeDir({ skipEntry: true });
+  const before = snapshotTree(dir);
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, undefined);
+  assert.ok(result.outputDir && result.outputDir !== dir && fs.existsSync(result.outputDir));
+  assert.deepEqual(snapshotTree(dir), before);
+});
+
+test("migrateThemeToV2 throws when theme.json is not a JSON object", () => {
+  const dir = makeDeclarativeThemeDir();
+  fs.writeFileSync(path.join(dir, "theme.json"), "[1, 2]", "utf8");
+  assert.throws(() => migrateThemeToV2({ themeDir: dir, id: "t" }), /theme\.json is not a JSON object/);
+});
+
+test("migrateThemeToV2 reports a tier with no v2 plan as failed, with the planner's reason and no staging", () => {
+  const dir = makeDeclarativeThemeDir();
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "t", name: "T", version: "1.0.0", tier: "no-such-tier" }), "utf8");
+  const before = snapshotTree(dir);
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.reason ?? "", /no v2 migration plan implemented yet for tier 'no-such-tier'/);
+  assert.equal(result.outputDir, undefined);
+  assert.deepEqual(snapshotTree(dir), before);
+});
+
+test("migrateThemeToV2 treats a manifest without a tier as declarative and leaves a declarative bare-number engine as authored", () => {
+  const dir = makeDeclarativeThemeDir();
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "t", name: "T", version: "1.0.0", engine: 1, description: "test theme" }), "utf8");
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
+
+  assert.ok(result.plan, `expected a plan, got ${JSON.stringify(result.reason)}`);
+  assert.ok(result.outputDir && fs.existsSync(path.join(result.outputDir, "css/theme.css")), "planned and staged with the declarative layout");
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.outputDir!, "theme.json"), "utf8"));
+  assert.equal(manifest.apiVersion, 2);
+  assert.equal(manifest.engine, 1, "only templated/handlebars tiers have an engine name to convert to");
+});
+
+test("migrateThemeToV2 carries NOTICE.md and per-mode token files forward, and copes with no tokens.json", () => {
+  const dir = makeDeclarativeThemeDir();
+  fs.rmSync(path.join(dir, "tokens.json"));
+  fs.writeFileSync(path.join(dir, "NOTICE.md"), "Third-party notices", "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.dark.json"), '{"--bg":"#111"}', "utf8");
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
+
+  assert.ok(result.outputDir, `expected staged output, got ${JSON.stringify(result.reason)}`);
+  assert.equal(fs.readFileSync(path.join(result.outputDir!, "NOTICE.md"), "utf8"), "Third-party notices");
+  assert.equal(fs.readFileSync(path.join(result.outputDir!, "tokens.dark.json"), "utf8"), '{"--bg":"#111"}');
+  assert.equal(fs.existsSync(path.join(result.outputDir!, "tokens.json")), false);
 });

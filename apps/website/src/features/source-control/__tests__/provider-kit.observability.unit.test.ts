@@ -6,7 +6,7 @@ import test from "node:test";
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
-import type { HttpClientPort } from "#src/platform/http/index";
+import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
 
 import { createSourceControlProviderKit } from "../provider-kit.js";
 import type { SourceControlProviderKit, SourceControlProviderOperations } from "../provider-module.js";
@@ -89,4 +89,41 @@ test("without a port the kit sends through fetchFn unwrapped", async () => {
   const kit = createSourceControlProviderKit({ fetchFn: async () => new Response(null, { status: 204 }) });
   assert.equal((await kit.fetch("https://api.github.com/", {})).status, 204);
   assert.equal(exporter.getFinishedSpans().length, 0);
+});
+
+test("a kit built with no options refuses outbound HTTP-client calls instead of sending them", async () => {
+  const kit = createSourceControlProviderKit();
+  const request = { method: "GET" as const, url: "https://api.github.com/user", headers: {}, idleTimeoutMs: 1000 };
+  await assert.rejects(() => kit.httpClient.send(request), { message: "no outbound HTTP client is wired for this call" });
+});
+
+test("describeTransportError relays an egress refusal's caller-safe message and keeps the resolved address for the log only", () => {
+  const kit = createSourceControlProviderKit({ httpClient });
+  const refusal = new EgressRefusedError(
+    { message: "host 'meta.internal' resolved to 169.254.169.254 (link-local)" },
+    { callerSafeMessage: "host 'meta.internal' resolves to a non-public address" },
+  );
+  assert.deepEqual(kit.describeTransportError(refusal), {
+    refusal: "host 'meta.internal' resolves to a non-public address",
+    logDetail: "host 'meta.internal' resolved to 169.254.169.254 (link-local)",
+  });
+  const plain = kit.describeTransportError(new TypeError("socket hang up"));
+  assert.equal(plain.refusal, undefined);
+  assert.equal(plain.logDetail, "TypeError", "a non-refusal logs its error type only, never its message");
+});
+
+test("the default sleep waits on the real timer", async () => {
+  const kit = createSourceControlProviderKit();
+  assert.ok(kit.sleep, "the kit always provides a sleep");
+  const started = Date.now();
+  await kit.sleep(5);
+  assert.ok(Date.now() - started >= 4, "sleep resolved only after the timer fired");
+});
+
+test("an injected sleep is used as-is", async () => {
+  const waits: number[] = [];
+  const kit = createSourceControlProviderKit({ sleep: async ms => { waits.push(ms); } });
+  assert.ok(kit.sleep, "the kit always provides a sleep");
+  await kit.sleep(250);
+  assert.deepEqual(waits, [250]);
 });

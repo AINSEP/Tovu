@@ -5,9 +5,11 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import {
+  bundledAgentPluginsSourceRoot,
   describeNewSiteAgentPluginTokenRefusal,
   firstNewSiteAgentPluginTokenRefusal,
   listBundledAgentPluginServers,
+  listNewSiteAgentPluginTokenSignInPlugins,
   NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR,
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
@@ -101,4 +103,25 @@ test("bundled plugins: read by manifest name; retired and manifest-less dirs are
 test("the token sign-in list over bundled plugins offers only plugins that declare tovuTokenAuth", async () => {
   const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(root));
   assert.deepEqual(plugins, [{ pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" }]);
+});
+
+test("the bundled source root is the env override when set, else <product>/content/agent-plugins", () => {
+  assert.equal(bundledAgentPluginsSourceRoot({ env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: "/opt/bundled" }, productRoot: () => "/unused" }), "/opt/bundled");
+  assert.equal(bundledAgentPluginsSourceRoot({ env: {}, productRoot: () => "/srv/tovu" }), path.join("/srv/tovu", "content", "agent-plugins"));
+  const fromProcess = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  assert.equal(bundledAgentPluginsSourceRoot(), bundledAgentPluginsSourceRoot({ env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: fromProcess } }));
+});
+
+test("the new-site sign-in list reads the given bundled root", async () => {
+  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins(root), await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(root)));
+});
+
+test("a bundled dir whose manifest name is not a valid plugin id is skipped", async (t) => {
+  const badRoot = fs.mkdtempSync(path.join(os.tmpdir(), "bundled-bad-name-"));
+  t.after(() => fs.rmSync(badRoot, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(badRoot, "bad"));
+  fs.writeFileSync(path.join(badRoot, "bad", "plugin.json"), JSON.stringify({ name: "Not A Valid Id" }));
+  fs.mkdirSync(path.join(badRoot, "numeric"));
+  fs.writeFileSync(path.join(badRoot, "numeric", "plugin.json"), JSON.stringify({ name: 7 }));
+  assert.deepEqual(await listBundledAgentPluginServers(badRoot), []);
 });

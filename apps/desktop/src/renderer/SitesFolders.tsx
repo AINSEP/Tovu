@@ -1,25 +1,37 @@
 /** Shared local settings are available from Websites and the desktop Settings menu. */
 import { SettingsDialogShell } from '@jini-ai/ui';
-import '@jini-ai/ui/tabbed-dialog.css';
+// The shell's stylesheet (`@jini-ai/ui/tabbed-dialog.css`) is imported by `main.tsx`, the renderer's
+// composition root, right before `app.css` so this app's overrides still win the cascade. A CSS
+// import here made this module unloadable outside Vite, so no test could render the dialog.
 import { useSiteFolders } from './use-site-folders.hooks.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 
 /** Jini supplies dialog lifecycle/accessibility; hooks own all state and preload effects. */
-export function SitesFolders({ useSettings = useSiteFolders }: { useSettings?: typeof useSiteFolders } = {}) {
+export function SitesFolders({ useSettings = useSiteFolders, Shell }: {
+  useSettings?: typeof useSiteFolders;
+  /** See {@link SitesFoldersDialog}'s `Shell`. */
+  Shell?: typeof SettingsDialogShell;
+} = {}) {
   const settings = useSiteStorageSettings({}, { useFolders: useSettings });
-  return <SitesFoldersDialog settings={settings} />;
+  return <SitesFoldersDialog settings={settings} Shell={Shell} />;
 }
 
 /** Kept outside the dropdown: closing its menu never unmounts a draft or a dialog.
  * `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
-export function SitesFoldersDialog({ settings, showTrigger }: { settings: ReturnType<typeof useSiteStorageSettings>; showTrigger?: boolean }) {
+export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDialogShell }: {
+  settings: ReturnType<typeof useSiteStorageSettings>;
+  showTrigger?: boolean;
+  /** The dialog frame; defaults to Jini's `SettingsDialogShell`. Injectable because a linked Jini
+   *  tree brings its own React copy, whose hooks cannot run inside this app's test renderer. */
+  Shell?: typeof SettingsDialogShell;
+}) {
   const view = useSitesFoldersDialog({ settings }, { showTrigger });
   const warning = <SitesFoldersWarning settings={settings} view={view} />;
   return <>
     {view.showTrigger && <button type="button" className="button button--quiet" onClick={settings.show}>Sites settings</button>}
     {view.showOutsideWarning && warning}
-    {settings.open && <SettingsDialogShell onClose={settings.close} fullscreenEnabled={false} dialogAriaLabelledBy="desktop-sites-settings-title"
+    {settings.open && <Shell onClose={settings.close} fullscreenEnabled={false} dialogAriaLabelledBy="desktop-sites-settings-title"
       className="sites-settings-dialog"
       tabs={[{ id: 'sites', label: 'Sites', title: 'Sites settings', panel:
         <form className="sites-settings" aria-busy={settings.busy} onSubmit={view.onSubmit}>

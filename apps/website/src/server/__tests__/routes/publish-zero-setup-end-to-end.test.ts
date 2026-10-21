@@ -212,10 +212,10 @@ async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKey
 /** Step 4-5: resolve a credential by handshake, export everything that differs, and drive the
  *  destination's gated ceremony over HTTP. Returns the destination's execute response. */
 async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: { id: string }, overwriteEntityKeys: readonly string[] = []) {
-  const credential = await resolvePublishDestinationCredential(
-    { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
-    { workspaceId: s.sourceDeps.workspaceId, id: site.id }
-  );
+  const credential = await resolvePublishDestinationCredential({
+    deps: { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
+    input: { workspaceId: s.sourceDeps.workspaceId, id: site.id },
+  });
   const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
   const bundle = await buildExportBundle({
     workspaceId: s.sourceDeps.workspaceId,
@@ -294,10 +294,10 @@ test("a fresh install connects and then publishes, with no key displayed or copi
 
     // THE step every previous agent stopped short of: the publish path resolving a credential for a
     // destination that has no stored key, by proving possession of the site key on the wire.
-    const credential = await resolvePublishDestinationCredential(
-      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
-      { workspaceId: s.sourceDeps.workspaceId, id: site.id }
-    );
+    const credential = await resolvePublishDestinationCredential({
+      deps: { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
+      input: { workspaceId: s.sourceDeps.workspaceId, id: site.id },
+    });
     assert.ok(credential.apiKey.length > 0);
     assert.equal(credential.remoteWorkspaceId, s.destinationDeps.workspaceId);
 
@@ -408,10 +408,10 @@ test("a computer that was never connected is refused in plain language", async (
   try {
     // Connected, deployed — then a DIFFERENT computer (a different site key) tries to publish.
     const { site } = await connectAndDeploy(s);
-    const stranger = resolvePublishDestinationCredential(
-      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(OTHER_COMPUTER_SITE_KEY), httpClient: s.httpClient },
-      { workspaceId: s.sourceDeps.workspaceId, id: site.id }
-    );
+    const stranger = resolvePublishDestinationCredential({
+      deps: { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(OTHER_COMPUTER_SITE_KEY), httpClient: s.httpClient },
+      input: { workspaceId: s.sourceDeps.workspaceId, id: site.id },
+    });
 
     const err = await stranger.then(
       () => null,

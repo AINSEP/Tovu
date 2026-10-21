@@ -7,7 +7,7 @@ import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import type { PostRecord } from "../post.js";
 import { postRepoFor } from "../repo.js";
 import { searchAdminPosts } from "../search.js";
-import { PostSearchIndex, postSearchFor, preparePostSearchIndex } from "../search-index.js";
+import { POST_SEARCH_PROJECTION_VERSION_SETTING_ID, PostSearchIndex, postSearchFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "../search-index.js";
 
 // The boot step under test (RED before it existed: the boot only filled MISSING projections, so the
 // first post-boot search below found nothing). batchSize 1 makes the rebuild cross page boundaries.
@@ -61,5 +61,24 @@ for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
     await writeLegacyProjection(kernel, page);
     assert.deepEqual(await boot(kernel), { reindexed: 0, backfilled: 0 });
     assert.deepEqual(await find("needleword"), []);
+  });
+}
+
+for (const dialect of eachDialect({ tables, make: (kernel) => kernel })) {
+  if (dialect.dialect !== "sqlite") continue; // a jsonb column cannot hold the unreadable text this test plants
+  test(`${dialect.name}: an unreadable stored projection version counts as old, so the default-batch rebuild runs again`, async (t) => {
+    const kernel = dialect.make();
+    t.after(() => kernel.close());
+    const repo = postRepoFor(kernel);
+    await repo.save(page);
+    await repo.save(docPost);
+    assert.equal(await reindexStalePostSearchIndex(kernel), 2);
+    assert.equal(await reindexStalePostSearchIndex(kernel), 0, "a readable current version skips the rebuild");
+
+    await kernel.run((db) => db.updateTable("setting_values_global").set({ value_json: "{not json" }).where("setting_id", "=", POST_SEARCH_PROJECTION_VERSION_SETTING_ID).execute());
+    await writeLegacyProjection(kernel, page);
+    assert.equal(await reindexStalePostSearchIndex(kernel), 2);
+    const hits = await searchAdminPosts({ deps: { search: new PostSearchIndex(kernel) }, input: { workspaceId: "reindex-ws", query: "needleword" } });
+    assert.deepEqual(hits.hits.map((hit) => hit.id), ["studio"], "the stale row was corrected by the rebuild");
   });
 }

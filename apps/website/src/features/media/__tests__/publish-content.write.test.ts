@@ -172,3 +172,12 @@ test("verifyApplied reports nothing when no media port is wired", async () => {
     authorize: async () => ({ allowed: true, reason: "test" }), ports: {} });
   assert.deepEqual(await handler.verifyApplied!({ entities: [entity({ ...photo() })] }), []);
 });
+
+test("precheck refuses media whose bytes are owned only by a Library document", async () => {
+  const { handler, assetBlobRepo } = await fixture();
+  await assetBlobRepo.save({ id: "b", workspaceId: WORKSPACE_ID, sha256: PNG_SHA, storageKey: "k", createdByPrincipal: "owner",
+    createdAt: "2026-01-01T00:00:00.000Z", status: "active", documentOwned: true });
+  assert.equal(await handler.precheck(entity({ ...photo(), kind: "media" })), DOCUMENT_MESSAGE);
+  const { handler: clean } = await fixture();
+  assert.equal(await clean.precheck(entity({ ...photo(), kind: "media" })), null);
+});

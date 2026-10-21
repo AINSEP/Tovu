@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { toRevisionRow } from "../repo.rows.js";
+import { toRecord, toRevisionRow, toRow, type PostRow } from "../repo.rows.js";
 import type { PostRecord } from "../post.js";
 
 const state: PostRecord = { id: "p1", workspaceId: "ws", title: "Café", slug: "cafe", bodyJson: { type: "doc", content: [] },
@@ -19,4 +19,11 @@ test("revision hash is SHA-256 of the exact compact UTF-8 JSON persisted, with d
 test("ordinary revision writes NULL for every omitted delegation and restore marker", () => {
   const row = toRevisionRow({ postId: "p1", workspaceId: "ws", seq: 1, op: "create", stateJson: state, actorId: "human", recordedAt: "2026-10-01T13:00:00.000Z" }, "revision-1");
   assert.deepEqual([row.delegated_by_workspace_id, row.delegated_by_id, row.restored_from], [null, null, null]);
+});
+
+test("a row whose show_author column is NULL (written before the column existed) reads as showAuthor false", () => {
+  const stored = { ...toRow({ ...state, showAuthor: true }), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
+  assert.equal(toRecord(stored).showAuthor, true);
+  assert.equal(toRecord({ ...stored, show_author: 0 }).showAuthor, false);
+  assert.equal(toRecord({ ...stored, show_author: null } as unknown as PostRow).showAuthor, false);
 });

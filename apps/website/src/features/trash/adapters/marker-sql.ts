@@ -95,10 +95,13 @@ export async function flipMarker(spec: MarkerFlipSpec): Promise<TrashMarkerResul
     });
     const current = await spec.kernel.run((db) => readVersion(db, spec.table, spec.workspaceId, spec.entityId));
 
-    if (Number(updated.numUpdatedRows) > 0) {
-      return { ok: true, version: current ?? null };
-    }
+    // Checked first: a row the UPDATE above just matched is still there for this read in the same
+    // transaction (the UPDATE holds its row lock; SQLite has one writer), so a missing row only ever
+    // means the UPDATE matched nothing.
     if (current === undefined) return { ok: false, reason: "not-found" };
+    if (Number(updated.numUpdatedRows) > 0) {
+      return { ok: true, version: current };
+    }
     if (spec.expectedVersion !== null && current !== spec.expectedVersion) {
       return { ok: false, reason: "version-changed" };
     }

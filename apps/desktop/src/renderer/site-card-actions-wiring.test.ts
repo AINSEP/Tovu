@@ -288,7 +288,7 @@ test('the pending mark is cleared on BOTH arms, so a failed start cannot stick o
   // to drive the failure arm, so the clearing is asserted structurally: it must not sit inside the
   // success branch.
   const toggle = power.slice(power.indexOf('const toggle = useCallback('), power.indexOf('const restartControlOf = useCallback('));
-  assert.match(toggle, /const error = await runPowerToggle\(\{ action: intent, id, bridge: runnerInventoryBridge\(\) \}, \{ onSiteUpdated, onStarted \}\);/);
+  assert.match(toggle, /const error = await runPowerToggle\(\{ action: intent, id, bridge: getBridge\(\) \}, \{ onSiteUpdated, onStarted \}\);/);
   assert.match(toggle, /if \(error !== null\) setErrors/);
   const clear = toggle.indexOf('setPending((current) => withoutKey(current, id));');
   assert.notEqual(clear, -1, 'the pending mark must be cleared');

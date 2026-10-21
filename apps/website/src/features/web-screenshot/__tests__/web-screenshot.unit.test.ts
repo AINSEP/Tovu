@@ -62,6 +62,14 @@ test("the tile encoder defaults to quality 70 when options contain no quality", 
   assert.deepEqual(tiles[0]!.bytes, await sharp(png).jpeg({ quality: 70 }).toBuffer());
 });
 
+test("the tile encoder honours an explicit quality, which changes the JPEG bytes", async () => {
+  const png = await solidPng(32, 20);
+  const tiles = await encodeScreenshotTiles({ png, maxWidth: 32, tileHeight: 20 }, { quality: 20 });
+  assert.equal(tiles.length, 1);
+  assert.deepEqual(tiles[0]!.bytes, await sharp(png).jpeg({ quality: 20 }).toBuffer());
+  assert.notDeepEqual(tiles[0]!.bytes, await sharp(png).jpeg({ quality: 70 }).toBuffer());
+});
+
 type Envelope = { content: Array<{ type: string; text?: string; mimeType?: string; data?: string }> };
 const factsOf = (result: Envelope) => JSON.parse(result.content[0]!.text!) as Record<string, unknown>;
 const imagesOf = (result: Envelope) => result.content.slice(1);

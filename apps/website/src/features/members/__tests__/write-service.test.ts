@@ -904,3 +904,80 @@ test("createMember refuses as a conflict when a disabled row with the same email
   assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).map(m => m.id), ["member-raced"]);
   assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
 });
+
+test("requestSignInLink carries an encoded redirectPath in the mailed link", async () => {
+  const { deps, sent } = makeDeps();
+
+  await requestSignInLink({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, email: "redirect@example.com", redirectPath: "/members/area?tab=a b" },
+  });
+
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].message.text!, /\/auth\/magic\?token=[a-f0-9]+&redirect=%2Fmembers%2Farea%3Ftab%3Da%20b/);
+});
+
+test("requestSignInLink propagates an origin failure that is NOT OriginNotVerifiedError instead of masking it as a relative link", async () => {
+  const outage = new Error("origin registry unavailable");
+  const { deps, sent } = makeDeps({ origin: makeOriginRegistry({ canonicalOrigin: async () => { throw outage; } }) });
+
+  await assert.rejects(
+    () => requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "outage@example.com" } }),
+    (err: unknown) => err === outage,
+  );
+  assert.equal(sent.length, 0, "no mail is sent when the origin lookup fails unexpectedly");
+});
+
+test("completeSignIn on a valid token whose member row is gone fails with MemberNotFoundError", async () => {
+  const { deps } = makeDeps();
+  const rawToken = "orphan-token";
+  await deps.magicLinks.save({
+    id: "token-orphan",
+    workspaceId: WORKSPACE_ID,
+    memberId: "member-missing",
+    tokenHash: hashToken(rawToken),
+    purpose: "signin",
+    createdAt: "2026-07-09T23:59:00.000Z",
+    expiresAt: "2026-07-10T00:14:00.000Z",
+  });
+
+  await assert.rejects(
+    () => completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
+    (err: unknown) => err instanceof MemberNotFoundError && /member-missing/.test(err.message),
+  );
+  assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: "member-missing" }), []);
+});
+
+test("createMember creates a pending member with a trimmed name, and refuses a duplicate email", async () => {
+  const { deps } = makeDeps();
+
+  const { member } = await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "New@Example.com" } }, { name: "  Ada  " });
+  assert.equal(member.email, "new@example.com");
+  assert.equal(member.name, "Ada");
+  assert.equal(member.status, "pending");
+
+  await assert.rejects(
+    () => createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }),
+    (err: unknown) => err instanceof MemberConflictError && /already exists/.test(err.message),
+  );
+});
+
+test("createMember refuses when a disabled member with that email appears between its duplicate check and the create (race)", async () => {
+  const members = new InMemoryMemberRepo();
+  let lookups = 0;
+  const racingMembers: typeof members = Object.assign(Object.create(members) as typeof members, {
+    findByEmail: async (required: { workspaceId: string; email: string }) => {
+      lookups += 1;
+      if (lookups === 1) return null;
+      return { id: "member-raced", workspaceId: required.workspaceId, email: required.email, status: "disabled" as const, createdAt: "2026-07-10T00:00:00.000Z", updatedAt: "2026-07-10T00:00:00.000Z", version: 1 };
+    },
+  });
+  const { deps, principals } = makeDeps({ members: racingMembers });
+
+  await assert.rejects(
+    () => createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.com" } }),
+    (err: unknown) => err instanceof MemberConflictError && /already exists/.test(err.message),
+  );
+  assert.equal(lookups, 2);
+  assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), [], "no principal is created for the raced email");
+});

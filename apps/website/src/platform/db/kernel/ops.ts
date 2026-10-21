@@ -19,18 +19,15 @@ export function storageOps<DB>(kernel: StorageKernel<DB>, optional: { pgliteOwne
   const ops = postgresOps(kernel, { ledgerTable: "tovu_migrations" });
   return {
     ...ops,
-    async copyTo(targetPath) {
-      try {
-        await ops.copyTo(targetPath);
-      } catch (error) {
-        if (!(error instanceof StorageOpNotSupportedError)) throw error;
-        // Product-specific operator guidance remains byte-identical for legacy callers.
-        const reason = kernel.transport === "pglite-socket"
-          ? "a PGlite socket client copies through its owner's exclusive window (pass pgliteOwner)"
-          : "a Postgres site is backed up by its provider; use the move/transfer tools to copy it";
-        throw new StorageOpNotSupportedError(error.op, error.transport, reason);
-      }
-    },
+    // The shared node-postgres copyTo always rejects, so only its rejection is translated here.
+    copyTo: (targetPath) => ops.copyTo(targetPath).catch((error: unknown) => {
+      if (!(error instanceof StorageOpNotSupportedError)) throw error;
+      // Product-specific operator guidance remains byte-identical for legacy callers.
+      const reason = kernel.transport === "pglite-socket"
+        ? "a PGlite socket client copies through its owner's exclusive window (pass pgliteOwner)"
+        : "a Postgres site is backed up by its provider; use the move/transfer tools to copy it";
+      throw new StorageOpNotSupportedError(error.op, error.transport, reason);
+    }),
   };
 }
 

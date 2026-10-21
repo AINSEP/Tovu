@@ -27,6 +27,10 @@ export interface RunThemeNormalizeBuildCommandInput {
   json?: boolean;
 }
 
+function writeStdout(message: string): void {
+  process.stdout.write(message);
+}
+
 function formatSummary(result: NormalizeBuildOutputResult): string {
   const lines = [`normalized ${result.plan.relocations.length} asset file(s), rewrote ${result.rewrittenPageFiles.length} page file(s)`];
   for (const relocation of result.plan.relocations) lines.push(`  moved ${relocation.from} -> ${relocation.to}`);
@@ -43,7 +47,12 @@ function formatSummary(result: NormalizeBuildOutputResult): string {
  * @throws {ValidationError} `--primary-stylesheet` is missing, or `--pages` resolves to an empty list.
  * @complexity O(1) beyond `normalizeBuildOutputDirectory`'s own bounded cost.
  */
-export async function runThemeNormalizeBuildCommand(input: RunThemeNormalizeBuildCommandInput): Promise<void> {
+export async function runThemeNormalizeBuildCommand(
+  input: RunThemeNormalizeBuildCommandInput,
+  optional: { normalize?: typeof normalizeBuildOutputDirectory; output?: (message: string) => void } = {}
+): Promise<void> {
+  // Default ports are wired here, at the command edge; tests inject their own.
+  const { normalize = normalizeBuildOutputDirectory, output = writeStdout } = optional;
   if (!input.primaryStylesheet) {
     throw new ValidationError("--primary-stylesheet is required (the build's global CSS entry point, e.g. \"styles.css\")");
   }
@@ -57,11 +66,11 @@ export async function runThemeNormalizeBuildCommand(input: RunThemeNormalizeBuil
   }
 
   const outputDir = path.resolve(input.dir);
-  const result = normalizeBuildOutputDirectory({ outputDir, pageFileNames, primaryStylesheetFile: input.primaryStylesheet });
+  const result = normalize({ outputDir, pageFileNames, primaryStylesheetFile: input.primaryStylesheet });
 
   if (input.json) {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    output(`${JSON.stringify(result, null, 2)}\n`);
   } else {
-    process.stdout.write(formatSummary(result));
+    output(formatSummary(result));
   }
 }

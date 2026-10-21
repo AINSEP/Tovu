@@ -27,7 +27,7 @@ import { ADMIN_SCREEN_LINK_TOOL_ID, buildAdminScreenLinkRegistrations, buildAdmi
  */
 
 function buildHandler(): ToolRegistration["handler"] {
-  const registrations: ToolRegistration[] = buildAdminScreenLinkRegistrations(undefined, undefined);
+  const registrations: ToolRegistration[] = buildAdminScreenLinkRegistrations({});
   const registration = registrations.find((r) => r.descriptor.id === ADMIN_SCREEN_LINK_TOOL_ID);
   assert.ok(registration, "the tool must be wired");
   return registration.handler;
@@ -127,4 +127,29 @@ test('the tool normalizes a public origin with a trailing slash', async (t) => {
   assert.deepEqual(await call(buildHandler(), { path: 'media' }), {
     path: '/admin/media', url: 'https://example.tovu.test/admin/media',
   });
+});
+
+// The env port: every TOVU_PUBLIC_URL shape is supplied as a plain record, never via process.env.
+function buildHandlerWithEnv(env: Readonly<Record<string, string | undefined>>): ToolRegistration["handler"] {
+  const registration = buildAdminScreenLinkRegistrations({ adminScreenLinkEnv: env })
+    .find((r) => r.descriptor.id === ADMIN_SCREEN_LINK_TOOL_ID);
+  assert.ok(registration, "the tool must be wired");
+  return registration.handler;
+}
+
+for (const [label, value] of [
+  ["absent", undefined],
+  ["blank", "   "],
+  ["not a URL", "not a url"],
+  ["a non-http(s) scheme", "ftp://files.example.test"],
+] as const) {
+  test(`an injected TOVU_PUBLIC_URL that is ${label} degrades to the relative path with no url`, async () => {
+    const result = await call(buildHandlerWithEnv({ TOVU_PUBLIC_URL: value }), { path: "posts", tab: "drafts" });
+    assert.deepEqual(result, { path: "/admin/posts?tab=drafts" });
+  });
+}
+
+test("an injected http (not only https) origin is accepted and joined with the path", async () => {
+  const result = await call(buildHandlerWithEnv({ TOVU_PUBLIC_URL: " http://local.tovu.test:8080/base " }), { path: "media" });
+  assert.deepEqual(result, { path: "/admin/media", url: "http://local.tovu.test:8080/admin/media" });
 });

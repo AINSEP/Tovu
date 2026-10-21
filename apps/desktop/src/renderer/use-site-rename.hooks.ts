@@ -153,7 +153,13 @@ export function renameInputKeyDown(
  *   main returns is handed over rather than re-fetched — main already built it, and a second
  *   `list` round trip would let the card show a stale name for a frame.
  */
-export function useSiteRename(onRenamed?: (record: SiteRecord) => void): SiteRenameState {
+export function useSiteRename(
+  onRenamed?: (record: SiteRecord) => void,
+  { getBridge = runnerInventoryBridge }: {
+    /** The bridge port, read at submit time; defaults to the preload's `window.tovuRunner`. */
+    getBridge?: () => RunnerInventoryBridge | undefined;
+  } = {},
+): SiteRenameState {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -180,7 +186,7 @@ export function useSiteRename(onRenamed?: (record: SiteRecord) => void): SiteRen
   }, [renamingId, saving]);
 
   const submitRename = async (id: string) => {
-    const decision = renameSubmission(runnerInventoryBridge(), id, draft);
+    const decision = renameSubmission(getBridge(), id, draft);
     if (decision.kind === 'refused') {
       // Set the error WITHOUT ever setting `saving` — a call that never reached the bridge did not
       // start, and a spinner for work that is not happening is a lie. Same reasoning

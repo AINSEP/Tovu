@@ -113,15 +113,15 @@ function respondWithError(res: Response, err: unknown): void {
 /** The per-request transport bag: the guarded client plus the opened credential.
  *  @complexity O(1) plus one repo read and one AEAD open. */
 async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<PeerCallDeps> {
-  const credential = await resolvePublishDestinationCredential(
-    {
+  const credential = await resolvePublishDestinationCredential({
+    deps: {
       repo: deps.publishContentPeerRepo,
       sealer: deps.siteAssistantSecretSealer,
       keyring: deps.siteAssistantSecretKeyring,
       httpClient: deps.publishContentPeerHttpClient,
     },
-    { workspaceId: deps.workspaceId, id: peerId }
-  );
+    input: { workspaceId: deps.workspaceId, id: peerId },
+  });
   return { credential, httpClient: deps.publishContentPeerHttpClient,
     publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock } };
 }

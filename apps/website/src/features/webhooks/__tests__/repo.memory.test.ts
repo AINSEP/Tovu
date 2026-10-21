@@ -161,3 +161,72 @@ test("InMemoryWebhookSubscriptionRepo seeds initial rows and findMatching filter
   assert.deepEqual((await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" })).map((row) => row.id), ["sub-1"]);
   assert.equal((await repo.findById({ workspaceId: "workspace-2", id: "sub-other" }))?.id, "sub-other");
 });
+
+test("InMemoryWebhookSubscriptionRepo seeds initial rows, rejects a duplicate insert, and save overwrites in place", async () => {
+  const seeded = makeSubscription();
+  const repo = new InMemoryWebhookSubscriptionRepo([seeded]);
+
+  assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "sub-1" }), seeded);
+  assert.equal(await repo.findById({ workspaceId: "workspace-2", id: "sub-1" }), null);
+  await assert.rejects(repo.insert(makeSubscription({ label: "Dup" })), /webhook subscription 'sub-1' already exists/);
+
+  await repo.insert(makeSubscription({ workspaceId: "workspace-2" }));
+  await repo.save(makeSubscription({ label: "Renamed" }));
+  assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "sub-1" }))?.label, "Renamed");
+  assert.deepEqual((await repo.listByWorkspace({ workspaceId: "workspace-2" })).map((row) => row.workspaceId), ["workspace-2"]);
+});
+
+test("enqueue is idempotent per (workspace, subscription, event) and markDelivered/markFailed ignore unknown ids", async () => {
+  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery()]);
+
+  await repo.enqueue({ record: makeDelivery({ id: "delivery-dup" }) });
+  await repo.enqueue({ record: makeDelivery({ id: "delivery-2", eventId: "event-2" }) });
+  await repo.markDelivered({ workspaceId: "workspace-1", id: "missing", responseStatus: 200, deliveredAtIso: "2026-07-10T00:00:01.000Z" });
+  await repo.markFailed({ workspaceId: "workspace-1", id: "missing", error: "x", responseStatus: null, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:00:01.000Z" });
+
+  assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "delivery-dup" }), null);
+  assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "missing" }), null);
+  const listed = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
+  assert.deepEqual(listed.map((row) => [row.id, row.status]), [["delivery-2", "pending"], ["delivery-1", "pending"]]);
+});
+
+test("markFailed 'dead' without deadAtIso keeps the row's existing deadAt", async () => {
+  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ deadAt: "2026-07-09T00:00:00.000Z" })]);
+
+  await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "gone", responseStatus: 410, nextStatus: "dead", nextAttemptAt: "2026-07-11T00:00:00.000Z" });
+
+  const row = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+  assert.equal(row?.status, "dead");
+  assert.equal(row?.deadAt, "2026-07-09T00:00:00.000Z");
+  assert.equal(row?.lastError, "gone");
+});
+
+test("listBySubscription orders newest createdAt first, breaks ties by id descending, and honours limit", async () => {
+  const repo = new InMemoryWebhookDeliveryRepo([
+    makeDelivery({ id: "b", eventId: "e-b", createdAt: "2026-07-10T00:00:00.000Z" }),
+    makeDelivery({ id: "a", eventId: "e-a", createdAt: "2026-07-10T00:00:00.000Z" }),
+    makeDelivery({ id: "c", eventId: "e-c", createdAt: "2026-07-10T00:00:00.000Z" }),
+    makeDelivery({ id: "new", eventId: "e-new", createdAt: "2026-07-11T00:00:00.000Z" }),
+    makeDelivery({ id: "old", eventId: "e-old", createdAt: "2026-07-09T00:00:00.000Z" }),
+    makeDelivery({ id: "other-sub", subscriptionId: "sub-2", eventId: "e-o" }),
+    makeDelivery({ id: "other-ws", workspaceId: "workspace-2", eventId: "e-w" }),
+  ]);
+
+  const all = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
+  assert.deepEqual(all.map((row) => row.id), ["new", "c", "b", "a", "old"]);
+  const limited = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 2 });
+  assert.deepEqual(limited.map((row) => row.id), ["new", "c"]);
+});
+
+test("claimPending returns due rows oldest nextAttemptAt first and caps them at batchSize", async () => {
+  const repo = new InMemoryWebhookDeliveryRepo([
+    makeDelivery({ id: "late", eventId: "e-late", nextAttemptAt: "2026-07-10T00:00:03.000Z" }),
+    makeDelivery({ id: "early", eventId: "e-early", nextAttemptAt: "2026-07-10T00:00:01.000Z" }),
+    makeDelivery({ id: "mid", eventId: "e-mid", nextAttemptAt: "2026-07-10T00:00:02.000Z" }),
+  ]);
+
+  const claimed = await repo.claimPending({ batchSize: 2, nowIso: "2026-07-10T00:00:05.000Z" });
+
+  assert.deepEqual(claimed.map((row) => row.id), ["early", "mid"]);
+  assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "late" }))?.status, "pending");
+});

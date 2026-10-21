@@ -171,3 +171,59 @@ test("resolves the OTHER admin's stored row when that principal id is passed —
   assert.equal(resolvedA?.apiKey, "admin-a-key");
   assert.equal(resolvedB?.apiKey, "admin-b-key");
 });
+
+// ---------------------------------------------------------------------------
+// The request-supplied parse contract, field by field
+// ---------------------------------------------------------------------------
+
+for (const [label, requestBody] of [
+  ["an unknown protocol", { protocol: "mistral", apiKey: "k", model: "m" }],
+  ["a non-string protocol", { protocol: 7, apiKey: "k", model: "m" }],
+  ["a blank apiKey", { protocol: "openai", apiKey: "   ", model: "m" }],
+  ["a non-string apiKey", { protocol: "openai", apiKey: 42, model: "m" }],
+  ["a missing model", { protocol: "openai", apiKey: "k" }],
+  ["a blank model", { protocol: "openai", apiKey: "k", model: " " }],
+] as const) {
+  test(`a request-supplied config with ${label} is not a usable credential`, async () => {
+    const port = createRequestSuppliedExecutionCredentialPort();
+    const resolved = await port.resolve({ requestBody: requestBody as never, workspaceId: WORKSPACE, principalId: ADMIN_A });
+    assert.equal(resolved, null);
+  });
+}
+
+test("a request-supplied baseUrl and positive maxTokens are carried; blank/non-positive ones are dropped", async () => {
+  const port = createRequestSuppliedExecutionCredentialPort();
+  const full = await port.resolve({
+    requestBody: { protocol: "azure", apiKey: "k", model: "m", baseUrl: "https://example.test/openai", maxTokens: 512 },
+    workspaceId: WORKSPACE, principalId: ADMIN_A,
+  });
+  assert.deepEqual(full, { protocol: "azure", apiKey: "k", model: "m", baseUrl: "https://example.test/openai", maxTokens: 512 });
+  for (const extras of [{ baseUrl: "  ", maxTokens: 0 }, { baseUrl: 5, maxTokens: -1 }, { maxTokens: "512" }]) {
+    const resolved = await port.resolve({
+      requestBody: { protocol: "google", apiKey: "k", model: "m", ...extras } as never,
+      workspaceId: WORKSPACE, principalId: ADMIN_A,
+    });
+    assert.deepEqual(resolved, { protocol: "google", apiKey: "k", model: "m" }, JSON.stringify(extras));
+  }
+});
+
+test("a stored row with no baseUrl and no maxTokens resolves without those keys", async () => {
+  const { repo, sealer, keyring } = makeStoredPortDeps();
+  await setExecutionCredential(
+    { repo, sealer, keyring, clock },
+    { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "stored-key-0000", protocol: "openai", model: "gpt-4o" }
+  );
+  const port = createStoredExecutionCredentialPort({ repo, sealer });
+  const resolved = await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A });
+  assert.deepEqual(resolved, { protocol: "openai", apiKey: "stored-key-0000", model: "gpt-4o" });
+});
+
+test("a stored row whose protocol this adapter cannot dispatch is treated as unusable", async () => {
+  const { repo, sealer, keyring } = makeStoredPortDeps();
+  await setExecutionCredential(
+    { repo, sealer, keyring, clock },
+    { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "stored-key-0000", protocol: "legacy-provider", model: "m-1" }
+  );
+  const port = createStoredExecutionCredentialPort({ repo, sealer });
+  assert.equal(await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+});

@@ -86,9 +86,9 @@ interface BackstopRun {
 /** The per-call transport bag for this run's peer, with its backstop-scoped credential. */
 async function openBackstopPeer(deps: PublishContentRouteDeps, peerId: string): Promise<PeerCallDeps> {
   return { httpClient: deps.publishContentPeerHttpClient,
-    publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock }, credential: await resolvePublishDestinationCredential({
+    publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock }, credential: await resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient,
-  }, { workspaceId: deps.workspaceId, id: peerId, backstop: true }) };
+  }, input: { workspaceId: deps.workspaceId, id: peerId, backstop: true } }) };
 }
 
 /** The checked plan `send` redeems: this actor's own `planned` source log for the same

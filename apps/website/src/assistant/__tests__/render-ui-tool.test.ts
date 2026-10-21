@@ -197,3 +197,30 @@ test("falls back to a generic detail string when the relayed refusal carries no 
     note: "The browser refused to render this — it was NOT drawn and is not visible anywhere. Fix the reported prop and try again; do not tell the user it rendered.",
   });
 });
+
+test("without a live surface channel nothing is opened and the call says why", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const result = await call(buildHandler(surfaceExchanges));
+  assert.deepEqual(result, { rendered: false, reason: "no-surface-channel", note: "No live surface channel on this execution." });
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("a component list the A2UI schema refuses is reported as schema-rejected, not drawn", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const emitted: SurfaceEmission[] = [];
+  const result = await call(buildHandler(surfaceExchanges), { input: { components: [{ component: 42 }] }, emitSurface: async (surface) => void emitted.push(surface) }) as { rendered: boolean; reason: string; detail: unknown };
+  assert.equal(result.rendered, false);
+  assert.equal(result.reason, "schema-rejected");
+  assert.equal(typeof result.detail, "string");
+  assert.equal(emitted.length, 1, "only the surface creation was emitted");
+  assert.equal(surfaceExchanges.size(), 0, "the exchange is closed");
+});
+
+test("an input without components is treated as an empty list, which the A2UI schema refuses", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const emitted: SurfaceEmission[] = [];
+  const result = await call(buildHandler(surfaceExchanges), { input: {}, emitSurface: async (surface) => void emitted.push(surface) });
+  assert.deepEqual(result, { rendered: false, reason: "schema-rejected",
+    detail: "updateComponents: Array must contain at least 1 element(s) at /updateComponents/components" });
+  assert.equal(emitted.length, 1, "only the surface creation was emitted");
+});

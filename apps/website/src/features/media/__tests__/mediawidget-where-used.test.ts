@@ -67,3 +67,15 @@ test('Tovu purge refuses retired slug references from current post bodies and su
   assert.deepEqual(await purgeMedia({ deps, input }), { purged: true });
   assert.equal(await mediaRepo.findById(input), null);
 });
+
+test('usage reports an html-format post body under bodyHtml and never counts a soft-deleted post', async () => {
+  const clock: Clock = { nowMs: () => Date.parse('2026-10-10T00:00:00.000Z') };
+  const workspaceId = 'usage-html-ws', seedRepo = new InMemoryPostRepo();
+  const embed = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { html: '<img data-media-slug="photo">' } } }] };
+  const html = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'html-post', workspaceId, title: 'Html', slug: 'html', actorId: 'owner', bodyJson: embed } });
+  const gone = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'gone-post', workspaceId, title: 'Gone', slug: 'gone', actorId: 'owner', bodyJson: embed } });
+  const posts = [{ ...html.post, bodyFormat: 'html' as const }, { ...gone.post, deletedAt: '2026-10-11T00:00:00.000Z' }];
+  const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo() }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
+  assert.equal(usage.count, 1);
+  assert.deepEqual(usage.references.map(ref => [ref.sourceEntryId, ref.fieldPath, ref.targetId]), [['html-post', 'bodyHtml', 'canonical-photo']]);
+});

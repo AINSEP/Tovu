@@ -174,6 +174,20 @@ test("theme_import_file_from_url: an egress refusal reaches the caller without t
   assert.equal(fs.existsSync(path.join(routeDeps.themesDir, "match", "assets")), false);
 });
 
+test("theme_import_file_from_url: with no refusal log wired, the egress refusal's resolved address goes to console.warn", async (t) => {
+  const refusal = new EgressRefusedError(
+    { message: "host 'meta.internal' resolved to 169.254.169.254 (link-local)" },
+    { callerSafeMessage: "host 'meta.internal' resolves to a non-public address" },
+  );
+  const { mediaImportEgressRefusalLog: _wired, ...routeDeps } = fakeDeps({ outcome: refusal });
+  const warned: unknown[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warned.push(args); });
+
+  await assert.rejects(() => handlerFor(routeDeps)(ctxFor({ ...FONT_INPUT, url: "https://meta.internal/x.woff2" })), /non-public address/);
+  assert.equal(warned.length, 1);
+  assert.match(String((warned[0] as unknown[])[0]), /theme_import_file_from_url egress refused: .*169\.254\.169\.254/);
+});
+
 test("theme_import_local_file: uses the same contributor, theme.edit gate, discovery and reload", async (t) => {
   const deps = fakeDeps();
   t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));

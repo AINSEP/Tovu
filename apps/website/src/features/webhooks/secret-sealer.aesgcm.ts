@@ -93,11 +93,8 @@ export class AesGcmSecretSealer implements SecretSealerPort {
   constructor(keyring: KeyringPort, optional: {
     randomBytesFn?: (input: { byteLength: number }) => Uint8Array;
   } = {}) {
-    this.sealer = new JiniSecretSealer({ keyring: {
-      activeKey: () => keyring.activeKey(),
-      derive: (input) => keyring.derive(input),
-      deriveSigningSecret: (input) => keyring.deriveSigningSecret(input),
-    } }, optional);
+    // The host keyring satisfies Jini's port as-is; Jini calls only `keyring.derive` (as a method).
+    this.sealer = new JiniSecretSealer({ keyring }, optional);
   }
 
   /** Real stores provide their row AAD. Empty AAD retains the historical unbound host-port format;

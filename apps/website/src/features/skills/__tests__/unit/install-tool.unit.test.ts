@@ -9,7 +9,7 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
 import { installSkill, listManagedSkills } from "../../install-service.js";
-import { buildRegistrations, catalog, type SkillsInstallToolDeps } from "../../install-tool.js";
+import { buildRegistrations, catalog, contributeSkillsInstallTools, derivedRisk, SKILLS_INSTALL_TOOL_ID, type SkillsInstallToolDeps } from "../../install-tool.js";
 
 const PRINCIPAL = "principal-1";
 const WORKSPACE = "workspace-local";
@@ -116,4 +116,26 @@ test("description matches the schema: one required githubUrl, no local files", (
   assert.match(catalog[0]!.description, /public GitHub URL/);
   assert.match(catalog[0]!.description, /does not take local files/);
   assert.doesNotMatch(catalog[0]!.description, /confirm/i);
+});
+
+test("with no fetch seam the service's default fetch is used, and a non-GitHub URL is still refused before any request", async (t) => {
+  await withSkillsDir(t);
+  await assert.rejects(() => run(deps({ skillFetch: undefined }), { githubUrl: "https://example.com/acme/skills" }),
+    (error: unknown) => error instanceof ToolInputError && error.message === "Use an HTTPS GitHub repository URL, optionally ending in /tree/ref/skill-folder.");
+});
+
+test("a failure that is not a skill-input refusal propagates unchanged rather than being relayed as caller input", async (t) => {
+  await withSkillsDir(t);
+  const outage = new Error("network down");
+  const skillFetch = (async () => { throw outage; }) as typeof fetch;
+  await assert.rejects(() => run(deps({ skillFetch }), { githubUrl: SKILL_URL }), (error: unknown) => !(error instanceof ToolInputError) && error instanceof Error);
+  assert.deepEqual(await listManagedSkills(testSiteLayoutContext({ workspaceId: WORKSPACE })), []);
+});
+
+test("contributeSkillsInstallTools contributes skills_install as its own domain with its derived risk", () => {
+  const contributor = contributeSkillsInstallTools();
+  assert.equal(contributor.domain, "skills-install");
+  assert.equal(contributor.build, buildRegistrations);
+  assert.equal(contributor.risk, derivedRisk);
+  assert.equal(derivedRisk.get(SKILLS_INSTALL_TOOL_ID), "mutates-durable-state");
 });

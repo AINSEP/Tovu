@@ -172,3 +172,14 @@ test('a disclose failure refuses the call before any card or effect', async () =
   assert.match(String(result.error), /account lookup failed/);
   assert.equal(f.calls(), 0);
 });
+
+test('a failing locale lookup still asks, in English, and never bypasses the gate', async () => {
+  const f = fixture('publish_content_publish', { localeFor: async () => { throw new Error('profile read failed'); } });
+  const card = await cardFor(f, 'publish_content_publish', { id: 'post-1' });
+  assert.notEqual(card.html, '', 'the confirmation card is still shown');
+  assert.match(card.html, /Confirm action\?/);
+  assert.equal(f.calls(), 0);
+  f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
+  assert.equal((await card.pending).status, 'completed');
+  assert.equal(f.calls(), 0);
+});

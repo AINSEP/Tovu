@@ -133,3 +133,24 @@ test("n06: reversible removal runs without a confirmation channel", async () => 
   assert.equal(deps.removed[0].id, asset.id);
   assert.equal(store.size(), 0);
 });
+
+test("an asset that disappears before the versioned read, or a removal that reports not-found/conflict, trashes nothing", async () => {
+  const mediaRepo = new InMemoryMediaRepo({});
+  const surfaces = () => createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const asset = await seedMediaAsset(makeDeps({ mediaRepo }), surfaces());
+
+  const vanishing = makeDeps({ mediaRepo });
+  let reads = 0;
+  const findById = mediaRepo.findById.bind(mediaRepo);
+  vanishing.mediaRepo = Object.assign(Object.create(mediaRepo) as InMemoryMediaRepo, { findById: async (input: Parameters<InMemoryMediaRepo["findById"]>[0]) => (++reads === 2 ? null : findById(input)) });
+  await assert.rejects(call(tool(buildRegistrations(vanishing, surfaces()), TRASH_TOOL_ID), { input: { mediaId: asset.id } }), { message: `media asset '${asset.id}' was not found` });
+  assert.equal(reads, 2);
+  assert.deepEqual(vanishing.removed, []);
+
+  for (const [reason, message] of [["not-found", `media asset '${asset.id}' was not found`], ["conflict", `media asset '${asset.id}' changed during removal — nothing was trashed`]] as const) {
+    const refused = makeDeps({ mediaRepo });
+    refused.removeMedia = (async () => ({ ok: false, reason })) as unknown as typeof refused.removeMedia;
+    await assert.rejects(call(tool(buildRegistrations(refused, surfaces()), TRASH_TOOL_ID), { input: { mediaId: asset.id } }), { message });
+  }
+  assert.equal((await mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: asset.id }))?.status, "active");
+});

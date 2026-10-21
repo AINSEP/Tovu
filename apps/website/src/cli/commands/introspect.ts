@@ -19,6 +19,11 @@ export interface RunIntrospectCommandInput {
 
 const VALID_FORMATS = new Set(["commander", "mcp"]);
 
+/** Default output port, wired at this composition edge; tests inject their own. */
+const writeStdout = (message: string): void => {
+  process.stdout.write(message);
+};
+
 /**
  * Run `tovu introspect [--format <commander|mcp>]`: print a JSON description of this CLI's real
  * command/argument/option surface — `commander` is the raw shape, `mcp` reshapes it into MCP tool
@@ -28,12 +33,15 @@ const VALID_FORMATS = new Set(["commander", "mcp"]);
  * @complexity O(1) beyond `JSON.stringify`'s own cost over an already-built manifest.
  * @overallScore 100
  */
-export async function runIntrospectCommand(input: RunIntrospectCommandInput): Promise<void> {
+export async function runIntrospectCommand(
+  input: RunIntrospectCommandInput,
+  optional: { output?: (message: string) => void } = {}
+): Promise<void> {
   const format = input.format ?? "commander";
   if (!VALID_FORMATS.has(format)) {
     throw new ValidationError(`--format must be one of: commander, mcp (got "${format}")`);
   }
 
   const output = format === "mcp" ? toMcpTools(input.manifest) : input.manifest;
-  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  (optional.output ?? writeStdout)(`${JSON.stringify(output, null, 2)}\n`);
 }

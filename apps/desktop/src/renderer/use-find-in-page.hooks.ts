@@ -1,4 +1,4 @@
-import { createFindQueryScheduler } from './find-query-scheduler.js';
+import { createFindQueryScheduler, type FindQueryClock } from './find-query-scheduler.js';
 /**
  * @file The sites home window's Cmd+F find bar: opening it, routing a query to whichever surface is
  * actually on screen, and the match counter ("3 of 17") that surface reports back.
@@ -57,7 +57,9 @@ import { createFindQueryScheduler } from './find-query-scheduler.js';
  *
  * Every decision is a plain exported function, so `use-find-in-page.hooks.test.ts` covers them with
  * fakes — this package has no React renderer, same constraint `use-site-workspace.hooks.ts` and
- * `use-site-rename.hooks.ts` document for their own hooks.
+ * `use-site-rename.hooks.ts` document for their own hooks. The hook itself is additionally rendered
+ * from this module under jsdom, with its `bridge`/`clock` ports injected
+ * ({@link FindInPagePorts}), in `use-find-in-page.jsdom.test.ts`.
  */
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
@@ -384,6 +386,35 @@ export interface FindInPage {
 }
 
 /**
+ * The timing slice `useFindInPage` drives: the clock its focus-reclaim window is measured on, the
+ * animation frames its per-frame reclaim runs on, and the timers behind both the deferred blur
+ * reclaim and the typing-settle scheduler. Injected so a test can step every one of them by hand;
+ * {@link liveFindClock} is the real browser wiring.
+ */
+export interface FindFocusClock extends FindQueryClock {
+  now: () => number;
+  requestFrame: (callback: () => void) => number;
+  cancelFrame: (frame: number) => void;
+}
+
+/** The window's own `performance`, animation-frame and timer functions. @complexity O(1). */
+export const liveFindClock: FindFocusClock = {
+  now: () => performance.now(),
+  requestFrame: (callback) => requestAnimationFrame(callback),
+  cancelFrame: (frame) => cancelAnimationFrame(frame),
+  schedule: (callback, delay) => setTimeout(callback, delay),
+  cancel: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+};
+
+/** Optional ports for {@link useFindInPage}; production passes none. */
+export interface FindInPagePorts {
+  /** Defaults to this window's preload bridge (absent outside a real desktop window). */
+  bridge?: FindBridge;
+  /** Defaults to {@link liveFindClock}. */
+  clock?: FindFocusClock;
+}
+
+/**
  * The find bar's whole state machine: open/close, the query, the live target, and the result
  * whichever target reports.
  *
@@ -391,9 +422,11 @@ export interface FindInPage {
  *   on screen (`App`'s `showSiteTab ? visibleWorkspaceId : null`).
  * @complexity O(1) per action, beyond `runFind`/`stopFind`'s own cost.
  */
-export function useFindInPage(activeGuestId: string | null): FindInPage {
+export function useFindInPage(
+  activeGuestId: string | null,
+  { bridge = runnerInventoryBridge(), clock = liveFindClock }: FindInPagePorts = {},
+): FindInPage {
   const [state, dispatch] = useReducer(findBarReducer, initialFindBarState);
-  const bridge = runnerInventoryBridge();
   // A ref, not state: registering a guest must never itself trigger a render — every mounted tab
   // calls it on every commit (see `useComposedGuestRef`), and the map's CONTENTS are only ever read
   // at the moment a search actually runs, never rendered.
@@ -405,7 +438,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   const lastFindAt = useRef<number | null>(null);
   // The pending deferred reclaim (see the blur listener below), so `close`/unmount can cancel one
   // scheduled for a bar that is no longer open by the time it would run.
-  const reclaimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reclaimTimer = useRef<unknown>(null);
   // Raised while {@link restoreFindInputFocus} blurs the input itself, so the blur listener below
   // does not mistake that for a Chromium theft — see that function's doc.
   const restoringFocus = useRef(false);
@@ -414,7 +447,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // An IME composition is in progress in the find input — reclaiming would end it.
   const composing = useRef(false);
   const reclaimFrame = useRef<number | null>(null);
-  const queryScheduler = useRef(createFindQueryScheduler({}, {})).current;
+  const queryScheduler = useRef(createFindQueryScheduler({}, { clock })).current;
 
   const registerGuest = useCallback(
     (projectId: string, element: FindableGuest | null) => {
@@ -431,10 +464,10 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // through this instead of calling `runFind` directly.
   const cancelReclaimFrame = useCallback(() => {
     if (reclaimFrame.current !== null) {
-      cancelAnimationFrame(reclaimFrame.current);
+      clock.cancelFrame(reclaimFrame.current);
       reclaimFrame.current = null;
     }
-  }, []);
+  }, [clock]);
 
   // Re-asserts focus on every frame until the find just issued reports — see
   // {@link shouldKeepReclaimingFindFocus} for why no single, event-driven restore can do this.
@@ -445,20 +478,20 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       const keepGoing = shouldKeepReclaimingFindFocus({
         open: inputElement.current !== null,
         lastFindAt: lastFindAt.current,
-        now: performance.now(),
+        now: clock.now(),
         awaitingReport: awaitingReport.current,
         composing: composing.current,
       });
       if (!keepGoing) return;
       restoreFindInputFocus(inputElement.current, restoringFocus);
-      reclaimFrame.current = requestAnimationFrame(tick);
+      reclaimFrame.current = clock.requestFrame(tick);
     };
-    reclaimFrame.current = requestAnimationFrame(tick);
-  }, [cancelReclaimFrame]);
+    reclaimFrame.current = clock.requestFrame(tick);
+  }, [cancelReclaimFrame, clock]);
 
   const issueFind = useCallback(
     (text: string, options: { forward: boolean; findNext: boolean }) => {
-      lastFindAt.current = performance.now();
+      lastFindAt.current = clock.now();
       awaitingReport.current = true;
       runFind(target, bridge, text, options);
       // Reclaim immediately for a typed query as well as on subsequent frames/results.
@@ -471,15 +504,15 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       // not the ones the gap loses; the report's own restore still covers it.
       if (options.findNext) reclaimUntilReported();
     },
-    [target, bridge, reclaimUntilReported],
+    [target, bridge, reclaimUntilReported, clock],
   );
 
   const clearReclaimTimer = useCallback(() => {
     if (reclaimTimer.current !== null) {
-      clearTimeout(reclaimTimer.current);
+      clock.cancel(reclaimTimer.current);
       reclaimTimer.current = null;
     }
-  }, []);
+  }, [clock]);
 
   // The app menu's Find (Cmd+F): open (or, if already open, bump `focusNonce` so the effect below
   // refocuses even though `open` itself does not change).
@@ -573,11 +606,11 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       const onBlur = () => {
         if (restoringFocus.current) return;
         clearReclaimTimer();
-        reclaimTimer.current = setTimeout(() => {
+        reclaimTimer.current = clock.schedule(() => {
           reclaimTimer.current = null;
           // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
           // (and unmounted the input) by the time this deferred callback runs.
-          if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: performance.now() })) {
+          if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: clock.now() })) {
             restoreFindInputFocus(inputElement.current, restoringFocus);
           }
         }, 0);
@@ -598,7 +631,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
         composing.current = false;
       };
     },
-    [clearReclaimTimer],
+    [clearReclaimTimer, clock],
   );
 
   // Detaches the previous node's blur listener before attaching the next one, so a remount (or the

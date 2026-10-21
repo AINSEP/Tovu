@@ -90,7 +90,8 @@ function routeSave({ selectedKind, metadata, adapters }: {
       return { handler: adapters.agentPluginToken, input: { ...hints, pluginId: metadata.target } };
     }
     case 'publish-host': return selectPublishSave({ metadata, adapters });
-    default: throw new ToolInputError({ message: 'Unknown credential kind.' });
+    // No default: selectSave refuses any kind outside KINDS before routing, and this switch covers
+    // every CredentialKind, so the compiler proves no other value reaches here.
   }
 }
 

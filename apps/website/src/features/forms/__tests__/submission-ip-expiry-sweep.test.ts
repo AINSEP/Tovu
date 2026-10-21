@@ -126,3 +126,20 @@ test("an old published package warns once and registers no timer", async t => {
   assert.equal(errors.length, 1);
   assert.match(String(errors[0]), /disabled: published @jini-ai\/cms-forms has no sweepExpiredSubmissionIps/);
 });
+
+test("without onError, failures are warned with their message (or string form); a non-positive interval is refused", async t => {
+  const timer = interval(t);
+  const warned: unknown[][] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => { warned.push(args); });
+  let calls = 0;
+  const stop = startSubmissionIpExpirySweep({ kernel, sweep: async () => { if (++calls === 1) throw new Error("disk full"); throw "opaque"; } });
+  try {
+    await turn();
+    timer.tick();
+    await turn();
+    assert.deepEqual(warned, [["[submission-ip-expiry-sweep] sweep failed: disk full"], ["[submission-ip-expiry-sweep] sweep failed: opaque"]]);
+  } finally { await stop(); }
+  for (const intervalMs of [0, -1, 1.5]) {
+    assert.throws(() => startSubmissionIpExpirySweep({ kernel, sweep: async () => 0 }, { intervalMs }), { name: "RangeError", message: "submission IP sweep interval must be positive" });
+  }
+});

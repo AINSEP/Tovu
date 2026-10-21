@@ -49,6 +49,17 @@ export type ZoomBridge = Pick<RunnerInventoryBridge, 'onZoomCommand' | 'getZoomL
  *  tests, and permissive about a call that throws (a private window, or storage disabled). */
 export type ZoomStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
+/** The shell's own `localStorage`, resolved at each call rather than once at render. Reading the
+ *  `window.localStorage` getter can itself throw (storage denied, a sandboxed origin), so it must
+ *  never run during a render — a throw there would blank the whole sites home window even when no
+ *  guest or zoom command is in play. Resolved here instead, inside {@link readStoredZoom} /
+ *  {@link writeStoredZoom}'s own `try`, a denied store degrades to session-only zoom. A module-level
+ *  constant, so its identity is stable across renders and never re-runs the hook's effects. */
+export const shellZoomStorage: ZoomStorage = {
+  getItem: (key) => window.localStorage.getItem(key),
+  setItem: (key, value) => window.localStorage.setItem(key, value),
+};
+
 /** Electron's own zoom-level step (`webContents.zoomIn`/`zoomOut`'s default), kept identical so
  *  this shell's custom Zoom menu (`zoom-menu.ts`) feels like the built-in one it replaces. Each
  *  step is roughly a 20% factor change; see Electron's own `WebContents.zoomLevel` doc. */
@@ -203,8 +214,16 @@ export interface UseZoom {
  *   `useFindInPage`'s).
  * @complexity O(1) per command, beyond `applyZoomCommand`'s own cost.
  */
-export function useZoom(activeGuestId: string | null): UseZoom {
-  const bridge = runnerInventoryBridge();
+export function useZoom(
+  activeGuestId: string | null,
+  { bridge = runnerInventoryBridge(), storage = shellZoomStorage }: {
+    /** The bridge port; defaults to the preload's `window.tovuRunner`. */
+    bridge?: RunnerInventoryBridge | undefined;
+    /** Where per-site zoom levels persist; defaults to {@link shellZoomStorage}, the shell's own
+     *  `localStorage` resolved lazily. */
+    storage?: ZoomStorage;
+  } = {},
+): UseZoom {
   // A ref, not state, for the same reason `useFindInPage`'s own `guests` map is: registering a
   // guest must never itself trigger a render, and the map's contents are only ever read at the
   // moment a command actually runs.
@@ -214,12 +233,12 @@ export function useZoom(activeGuestId: string | null): UseZoom {
     (projectId: string, element: ZoomableGuest | null) => {
       if (element) {
         guests.set(projectId, element);
-        applyStoredZoom(element, projectId, window.localStorage);
+        applyStoredZoom(element, projectId, storage);
       } else {
         guests.delete(projectId);
       }
     },
-    [guests],
+    [guests, storage],
   );
 
   // The app menu's Zoom In / Zoom Out / Actual Size: resolve the live target at the moment the
@@ -229,11 +248,11 @@ export function useZoom(activeGuestId: string | null): UseZoom {
     if (!bridge) return undefined;
     return bridge.onZoomCommand((direction) => {
       const target = resolveZoomTarget({ activeGuestId, guests, bridge });
-      applyZoomCommand(target, bridge, direction, window.localStorage);
+      applyZoomCommand(target, bridge, direction, storage);
     });
     // `guests` is a ref (stable identity, never itself a trigger); `activeGuestId` is what actually
     // changes which entry a fired command should resolve to.
-  }, [bridge, activeGuestId, guests]);
+  }, [bridge, activeGuestId, guests, storage]);
 
   return { registerGuest };
 }

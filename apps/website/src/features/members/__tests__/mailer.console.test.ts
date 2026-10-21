@@ -111,6 +111,32 @@ test("send falls back to the html body when text is absent", async () => {
   assert.match(loggedLine, /hello html body/);
 });
 
+test("send logs an empty body when the message carries neither text nor html", async () => {
+  const adapter = new ConsoleMailerAdapter();
+  const message: OutboundEmail = {
+    workspaceId: "ws-1",
+    to: { email: "member@example.com" },
+    from: { email: "no-reply@members.local" },
+    subject: "Subject only",
+  };
+
+  const originalLog = console.log;
+  const logCalls: unknown[][] = [];
+  console.log = (...args: unknown[]) => {
+    logCalls.push(args);
+  };
+  let result: Awaited<ReturnType<ConsoleMailerAdapter["send"]>>;
+  try {
+    result = await adapter.send(message, SEND_OPTIONS);
+  } finally {
+    console.log = originalLog;
+  }
+
+  assert.equal(result.ok, true);
+  const loggedLine = String(logCalls[0][0]);
+  assert.equal(loggedLine.slice(loggedLine.indexOf("body=")), 'body=""');
+});
+
 test("send fails closed with ATTACHMENTS_UNSUPPORTED instead of silently dropping attachments (/debate D6, 2026-07-15)", async () => {
   const adapter = new ConsoleMailerAdapter();
   const message: OutboundEmail = {

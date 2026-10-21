@@ -2,7 +2,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPostPreviewRegistrations, postPreviewAgentToolCatalog, postPreviewDerivedRisk } from "../preview-tool.js";
+import { buildPostPreviewRegistrations, contributePostPreviewTools, postPreviewAgentToolCatalog, postPreviewDerivedRisk } from "../preview-tool.js";
 import { ToolInputError } from "@jini-ai/core";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import { bareDeps, barePost } from "#src/server/inbound/admin-http/routes/posts/__tests__/preview-fixtures";
@@ -100,4 +100,19 @@ test("L156 preview rejects every malformed override before authorization and kee
   assert.equal(reads, 0);
   await registration.handler(context({ id: "draft-1" }));
   assert.equal(reads, 1);
+});
+test("a repository failure other than not-found propagates unchanged rather than being reworded as a missing post", async () => {
+  const outage = new Error("post store unavailable");
+  const registration = buildPostPreviewRegistrations({ workspaceId: 'w', authorize: async () => ({ allowed: true, reason: 'matched' }), postRepo: { findById: async () => { throw outage; }, findBySlug: async () => { throw outage; } } } as never, { renderPostPreview })[0]!;
+  await assert.rejects(registration.handler(context({ postId: 'draft-1' })), (error: unknown) => error === outage);
+});
+test("the preview contributor builds the same read-only preview tool with the renderer it was given", async () => {
+  const { deps } = bareDeps();
+  let rendered = 0;
+  const contributor = contributePostPreviewTools({ renderPostPreview: async () => { rendered++; return { html: '<p>From contributor</p>', templateChoice: '' }; } });
+  assert.equal(contributor.domain, 'post-preview'); assert.equal(contributor.risk, postPreviewDerivedRisk);
+  const [registration] = contributor.build(deps as never, {} as never);
+  assert.equal(registration!.descriptor.id, 'content_post_preview');
+  const result = await registration!.handler(context({ postId: 'draft-1' })) as { body: string };
+  assert.equal(result.body, '<p>From contributor</p>'); assert.equal(rendered, 1);
 });

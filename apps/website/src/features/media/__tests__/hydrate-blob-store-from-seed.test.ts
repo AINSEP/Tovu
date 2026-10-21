@@ -318,3 +318,15 @@ test("hydrateBlobStoreFromSeed: a putIfAbsent rejection with a non-Error value i
     assert.equal(result.failed[0]?.error, "simulated non-Error rejection");
   });
 });
+
+test("hydrateBlobStoreFromSeed: an unreadable seed directory (not merely absent) fails loudly instead of skipping", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tovu-seed-uploads-notdir-"));
+  try {
+    const seedUploadsDir = join(dir, "uploads");
+    await writeFile(seedUploadsDir, "a file where the seed directory should be");
+    const store = new InMemoryBlobStore();
+    await assert.rejects(hydrateBlobStoreFromSeed({ seedUploadsDir, blobStore: store }), (err: NodeJS.ErrnoException) => err.code === "ENOTDIR");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

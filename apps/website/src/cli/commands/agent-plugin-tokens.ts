@@ -27,10 +27,14 @@ export function bundledAgentPluginsRoot(): string {
   return bundledAgentPluginsSourceRoot();
 }
 
-/** All of stdin as text. */
-export async function readAllStdin(): Promise<string> {
+function writeStdout(message: string): void {
+  process.stdout.write(message);
+}
+
+/** All of stdin (or the injected stream) as text. */
+export async function readAllStdin({ input = process.stdin }: { input?: NodeJS.ReadableStream } = {}): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
+  for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
   return Buffer.concat(chunks).toString("utf8");
 }
 
@@ -96,7 +100,10 @@ export async function storeNewSiteAgentPluginTokens(
  * `tovu agent-plugins token-sign-in --json`: the bundled plugins a new site can be connected to with
  * a pasted token, as `{ "plugins": [{ pluginId, displayName, helpUrl }] }`.
  */
-export async function runTokenSignInPluginsCommand(sourceRoot: string = bundledAgentPluginsRoot()): Promise<void> {
+export async function runTokenSignInPluginsCommand(
+  sourceRoot: string = bundledAgentPluginsRoot(),
+  { output = writeStdout }: { output?: (message: string) => void } = {},
+): Promise<void> {
   const plugins = await listNewSiteAgentPluginTokenSignInPlugins(sourceRoot);
-  process.stdout.write(`${JSON.stringify({ plugins })}\n`);
+  output(`${JSON.stringify({ plugins })}\n`);
 }

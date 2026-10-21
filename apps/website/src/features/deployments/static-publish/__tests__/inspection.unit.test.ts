@@ -4,6 +4,7 @@ import type { DeployTargetRegistry, DeployTargetInspection, DeployHostKit } from
 import { createDeployHostKit } from '../../deploy-targets/host-kit.js';
 import { inspectStaticPublish } from '../inspection.js';
 import type { PublishCredentialSource } from '../types.js';
+import type { FormDestinationForm, FormReceiverPort, FormSubmissionsInspection } from '#src/features/form-destinations/types';
 
 /** Tests the real provider-inspection boundary using actual host/registry/credential interfaces. */
 function setup({ inspectionError, legacy = false, configured = true }: { inspectionError?: string; legacy?: boolean; configured?: boolean } = {}) {
@@ -116,4 +117,24 @@ test('provider preview errors redact both declared secrets, including repeated v
     assert.equal(error.message.includes(secondary), false);
     return true;
   });
+});
+
+test('a wired form port hands co-hosted forms to the host and adds core form line to the inspection', async () => {
+  const f = setup();
+  const asked: unknown[] = [];
+  const forms: readonly FormDestinationForm[] = [{ slug: 'contact', fields: [{ name: 'email', required: true }] }];
+  const formSubmissions: FormSubmissionsInspection = { status: 'on', forms: 1, message: 'Forms post to the co-hosted receiver.', changes: [] };
+  const port = (answer: Awaited<ReturnType<FormReceiverPort['previewInput']>>): FormReceiverPort => ({
+    previewInput: async (input: unknown) => { asked.push(input); return answer; },
+    prepare: async () => assert.fail('preview never prepares a receiver'),
+  });
+  const hosted = await inspectStaticPublish({ deps: { ...f.deps, formDestination: port({ hosting: { forms }, formSubmissions }) }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
+  assert.equal((f.seen[1] as { formDestination?: unknown }).formDestination !== undefined, true);
+  assert.deepEqual((f.seen[1] as { formDestination: { forms: unknown } }).formDestination.forms, forms);
+  assert.deepEqual(hosted.inspection, { ...f.inspection, formSubmissions });
+  assert.deepEqual((asked[0] as { workspaceId: string; hostingTargetId: string; projectName: string }), { workspaceId: 'workspace', hostingTargetId: 'fixture', projectName: 'site', kit: (asked[0] as { kit: unknown }).kit });
+  const g = setup();
+  const plain = await inspectStaticPublish({ deps: { ...g.deps, formDestination: port({}) }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } });
+  assert.equal(plain.inspection, g.inspection);
+  assert.equal('formDestination' in (g.seen[1] as object), false);
 });
