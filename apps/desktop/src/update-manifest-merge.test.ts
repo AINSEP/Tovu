@@ -44,6 +44,16 @@ test("both arches' zips are listed (the re-stapled dmgs are not), and the legacy
   assert.equal(merged.files[0]!.blockMapSize, 10, "blockmap sizes must survive for differential downloads");
 });
 
+test("when no input carries a releaseDate the merged manifest omits the key rather than inventing one", () => {
+  const undated = (arch: "arm64" | "x64") => {
+    const { releaseDate: _dropped, ...rest } = manifest(arch);
+    return rest;
+  };
+  const merged = mergeMacManifests([{ label: "arm", manifest: undated("arm64") }, { label: "x64", manifest: undated("x64") }]);
+  assert.equal("releaseDate" in merged, false);
+  assert.equal(merged.path, "Tovu-mac-x64.zip");
+});
+
 test("a merge of one arch alone is refused: the other arch would find no zip or the wrong one", () => {
   assert.throws(
     () => mergeMacManifests([{ label: "arm", manifest: manifest("arm64") }]),
@@ -109,4 +119,17 @@ test("the CLI writes a YAML manifest electron-updater's parser reads back, and f
   const bad = spawnSync(process.execPath, [script, out, path.join(dir, "arm.yml"), path.join(dir, "arm.yml")], { encoding: "utf8" });
   assert.equal(bad.status, 1);
   assert.match(bad.stderr, /merge-latest-mac: expected one arm64 zip and one x64 zip/);
+});
+
+test("the CLI refuses too few arguments with its usage line and writes nothing", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-latest-mac-usage-"));
+  const out = path.join(dir, "latest-mac.yml");
+  const script = path.join(DESKTOP_ROOT, "scripts", "merge-latest-mac.ts");
+
+  for (const args of [[], [out], [out, path.join(dir, "only-one.yml")]]) {
+    const run = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+    assert.equal(run.status, 1, `accepted ${JSON.stringify(args)}`);
+    assert.match(run.stderr, /^usage: node scripts\/merge-latest-mac\.ts <out\.yml> <in-arm64\.yml> <in-x64\.yml>$/m);
+  }
+  assert.equal(fs.existsSync(out), false);
 });

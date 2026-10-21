@@ -54,6 +54,45 @@ test('native reveal waits for success and reports process failures without openi
   await assert.rejects(failure, /could not run .*file manager missing/);
 });
 
+test('reveal refuses an unsupported platform before spawning anything', () => {
+  assert.throws(() => revealPath('/tmp/x', { platform: 'aix', spawnFn: (() => assert.fail('must not spawn')) as never }),
+    { message: 'opening a folder is not supported on aix.' });
+});
+
+test('a file manager that never exits is killed and reported as a timeout', async () => {
+  const child = Object.assign(new EventEmitter(), { killed: 0, kill() { child.killed++; return true; } });
+  const spawned: unknown[] = [];
+  const spawnFn = ((command: string, args: string[]) => { spawned.push([command, args]); return child; }) as unknown as typeof childProcess.spawn;
+
+  await assert.rejects(revealPath('/tmp/slow folder', { platform: 'linux', spawnFn, timeoutMs: 5 }),
+    { message: "'xdg-open' did not finish within 5ms." });
+  assert.deepEqual(spawned, [['xdg-open', ['/tmp/slow folder']]]);
+  assert.equal(child.killed, 1);
+});
+
+test('a request whose handler throws is logged and dropped, and the bridge keeps answering', async (t) => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const diagnostics: string[] = [];
+  t.mock.method(process.stderr, 'write', (chunk: string | Uint8Array) => { diagnostics.push(String(chunk)); return true; });
+  t.after(() => { input.destroy(); output.destroy(); });
+  let received = '';
+  output.setEncoding('utf8');
+  output.on('data', (chunk: string) => { received += chunk; });
+  serveMcpOverStdio({ input, output, context: { projectsPath: '/unused', revealPath: async () => undefined } });
+
+  // An inherited Object.prototype name reaches the method table and throws when invoked unbound —
+  // the one input that makes a handler throw today (see the coordinator report).
+  input.write('{"jsonrpc":"2.0","id":1,"method":"hasOwnProperty"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n');
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  const responses = received.trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(responses.map((response) => response.id), [2]);
+  assert.equal(diagnostics.length, 1);
+  assert.match(diagnostics[0]!, /failed to handle 'hasOwnProperty': /);
+});
+
 test('stdio drops oversized unfinished input, recovers framing and ignores blank lines and notifications', async (t) => {
   const input = new PassThrough();
   const output = new PassThrough();

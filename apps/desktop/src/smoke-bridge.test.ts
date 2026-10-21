@@ -145,7 +145,7 @@ const entry: BridgeCommand = {
 };
 
 /** In-memory child-process port: no module mocks, real processes, network, or packaged app. */
-function fakeBridge(mode: "ok" | "bad-tool" | "silent" | "close" | "error" | "malformed") {
+function fakeBridge(mode: "ok" | "bad-tool" | "silent" | "close" | "error" | "malformed" | "notify-first" | "flood" | "error-string") {
   const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough() });
   const sent: Record<string, unknown>[] = [];
   const signals: (NodeJS.Signals | number | undefined)[] = [];
@@ -162,6 +162,16 @@ function fakeBridge(mode: "ok" | "bad-tool" | "silent" | "close" | "error" | "ma
       if (mode === "close") { child.stderr.write("fixture loader failure"); child.emit("close", 1); return; }
       if (mode === "error") { child.emit("error", new Error("fixture spawn error")); return; }
       if (mode === "malformed") { child.stdout.write("not-json\n"); return; }
+      if (mode === "error-string") { child.emit("error", "fixture bare-string failure"); return; }
+      if (mode === "flood") {
+        child.stderr.write("e".repeat(70_000));
+        child.stderr.write("late stderr detail");
+        child.stdout.write("x".repeat(1_000_001));
+        return;
+      }
+      if (mode === "notify-first" && message.method === "initialize") {
+        child.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/message", params: { level: "info" } })}\n`);
+      }
       if (message.method === "initialize") {
         const reply = JSON.stringify({ jsonrpc: "2.0", id: 1, result: { serverInfo: { name: "jini-mcp" } } });
         child.stdout.write(reply.slice(0, 10));
@@ -202,6 +212,31 @@ test("failed roster, close, spawn, framing and watchdog all fail and kill the ch
   }
 });
 
+
+test("a server notification arriving before the initialize reply is skipped, not mistaken for the reply", async () => {
+  const fake = fakeBridge("notify-first");
+  await smokeBridge({ entry, hostEnv: {} }, { spawnBridge: fake.spawnBridge });
+  assert.deepEqual(fake.sent.map(message => message.method), ["initialize", "notifications/initialized", "tools/list"]);
+  assert.deepEqual(fake.signals, ["SIGKILL"]);
+});
+
+test("runaway stdout fails at the buffer limit and oversized stderr is replaced, never echoed", async () => {
+  const fake = fakeBridge("flood");
+  await assert.rejects(smokeBridge({ entry, hostEnv: {} }, { spawnBridge: fake.spawnBridge }), (error: Error) => {
+    assert.match(error.message, /^fixture: MCP stdout exceeded smoke buffer limit\n\[oversized stderr omitted\]$/);
+    assert.ok(!error.message.includes("late stderr detail"));
+    return true;
+  });
+  assert.deepEqual(fake.signals, ["SIGKILL"]);
+});
+
+test("a spawn error raised as a bare string still names the entry and the cause", async () => {
+  const fake = fakeBridge("error-string");
+  await assert.rejects(smokeBridge({ entry, hostEnv: {} }, { spawnBridge: fake.spawnBridge }), {
+    message: "fixture: fixture bare-string failure",
+  });
+  assert.deepEqual(fake.signals, ["SIGKILL"]);
+});
 
 test("bridge failures redact split native stderr and retain exit code and signal", async () => {
   const secret = ["ghp", "_", "x".repeat(36)].join("");

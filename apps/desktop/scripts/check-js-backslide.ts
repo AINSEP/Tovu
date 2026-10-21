@@ -72,21 +72,42 @@ function fixHint(offender: string): string {
   return `  - ${offender} — rename to ${converted}, or add it to ALLOWLIST in this script with a reason.`;
 }
 
-function main(): void {
-  const offenders = jsBackslideOffenders(candidatePaths(), ALLOWLIST);
-  if (offenders.length > 0) {
-    process.stderr.write(
-      "check-js-backslide: apps/desktop must stay TypeScript-only — found JavaScript-family file(s):\n"
-    );
-    for (const offender of offenders) process.stderr.write(`${fixHint(offender)}\n`);
-    process.exit(1);
-    return;
-  }
-  process.stdout.write("check-js-backslide: OK — apps/desktop is TypeScript-only\n");
+/** Where the check writes; production wires `process.stdout`/`process.stderr`. */
+interface CheckOutput {
+  out: (text: string) => void;
+  err: (text: string) => void;
 }
 
-try { main(); }
-catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
-  process.exitCode = 1;
+/**
+ * The whole check, over its two effects: listing candidate paths, and writing the verdict.
+ * @param ports.listPaths every path git would commit under `apps/desktop`; production uses
+ *   {@link candidatePaths}.
+ * @returns the exit code: 0 clean, 1 for any offender or a failure to list.
+ * @complexity O(n) in the candidate count.
+ */
+function runJsBackslideCheck({ listPaths, out, err }: CheckOutput & { listPaths: () => string[] }): number {
+  try {
+    const offenders = jsBackslideOffenders(listPaths(), ALLOWLIST);
+    if (offenders.length > 0) {
+      err("check-js-backslide: apps/desktop must stay TypeScript-only — found JavaScript-family file(s):\n");
+      for (const offender of offenders) err(`${fixHint(offender)}\n`);
+      return 1;
+    }
+    out("check-js-backslide: OK — apps/desktop is TypeScript-only\n");
+    return 0;
+  } catch (error) {
+    err(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
+    return 1;
+  }
 }
+
+/** Run only when this file IS the process, never when a test imports it. */
+if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = runJsBackslideCheck({
+    listPaths: candidatePaths,
+    out: process.stdout.write.bind(process.stdout),
+    err: process.stderr.write.bind(process.stderr),
+  });
+}
+
+export { ALLOWLIST, candidatePaths, runJsBackslideCheck };

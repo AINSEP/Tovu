@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITES_MCP_TOOLS, describeSitesMcpTools, runSitesMcpTool } from "./sites-mcp-tools.ts";
-import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite } from "./tracked-sites.ts";
+import { SITE_ORIGIN, sitesFilePath, readTrackedSites, trackSite, untrackSite } from "./tracked-sites.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-mcp-tools-"));
@@ -170,6 +170,17 @@ test("add_site_pointer rejects a missing or non-string siteDir with a correctabl
   assert.deepEqual(readTrackedSites(context.projectsPath), []);
 });
 
+test("a tools/call with no arguments object at all is treated as empty arguments, not a crash", async () => {
+  // An MCP client may omit `arguments` entirely; the server forwards it as `undefined`.
+  const { context } = fakeContext();
+
+  const result = await runSitesMcpTool("add_site_pointer", undefined, context);
+
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]!.text, /'siteDir' is required/);
+  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+});
+
 test("add_site_pointer reports an already-tracked site without claiming it added one", async () => {
   const { context } = fakeContext();
   const siteDir = siteFixture();
@@ -179,6 +190,21 @@ test("add_site_pointer reports an already-tracked site without claiming it added
 
   assert.equal(result.structuredContent.alreadyTracked, true);
   assert.match(result.content[0]!.text, /was already in your websites/);
+  assert.equal(readTrackedSites(context.projectsPath).length, 1);
+});
+
+test("add_site_pointer tells the operator when it brings back a website they had removed", async () => {
+  const { context } = fakeContext();
+  const siteDir = siteFixture();
+  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  untrackSite(context.projectsPath, siteDir);
+
+  const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+
+  assert.equal(result.isError, undefined);
+  assert.equal(result.structuredContent.alreadyTracked, false);
+  assert.equal(result.structuredContent.alreadyDismissed, true);
+  assert.match(result.content[0]!.text, /^Added .* back to your websites\. You had removed this website before/);
   assert.equal(readTrackedSites(context.projectsPath).length, 1);
 });
 
@@ -234,6 +260,25 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   // The cause is passed through, not flattened into "it failed" — the model has to be able to tell
   // the operator what went wrong.
   assert.match(result.content[0]!.text, /could not run 'open': ENOENT/);
+});
+
+test("a handler that rejects with a non-Error value still yields a readable tool error naming the tool", async () => {
+  const userDataDir = tempDir();
+  const siteDir = siteFixture();
+  const context = {
+    userDataDir,
+    projectsPath: sitesFilePath(userDataDir),
+    revealPath: async () => {
+      // Some spawn wrappers reject with a bare string rather than an Error.
+      throw "file manager unavailable";
+    },
+  };
+  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
+
+  const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
+
+  assert.equal(result.isError, true);
+  assert.equal(result.content[0]!.text, "The Tovu desktop app could not complete 'reveal_site_folder': file manager unavailable");
 });
 
 test("an unknown tool name is an error RESULT naming the real tools, not a thrown protocol error", async () => {

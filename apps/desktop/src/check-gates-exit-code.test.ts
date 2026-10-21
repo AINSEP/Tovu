@@ -210,3 +210,43 @@ test("gate output is bounded and redacted while a failing child still fails the 
     assert.ok(output.length < 3_000);
   }
 });
+
+test("a gate whose output overflows the capture buffer fails as unspawnable instead of passing on a truncated read", () => {
+  const result = runWith({ gates: [{ id: "flood", run: `node -e "process.stdout.write('x'.repeat(2000000))"` }] });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /gate "flood" could not be spawned: .*ENOBUFS/);
+  assert.match(result.stderr, /check-gates: FAILED/);
+});
+
+test("a gate killed by a signal fails the run and names the signal", { skip: process.platform === "win32" }, () => {
+  const result = runWith({ gates: [{ id: "killed", run: "kill -9 $$" }] });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /gate "killed" was killed by SIGKILL — treating as FAILURE/);
+});
+
+test("an unreadable scripts directory means no planted scripts, not a crash", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-gates-noscripts-"));
+  const manifestPath = path.join(dir, "quality-gates.json");
+  writeFileSync(manifestPath, JSON.stringify({ gates: [{ id: "ok", run: "node -e \"process.exit(0)\"" }] }));
+  try {
+    const result = spawnSync(process.execPath, [RUNNER, "--manifest", manifestPath, "--scripts-dir", path.join(dir, "missing")], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /check-gates: OK/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a trailing --scripts-dir with no value falls back to the real scripts/ directory", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-gates-fallback-"));
+  const manifestPath = path.join(dir, "quality-gates.json");
+  writeFileSync(manifestPath, JSON.stringify({ gates: [{ id: "ok", run: "node -e \"process.exit(0)\"" }] }));
+  try {
+    const result = spawnSync(process.execPath, [RUNNER, "--manifest", manifestPath, "--scripts-dir"], { encoding: "utf8" });
+    // The real directory holds check-*.ts scripts this one-gate manifest does not run.
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /scripts\/check-complexity\.ts exists but no gate in quality-gates\.json runs it/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

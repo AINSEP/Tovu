@@ -171,7 +171,7 @@ function readProjectsFile(projectsPath: string): ProjectsFile {
 /** Whether a parsed value is a projects file this app could itself have written. Anything else —
  *  `null`, an array, an object whose `projects` is not a list — is damaged, not empty.
  *  @complexity O(1). */
-function isProjectsShape(value: unknown): value is RawProjectsFile {
+function isProjectsShape(value: unknown): value is RawProjectsFile & { projects: unknown[] } {
   return typeof value === "object" && value !== null && Array.isArray((value as RawProjectsFile).projects);
 }
 
@@ -184,8 +184,11 @@ function isProjectsShape(value: unknown): value is RawProjectsFile {
  *
  * @complexity O(n) in the row and dismissal count.
  */
-function contentsOf(file: RawProjectsFile): Omit<ProjectsFile, "state"> {
-  const rows = (Array.isArray(file.projects) ? file.projects : [])
+function contentsOf(file: RawProjectsFile & { projects: unknown[] }): Omit<ProjectsFile, "state"> {
+  // `projects` is always a list here, and the type now says so: the `ok` path reaches this only past
+  // {@link isProjectsShape}, and the damaged path only through {@link stripProvenance}, which always
+  // returns a list. The old `Array.isArray(...) ? ... : []` fallback could never take its `[]` arm.
+  const rows = file.projects
     .filter((row) => typeof (row as RawTrackedRow)?.siteDir === "string" && typeof (row as RawTrackedRow)?.createdAt === "string")
     .map((row) => ({ ...(row as RawTrackedRow), origin: normalizeOrigin((row as RawTrackedRow).origin) })) as TrackedSiteRow[];
   const dismissedRecorded = Array.isArray(file.dismissed);
@@ -204,7 +207,7 @@ function contentsOf(file: RawProjectsFile): Omit<ProjectsFile, "state"> {
  *
  * @complexity O(n) in the recovered row count.
  */
-function stripProvenance(value: unknown): RawProjectsFile {
+function stripProvenance(value: unknown): RawProjectsFile & { projects: unknown[] } {
   if (typeof value !== "object" || value === null) return { projects: [] };
   const file = value as RawProjectsFile;
   const projects = (Array.isArray(file.projects) ? file.projects : []).map((row) => {

@@ -26,6 +26,7 @@ import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 
 import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
 import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
@@ -33,6 +34,19 @@ import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 type SmokeTargets = ReturnType<typeof resolveSmokeTargets>;
+
+/** Every effect the gate has — production wires the real filesystem, spawn and stdio. */
+interface SmokeNativePorts {
+  readDirectory: (directory: string) => string[];
+  exists: (target: string) => boolean;
+  /** Runs the packaged binary as Node (`ELECTRON_RUN_AS_NODE=1 <exe> -e <script>`). */
+  spawn: (command: string, args: string[], options: SpawnSyncOptionsWithStringEncoding) => SpawnSyncReturns<string>;
+  /** Copies the packaged app into an isolated temp dir and runs the gate there. */
+  isolate: typeof withIsolatedSmokeTargets;
+  out: (text: string) => void;
+  err: (text: string) => void;
+  env: NodeJS.ProcessEnv;
+}
 
 /** Throw so the isolated app is cleaned up before main reports exit 1. */
 function fail(message: string): never {
@@ -49,10 +63,10 @@ function platformDirFromArgv(argv: readonly string[]): string {
 
 /** Locates the packaged executable and its staged `node_modules` under `platformDir`, exiting with
  *  a specific reason when either cannot be found. */
-function locateTargets(platformDir: string): SmokeTargets {
+function locateTargets(platformDir: string, ports: SmokeNativePorts): SmokeTargets {
   let entryNames: string[];
   try {
-    entryNames = readdirSync(platformDir);
+    entryNames = ports.readDirectory(platformDir);
   } catch (error) {
     fail(`smoke-native: cannot read ${platformDir}: ${(error as Error).message}`);
   }
@@ -64,10 +78,10 @@ function locateTargets(platformDir: string): SmokeTargets {
     fail((error as Error).message);
   }
 
-  if (!existsSync(targets.executablePath)) {
+  if (!ports.exists(targets.executablePath)) {
     fail(`smoke-native: resolved executable does not exist: ${targets.executablePath}`);
   }
-  if (!existsSync(targets.nodeModulesDir)) {
+  if (!ports.exists(targets.nodeModulesDir)) {
     fail(`smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}`);
   }
   return targets;
@@ -75,11 +89,11 @@ function locateTargets(platformDir: string): SmokeTargets {
 
 /** Spawns the packaged binary as Node, prints safe excerpts and returns raw stdout for parsing.
  * Rejects spawn failures, signals and nonzero exits; the final script sink redacts failure details. */
-function spawnSmoke(targets: SmokeTargets): string {
-  process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: `smoke-native: running against ${targets.executablePath}` }) }, { maxLength: 2_000 }) + "\n");
+function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
+  ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: `smoke-native: running against ${targets.executablePath}` }) }, { maxLength: 2_000 }) + "\n");
   const script = buildSmokeScript(targets.nodeModulesDir);
-  const spawned = spawnSync(targets.executablePath, ["-e", script], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
+  const spawned = ports.spawn(targets.executablePath, ["-e", script], {
+    env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
     cwd: path.dirname(targets.executablePath),
     encoding: "utf8",
   });
@@ -87,14 +101,14 @@ function spawnSmoke(targets: SmokeTargets): string {
   if (spawned.error) {
     fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
   }
-  if (spawned.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stdout) ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.status !== 0) fail(`smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
   return spawned.stdout ?? "";
 }
 
-function runGate(targets: SmokeTargets): void {
-  const stdout = spawnSmoke(targets);
+function runGate(targets: SmokeTargets, ports: SmokeNativePorts): void {
+  const stdout = spawnSmoke(targets, ports);
 
   let result: ReturnType<typeof parseSmokeOutput>;
   try {
@@ -106,39 +120,68 @@ function runGate(targets: SmokeTargets): void {
   if (!result.ok) {
     fail("smoke-native: one or more native modules failed inside the packaged binary");
   }
-  process.stdout.write("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
-  checkEntryImports(targets);
+  ports.out("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
+  checkEntryImports(targets, ports);
 }
 
 /** Runs {@link buildEntryLoadScript} in the packaged binary: every static import of the shell and
  *  server entries must resolve inside the shipped tree (0.1.15 crashed at launch on one that did not). */
-function checkEntryImports(targets: SmokeTargets): void {
-  const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
-  const spawned = spawnSync(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
-    cwd: path.dirname(targets.executablePath),
-    encoding: "utf8",
-  });
-  if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
-  if (spawned.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
+function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void {
+  const stdout = spawnEntryLoad(targets, ports);
   let result: ReturnType<typeof parseEntryLoadOutput>;
   try {
-    result = parseEntryLoadOutput(spawned.stdout ?? "");
+    result = parseEntryLoadOutput(stdout);
   } catch (error) {
     fail((error as Error).message);
   }
   if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
-  process.stdout.write("smoke-native: OK — every static import of the shell and server entries resolves\n");
+  ports.out("smoke-native: OK — every static import of the shell and server entries resolves\n");
 }
 
-async function main(): Promise<void> {
-  await withIsolatedSmokeTargets({
-    targets: locateTargets(platformDirFromArgv(process.argv.slice(2))), run: runGate,
+/** The entry-load child run itself, split from {@link checkEntryImports} to keep both under the
+ *  desktop's 9/9 complexity ceiling. Rejects spawn failures, signals and nonzero exits.
+ *  @returns the child's raw stdout. */
+function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string {
+  const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
+  const spawned = ports.spawn(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
+    env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
+    cwd: path.dirname(targets.executablePath),
+    encoding: "utf8",
+  });
+  if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+  if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
+  return spawned.stdout ?? "";
+}
+
+/**
+ * The release gate: the packaged binary loads every native module and resolves every static import
+ * of its entries, run from an isolated copy of the package.
+ * @throws {Error} with the specific reason on any failure; the isolated copy is cleaned up first.
+ * @complexity O(1) beyond the two packaged child runs.
+ */
+async function runSmokeNativeGate({ argv }: { argv: readonly string[] }, ports: SmokeNativePorts): Promise<void> {
+  await ports.isolate({
+    targets: locateTargets(platformDirFromArgv(argv), ports), run: (targets) => runGate(targets, ports),
   });
 }
 
-main().catch(error => {
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
-  process.exitCode = 1;
-});
+/** The one stderr line a failed gate prints: redacted and bounded, an Error's message or the value
+ *  itself. @complexity O(n) in the message length. */
+function formatGateFailure(error: unknown): string {
+  return sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n";
+}
+
+/** Run only when this file IS the process, never when a test imports it. */
+if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runSmokeNativeGate({ argv: process.argv.slice(2) }, {
+    readDirectory: readdirSync, exists: existsSync, spawn: spawnSync, isolate: withIsolatedSmokeTargets,
+    out: process.stdout.write.bind(process.stdout), err: process.stderr.write.bind(process.stderr), env: process.env,
+  }).catch((error: unknown) => {
+    process.stderr.write(formatGateFailure(error));
+    process.exitCode = 1;
+  });
+}
+
+export { formatGateFailure, runSmokeNativeGate };
+export type { SmokeNativePorts };

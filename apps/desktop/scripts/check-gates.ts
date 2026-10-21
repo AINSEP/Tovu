@@ -169,6 +169,8 @@ function main(): void {
 
 try { main(); }
 catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
+  // `as Error`: everything `main` can throw is an Error (a read/parse failure of the manifest, or
+  // `asGateEntryArray`'s refusal), so the old `String(error)` fallback for a non-Error was unreachable.
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: (error as Error).message }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 }

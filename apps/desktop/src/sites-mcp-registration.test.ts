@@ -24,6 +24,7 @@ import {
   SITES_MCP_SERVER_ID,
   buildSitesMcpLauncherScript,
   buildSitesMcpRegistration,
+  isReadOnlyVolumeRoot,
   isTransientAppPath,
   sitesMcpPutPath,
   registerSitesMcpServer,
@@ -160,6 +161,26 @@ test("isTransientAppPath asks the probe about the volume ROOT, not the whole pat
   const asked: string[] = [];
   isTransientAppPath(DMG_INPUT.electronPath, { isReadOnlyVolume: (root) => (asked.push(root), true) });
   assert.deepEqual(asked, ["/Volumes/Tovu 0.1.6"]);
+});
+
+test("isReadOnlyVolumeRoot answers true only for an EROFS refusal of write access", () => {
+  const refusing = (code: string) => (target: string, mode: number) => {
+    assert.equal(target, "/Volumes/Tovu 0.1.6");
+    assert.equal(mode, fs.constants.W_OK);
+    throw Object.assign(new Error(`${code}: refused`), { code });
+  };
+
+  assert.equal(isReadOnlyVolumeRoot("/Volumes/Tovu 0.1.6", { accessSync: refusing("EROFS") }), true);
+  // A permission denial or a vanished path is not evidence of a disk image.
+  assert.equal(isReadOnlyVolumeRoot("/Volumes/Tovu 0.1.6", { accessSync: refusing("EACCES") }), false);
+  assert.equal(isReadOnlyVolumeRoot("/Volumes/Tovu 0.1.6", { accessSync: refusing("ENOENT") }), false);
+  assert.equal(isReadOnlyVolumeRoot("/Volumes/Tovu 0.1.6", { accessSync: () => undefined }), false);
+});
+
+test("isReadOnlyVolumeRoot's default probe treats a writable folder and a missing path as not read-only", () => {
+  const writable = tempDir();
+  assert.equal(isReadOnlyVolumeRoot(writable), false);
+  assert.equal(isReadOnlyVolumeRoot(path.join(writable, "gone")), false);
 });
 
 test("writeSitesMcpLauncher from a disk image never writes the /Volumes path into the durable launcher", () => {
