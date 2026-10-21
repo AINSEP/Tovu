@@ -147,12 +147,11 @@ export function Pages(props: PagesProps) {
     writePagesTabToUrl(id);
   }
 
-  const notice = pagesListNotice(pages, error, t);
-  if (notice) return notice;
-  // Unreachable in practice — `pagesListNotice` already returns a non-null notice whenever `pages`
-  // is null — but restores the narrowing TS lost by moving that check behind a function call, so
-  // `rows={pages}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
-  if (!pages) return null;
+  // `pagesListNotice` answers non-null exactly when `pages` is null, so gating on `!pages` returns
+  // that notice AND keeps TS's narrowing, so `rows={pages}` below type-checks as `AdminPost[]`
+  // without an `as`/`!` assertion. (The earlier `if (notice) return notice; if (!pages) return null;`
+  // pair restored that narrowing with a second `!pages` check that was unreachable in practice.)
+  if (!pages) return pagesListNotice(pages, error, t);
 
   return (
     <div className="page">

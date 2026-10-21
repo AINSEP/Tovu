@@ -458,6 +458,13 @@ describe("title and slug fields", () => {
     expect(ctrl.setTitle).toHaveBeenCalledWith("X");
   });
 
+  it("Enter in the single-line title is swallowed, while other keys type normally", () => {
+    renderEditor({ title: "About" });
+    const title = screen.getByPlaceholderText("Untitled");
+    expect(fireEvent.keyDown(title, { key: "Enter" })).toBe(false);
+    expect(fireEvent.keyDown(title, { key: "a" })).toBe(true);
+  });
+
   it("typing in the slug field calls setSlug", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderEditor({ slug: "" });
@@ -1052,5 +1059,30 @@ describe("Categories & Tags", () => {
   it("is not mounted before the page loads", () => {
     renderEditor({ page: null });
     expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
+  });
+});
+
+describe("doc-format pages and production logging", () => {
+  it("offers no template picker for a doc-format page", () => {
+    renderEditor({ page: { ...BASE_PAGE, bodyFormat: "doc" } });
+    expect(document.querySelector(".editor-template-picker")).toBeNull();
+    expect(screen.queryByRole("button", { name: /view template/i })).not.toBeInTheDocument();
+  });
+
+  it("writes the interactive-phase debug line only in development builds", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const phaseLines = () => debug.mock.calls.filter(([first]) => first === "[page-editor] interactive");
+    try {
+      renderEditor();
+      expect(phaseLines().length).toBeGreaterThan(0);
+      cleanup();
+      debug.mockClear();
+      vi.stubEnv("DEV", false);
+      renderEditor();
+      expect(phaseLines()).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+      debug.mockRestore();
+    }
   });
 });

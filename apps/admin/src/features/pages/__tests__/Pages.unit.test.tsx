@@ -1044,3 +1044,28 @@ describe("per-row agent handles survive the table's own sort", () => {
     expect(editHandleForTitle(container, "About")).toBe("pages-row-pg1-edit");
   });
 });
+
+describe("Pages with its production hooks", () => {
+  it("lists pages through the real admin API when no hooks are injected", async () => {
+    const fetchFake = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const headers = { "content-type": "application/json" };
+      if (url.includes("/settings/effective")) return new Response(JSON.stringify({ data: [] }), { status: 200, headers });
+      if (url.endsWith("/workspaces/workspace-local/pages")) {
+        const posts = [{ post: { ...PAGE, id: "wired-1", title: "Wired page", slug: "wired-page" } }];
+        return new Response(JSON.stringify({ posts }), { status: 200, headers });
+      }
+      // Theme Pages' presentation read is not this test's concern; refuse it the way a server would.
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers });
+    });
+    vi.stubGlobal("fetch", fetchFake);
+    try {
+      render(<Pages />);
+      expect(await screen.findByRole("link", { name: "Wired page" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Pages" })).toBeInTheDocument();
+      expect(fetchFake.mock.calls.some(([input]) => String(input).endsWith("/workspaces/workspace-local/pages"))).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
