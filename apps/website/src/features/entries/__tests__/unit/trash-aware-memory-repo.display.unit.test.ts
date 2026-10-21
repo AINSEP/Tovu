@@ -416,3 +416,17 @@ test("memory purge preserves foreign trash and releases the local id and slug fo
   await repo.save(row, { expectedVersion: null });
   assert.deepEqual(await repo.findById({ workspaceId: "ws-1", id: row.id }), row);
 });
+
+test("memory display sorting places a missing field first regardless of which side of the comparison it is on", async () => {
+  // Missing values seeded before AND after present ones, so the sort compares them in both argument orders.
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await seed(repo, "a-none");
+  await seed(repo, "b-five", { prepTime: 5 });
+  await seed(repo, "c-none");
+  await seed(repo, "d-three", { prepTime: 3 });
+  await seed(repo, "e-none");
+  for (const [dir, expected] of [["asc", ["a-none", "c-none", "e-none", "d-three", "b-five"]], ["desc", ["b-five", "d-three", "a-none", "c-none", "e-none"]]] as const) {
+    const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by: { field: "prepTime" }, dir }, limit: 10 } });
+    assert.deepEqual(rows.map((row) => row.id), [...expected]);
+  }
+});
