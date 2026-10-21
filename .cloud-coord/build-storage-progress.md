@@ -8,3 +8,4 @@ Start 17:01 UTC. Branch cloud/build-storage-2026-10-21 (Tovu e0c935bb, Jini b3c4
 - ~17:40-19:55 subagents hit the usage limit (owner lifted it; new hard stop 23:00Z)
 - 20:00 T4 shares via registry + object-storage tests 46/46, 100% (Tovu 3c7850f8); mediaBucket fields (Tovu 4a675744)
 - J5 superseded-contract docs (Jini)
+- 20:15 T3 retire S3BlobStore done (97ecbbfd, a91fd760); REPORT written.
