@@ -1,6 +1,8 @@
 /**
- * @file Shared fixtures for the lipay suite. `FakeHttpClient` mirrors
- * `deploy/__tests__/deploy-plugin.test.ts`'s local fake — never a real network call.
+ * @file Shared fixtures for the lipay suite. Since the 2026-10-21 move onto Jini's payments
+ * kernel, the provider is the kernel testkit's deterministic LiPay fake (`createLipayFake`) — never
+ * a real network call — and credentials come through a `ProviderContextPort`, not a credential
+ * bundle.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -8,39 +10,21 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-import { activateLipay, type LipayApi } from "../lipay-plugin.js";
-import { createLipayGateway } from "@jini-ai/commerce/payments";
-import { InMemoryPaymentCredentials } from "@jini-ai/commerce/payments";
-import type { PaymentProvider } from "@jini-ai/commerce/payments";
+import {
+  createKernelProviderRegistry,
+  createMemoryGrantStore,
+  type MoneyGrantPort,
+  type PaymentScope,
+  type PaymentsPort,
+  type ProviderContextPort,
+} from "@jini-ai/commerce/payments/kernel";
+import { createLipayFake, lipayFakeContext, type LipayFakeServer } from "@jini-ai/commerce/payments/testkit";
+import type { PluginStore } from "../../plugin-store.js";
+import { activateLipay } from "../lipay-plugin.js";
 
-export const WORKSPACE_ID = "workspace-1";
-export const API_BASE = "https://lipay.test";
-export const WEBHOOK_SECRET = "whsec_test_do_not_use_in_prod";
-export const SECRET_KEY = "sk_test_do_not_use_in_prod";
+export const SCOPE: PaymentScope = { workspaceId: "workspace-1", siteId: "site-1", providerId: "lipay", providerAccountId: "acct_fake", mode: "test" };
 
-type ScriptedResponse = HttpResponse | (() => HttpResponse);
-
-export class FakeHttpClient implements HttpClientPort {
-  readonly calls: HttpRequest[] = [];
-  private readonly responses: readonly ScriptedResponse[];
-  private cursor = 0;
-
-  constructor(responses: readonly ScriptedResponse[] = [{ status: 200, headers: {}, bodyText: "{}" }]) {
-    this.responses = responses;
-  }
-
-  async send(request: HttpRequest): Promise<HttpResponse> {
-    this.calls.push(request);
-    const entry = this.responses[this.cursor];
-    this.cursor += 1;
-    if (entry === undefined) throw new Error(`unexpected provider request: ${request.method} ${request.url} (script exhausted)`);
-    if (typeof entry === "function") return entry();
-    return entry;
-  }
-}
-
-/** Advanceable so ordering, timestamps and signature skew are asserted, not guessed. */
+/** Advanceable so ordering and timestamps are asserted, not guessed. */
 export class TestClock {
   constructor(private current: number) {}
   now(): number {
@@ -49,19 +33,6 @@ export class TestClock {
   advance(ms: number): void {
     this.current += ms;
   }
-  set(ms: number): void {
-    this.current = ms;
-  }
-}
-
-export function testIdGen(prefix = "id"): { newId(): string } {
-  let n = 0;
-  return {
-    newId(): string {
-      n += 1;
-      return `${prefix}-${n}`;
-    },
-  };
 }
 
 export function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
@@ -79,58 +50,45 @@ export function cleanup(db: Database.Database, dir: string): void {
 }
 
 export interface Harness {
-  api: LipayApi;
-  db: Database.Database;
-  dir: string;
-  http: FakeHttpClient;
+  api: PaymentsPort;
+  server: LipayFakeServer;
+  grants: MoneyGrantPort;
   clock: TestClock;
-  credentials: InMemoryPaymentCredentials;
 }
 
-/** A fully wired lipay against a real SQLite file, with the real first-party gateway registered. */
-export async function makeLipay(
-  options: {
-    responses?: readonly ScriptedResponse[];
-    providers?: readonly PaymentProvider[];
-    credentials?: InMemoryPaymentCredentials;
-    startAt?: number;
-  } = {}
-): Promise<Harness> {
-  const { db, dbPath, dir } = tempDb();
-  const http = new FakeHttpClient(options.responses ?? [{ status: 200, headers: {}, bodyText: "{}" }]);
-  const clock = new TestClock(options.startAt ?? Date.UTC(2026, 6, 30, 12, 0, 0));
-  const credentials =
-    options.credentials ??
-    new InMemoryPaymentCredentials({ lipay: { secretKey: SECRET_KEY, webhookSecret: WEBHOOK_SECRET } });
-
+/** A fully wired lipay adapter on `db`, with the kernel's LiPay fake registered. */
+export async function lipayOn(db: PluginStore, dbPath: string, optional: { startAt?: number } = {}): Promise<Harness> {
+  const clock = new TestClock(optional.startAt ?? Date.UTC(2026, 6, 30, 12, 0, 0));
+  const now = () => clock.now();
+  let seq = 0;
+  const { server, provider } = createLipayFake({ now });
+  const contexts: ProviderContextPort = { resolve: async () => ({ ok: true, ctx: lipayFakeContext({ now }) }) };
+  const grants = createMemoryGrantStore({ now, newToken: () => `grant-${++seq}` });
   const api = await activateLipay({
     db,
     dbPath,
-    workspaceId: WORKSPACE_ID,
-    httpClient: http,
-    credentials,
-    providers: options.providers ?? [createLipayGateway({ apiBaseUrl: API_BASE })],
-    clock,
-    idGen: testIdGen("pay"),
-    webhookBaseUrl: "https://site.test",
-    returnUrl: "https://site.test/checkout/return",
+    providers: createKernelProviderRegistry({ items: [{ pluginId: "lipay", module: provider }] }),
+    contexts,
+    grants,
+    now,
+    newId: () => `pay-${++seq}`,
   });
-
-  return { api, db, dir, http, clock, credentials };
+  return { api, server, grants, clock };
 }
 
-export const chargeOk = (id: string, status: "succeeded" | "pending" = "pending"): HttpResponse => ({
-  status: 200,
-  headers: {},
-  bodyText: JSON.stringify({
-    id,
-    status,
-    next_action: status === "pending" ? { type: "redirect", url: `${API_BASE}/checkout/${id}` } : { type: "none" },
-  }),
-});
+/** {@link lipayOn} against a real SQLite file. */
+export async function makeLipay(): Promise<Harness & { db: Database.Database; dir: string }> {
+  const { db, dbPath, dir } = tempDb();
+  return { ...(await lipayOn(db, dbPath)), db, dir };
+}
 
-export const refundOk = (id: string): HttpResponse => ({
-  status: 200,
-  headers: {},
-  bodyText: JSON.stringify({ id, status: "succeeded" }),
-});
+/** A single-use refund grant for exactly this payment, amount and key (what the approval flow mints). */
+export function refundGrant(
+  required: { grants: MoneyGrantPort; clock: TestClock; paymentId: string; minorUnits: number; idempotencyKey: string }
+): Promise<string> {
+  const { grants, clock, paymentId, minorUnits, idempotencyKey } = required;
+  return grants.mint({
+    binding: { op: "refund", workspaceId: SCOPE.workspaceId, mode: SCOPE.mode, paymentId, amount: { minorUnits, currency: "USD" }, idempotencyKey },
+    expiresAt: clock.now() + 60_000,
+  });
+}

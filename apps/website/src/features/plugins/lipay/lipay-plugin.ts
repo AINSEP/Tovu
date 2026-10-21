@@ -29,34 +29,49 @@
  * `p_lipay__payments`/`p_lipay__refunds` ARE the durable record: every inbound provider
  * notification is persisted verbatim with its verification outcome, and every outbound attempt is a
  * row. Wiring a real telemetry seam is left for when one exists.
+ *
+ * 2026-10-21: Jini's legacy lipay runtime (`@jini-ai/commerce/payments`: `activateLipay`, the
+ * `p_lipay__*` read/write paths, `LipayApi`) was replaced by the generic payments kernel
+ * (`@jini-ai/commerce/payments/kernel`: `createPaymentsService` over the `commerce_payments*`
+ * ledger). This adapter now assembles that kernel on the plugin store instead. The legacy
+ * `p_lipay__*` tables are still DECLARED (never dropped: they hold money history), and the kernel's
+ * migration history copies their rows into the new ledger (step `0005`), so the declaration must run
+ * before the migrations. Gateways are now kernel `PaymentProvider`s registered through
+ * `providers`; credentials and per-account context come from `contexts`.
  */
-import { activateLipay as activateRuntime, type LipayApi } from "@jini-ai/commerce/payments";
+import {
+  createPaymentsService,
+  type PaymentsPort,
+  type PaymentsServiceOptional,
+  type PaymentsServiceRequired,
+} from "@jini-ai/commerce/payments/kernel";
+import { migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
 import { declareDataModule } from "../data-module.js";
 import { type PluginStore, pluginKernel } from "../plugin-store.js";
-import type { HttpClientPort } from "#src/platform/http/index";
-export type { LipayApi, PaymentRecord, RefundRecord, ChargeRequest, ChargeResult, RefundRequest, RefundResult, WebhookAck, PaymentProviderSummary } from "@jini-ai/commerce/payments";
-export { LIPAY_PLUGIN_ID, webhookUrlFor } from "@jini-ai/commerce/payments";
 
 import { LIPAY_MANIFEST } from "./manifest.js";
 export { LIPAY_MANIFEST } from "./manifest.js";
 
+/** The plugin id the legacy `p_lipay__*` tables are namespaced under. */
+export const LIPAY_PLUGIN_ID = "lipay";
+
+type MigrationKernel = Parameters<typeof migrateCommercePayments>[0]["kernel"];
+
 /** CMS adapter: preserve provenance and snapshot/journal guarantees before constructing Jini's runtime.
  * This adapter is deliberately absent from Tovu's boot, routes and tool catalog. */
 export async function activateLipay(
-  required: Omit<Parameters<typeof activateRuntime>[0], "kernel" | "prepareStorage" | "httpClient"> & {
-    db: PluginStore; dbPath: string; httpClient: HttpClientPort;
-  },
-  optional: Record<string, never> = {}
-): Promise<LipayApi> {
-  const kernel = pluginKernel(required.db);
-  return activateRuntime({
-    ...required, kernel: kernel as unknown as Parameters<typeof activateRuntime>[0]["kernel"],
-    httpClient: { send: ({ request }) => required.httpClient.send(request) },
-    prepareStorage: async () => {
-      const declaration = await declareDataModule({ db: kernel, dbPath: required.dbPath, decl: LIPAY_MANIFEST });
-      if (!declaration.ok) {
-        throw new Error(`lipay dataModule declaration failed: ${declaration.error?.code} — ${declaration.error?.message}`);
-      }
-    },
-  }, optional);
+  required: Omit<PaymentsServiceRequired, "ledger"> & { db: PluginStore; dbPath: string },
+  optional: PaymentsServiceOptional = {}
+): Promise<PaymentsPort> {
+  const { db, dbPath, ...service } = required;
+  const kernel = pluginKernel(db);
+  const declaration = await declareDataModule({ db: kernel, dbPath, decl: LIPAY_MANIFEST });
+  if (!declaration.ok) {
+    throw new Error(`lipay dataModule declaration failed: ${declaration.error?.code} — ${declaration.error?.message}`);
+  }
+  // The plugin store's kernel is the same storage-kernel shape `@jini-ai/db` defines (the legacy
+  // runtime took it through the same cast).
+  const storage = kernel as unknown as MigrationKernel;
+  await migrateCommercePayments({ kernel: storage });
+  return createPaymentsService({ ...service, ledger: sqlPaymentsLedger({ kernel: storage }) }, optional);
 }

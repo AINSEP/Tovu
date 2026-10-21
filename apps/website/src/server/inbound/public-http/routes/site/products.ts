@@ -1,5 +1,5 @@
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import type { StoreApi } from "@jini-ai/commerce/store";
+import type { StoreApi } from "#src/features/plugins/store/store-plugin";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";

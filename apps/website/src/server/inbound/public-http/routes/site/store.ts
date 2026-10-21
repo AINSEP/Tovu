@@ -11,7 +11,7 @@ import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import type { Express } from "express";
 
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
-import type { StoreApi } from "@jini-ai/commerce/store";
+import type { StoreApi } from "#src/features/plugins/store/store-plugin";
 import { escapeHtml } from "#src/platform/html/escape";
 
 const STORE_PATH = "/store";

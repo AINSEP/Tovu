@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { StoreApi } from "@jini-ai/commerce/store";
+import type { StoreApi } from "#src/features/plugins/store/store-plugin";
 import { registerStoreRoutes } from "../store.js";
 
 /**

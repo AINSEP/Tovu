@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { Product, StoreApi } from "@jini-ai/commerce/store";
+import type { Product, StoreApi } from "#src/features/plugins/store/store-plugin";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
