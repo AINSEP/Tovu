@@ -1,5 +1,6 @@
 import { InMemoryDeliveryEnvelopeStore } from "#src/features/webhooks/index";
 import type {
+  DeliveryEnvelopeStore,
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
   WebhookTopic,
@@ -35,11 +36,37 @@ export interface IntegrationsModuleDeps {
   clock: ClockPort & { nowIso(): string };
 }
 
+/** One envelope store per delivery repo, so every `createApp` over the same deps shares it. */
+const envelopeStoresByRepo = new WeakMap<WebhookDeliveryRepoPort, DeliveryEnvelopeStore>();
+
+/**
+ * The envelope store BOTH halves of a delivery must use: fan-out (`createIntegrationsModule`) saves
+ * the envelope, and the delivery worker (`webhook-delivery-worker.ts`) reads it back to sign and
+ * send. Two separate stores meant every delivery the worker claimed found no envelope.
+ *
+ * A durable delivery repo is its own store (`SqlWebhookDeliveryRepo` keeps the envelope on the
+ * delivery row, so it survives a restart). The in-memory repo keeps none, so it gets one in-memory
+ * store, cached per repo instance.
+ *
+ * @complexity O(1).
+ */
+export function webhookEnvelopeStoreFor(required: { deliveryRepo: WebhookDeliveryRepoPort }, _optional = {}): DeliveryEnvelopeStore {
+  const { deliveryRepo } = required;
+  const candidate = deliveryRepo as WebhookDeliveryRepoPort & Partial<DeliveryEnvelopeStore>;
+  if (typeof candidate.find === "function" && typeof candidate.save === "function") return candidate as DeliveryEnvelopeStore;
+  let store = envelopeStoresByRepo.get(deliveryRepo);
+  if (store === undefined) {
+    store = new InMemoryDeliveryEnvelopeStore();
+    envelopeStoresByRepo.set(deliveryRepo, store);
+  }
+  return store;
+}
+
 export function createIntegrationsModule(deps: IntegrationsModuleDeps): ServerModuleHandle {
   return {
     name: "integrations",
     start: () => {
-      const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
+      const formsWebhookEnvelopeStore = webhookEnvelopeStoreFor({ deliveryRepo: deps.webhookDeliveryRepo });
       void deps.bus.subscribe<JsonObject>({
         eventName: "form.submission.received",
         handler: async (event) => {

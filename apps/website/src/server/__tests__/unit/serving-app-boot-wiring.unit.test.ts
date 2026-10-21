@@ -161,3 +161,21 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
     assert.match(source, /workers: \[[^\]]*\bformPullTrigger\b[^\]]*\]/);
   });
 }
+
+/**
+ * Same "only there" rule for the webhook delivery loop (2026-10-21): it POSTs a site's data to
+ * third-party receivers. Started in the exporter, the agent daemon or `app.ts`'s eager app, it would
+ * send from a process nobody serves; never stopped, a tick would outlive the store close.
+ */
+test("the webhook delivery loop starts only in createServingApp", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bstartServingWebhookDeliveryWorker\(/), ["server/runtime/composition/serving-app.ts"]);
+  assert.deepEqual(filesCalling(/(?<!function )\bstartWebhookDeliveryWorker\(/), ["server/runtime/composition/webhook-delivery-worker.ts"]);
+});
+
+for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
+  test(`${bootPath} stops the webhook delivery loop at shutdown`, () => {
+    const source = readCodeLines(bootPath).join("\n");
+    assert.match(source, /const \{[^}]*\bwebhookDeliveryWorker\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/);
+    assert.match(source, /workers: \[[^\]]*\bwebhookDeliveryWorker\b[^\]]*\]/);
+  });
+}
