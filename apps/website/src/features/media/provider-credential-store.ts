@@ -236,9 +236,14 @@ function rethrowAsValidation<T>({ run }: { run: () => T }, _options = {}): T {
   catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
 }
 
-/** Built-in ids, or an exact (never alias-resolved) id the injected registry holds. @complexity O(m). */
+/** An exact (never alias-resolved) non-built-in id the injected registry holds. @complexity O(m). */
+function isPluginProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
+  return !KNOWN_PROVIDER_IDS.has(providerId) && catalog?.findProvider({ id: providerId })?.id === providerId;
+}
+
+/** Built-in ids, or a plugin vendor id the injected registry holds. @complexity O(m). */
 function isKnownProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
-  return KNOWN_PROVIDER_IDS.has(providerId) || catalog?.findProvider({ id: providerId })?.id === providerId;
+  return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId(providerId, catalog);
 }
 
 function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog | undefined } = {}): void {
@@ -373,9 +378,11 @@ export async function saveMediaProviderCredentials(
     );
     return {
       upserts,
+      // A plugin vendor's row is never tombstoned by omission: the admin tab renders only built-in
+      // vendors, so its whole-map save would otherwise silently delete a key saved for a plugin vendor.
       tombstoneProviderIds: existingRows
         .map((row) => row.providerId)
-        .filter((providerId) => !submittedIds.has(providerId)),
+        .filter((providerId) => !submittedIds.has(providerId) && !isPluginProviderId(providerId, deps.providerCatalog)),
     };
   };
 

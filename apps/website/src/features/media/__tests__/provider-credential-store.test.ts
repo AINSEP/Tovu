@@ -763,6 +763,14 @@ test("a registry-held plugin vendor id is accepted; an alias it would resolve is
     validation('unknown media provider "acme" — expected an engine-canonical id from @jini-ai/integrations/media-providers'));
 });
 
+test("a whole-map save that omits a plugin vendor keeps its key; omitted built-ins are still tombstoned", async () => {
+  const providerCatalog = { findProvider: ({ id }: { id: string }) => (id === "acme-media" ? { id: "acme-media" } : null) };
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: { "acme-media": { apiKey: "acme-key-123456" }, openai: { apiKey: "sk-openai-123456" } } });
+  await saveMediaProviderCredentials({ ...deps, providerCatalog }, { workspaceId: WORKSPACE, providers: {} });
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId), ["acme-media"]);
+});
+
 test("a primitive provider entry is refused as not-an-object", async () => {
   await saveRejects({ openai: "str" }, 'provider "openai" must be an object');
 });
