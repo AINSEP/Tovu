@@ -282,6 +282,34 @@ describe("media_promote_chat_attachment (end to end)", () => {
     });
   });
 
+  test("the tool allows by policy, refuses a missing/blank attachmentRef, and refuses before the store is ready", async () => {
+    let reads = 0;
+    const tool = buildPromoteChatAttachmentTool({
+      getStore: () => undefined,
+      mediaUploadHandler: async () => assert.fail("no upload without bytes"),
+      readFile: async () => { reads++; return AVIF_BYTES; },
+    });
+    assert.equal(tool.policy?.authorize?.({} as never), "allow");
+    for (const input of [{}, { attachmentRef: "" }, { attachmentRef: 7 }]) {
+      await assert.rejects(tool.handler(executionContext(input)), (error: unknown) => error instanceof ToolInputError && error.message === "'attachmentRef' is required and must be a non-empty string");
+    }
+    await assert.rejects(tool.handler({ ...executionContext({}), input: null }), ToolInputError);
+    await assert.rejects(tool.handler(executionContext({ attachmentRef: "attachment:x" })), { message: "attachment store is not ready" });
+    assert.equal(reads, 0);
+  });
+
+  test("an attachment the store names with an empty string is uploaded under a non-empty placeholder filename", async () => {
+    const uploads: Array<Record<string, unknown>> = [];
+    const tool = buildPromoteChatAttachmentTool({
+      getStore: () => ({ resolveForRun: async () => ({ path: "/virtual/blank", name: "" }) as never }),
+      mediaUploadHandler: async ctx => { uploads.push(ctx.input as Record<string, unknown>); return { media: { id: "m-1" } }; },
+      readFile: async () => AVIF_BYTES,
+    });
+    await tool.handler(executionContext({ attachmentRef: "attachment:blank" }));
+    assert.equal(uploads.length, 1);
+    assert.equal(uploads[0]!.filename, "attachment");
+  });
+
   test("the tool descriptor never asks the model for contentType or dataBase64", () => {
     const { deps } = fakeRouteDeps();
     const tool = buildPromoteChatAttachmentTool({
