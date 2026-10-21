@@ -9,6 +9,7 @@ import { registerHooks } from 'node:module';
 import test, { after } from 'node:test';
 import { act, installDom } from './react-dom-harness';
 import { clearHighlight } from '../highlight';
+import { enqueuePageAction, hasQueuedPageAction } from '../session-store';
 
 const cssHooks = registerHooks({
   load(url, context, nextLoad) {
@@ -49,14 +50,13 @@ test('main mounts the React widget, runs a queued highlight, and creates its own
   const heading = dom.window.document.querySelector('.entry-title')!;
   let scrolls = 0;
   heading.scrollIntoView = () => { scrolls += 1; };
-  dom.window.sessionStorage.setItem('tovu.site-assistant.action-queue.v1',
-    JSON.stringify({ type: 'highlight', target: { slug: 'example-post', title: 'Example Post', path: '/example-post' } }));
+  enqueuePageAction({ type: 'highlight', target: { slug: 'example-post', title: 'Example Post', path: '/example-post' } });
   const main = await import('../main');
   await settle(100);
   assert.ok(dom.window.document.getElementById('tovu-site-assistant-root')!.children.length > 0, 'the widget mounted');
   assert.equal(scrolls, 1);
   assert.equal(heading.classList.contains('tovu-site-assistant__highlight'), true);
-  assert.equal(dom.window.sessionStorage.getItem('tovu.site-assistant.action-queue.v1'), null, 'the queue was drained on mount');
+  assert.equal(hasQueuedPageAction(), false, 'the queue was drained on mount');
 
   // scroll_to scrolls without highlighting; navigate, junk and a missing target do nothing.
   heading.classList.remove('tovu-site-assistant__highlight');
