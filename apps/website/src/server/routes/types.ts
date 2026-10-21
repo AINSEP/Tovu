@@ -33,7 +33,7 @@ import type {
   UserRepoPort,
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
+import type { GoLiveCandidatesPort, PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
 import type { ChatRunLedger } from "#src/assistant/index";
@@ -722,6 +722,13 @@ export interface FormsDeps {
  */
 export interface PostDeps {
   postRepo: PostRepoPort;
+  /**
+   * Scheduled go-live candidates (2026-10-21) for the serving process's go-live sweep
+   * (`features/post/go-live.ts`, started in `serving-app.ts`). A sibling of `postRepo` so the many
+   * `PostRepoPort` fakes need not grow a method; composition binds the same repo instance. Absent ⇒
+   * no sweep runs, and scheduled posts are never announced with `entry.published`.
+   */
+  postGoLiveCandidates?: GoLiveCandidatesPort;
   /**
    * Ranked full-text search over posts/pages, backing the `content_post_search` agent tool.
    *

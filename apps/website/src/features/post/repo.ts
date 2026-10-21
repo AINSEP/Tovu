@@ -11,6 +11,7 @@ import type {
   PostRevisionInput,
   PostRevisionRecord,
 } from "./post.js";
+import type { GoLiveCandidatesPort } from "./go-live.js";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument, type PostSearchDocument } from "./search.js";
 import { currentIso } from "../../contracts/core/scheduled-publish.js";
@@ -39,7 +40,7 @@ export interface PostSearchProjection {
   remove(kernel: ContentKernel, postId: string): Promise<void>;
 }
 
-export class SqlPostRepo implements PostRepoPort {
+export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   constructor(
     protected readonly kernel: ContentKernel,
     private readonly search: PostSearchProjection
@@ -99,6 +100,28 @@ export class SqlPostRepo implements PostRepoPort {
         .orderBy("id", "asc")
         .limit(required.limit)
         .offset(required.offset ?? 0)
+        .execute()
+    );
+    return rows.map(toRecord);
+  }
+
+  /** See `GoLiveCandidatesPort.listGoLiveCandidates`. Every predicate is in the query: ISO UTC
+   *  strings compare in time order (`scheduled-publish.ts`), so `publish_at > updated_at` is "saved
+   *  while still scheduled". Ordered by go-live time, `id` breaking ties. */
+  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }): Promise<PostRecord[]> {
+    const { workspaceId, nowIso, afterIso } = required;
+    const rows = await this.kernel.run((db) =>
+      db
+        .selectFrom("posts")
+        .selectAll()
+        .where("workspace_id", "=", workspaceId)
+        .where("status", "=", "published")
+        .where("deleted_at", "is", null)
+        .where("publish_at", "<=", nowIso)
+        .where((eb) => eb("publish_at", ">", eb.ref("updated_at")))
+        .$if(afterIso !== undefined, (qb) => qb.where("publish_at", ">", afterIso as string))
+        .orderBy("publish_at", "asc")
+        .orderBy("id", "asc")
         .execute()
     );
     return rows.map(toRecord);

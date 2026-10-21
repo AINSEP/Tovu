@@ -9,6 +9,7 @@ import {
   type PostRevisionRecord,
 } from "./post.js";
 import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+import { wentLiveSinceSave, type GoLiveCandidatesPort } from "./go-live.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
@@ -17,7 +18,7 @@ import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts
  * `bodyJson`, so `ext` (present or absent) round-trips unchanged.
  */
 
-export class InMemoryPostRepo implements PostRepoPort {
+export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   private rows: PostRecord[];
   /** Standing-draft autosave snapshots, keyed apart from `rows` — mirrors `repo.sqlite.ts`'s own
    *  `autosave_json` column being a sibling of the row rather than a `PostRecord` field (see
@@ -70,6 +71,14 @@ export class InMemoryPostRepo implements PostRepoPort {
       )
       .sort(comparePostsByDisplayDate)
       .slice(offset, offset + required.limit);
+  }
+
+  /** See `GoLiveCandidatesPort.listGoLiveCandidates` — the in-JS twin of `repo.ts`'s query. */
+  async listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }): Promise<PostRecord[]> {
+    const { workspaceId, nowIso, afterIso } = required;
+    return this.rows
+      .filter((row) => row.workspaceId === workspaceId && wentLiveSinceSave(row, nowIso) && (afterIso === undefined || (row.publishAt as string) > afterIso))
+      .sort((a, b) => ((a.publishAt as string) < (b.publishAt as string) ? -1 : 1));
   }
 
   async save(record: PostRecord): Promise<void> {

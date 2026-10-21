@@ -81,8 +81,13 @@ export class SqlOutboxAdapter implements OutboxPort {
     this.claimLeaseMs = optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS;
   }
 
+  /** A repeated `event.id` is a no-op, never a primary-key error: ids are deterministic per event
+   *  (`${aggregate}-${name}-${version}`), so the same id is the same event, and the post go-live
+   *  sweep (`features/post/go-live.ts`) relies on this to announce each go-live exactly once. */
   async enqueue(event: DomainEvent): Promise<void> {
-    await this.kernel.run((db) => db.insertInto("outbox_events").values(outboxEventValues(event)).execute());
+    await this.kernel.run((db) =>
+      db.insertInto("outbox_events").values(outboxEventValues(event)).onConflict((oc) => oc.column("id").doNothing()).execute()
+    );
   }
 
   /** Selects due rows (pending, or processing under an expired claim lease) and marks them
