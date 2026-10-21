@@ -40,7 +40,7 @@ function isImportProtocolAllowed({ server }: { server: URL }, _options: Record<s
   return server.protocol === "https:" || Boolean(server.protocol === "http:" && isIP(hostname) && isLoopbackHost(hostname));
 }
 
-function parseImportRequest({ text }: { text: string | undefined }, _options: Record<string, never> = {}): Record<string, unknown> {
+function parseImportRequest({ text }: { text: string | null }, _options: Record<string, never> = {}): Record<string, unknown> {
   let raw: Record<string, unknown>;
   try {
     // `readPromptFromFlags` with `prompt-file: "-"` always yields the stdin text; a missing value
