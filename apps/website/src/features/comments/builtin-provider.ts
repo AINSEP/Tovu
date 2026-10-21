@@ -99,7 +99,7 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
     return { html: `<section id="comments" aria-label="Comments"><h2>Comments</h2><ol>${threadOrder({ rows }).map(row => commentHtml({ row, maxDepth })).join('')}</ol>${first}${more}${submissionForm({ entryId: entry.id, path })}</section>` };
   } };
   return { kind: 'stored', renderer,
-    submission: { async submit(input) {
+    submission: { async submit(input, _optional = {}) {
       assertSite(input);
       await deps.ready;
       const { siteId, authorIpHash, honeypotValue, ...fields } = input;
@@ -107,15 +107,15 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
       return result.ok ? { ok: true, id: result.comment.id, status: result.comment.status } : result;
     } },
     moderation: {
-      async listQueue({ siteId, ...input }) { assertSite({ siteId }); await deps.ready; return deps.repo.listModerationQueue({ ...input, workspaceId: siteId }); },
-      async get({ siteId, id }) { assertSite({ siteId }); await deps.ready; return deps.repo.findById({ workspaceId: siteId, id }); },
-      async apply({ siteId, action, ...input }) {
+      async listQueue({ siteId, ...input }, _optional = {}) { assertSite({ siteId }); await deps.ready; return deps.repo.listModerationQueue({ ...input, workspaceId: siteId }); },
+      async get({ siteId, id }, _optional = {}) { assertSite({ siteId }); await deps.ready; return deps.repo.findById({ workspaceId: siteId, id }); },
+      async apply({ siteId, action, ...input }, _optional = {}) {
         await assertEnabled({ siteId });
         const statuses = { approve: 'approved', mark_spam: 'spam', trash: 'trash', restore: 'approved' } as const;
         return deps.writes.applyModeration({ ...input, action, workspaceId: siteId, toStatus: statuses[action] });
       },
       /** Not gated on `enabled`: erasing is allowed in exactly the state an owner cleans up in. */
-      async purge({ siteId, ...input }) { assertSite({ siteId }); await deps.ready; return deps.writes.purge({ ...input, workspaceId: siteId }); },
+      async purge({ siteId, ...input }, _optional = {}) { assertSite({ siteId }); await deps.ready; return deps.writes.purge({ ...input, workspaceId: siteId }); },
     },
   };
 }

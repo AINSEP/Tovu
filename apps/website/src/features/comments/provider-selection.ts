@@ -39,8 +39,8 @@ async function readSelection({ repo, siteId }: { repo: SettingsRepoPort; siteId:
 export function createCommentsSelectionStore(deps: SetCommentsSettingsDeps, _options = {}): CommentsSelectionStorePort {
   const clock = deps.clock;
   return {
-    read: ({ siteId }) => readSelection({ repo: deps.settingsRepo, siteId }),
-    async compareAndSet(input) {
+    read: ({ siteId }, _optional = {}) => readSelection({ repo: deps.settingsRepo, siteId }),
+    async compareAndSet(input, _optional = {}) {
       const repo = new Proxy(deps.settingsRepo, { get(target, key) {
         if (key === 'saveWorkspaceValue') return async (record: Parameters<SettingsRepoPort['saveWorkspaceValue']>[0]) => {
           const current = await readSelection({ repo: target, siteId: input.siteId });
@@ -71,7 +71,7 @@ export function createCommentsCapability(required: {
   // plugin turned off or removed later) must not hide this site's stored comments or strand its queue,
   // so it reads as built-in. Nothing is rewritten: the CAS revision is the stored row's, and selecting
   // again records an explicit choice. An explicit disable (null) stays disabled.
-  const selections: CommentsSelectionStorePort = { ...store, async read(input) {
+  const selections: CommentsSelectionStorePort = { ...store, async read(input, _optional = {}) {
     const current = await store.read(input);
     return current.providerId !== null && !providers.has({ providerId: current.providerId })
       ? { ...current, providerId: BUILTIN_COMMENTS_PROVIDER_ID } : current;
@@ -80,7 +80,7 @@ export function createCommentsCapability(required: {
   const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
   const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
     writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });
-  providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }) => {
+  providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }, _optional = {}) => {
     if (siteId !== required.siteId) return undefined;
     await ready;
     return builtin;
