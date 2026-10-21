@@ -31,9 +31,10 @@ function existingOf(row: StoredRow): ReserveResult {
 }
 
 /**
- * Reserve → send → mark ledger. `reserve` inserts-if-absent, then flips a `failed` row back to
- * `reserved` in one conditional UPDATE (a definitive failure sent nothing, so a retry under the same
- * identity is safe), else returns the stored row. Both run under the identity's `lockKey`, so a
+ * Reserve → send → mark ledger. `reserve` inserts-if-absent, then flips a `failed` row (or, with
+ * `reclaimUnknown`, a same-content `unknown` row) back to `reserved` in one conditional UPDATE (a
+ * definitive failure sent nothing, so a retry under the same identity is safe), else returns the
+ * stored row. Both run under the identity's `lockKey`, so a
  * concurrent `mark` cannot turn the row `failed` between the flip and the read.
  * @complexity O(1) primary-key statements per call.
  * @example createMailSendLedgerRepo({ db: kernel }).reserve({ workspaceId, idempotencyKey, recipient, payloadHash, lane: "transactional", providerId: "smtp" })
@@ -43,7 +44,7 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
   const where = ({ workspaceId, idempotencyKey, recipient }: Key) =>
     sql`workspace_id = ${workspaceId} AND idempotency_key = ${idempotencyKey} AND recipient = ${recipient}`;
 
-  const reserve = async (required: Key & { payloadHash: string; lane: MailDeliveryLane; providerId: string }): Promise<ReserveResult> => {
+  const reserve = async (required: Key & { payloadHash: string; lane: MailDeliveryLane; providerId: string }, reclaimUnknown: boolean): Promise<ReserveResult> => {
     const { workspaceId, idempotencyKey, recipient, payloadHash, lane, providerId } = required;
     await db.lockKey(lockName(required));
     const at = nowIso();
@@ -52,9 +53,12 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
       ON CONFLICT (workspace_id, idempotency_key, recipient) DO NOTHING RETURNING outcome`);
     if (inserted.length > 0) return { status: "reserved" };
     // A corrected retry after a definitive failure may carry new content, so the hash moves with it.
+    // A resendable `unknown` row is claimed only for the same content: the flip to `reserved` is the
+    // claim, so of two concurrent retries exactly one re-sends and the other sees `reserved`.
+    const unknown = reclaimUnknown ? sql`OR (outcome = 'unknown' AND payload_hash = ${payloadHash})` : sql``;
     const flipped = await db.query(sql`UPDATE mail_send_ledger SET outcome = 'reserved', payload_hash = ${payloadHash}, lane = ${lane},
       provider_id = ${providerId}, provider_message_id = NULL, error_code = NULL, updated_at = ${at}
-      WHERE ${where(required)} AND outcome = 'failed' RETURNING outcome`);
+      WHERE ${where(required)} AND (outcome = 'failed' ${unknown}) RETURNING outcome`);
     if (flipped.length > 0) return { status: "reserved" };
     const [row] = await db.query<StoredRow>(sql`SELECT outcome, payload_hash, provider_message_id FROM mail_send_ledger WHERE ${where(required)}`);
     // The INSERT conflicted under the identity lock, so the row exists and is not `failed`.
@@ -62,7 +66,7 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
   };
 
   return {
-    reserve: (required) => db.transaction(async () => reserve(required)),
+    reserve: (required, optional = {}) => db.transaction(async () => reserve(required, optional.reclaimUnknown === true)),
     mark: (required) => db.transaction(async () => {
       await db.lockKey(lockName(required));
       await db.execute(sql`UPDATE mail_send_ledger SET outcome = ${required.outcome}, provider_message_id = ${required.providerMessageId ?? null},

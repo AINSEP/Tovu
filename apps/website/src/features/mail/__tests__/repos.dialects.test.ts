@@ -73,6 +73,16 @@ describeEachDialect("mail repos", {
       [{ outcome: "reserved", payload_hash: "h2", lane: "bulk", provider_id: "resend", error_code: null, provider_message_id: null }]);
   });
 
+  test("reclaimUnknown claims a same-content unknown row once; other content or no flag leaves it", async () => {
+    const { ledger } = await ready();
+    await ledger.reserve(RESERVE);
+    await ledger.mark({ ...KEY, outcome: "unknown", errorCode: "MAIL_OUTCOME_UNKNOWN" });
+    assert.deepEqual(await ledger.reserve(RESERVE), { status: "existing", outcome: "unknown", payloadHash: "h1" }, "no flag: never reclaimed");
+    assert.deepEqual(await ledger.reserve({ ...RESERVE, payloadHash: "h2" }, { reclaimUnknown: true }), { status: "existing", outcome: "unknown", payloadHash: "h1" });
+    const claims = await Promise.all([ledger.reserve(RESERVE, { reclaimUnknown: true }), ledger.reserve(RESERVE, { reclaimUnknown: true })]);
+    assert.deepEqual(claims.map((claim) => claim.status).sort(), ["existing", "reserved"], "two concurrent retries: exactly one claims");
+  });
+
   test("ledger identity is per workspace and per recipient", async () => {
     const { ledger } = await ready();
     await ledger.reserve(RESERVE);
@@ -98,12 +108,14 @@ describeEachDialect("mail repos", {
     assert.equal(await check("transactional"), true);
   });
 
-  test("inbox: first record inserts, a replay is a duplicate", async () => {
+  test("inbox: first record inserts, a replay before completion re-applies, a replay after it is a duplicate", async () => {
     const { inbox, db } = await ready();
     const event: MailerFeedbackEvent & { eventId: string; recipient: string } = {
       workspaceId: "wa", providerMessageId: "m1", sourceContext: { module: "unknown" }, kind: "bounced", eventId: "e1", recipient: "a@x.test", hardBounce: true, occurredAt: T0,
     };
     assert.equal(await inbox.record({ providerId: "resend", event }), "inserted");
+    assert.equal(await inbox.record({ providerId: "resend", event }), "inserted", "an incomplete event (suppression failed or crashed) is re-applied");
+    await inbox.complete({ providerId: "resend", eventId: "e1" });
     assert.equal(await inbox.record({ providerId: "resend", event: { ...event, hardBounce: false } }), "duplicate");
     assert.equal(await inbox.record({ providerId: "other", event: { ...event, hardBounce: false, kind: "delivered" } }), "inserted");
     assert.deepEqual(await db.query(sql`SELECT provider_id, hard_bounce, kind FROM mail_feedback_inbox ORDER BY provider_id`),

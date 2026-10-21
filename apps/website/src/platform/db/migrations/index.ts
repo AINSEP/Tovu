@@ -2,6 +2,7 @@ import { siteConsentRevisions } from './0021_site_consent_revisions.js';
 import { workspaceMcpCascade } from "./0022_workspace_mcp_cascade.js";
 import { mailLedgers } from "./0023_mail_ledgers.js";
 import { domainBindings } from "./0024_domain_bindings.js";
+import { mailFeedbackProcessed } from "./0025_mail_feedback_processed.js";
 import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
 import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
@@ -76,6 +77,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   workspaceMcpCascade({ checksum: pinned("0022_workspace_mcp_cascade") }),
   mailLedgers({ checksum: pinned("0023_mail_ledgers") }),
   domainBindings({ checksum: pinned("0024_domain_bindings") }),
+  mailFeedbackProcessed({ checksum: pinned("0025_mail_feedback_processed") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

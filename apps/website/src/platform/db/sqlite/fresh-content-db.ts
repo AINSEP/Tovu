@@ -2,6 +2,7 @@ import { SITE_CONSENT_REVISION_STATEMENTS } from '../migrations/0021_site_consen
 import { WORKSPACE_MCP_CASCADE_SQLITE } from "../migrations/0022_workspace_mcp_cascade.js";
 import { MAIL_LEDGERS_STATEMENTS } from "../migrations/0023_mail_ledgers.js";
 import { DOMAIN_BINDINGS_STATEMENTS } from "../migrations/0024_domain_bindings.js";
+import { MAIL_FEEDBACK_PROCESSED_STATEMENTS } from "../migrations/0025_mail_feedback_processed.js";
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
@@ -162,6 +163,9 @@ export function bootstrapFreshContentDb(
     },
     "0024_domain_bindings": () => {
       for (const statement of DOMAIN_BINDINGS_STATEMENTS) client.exec(statement);
+    },
+    "0025_mail_feedback_processed": () => {
+      for (const statement of MAIL_FEEDBACK_PROCESSED_STATEMENTS) client.exec(statement);
     },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
