@@ -9,19 +9,22 @@ import { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "#src/fea
  * the site's page routes render through it instead of the stored active theme. Lets the agent SEE a
  * theme copy before the owner approves activating it.
  *
- * Unreachable by visitors by construction: the value comes from the app's construction options, not
- * from the request. The serving app never installs {@link applyRenderThemeOverride}, and nothing reads
- * a header, query parameter or cookie for it, so {@link resolveRenderThemeId} there is exactly
- * `resolveActiveThemeId`.
+ * The enabled platform preview switcher also uses this request-local seam after checking its
+ * workspace roster. Neither source changes the stored active theme.
  */
 
-/** `res.locals` key. Only {@link applyRenderThemeOverride} writes it. */
+/** Request-local, never a write to the presentation repository. */
 const LOCAL_KEY = "tovuRenderThemeIdOverride";
+
+/** Bind a validated preview choice to the existing renderer. */
+export function setRequestRenderTheme({ response, themeId }: { response: Pick<Response, "locals">; themeId: string }, _options = {}): void {
+  response.locals[LOCAL_KEY] = themeId;
+}
 
 /** Installs the override for every request `app` serves. Call before the site routes are registered. */
 export function applyRenderThemeOverride(app: Express, { themeId }: { themeId: string }): void {
   app.use((_req, res, next) => {
-    res.locals[LOCAL_KEY] = themeId;
+    setRequestRenderTheme({ response: res, themeId });
     next();
   });
 }

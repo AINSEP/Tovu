@@ -3,6 +3,14 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** theme registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "theme_get_preview_switcher": {
+    search: { keywords: "theme preview switcher banner demo installed choices read settings" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "theme_update_preview_switcher": {
+    search: { keywords: "theme preview switcher banner demo enable disable themes labels top static live settings" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "theme_list_page_publications": {
     search: { keywords: "theme standalone page visibility publication published unpublished about pricing list" },
     approval: { class: 'read', confirmation: 'direct' },

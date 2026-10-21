@@ -5,11 +5,18 @@ import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource }
 import { extractListingMoreHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
 import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
-import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
+import { type RouteManifestDeps } from "./route-manifest.js";
 import { withSecurityMeta } from "./static-security-headers.js";
+import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
+import { themePreviewExportSize, type ThemePreviewExportSize } from "./theme-preview-report.js";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
-export type { ExportReport, ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
-import type { ExportReport } from "@jini-ai/devops/static-export";
+export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
+import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
+export interface ExportReport extends BaseExportReport {
+  /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
+  themePreview?: ThemePreviewExportSize;
+}
 export { firstExportFailure, type ExportFailureSummary } from "./export-failure-summary.js";
 
 // App boot is injected via createSiteApp(): importing server/app.ts, even lazily, would close
@@ -469,6 +476,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
     // comment) — no rewrite is applied here, by design, not by omission.
 
 export interface ExportSiteRouteDeps extends RouteManifestDeps {
+  readonly settingsRepo?: SettingsRepoPort;
+  readonly siteTitleReady?: Promise<void>;
   readonly createSiteApp: () => RequestListener;
   /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
@@ -502,11 +511,12 @@ export function redirectOutcomeFor(status: number, locationHeader: string | null
 }
 
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
-export async function exportSite({ routeDeps, outputDir, clean, basePath }: ExportSiteOptions): Promise<ExportReport> {
+export async function exportSite({ routeDeps, outputDir, clean, basePath }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
-  return runExport({
+  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps });
+  const report = await runExport({
     outputDir: path.resolve(outputDir),
-    manifest: { build: () => buildRouteManifest(routeDeps) },
+    manifest: { build: async () => manifest },
     app: createNodeAppFactory({ createApp: () => routeDeps.createSiteApp() }, {}),
     writer: createNodeArtifactWriter({}, {}),
     fetch: ({ url }, options) => tracedFetch(url, options?.init),
@@ -528,5 +538,9 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
     discoverRoutes: ({ path, html }) => [...extractListingMoreHrefs({ html }), ...[listingJsonNextPath({ path, body: html })].filter((next) => next !== undefined)]
       .filter((href) => href.startsWith("/") && !href.startsWith("//"))
       .map((href) => ({ path: href, kind: "listing-batch", label: href })),
-  }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) }).then(report => ({ ...report, outputDir }));
+  }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
+  if (themeCount === 1) return { ...report, outputDir };
+  const themePreview = themePreviewExportSize({ report, themeCount });
+  console.info(`[export] Theme previews: ${themeCount} themes, ${themePreview.additionalPages} additional pages, ${themePreview.sizeMultiplier.toFixed(2)}x export bytes (${themePreview.htmlSizeMultiplier.toFixed(2)}x HTML); shared assets are deduplicated.`);
+  return { ...report, outputDir, themePreview };
 }

@@ -68,6 +68,7 @@ import { contributeRecoveryTools } from "#src/features/recovery/tool-registratio
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
+import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
 import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
 import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
@@ -503,6 +504,7 @@ export function installFirstPartyToolContributors(
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
   // key would replace that domain's four file-operation tools instead of adding a fifth.
   contributions.contributors.register({ contribution: contributeSetActiveThemeTools() });
+  contributions.contributors.register({ contribution: contributePreviewSwitcherTools() });
   // `theme_duplicate` (2026-10-08) — own domain key (`"theme-duplicate"`) for the same reason.
   contributions.contributors.register({ contribution: contributeDuplicateThemeTools() });
   // `theme_import_file_from_url` (2026-10-08) — own domain key (`"theme-import-file"`) for the same reason.

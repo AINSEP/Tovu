@@ -1,3 +1,5 @@
+import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
+import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
@@ -539,6 +541,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1246,6 +1249,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsRepo,
     getEffective,
     set: (required) => set(required, {
+      preparePreviewSwitcherWrite: async write => preparePreviewSwitcherWrite({ write, themes: siteThemes, workspaceId: seededWorkspace.id, activeThemeId: await resolveActiveThemeId({ presentationRepo, workspaceId: seededWorkspace.id }) }),
       canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
         repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,
       })).ready,
@@ -1860,6 +1864,7 @@ function applyPublicMiddleware(
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
+  if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
   // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
   // before every public renderer. The region header is trusted only when the operator names it,

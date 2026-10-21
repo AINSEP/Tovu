@@ -46,17 +46,30 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
 export async function set(required: SetValueRequired, optional: {
   /** Host policy: a public visitor surface requires its own saved, decryptable key and model. */
   canEnablePublicAssistant?: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<boolean>;
+  /** Injected by the theme owner; generic settings has no dependency on theme discovery. */
+  preparePreviewSwitcherWrite?: (required: SetValueRequired) => Promise<SetValueRequired>;
 } = {}): Promise<{ value: JsonValue; revisionSeq: number }> {
-  const definition = required.input.value === true ? await resolveDefinitionRaw({ repo: required.deps.repo }, {
+  const definition = await resolveDefinitionRaw({ repo: required.deps.repo }, {
     namespace: required.input.namespace, key: required.input.key,
     workspaceId: required.input.scope === "global" ? null : required.input.workspaceId ?? null,
-  }) : null;
-  if (definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
+  });
+  if (required.input.value === true && definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
     await requirePublicAssistantReadiness({ workspaceId: required.input.workspaceId }, optional);
   }
+  required = await applyPreviewSwitcherPolicy({ required, definition, prepare: optional.preparePreviewSwitcherWrite });
   // Form delivery bindings are validated here too, so no host write path can store a list that
   // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
   return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
+}
+
+/** Resolve aliases before dispatching the theme-owned policy; uncomposed writers fail closed. */
+async function applyPreviewSwitcherPolicy({ required, definition, prepare }: {
+  required: SetValueRequired; definition: Awaited<ReturnType<typeof resolveDefinitionRaw>>;
+  prepare: NonNullable<Parameters<typeof set>[1]>["preparePreviewSwitcherWrite"];
+}, _options = {}): Promise<SetValueRequired> {
+  if (definition?.namespace !== "core.theme" || definition.key !== "previewSwitcher") return required;
+  if (!prepare) throw new ValueValidationFailedError("Theme preview write policy is unavailable.");
+  return prepare(required);
 }
 
 /** Host readiness is independent of the generic settings writer's scope authorization. */
