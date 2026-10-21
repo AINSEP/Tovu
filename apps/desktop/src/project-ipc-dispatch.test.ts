@@ -502,3 +502,17 @@ test("setHome refuses a picked file or relative path, and without folder setting
   const home = path.join(f.root, "chosen-home"); fs.mkdirSync(home); f.pickedFolders.push(home);
   assert.deepEqual(await f.invoke({ channel: SITE_IPC_CHANNELS.setHome }), { roots: [], extraRoots: [], home });
 });
+
+test("a lease held under this window's own server pid lets Delete erase, unless that entry is an attached external server", async (t) => {
+  const f = sharedFixture({ t }), id = f.site({ name: "own-lease" });
+  trackSite(f.deps.projectsPath, id, "created", { siteId: "own-lease" });
+  const claim = f.workspace.claim({ path: id, app: "Desktop", port: 4321 });
+  const release = async () => { f.workspace.running({ path: id }).release({ token: claim.record.token }); };
+  f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, external: true, stop: release } });
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id }), { message: "Running in Desktop (port 4321). Stop it in that app before deleting." });
+  assert.equal(fs.existsSync(id), true);
+  f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, stop: release } });
+  await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
+  assert.equal(fs.existsSync(id), false, "this window's own server was stopped and the folder erased");
+  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+});

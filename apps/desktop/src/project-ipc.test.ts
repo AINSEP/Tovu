@@ -2068,3 +2068,41 @@ test("an erase that fails for a reason other than permissions says the folder co
   });
   assert.equal(readTrackedSites(deps.projectsPath).length, 1);
 });
+
+test("D-10: Rename also refuses the remembered name of a tracked site whose folder is missing", () => {
+  const root = tempDir();
+  const own = writeSite(path.join(root, 'own'), 'own');
+  const missing = path.join(root, 'unplugged-drive-site');
+  let writes = 0;
+  const deps = renameDeps({
+    readSiteName: (dir: string) => (dir === own ? 'Own' : assert.fail(`a missing folder's name is never read from disk: ${dir}`)),
+    writeSiteName: (_dir: string, name: string) => { writes += 1; return name.trim(); },
+  });
+  trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
+  trackSite(deps.projectsPath, missing, SITE_ORIGIN.adopted);
+  writeTrackedSites(deps.projectsPath, readTrackedSites(deps.projectsPath).map((row) => row.siteDir === missing ? { ...row, displayName: 'Bakery' } : row));
+  assert.throws(() => handleRename({ id: own, name: 'bakery' }, deps), {
+    message: 'A website named "bakery" is already tracked. Choose a different name.',
+  });
+  assert.equal(writes, 0);
+});
+
+test("erasing a created site drops it from the shared catalog, and a catalog failure only warns", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  for (const catalogFails of [false, true]) {
+    const root = fs.realpathSync(tempDir());
+    const real = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", cwd: root, sourceRoots: [] });
+    const siteDir = writeSite(path.join(root, "made"), `made-${catalogFails}`);
+    real.registry({}).merge({ entries: [{ id: `made-${catalogFails}`, name: "Made", path: siteDir, createdBy: "Desktop", lastOpened: null }] });
+    const sharedSites = catalogFails
+      ? { ...real, registry: (required: Record<string, never>) => ({ ...real.registry(required), remove: () => { throw new Error("catalog locked"); } }) }
+      : real;
+    const deps = baseDeps({ sharedSites, removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); } });
+    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: `made-${catalogFails}` });
+    await handleDelete(siteDir, deps as ProjectIpcDeps);
+    assert.equal(fs.existsSync(siteDir), false);
+    assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+    assert.equal(real.registry({}).list({}).some((row) => row.path === siteDir), catalogFails, "kept only when the catalog refused");
+  }
+  assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments[0]), ["tovu desktop: could not remove the erased website from the shared catalog."]);
+});
