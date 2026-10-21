@@ -112,3 +112,16 @@ test("no active forms: the host still gets an empty list, nothing is selected an
   assert.deepEqual(await s.port.previewInput(input("host-z")), {});
   assert.deepEqual(await labels(s.creds), []);
 });
+
+test("external preview receives a saved connection without a username; non-Error throws from preview or prepare are reported by their string form", async () => {
+  const previews: unknown[] = [];
+  const answer = { status: "on" as const, forms: 1, message: "Relay ready.", changes: [] };
+  const own = setup({ setting: "relay", credentialLabel: "Relay key", relay: { ...receiving, prepare: async () => ({ submitUrl: "https://r.example" }), preview: async (args) => { previews.push(args); return answer; } } });
+  await createCustomCredential(own.creds, { workspaceId: W, label: "Relay key", category: "hosting", baseUrl: "https://relay.example", connection: { token: "vendor-token" } });
+  assert.deepEqual(await own.port.previewInput(input("host-z")), { formSubmissions: answer });
+  assert.deepEqual((previews[0] as { credential: unknown }).credential, { token: "vendor-token", baseUrl: "https://relay.example" });
+
+  const throwing = setup({ setting: "relay", relay: { ...receiving, prepare: async () => { throw "relay offline"; }, preview: async () => { throw "preview offline"; } } });
+  assert.deepEqual(await throwing.port.previewInput(input("host-z")), { formSubmissions: { status: "off", forms: 1, message: "Form submissions: preview offline.", changes: [] } });
+  await assert.rejects(throwing.port.prepare(input("host-z")), { message: "form destination 'relay' could not prepare its receiver: relay offline" });
+});
