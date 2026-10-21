@@ -18,7 +18,7 @@ export function runningSiteUrl({ record }: { record: DirectoryRunningRecord }, _
  */
 export function claimSiteRunning(
   { dir, app, scheme = "http" }: { dir: string; app: "Web" | "Desktop"; scheme?: "http" | "https" },
-  { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {},
+  { workspace = createSitesWorkspace({}), readSite = readSiteDir }: { workspace?: SitesWorkspace; readSite?: typeof readSiteDir } = {},
 ) {
   const claim = workspace.claim({ path: dir, app, scheme });
   if (!claim.acquired) throw new Error(`Running in ${claim.record.app} (${claim.record.port > 0 ? `port ${claim.record.port}` : "starting"}). ${runningSiteUrl({ record: claim.record }) ?? "Wait for this site to finish starting."}`);
@@ -28,7 +28,7 @@ export function claimSiteRunning(
   return { ready: ({ port }: { port: number }, _options = {}) => {
     lock.update({ token: claim.record.token, port });
     let site: ReturnType<typeof readSiteDir>;
-    try { site = readSiteDir({ dir }); }
+    try { site = readSite({ dir }); }
     catch (error) {
       // The existing checkout default can run without install-dir markers; do not invent them.
       if (error instanceof SiteDirInvalidError) return;

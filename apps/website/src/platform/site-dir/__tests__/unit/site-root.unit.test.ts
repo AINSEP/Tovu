@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { DEFAULT_SITE_NAME, resolveSiteRoot as resolveSiteRootReal } from "../../site-root.js";
+import { DEFAULT_SITE_NAME, pinDefaultSiteRoot, resolveSiteRoot as resolveSiteRootReal, SITE_SELECTION_PINNED_ENV } from "../../site-root.js";
 
 /** Path-only legacy assertions use an isolated configured home; never read the owner's registry. */
 const resolveSiteRoot = (optional: Parameters<typeof resolveSiteRootReal>[0] = {}) => resolveSiteRootReal({ ...optional,
@@ -55,4 +55,20 @@ test("an empty-string TOVU_SITE_DIR is treated as set (resolves to cwd), matchin
 
 test("omitting cwd falls back to process.cwd()", () => {
   assert.equal(resolveSiteRoot({ env: {} }), path.resolve(process.cwd(), "sites", DEFAULT_SITE_NAME));
+});
+
+test("with no arguments the process environment decides, and an explicit TOVU_SITE_DIR is never re-pinned", () => {
+  const saved = { dir: process.env.TOVU_SITE_DIR, pinned: process.env[SITE_SELECTION_PINNED_ENV] };
+  process.env.TOVU_SITE_DIR = "/var/lib/tovu/explicit";
+  delete process.env[SITE_SELECTION_PINNED_ENV];
+  try {
+    assert.equal(resolveSiteRootReal(), path.resolve("/var/lib/tovu/explicit"));
+    assert.equal(pinDefaultSiteRoot({}), path.resolve("/var/lib/tovu/explicit"));
+    assert.equal(process.env.TOVU_SITE_DIR, "/var/lib/tovu/explicit");
+    assert.equal(process.env[SITE_SELECTION_PINNED_ENV], undefined, "only a default selection carries the internal pin marker");
+  } finally {
+    for (const [name, value] of [["TOVU_SITE_DIR", saved.dir], [SITE_SELECTION_PINNED_ENV, saved.pinned]] as const) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 });
