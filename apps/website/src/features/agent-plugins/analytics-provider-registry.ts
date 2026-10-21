@@ -57,10 +57,10 @@ function parseDescriptor(entry: unknown, at: string): AnalyticsProviderDescripto
  * Parses an analytics provider manifest. Pure; unknown keys are ignored.
  * @complexity O(p) declared providers.
  */
-export function parseAnalyticsProvidersFile(raw: string): ParseResult {
+export function parseAnalyticsProvidersFile(required: { readonly raw: string }, _optional: Record<string, never> = {}): ParseResult {
   let value: unknown;
   try {
-    value = JSON.parse(raw);
+    value = JSON.parse(required.raw);
   } catch {
     return { ok: false, reason: "not valid JSON" };
   }
@@ -76,17 +76,27 @@ export function parseAnalyticsProvidersFile(raw: string): ParseResult {
   return { ok: true, descriptors };
 }
 
-const parse = ({ raw }: { readonly raw: string }) => parseAnalyticsProvidersFile(raw);
+const parse = ({ raw }: { readonly raw: string }) => parseAnalyticsProvidersFile({ raw });
+
+/**
+ * Per-plugin recovery: an unreadable manifest or a module that throws on import is that plugin's
+ * refusal line, so one broken plugin never discards the healthy forwarders and hooks beside it.
+ */
+const recovery = (required: { readonly noun: string; readonly filename: string }) => ({
+  onReadError: ({ plugin }: { readonly plugin: { readonly pluginId: string } }) =>
+    [`analytics ${required.noun} from '${plugin.pluginId}' were not loaded: ${required.filename} could not be read`],
+  importErrorReason: "its module failed to load",
+});
 
 export const analyticsForwarderContribution = defineProviderContribution<AnalyticsProviderDescriptor, AnalyticsForwarderModule>({
   contract: ANALYTICS_FORWARDER_CONTRACT, filename: ANALYTICS_FORWARDERS_FILENAME, parse,
   validate: ({ exported }) => asAnalyticsForwarderModule({ exported }),
-});
+}, recovery({ noun: "forwarders", filename: ANALYTICS_FORWARDERS_FILENAME }));
 
 export const analyticsIngestHookContribution = defineProviderContribution<AnalyticsProviderDescriptor, AnalyticsHooks>({
   contract: ANALYTICS_INGEST_HOOK_CONTRACT, filename: ANALYTICS_HOOKS_FILENAME, parse,
   validate: ({ exported }) => asAnalyticsIngestHook({ exported }),
-});
+}, recovery({ noun: "hooks", filename: ANALYTICS_HOOKS_FILENAME }));
 
 export interface AnalyticsProviders {
   /** Keyed vendor forwarders; `core.analytics.sink` selects one per site. */

@@ -19,6 +19,13 @@ function fakeLoader(files: Record<string, Record<string, string>>, modules: Reco
     const refusals: string[] = [];
     const manifests = Object.entries(files).flatMap(([pluginId, byName]) => {
       const raw = byName[input.definition.filename];
+      if (raw === UNREADABLE) {
+        // The real loader's contract: a read fault propagates unless the definition recovers it.
+        const recovered = input.definition.onReadError?.({ plugin: { pluginId, packageRoot: `/plugins/${pluginId}` }, error: new Error("EIO") });
+        if (recovered === undefined) throw new Error("EIO");
+        refusals.push(...recovered);
+        return [];
+      }
       return raw === undefined ? [] : [{ pluginId, parsed: input.definition.parse({ raw }) as { ok: true; descriptors: D[] } | { ok: false; reason: string } }];
     });
     for (const { pluginId, parsed } of manifests) {
@@ -26,7 +33,10 @@ function fakeLoader(files: Record<string, Record<string, string>>, modules: Reco
       for (const descriptor of parsed.descriptors) {
         const result = await input.definition.load({
           plugin: { pluginId, packageRoot: `/plugins/${pluginId}` }, descriptor,
-          importModule: async ({ modulePath }) => (modulePath in modules ? { exported: modules[`${modulePath}`] } : "module missing"),
+          importModule: async ({ modulePath }) => {
+            if (modulePath === "throws.mjs") throw new Error("EACCES");
+            return modulePath in modules ? { exported: modules[`${modulePath}`] } : "module missing";
+          },
         });
         if (typeof result === "string") refusals.push(result); else items.push(result);
       }
@@ -36,13 +46,14 @@ function fakeLoader(files: Record<string, Record<string, string>>, modules: Reco
   return { load: load as never, calls };
 }
 
+const UNREADABLE = "<<unreadable>>";
 const manifest = (providers: unknown[]) => JSON.stringify({ schemaVersion: 1, providers });
 
 test("parseAnalyticsProvidersFile accepts valid manifests and names the first fault", () => {
-  assert.deepEqual(parseAnalyticsProvidersFile(manifest([{ id: "plausible", module: "f.mjs", label: "Plausible", extra: 1 }, { id: "b", module: "lib/b.mjs" }])), {
+  assert.deepEqual(parseAnalyticsProvidersFile({ raw: manifest([{ id: "plausible", module: "f.mjs", label: "Plausible", extra: 1 }, { id: "b", module: "lib/b.mjs" }]) }), {
     ok: true, descriptors: [{ id: "plausible", module: "f.mjs", label: "Plausible" }, { id: "b", module: "lib/b.mjs" }] satisfies AnalyticsProviderDescriptor[],
   });
-  const reason = (raw: string) => { const r = parseAnalyticsProvidersFile(raw); return r.ok ? null : r.reason; };
+  const reason = (raw: string) => { const r = parseAnalyticsProvidersFile({ raw }, {}); return r.ok ? null : r.reason; };
   assert.equal(reason("{"), "not valid JSON");
   assert.equal(reason("[]"), "schemaVersion must be 1");
   assert.equal(reason(JSON.stringify({ schemaVersion: 2, providers: [] })), "schemaVersion must be 1");
@@ -96,4 +107,22 @@ test("loadAnalyticsProviders with no contributing plugins is empty", async () =>
   assert.deepEqual(providers.forwarders.list(), []);
   assert.deepEqual(providers.hooks, []);
   assert.deepEqual(providers.refusals, []);
+});
+
+test("an unreadable manifest or a throwing module is one plugin's refusal; healthy plugins still load", async () => {
+  const fwd = { create: () => ({ forward: async () => ({ status: "ok", value: undefined }) }) };
+  const hook = { beforeIngest: async ({ hit }: { hit: unknown }) => hit };
+  const { load } = fakeLoader({
+    a_broken: { [ANALYTICS_FORWARDERS_FILENAME]: UNREADABLE, [ANALYTICS_HOOKS_FILENAME]: UNREADABLE },
+    b_throws: { [ANALYTICS_FORWARDERS_FILENAME]: manifest([{ id: "thrower", module: "throws.mjs" }]) },
+    c_good: { [ANALYTICS_FORWARDERS_FILENAME]: manifest([{ id: "plausible", module: "p.mjs" }]), [ANALYTICS_HOOKS_FILENAME]: manifest([{ id: "h", module: "h.mjs" }]) },
+  }, { "p.mjs": fwd, "h.mjs": hook });
+  const result = await loadAnalyticsProviders({ workspaceId: "ws-1" }, { loadContributions: load });
+  assert.deepEqual(result.forwarders.list().map((entry) => entry.id), ["plausible"]);
+  assert.equal(result.hooks.length, 1);
+  assert.deepEqual(result.refusals, [
+    "analytics forwarders from 'a_broken' were not loaded: tovu-analytics-forwarders.json could not be read",
+    "analytics.forwarder provider 'thrower' from 'b_throws' was not loaded: its module failed to load",
+    "analytics hooks from 'a_broken' were not loaded: tovu-analytics-hooks.json could not be read",
+  ]);
 });
