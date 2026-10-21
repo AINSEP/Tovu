@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { PublishTrustHandshakeError, type PublishSession } from "#src/features/publish-trust/handshake-client";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "../destination-credential.js";
-import { PublishContentPeerNotFoundError, type PublishContentPeerRecord } from "../peers.js";
+import { PublishContentPeerNotFoundError, PublishContentPeerSecretStoreUnconfiguredError, type PublishContentPeerRecord } from "../peers.js";
 
 /** @file The connected-destination branch of `resolvePublishDestinationCredential` with the
  *  handshake replaced by a recording session opener (the real three-call handshake is proven
@@ -56,4 +56,15 @@ test("a destination now answering for a different workspace is refused — publi
     (error: unknown) => error instanceof PublishTrustHandshakeError && error.failure === "refused"
       && error.message === "destination.test is not the site this computer was connected to. Connect it again to confirm.",
   );
+});
+
+test("a row with a sealed key takes the explicit-peer path: no handshake, and an unopenable key surfaces only the safe error", async () => {
+  const calls: unknown[] = [];
+  const sealed = connectedRecord({ sealed: { ciphertext: "not-a-real-envelope" } as never });
+  await assert.rejects(
+    resolvePublishDestinationCredential({ deps: depsWith(sealed), input: { workspaceId: WS, id: "dest-1" } }, { openSession: sessionAnswering("dest-ws", calls) }),
+    (error: unknown) => error instanceof PublishContentPeerSecretStoreUnconfiguredError
+      && error.message === "peer 'destination.test' credential could not be opened",
+  );
+  assert.deepEqual(calls, [], "a sealed peer must never open a connected-destination session");
 });
