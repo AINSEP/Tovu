@@ -77,22 +77,24 @@ function recipientsOf(to) {
   return list.filter((entry) => typeof entry === 'string' && entry.trim() !== '').map((entry) => entry.trim().toLowerCase());
 }
 
+/** A non-empty string, else undefined. @param {unknown} value */
+const nonEmpty = (value) => (typeof value === 'string' && value !== '' ? value : undefined);
+
 /**
- * Resend payloads carry no event id and `parse` never sees the `svix-id` header, so the id is the
- * payload's own `id` when present, else a hash of the exact bytes (Svix retries resend identical
- * bytes, so a replay hashes the same). Per recipient, so one event to many stays unique in the inbox.
- * @param {any} payload @param {Uint8Array} rawBody @param {string} recipient @param {number} count
+ * The event id: Svix's `svix-id` (stable across its retries of one message), else the payload's own
+ * `id`, else a hash of the exact bytes (a retry resends identical bytes, so it hashes the same) for a
+ * host that passes no headers. Per recipient, so one event to many stays unique in the inbox.
+ * @param {any} payload @param {Uint8Array} rawBody @param {Readonly<Record<string, string>> | undefined} headers
  */
-function eventIdOf(payload, rawBody, recipient, count) {
-  const base = typeof payload.id === 'string' && payload.id !== '' ? payload.id : createHash('sha256').update(rawBody).digest('hex');
-  return count > 1 ? `${base}:${recipient}` : base;
+function baseIdOf(payload, rawBody, headers) {
+  return nonEmpty(headers?.['svix-id']) ?? nonEmpty(payload.id) ?? createHash('sha256').update(rawBody).digest('hex');
 }
 
 /**
- * @param {{ rawBody: Uint8Array, workspaceId: string }} required
+ * @param {{ rawBody: Uint8Array, workspaceId: string, headers?: Readonly<Record<string, string>> }} required
  * @returns {readonly FeedbackEvent[] | { error: string }}
  */
-export function parse({ rawBody, workspaceId }) {
+export function parse({ rawBody, workspaceId, headers }) {
   let payload;
   try {
     payload = JSON.parse(Buffer.from(rawBody).toString('utf8'));
@@ -105,9 +107,10 @@ export function parse({ rawBody, workspaceId }) {
   const { data } = payload;
   const recipients = recipientsOf(data.to);
   const occurredAt = String(payload.created_at ?? data.created_at ?? new Date().toISOString());
+  const base = baseIdOf(payload, rawBody, headers);
   return recipients.map((recipient) => ({
     workspaceId, providerMessageId: typeof data.email_id === 'string' ? data.email_id : '', sourceContext: { module: 'unknown' },
-    kind, eventId: eventIdOf(payload, rawBody, recipient, recipients.length), recipient,
+    kind, eventId: recipients.length > 1 ? `${base}:${recipient}` : base, recipient,
     hardBounce: kind === 'bounced' && isHardBounce(data), occurredAt,
   }));
 }

@@ -99,13 +99,14 @@ async function listCurrent(target: Target, zone: Zone, ports: DnsChangePorts): P
   return result.status === "ok" ? result.value : { records: [], inventory: "unknown" };
 }
 
-function hostBlockers(hostname: string, zone: Zone, delegation: DelegationCheck | null): DomainDnsBlocker[] {
-  if (!zone.found) {
+function hostBlockers(hostname: string, delegation: DelegationCheck | null): DomainDnsBlocker[] {
+  // No delegation is read only when no zone was found.
+  if (delegation === null) {
     return [{ code: "zone_not_found", name: hostname, message: `No DNS zone serving ${hostname} could be found, so its current records were not read.`, suggestion: "Check that the domain is registered and has nameservers, then plan again." }];
   }
-  if (delegation === null || delegation.state === "delegated") return [];
+  if (delegation.state === "delegated") return [];
   // Registrar vs DNS host split: records edited at a host the zone is not delegated to resolve nowhere.
-  return [{ code: delegation.state === "not_delegated" ? "not_delegated" : "delegation_unknown", name: zone.zone, message: delegation.reason }];
+  return [{ code: delegation.state === "not_delegated" ? "not_delegated" : "delegation_unknown", name: delegation.zone, message: delegation.reason }];
 }
 
 async function planTarget(target: Target, ports: DnsChangePorts): Promise<DomainDnsPlan> {
@@ -117,7 +118,7 @@ async function planTarget(target: Target, ports: DnsChangePorts): Promise<Domain
     { providerId: target.providerId, zone: zone.zone, current: current.records, requirements: target.requirements, inventory: current.inventory },
     { apexFlattening: capabilities.apexFlattening, recordTypes: capabilities.recordTypes },
   );
-  return { hostname: target.hostname, providerId: target.providerId, zone: zone.zone, zoneFound: zone.found, delegation, plan, blockers: [...hostBlockers(target.hostname, zone, delegation), ...plan.blockers] };
+  return { hostname: target.hostname, providerId: target.providerId, zone: zone.zone, zoneFound: zone.found, delegation, plan, blockers: [...hostBlockers(target.hostname, delegation), ...plan.blockers] };
 }
 
 /**

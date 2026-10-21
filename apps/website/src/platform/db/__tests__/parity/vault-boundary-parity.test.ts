@@ -24,10 +24,11 @@ const LATER_COPIED = ["form_delivery_jobs", "form_delivery_plans", "form_submiss
   // why: d2126748 0021 adds raw-SQL consent policy tables (no visitor data); a transfer copies them by introspection.
   "site_consent_heads", "site_consent_revisions",
   // why: 0023 adds raw-SQL mail ledgers; suppression must follow the site, so a transfer copies them by introspection.
-  "mail_capture", "mail_feedback_inbox", "mail_send_ledger", "mail_suppression",
+  "mail_feedback_inbox", "mail_send_ledger", "mail_suppression",
   // why: 0024 adds the raw-SQL domain_binding table (hostnames and DNS requirements, no secrets); copied by introspection.
   "domain_binding"];
-const LATER_EXCLUDED = ["form_receiver_pulls"];
+// why: 0023's capture-mode sink holds whole messages (raw sign-in links), so it joins the exclusion list.
+const LATER_EXCLUDED = ["form_receiver_pulls", "mail_capture"];
 const without = (names: string[], removed: string[]) => names.filter(name => !removed.includes(name));
 const plus = (names: string[], added: string[]) => [...names, ...added].sort();
 

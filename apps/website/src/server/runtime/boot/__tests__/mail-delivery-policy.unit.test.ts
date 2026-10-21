@@ -129,3 +129,13 @@ test("sendBatch dispatches each recipient under its own derived key", async () =
   assert.equal(results.length, 2);
   assert.deepEqual(inner.calls.map((call) => call.options.idempotencyKey), ["k1:0", "k1:1"]);
 });
+
+test("the wrapper's options are optional", async () => {
+  const wrap = createMailPolicyWrapper({ ledger: memoryLedger(), suppression: suppression(), readTestMode: async () => ({ mode: "off" }) });
+  assert.equal((await wrap({ providerId: "fixture", provider: provider(), mailer: recordingMailer() }).send(MESSAGE, OPTIONS)).ok, true);
+});
+
+test("a rate-limited provider uses the wall clock when no clock is injected", async () => {
+  const mailer = wrapper().wrap({ providerId: "fixture", provider: provider({ perSecond: 10, burst: 5 }), mailer: recordingMailer() });
+  assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
+});

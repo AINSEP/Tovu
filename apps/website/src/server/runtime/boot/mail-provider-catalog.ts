@@ -64,7 +64,8 @@ export interface MailProviderCatalog {
   readonly registry: MailProviderRegistry;
   /** Plugin provider ids in registry order (plugin id, then declaration order). */
   readonly pluginIds: readonly string[];
-  /** Saved-credential label per provider; undefined for a provider that needs none (console). */
+  /** Saved-credential label per provider; undefined for a provider that needs none (console, or a
+   *  plugin declaring no credential keys) and for an id that is not registered. */
   credentialLabelFor(required: { id: string }): string | undefined;
   /** Plugin adapters/providers that were not loaded, and why (log-safe). */
   readonly refusals: readonly string[];
@@ -100,7 +101,9 @@ export async function loadMailProviderCatalog(deps: MailProviderCatalogDeps, _op
   const { accepted, refusals } = contributeMailProviders({ registry, adapters });
   const labels = new Map<string, string>([["smtp", MAIL_SMTP_CREDENTIAL_LABEL]]);
   for (const adapter of adapters.list()) {
-    if (accepted.includes(adapter.descriptor.id)) labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
+    // Only providers that read a credential get a label; label presence is "needs a saved key".
+    const needsKey = (adapter.descriptor.credentialKeys ?? ["token"]).length > 0;
+    if (accepted.includes(adapter.descriptor.id) && needsKey) labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
   }
   return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id) };
 }
@@ -158,12 +161,12 @@ export interface EffectiveProviderDetection {
 
 /** One chain step: the id when its credential resolves, else null plus any failure reason. */
 async function tryProvider(
-  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog; id: string; reasons: string[] }
+  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog; id: string; label: string; reasons: string[] }
 ): Promise<string | null> {
   try {
     return (await resolveMailCredential(required)) ? required.id : null;
   } catch (err) {
-    required.reasons.push(credentialFailureReason({ label: required.catalog.credentialLabelFor({ id: required.id }) ?? required.id, err }));
+    required.reasons.push(credentialFailureReason({ label: required.label, err }));
     return null;
   }
 }
@@ -187,7 +190,10 @@ export async function detectEffectiveMailProvider(
 ): Promise<EffectiveProviderDetection> {
   const reasons: string[] = [];
   for (const id of [...required.catalog.pluginIds, "smtp"]) {
-    const found = await tryProvider({ ...required, id, reasons });
+    // The old chain only ever picked a provider by its saved key; a keyless plugin was never a pick.
+    const label = required.catalog.credentialLabelFor({ id });
+    if (label === undefined) continue;
+    const found = await tryProvider({ ...required, id, label, reasons });
     if (found) return { providerId: found, pending: false, reasons };
   }
   return { providerId: null, pending: await hasUnclaimedMailCredential(required), reasons };

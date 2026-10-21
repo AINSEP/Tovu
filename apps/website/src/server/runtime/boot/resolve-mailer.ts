@@ -191,12 +191,15 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     return refusingMailer(required);
   };
 
-  const credentialOrReason = async (catalog: MailProviderCatalog, id: string) => {
+  /** The provider's credential, or why there is none (missing, or saved but unusable). */
+  const credentialOrReason = async (catalog: MailProviderCatalog, id: string, label: string) => {
     try {
-      return { credential: await resolveMailCredential({ deps, catalog, id }) };
+      const credential = await resolveMailCredential({ deps, catalog, id });
+      if (credential) return { credential };
     } catch (err) {
-      return { credential: null, reason: credentialFailureReason({ label: catalog.credentialLabelFor({ id }) ?? id, err }) };
+      return { reason: credentialFailureReason({ label, err }) };
     }
+    return { reason: `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")` };
   };
 
   const resolveProvider = async (id: string): Promise<MailerPort> => {
@@ -204,9 +207,11 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const entry = catalog.registry.get({ id });
     const unavailable = (detail: string) => fallback({ catalog, errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `[mail] the selected mail provider '${id}' ${detail}, so outbound mail is NOT being sent` });
     if (!entry) return unavailable(`is not installed${catalog.refusals.length > 0 ? ` (${catalog.refusals.join("; ")})` : ""}`);
-    if (entry.provider.credentialKeys.length === 0) return resolved.get(id) ?? consoleMailer(catalog);
-    const { credential, reason } = await credentialOrReason(catalog, id);
-    if (!credential) return unavailable(reason ?? `has no saved credential "${catalog.credentialLabelFor({ id }) ?? id}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")`);
+    // The catalog names a credential label exactly for the providers that need one (not console).
+    const label = catalog.credentialLabelFor({ id });
+    const found = label === undefined ? { credential: { token: "" } } : await credentialOrReason(catalog, id, label);
+    if (!found.credential) return unavailable(found.reason);
+    const credential = found.credential;
     const mailer = wrap({ providerId: id, provider: entry.provider, mailer: createProviderMailer({ deps, provider: entry.provider, credential }) });
     resolved.set(id, mailer);
     return mailer;

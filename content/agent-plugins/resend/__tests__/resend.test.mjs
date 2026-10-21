@@ -94,6 +94,16 @@ test('parse normalizes bounces, complaints and deliveries per recipient', () => 
   assert.equal(delivered[0].kind, 'delivered');
 });
 
+test('parse keys the event id on svix-id when the host passes headers, then the payload id', () => {
+  const one = { type: 'email.complained', id: 'evt_1', data: { to: ['a@x.test'] } };
+  const many = { type: 'email.bounced', id: 'evt_2', data: { to: ['a@x.test', 'B@x.test'], bounce: { type: 'Permanent' } } };
+  const ids = (payload, headers) => parse({ rawBody: enc(JSON.stringify(payload)), workspaceId: 'wa', headers }).map((item) => item.eventId);
+  assert.deepEqual(ids(one, { 'svix-id': 'msg_1' }), ['msg_1']);
+  assert.deepEqual(ids(many, { 'svix-id': 'msg_2' }), ['msg_2:a@x.test', 'msg_2:b@x.test'], 'one id per recipient');
+  assert.deepEqual(ids(one, { 'svix-id': '' }), ['evt_1'], 'an empty svix-id falls back to the payload id');
+  assert.deepEqual(ids(one, {}), ['evt_1']);
+});
+
 test('parse ignores other event types and reports malformed bodies', () => {
   assert.deepEqual(parse({ rawBody: enc(JSON.stringify({ type: 'email.opened', data: {} })), workspaceId: 'wa' }), []);
   assert.deepEqual(parse({ rawBody: enc('not json'), workspaceId: 'wa' }), { error: 'body is not JSON' });

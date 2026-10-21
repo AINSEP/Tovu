@@ -54,6 +54,10 @@ export const EXCLUDED_CORE_TABLES: Readonly<Record<string, TransferExclusionReas
   // the copy and enqueue a second job per binding next to the copied one (a duplicate delivery);
   // leaving the job index behind would hide the copied jobs from the delivery status reads.
   form_receiver_pulls: "running-lock",
+  // Migration 0023. Test/capture mode keeps whole outbound messages, sign-in links included (the
+  // live counterpart of the hashed `member_magic_tokens`), so a copy must not carry them. Losing it
+  // loses only the operator's preview list; the other mail ledgers ARE copied (suppression must follow the site).
+  mail_capture: "temporary",
 };
 
 /** A column name that holds (or seals) a secret: `sealed_*`, `*_sealed_*`, `password*`, `*_token_hash`, `key_hash`. */
