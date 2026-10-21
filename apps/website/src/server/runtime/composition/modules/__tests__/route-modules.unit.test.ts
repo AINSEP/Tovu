@@ -124,6 +124,8 @@ const CASES: readonly ModuleCase[] = [
       `GET ${W}/forms/:formId/submissions`,
       `GET ${W}/forms/:formId/submissions/:submissionId`,
       `DELETE ${W}/forms/:formId/submissions/:submissionId`,
+      // why: 789a6e02 (forms_pull_submissions) added the admin pull route to this module.
+      `POST ${W}/forms/submissions/pull`,
     ],
   },
   {
