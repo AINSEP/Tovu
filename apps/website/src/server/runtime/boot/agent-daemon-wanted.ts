@@ -24,16 +24,20 @@ import { isAdminAssistantEnabled, shouldStartAgentDaemon } from "../composition/
  */
 
 /** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
- *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
-export async function agentDaemonWanted(deps: {
-  workspaceId: string;
-  externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> };
-}): Promise<boolean> {
+ *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`).
+ *  `options.env` / `options.log` default to the real process env and console at this edge. */
+export async function agentDaemonWanted(
+  deps: {
+    workspaceId: string;
+    externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> };
+  },
+  { env = process.env, log = console.log }: { env?: NodeJS.ProcessEnv; log?: (line: string) => void } = {},
+): Promise<boolean> {
   // Short-circuits before the async repo fetch below, same as both duplicated originals did — the
   // common case (assistant ON) never needs to ask whether external MCP is configured at all.
-  if (isAdminAssistantEnabled()) return true;
+  if (isAdminAssistantEnabled(env)) return true;
   const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
-  if (shouldStartAgentDaemon(configured.length > 0)) return true;
-  console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
+  if (shouldStartAgentDaemon(configured.length > 0, env)) return true;
+  log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
   return false;
 }
