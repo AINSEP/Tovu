@@ -70,9 +70,11 @@ const EMBED_TARGET_PLACEHOLDERS: Readonly<Record<string, string>> = {
  * resolver reads — so a type registered there reaches the model without editing this file. Before
  * this was derived, the hand-written list omitted `form` (restored 2026-10-04), `taxonomy`, `post`,
  * `content` and `partial` — so the model had no way to learn a page could embed a real form.
+ * `targetKeys` is injected (the catalog passes `EMBED_MARKER_TARGET_KEYS`) so a newly registered
+ * type with no placeholder or note can be checked to still reach the model in a generic form.
  */
-function otherEmbedTypesText(): string {
-  return Object.entries(EMBED_MARKER_TARGET_KEYS)
+export function otherEmbedTypesText(required: { targetKeys: Readonly<Record<string, readonly string[]>> }): string {
+  return Object.entries(required.targetKeys)
     .filter(([type]) => type !== COLLECTION_MARKER_TYPE)
     .map(([type, keys]) => {
       const target = keys[0] ? `,"${keys[0]}":"${EMBED_TARGET_PLACEHOLDERS[type] ?? `<${keys[0]}>`}"` : "";
@@ -154,7 +156,7 @@ export const PAGE_HTML_CONTRACT =
   "`<template>…</template>` inside the tag to control each item's markup with `{{title}}`, `{{url}}`, " +
   "`{{date}}`, `{{fields.<name>}}` placeholders — omit it for the default card/list rendering. The " +
   "wrapper tag's own `class`/`style`/`id` survive and are how you style it. Other known types: " +
-  otherEmbedTypesText() +
+  otherEmbedTypesText({ targetKeys: EMBED_MARKER_TARGET_KEYS }) +
   ". Prefer media slug content: `<div data-embed-config='{\"type\":\"media\",\"content\":{\"mode\":\"media\",\"items\":[{\"slug\":\"photo-slug\",\"alt\":\"Description\"}],\"layout\":\"grid\"}}'></div>`. " +
   "A saved Media widget uses {type:widget,slug:<widget-slug>,content:{items:[{slug:<media-slug>}]}} for placement overrides. Raw HTML mode is {mode:html,html:<HTML>} with {{media:slug}} URL tokens or data-media-slug on img/video/audio; unknown slugs remove the element and produce diagnostics. All raw HTML uses the page-body sanitizer; safe data-kui attributes work in JSON htmlAttributes or plain marker attributes. " +
   ". Legacy Gallery compatibility: for multiple images use `<div data-embed-config='{\"type\":\"gallery\",\"images\":[{\"mediaId\":\"asset-1\",\"alt\":\"Description\",\"caption\":\"Optional caption\"}],\"layout\":\"grid\",\"columns\":3}'></div>`; replace asset-1 with the real uploaded media id. " +
