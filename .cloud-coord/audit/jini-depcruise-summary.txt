@@ -1,0 +1,3 @@
+rule	severity	count
+no-circular	warn	56
+no-orphans	warn	2

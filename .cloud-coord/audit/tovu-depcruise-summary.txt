@@ -1,0 +1,10 @@
+rule	severity	count
+no-deep-imports	error	1140
+no-deep-imports	warn	955
+no-circular	warn	307
+only-composition-constructs-concrete-adapters	warn	28
+no-non-seam-deep-imports-from-tool-registration-caller	warn	16
+site-dir-no-server-express-or-cli-imports	warn	6
+plugin-loading-internals-confined-to-plugin-runtime	warn	3
+no-deep-value-imports-from-db-sqlite	warn	3
+domain-no-direct-assistant-tool-registration	error	3

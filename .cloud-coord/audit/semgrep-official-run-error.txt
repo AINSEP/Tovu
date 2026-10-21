@@ -1,0 +1,27 @@
+HTTPSConnectionPool(host='semgrep.dev', port=443): Max retries exceeded with url: /c/p/typescript (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+Traceback (most recent call last):
+  File "/root/.semgrep/lib/python3.11/site-packages/urllib3/connectionpool.py", line 779, in urlopen
+    self._prepare_proxy(conn)
+  File "/root/.semgrep/lib/python3.11/site-packages/urllib3/connectionpool.py", line 1074, in _prepare_proxy
+    conn.connect()
+  File "/root/.semgrep/lib/python3.11/site-packages/urllib3/connection.py", line 844, in connect
+    self._tunnel()
+  File "/usr/lib/python3.11/http/client.py", line 991, in _tunnel
+    raise OSError(f"Tunnel connection failed: {code} {message.strip()}")
+OSError: Tunnel connection failed: 403 Forbidden
+
+The above exception was the direct cause of the following exception:
+
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/.semgrep/lib/python3.11/site-packages/requests/adapters.py", line 696, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/root/.semgrep/lib/python3.11/site-packages/urllib3/connectionpool.py", line 886, in urlopen
+    return self.urlopen(
+           ^^^^^^^^^^^^^
+  File "/root/.semgrep/lib/python3.11/site-packages/urllib3/connectionpool.py", line 886, in urlopen
+    return se
