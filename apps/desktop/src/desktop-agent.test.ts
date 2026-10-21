@@ -302,3 +302,24 @@ test("with no injected reader, an enabled login environment is read from the rea
   assert.equal(typeof access.parityEnv, "object");
   assert.ok(access.parityEnv && Object.keys(access.parityEnv).every((key) => !key.startsWith("TOVU_") && !key.startsWith("JINI_")));
 });
+
+test("a run another path terminalizes while the failed start is being handled keeps that outcome, with no second terminal", async (t) => {
+  let lifecycle: Harness["chat"]["lifecycle"] | undefined;
+  let failedRunId = "";
+  const h = await harness(t, {
+    readFullCliAccess: async () => false,
+    run: async (required) => { failedRunId = required.runId; throw new Error("spawn EACCES"); },
+    log: {
+      // The failure is logged first; a concurrent Stop finishing the run at that moment races the
+      // fallback's own error event and finish, which must then be swallowed rather than surface.
+      error: () => { void lifecycle!.finish({ runId: failedRunId, status: "succeeded", code: 0, signal: null, resumable: false }); },
+      warn: () => {},
+    },
+  });
+  lifecycle = h.chat.lifecycle;
+  const { runId } = await h.chat.startTurn({ prompt: "go", agentId: "codex" });
+  const terminal = await h.chat.lifecycle.waitForTerminal({ runId });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(terminal.state, "succeeded", "the concurrent outcome stands");
+  assert.equal((await h.chat.lifecycle.get({ runId }))?.state, "succeeded");
+});
