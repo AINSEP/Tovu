@@ -1119,3 +1119,121 @@ test("native fatal stderr without a newline is redacted in the mirror and boot f
   assert.ok(!output.includes(homePath));
   assert.ok(output.length < 4_100);
 });
+
+test("buildCliEnv with no baseEnv inherits the shell's own environment", () => {
+  const env = buildCliEnv({ siteDir: "/s" });
+  assert.equal(env.PATH, process.env.PATH);
+  assert.equal(env.TOVU_SITE_DIR, "/s");
+});
+
+test("emitBootToken passes --emit-boot-token and returns the token while keeping it out of the mirror", async () => {
+  const child = fakeChild();
+  const mirror = silentMirror();
+  let mirrored = "";
+  mirror.stdout.on("data", (chunk) => { mirrored += chunk.toString(); });
+  let args: string[] = [];
+  // Built at runtime so no secret-shaped literal lives in the fixture.
+  const token = ["bt", "0".repeat(8), "f".repeat(8)].join("-");
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror, emitBootToken: true,
+    spawnFn: (_command, spawnArgs) => { args = spawnArgs; return child; },
+  });
+  child.stdout.write(`tovu serve: bootToken=${token}\n`);
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+
+  assert.equal(args.at(-1), "--emit-boot-token");
+  assert.equal(handle.bootToken, token);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(!mirrored.includes(token), "the boot token must never reach the mirrored terminal output");
+  assert.match(mirrored, /tovu serve: dir=/);
+  const stopped = handle.stop();
+  child.emit("exit", 0, null);
+  await stopped;
+});
+
+test("output after the boot line is still mirrored and does not disturb the resolved handle", async () => {
+  const child = fakeChild();
+  const mirror = silentMirror();
+  let mirrored = "";
+  mirror.stdout.on("data", (chunk) => { mirrored += chunk.toString(); });
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror, spawnFn: () => child,
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  child.stdout.write("tovu serve: dir=/elsewhere port=9999 schemaVersion=1 workspaceId=other\n");
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(handle.port, 3601, "a later boot-shaped line must not re-settle the handle");
+  assert.match(mirrored, /port=9999/);
+  const stopped = handle.stop();
+  child.emit("exit", 0, null);
+  await stopped;
+});
+
+test("runaway startup output fails at the diagnostic limit and stops the child", async () => {
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
+    spawnFn: () => child, stopGraceMs: 20,
+  });
+  child.kill = (signal) => { child.killed.push(signal!); queueMicrotask(() => child.emit("exit", null, signal)); return true; };
+  child.stdout.write("x".repeat(600_000));
+  child.stdout.write("y".repeat(600_000));
+  await assert.rejects(started, { message: "tovu serve startup output exceeded the diagnostic limit." });
+  assert.deepEqual(child.killed, ["SIGTERM"]);
+});
+
+test("an early exit by signal, or with neither code nor signal, is described honestly", async () => {
+  for (const [code, signal, expected] of [
+    [null, "SIGKILL", /exited \(code SIGKILL\) before reporting a port\. Signal: SIGKILL\./],
+    [null, null, /exited \(code none\) before reporting a port\.$/m],
+  ] as const) {
+    const child = fakeChild();
+    // The post-failure cleanup Stop still runs; let it observe the exit so the test does not wait out the grace.
+    child.kill = (sent) => { child.killed.push(sent!); queueMicrotask(() => child.emit("exit", null, sent)); return true; };
+    const started = startTovuServer({
+      repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(), spawnFn: () => child, stopGraceMs: 20,
+    });
+    child.emit("exit", code, signal);
+    await assert.rejects(started, expected);
+  }
+});
+
+test("on win32, an EPIPE on the closed stdin pipe during Stop is swallowed, not an unhandled stream error", async () => {
+  const child = fakeChild();
+  child.stdin = new PassThrough();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
+    spawnFn: () => child, platform: "win32", killTree: () => assert.fail("a graceful exit must not be tree-killed"),
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  const stopped = handle.stop();
+  // The child already exited, so the pipe close races it: the stream reports EPIPE.
+  assert.doesNotThrow(() => child.stdin!.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" })));
+  child.emit("exit", 0, null);
+  await stopped;
+});
+
+test("with every seam defaulted, a real child is spawned on an allocated port and stopped", { skip: process.platform === "win32", timeout: 10000 }, async () => {
+  const repoRoot = makeTempRepo();
+  // A stand-in `tovu` CLI that prints serve.ts's boot line for whatever port it was handed.
+  fs.writeFileSync(path.join(repoRoot, "dist", "src", "cli", "main.js"), [
+    "const port = process.argv[process.argv.indexOf('--port') + 1];",
+    "console.log(`tovu serve: dir=${process.argv[3]} port=${port} schemaVersion=1 workspaceId=wfixture`);",
+    "setInterval(() => {}, 1000);",
+  ].join("\n"));
+
+  const handle = await startTovuServer({ repoRoot, siteDir: "/tmp/site", baseEnv: { PATH: process.env.PATH } });
+  try {
+    assert.ok(Number.isInteger(handle.port) && handle.port > 0);
+    assert.equal(handle.origin, `http://127.0.0.1:${handle.port}`);
+    assert.equal(handle.workspaceId, "wfixture");
+    assert.equal(handle.bootToken, null);
+  } finally {
+    await handle.stop();
+  }
+  await assertPidGone(handle.pid);
+});
