@@ -130,14 +130,20 @@ export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "general", label: "General" },
 ] as const;
 
+/** Each row category's label and its position among the row categories in
+ *  {@link ACCESS_TOKEN_CATEGORIES}. A `Record` keyed by {@link AccessTokenRowCategoryId}, so a
+ *  lookup by a row's category always hits: every id has a matching table row by construction. */
+const ROW_CATEGORY_INDEX = Object.fromEntries(
+  ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c, rank) => [c.id, { label: c.label, rank }]),
+) as Record<AccessTokenRowCategoryId, { readonly label: string; readonly rank: number }>;
+
 /** A category id's own display label — `"general"`'s row-heading counterpart to
  *  {@link AccessTokenProviderInfo.purposeLabel} for a custom row, which has no static catalog entry
- *  to read a `purposeLabel` from (see {@link accessTokenRowProviderInfo}). Falls back to the id
- *  itself only if the category table is somehow missing an entry (defensive — every
- *  {@link AccessTokenRowCategoryId} value has a matching row in {@link ACCESS_TOKEN_CATEGORIES} by
- *  construction). @complexity O(1) — six-entry table. */
+ *  to read a `purposeLabel` from (see {@link accessTokenRowProviderInfo}). Every {@link AccessTokenRowCategoryId} value has a matching row in
+ *  {@link ACCESS_TOKEN_CATEGORIES} by construction (see {@link ROW_CATEGORY_INDEX}), so this never
+ *  falls back. @complexity O(1). */
 export function accessTokenCategoryLabel(id: AccessTokenRowCategoryId): string {
-  return ACCESS_TOKEN_CATEGORIES.find((c) => c.id === id)?.label ?? id;
+  return ROW_CATEGORY_INDEX[id].label;
 }
 
 /** Whether `rowCategory` should show under the active category filter — `"all"` matches everything,
@@ -667,14 +673,11 @@ export interface AccessTokenGroupSortInput {
  * per saved custom credential), space O(n) for the shallow copy.
  */
 export function sortAccessTokenGroups<T extends AccessTokenGroupSortInput>(groups: readonly T[]): T[] {
-  const categoryRank = new Map<AccessTokenRowCategoryId, number>(
-    ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c, index) => [c.id as AccessTokenRowCategoryId, index])
-  );
   const sorted = [...groups];
   sorted.sort((a, b) => {
     const savedDiff = Number(b.rows.length > 0) - Number(a.rows.length > 0);
     if (savedDiff !== 0) return savedDiff;
-    const categoryDiff = (categoryRank.get(a.info.category) ?? 0) - (categoryRank.get(b.info.category) ?? 0);
+    const categoryDiff = ROW_CATEGORY_INDEX[a.info.category].rank - ROW_CATEGORY_INDEX[b.info.category].rank;
     if (categoryDiff !== 0) return categoryDiff;
     return a.info.label.trim().toLocaleLowerCase().localeCompare(b.info.label.trim().toLocaleLowerCase());
   });

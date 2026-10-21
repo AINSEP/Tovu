@@ -43,7 +43,9 @@ export interface SourceControlProviderInfo {
  *  @complexity O(f) in its declared field count. */
 export function sourceControlProviderInfoFromDescriptor(descriptor: AdminSourceControlProviderDescriptor): SourceControlProviderInfo {
   const credential = descriptor.credential ?? { tokenField: "token", fields: [], tokenPageUrl: "", help: "" };
-  const tokenField = credential.tokenField ?? "token";
+  // `tokenField` and `fields` are required on a credential form (`AdminPublishTargetCredentialSpec`);
+  // only the form itself may be absent, which the fallback above covers.
+  const { tokenField } = credential;
   const token = credential.fields.find((field) => field.name === tokenField);
   return {
     id: descriptor.id,
@@ -52,7 +54,7 @@ export function sourceControlProviderInfoFromDescriptor(descriptor: AdminSourceC
     scopeGuidanceKey: credential.help ?? "",
     tokenField,
     ...(token !== undefined ? { tokenLabel: token.label } : {}),
-    fields: (credential.fields ?? []).filter((field) => field.name !== tokenField),
+    fields: credential.fields.filter((field) => field.name !== tokenField),
     listed: true,
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
-import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName } from "../rules";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError } from "../rules";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -248,6 +248,49 @@ describe("describeTrashError", () => {
       alreadyGone: false,
       message: "failed to delete",
     });
+  });
+});
+
+describe("visibleTaxonomyError", () => {
+  const base = {
+    deleteTermBlocked: false,
+    deleteTermError: null,
+    deleteTermFallback: "Could not delete term.",
+    deleteTaxonomyBlocked: false,
+    deleteTaxonomyError: null,
+    deleteTaxonomyFallback: "Could not delete taxonomy.",
+    listError: null,
+    listFallback: "Could not load taxonomies.",
+  };
+
+  it("skips a term delete that has no message (no error, or already gone) and shows the taxonomy delete failure", () => {
+    expect(visibleTaxonomyError({ ...base, deleteTaxonomyError: new Error("taxonomy locked") })).toBe("taxonomy locked");
+    expect(visibleTaxonomyError({
+      ...base,
+      deleteTermError: new ApiError("gone", 404, "NOT_FOUND"),
+      deleteTaxonomyError: new Error("taxonomy locked"),
+    })).toBe("taxonomy locked");
+  });
+
+  it("prefers a term delete failure over the taxonomy one and the list read", () => {
+    expect(visibleTaxonomyError({
+      ...base,
+      deleteTermError: new Error("term in use"),
+      deleteTaxonomyError: new Error("taxonomy locked"),
+      listError: new Error("list down"),
+    })).toBe("term in use");
+  });
+
+  it("ignores blocked deletes (shown in their own slot) and falls through to the list error, else nothing", () => {
+    expect(visibleTaxonomyError({
+      ...base,
+      deleteTermBlocked: true,
+      deleteTermError: new Error("term in use"),
+      deleteTaxonomyBlocked: true,
+      deleteTaxonomyError: new Error("taxonomy locked"),
+      listError: new Error("list down"),
+    })).toBe("list down");
+    expect(visibleTaxonomyError(base)).toBeNull();
   });
 });
 
