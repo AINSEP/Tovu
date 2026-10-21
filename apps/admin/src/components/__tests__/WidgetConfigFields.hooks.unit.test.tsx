@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { useFetchedOptions, useSocialLinksConfig } from "../WidgetConfigFields/WidgetConfigFields.hooks";
+import { humanizeFieldName, useFetchedOptions, useRecentEntriesConfig, useSocialLinksConfig } from "../WidgetConfigFields/WidgetConfigFields.hooks";
 
 /**
  * @file `useFetchedOptions` — the hook `MenuConfigFields`/`ContactFormConfigFields` share
@@ -101,5 +101,94 @@ describe("useSocialLinksConfig — addLink's own cap guard", () => {
     act(() => result.current.addLink());
 
     expect(onChange).toHaveBeenCalledWith({ links: [...links, { platform: "", url: "" }] });
+  });
+});
+
+describe("humanizeFieldName", () => {
+  it("turns snake_case, kebab-case and camelCase field names into a sentence-case label", () => {
+    expect(humanizeFieldName("docs_page")).toBe("Docs page");
+    expect(humanizeFieldName("publishedAt")).toBe("Published at");
+    expect(humanizeFieldName("hero-image")).toBe("Hero image");
+    expect(humanizeFieldName("title")).toBe("Title");
+  });
+
+  it("returns an empty label for a name made only of separators", () => {
+    expect(humanizeFieldName("__-")).toBe("");
+  });
+});
+
+/** Renders `useRecentEntriesConfig` over a config that, like the real form, is replaced by each
+ *  `onChange` — so every assertion reads the config the operator's last edit actually produced. */
+function renderRecentEntries(initial: Record<string, unknown>) {
+  let config = initial;
+  const onChange = vi.fn((next: Record<string, unknown>) => { config = next; });
+  const view = renderHook(() => useRecentEntriesConfig(config, onChange));
+  return { view, onChange, latest: () => config, sync: () => view.rerender() };
+}
+
+describe("useRecentEntriesConfig — reading config.where back as the filter row", () => {
+  it("shows a stored boolean clause as its string form", () => {
+    const { view } = renderRecentEntries({ where: { featured: true } });
+    expect(view.result.current.filterField).toBe("featured");
+    expect(view.result.current.filterValue).toBe("true");
+  });
+
+  it("ignores a where object with more than one key", () => {
+    const { view } = renderRecentEntries({ where: { a: "x", b: "y" } });
+    expect(view.result.current.filterField).toBe("");
+    expect(view.result.current.filterValue).toBe("");
+  });
+
+  it("ignores a where clause whose value is not a scalar", () => {
+    const { view } = renderRecentEntries({ where: { tags: ["a"] } });
+    expect(view.result.current.filterField).toBe("");
+    expect(view.result.current.filterValue).toBe("");
+  });
+});
+
+describe("useRecentEntriesConfig — writing the filter value per field kind", () => {
+  it("keeps a text field's value as the raw string", () => {
+    const { view, latest } = renderRecentEntries({ where: { title: "old" } });
+    act(() => view.result.current.setFilterValue("Hello", "text"));
+    expect(latest().where).toEqual({ title: "Hello" });
+  });
+
+  it("stores a real-number field's value as a number", () => {
+    const { view, latest } = renderRecentEntries({ where: { rating: 1 } });
+    act(() => view.result.current.setFilterValue("2.5", "real"));
+    expect(latest().where).toEqual({ rating: 2.5 });
+  });
+
+  it("keeps a non-numeric value typed into an integer field as the raw string rather than NaN", () => {
+    const { view, latest } = renderRecentEntries({ where: { count: 1 } });
+    act(() => view.result.current.setFilterValue("abc", "integer"));
+    expect(latest().where).toEqual({ count: "abc" });
+  });
+});
+
+describe("useRecentEntriesConfig — field and layout controls", () => {
+  it("clearing the filter field drops the stored clause and leaves no field chosen", () => {
+    const { view, latest, sync } = renderRecentEntries({ where: { title: "x" }, collection: "docs" });
+    act(() => view.result.current.setFilterField(""));
+    expect(latest()).toEqual({ collection: "docs" });
+    sync();
+    expect(view.result.current.filterField).toBe("");
+    expect(view.result.current.filterValue).toBe("");
+  });
+
+  it("clearing the layout removes both layout and columns from config", () => {
+    const { view, latest } = renderRecentEntries({ layout: "cards", columns: 3 });
+    act(() => view.result.current.setLayout(""));
+    expect(latest()).toEqual({});
+  });
+
+  it("keeps columns when switching to the cards layout, drops them for any other layout", () => {
+    const cards = renderRecentEntries({ layout: "list", columns: 2 });
+    act(() => cards.view.result.current.setLayout("cards"));
+    expect(cards.latest()).toEqual({ layout: "cards", columns: 2 });
+
+    const list = renderRecentEntries({ layout: "cards", columns: 2 });
+    act(() => list.view.result.current.setLayout("list"));
+    expect(list.latest()).toEqual({ layout: "list" });
   });
 });

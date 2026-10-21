@@ -1396,3 +1396,21 @@ describe("StaticSiteTab — 'Create access token' cross-link to the Security pag
     expect(window.location.search).toBe("?tab=access-tokens");
   });
 });
+
+describe("StaticSiteTab — descriptors that omit optional copy", () => {
+  it("renders a config field with no help text as just its label and input, labelled for the agent with the host's name", () => {
+    const bare = { id: "bare-host", label: "Bare Host", configFields: [{ name: "site", label: "Site", required: true }] };
+    const { container } = renderTab({ publishController: { targets: [bare], target: "bare-host" } });
+    const input = screen.getByLabelText("Site");
+    expect(input).toHaveAttribute("data-agent-label", "Bare Host Site");
+    expect(input.closest(".field")?.querySelector(".field-hint")).toBeNull();
+    expect(container.querySelectorAll(".field-hint")).toHaveLength(0);
+  });
+
+  it("shows the project-name field without a help line when the host gives none, and labels it for the agent by its label key", () => {
+    renderTab({ publishController: { projectNameCopy: { labelKey: "Site name", helpKey: undefined } } });
+    const input = screen.getByLabelText("Site name");
+    expect(input).toHaveAttribute("data-agent-label", "Human-facing label for this publish — Site name");
+    expect(input.closest(".field")?.querySelector(".deployment-action-reason")).toBeNull();
+  });
+});

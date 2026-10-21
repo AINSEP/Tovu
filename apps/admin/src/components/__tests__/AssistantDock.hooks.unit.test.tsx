@@ -128,6 +128,7 @@ import {
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { localCliSelectionFromConfig } from "../AssistantDock/execution-config-write";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 import {
   emptyComposerCapabilityProjection,
@@ -842,6 +843,21 @@ describe("useLocalCliSelection", () => {
     }
   });
 
+  it("a send-time read keeps ChatPane's normalized model while the saved axes are unchanged, and follows the ledger once they change", () => {
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    try {
+      const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
+      const { result } = renderHook(() => useLocalCliSelection({ executionConfig: config, setExecutionConfig: stubSetExecutionConfig(config), configLoaded: true }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
+      expect(result.current.readLocalCliSelectionForSend(config)).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+      const elsewhere = localCliConfig({ agentId: "codex", modelByAgentId: {} });
+      expect(result.current.readLocalCliSelectionForSend(elsewhere)).toEqual(localCliSelectionFromConfig({ config: elsewhere }));
+      expect(result.current.readLocalCliSelectionForSend(elsewhere).agentId).toBe("codex");
+    } finally {
+      localStorage.clear();
+    }
+  });
+
   it("does not overwrite an operator's own pick made before the ledger's GET settles", () => {
     const { result, rerender } = renderHook(
       ({ configLoaded }) =>
@@ -1314,6 +1330,40 @@ describe("useAssistantTransport", () => {
 
     expect(result.current).toBe(first);
     expect(mockCreateTovuAssistantTransport).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useAssistantTransport — the send-time execution re-read", () => {
+  type CreateTransport = NonNullable<NonNullable<Parameters<typeof useAssistantTransport>[1]>["createTransport"]>;
+  type RunInput = Parameters<ReturnType<CreateTransport>["startRun"]>[0];
+  type RunHandlers = Parameters<ReturnType<CreateTransport>["startRun"]>[1];
+  function fakeTransport() {
+    const startRun = vi.fn().mockResolvedValue(undefined);
+    const createTransport = (() => ({ startRun, stopRun: async () => {}, reattachRun: async () => {}, fetchRunStatus: async () => null })) as unknown as CreateTransport;
+    return { startRun, createTransport };
+  }
+  const handlers = {} as RunHandlers;
+
+  it("passes the frozen run input straight through when the caller has no send-time config reader", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport }));
+    const runInput = { agentId: "claude", context: { model: "frozen" } } as unknown as RunInput;
+    await result.current.startRun(runInput, handlers);
+    expect(startRun).toHaveBeenCalledWith(runInput, handlers);
+  });
+
+  it("re-targets a Local CLI send to the saved agent from config alone when no selection reader is given, even with no frozen context", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const saved: ExecutionConfig = { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" };
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, readExecutionConfigForSend: async () => saved }, { createTransport }));
+    await result.current.startRun({ agentId: "claude" } as unknown as RunInput, handlers);
+    expect(startRun).toHaveBeenCalledTimes(1);
+    const sent = startRun.mock.calls[0]![0] as { agentId: string; context: Record<string, unknown> };
+    expect(sent.agentId).toBe("codex");
+    expect(sent.context).toEqual(expect.any(Object));
+    expect(sent.context).not.toHaveProperty("model", "frozen");
   });
 });
 
@@ -2095,6 +2145,35 @@ describe("useChatsSeam", () => {
 });
 
 describe("useFolderDropBridge", () => {
+  it("on the desktop app, hands a dropped skill folder to the skill installer instead of the plain folder upload", async () => {
+    const plainDrop = vi.fn();
+    mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: plainDrop });
+    const proposeSkillFiles = vi.fn().mockResolvedValue(undefined);
+    const skillFile = new File(["# skill"], "SKILL.md");
+    const leaf = { name: "SKILL.md", fullPath: "/skill/SKILL.md", isFile: true, isDirectory: false, file: (resolve: (file: File) => void) => resolve(skillFile) };
+    const folder = { name: "skill", fullPath: "/skill", isFile: false, isDirectory: true, createReader: () => {
+      let read = false;
+      return { readEntries: (resolve: (entries: unknown[]) => void) => { resolve(read ? [] : [leaf]); read = true; } };
+    } };
+    const event = {
+      dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => folder }], files: [], types: ["Files"] },
+      preventDefault: vi.fn(), stopPropagation: vi.fn(),
+    } as unknown as Parameters<ReturnType<typeof useFolderDropBridge>["handleDropCapture"]>[0];
+    const desktop = window as unknown as { tovuFiles?: unknown };
+    desktop.tovuFiles = {};
+    try {
+      // No `onSkillDropError`: a host may omit it, and the drop must still be captured.
+      const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+      result.current.handleDropCapture(event);
+      await waitFor(() => expect(proposeSkillFiles).toHaveBeenCalledTimes(1));
+      expect(proposeSkillFiles.mock.calls[0]![0]).toEqual([skillFile]);
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(plainDrop).not.toHaveBeenCalled();
+    } finally {
+      delete desktop.tovuFiles;
+    }
+  });
+
   it("publishes handleDropCapture to onReady once it is available", () => {
     const handleDropCapture = vi.fn();
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture });

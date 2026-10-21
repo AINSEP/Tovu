@@ -1076,7 +1076,11 @@ export function useAgentPageBridge(
 
     return () => {
       bridge.close();
-      setAgentBridge((current) => (current === bridge ? null : current));
+      // A plain `null`, not a `current === bridge ? null : current` updater: React runs this
+      // cleanup before the next setup in the same passive-effect flush, so the queue is always
+      // [null, nextBridge] and the newer bridge still wins; on an unmount/detach, null is exactly
+      // right. The "a newer bridge already landed" arm of that updater could never be reached.
+      setAgentBridge(null);
     };
   }, [pageDriver, executors, createBridge, openStream]);
 

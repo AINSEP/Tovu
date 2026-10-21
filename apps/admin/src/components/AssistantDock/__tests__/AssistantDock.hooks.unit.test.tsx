@@ -464,6 +464,54 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     }
   });
 
+  it("a failed refresh of a cached inventory keeps the cached list and retries no sooner than 30 seconds later", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const known = { id: "claude", name: "Claude Code", discoveryPending: false };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ agents: [known] }), { headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValue(new Response(JSON.stringify({ error: "daemon down" }), { status: 503, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([known]);
+      const staleAt = base + 15 * 60_000;
+      expect(result.current.getAgentsRefreshAt?.()).toBe(staleAt);
+
+      vi.setSystemTime(staleAt);
+      await expect(result.current.listAgents()).rejects.toThrow(/503/);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      // The failure moved the cached list's deadline to the retry window instead of leaving it due.
+      expect(result.current.getAgentsRefreshAt?.()).toBe(staleAt + 30_000);
+
+      vi.setSystemTime(staleAt + 29_999);
+      expect(await result.current.listAgents()).toEqual([known]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("an unparsable model-catalog expiry falls back to the inventory's own deadline instead of poisoning it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const base = Date.parse("2026-10-18T12:00:00Z");
+    vi.setSystemTime(base);
+    const agent: ChatPaneAgent = {
+      id: "codex", name: "Codex", discoveryPending: false,
+      modelCatalog: { source: "cli", freshness: "fresh", coverage: "account", fetchedAt: new Date(base).toISOString(),
+        expiresAt: "not-a-timestamp", launchFingerprint: "test" },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ agents: [agent] }), { headers: { "Content-Type": "application/json" } })));
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      expect(await result.current.listAgents()).toEqual([agent]);
+      expect(result.current.getAgentsRefreshAt?.()).toBe(base + 15 * 60_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("identical pending responses retain their backoff across immediate TanStack reads", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const base = Date.parse("2026-10-18T12:00:00Z");
