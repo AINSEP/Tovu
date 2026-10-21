@@ -6,6 +6,7 @@ Postgres/Playwright: not installed (owner override) — such tests listed as LOC
 | lot | status | subagent branch | merged |
 |---|---|---|---|
 | 038 | dispatched 15:44 | cloud/cov-T3-038 | |
-| 039 | dispatched 15:44 | cloud/cov-T3-039 | |
+| 039 | merged 16:20; 635 tests 0 fail; all 100% except init-site 99.59/96.88 (Postgres), local-site-child br 97.06 (subprocess merge), site-key-dependent-data br96/fn83 (Postgres), site-root fn80 (required empty port) | cloud/cov-T3-039 @0ebbc0918 | 22d3ba57c |
 | 040 | dispatched 15:44 | cloud/cov-T3-040 | |
-Sessions used: 3/15.
+| 041 | dispatched 16:18 | cloud/cov-T3-041 | |
+Sessions used: 4/15.
