@@ -7,4 +7,8 @@ Branches: Tovu+Jini cloud/fix-email-dns-2026-10-21 (on build-email-dns), Tovu+Ji
 
 | time | item | state |
 |---|---|---|
-| 21:40 | setup: branches checked out, installs running | in progress |
+| 21:40 | setup | done |
+| 21:53 | DNS 11/11 fixed | done |
+| 21:58 | search 9/9 fixed (2 LOW listed) | done |
+| 21:59 | email 8/8 fixed (#1 listed) | done |
+| 22:10 | report written | done |
