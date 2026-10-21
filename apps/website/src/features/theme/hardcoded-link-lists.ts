@@ -52,7 +52,9 @@ function maskMenusAndNonRenderable(html: string): string {
 export function findHardcodedLinks({ html }: { html: string }, _optional: {} = {}): readonly string[] {
   const hrefs: string[] = [];
   for (const match of maskMenusAndNonRenderable(html).matchAll(ANCHOR_HREF)) {
-    const href = match[1] ?? match[2] ?? match[3] ?? "";
+    // ANCHOR_HREF's three value groups are alternatives, so exactly one is captured and the other
+    // two are undefined; join("") renders undefined as "", yielding the one authored value.
+    const href = match.slice(1).join("");
     if (isInternalHref(href)) hrefs.push(href.trim());
   }
   return hrefs;
@@ -66,7 +68,7 @@ export function findHardcodedLinks({ html }: { html: string }, _optional: {} = {
  * @complexity O(n) in the content length.
  */
 export function describeHardcodedLinkList({ path, content }: { path: string; content: string }, _optional: {} = {}): string | undefined {
-  if (!CHROME_PARTIAL.test(path.split("/").pop() ?? "")) return undefined;
+  if (!CHROME_PARTIAL.test(path.slice(path.lastIndexOf("/") + 1))) return undefined;
   const links = findHardcodedLinks({ html: content });
   if (links.length < MIN_HARDCODED_LINK_LIST) return undefined;
   const named = links.length <= MAX_NAMED_LINKS ? links.join(", ") : `${links.slice(0, MAX_NAMED_LINKS).join(", ")}, ...`;

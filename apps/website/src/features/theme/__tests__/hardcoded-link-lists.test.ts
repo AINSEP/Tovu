@@ -43,6 +43,20 @@ test("links inside a menu marker are its fallback, and external, mailto, tel, fr
   );
 });
 
+test("single-quoted and unquoted hrefs are links too; empty and Liquid-templated hrefs are not", () => {
+  assert.deepEqual(
+    findHardcodedLinks({ html: `<a href='/single'>s</a><a href=/bare>b</a><a href="">e</a><a href="  ">w</a><a href="{% url 'home' %}">l</a><a href=" /padded ">p</a>` }),
+    ["/single", "/bare", "/padded"],
+  );
+});
+
+test("a list longer than ten links names the first ten and summarises the rest", () => {
+  const html = `<footer>${Array.from({ length: 12 }, (_, i) => `<a href="/p${i + 1}">${i + 1}</a>`).join("")}</footer>`;
+  const warning = describeHardcodedLinkList({ path: "render/partials/footer.html", content: html });
+  assert.match(warning!, /hard-codes 12 links \(\/p1, \/p2, \/p3, \/p4, \/p5, \/p6, \/p7, \/p8, \/p9, \/p10, \.\.\.\)/);
+  assert.doesNotMatch(warning!, /\/p11/);
+});
+
 test("links in a comment are not markup; links inside a marker of another type still count", () => {
   assert.deepEqual(findHardcodedLinks({ html: `<!-- <a href="/a">a</a><a href="/b">b</a><a href="/c">c</a> -->` }), []);
   assert.deepEqual(
