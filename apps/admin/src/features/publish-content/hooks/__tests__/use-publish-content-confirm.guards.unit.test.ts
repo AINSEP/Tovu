@@ -64,3 +64,45 @@ describe("usePublishContentConfirm — selection and re-entry guards", () => {
     await act(async () => { release(); await gate; });
   });
 });
+
+describe("usePublishContentConfirm — results that land after the dialog closed", () => {
+  function gatedPort(step: "confirmPublish" | "executePublish", outcome: "resolve" | "reject") {
+    const base = createFakePublishContentPort({ peers: [peer], report: TWO_POSTS });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const calls = { execute: 0 };
+    const original = base[step].bind(base) as (input: never) => Promise<unknown>;
+    const gated = async (input: never) => {
+      if (step === "executePublish") calls.execute += 1;
+      await gate;
+      if (outcome === "reject") throw new Error(`${step} failed late`);
+      return original(input);
+    };
+    const port = { ...base, calls: base.calls, [step]: gated, ...(step === "confirmPublish" ? { executePublish: async (input: never) => { calls.execute += 1; return (base.executePublish as (i: never) => Promise<unknown>)(input); } } : {}) };
+    return { port: port as unknown as typeof base, release: async () => { release(); await gate; }, calls };
+  }
+
+  it.each(["resolve", "reject"] as const)("a confirm that settles (%s) after unmount starts no publish", async (outcome) => {
+    const { port, release, calls } = gatedPort("confirmPublish", outcome);
+    const { result, unmount } = await planned(port);
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(result.current.dismissible).toBe(false));
+    unmount();
+    await act(release);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(calls.execute).toBe(0);
+  });
+
+  it.each(["resolve", "reject"] as const)("a publish that settles (%s) after unmount is dropped without error", async (outcome) => {
+    const { port, release, calls } = gatedPort("executePublish", outcome);
+    const { result, unmount } = await planned(port);
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(calls.execute).toBe(1));
+    const phaseAtUnmount = result.current.phase.kind;
+    unmount();
+    await act(release);
+    expect(phaseAtUnmount).toBe("executing");
+    expect(result.current.phase.kind).toBe("executing");
+  });
+});
+
