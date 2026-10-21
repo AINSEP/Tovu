@@ -161,8 +161,10 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
 
   const scheduleAutoDismiss = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
+    // No mounted check: the only pending timer is `dismissTimer.current` (cleared just above before
+    // a new one is set), and the unmount cleanup clears it, so it never fires after unmount.
     dismissTimer.current = setTimeout(() => {
-      if (mountedRef.current) setNotice(null);
+      setNotice(null);
     }, autoDismissMs);
   }, [autoDismissMs]);
 
