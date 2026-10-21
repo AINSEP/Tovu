@@ -6,6 +6,7 @@ import {
   adminHref,
   currentRoutePath,
   getServerRouteSnapshot,
+  installInternalLinkInterceptor,
   navigate,
   redirectLegacyHashUrl,
   useRouteLocation,
@@ -148,5 +149,31 @@ describe("useRouteLocation", () => {
 
   it("getServerRouteSnapshot returns the SSR/hydration fallback path — React only calls this off jsdom's render path (no SSR entry point exists here), so it is asserted by direct invocation", () => {
     expect(getServerRouteSnapshot()).toBe("/");
+  });
+});
+
+describe("installInternalLinkInterceptor", () => {
+  it("turns a plain click on an in-app admin link into an in-place navigation until uninstalled", () => {
+    const anchor = document.createElement("a");
+    anchor.href = "/admin/posts";
+    anchor.textContent = "Posts";
+    document.body.append(anchor);
+    const uninstall = installInternalLinkInterceptor();
+    try {
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+      anchor.dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(true);
+      expect(currentRoutePath()).toBe("/posts");
+
+      at("/admin/");
+      const modified = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, metaKey: true });
+      anchor.dispatchEvent(modified);
+      expect(modified.defaultPrevented).toBe(false);
+      expect(currentRoutePath()).toBe("/");
+    } finally { uninstall(); }
+    const after = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    anchor.dispatchEvent(after);
+    expect(after.defaultPrevented).toBe(false);
+    anchor.remove();
   });
 });

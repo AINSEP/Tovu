@@ -53,8 +53,10 @@ export function createServerReconnect(deps: ServerReconnectDeps, optional: Serve
   let inFlight: Promise<boolean> | null = null;
   const listeners = new Set<() => void>();
 
+  // Every call is a real change: only one poll runs at a time (`inFlight`), and each poll moves
+  // from a settled status ("online"/"unreachable") to "reconnecting" and back to a settled one, so
+  // listeners are only ever told about a transition without a same-status guard here.
   function setStatus(next: ServerConnectionStatus): void {
-    if (next === status) return;
     status = next;
     for (const listener of listeners) listener();
   }
@@ -108,15 +110,25 @@ export function shouldRetryAfterReconnect(input: {
 }
 
 /** The real probe: `/readyz` answering with its own JSON (200 ready, or 503 not-ready) means the
- *  server is up; anything else — refused, a proxy's text 5xx, a timeout — means not yet. */
-async function probeReadyz(): Promise<boolean> {
+ *  server is up; anything else — refused, a proxy's text 5xx, a timeout — means not yet.
+ *  `request` defaults to the browser `fetch`; each probe gives up after 2s. */
+export async function probeReadyz(_required = {}, { request = fetch }: { request?: typeof fetch } = {}): Promise<boolean> {
   try {
-    const res = await fetch("/readyz", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(2_000) });
+    const res = await request("/readyz", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(2_000) });
     const body: unknown = await res.json();
     return typeof (body as { ready?: unknown } | null)?.ready === "boolean";
   } catch {
     return false;
   }
+}
+
+/** The browser's real reconnect dependencies: the `/readyz` probe, a `setTimeout` sleep and the wall clock. */
+export function browserServerReconnectDeps(_required = {}, _optional = {}): ServerReconnectDeps {
+  return {
+    probe: () => probeReadyz(),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
+  };
 }
 
 /** Gives up at once without probing — what the suite gets, see {@link serverReconnect}. */
@@ -127,15 +139,14 @@ const neverReconnects: ServerReconnect = {
 };
 
 /**
- * The one instance the app uses. Under vitest (`MODE === "test"`) it never waits or probes: an extra
+ * The reconnect for a build `mode`. Under vitest (`MODE === "test"`) it never waits or probes: an extra
  * `/readyz` fetch would eat a test's queued fetch stub, and every unreachable-path test would stall a
  * minute. Tests of this behaviour build their own with {@link createServerReconnect} and pass it to
  * `api.ts`'s `requestRidingOutRestart`.
  */
-export const serverReconnect: ServerReconnect = import.meta.env.MODE === "test"
-  ? neverReconnects
-  : createServerReconnect({
-    probe: probeReadyz,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    now: () => Date.now(),
-  });
+export function serverReconnectForMode({ mode }: { mode: string }, _optional = {}): ServerReconnect {
+  return mode === "test" ? neverReconnects : createServerReconnect(browserServerReconnectDeps());
+}
+
+/** The one instance the app uses (see {@link serverReconnectForMode} for the test-mode stand-in). */
+export const serverReconnect: ServerReconnect = serverReconnectForMode({ mode: import.meta.env.MODE });

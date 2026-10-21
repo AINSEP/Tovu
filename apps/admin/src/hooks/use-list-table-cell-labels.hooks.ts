@@ -22,7 +22,8 @@ function headerLabels(table: HTMLTableElement): string[] {
     const title = th.cloneNode(true) as HTMLTableCellElement;
     title.querySelectorAll('.info-tip, [role="tooltip"], [hidden], [aria-hidden="true"]')
       .forEach((help) => help.remove());
-    const text = (th.getAttribute("data-label") ?? title.textContent ?? "").replace(SORT_GLYPHS, "").trim();
+    // An element's `textContent` is never null (only a document's or doctype's is), so no "" fallback.
+    const text = (th.getAttribute("data-label") ?? title.textContent).replace(SORT_GLYPHS, "").trim();
     for (let i = 0; i < th.colSpan; i += 1) labels.push(text);
   }
   return labels;

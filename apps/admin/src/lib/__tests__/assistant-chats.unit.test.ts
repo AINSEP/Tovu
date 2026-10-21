@@ -10,6 +10,7 @@ import {
   HttpError,
   listConversations,
   loadMessages,
+  messageWriteKey,
   persistableMessages,
   renameConversation,
   saveMessage,
@@ -229,6 +230,17 @@ describe("persistableMessages", () => {
     const canceled: ChatMessage = { id: "6", role: "assistant", content: "", runStatus: "canceled" };
 
     expect(persistableMessages([running, queued, noStatus, succeeded, failed, canceled])).toEqual([succeeded, failed, canceled]);
+  });
+});
+
+describe("messageWriteKey", () => {
+  it("keys a message with a run by id and run, so a retry under the same id is written again", () => {
+    expect(messageWriteKey({ id: "answer", runId: "run-1" })).toBe("answer:run-1");
+    expect(messageWriteKey({ id: "answer", runId: "run-2" })).not.toBe(messageWriteKey({ id: "answer", runId: "run-1" }));
+  });
+
+  it("keys a message with no run (a user turn, an old row) by id alone", () => {
+    expect(messageWriteKey({ id: "question" })).toBe("question");
   });
 });
 

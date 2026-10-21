@@ -359,6 +359,26 @@ describe("WidgetEmbedNodeView", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
+  it("for a media widget, Style offers this spot's content choice and saves 'use the widget's content' as a null override", async () => {
+    const user = userEvent.setup();
+    const updateAttributes = vi.fn();
+    const mediaWidget = { ...ACTIVE_WIDGET, title: "Photo strip", widgetType: "media" as const, config: { mode: "media", items: [], layout: "grid" } };
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: mediaWidget, whereUsed: NO_WHERE_USED } as unknown as Awaited<ReturnType<typeof api.getWidget>>);
+    render(
+      <WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" }, { updateAttributes })} />,
+    );
+    await screen.findByText("Photo strip");
+    await user.click(screen.getByRole("button", { name: "Style" }));
+    await screen.findByRole("dialog");
+
+    expect(screen.getByRole("group", { name: "Content for this spot" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Use the widget's content" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Custom for this post" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateAttributes).toHaveBeenCalledWith({ cssClass: null, htmlAttributes: null, content: null });
+  });
+
   it("Cancel from the Style dialog closes it without updating the node", async () => {
     const user = userEvent.setup();
     const updateAttributes = vi.fn();

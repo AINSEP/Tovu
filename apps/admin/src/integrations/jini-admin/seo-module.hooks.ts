@@ -20,14 +20,16 @@ export function SeoMediaPickerSlot({ agentHandle, ...props }: SeoMediaPickerSlot
  * @example createHostSeoModule({});
  */
 export function createHostSeoModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof seo> & { react: { loadingContent: ReactElement } } {
-  const feature = seo({ siteUrl: () => siteUrl('') });
+  // One site-URL reader for the factory default and the live options the Provider always passes.
+  const hostSiteUrl = () => siteUrl('');
+  const feature = seo({ siteUrl: hostSiteUrl });
   const ScopeProvider = feature.react.Provider;
   // Keep this component's identity for the scope lifetime; changing locale must not remount
   // the uncontrolled defaults form or discard an unsaved entry override.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
     const locale = useAdminLocaleHook();
     const options = useMemo<SeoReactOptions>(() => ({
-      siteUrl: () => siteUrl(''),
+      siteUrl: hostSiteUrl,
       t: createSeoTranslator({ locale }),
       describeError: describeSeoHostError,
       // Reuse the admin's compact locale date/time owner; the legacy modal locale prop is 'en'.

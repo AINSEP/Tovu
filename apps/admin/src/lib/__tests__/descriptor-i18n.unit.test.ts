@@ -68,6 +68,26 @@ describe("localizePublishTargets", () => {
     });
   });
 
+  it("adds no optional keys a minimal descriptor did not declare", () => {
+    const bare: AdminPublishTargetDescriptor = {
+      id: "static-host",
+      label: "Static host",
+      configFields: [{ name: "bucket", label: "Bucket", required: true }],
+      i18n: { es: { "Static host": "Alojamiento estático", Bucket: "Depósito" } },
+    };
+    expect(localizePublishTargets([bare], "es")).toStrictEqual([
+      { ...bare, label: "Alojamiento estático", configFields: [{ name: "bucket", label: "Depósito", required: true }] },
+    ]);
+    const sparse: AdminPublishTargetDescriptor = {
+      ...bare,
+      projectName: { label: "Bucket" },
+      credential: { tokenField: "token", fields: [{ name: "token", label: "Access token", required: true, secret: true }] },
+    };
+    const [localized] = localizePublishTargets([sparse], "es")!;
+    expect(localized!.projectName).toStrictEqual({ label: "Depósito" });
+    expect(localized!.credential).toStrictEqual({ tokenField: "token", fields: [{ name: "token", label: "Access token", required: true, secret: true }] });
+  });
+
   it("returns the descriptors unchanged in English, and undefined while not loaded", () => {
     expect(localizePublishTargets([target], "en")).toEqual([target]);
     expect(localizePublishTargets(undefined, "es")).toBeUndefined();
@@ -88,5 +108,10 @@ describe("localizeSourceControlProviders", () => {
         credential: { help: "Benötigt ein Token.", tokenField: "token", fields: [{ name: "token", label: "Zugriffstoken", required: true, secret: true }] },
       },
     ]);
+  });
+
+  it("leaves a host with no credential spec without one", () => {
+    const provider: AdminSourceControlProviderDescriptor = { id: "local-git", label: "Local Git", i18n: { de: { "Local Git": "Lokales Git" } } };
+    expect(localizeSourceControlProviders([provider], "de")).toStrictEqual([{ ...provider, label: "Lokales Git" }]);
   });
 });

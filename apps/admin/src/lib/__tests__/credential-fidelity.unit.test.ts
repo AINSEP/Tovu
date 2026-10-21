@@ -16,6 +16,17 @@ describe('credential byte preservation and safe admin hints', () => {
     expect(storedCredentialHint({ stored: { ...stored, masked: null, tokenHint: { length: 4, last4: null } } })).toBe('4 chars');
     expect(formatCredentialHint({ hint: { length: 21, last4: '.com' } })).toBe('…\u202f.com, 21 chars');
   });
+  it('falls back to a legacy server mask, and shows no hint for a set key with neither hint nor mask or an unset key', () => {
+    expect(storedCredentialHint({ stored: { isSet: true, masked: '••••a9F2' } })).toBe('••••a9F2');
+    expect(storedCredentialHint({ stored: { isSet: true, masked: null, tokenHint: null } })).toBeUndefined();
+    expect(storedCredentialHint({ stored: { isSet: false, masked: '••••a9F2' } })).toBeUndefined();
+    expect(storedCredentialHint({ stored: null })).toBeUndefined();
+  });
+  it('rethrows a validator failure that is not a credential input error instead of displaying it', () => {
+    const failure = new RangeError('validator bug');
+    expect(() => credentialDraftError({ value: 'abc' }, { assertToken: () => { throw failure; } })).toThrow(failure);
+    expect(credentialDraftError({ value: 'abc' }, { assertToken: () => {} })).toBe(null);
+  });
   it('sends the original entered token to the store; blank and whitespace stay distinct', () => {
     for (const token of [' \nabc+/=._-~\n ', '', '   ']) {
       expect(buildSourceControlConnectionInput({ providerId: 'github', token, values: {} }, []).token === token).toBe(true);

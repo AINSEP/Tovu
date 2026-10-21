@@ -9,6 +9,7 @@ import {
   attemptSave,
   giveUpOutcome,
   handleSaveFailure,
+  sharedPort,
   summarizeFlushOutcomes,
   useAssistantChats,
   useWiredAssistantChats,
@@ -1042,5 +1043,31 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
     });
     expect(second).not.toBeNull();
     expect(attempts).toBe(2);
+  });
+});
+
+describe("sharedPort — Jini's object-shaped port over the host's positional one", () => {
+  it("forwards every call, seeding the title only when a first message is given", async () => {
+    const calls: unknown[][] = [];
+    const conversation = { id: "c1", title: "t" } as unknown as AssistantConversation;
+    const host: AssistantChatsPort = {
+      listConversations: async () => { calls.push(["list"]); return [conversation]; },
+      createConversation: async (...args: [string?]) => { calls.push(["create", ...args]); return conversation; },
+      renameConversation: async (id, title) => { calls.push(["rename", id, title]); },
+      deleteConversation: async (id) => { calls.push(["delete", id]); },
+      loadMessages: async (id) => { calls.push(["load", id]); return []; },
+      saveMessage: async (id, message) => { calls.push(["save", id, message.id]); },
+    };
+    const port = sharedPort(host);
+    expect(await port.listConversations({}, {})).toEqual([conversation]);
+    await port.createConversation({}, {});
+    await port.createConversation({ firstMessage: "Plan the launch" }, {});
+    await port.renameConversation({ id: "c1", title: "Launch" }, {});
+    await port.deleteConversation({ id: "c1" }, {});
+    await port.loadMessages({ conversationId: "c1" }, {});
+    await port.saveMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hi" } }, {});
+    expect(calls).toEqual([
+      ["list"], ["create"], ["create", "Plan the launch"], ["rename", "c1", "Launch"], ["delete", "c1"], ["load", "c1"], ["save", "c1", "m1"],
+    ]);
   });
 });

@@ -145,6 +145,22 @@ describe("useExternalEntryRefresh — checkForExternalChange", () => {
     expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
   });
 
+  it("a failed background re-read is silent: no notice, no apply, no error surfaced", async () => {
+    const fetchLatest = vi.fn().mockRejectedValue(new Error("offline"));
+    const env = setup({ loaded: { id: "a", version: 1 }, fetchLatest });
+
+    await act(async () => {
+      env.result.current.checkForExternalChange();
+      await Promise.resolve();
+    });
+
+    expect(fetchLatest).toHaveBeenCalledWith("a");
+    expect(env.applyLatest).not.toHaveBeenCalled();
+    expect(env.supersedeStandingDraftBasis).not.toHaveBeenCalled();
+    expect(env.onLoadLatestFailed).not.toHaveBeenCalled();
+    expect(env.result.current.pendingExternalVersion).toBeNull();
+  });
+
   it("does nothing when the fetched row is not newer", async () => {
     const { promise, resolve } = deferred<TestRow>();
     const fetchLatest = vi.fn().mockReturnValue(promise);

@@ -170,8 +170,9 @@ export function buildScreenshotFailureResult(reason: string): ScreenshotToolResu
 function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly data: string } | undefined {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   if (!match) return undefined;
-  const [, mimeType, data] = match;
-  return mimeType && data ? { mimeType, data } : undefined;
+  // Both capture groups use a `+` quantifier, so a successful match always carries a non-empty
+  // mime type and payload; the non-null assertions restate that regex guarantee for the type system.
+  return { mimeType: match[1]!, data: match[2]! };
 }
 
 /**
