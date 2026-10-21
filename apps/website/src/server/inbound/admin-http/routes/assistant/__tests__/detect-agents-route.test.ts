@@ -170,3 +170,60 @@ test("each route uses its composition's inventory rather than the process compat
     assert.deepEqual(received, [[{ id: "host-a", label: "host-a" }], [{ id: "host-b", label: "host-b" }]]);
   } finally { await Promise.all(inventories.map(inventory => inventory.dispose({}))); }
 });
+
+test("detect-agents redacts an authorization failure as a generic 500 without probing", async () => {
+  calls = 0;
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  await handler(true, { authorize: async () => { throw new Error("policy store at /private/policies.db is down"); } })(
+    { params: { workspaceId: "workspace-test" } }, res);
+  assert.equal(calls, 0);
+  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+});
+
+test("an injected detector seeds its first snapshot from the composition inventory's runtime, not process.env", async (t) => {
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const binDir = await mkdtemp(join(tmpdir(), "detect-agents-runtime-"));
+  t.after(() => rm(binDir, { recursive: true, force: true }));
+  await writeFile(join(binDir, "codex"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const assistantAgentInventory = createAssistantAgentInventory({
+    runtime: createNativeAgentRuntime({ env: { PATH: binDir, HOME: binDir } }),
+    detector: async () => agents,
+  });
+  t.after(() => assistantAgentInventory.dispose({}));
+  calls = 0;
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  await handler(true, { assistantAgentInventory })({ params: { workspaceId: "workspace-test" } }, res);
+  assert.equal(capture.statusCode, 200);
+  const { data } = capture.jsonBody as { data: { id: string; installed: boolean; path?: string; discoveryPending: boolean }[] };
+  const codex = data.find(agent => agent.id === "codex");
+  assert.deepEqual(codex && { installed: codex.installed, path: codex.path, discoveryPending: codex.discoveryPending },
+    { installed: true, path: join(binDir, "codex"), discoveryPending: true });
+  assert.equal(data.find(agent => agent.id === "claude")?.installed, false, "only binaries on the injected runtime's PATH count");
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+test("detect-agents: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is a 404 before authorization or detection", async () => {
+  calls = 0;
+  const authorizations: unknown[] = [];
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+
+  await handler(true, { authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "granted" }; } })(
+    { params: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(authorizations, []);
+  assert.equal(calls, 0);
+});

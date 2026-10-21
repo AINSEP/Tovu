@@ -197,3 +197,17 @@ test("keyed challenge requests hit the per-IP ceiling without minting another no
   assert.equal((await store.takeOnce("rate-nonce-40"))?.targetInstallationId, "dest-1");
   assert.equal(await store.takeOnce("rate-nonce-41"), null);
 });
+
+test("keyed GET /identity reports the origin the caller reached, and an empty origin when no Host header arrived", async () => {
+  const handler = routes({ targetInstallationId: Promise.resolve("dest-1") }).get("GET /api/publish-trust/v1/identity")!;
+  const withHost = fakeRes();
+  await handler(fakeReq(), withHost.res);
+  assert.equal(withHost.sent.status, 200);
+  assert.deepEqual(withHost.sent.body, { installationId: "dest-1", workspaceId: "w-1", origin: "https://dest.example" });
+
+  const hostless = { ...fakeReq(), get: () => undefined } as unknown as Request;
+  const withoutHost = fakeRes();
+  await handler(hostless, withoutHost.res);
+  assert.equal(withoutHost.sent.status, 200);
+  assert.deepEqual(withoutHost.sent.body, { installationId: "dest-1", workspaceId: "w-1", origin: "" });
+});

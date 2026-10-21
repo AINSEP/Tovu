@@ -69,6 +69,13 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
     assert.deepEqual(await sink.list(), [...hits].reverse());
   });
 
+  test(`[${label}] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched`, async () => {
+    const sink = makeSink();
+    await sink.accept(makeHit({ path: "/kept" }));
+    await sink.acceptBatch([]);
+    assert.deepEqual((await sink.list()).map((hit) => hit.path), ["/kept"]);
+  });
+
   test(`[${label}] list() honors an explicit limit`, async () => {
     const sink = makeSink();
     for (let i = 0; i < 10; i += 1) {

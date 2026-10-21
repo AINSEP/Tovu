@@ -55,6 +55,8 @@ export type AssistantExecutionRouteDeps = Pick<
   readonly detectAgents?: typeof detectAgents;
   /** Forward Jini's existing DNS seam so the real SSRF guard can be exercised without DNS I/O. */
   readonly probeDnsLookup?: NonNullable<Parameters<typeof listProviderModels>[1]>["dnsLookup"];
+  /** Provider connection probe; defaults to Jini's `testProviderConnection` (real outbound request). */
+  readonly testProviderConnection?: typeof testProviderConnection;
   /** Native fetch dispatcher seam; redirects remain forbidden by the probe adapter. */
   readonly probeRequestInit?: NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"];
 };

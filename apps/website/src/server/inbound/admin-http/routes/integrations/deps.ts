@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import type { WebhookSubscriptionDeps } from "#src/features/webhooks/index";
 import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
 
 /**
@@ -15,3 +16,21 @@ import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
 export type IntegrationsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "originRegistry"> & WebhooksDeps;
 
 export type IntegrationsRouteRegistrar = (app: Express, deps: IntegrationsRouteDeps) => void;
+
+/**
+ * The subscription-lifecycle deps every route in this directory hands `#src/features/webhooks`
+ * (create, pause and delete), built in one place so each route uses the same target policy.
+ *
+ * ADR-PIPE-015 GAP-06: `isAllowedTarget` is the real core/origin egress oracle, replacing the
+ * dev-only permitAllHttpsTargets stand-in. Fails closed on any parse failure or ambiguity.
+ * Only create (and update) consult it — pause and delete never re-validate `targetUrl`.
+ */
+export function toWebhookSubscriptionDeps(deps: IntegrationsRouteDeps): WebhookSubscriptionDeps {
+  return {
+    clock: deps.clock,
+    repo: deps.webhookSubscriptionRepo,
+    idGenerator: deps.idGen,
+    isAllowedTarget: (url: string) =>
+      deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
+  };
+}

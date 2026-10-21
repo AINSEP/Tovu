@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { ContentRouteDeps } from "../../content/deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemesListRoute } from "../list.js";
@@ -43,4 +45,34 @@ test("missing settings or an unknown stored theme leaves every theme inactive", 
 });
 test("presentation read failure returns a generic error without leaking details", async () => {
   assert.deepEqual(await invoke([], null, true), { statusCode: 500, jsonBody: { error: "internal error" } });
+});
+// Route-param guard (`String(req.params.workspaceId ?? "")`) and the theme.set gate, before any read.
+test("an absent or foreign workspace 404s and a caller without theme.set gets 403, both before reading settings", async () => {
+  let reads = 0;
+  let allowed = false;
+  const app = express();
+  registerAdminThemesListRoute(app, portFake<ContentRouteDeps>({
+    workspaceId: "ws-7", themes: [], authorize: async (input: unknown) => {
+      assert.deepEqual(input, { principalId: "principal-7", permission: "theme.set", workspaceId: "ws-7", entityType: "presentation" });
+      return { allowed, reason: "no grant" };
+    },
+    presentationRepo: { findByWorkspaceId: async () => { reads++; return null; } },
+  }));
+  const call = async (params: Record<string, string>) => {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "principal-7" };
+    await extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/themes")({ params }, res);
+    return capture;
+  };
+  for (const params of [{}, { workspaceId: "other" }] as Record<string, string>[]) {
+    assert.deepEqual(await call(params), { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  }
+  assert.deepEqual(await call({ workspaceId: "ws-7" }), { statusCode: 403, jsonBody: {
+    error: "principal 'principal-7' is not authorized for 'theme.set' (no grant)", code: "FORBIDDEN",
+    details: { permission: "theme.set", reason: "no grant" },
+  } });
+  assert.equal(reads, 0);
+  allowed = true;
+  assert.deepEqual(await call({ workspaceId: "ws-7" }), { statusCode: 200, jsonBody: { themes: [] } });
+  assert.equal(reads, 1);
 });

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminChangeSetGetRoute } from "../../inbound/admin-http/routes/change-sets/get.js";
@@ -159,4 +159,63 @@ test("change-sets list + get: a repository failure is a 500 'internal error', ne
     assert.equal(res.status, 500, path);
     assert.deepEqual(await res.json(), { error: "internal error" }, path);
   }
+});
+
+test("change-sets list + get: a principal without changeset.read is 403 FORBIDDEN carrying the authorizer's reason", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.changeSets.insert({ record: changeSet(), items: [item()] });
+  const asked: Array<{ permission: string; entityType?: string; entityId?: string }> = [];
+  deps.authorize = async (input) => {
+    asked.push({ permission: input.permission, entityType: input.entityType, entityId: input.entityId });
+    return { allowed: false, reason: "role lacks permission" };
+  };
+
+  for (const path of ["/change-sets", "/change-sets/cs-get-1"]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}${path}`, { headers: { cookie } });
+    assert.equal(res.status, 403, path);
+    const body = (await res.json()) as { error: string; code: string; details: unknown };
+    assert.equal(body.code, "FORBIDDEN", path);
+    assert.match(body.error, /is not authorized for 'changeset\.read' \(role lacks permission\)$/, path);
+    assert.deepEqual(body.details, { permission: "changeset.read", reason: "role lacks permission" }, path);
+  }
+  assert.deepEqual(asked, [
+    { permission: "changeset.read", entityType: "change_set", entityId: undefined },
+    { permission: "changeset.read", entityType: "change_set", entityId: "cs-get-1" },
+  ]);
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` / `String(req.params.changeSetId ?? "")` (extractRouteHandler's
+ * own doc, `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always populated, so
+ * the right side of every `??` below is unreachable through any real HTTP request. Restored 2026-09-03
+ * after being wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the
+ * guard and exercise it with a hand-built `req` that deliberately violates that contract.
+ */
+for (const path of ["/api/admin/v1/workspaces/:workspaceId/change-sets", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId"]) {
+  test(`change-sets ${path.endsWith(":changeSetId") ? "get" : "list"}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is the workspace 404`, async () => {
+    const { app } = buildTestApp();
+    const handler = extractRouteHandler(app, "get", path);
+    const { res, capture } = createCapturingResponse();
+
+    await handler({ params: {}, query: {} }, res);
+
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  });
+}
+
+test("change-sets get: `req.params.changeSetId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal, is the ordinary not-found", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: WS }, query: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "change set was not found", code: "CHANGE_SET_NOT_FOUND" } });
 });

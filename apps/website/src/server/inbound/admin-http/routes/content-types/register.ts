@@ -1,41 +1,12 @@
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize, EntityNotLiveError } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
-import {
-  ContentTypeAlreadyExistsError,
-  ForbiddenError,
-  InvalidFieldKindError,
-  InvalidFieldNameGrammarError,
-  InvalidFieldShapeError,
-  InvalidKeyGrammarError,
-  QueryableFieldCapExceededError,
-  ReservedContentTypeKeyError,
-} from "#src/features/content-types/index";
 import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { registerContentType } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-
-/** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). The
- * `ContentTypeAlreadyExistsError`/`EntityNotLiveError` arms are S9 (web-high fix plan,
- * 2026-09-24) — row 7 (define overwrites/resurrects) and its tombstone-resurrect sibling. */
-function statusFor(error: Error): { status: number; code: string } {
-  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
-  if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
-  if (error instanceof EntityNotLiveError) return { status: 409, code: error.code };
-  if (
-    error instanceof InvalidKeyGrammarError ||
-    error instanceof ReservedContentTypeKeyError ||
-    error instanceof InvalidFieldNameGrammarError ||
-    error instanceof InvalidFieldShapeError ||
-    error instanceof InvalidFieldKindError ||
-    error instanceof QueryableFieldCapExceededError
-  ) {
-    return { status: 400, code: "VALIDATION_ERROR" };
-  }
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
+import { contentTypeWriteErrorStatus } from "./write-error-status.js";
 
 /**
  * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types` (creates a Collection's
@@ -75,7 +46,7 @@ export function registerAdminContentTypeRegisterRoute(app: Express, deps: Conten
       // stay in `write-service.ts`'s CIC U-002-B1 chain — see `field-defs.ts`'s header.
       const fields = parseContentTypeFieldDefs({ value: body.fields });
       if (!fields.ok) {
-        const { status, code } = statusFor(fields.error);
+        const { status, code } = contentTypeWriteErrorStatus({ error: fields.error });
         res.status(status).json({ error: fields.error.message, code });
         return;
       }
@@ -101,7 +72,7 @@ export function registerAdminContentTypeRegisterRoute(app: Express, deps: Conten
       });
 
       if (!result.ok) {
-        const { status, code } = statusFor(result.error);
+        const { status, code } = contentTypeWriteErrorStatus({ error: result.error });
         res.status(status).json({ error: result.error.message, code });
         return;
       }

@@ -1,6 +1,10 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "./local-sites.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor, type LocalSiteProcessPort } from "#src/platform/site-dir/local-site-supervisor";
@@ -21,7 +25,13 @@ function fixture() {
     await handler({ params: { workspaceId, name }, body }, res);
     return capture;
   }
-  return { request, supervisor, writes: () => writes, deny: () => { allowed = false; }, disable: () => { enabled = false; } };
+  async function requestWithParams(suffix: string, params: Record<string, string>, body: object) {
+    const handler = extractRouteHandler(app, "post", ROOT + suffix);
+    const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
+    await handler({ params, body }, res);
+    return capture;
+  }
+  return { request, requestWithParams, supervisor, writes: () => writes, deny: () => { allowed = false; }, disable: () => { enabled = false; } };
 }
 test("local routes enforce workspace/auth/capability before process and folder effects", async () => {
   const f = fixture();
@@ -61,4 +71,30 @@ test("Trash permanent removal requires explicit checkbox and confirm even for an
     assert.equal(capture.statusCode, checked && confirmed ? 200 : 400);
     assert.equal(removed, checked && confirmed);
   }
+});
+
+test("a request without its :name/:id param reaches the effect as an empty name and is refused, never acted on (direct handler call)", async () => {
+  const f = fixture();
+  for (const [suffix, body] of [["/:name/start", {}], ["/:name/stop", {}], ["/:name/trash", { confirmed: true }],
+    ["/trash/:id/restore", {}], ["/trash/:id/delete", { checked: true, confirmed: true }]] as const) {
+    const capture = await f.requestWithParams(suffix, { workspaceId: "ws" }, body);
+    assert.deepEqual(capture, { statusCode: 400, jsonBody: { code: "VALIDATION_ERROR", error: "VALIDATION_ERROR" } }, suffix);
+  }
+  assert.deepEqual(f.supervisor.list(), []);
+  assert.equal(f.writes(), 0);
+});
+
+test("without an injected siteTrash the routes use the real site-trash module against the bound base", async (t) => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "local-sites-default-trash-"));
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const processPort: LocalSiteProcessPort = { isPortFree: async () => true, launch: async () => { throw new Error("no launch"); }, schedule: () => () => {} };
+  const app = express();
+  registerLocalSitesRoutes({ app, deps: { workspaceId: "ws",
+    siteBinding: { name: "owner", dir: path.join(tmp, "sites", "owner"), dirOverridden: false, switcherCompatible: true },
+    authorize: async () => ({ allowed: true, reason: "owner" }), isSiteSwitcherEnabled: () => true,
+    localSiteSupervisor: createLocalSiteSupervisor({ processPort, servingName: "owner", scheme: "http" }) } });
+  const handler = extractRouteHandler(app, "post", ROOT + "/trash/:id/restore");
+  const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
+  await handler({ params: { workspaceId: "ws", id: "alpha--00000000-0000-0000-0000-000000000000" }, body: {} }, res);
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { code: "SITE_NOT_FOUND", error: "SITE_NOT_FOUND" } });
 });

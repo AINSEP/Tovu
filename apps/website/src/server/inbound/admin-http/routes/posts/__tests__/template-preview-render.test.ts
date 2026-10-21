@@ -63,6 +63,21 @@ test("the extracted renderer preserves the route's actionable no-theme error", a
   });
 });
 
+test("a template preview on a site whose stored active theme resolves to nothing installed is a 500 'no themes installed'", async () => {
+  const { deps } = bareDeps();
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: 'w', activeThemeId: 'uninstalled-theme', updatedAt: barePost.updatedAt }] });
+  await assert.rejects(renderPostPreview(deps, { post: { ...barePost, templateChoice: 'page.html' } }), {
+    name: 'TemplatePreviewRenderError', status: 500, message: 'no themes installed',
+  });
+});
+
+test("a bare page preview reports its template choice as the empty string it was selected by", async () => {
+  const { deps } = bareDeps();
+  const result = await renderPostPreview(deps, { post: barePost, bodyHtml: '<p>Pending</p>' });
+  assert.equal(result.templateChoice, '');
+  assert.match(result.html, /Pending/);
+});
+
 test("postpolish: public static render and editor preview share saved cover choice with a pending body", async () => {
   const assetId = "44444444-4444-4444-4444-444444444444";
   const image = (alt: string) => ({ type: "image", attrs: { assetId, transformName: "public", alt } });
@@ -133,4 +148,44 @@ test("TW2 themed preview preserves saved and pending bodies across format and pu
     assert.deepEqual(await repo.findById({ workspaceId: "w", id: post.id }), post);
     assert.equal(writes(), 0);
   }
+});
+
+/** Captures the route's GET handler and a text/html-capable response (the route answers with
+ *  `type().send()`, not `json()`), mirroring the byte-identical test above. */
+function previewHandler(deps: ReturnType<typeof bareDeps>["deps"]) {
+  let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
+  registerAdminPostTemplatePreviewRoute({ get: (_path: string, fn: typeof handler) => { handler = fn; }, post: () => {} } as never, deps);
+  assert.ok(handler);
+  const invoke = async (req: unknown) => {
+    const out = { status: 200, text: '' };
+    const response = { locals: { principal: { id: 'p' } }, status: (value: number) => { out.status = value; return response; }, set: () => response, type: () => response, send: (value: string) => { out.text = value; return response; } };
+    await handler!(req, response);
+    return out;
+  };
+  return invoke;
+}
+
+/** Express guarantees matched `:workspaceId`/`:postId` segments, and body-parser always assigns
+ *  `req.body`, so these fallbacks are only reachable via a hand-built `req` (extractRouteHandler's
+ *  own doc, `src/server/__tests__/helpers/http-test-server.ts`). */
+test("route (direct invoke): a missing :workspaceId 404s, a missing :postId is an ordinary post-not-found 404", async () => {
+  const invoke = previewHandler(bareDeps().deps);
+  assert.deepEqual(await invoke({ params: {}, query: {} }), { status: 404, text: 'workspace was not found' });
+  assert.deepEqual(await invoke({ params: { workspaceId: 'w' }, query: {} }), { status: 404, text: "post '' was not found" });
+});
+
+test("route (direct invoke): a request with no body at all renders the saved body (no pending override), never a crash", async () => {
+  const invoke = previewHandler(bareDeps().deps);
+  const out = await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' } });
+  assert.equal(out.status, 200);
+  assert.equal(out.text, '<!doctype html><html><body><p>Saved draft</p></body></html>');
+});
+
+test("route (direct invoke): an unexpected repository failure is a plain 500 'preview render failed' that leaks no internals", async () => {
+  const { deps } = bareDeps();
+  deps.postRepo.findBySlug = async () => {
+    throw new Error('sqlite: disk I/O error at /private/path');
+  };
+  const invoke = previewHandler(deps);
+  assert.deepEqual(await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: {}, body: {} }), { status: 500, text: 'preview render failed' });
 });

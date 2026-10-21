@@ -406,3 +406,56 @@ test("recovery status prioritizes blocked and pending migration banners over a h
     await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: acquired.value } });
   }
 });
+
+test("recovery routes: disclosure's `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/recovery/disclosure");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({}, res); // no `body` key at all -> `req.body ?? {}` fallback
+
+  assert.equal(capture.statusCode, 400);
+  assert.deepEqual(capture.jsonBody, { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
+});
+
+test("recovery restore-points list refuses a signed-in caller without backup.read", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/restore-points`, { headers: { cookie } });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: unknown; items?: unknown };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "backup.read", reason: "test_denied" });
+  assert.equal(body.items, undefined, "a refused caller must see no restore points");
+});
+
+test("recovery restore-points list and status surface a thrown error as 500 INTERNAL_ERROR (its message, or a generic one for a non-Error)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  for (const path of ["/api/admin/v1/recovery/restore-points", "/api/admin/v1/recovery/status"]) {
+    deps.authorize = async () => {
+      throw new Error("authorizer offline");
+    };
+    const errorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
+    assert.equal(errorRes.status, 500, path);
+    assert.deepEqual(await errorRes.json(), { error: "authorizer offline", code: "INTERNAL_ERROR" }, path);
+
+    deps.authorize = async () => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw "not-an-error";
+    };
+    const nonErrorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
+    assert.equal(nonErrorRes.status, 500, path);
+    assert.deepEqual(await nonErrorRes.json(), { error: "internal error", code: "INTERNAL_ERROR" }, path);
+  }
+});

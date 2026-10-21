@@ -189,6 +189,45 @@ test("a sealed Postgres site refuses a missing connection string", async () => {
   } finally { f.cleanup(); }
 });
 
+test("a sealed Postgres site refuses a whitespace-only connection string before anything is created", async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(initSite({ dir: f.target, storage: { kind: "postgres", secretRef: "site" }, connectionString: "  " }), {
+      name: "ValidationError", message: "initSite: a postgres site sealed in its folder needs its connection string",
+    });
+    assert.equal(fs.existsSync(f.target), false);
+  } finally { f.cleanup(); }
+});
+
+test("an env-named Postgres site refuses a connection string handed to init", async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(initSite({ dir: f.target, storage: { kind: "postgres", secretRef: { env: "TOVU_INIT_BRANCHES_UNUSED_URL" } }, connectionString: "postgresql://unused" }), {
+      name: "ValidationError", message: "initSite: a postgres site takes no connection string here",
+    });
+    assert.equal(fs.existsSync(f.target), false);
+  } finally { f.cleanup(); }
+});
+
+test("a Postgres site whose database cannot be reached fails before any folder is made", async () => {
+  const f = fixture();
+  const name = "TOVU_INIT_BRANCHES_UNREACHABLE_URL";
+  // Port 1 on loopback refuses at once; the emptiness check must fail closed without a server.
+  process.env[name] = "postgresql://tovu@127.0.0.1:1/unreachable";
+  try {
+    await assert.rejects(initSite({ dir: f.target, storage: { kind: "postgres", secretRef: { env: name } } }), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.ok(!String(error.message).includes("tovu@127.0.0.1"), "the connection string is never echoed");
+      return true;
+    });
+    await assert.rejects(initSite({ dir: f.target, storage: { kind: "postgres", secretRef: "site" }, connectionString: process.env[name] }), (error: unknown) => {
+      assert.ok(error instanceof Error && !String(error.message).includes("tovu@127.0.0.1"), "a sealed target is checked the same way");
+      return true;
+    });
+    assert.equal(fs.existsSync(f.target), false);
+  } finally { delete process.env[name]; f.cleanup(); }
+});
+
 test("init reads stock themes from TOVU_STOCK_THEMES_DIR when it is set", async () => {
   const f = fixture();
   // An absent stock tree seeds nothing, so a missing themes/ proves the override was the source.

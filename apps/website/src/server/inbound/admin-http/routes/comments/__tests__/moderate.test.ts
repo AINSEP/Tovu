@@ -81,7 +81,7 @@ test("moderate/approve (shared loop registrar): mismatched workspaceId 404s", as
   assert.deepEqual(await res.json(), { error: "workspace was not found" });
 });
 
-test("moderate/approve: direct-invoke fallback for nullish params.workspaceId (unreachable through real HTTP)", async () => {
+test("moderate/approve: a direct invoke with no workspaceId param never matches the site and is a 404 (real HTTP always populates it)", async () => {
   const { app } = buildApp();
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/comments/:commentId/approve");
   const { res, capture } = createCapturingResponse();
@@ -98,7 +98,7 @@ test("moderate/purge: mismatched workspaceId 404s", async (t) => {
   assert.deepEqual(await res.json(), { error: "workspace was not found" });
 });
 
-test("moderate/purge: direct-invoke fallback for nullish params.workspaceId (unreachable through real HTTP)", async () => {
+test("moderate/purge: a direct invoke with no workspaceId param never matches the site and is a 404 (real HTTP always populates it)", async () => {
   const { app } = buildApp();
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge");
   const { res, capture } = createCapturingResponse();
@@ -442,4 +442,27 @@ test("moderate RBAC: a 'comments.moderate'-only principal can approve/spam/resto
     headers: { "content-type": "application/json", cookie: deleteOnlyCookie },
   });
   assert.equal(purgeWithDeleteOnly.status, 403, "comments.delete alone must NOT authorize purge (needs the stronger comments.delete.force)");
+});
+
+test("moderate: an unexpected write-service failure is a 500 INTERNAL_ERROR on the action routes and on purge, never a leaked message", async (t) => {
+  const explode = async (): Promise<never> => {
+    throw new Error("disk exploded at /var/secret/path");
+  };
+  const { app } = buildApp({}, { applyModeration: explode, purge: explode });
+  const baseUrl = await startTestServer(app, t);
+  const consoleError = t.mock.method(console, "error", () => undefined);
+
+  for (const path of ["approve", "purge"]) {
+    const res = await fetch(`${BASE}/c1/${path}`.replace(/^/, baseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedVersion: 1 }),
+    });
+    assert.equal(res.status, 500, path);
+    assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" }, path);
+  }
+  assert.deepEqual(
+    consoleError.mock.calls.map((call) => call.arguments[0]),
+    ["[comments/moderate] unexpected error applying 'approve'", "[comments/moderate] unexpected error purging a comment"]
+  );
 });

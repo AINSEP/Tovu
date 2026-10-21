@@ -246,3 +246,17 @@ test("rename that fails for a reason OTHER than ThemePathError 500s via the rout
     syncBuiltinESMExports();
   }
 });
+
+test("a root-level file (no directory segment) is renamed in place at the theme root", async (t) => {
+  const themesDir = makeThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const themeDir = path.join(themesDir, "static", "plain");
+  fs.writeFileSync(path.join(themeDir, "root.css"), "body{color:red}", "utf8");
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+  const res = await rename(baseUrl, "plain", "root.css", "renamed.css");
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(((await res.json()) as { path: string }).path, "renamed.css");
+  assert.equal(fs.readFileSync(path.join(themeDir, "renamed.css"), "utf8"), "body{color:red}");
+  assert.equal(fs.existsSync(path.join(themeDir, "root.css")), false);
+});

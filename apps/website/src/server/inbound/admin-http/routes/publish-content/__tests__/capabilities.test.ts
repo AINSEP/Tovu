@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -59,12 +59,14 @@ function buildApp(options: {
   allow?: boolean;
   publishTrust?: PublishTrustContext;
   askedPermissions?: string[];
+  authorizeFails?: boolean;
 } = {}): express.Express {
   const askedPermissions = options.askedPermissions ?? [];
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async ({ permission }: { permission: string }) => {
       askedPermissions.push(permission);
+      if (options.authorizeFails) throw new Error("policy store unreachable");
       return { allowed: options.allow ?? true, reason: "matched" };
     },
     clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
@@ -167,4 +169,25 @@ test("publish-overwrite-live-plan §4/S6: answers 'overwrite-live' in features, 
   assert.equal(res.status, 200);
   const body = (await res.json()) as { features: string[] };
   assert.deepEqual(body.features, ["overwrite-live"]);
+});
+
+test("an unexpected failure (a throwing authorizer) is a generic 500 that names no internals", async (t) => {
+  resetPublishContentContributorsForTests();
+  const server = await startTestServer(buildApp({ authorizeFails: true }), t);
+
+  const res = await fetch(`${server}${BASE}`);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+});
+
+test("direct invoke: a missing :workspaceId param (unreachable through Express routing) falls back to \"\" and 404s", async () => {
+  resetPublishContentContributorsForTests();
+  const askedPermissions: string[] = [];
+  const handler = extractRouteHandler(buildApp({ askedPermissions }), "get", "/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(askedPermissions, []);
 });

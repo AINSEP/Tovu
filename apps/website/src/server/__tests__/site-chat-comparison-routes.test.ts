@@ -3,7 +3,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { createRouteDeps } from "../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { registerSiteChatComparisonRoutes } from "../inbound/public-http/routes/site/chat-comparison.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "./helpers/http-test-server.js";
@@ -57,4 +57,44 @@ test("wcmp: owner gets isolated frames, common-send controls, and uncached eager
     assert.match(frame, new RegExp(`/site-chat/site-assistant${variant === "vanilla" ? "-vanilla" : ""}\\.js`));
     assert.doesNotMatch(frame, /site-assistant-loader/);
   }
+});
+
+test("wcmp: the composed app (no explicit production flag) admits the owner's session but refuses an admin API key", async t => {
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  assert.notEqual(process.env.NODE_ENV, "production");
+  assert.equal((await fetch(baseUrl + paths[0], { headers: { cookie } })).status, 200);
+
+  const principalRes = await fetch(`${baseUrl}/api/admin/v1/api-keys/principals`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ displayName: "wcmp-key-probe" }),
+  });
+  assert.equal(principalRes.status, 201);
+  const principal = ((await principalRes.json()) as { principal: { id: string } }).principal;
+  const policies = (await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/policies`, { headers: { cookie } })).json()) as { policies: Array<{ id: string; name: string }> };
+  const policy = policies.policies.find(row => row.name === "admin-builtin-policy");
+  assert.ok(policy);
+  const issueRes = await fetch(`${baseUrl}/api/admin/v1/api-keys`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ principalId: principal.id, label: "wcmp-key-probe", policyIds: [policy.id] }),
+  });
+  assert.equal(issueRes.status, 201);
+  const { apiKey } = (await issueRes.json()) as { apiKey: { rawKey: string } };
+  for (const path of paths) {
+    const res = await fetch(baseUrl + path, { headers: { authorization: `Bearer ${apiKey.rawKey}` } });
+    assert.equal(res.status, 403, path);
+    assert.equal(res.headers.get("cache-control"), "private, no-store", path);
+  }
+});
+
+test("wcmp: a failing permission check is passed to the error handler, never treated as allowed", async t => {
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  registerSiteChatComparisonRoutes({ app, deps: { ...deps, authorize: async () => { throw new Error("policy store offline"); } } }, { production: false });
+  const seen: string[] = [];
+  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => { seen.push(error.message); res.sendStatus(503); });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  assert.equal((await fetch(baseUrl + paths[0], { headers: { cookie } })).status, 503);
+  assert.deepEqual(seen, ["policy store offline"]);
 });

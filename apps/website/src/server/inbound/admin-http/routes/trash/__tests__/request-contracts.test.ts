@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { TrashRouteDeps } from "../deps.js";
+import type { TrashItem } from "@jini-ai/cms/trash";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -9,7 +12,7 @@ import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import { MediaStillReferencedError } from "#src/features/media/index";
-import { registerAdminTrashListRoute } from "../list.js";
+import { registerAdminTrashListRoute, toAdminTrashResponse } from "../list.js";
 import { registerAdminTrashMoveToTrashRoute } from "../items.js";
 import { registerAdminTrashPurgeRoute } from "../purge.js";
 import { registerAdminTrashRestoreRoute } from "../restore.js";
@@ -166,4 +169,47 @@ test("unexpected failures on every trash route return generic 500 without detail
   for (const [method, suffix, body] of [["get", "", undefined], ["post", "/purge", { ids: ["row-7"] }], ["post", "/restore", { items: [{ entityType: "post", entityId: "post-8" }] }], ["post", "/items", { type: "form", id: "form-7" }]] as const) {
     assert.deepEqual(await invoke(method, suffix, body), { statusCode: 500, jsonBody: { error: "internal error" } });
   }
+});
+// Route-param guards (`String(req.params.workspaceId ?? "")`) and the foreign-workspace 404 run before any port.
+test("trash list and purge 404 an absent or foreign workspace before authorizing", async () => {
+  const app = express();
+  let calls = 0;
+  const deps = portFake<TrashRouteDeps>({ workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } });
+  registerAdminTrashListRoute(app, deps);
+  registerAdminTrashPurgeRoute(app, deps);
+  for (const [method, suffix] of [["get", ""], ["post", "/purge"]] as const) {
+    for (const params of [{}, { workspaceId: "foreign" }]) {
+      const { res, capture } = createCapturingResponse();
+      await extractRouteHandler(app, method, base + suffix)({ params, query: {}, body: { ids: ["trash-1"] } }, res);
+      assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+    }
+  }
+  assert.equal(calls, 0);
+});
+test("trash list and purge answer the standard 403 when content.read is denied", async () => {
+  const invoke = harness({
+    authorize: async (input: unknown) => {
+      assert.deepEqual(input, { principalId: "principal-7", permission: "content.read", workspaceId: "ws-7" });
+      return { allowed: false, reason: "no grant" };
+    },
+    trash: { list: async () => { throw new Error("must not list"); }, purge: async () => { throw new Error("must not purge"); } },
+  });
+  const forbidden = { statusCode: 403, jsonBody: {
+    error: "principal 'principal-7' is not authorized for 'content.read' (no grant)", code: "FORBIDDEN",
+    details: { permission: "content.read", reason: "no grant" },
+  } };
+  assert.deepEqual(await invoke("get", ""), forbidden);
+  assert.deepEqual(await invoke("post", "/purge", { ids: ["trash-1"] }), forbidden);
+});
+test("trash row projection sends a null actorUsername for an unknown actor and flags the system actor", () => {
+  const item: TrashItem = { id: "trash-1", workspaceId: "ws-7", entityType: "post", entityId: "post-1", displayTitle: "T", displaySubtitle: null,
+    trashedAt: "2026-09-30T12:00:00.000Z", purgeAfter: "2026-10-02T12:00:00.000Z", actorPrincipalId: "gone-user", actorPluginId: null,
+    entityVersion: null, priorMarker: null };
+  const names = new Map([["someone-else", "ada"]]);
+  const unknown = toAdminTrashResponse(item, now, names);
+  assert.equal(unknown.actorUsername, null);
+  assert.equal(unknown.actorIsSystem, false);
+  const system = toAdminTrashResponse({ ...item, actorPrincipalId: "system" }, now, names);
+  assert.equal(system.actorUsername, null);
+  assert.equal(system.actorIsSystem, true);
 });

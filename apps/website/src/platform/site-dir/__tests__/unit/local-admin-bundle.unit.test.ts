@@ -47,3 +47,39 @@ test("admin build redacts both streams and preserves failure code and signal", a
   assert.ok(!output.includes(homePath));
   assert.ok(output.length < 4_100);
 });
+
+function fakeChild() {
+  const kills: Array<string | undefined> = [];
+  const child = Object.assign(new EventEmitter(), { stdout: null, stderr: null, kill: (signal?: string) => { kills.push(signal); return true; } });
+  return { child, kills, spawnBuild: (() => child) as unknown as typeof spawn };
+}
+
+test("admin build reports a spawn failure and a close without code or signal", async () => {
+  const spawnFailure = fakeChild();
+  const failed = buildAdmin({ repoRoot: "/repo", output: "/tmp/admin", env: {} }, { spawnBuild: spawnFailure.spawnBuild });
+  spawnFailure.child.emit("error", new Error("ENOENT"));
+  await assert.rejects(failed, /Journey admin build failed to spawn/);
+
+  const vanished = fakeChild();
+  const closed = buildAdmin({ repoRoot: "/repo", output: "/tmp/admin", env: {} }, { spawnBuild: vanished.spawnBuild });
+  vanished.child.emit("close", null, null);
+  await assert.rejects(closed, /code none, signal none/);
+});
+
+test("admin build that never finishes is killed and rejected after two minutes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const hung = fakeChild();
+  const build = buildAdmin({ repoRoot: "/repo", output: "/tmp/admin", env: {} }, { spawnBuild: hung.spawnBuild });
+  t.mock.timers.tick(119_999);
+  assert.deepEqual(hung.kills, []);
+  t.mock.timers.tick(1);
+  await assert.rejects(build, /Journey admin build did not finish/);
+  assert.deepEqual(hung.kills, ["SIGKILL"]);
+});
+
+test("a successful admin build resolves", async () => {
+  const ok = fakeChild();
+  const build = buildAdmin({ repoRoot: "/repo", output: "/tmp/admin", env: {} }, { spawnBuild: ok.spawnBuild });
+  ok.child.emit("close", 0, null);
+  await build;
+});

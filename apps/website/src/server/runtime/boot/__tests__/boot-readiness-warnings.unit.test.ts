@@ -7,7 +7,8 @@ import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission
 /**
  * @file Boot-readiness WARNINGS (2026-10-08 hardwiring audit #4/#5). Pure collectors plus the
  * never-throwing emitter, all over injected env / file-probe / log ports — no real filesystem,
- * console or process env is read.
+ * console or process env is read, except by the single "default wiring" test, which pins the
+ * process env to a combination whose output no container marker on the machine can change.
  */
 
 const DEPLOYED_LOCAL =
@@ -90,4 +91,20 @@ test("resolveAgentPermissionMode: an unrecognized permission override follows th
     assert.equal(resolveAgentPermissionMode({ env: { TOVU_AGENT_PERMISSION_MODE: override } }, {}), "bypass");
     assert.equal(resolveAgentPermissionMode({ env: { TOVU_AGENT_PERMISSION_MODE: override, TOVU_RUNTIME_MODE: "production" } }, {}), "restricted");
   }
+});
+
+test("warnOnBootReadinessGaps: with no injected ports it reads process.env, probes the real filesystem and writes to console.warn", (t) => {
+  const saved = { mode: process.env.TOVU_RUNTIME_MODE, salt: process.env.COMMENTS_IP_SALT };
+  t.after(() => {
+    for (const [key, value] of [["TOVU_RUNTIME_MODE", saved.mode], ["COMMENTS_IP_SALT", saved.salt]] as const) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  });
+  // Production mode silences the deploy-signal warning whatever the real marker files say, and an
+  // unset salt always warns — so the expected output is the same on any machine.
+  process.env.TOVU_RUNTIME_MODE = "production";
+  delete process.env.COMMENTS_IP_SALT;
+  const warn = t.mock.method(console, "warn", () => {});
+  warnOnBootReadinessGaps();
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [[SALT_UNSET]]);
 });

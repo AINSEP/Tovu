@@ -136,3 +136,97 @@ test("password login without a User-Agent still creates a usable session without
   assert.equal(me.status, 200);
   assert.equal((await me.json()).user.id, await deps.ownerPrincipalId);
 });
+
+test("a request a publishing token already authenticated skips the session lookup and continues", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const publisher = { id: "pub:source-install" };
+  const req = { headers: {}, method: "GET", baseUrl: "/api/admin", path: "/v1/workspaces/workspace-local/publish-content/capabilities", socket: { localPort: 0 } } as unknown as Request;
+  const { res, capture } = createCapturingResponse();
+  res.locals.authCredentialKind = "publish_key";
+  res.locals.principal = publisher;
+  const nextCalls: unknown[][] = [];
+
+  await requireAdminSession(deps)(req, res, (...args: unknown[]) => { nextCalls.push(args); });
+
+  assert.deepEqual(nextCalls, [[]]);
+  assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined }, "nothing was written to the response");
+  assert.strictEqual(res.locals.principal, publisher, "the publishing principal is not replaced by a session lookup");
+  assert.equal(res.locals.authCredentialKind, "publish_key");
+});
+
+test("a credential lookup that fails is forwarded to Express's error handling instead of answering 401", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const failure = new Error("identity store unavailable");
+  const identityReady = Promise.reject(failure);
+  identityReady.catch(() => undefined);
+  const req = { headers: { authorization: "Bearer tovu_pk_live_unreachable" }, socket: { localPort: 0 } } as unknown as Request;
+  const { res, capture } = createCapturingResponse();
+  const nextCalls: unknown[][] = [];
+
+  await requireAdminSession({ ...deps, identityReady })(req, res, (...args: unknown[]) => { nextCalls.push(args); });
+
+  assert.deepEqual(nextCalls, [[failure]]);
+  assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined }, "nothing was written to the response");
+  assert.deepEqual(res.locals, {});
+});
+
+test("a local owner cookie on a listener without a TCP port (a unix socket) is keyed to port 0", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  const base = await startTestServer(app, t);
+  const login = await fetch(`${base}/api/admin/v1/auth/login`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
+  });
+  assert.equal(login.status, 200);
+  const rawToken = (login.headers.get("set-cookie") ?? "").split(";")[0]!.split("=")[1]!;
+  const localOwnerSignIn = { enabled: true };
+  const portless = (name: string) => ({ headers: { cookie: `${name}=${rawToken}` }, socket: {} }) as unknown as Request;
+
+  const resolved = await currentCredential(deps, portless("tovu_session_local_0"), { localOwnerSignIn });
+  assert.equal(resolved?.principal.id, await deps.ownerPrincipalId);
+  assert.equal(resolved?.kind, "session");
+  assert.equal(await currentCredential(deps, portless("tovu_session_local_undefined"), { localOwnerSignIn }), null);
+});
+
+test("a login body without username or password fields is the same uniform 401 as a wrong password", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  const base = await startTestServer(app, t);
+  const response = await fetch(`${base}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "invalid username or password", code: "UNAUTHENTICATED" });
+  assert.equal(response.headers.get("set-cookie"), null);
+});
+
+test("login attempts beyond the per-client minute budget are refused with 429 and Retry-After before any password check", async (t) => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  const base = await startTestServer(app, t);
+  const attempt = () => fetch(`${base}/api/admin/v1/auth/login`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "wrong-password" }),
+  });
+  const statuses: number[] = [];
+  for (let i = 0; i < 10; i++) statuses.push((await attempt()).status);
+  assert.deepEqual(statuses, Array(10).fill(401));
+
+  const verify = t.mock.method(deps.passwordHasher, "verify");
+  const refused = await attempt();
+  assert.equal(refused.status, 429);
+  const body = await refused.json() as { error: string; code: string; details: { retryAfterSeconds: number } };
+  assert.equal(body.error, "too many login attempts");
+  assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
+  assert.ok(body.details.retryAfterSeconds > 0 && body.details.retryAfterSeconds <= 60);
+  assert.equal(refused.headers.get("retry-after"), String(body.details.retryAfterSeconds));
+  assert.equal(verify.mock.callCount(), 0, "a throttled attempt never reaches the password hasher");
+});

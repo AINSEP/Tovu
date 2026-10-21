@@ -210,3 +210,16 @@ test("admin redirects create route: req.params.workspaceId is always populated b
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
   void deps;
 });
+
+test("admin redirects create route: a body-less request (no req.body at all, direct invoke) is a 400 VALIDATION_ERROR, not a TypeError", async () => {
+  // Real body-parser always assigns `req.body`, so `parseRedirectCreateBody`'s `rawBody ?? {}`
+  // fallback is only reachable via a hand-built `req` (extractRouteHandler's own doc).
+  const { app, deps } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/redirects");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.deepEqual(capture.jsonBody, { error: "matchType must be one of exact/prefix/wildcard/regex", code: "VALIDATION_ERROR" });
+});

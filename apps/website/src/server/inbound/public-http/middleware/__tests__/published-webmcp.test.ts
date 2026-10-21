@@ -30,3 +30,20 @@ test('a failed setting read disables tools without breaking the published page',
   assert.equal(response.status, 200);
   assert.doesNotMatch(await response.text(), /toolname|data-tovu-webmcp-script/);
 });
+
+test('untyped html-looking strings are injected while plain text, errors, buffers and non-GET requests pass through', async (t) => {
+  const app = express();
+  applyPublishedWebMcp({ app, readEnabled: async () => true });
+  const doc = '<!doctype html><html><body><form toolname="contact" tooldescription="Contact"></form></body></html>';
+  app.get('/untyped', (_req, res) => res.send(doc));
+  app.get('/plain', (_req, res) => res.send('just text'));
+  app.get('/missing', (_req, res) => res.status(404).type('html').send(doc));
+  app.get('/buffer', (_req, res) => res.type('html').send(Buffer.from(doc)));
+  app.post('/untyped', (_req, res) => res.type('html').send(doc));
+  const base = await startTestServer(app, t);
+  assert.match(await (await fetch(`${base}/untyped`)).text(), /data-tovu-webmcp-script/);
+  assert.equal(await (await fetch(`${base}/plain`)).text(), 'just text');
+  assert.equal(await (await fetch(`${base}/missing`)).text(), doc);
+  assert.equal(await (await fetch(`${base}/buffer`)).text(), doc);
+  assert.equal(await (await fetch(`${base}/untyped`, { method: 'POST' })).text(), doc);
+});

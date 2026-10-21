@@ -119,9 +119,10 @@ export class SqlTokenStore implements TokenStorePort {
   }
 
   async count(): Promise<number> {
+    // An ungrouped COUNT(*) always yields exactly one non-null row, so no empty-result fallback exists.
     const row = await this.kernel.run((db) =>
-      db.selectFrom("gated_mutation_tokens").select((eb) => eb.fn.countAll<number | string>().as("value")).executeTakeFirst()
+      db.selectFrom("gated_mutation_tokens").select((eb) => eb.fn.countAll<number | string>().as("value")).executeTakeFirstOrThrow()
     );
-    return Number(row?.value ?? 0);
+    return Number(row.value);
   }
 }

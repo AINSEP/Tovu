@@ -200,3 +200,58 @@ test("test-connection forwards Azure's explicit API version to the provider", as
   assert.deepEqual(body, { ok: true, message: "valid completion" });
   dispatcher.assertNoPendingInterceptors();
 });
+
+test("list-models answers Azure honestly even when an explicit API version is supplied", async () => {
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://127.0.0.1:4321", {}, {
+    body: { protocol: "azure", baseUrl: "http://127.0.0.1:4321", apiKey: "fake-key", apiVersion: "2025-01-01-preview" }, expectedStatus: 200,
+  });
+  assert.deepEqual(body, { ok: false, models: [], message: "Azure OpenAI deployment discovery is not supported from the inference endpoint." });
+});
+
+test("list-models redacts an authorization-store failure as a generic 500 before any probe", async () => {
+  const before = { transportCalls, lookups: lookups.length };
+  const body = await probe(registerAdminAssistantListModelsRoute, "http://provider.invalid", {
+    authorize: async () => { throw new Error("policy store at /private/policies.db is down"); },
+  }, { body: { protocol: "openai", baseUrl: "http://provider.invalid", apiKey: "sk-fake" }, expectedStatus: 500 });
+  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.deepEqual({ transportCalls, lookups: lookups.length }, before, "a failed permission check must never reach DNS or the provider");
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+const { registerAdminAssistantTestAgentRoute } = await import("../test-agent.js");
+for (const [label, registrar] of [
+  ["list-models", registerAdminAssistantListModelsRoute],
+  ["test-connection", registerAdminAssistantTestConnectionRoute],
+  ["test-agent", registerAdminAssistantTestAgentRoute],
+] as const) {
+  test(`${label}: \`req.params.workspaceId ?? ""\` fallback, forced via a direct handler call, is a 404 before authorization, DNS or transport`, async () => {
+    type GuardHandler = (req: { params: Record<string, never>; body: unknown }, res: unknown) => unknown;
+    let handler: GuardHandler | undefined;
+    const authorizations: unknown[] = [];
+    registrar({ post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, {
+      ...deps,
+      authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "allowed" }; },
+    });
+    let status = 200;
+    let body: unknown;
+    const response = {
+      locals: { principal: { id: "admin" } },
+      status: (value: number) => { status = value; return response; },
+      json: (value: unknown) => { body = value; },
+    };
+    const before = { transportCalls, lookups: lookups.length };
+    assert.ok(handler);
+
+    await handler({ params: {}, body: { protocol: "openai", baseUrl: "http://provider.invalid", apiKey: "sk-fake", model: "guard-model" } }, response);
+
+    assert.deepEqual({ status, body }, { status: 404, body: { error: "workspace was not found" } });
+    assert.deepEqual(authorizations, []);
+    assert.deepEqual({ transportCalls, lookups: lookups.length }, before);
+  });
+}

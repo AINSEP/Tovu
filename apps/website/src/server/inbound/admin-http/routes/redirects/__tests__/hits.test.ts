@@ -77,6 +77,16 @@ test("redirect hits: handles undefined params via direct invoke fallback", async
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
+test("redirect hits: a missing :id param (direct invoke) falls back to \"\" and 404s as an unknown rule", async () => {
+  const app = buildApp();
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/redirects/:id/hits");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
+  await handler({ params: { workspaceId: "ws-1" } }, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "redirect '' was not found", code: "REDIRECT_NOT_FOUND" });
+});
+
 test("redirect hits: 403 when authorization denied", async (t) => {
   const app = buildApp({
     authorize: async () => ({ allowed: false, reason: "forbidden action" }),

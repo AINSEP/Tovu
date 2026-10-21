@@ -333,3 +333,18 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
   assert.match(html, /class="entry-list entry-list--products"/);
   assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
 });
+
+test("GET /products and /products/:id are shared-cacheable, except under the static-export marker, which must never be stored", async (t) => {
+  const product: Product = { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 };
+  const { server, baseUrl } = await startServer({ store: fakeStore({ products: [product] }) });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  for (const path of ["/products", "/products/prod-1"]) {
+    const plain = await fetch(`${baseUrl}${path}`);
+    assert.equal(plain.status, 200, path);
+    assert.equal(plain.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300", path);
+    const exported = await fetch(`${baseUrl}${path}`, { headers: { "x-tovu-static-export": "1" } });
+    assert.equal(exported.status, 200, path);
+    assert.equal(exported.headers.get("cache-control"), "private, no-store", path);
+  }
+});

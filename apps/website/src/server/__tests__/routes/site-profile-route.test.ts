@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
+import express from "express";
+import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
 import { externalMcpVaultEnvelope } from "#src/assistant/external-mcp-vault";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -280,4 +282,32 @@ test("site profile route: no canary seeded in any credential store reaches the r
   const body = JSON.parse(raw);
   const slugs = (body.sections.pages.data.items as { slug: string }[]).map((item) => item.slug);
   assert.ok(slugs.includes("canary-page"), "the seeded page must actually be in the profile");
+});
+
+const PROFILE_ROUTE = "/api/admin/v1/workspaces/:workspaceId/site/profile";
+
+/** The bare route on its own app, for the two cases only a hand-built `req`/`deps` can reach. */
+function profileHandler(deps: RouteDeps) {
+  const app = express();
+  registerAdminSiteProfileRoute(app, deps);
+  return extractRouteHandler(app, "get", PROFILE_ROUTE);
+}
+
+test("site profile route: a request with no :workspaceId param at all 404s (the `?? \"\"` fallback, forced via a direct handler call)", async () => {
+  const deps = createRouteDeps();
+  const { res, capture } = createCapturingResponse();
+  await profileHandler(deps)({ params: {}, query: {} }, res);
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+});
+
+test("site profile route: an unexpected failure while building the profile is a fixed 500 that never echoes the cause", async (t) => {
+  const deps = createRouteDeps();
+  const cause = new Error("clock exploded at /private/var/site.db");
+  deps.clock = { ...deps.clock, nowIso: () => { throw cause; } };
+  const logged = t.mock.method(console, "error", () => {});
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "owner" };
+  await profileHandler(deps)({ params: { workspaceId: deps.workspaceId }, query: {} }, res);
+  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [["[site/profile] unexpected error", cause]]);
 });

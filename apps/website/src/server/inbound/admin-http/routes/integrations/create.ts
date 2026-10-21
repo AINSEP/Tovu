@@ -4,7 +4,7 @@ import { createSubscription, WebhookSubscriptionValidationError } from "#src/fea
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps.js";
+import { toWebhookSubscriptionDeps, type IntegrationsRouteRegistrar } from "./deps.js";
 
 /** Pulls the create-subscription fields out of the request body, applying the same
  *  string-coercion/defaulting `createSubscription`'s own validation expects (never throws —
@@ -44,15 +44,8 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
 
       const { label, targetUrl, topics } = parseCreateSubscriptionInput(req);
       const { subscription } = await createSubscription({
-        deps: {
-          clock: deps.clock,
-          repo: deps.webhookSubscriptionRepo,
-          idGenerator: deps.idGen,
-          // ADR-PIPE-015 GAP-06: the real core/origin egress oracle, replacing the dev-only
-          // permitAllHttpsTargets stand-in. Fails closed on any parse failure or ambiguity.
-          isAllowedTarget: (url: string) =>
-            deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
-        },
+        // ADR-PIPE-015 GAP-06: the real core/origin egress oracle (see `toWebhookSubscriptionDeps`).
+        deps: toWebhookSubscriptionDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           // Dev-mode single-actor placeholder, matching the session/command-gateway convention

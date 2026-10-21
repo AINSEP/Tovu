@@ -57,6 +57,7 @@ function route({ allowed = true, sitePreviews }: { allowed?: boolean; sitePrevie
   const handler = extractRouteHandler(app, "get", ROUTE);
   return {
     reads,
+    handler,
     async get(name: string, workspaceId = "ws") {
       const { res, capture } = imageResponse();
       await handler({ params: { workspaceId, name } }, res as never);
@@ -92,4 +93,23 @@ test("a read that throws is a 500 without the error text", async () => {
   } finally {
     console.error = original;
   }
+});
+
+test("a host without a preview service answers 404 for every site rather than failing", async () => {
+  const app = express();
+  registerSitePreviewRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }) } });
+  const { res, capture } = imageResponse();
+  await extractRouteHandler(app, "get", ROUTE)({ params: { workspaceId: "ws", name: "alpha" } }, res as never);
+  assert.deepEqual(capture, { status: 404, json: { code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" } });
+});
+
+test("missing :workspaceId / :name params fall back to empty strings (direct handler call; Express always fills both)", async () => {
+  const r = route();
+  const handler = (params: Record<string, string>) => {
+    const { res, capture } = imageResponse();
+    return Promise.resolve(r.handler({ params }, res as never)).then(() => capture);
+  };
+  assert.deepEqual(await handler({}), { status: 404, json: { error: "workspace was not found" } });
+  assert.deepEqual(await handler({ workspaceId: "ws" }), { status: 404, json: { code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" } });
+  assert.deepEqual(r.reads, [""]);
 });

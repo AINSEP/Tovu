@@ -1,28 +1,13 @@
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import {
-  ContentTypeNotActiveError,
-  ContentTypeNotFoundError,
-  EntryFieldValidationError,
-  EntrySlugConflictError,
-  ForbiddenError,
-} from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
 import { createEntry } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-
-function statusFor(error: Error): { status: number; code: string } {
-  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
-  if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
-  if (error instanceof ContentTypeNotActiveError) return { status: 409, code: "CONTENT_TYPE_NOT_ACTIVE" };
-  if (error instanceof EntrySlugConflictError) return { status: 409, code: "ENTRY_SLUG_CONFLICT" };
-  if (error instanceof EntryFieldValidationError) return { status: 400, code: "VALIDATION_ERROR" };
-  return { status: 500, code: "INTERNAL_ERROR" };
-}
+import { entryWriteErrorStatus } from "./write-error-status.js";
 
 /** This route's required `type`/`slug`/`title` (strings) plus the optional `fieldsJson`/`bodyJson`
  *  fields, read off an untyped body in one place. `null` means the required strings failed
@@ -81,7 +66,7 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
       });
 
       if (!result.ok) {
-        const { status, code } = statusFor(result.error);
+        const { status, code } = entryWriteErrorStatus({ error: result.error });
         res.status(status).json({ error: result.error.message, code });
         return;
       }

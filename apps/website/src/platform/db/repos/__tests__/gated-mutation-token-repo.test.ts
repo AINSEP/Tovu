@@ -167,6 +167,25 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
               assert.equal(await store.count(), 1);
   });
 
+  test("expire() revokes only a minted token; a redeemed token stays terminal and an unknown token is a no-op", async () => {
+    const store = makeStore();
+    const now = "2026-08-31T00:00:00.000Z";
+    const minted = mintToken({ planId: "p1", planHash: "h1", scopeId: "s1", confirmerPrincipalId: "u1", now });
+    const redeemedLater = mintToken({ planId: "p2", planHash: "h2", scopeId: "s2", confirmerPrincipalId: "u2", now });
+    await store.save(minted);
+    await store.save(redeemedLater);
+    assert.equal((await store.tryRedeem({ token: redeemedLater.confirmationToken, now })).redeemed, true);
+
+    await store.expire({ token: minted.confirmationToken });
+    await store.expire({ token: redeemedLater.confirmationToken });
+    await store.expire({ token: "ctok_never-existed" });
+
+    assert.deepEqual(await store.findByToken(minted.confirmationToken), { ...minted, status: "expired" });
+    assert.equal((await store.findByToken(redeemedLater.confirmationToken))?.status, "redeemed");
+    assert.deepEqual(await store.tryRedeem({ token: minted.confirmationToken, now }), { redeemed: false, record: { ...minted, status: "expired" } });
+    assert.equal(await store.count(), 2, "expire() never inserts a row for an unknown token");
+  });
+
   test("count() reflects total records ever saved", async () => {
     const store = makeStore();
     assert.equal(await store.count(), 0);

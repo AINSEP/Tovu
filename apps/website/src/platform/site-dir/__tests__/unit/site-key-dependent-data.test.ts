@@ -135,4 +135,5 @@ test("findSiteKeyDependentData: Postgres site — sealed secretRef without its f
   assert.equal(await findSiteKeyDependentData(siteWithMeta(t, { storage: { kind: "postgres", secretRef: "site" } })), true);
   const dir = siteWithMeta(t, { storage: { kind: "postgres", secretRef: { env: "TOVU_TEST_UNSET_PG_URL" } } });
   assert.equal(await findSiteKeyDependentData(dir, { env: {} }), true);
+  assert.equal(await findSiteKeyDependentData(dir, { env: { TOVU_TEST_UNSET_PG_URL: "   " } }), true, "a blank connection string has nothing to connect with");
 });

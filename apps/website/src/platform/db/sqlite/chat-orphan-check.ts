@@ -103,8 +103,9 @@ export async function checkForOrphanedChatRows(
   let total = 0;
   for (const { table, key } of CHAT_TABLES) {
     if (!present.has(table)) continue;
+    // An ungrouped count(*) always yields exactly one non-null row, so no empty-result fallback exists.
     const [row] = await kernel.query<{ n: number | string }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`);
-    const n = Number(row?.n ?? 0);
+    const n = Number(row!.n);
     counts[key] = n;
     total += n;
   }

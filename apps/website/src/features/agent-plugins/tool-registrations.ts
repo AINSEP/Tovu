@@ -843,7 +843,12 @@ export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
  * "what plugins are installed" has one source of truth with two consumers (a tool and the admin
  * page), matching this file's own `listInstalledPlugins` precedent above.
  */
-export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly AgentPluginSearchCandidate[]> {
+/** A search candidate whose identity was read from the installed `plugin.json`: `readPluginIdentity`
+ *  always yields an `id` and a `provides` list, so this loader's callers never need a fallback for
+ *  either (the shared `AgentPluginSearchCandidate` type leaves both optional for other producers). */
+export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[] };
+
+export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
   const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
   // The first-encountered-digest rule below is a fallback for an ambiguity nothing can resolve. An
   // upgraded BUNDLED plugin is no longer one of those cases: its superseded package is dropped here,
@@ -855,7 +860,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
   const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
 
   const seenPluginIds = new Set<string>();
-  const candidates: AgentPluginSearchCandidate[] = [];
+  const candidates: IdentifiedAgentPluginSearchCandidate[] = [];
 
   for (const plugin of installed) {
     if (seenPluginIds.has(plugin.pluginId)) continue;
@@ -1033,7 +1038,7 @@ async function readPluginSkillGuidance(
 async function buildSearchCandidate(
   { plugin, activations }: { plugin: Awaited<ReturnType<typeof listInstalledPlugins>>[number]; activations: Awaited<ReturnType<typeof readAgentPluginActivations>> },
   _optional: Record<string, never> = {},
-): Promise<AgentPluginSearchCandidate> {
+): Promise<IdentifiedAgentPluginSearchCandidate> {
   const skills = await resolveSkillsForSearchTolerant(plugin);
   const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
   const identity = await readInstalledAgentPluginIdentity({ plugin });

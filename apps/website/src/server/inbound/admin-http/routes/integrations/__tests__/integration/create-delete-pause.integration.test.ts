@@ -32,11 +32,12 @@ function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createR
 }
 
 /** Same technique as `admin-integrations-routes.test.ts`'s (unit-tier) identical helper — see its
- *  comment for why: `delete.ts`'s `String(req.params.workspaceId ?? "")` / `subscriptionId`
- *  fallbacks are unreachable through any real HTTP request (Express's own router guarantees both
- *  route segments are populated whenever this handler is dispatched to at all), so the only way to
- *  genuinely execute the `??` side is to reach into the REAL composed app's router stack and call
- *  the registered handler directly with a hand-built `req`. */
+ *  comment for why: a missing `workspaceId` / `subscriptionId` param is unreachable through any
+ *  real HTTP request (Express's own router guarantees both route segments are populated whenever
+ *  this handler is dispatched to at all; the routes' old `?? ""` fallbacks were removed as dead
+ *  code), so the only way to prove the handler still answers 404 rather than crashing is to reach
+ *  into the REAL composed app's router stack and call the registered handler directly with a
+ *  hand-built `req`. */
 interface ExpressHandlerLayer {
   route?: {
     path: string;
@@ -276,7 +277,7 @@ test("delete: an unexpected repo failure 500s", async (t) => {
   assert.equal(res.status, 500);
 });
 
-test("delete: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+test("delete: a missing workspaceId param, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
   const app = createApp(testDeps());
   const handler = extractHandler(
     app,
@@ -291,7 +292,7 @@ test("delete: `req.params.workspaceId ?? \"\"` fallback, forced via a direct han
   assert.deepEqual(getBody(), { error: "workspace was not found" });
 });
 
-test("delete: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- falls through to deleteSubscription with id:\"\", 404s with the not-found message for an empty id", async () => {
+test("delete: a missing subscriptionId param (impossible via real routing), forced via a direct handler call on the REAL composed app -- falls through to deleteSubscription, which 404s with the not-found message rather than crashing", async () => {
   // authorize stubbed to allow: the forced fake principal below is not a real logged-in identity,
   // so the REAL RBAC authorize() would 403 it before ever reaching deleteSubscription -- this test
   // is specifically about the subscriptionId fallback, not authorization, so it stubs that gate the
@@ -308,7 +309,7 @@ test("delete: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct 
   await handler({ params: { workspaceId: deps.workspaceId } }, res);
 
   assert.equal(getStatus(), 404);
-  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
+  assert.equal((getBody() as { error: string }).error, "webhook subscription '' was not found");
 });
 
 test("pause: mismatched workspaceId 404s", async (t) => {
@@ -434,7 +435,7 @@ test("pause: an unexpected repo failure 500s", async (t) => {
   assert.equal(res.status, 500);
 });
 
-test("pause: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+test("pause: a missing workspaceId param, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
   const app = createApp(testDeps());
   const handler = extractHandler(
     app,
@@ -449,7 +450,7 @@ test("pause: `req.params.workspaceId ?? \"\"` fallback, forced via a direct hand
   assert.deepEqual(getBody(), { error: "workspace was not found" });
 });
 
-test("pause: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- falls through to pauseSubscription with id:\"\", 404s with the not-found message for an empty id", async () => {
+test("pause: a missing subscriptionId param (impossible via real routing), forced via a direct handler call on the REAL composed app -- falls through to pauseSubscription, which 404s with the not-found message rather than crashing", async () => {
   // authorize stubbed to allow: the forced fake principal below is not a real logged-in identity,
   // so the REAL RBAC authorize() would 403 it before ever reaching pauseSubscription -- this test
   // is specifically about the subscriptionId fallback, not authorization, same technique as the
@@ -466,5 +467,5 @@ test("pause: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct h
   await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
 
   assert.equal(getStatus(), 404);
-  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
+  assert.equal((getBody() as { error: string }).error, "webhook subscription '' was not found");
 });

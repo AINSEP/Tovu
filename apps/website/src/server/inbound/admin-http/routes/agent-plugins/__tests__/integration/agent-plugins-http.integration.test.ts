@@ -15,7 +15,7 @@ import express from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import {
@@ -263,4 +263,21 @@ test("AGENT_PLUGINS_LIST: rows carry origin, host compatibility, unmet and depen
     assert.deepEqual(row("mailer").requiredBy, ["consumer needs mail:send"]);
     assert.deepEqual(row("needs-db").requiredBy, []);
   });
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+test("AGENT_PLUGINS_LIST: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is the workspace 404", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/agent-plugins");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
 });

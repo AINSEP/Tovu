@@ -394,3 +394,32 @@ test("an existing copy target is refused without overwriting either file", async
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
+
+/**
+ * Only a storage-op failure (copy/compact/verify) is translated into `InternalError`; any other
+ * failure while making the copy the duplicate's own — here the title-pin reset meeting a
+ * `setting_definitions` table without the columns it filters on — reaches the caller as itself,
+ * so its real cause is not relabelled as a storage fault.
+ */
+test("a non-storage failure while finishing the copy propagates as itself, not as InternalError", async () => {
+  const parent = mkTempParent();
+  try {
+    const sourceDbPath = path.join(parent, "foreign.db");
+    const raw = new Database(sourceDbPath);
+    try {
+      raw.exec(`CREATE TABLE setting_definitions (setting_id TEXT PRIMARY KEY);
+        CREATE TABLE setting_values_workspace (setting_id TEXT, updated_by TEXT);`);
+    } finally {
+      raw.close();
+    }
+    const targetDbPath = path.join(parent, "target-content.db");
+    await assert.rejects(duplicateContentDb({ sourceDbPath, targetDbPath }), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.ok(!(error instanceof InternalError), `expected the raw cause, got ${String(error)}`);
+      assert.match(error.message, /namespace/);
+      return true;
+    });
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});

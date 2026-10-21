@@ -143,7 +143,9 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // `renderTemplateBranchIfEligible`).
   if (isBarePageChoice(previewPost)) {
     const html = await renderBarePreview(deps, previewPost);
-    return { html, templateChoice: previewPost.templateChoice ?? null };
+    // `isBarePageChoice` only holds for `templateChoice === ""`, so the bare arm's choice is always
+    // exactly that empty string -- never null/undefined (a `?? null` here was unreachable).
+    return { html, templateChoice: "" };
   }
 
   const { settings } = await getPresentationSettings({

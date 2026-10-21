@@ -11,18 +11,19 @@ function response() {
   const res = { locals: { principal: { id: "owner" } }, code: 200, body: undefined as unknown, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
   return res;
 }
-async function harness(fn: (call: (method: string, suffix: string, body?: unknown, workspace?: string) => Promise<ReturnType<typeof response>>, siteLayouts: TestSiteLayoutFixture) => Promise<void>, allowed = true) {
+async function harness(fn: (call: (method: string, suffix: string, body?: unknown, workspace?: string | null) => Promise<ReturnType<typeof response>>, siteLayouts: TestSiteLayoutFixture) => Promise<void>, allowed = true) {
   const siteLayouts = createTempSiteLayoutFixture({});
   try {
     const app = express();
     const handlers = new Map<string, Function>();
     for (const method of ["get", "post", "patch", "delete"] as const) app[method] = ((route: string, handler: Function) => { handlers.set(`${method} ${route}`, handler); return app; }) as typeof app[typeof method];
     registerSkillsManagementRoutes(app, testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local", authorize: async params => { assert.equal(params.principalId, "owner"); assert.equal(params.permission, "admin.assistant.use"); return { allowed, reason: "test" }; } }));
-    await fn(async (method, suffix, body, workspace = "workspace-local") => {
+    await fn(async (method, suffix, body, workspace: string | null = "workspace-local") => {
       const handler = handlers.get(`${method} ${base}${suffix}`);
       assert.equal(typeof handler, "function");
       const res = response();
-      await handler!({ params: { workspaceId: workspace, toolId: "skill_check_ownership" }, body }, res);
+      // `null` omits the param entirely: Express never does, so only a direct call reaches the `?? ""` guard.
+      await handler!({ params: workspace === null ? { toolId: "skill_check_ownership" } : { workspaceId: workspace, toolId: "skill_check_ownership" }, body }, res);
       return res;
     }, siteLayouts);
   } finally { siteLayouts.cleanup(); }
@@ -88,4 +89,13 @@ test("an undefined alternative source does not prevent a confirmed file installa
   const res = await call("post", "", { ...payload, githubUrl: undefined, archiveBase64: undefined });
   assert.equal(res.code, 201);
   assert.deepEqual(res.body, { skill: { toolId: "skill_check_ownership", name: "check-ownership", description: "Check who owns a record.", enabled: true, source: "uploaded" } });
+}));
+test("a request with no :workspaceId param at all is a 404 before authorization or installation (direct handler call)", () => harness(async (call, siteLayouts) => {
+  assert.deepEqual((await call("post", "", payload, null)).body, { error: "workspace was not found" });
+  assert.deepEqual(await listManagedSkills(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local" })), []);
+}));
+test("an enable/disable request with no body at all is a validation error, not a crash", () => harness(async (call) => {
+  const res = await call("patch", "/:toolId", undefined);
+  assert.equal(res.code, 400);
+  assert.deepEqual(res.body, { error: "enabled must be a boolean.", code: "VALIDATION_ERROR" });
 }));

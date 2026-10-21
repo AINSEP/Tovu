@@ -5,7 +5,8 @@ import test from 'node:test';
 import express from 'express';
 import { registerAdminConsentRoutes } from '../routes.js';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { startTestServer, loginAsBarePrincipal, bootAuthenticated } from '#src/server/__tests__/helpers/http-test-server';
+import { startTestServer, loginAsBarePrincipal, bootAuthenticated, createCapturingResponse } from '#src/server/__tests__/helpers/http-test-server';
+import { lastRouteHandler } from '#src/server/__tests__/helpers/last-route-handler';
 import { createApp, createRouteDeps } from '#src/server/runtime/composition/app';
 
 const cases = [
@@ -61,4 +62,57 @@ test('dry-run accepts a candidate without persisting; unknown fields and missing
   assert.deepEqual(await f.store.read({}), { draft: null, published: null });
   for (const value of [null, [], { config: f.config }, { config: { ...f.config, enabled: 'true' }, expectedDraftId: null }, { config: f.config, expectedDraftId: null, workspaceId: 'other' }]) assert.equal((await send('settings', 'PUT', value)).status, 400);
   assert.equal((await fetch(`${base}/api/admin/v1/workspaces/ws/consent/readiness?path=/&path=/privacy`)).status, 400);
+});
+
+/** A route mounted with an always-allow gate, so the service's own permission re-check is what decides. */
+async function serviceGatedApp(t: import('node:test').TestContext) {
+  const f = consentFixture({ t }); const app = express(); app.use(express.json());
+  app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: async () => ({ allowed: true, reason: 'matched' }) }, service: f.service });
+  const base = await startTestServer(app, t);
+  const send = (suffix: string, method: string, value?: unknown) => fetch(`${base}/api/admin/v1/workspaces/ws/consent/${suffix}`, value === undefined ? { method } : { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
+  return { f, send };
+}
+
+test('a permission revoked between the route gate and the service re-check is a fixed 403, not a 503', async t => {
+  const { f, send } = await serviceGatedApp(t);
+  f.deny();
+  const res = await send('settings', 'GET');
+  assert.equal(res.status, 403);
+  assert.deepEqual(await res.json(), { code: 'FORBIDDEN', error: 'Permission to access cookie consent was denied.' });
+  assert.deepEqual(f.calls, ['settings.read']);
+});
+
+test('dry-run and preview refuse a non-string path; preview renders a supplied candidate config for a real path', async t => {
+  const { f, send } = await serviceGatedApp(t);
+  for (const suffix of ['dry-run', 'preview']) {
+    const res = await send(suffix, 'POST', { path: 42 });
+    assert.equal(res.status, 400, suffix);
+    assert.deepEqual(await res.json(), { code: 'CONSENT_VALIDATION_FAILED', error: 'path must be one local page path.' }, suffix);
+  }
+  const preview = await send('preview', 'POST', { path: '/', config: f.config });
+  assert.equal(preview.status, 200);
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});
+
+test('publish without a draft id is a 400 naming the missing draft, and nothing is published', async t => {
+  const { f, send } = await serviceGatedApp(t);
+  const res = await send('publish', 'POST', { draftId: null, expectedPublishedId: null });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { code: 'CONSENT_VALIDATION_FAILED', error: 'draftId must name a saved draft.' });
+  assert.deepEqual(await f.store.read({}), { draft: null, published: null });
+});
+
+test('a hand-built request with no :workspaceId is 404 before authorization (direct invoke)', async t => {
+  const f = consentFixture({ t }); const app = express();
+  let authorized = 0;
+  registerAdminConsentRoutes({ app, deps: { workspaceId: 'ws', authorize: async () => { authorized++; return { allowed: true, reason: 'matched' }; } }, service: f.service });
+  const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/consent/settings');
+  const { res, capture } = createCapturingResponse();
+  const headers: Record<string, string> = {};
+  Object.assign(res, { set: (name: string, value: string) => { headers[name] = value; return res; } });
+  await handler({ params: {} }, res);
+  assert.equal(headers['Cache-Control'], 'no-store');
+  assert.deepEqual({ statusCode: capture.statusCode, jsonBody: capture.jsonBody }, { statusCode: 404, jsonBody: { error: 'workspace was not found' } });
+  assert.equal(authorized, 0);
 });

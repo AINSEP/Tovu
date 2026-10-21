@@ -58,6 +58,24 @@ test("admin forms PUT refuses a different workspace without changing the definit
   assert.deepEqual(await deps.formDefinitionRepo.findById(target), before);
 });
 
+test("admin forms POST refuses a different workspace and creates nothing", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const refused = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-workspace/forms`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Cross-workspace form", slug: "cross-workspace-form", fields: [
+      { id: "name", label: "Name", type: "text", required: true },
+    ] }),
+  });
+
+  assert.equal(refused.status, 404);
+  assert.deepEqual(await refused.json(), { error: "workspace was not found" });
+  const list = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/forms`, { headers: { cookie } });
+  const listed = JSON.stringify(await list.json());
+  assert.equal(listed.includes("cross-workspace-form"), false);
+});
+
 test("admin forms PUT treats a nullish body as a no-op and preserves the definition", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -86,20 +104,21 @@ test("admin forms PUT treats a nullish body as a no-op and preserves the definit
   }
 });
 
-test("admin forms PUT reports an empty missing form id in its not-found response", async () => {
+test("admin forms PUT with a missing form id param answers the coded not-found 404 rather than crashing", async () => {
   const { app, deps } = buildTestApp();
   await deps.identityReady;
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/forms/:formId");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: await deps.ownerPrincipalId };
-  // Required Express params are populated over HTTP; use the shared direct-call seam for
-  // the missing-id error contract, as the neighbouring get-by-id edge-case suite does.
+  // Required Express params are populated over HTTP (the route's old `?? ""` fallback for this
+  // was removed as dead code); use the shared direct-call seam for the missing-id error
+  // contract, as the neighbouring get-by-id edge-case suite does.
   await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
 
   assert.equal(capture.statusCode, 404);
-  assert.deepEqual(capture.jsonBody, {
-    error: "form definition '' was not found", code: "FORMS_DEFINITION_NOT_FOUND",
-  });
+  const body = capture.jsonBody as { error: string; code: string };
+  assert.equal(body.code, "FORMS_DEFINITION_NOT_FOUND");
+  assert.equal(body.error, "form definition '' was not found");
 });
 
 test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-02)", async (t) => {

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { UsersRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPolicyListRoute } from "../list-policies.js";
@@ -71,4 +73,45 @@ test("wrong workspace returns 404 before any repository access", async () => {
   for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
     assert.deepEqual(await invoke(suffix, "foreign"), { statusCode: 404, jsonBody: { error: "workspace was not found" } });
   }
+});
+test("denied role.manage returns the standard 403 before any repository access", async () => {
+  let reads = 0;
+  const count = async () => { reads++; return []; };
+  const invoke = harness({
+    authorize: async (input: unknown) => {
+      assert.deepEqual(input, { principalId: "principal-7", permission: "role.manage", workspaceId: "ws-7" });
+      return { allowed: false, reason: "no matching grant" };
+    },
+    policyRepo: { list: count, findById: count }, roleRepo: { list: count }, policyPermissionRepo: { listByPolicyId: count },
+  });
+  for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
+    assert.deepEqual(await invoke(suffix), { statusCode: 403, jsonBody: {
+      error: "principal 'principal-7' is not authorized for 'role.manage' (no matching grant)", code: "FORBIDDEN", details: { permission: "role.manage", reason: "no matching grant" },
+    } });
+  }
+  assert.equal(reads, 0);
+});
+// Route-param guards (`String(req.params.X ?? "")`): a request with no params must still 404 cleanly.
+test("absent workspaceId param falls back to empty string and 404s on every list route", async () => {
+  const app = express();
+  const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }) });
+  registerAdminPolicyListRoute(app, deps);
+  registerAdminRoleListRoute(app, deps);
+  registerAdminPolicyPermissionListRoute(app, deps);
+  for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
+    const { res, capture } = createCapturingResponse();
+    await extractRouteHandler(app, "get", base + suffix)({ params: {} }, res);
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  }
+});
+test("absent policyId param falls back to empty string and looks up policy ''", async () => {
+  const app = express();
+  const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }), policyRepo: {
+    findById: async (input: unknown) => { assert.deepEqual(input, { workspaceId: "ws-7", id: "" }); return null; },
+  } });
+  registerAdminPolicyPermissionListRoute(app, deps);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-7" };
+  await extractRouteHandler(app, "get", base + "/policies/:policyId/permissions")({ params: { workspaceId: "ws-7" } }, res);
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "policy '' was not found", code: "RESOURCE_NOT_FOUND" } });
 });

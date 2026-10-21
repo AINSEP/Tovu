@@ -50,7 +50,7 @@ async function fetchTestConnectionResponse(
   // key; undefined uses fetch's default.
   const requestInit = { ...deps.probeRequestInit, redirect: "error", dispatcher: deps.probeRequestInit?.dispatcher } satisfies
     RequestInit & NonNullable<NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"]>;
-  const result = await testProviderConnection({
+  const result = await (deps.testProviderConnection ?? testProviderConnection)({
     protocol,
     baseUrl: credential.baseUrl,
     apiKey: credential.apiKey,

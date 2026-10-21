@@ -7,11 +7,20 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 
 type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend">;
 
+/** Upload stall limits: a whole-upload deadline and a per-socket idle timeout, either of which
+ * destroys the request so a stalled client cannot hold the single upload lane. */
+const UPLOAD_DEADLINE_MS = 120_000;
+const UPLOAD_IDLE_MS = 30_000;
+
 /** Authenticated uploads/history and principal-bound password setup, shared with tools.
  * GET returns the setup contract for the separately-owned UI; no source markup enters admin.
+ * `uploadDeadlineMs`/`uploadIdleMs` default to the production stall limits; tests shorten them.
  * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
  */
-export function registerAdminSiteImportRoutes(required: { app: Express; deps: Deps }, _options: Record<string, never> = {}): void {
+export function registerAdminSiteImportRoutes(
+  required: { app: Express; deps: Deps },
+  { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
+): void {
   const { app, deps } = required;
   const root = "/api/admin/v1/workspaces/:workspaceId/site-imports";
   let uploadBusy = false;
@@ -49,9 +58,9 @@ export function registerAdminSiteImportRoutes(required: { app: Express; deps: De
       if (!await gate(req, res, "system.write")) return;
       if (uploadBusy) { res.status(409).json({ code: "BUSY", message: "Another ZIP upload is running." }); return; }
       uploadBusy = true;
-      const deadline = setTimeout(() => req.destroy(), 120_000);
+      const deadline = setTimeout(() => req.destroy(), uploadDeadlineMs);
       deadline.unref();
-      req.setTimeout(30_000, () => req.destroy());
+      req.setTimeout(uploadIdleMs, () => req.destroy());
       res.once("close", () => { clearTimeout(deadline); uploadBusy = false; });
       next();
     } catch (error) { fail(res, error); }

@@ -93,3 +93,18 @@ test("revoking an unknown key returns RESOURCE_NOT_FOUND rather than a success r
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "api key 'key-missing' was not found", code: "RESOURCE_NOT_FOUND" } });
   assert.equal(await deps.apiKeyRepo.findById({ workspaceId: "ws-7", id: "key-missing" }), null);
 });
+
+/**
+ * `String(req.params.id ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): Express
+ * guarantees a matched `:id` is always populated, so the right side of that `??` is unreachable through
+ * any real HTTP request. Restored 2026-09-03 after being wrongly deleted as "unreachable dead code" --
+ * the repo's established answer is to KEEP the guard and exercise it with a hand-built `req` that
+ * deliberately violates that contract.
+ */
+test("API-key revoke: `req.params.id ?? \"\"` fallback, forced via a direct handler call, looks up the empty id and answers the ordinary not-found", async (t) => {
+  const deps = await depsForHandler();
+  const lookup = t.mock.method(deps.apiKeyRepo, "findById");
+  const capture = await invoke(registerAdminApiKeyRevokeRoute, deps, "/api/admin/v1/api-keys/:id/revoke", {}, {});
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "api key '' was not found", code: "RESOURCE_NOT_FOUND" } });
+  assert.deepEqual(lookup.mock.calls.map(({ arguments: args }) => args), [[{ workspaceId: "ws-7", id: "" }]]);
+});

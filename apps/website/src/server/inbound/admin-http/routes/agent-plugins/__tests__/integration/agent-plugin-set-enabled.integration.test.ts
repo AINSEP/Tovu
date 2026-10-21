@@ -17,7 +17,7 @@ import { saveExternalMcpServer } from "#src/assistant/index";
 import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
-import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
@@ -646,5 +646,45 @@ test("AGENT_PLUGIN_SET_ENABLED: an interrupted update waiting for boot recovery 
     const response = await patch(baseUrl, cookie, "pending-plugin", { enabled: false });
     assert.equal(response.status, 409);
     assert.deepEqual(await response.json(), { code: "PLUGIN_UPDATE_PENDING", error: "Restart the host to recover the interrupted update." });
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` / `String(req.params.pluginId ?? "")` (extractRouteHandler's own
+ * doc, `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always populated, so the
+ * right side of every `??` below is unreachable through any real HTTP request. Restored 2026-09-03 after
+ * being wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard
+ * and exercise it with a hand-built `req` that deliberately violates that contract.
+ */
+const SET_ENABLED_ROUTE = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId";
+
+test("AGENT_PLUGIN_SET_ENABLED: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is the workspace 404", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "patch", SET_ENABLED_ROUTE);
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: { pluginId: "supabase" }, body: { enabled: true } }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+});
+
+test("AGENT_PLUGIN_SET_ENABLED: `req.params.pluginId ?? \"\"` fallback, forced via a direct handler call past auth, matches no installed plugin and writes nothing", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal("site-compliance", "seed-set-enabled-guard");
+    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const { app, baseDeps } = buildTestApp();
+    await baseDeps.identityReady;
+    const ownerUser = await baseDeps.userRepo.findByUsername({ workspaceId: baseDeps.workspaceId, username: "admin" });
+    assert.ok(ownerUser, "expected the seeded admin user");
+    const ownerPrincipal = await baseDeps.principalRepo.findById({ workspaceId: baseDeps.workspaceId, id: ownerUser.principalId });
+    assert.ok(ownerPrincipal, "expected the seeded admin principal");
+    const handler = extractRouteHandler(app, "patch", SET_ENABLED_ROUTE);
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = ownerPrincipal;
+
+    await handler({ params: { workspaceId: WORKSPACE_A }, body: { enabled: true } }, res);
+
+    assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "agent plugin '' is not installed in this workspace", code: "AGENT_PLUGIN_NOT_FOUND" } });
+    const persisted = await readAgentPluginActivations({ workspaceRoot });
+    assert.deepEqual(Object.keys(persisted.plugins), [], "the empty id mints no activation record");
   });
 });

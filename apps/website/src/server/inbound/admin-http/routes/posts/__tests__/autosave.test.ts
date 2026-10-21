@@ -8,6 +8,8 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostAutosaveSnapshot } from "#src/features/post/index";
 import type { RouteDeps } from "#src/server/routes/types";
+import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
+import { lastRouteHandler } from "#src/server/__tests__/helpers/last-route-handler";
 
 /**
  * @file HTTP surface for standing-draft autosave (2026-09-06 dispatch) — PUT/GET/DELETE
@@ -227,6 +229,20 @@ test("PUT autosave rejects a missing slug as 400 VALIDATION_ERROR", async (t) =>
   assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
 });
 
+test("PUT autosave rejects a non-string title as 400 VALIDATION_ERROR", async (t) => {
+  const { baseUrl, cookie, deps } = await startServer(t);
+  const post = await createSeedPost(baseUrl, cookie);
+
+  const res = await fetch(autosaveUrl(baseUrl, post.id), {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "doc", title: 42, bodyJson: {}, slug: post.slug, baseVersion: post.version }),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+  assert.equal(await deps.postRepo.readAutosave({ workspaceId: WS, id: post.id }), null);
+});
+
 test("PUT autosave rejects a non-finite baseVersion as 400 VALIDATION_ERROR", async (t) => {
   const { baseUrl, cookie } = await startServer(t);
   const post = await createSeedPost(baseUrl, cookie);
@@ -367,4 +383,64 @@ test("TW2 byline parsing preserves absent, null, trimmed and boolean fields and 
   });
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "author must be at most 200 characters", code: "VALIDATION_ERROR" });
+});
+
+test("an unknown post id/slug falls back to the raw URL segment: PUT reports applied:false, GET null, DELETE ok — never a 404 or 500", async (t) => {
+  const { baseUrl, cookie, deps } = await startServer(t);
+  const url = autosaveUrl(baseUrl, "no-such-post");
+
+  const put = await fetch(url, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ bodyFormat: "doc", title: "Ghost", bodyJson: { type: "doc" }, slug: "ghost", baseVersion: 1 }),
+  });
+  assert.equal(put.status, 200);
+  assert.deepEqual(await put.json(), { applied: false });
+
+  const get = await fetch(url, { headers: { cookie } });
+  assert.equal(get.status, 200);
+  assert.deepEqual(await get.json(), { autosave: null });
+
+  const del = await fetch(url, { method: "DELETE", headers: { cookie } });
+  assert.equal(del.status, 200);
+  assert.deepEqual(await del.json(), { ok: true });
+  assert.equal(await deps.postRepo.readAutosave({ workspaceId: WS, id: "no-such-post" }), null);
+});
+
+/** Express guarantees matched `:workspaceId`/`:postId` segments and body-parser always assigns
+ *  `req.body`, so each handler's `?? ""`/`?? {}` fallback is only reachable via a hand-built `req`
+ *  that deliberately violates those contracts (extractRouteHandler's own doc). */
+test("direct invoke: missing params and a missing body fall back safely (404 workspace, 400 body, raw-param no-op reads/clears)", async () => {
+  const deps = createRouteDeps();
+  await deps.identityReady;
+  const app = createApp(deps);
+  const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
+  const owner = await deps.userRepo.findByUsername({ workspaceId: WS, username: "admin" });
+  assert.ok(owner);
+  const principal = await deps.principalRepo.findById({ workspaceId: WS, id: owner.principalId });
+  assert.ok(principal);
+  const invoke = async (method: "get" | "put" | "delete", req: unknown) => {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = principal;
+    await lastRouteHandler(app, method, path)(req, res);
+    return capture;
+  };
+
+  for (const method of ["get", "put", "delete"] as const) {
+    const capture = await invoke(method, { params: {} });
+    assert.equal(capture.statusCode, 404, method);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" }, method);
+  }
+
+  const noBody = await invoke("put", { params: { workspaceId: WS } });
+  assert.equal(noBody.statusCode, 400);
+  assert.deepEqual(noBody.jsonBody, { error: "invalid autosave body", code: "VALIDATION_ERROR" });
+
+  const noPostIdPut = await invoke("put", {
+    params: { workspaceId: WS },
+    body: { bodyFormat: "html", title: "t", bodyHtml: "<p>x</p>", slug: "s", baseVersion: 1 },
+  });
+  assert.deepEqual(noPostIdPut.jsonBody, { applied: false });
+  assert.deepEqual((await invoke("get", { params: { workspaceId: WS } })).jsonBody, { autosave: null });
+  assert.deepEqual((await invoke("delete", { params: { workspaceId: WS } })).jsonBody, { ok: true });
 });

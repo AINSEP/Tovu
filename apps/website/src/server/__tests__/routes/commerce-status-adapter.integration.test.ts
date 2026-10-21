@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp as createBaseApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import express from "express";
 import type { CommercePaymentRuntimePort } from "@jini-ai/commerce";
@@ -174,4 +174,49 @@ test("commerce status: returns registered providers without claiming downstream 
     webhookReconciliation: "unavailable",
     revenue: "unavailable",
   });
+});
+
+test("commerce status: a payment-runtime failure is a fixed 500 that never echoes the adapter's message", async (t) => {
+  const leak = ["sk", "live", "adapter-secret"].join("_");
+  const explode = (): never => {
+    throw new Error(`provider catalog unavailable: ${leak}`);
+  };
+  const deps: TestCommerceDeps = {
+    ...createRouteDeps(),
+    lipay: {
+      listProviders: explode,
+      charge: async () => explode(),
+      refund: async () => explode(),
+      handleWebhook: async () => explode(),
+      getPayment: explode,
+      listPayments: explode,
+    },
+  };
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
+  const raw = await response.text();
+  assert.equal(response.status, 500);
+  assert.deepEqual(JSON.parse(raw), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(raw.includes(leak), false);
+});
+
+/**
+ * `String(req.params.workspaceId ?? "")` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:workspaceId` is always populated, so the right side of that `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it with a
+ * hand-built `req` that deliberately violates that contract.
+ */
+test("commerce status: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call, is the workspace 404 before authorize()", async () => {
+  const authorizations: unknown[] = [];
+  const base = createRouteDeps();
+  const deps: TestCommerceDeps = { ...base, authorize: async (params) => { authorizations.push(params); return base.authorize(params); } };
+  const handler = extractRouteHandler(createApp(deps), "get", "/api/admin/v1/workspaces/:workspaceId/commerce/status");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, query: {} }, res);
+
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
+  assert.deepEqual(authorizations, []);
 });
