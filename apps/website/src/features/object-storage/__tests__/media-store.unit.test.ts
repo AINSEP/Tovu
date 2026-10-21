@@ -408,3 +408,20 @@ test("createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket 
   assert.equal(provider.inputs[0]!.host, HOST);
   assert.deepEqual({ bundled: calls.bundled, site: calls.site }, { bundled: 0, site: 1 });
 });
+
+test("createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env override first, else the site setting read when asked", async () => {
+  const envLocal = fakePorts();
+  assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: { [MEDIA_OBJECT_STORE_ENV]: "local" }, ports: envLocal.ports }).isMediaRemote(), false);
+  const envS3 = fakePorts();
+  assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: FULL_S3_ENV, ports: envS3.ports }).isMediaRemote(), true);
+  assert.deepEqual([envLocal.calls.setting, envS3.calls.setting], [0, 0], "an env choice never reads the setting");
+
+  for (const [setting, remote] of [["s3_compatible", true], ["", false], ["local", false]] as const) {
+    const { ports, calls } = fakePorts({ readSetting: async () => setting });
+    const { isMediaRemote, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: "/unused", env: {}, ports });
+    assert.equal(mediaIsRemoteByEnv, false);
+    assert.equal(calls.setting, 0, "nothing is read at boot");
+    assert.equal(await isMediaRemote(), remote, `setting '${setting}'`);
+    assert.equal(calls.setting, 1);
+  }
+});

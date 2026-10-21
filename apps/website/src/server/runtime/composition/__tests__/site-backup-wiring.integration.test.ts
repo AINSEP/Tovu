@@ -11,6 +11,7 @@ import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { set as setSetting } from "@jini-ai/core/settings";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
@@ -20,6 +21,7 @@ import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
+import { MEDIA_OBJECT_STORE_KEY, STORAGE_SETTINGS_NAMESPACE } from "#src/features/object-storage/setting";
 import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
 import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
@@ -142,6 +144,34 @@ test("caller-supplied site, uploads and themes directories are the exact folders
   for (const file of collected.files) {
     assert.ok([siteDir, themesDir, uploadsDir].some((dir) => file.absPath.startsWith(dir + path.sep)), `${file.path} was collected from ${file.absPath}, outside the override folders`);
   }
+});
+
+test("media moved to a remote provider by the SITE SETTING is noted by the backup, and the unused local uploads folder is not walked", async (t) => {
+  if (process.env.TOVU_MEDIA_BLOB_STORE !== undefined) return t.skip("the env override decides media placement; this pins the setting path");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-remote-setting-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const uploadsDir = path.join(root, "uploads");
+  fs.mkdirSync(path.join(uploadsDir, "originals"), { recursive: true });
+  fs.writeFileSync(path.join(uploadsDir, "originals", "stale-local.bin"), "left behind before the switch", "utf8");
+  const deps = await createSiteRouteDeps(path.join(root, "content.db"), { uploadsDir });
+  await Promise.all([deps.identityReady, deps.siteTitleReady]);
+  const sources = deps.siteBackupSources;
+  assert.ok(sources);
+  const include = { database: false, media: true, themes: false, plugins: false, settings: false };
+
+  const before = await collectSiteBackupFiles({ sources, include });
+  assert.deepEqual(before.files.map((file) => file.path), ["uploads/originals/stale-local.bin"], "local media (the default) is backed up");
+  assert.equal(before.scopeNotes.media, undefined);
+
+  const clock = { nowIso: () => new Date().toISOString(), nowMs: () => Date.now() };
+  await setSetting({
+    deps: { repo: deps.settingsRepo, clock, ids: { newId: () => randomBytes(16).toString("hex") }, authorize: async () => ({ allowed: true, reason: "test" }), principals: { findActiveById: async () => null } },
+    input: { namespace: STORAGE_SETTINGS_NAMESPACE, key: MEDIA_OBJECT_STORE_KEY, scope: "workspace", workspaceId: deps.workspaceId, value: "s3_compatible", callerPrincipalId: "owner-wiring" },
+  });
+
+  const after = await collectSiteBackupFiles({ sources, include });
+  assert.deepEqual(after.files, [], "the unused local folder is not presented as the site's media");
+  assert.match(after.scopeNotes.media ?? "", /object storage/);
 });
 
 /** Points `homedir()`-based site-key lookup at a throwaway folder and gives the composed keyring a

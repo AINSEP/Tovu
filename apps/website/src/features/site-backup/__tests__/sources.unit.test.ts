@@ -228,6 +228,31 @@ test("media stored in object storage (no uploads folder on disk) is reported as 
   }
 });
 
+test("media remote by the site setting (isMediaRemote answers true): the unused uploads folder is not walked and the note is written", async () => {
+  const site = makeSite();
+  try {
+    let asked = 0;
+    const isMediaRemote = async () => { asked += 1; return true; };
+    const result = await collectSiteBackupFiles({ sources: { ...site.sources, isMediaRemote }, include: { ...NONE, media: true } });
+    assert.deepEqual(result.files, []);
+    assert.match(result.scopeNotes.media ?? "", /object storage/);
+    assert.equal(asked, 1);
+  } finally {
+    site.cleanup();
+  }
+});
+
+test("media local by the site setting (isMediaRemote answers false): the uploads folder is backed up with no note", async () => {
+  const site = makeSite();
+  try {
+    const result = await collectSiteBackupFiles({ sources: { ...site.sources, isMediaRemote: async () => false }, include: { ...NONE, media: true } });
+    assert.deepEqual(paths(result.files), ["uploads/ws/workspace-local/blobs/ab/abcdef"]);
+    assert.equal(result.scopeNotes.media, undefined);
+  } finally {
+    site.cleanup();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Database snapshot — through DbOpsPort, never a live read of content.db
 // ---------------------------------------------------------------------------

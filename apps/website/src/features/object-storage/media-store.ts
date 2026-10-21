@@ -80,18 +80,27 @@ export function readMediaStoreEnv(required: { readonly env: Readonly<Record<stri
 /**
  * Builds the media blob store. Synchronous so boot can fail loud before any background work starts;
  * the provider itself is resolved on first media use through `ports()`.
- * @returns The store, and whether media is known to live in `uploadsDir` (backup includes the folder).
+ * @returns The store; whether media is known remote at boot (`mediaIsRemoteByEnv`, env override
+ *   only); and `isMediaRemote`, the EFFECTIVE answer (env override, else the site setting) read
+ *   when asked — backups use it so a setting-selected remote provider never makes them walk the
+ *   unused local `uploadsDir` and omit the "media is not in this backup" note.
  * @throws {Error} See {@link readMediaStoreEnv}.
  * @complexity O(1) now; first media call does one setting read and at most one registry load.
  */
 export function createMediaBlobStore(
   required: { readonly uploadsDir: string; readonly env: Readonly<Record<string, string | undefined>>; readonly ports: () => MediaObjectStorePorts },
   _optional: Record<string, never> = {}
-): { readonly blobStore: BlobStorePort; readonly mediaIsRemoteByEnv: boolean } {
+): { readonly blobStore: BlobStorePort; readonly mediaIsRemoteByEnv: boolean; readonly isMediaRemote: () => Promise<boolean> } {
   const choice = readMediaStoreEnv({ env: required.env });
   const local = () => createLocalFsObjectStore({ rootDir: required.uploadsDir });
   const store = choice.kind === "local" ? local() : deferObjectStore({ load: () => loadMediaObjectStore({ choice, ports: required.ports(), local }) });
-  return { blobStore: blobStoreFromObjectStore({ store }), mediaIsRemoteByEnv: choice.kind === "s3" };
+  const isMediaRemote = async () => (choice.kind === "unset" ? (await settingProviderId({ ports: required.ports() })) !== "local" : choice.kind === "s3");
+  return { blobStore: blobStoreFromObjectStore({ store }), mediaIsRemoteByEnv: choice.kind === "s3", isMediaRemote };
+}
+
+/** The site setting's provider id, blank meaning the registry default `local`. @complexity One setting read. */
+async function settingProviderId(required: { readonly ports: MediaObjectStorePorts }): Promise<string> {
+  return (await required.ports.readSetting()) || "local";
 }
 
 /**
@@ -104,7 +113,7 @@ async function loadMediaObjectStore(required: { readonly choice: Exclude<MediaSt
   if (choice.kind === "s3") {
     return createFrom({ loaded: await ports.loadBundledRegistry(), providerId: S3_OBJECT_STORE_ID, settings: choice.settings, credential: choice.credential, host: ports.host });
   }
-  const providerId = (await ports.readSetting()) || "local";
+  const providerId = await settingProviderId({ ports });
   if (providerId === "local") return required.local();
   const credential = await ports.resolveSharedCredential({ providerId });
   if (!credential) throw new Error(`Media storage '${providerId}' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.`);

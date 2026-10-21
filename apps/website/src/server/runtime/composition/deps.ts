@@ -765,14 +765,17 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverr
  * `RouteDeps.siteBackupSources`: the directories `site_backup_plan` reads, taken from the SAME
  * resolved values this root serves the site from, so a backup never walks a different folder than
  * the one in use. Media is `null` under `TOVU_MEDIA_BLOB_STORE=s3`: the bytes then live in object
- * storage, and the backup says so instead of copying an unused local folder.
+ * storage, and the backup says so instead of copying an unused local folder. A remote provider
+ * chosen by the site setting instead is only known when the backup runs, so `isMediaRemote` (the
+ * media store's effective answer) is passed through for the backup to ask then.
  *
  * @complexity O(1) — env reads and one small `package.json` read.
  */
-function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; mediaIsRemoteByEnv: boolean; isMediaRemote: () => Promise<boolean>; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
   return {
     siteDir: input.siteDir,
     mediaUploadsDir: input.mediaIsRemoteByEnv ? null : input.uploadsDir,
+    isMediaRemote: input.isMediaRemote,
     themesDir: input.themesDir,
     agentPlugins: input.agentPluginLayout,
     skillsDir: input.skillLayout.root,
@@ -1129,7 +1132,7 @@ async function composeSiteRouteDeps(
       return { fields, secret: token };
     },
   });
-  const { blobStore, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts });
+  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor(store, dbPath);
@@ -2317,7 +2320,7 @@ async function composeSiteRouteDeps(
     agentPluginLayout,
     agentPluginLifecycle,
     skillLayout,
-    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, mediaIsRemoteByEnv, isMediaRemote, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
