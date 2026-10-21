@@ -106,3 +106,24 @@ describe("usePublishContentConfirm — results that land after the dialog closed
   });
 });
 
+
+describe("usePublishContentConfirm — primary action after the plan stops being confirmable", () => {
+  it("confirms nothing for a refused plan", async () => {
+    const refused = { ...TWO_POSTS, refused: true, refusalReason: "Content versions differ." } as PublishContentReport;
+    const { result, port } = await planned(createFakePublishContentPort({ peers: [peer], report: refused }));
+    await act(async () => { result.current.onPrimary(); });
+    expect(port.calls.confirmPublish).toHaveLength(0);
+    expect(result.current.phase.kind).toBe("planned");
+  });
+
+  it("starts nothing more once the publish is done", async () => {
+    const { result, port } = await planned();
+    act(() => result.current.onPrimary());
+    await waitFor(() => expect(result.current.phase.kind).toBe("done"));
+    const before = { plan: port.calls.planPublish.length, confirm: port.calls.confirmPublish.length };
+    await act(async () => { result.current.onPrimary(); });
+    expect(port.calls.planPublish).toHaveLength(before.plan);
+    expect(port.calls.confirmPublish).toHaveLength(before.confirm);
+    expect(result.current.phase.kind).toBe("done");
+  });
+});
