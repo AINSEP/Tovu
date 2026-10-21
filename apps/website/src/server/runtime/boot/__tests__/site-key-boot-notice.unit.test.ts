@@ -223,7 +223,9 @@ function findAll(root: ts.Node, match: (node: ts.Node) => boolean): ts.Node[] {
 }
 
 for (const [label, parts, bootFunction] of [
-  ["index.ts", ["index.ts"], "main"],
+  // why: 50579f4f (complexity <=10) moved main()'s pre-listener boot steps into prepareSiteBoot();
+  // that main() still runs it unconditionally first is pinned by the test after this loop.
+  ["index.ts", ["index.ts"], "prepareSiteBoot"],
   ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand"],
 ] as const) {
   test(`${label} imports warnIfNoSiteKeyAtBoot from site-key-boot-notice`, () => {
@@ -254,6 +256,21 @@ for (const [label, parts, bootFunction] of [
     assert.equal(body.statements[index - 1], gates[0], "the warning is the statement right after the production gate");
   });
 }
+
+test("index.ts main() runs prepareSiteBoot unconditionally, as its first statement", () => {
+  const source = bootPathAst("index.ts");
+  const main = source.statements.find((statement): statement is ts.FunctionDeclaration =>
+    ts.isFunctionDeclaration(statement) && statement.name?.text === "main");
+  assert.ok(main?.body, "index.ts declares main()");
+  const first = main.body.statements[0];
+  assert.ok(first && ts.isVariableStatement(first), "main() opens with the prepareSiteBoot lease binding");
+  const initializer = first.declarationList.declarations[0]?.initializer;
+  assert.ok(initializer && ts.isAwaitExpression(initializer), "prepareSiteBoot is awaited");
+  const call = initializer.expression;
+  assert.ok(ts.isCallExpression(call) && ts.isIdentifier(call.expression) && call.expression.text === "prepareSiteBoot");
+  const calls = findAll(source, (node) => ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "prepareSiteBoot");
+  assert.equal(calls.length, 1, "prepareSiteBoot is called from main() and nowhere else");
+});
 
 // ---------------------------------------------------------------------------------------------
 // The DEFAULT dependencies. Every test above injects `mode` and `inspect`, which left the
