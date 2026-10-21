@@ -2107,3 +2107,47 @@ test("erasing a created site drops it from the shared catalog, and a catalog fai
   }
   assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments[0]), ["tovu desktop: could not remove the erased website from the shared catalog."]);
 });
+
+test("re-adding a tracked site still succeeds when its name cannot be cached, and only warns", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const siteDir = siteFixture("readd-cache-fails");
+  let blocked = false;
+  const { deps } = addSiteDeps(siteDir, {
+    readSiteName: () => {
+      if (!blocked) {
+        blocked = true;
+        // The profile folder becomes unusable after the pointer was tracked, before the name cache write.
+        const profile = path.dirname(deps.projectsPath);
+        fs.rmSync(profile, { recursive: true, force: true });
+        fs.writeFileSync(profile, "not a folder");
+      }
+      return "Readded";
+    },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const record = await handleAddSite(deps);
+  assert.equal(record?.displayName, "Readded");
+  assert.equal(record?.alreadyTracked, true);
+  assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website name");
+});
+
+test("a list whose names changed on disk is still returned when the name cache cannot be written, and only warns", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const siteDir = writeSite(path.join(tempDir(), "list-cache-fails"), "list-cache-fails");
+  let blocked = false;
+  const deps = baseDeps({
+    readSiteName: () => {
+      if (!blocked) {
+        blocked = true;
+        const profile = path.dirname(deps.projectsPath);
+        fs.rmSync(profile, { recursive: true, force: true });
+        fs.writeFileSync(profile, "not a folder");
+      }
+      return "Renamed in Finder";
+    },
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  const records = handleList(deps);
+  assert.equal(first(records).displayName, "Renamed in Finder");
+  assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website names");
+});
