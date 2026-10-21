@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { sql } from "kysely";
+
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import {
   SqlAssetBlobRepo,
@@ -312,6 +314,17 @@ function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPo
     assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), ["old-slug"]);
   });
 
+  test(`[${label}] saveIfVersion lets an asset reclaim its own retired slug, removing it from history`, async () => {
+    const repo = makeRepo();
+    await repo.insertIfAbsent(makeMedia({ slug: "old-slug", version: 1 }));
+    await repo.saveIfVersion({ record: makeMedia({ slug: "new-slug", version: 2 }), ifVersion: 1 });
+    const outcome = await repo.saveIfVersion({ record: makeMedia({ slug: "old-slug", version: 3 }), ifVersion: 2 });
+
+    assert.deepEqual(outcome, { applied: true });
+    assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" }))?.slug, "old-slug");
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), ["new-slug"]);
+  });
+
   test(`[${label}] a stale saveIfVersion leaves slug history untouched`, async () => {
     const repo = makeRepo();
     await repo.insertIfAbsent(makeMedia({ slug: "old-slug", version: 1 }));
@@ -439,6 +452,49 @@ for (const each of mediaDialects) test(`[${each.name}] save() lets a row keep re
  * timestamp) is saved LAST — so this assertion cannot pass by accident on natural insertion/rowid
  * order; it only passes if `list()` actually sorts by `createdAt`.
  */
+/** Raw-row cases the domain API cannot produce itself: imported or pre-backfill data, and a write the database skips. */
+for (const each of eachDialect({ tables: ["media", "media_slug_history", "asset_blobs", "asset_renditions"], make: (kernel) => kernel })) {
+  test(`[${each.name}] a pre-backfill row with a NULL slug reads back under its own id`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    await repo.save(makeMedia({ id: "legacy-media", slug: "temporary" }));
+    await kernel.run((db) => db.updateTable("media").set({ slug: null }).where("id", "=", "legacy-media").execute());
+    assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "legacy-media" }))?.slug, "legacy-media");
+  });
+
+  test(`[${each.name}] insertIfAbsent reclaims an imported retired slug left by the same asset id, dropping that history row`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    await kernel.run((db) => db.insertInto("media_slug_history").values({ workspace_id: WORKSPACE_ID, slug: "kept-slug", media_id: "media-1", retired_at: "2026-07-01T00:00:00.000Z" }).execute());
+    assert.deepEqual(await repo.insertIfAbsent(makeMedia({ slug: "kept-slug" })), { applied: true });
+    assert.equal((await repo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "kept-slug" }))?.id, "media-1");
+    assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: "media-1" }), []);
+  });
+
+  test(`[${each.name}] replaceFileIfVersion refuses a source with no active blob and leaves the asset untouched`, async () => {
+    const repo = new SqlMediaRepo(each.make());
+    const record = makeMedia();
+    await repo.insertIfAbsent(record);
+    assert.deepEqual(await repo.replaceFileIfVersion({ workspaceId: WORKSPACE_ID, id: record.id, ifVersion: 1, sha256: "b".repeat(64),
+      storageKey: "blobs/missing", originalRenditionId: "rendition-1", updatedAt: "2026-07-18T00:00:00.000Z" }), { applied: false });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
+  });
+
+  if (each.name === "sqlite") test(`[${each.name}] saveIfVersion refuses when the database skips the version-guarded UPDATE`, async () => {
+    const kernel = each.make();
+    const repo = new SqlMediaRepo(kernel);
+    const record = makeMedia();
+    await repo.insertIfAbsent(record);
+    // A real skipped UPDATE exercises the defensive result check even while the slug lock holds.
+    await kernel.execute(sql`CREATE TRIGGER skip_media_update BEFORE UPDATE ON media BEGIN SELECT RAISE(IGNORE); END`);
+    try {
+      assert.deepEqual(await repo.saveIfVersion({ record: makeMedia({ slug: "renamed", version: 2 }), ifVersion: 1 }), { applied: false });
+      assert.deepEqual(await repo.listRetiredSlugs({ workspaceId: WORKSPACE_ID, mediaId: record.id }), [], "a skipped write retires nothing");
+    } finally { await kernel.execute(sql`DROP TRIGGER skip_media_update`); }
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
+  });
+}
+
 for (const each of mediaDialects) test(`[${each.name}] list() returns newest-first by createdAt, regardless of insertion order`, async () => {
   const repo = each.make();
   await repo.save(makeMedia({ id: "m-mid", slug: "photo-mid", createdAt: "2026-07-16T12:00:00.000Z", updatedAt: "2026-07-16T12:00:00.000Z" }));
