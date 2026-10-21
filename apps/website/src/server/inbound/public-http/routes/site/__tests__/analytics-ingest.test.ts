@@ -503,3 +503,37 @@ test("analytics-ingest: boundary clipping retains exact host, path, event name a
   assert.equal(sink.all()[0].eventName, "e".repeat(200));
   assert.equal(sink.all()[0].referrerHost, "r".repeat(2048 - "https://".length));
 });
+
+test("analytics-ingest: per-request forwarders get the minimised hit after the built-in sink; a forwarder failure never affects it", async (t) => {
+  const forwarded: unknown[] = [];
+  const requests: unknown[] = [];
+  let resolveForwarded: () => void = () => undefined;
+  const done = new Promise<void>((r) => { resolveForwarded = r; });
+  const { app, sink } = buildApp(undefined, {
+    forwarders: async ({ request }) => {
+      requests.push(request);
+      return [
+        { id: "broken", context: { workspaceId: "ws", mode: "live" }, forwarder: { forward: async () => { throw new Error("vendor down"); } } },
+        { id: "vendor", context: { workspaceId: "ws", mode: "live" }, forwarder: { forward: async ({ hit }) => { forwarded.push(hit); resolveForwarded(); return { status: "ok", value: undefined }; } } },
+      ];
+    },
+  });
+  const warn = t.mock.method(console, "warn", () => undefined);
+  const res = await postBeacon(t, app, { host: "example.com", path: "/pricing" });
+  assert.equal(res.status, 204);
+  await done;
+  assert.equal(sink.all().length, 1);
+  assert.equal(requests.length, 1);
+  assert.equal((forwarded[0] as { path: string }).path, "/pricing");
+  assert.equal("sessionId" in (forwarded[0] as object), false, "vendors never receive the session id");
+  assert.equal("region" in (forwarded[0] as object), false);
+  await new Promise((r) => setImmediate(r));
+  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]) === "[analytics] forward to 'broken' threw: vendor down"));
+});
+
+test("analytics-ingest: no forwarders (consent denied or sink \"local\") keeps the built-in-only path", async (t) => {
+  const { app, sink } = buildApp(undefined, { forwarders: async () => [] });
+  const res = await postBeacon(t, app, { host: "example.com", path: "/" });
+  assert.equal(res.status, 204);
+  assert.equal(sink.all().length, 1);
+});
