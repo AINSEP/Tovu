@@ -17,10 +17,11 @@ function fakeLoader(files: Record<string, Record<string, string>>, modules: Reco
     calls.push({ workspaceId: input.workspaceId, filename: input.definition.filename, options });
     const items: T[] = [];
     const refusals: string[] = [];
-    for (const [pluginId, manifests] of Object.entries(files)) {
-      const raw = manifests[input.definition.filename];
-      if (raw === undefined) continue;
-      const parsed = input.definition.parse({ raw }) as { ok: true; descriptors: D[] } | { ok: false; reason: string };
+    const manifests = Object.entries(files).flatMap(([pluginId, byName]) => {
+      const raw = byName[input.definition.filename];
+      return raw === undefined ? [] : [{ pluginId, parsed: input.definition.parse({ raw }) as { ok: true; descriptors: D[] } | { ok: false; reason: string } }];
+    });
+    for (const { pluginId, parsed } of manifests) {
       if (!parsed.ok) { refusals.push(`${pluginId}: ${parsed.reason}`); continue; }
       for (const descriptor of parsed.descriptors) {
         const result = await input.definition.load({

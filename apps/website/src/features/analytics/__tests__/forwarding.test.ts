@@ -161,7 +161,7 @@ test("cacheAnalyticsProviders memoises per TTL, reports refusals once, and never
 
 test("cacheAnalyticsProviders keeps a newer cache entry when an older load rejects", async () => {
   let now = 0;
-  let rejectFirst: (e: Error) => void = () => undefined;
+  let rejectFirst!: (e: Error) => void;
   let calls = 0;
   const load = cacheAnalyticsProviders({
     load: () => { calls++; return calls === 1 ? new Promise((_, reject) => { rejectFirst = reject; }) : Promise.resolve(providerSet({})); },

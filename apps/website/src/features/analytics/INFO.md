@@ -23,6 +23,17 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
   and a durable SQLite adapter for real composition (`platform/db/sqlite/analytics-sink.sqlite.ts#SqliteBufferSink`,
   ADR-046 Phase 1, final capability slice — the raw hit buffer now survives a restart).
 
+- Route hits to the built-in sink plus, optionally, ONE vendor forwarder per site
+  (`core.analytics.sink`, default `"local"` = built-in only). Vendors are Agent Plugin
+  contributions (`tovu-analytics-forwarders.json`, `features/agent-plugins/analytics-provider-registry.ts`)
+  on the shared `@jini-ai/core/provider-registry`; `forwarding.ts` picks the vendor per request,
+  only when the visitor's cookie consent allows `analytics` (the consent engine's own
+  `readRequestConsentChoices`, not a second gate), and binds its credential. Vendors receive a
+  minimised hit (no region, no session id) after the built-in sink accepts, detached from the
+  beacon response; their failures are logged, never propagated.
+- Chain plugin `beforeIngest` hooks (`tovu-analytics-hooks.json`) into ingest; a throwing hook
+  is skipped and logged, `null` drops the hit for every sink.
+
 ## Rules
 
 - Only the fully normalized `NormalizedHit` may cross `AnalyticsSinkPort` — nothing upstream of
