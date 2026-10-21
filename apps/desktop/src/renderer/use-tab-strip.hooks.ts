@@ -50,7 +50,13 @@ function nextTabIndex({ key, index, count }: { key: string; index: number; count
 }
 
 /** Recheck on resize as well as selection: the active tab can leave view without a tab change. */
-export function useTabStrip({ activeTab, projects }: { activeTab: string | null; projects: readonly SiteRecord[] }, _optional = {}) {
+export function useTabStrip(
+  { activeTab, projects }: { activeTab: string | null; projects: readonly SiteRecord[] },
+  { ResizeObserverImpl = globalThis.ResizeObserver }: {
+    /** The resize port; defaults to the browser's `ResizeObserver`. */
+    ResizeObserverImpl?: typeof ResizeObserver;
+  } = {},
+) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState({ left: false, right: false });
   const tabKey = JSON.stringify(projects.map((project) => [project.id, project.displayName]));
@@ -60,11 +66,11 @@ export function useTabStrip({ activeTab, projects }: { activeTab: string | null;
     const update = () => setOverflow(tabOverflow({ strip }));
     const reveal = () => { revealActiveTab({ strip }); update(); };
     reveal();
-    const observer = new ResizeObserver(reveal);
+    const observer = new ResizeObserverImpl(reveal);
     observer.observe(strip);
     strip.addEventListener('scroll', update);
     return () => { observer.disconnect(); strip.removeEventListener('scroll', update); };
-  }, [activeTab, tabKey]);
+  }, [activeTab, tabKey, ResizeObserverImpl]);
   const scrollLeft = () => stripRef.current?.scrollBy({ left: -200, behavior: 'smooth' });
   const scrollRight = () => stripRef.current?.scrollBy({ left: 200, behavior: 'smooth' });
   const tabIndex = ({ tabId }: { tabId: string | null }, _options = {}) => tabStripTabIndex({ activeTab, projects, tabId }, {});
