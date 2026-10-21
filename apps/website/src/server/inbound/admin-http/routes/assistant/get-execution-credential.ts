@@ -12,7 +12,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  */
 export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

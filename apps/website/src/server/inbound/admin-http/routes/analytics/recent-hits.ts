@@ -72,7 +72,7 @@ function parseLimitParam(raw: unknown): number | undefined {
 
 export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminAnalyticsRecentHitsDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       respondToApiError({ res, code: "NOT_FOUND", message: "workspace was not found" });
       return;
     }
