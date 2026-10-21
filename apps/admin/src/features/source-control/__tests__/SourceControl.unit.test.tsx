@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -97,6 +97,16 @@ describe("SourceControl — page shell: tabbed like Deployment, not a bare setti
     const providersTab = within(tablist).getByRole("tab", { name: /Providers/ });
     expect(providersTab).toHaveAttribute("aria-selected", "true");
     expect(within(tablist).getAllByRole("tab")).toHaveLength(1);
+  });
+
+  it("clicking the Providers tab replaces the URL with its own ?tab= link", () => {
+    window.history.replaceState(null, "", "/source-control?tab=typo");
+    const lengthBefore = window.history.length;
+    renderPage({}, { tabId: "typo" });
+    fireEvent.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Providers/ }));
+    expect(window.location.pathname + window.location.search).toMatch(/\/source-control\?tab=providers$/);
+    expect(window.history.length).toBe(lengthBefore);
+    window.history.replaceState(null, "", "/");
   });
 
   it("falls back to the Providers tab for an absent or unrecognized ?tab= value", () => {
