@@ -9,6 +9,7 @@ import {
   accessTokenProviderInfo,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
+  otherCredentialStoreInfo,
 } from "../rules";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
 import type { AccessTokenKind, AccessTokenRow } from "../rules";
@@ -855,5 +856,45 @@ describe("AccessTokensTab — default hook resolution", () => {
     expect(screen.getByText("Loading access tokens…")).toBeInTheDocument();
     expect(await screen.findByRole("status")).toHaveTextContent("credential read failed");
     expect(screen.queryByText("Loading access tokens…")).not.toBeInTheDocument();
+  });
+});
+
+describe("AccessTokensTab remaining field and row states", () => {
+  it("forwards a custom row's username edits for both its saved row and its add form", () => {
+    const setExistingField = vi.fn();
+    const setAddField = vi.fn();
+    const saved = row({ kind: "custom", providerId: "custom-1", id: "custom-row", name: "Internal API", category: "general" });
+    const group = groupFor("custom", saved.providerId, [rowState({ row: saved, name: "Internal API", username: "bot" })], addForm({ visible: true, username: "new-bot" }));
+    renderTab({ groups: [group], setExistingField, setAddField });
+    fireEvent.change(screen.getByDisplayValue("bot"), { target: { value: "deploy-bot" } });
+    expect(setExistingField).toHaveBeenCalledWith("custom-row", { username: "deploy-bot" });
+    fireEvent.change(screen.getByDisplayValue("new-bot"), { target: { value: "other-bot" } });
+    expect(setAddField).toHaveBeenCalledWith({ kind: "custom", providerId: "custom-1" }, { username: "other-bot" });
+  });
+
+  it("renders an optional secret extra field as a password input marked optional, with no hint when it has no help", () => {
+    const base = groupFor("publish", "netlify", [], addForm({ visible: true }));
+    const info = { ...base.info, extraFields: [{ name: "signingSecret", label: "Signing secret", secret: true }] };
+    renderTab({ groups: [{ ...base, info }] });
+    const input = screen.getByLabelText("Signing secret (optional)");
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveAttribute("autocomplete", "new-password");
+    expect(input.parentElement!.querySelector(".field-hint")).toBeNull();
+  });
+
+  it("explains that an unlisted provider's saved tokens can still be removed", () => {
+    const saved = row({ id: "orphan", providerId: "netlify" });
+    const base = groupFor("publish", "netlify", [rowState({ row: saved })]);
+    renderTab({ groups: [{ ...base, info: { ...base.info, unlisted: true } }] });
+    expect(screen.getByText("Its plugin is off or missing. You can still remove saved tokens.")).toBeInTheDocument();
+  });
+
+  it("lists a saved Tier 2 credential alongside the providers", () => {
+    const store = otherCredentialStoreInfo("site-assistant");
+    renderTab({}, {
+      groups: [{ store, rows: [{ key: "site-assistant:site-assistant", store, itemId: "site-assistant", name: store.label, valueFact: "••••abcd", updatedAt: null, token: "", saving: false, error: null }] }],
+    });
+    expect(screen.getAllByText("Site assistant model key").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Not connected")).toBeNull();
   });
 });

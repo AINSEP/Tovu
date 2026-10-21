@@ -305,3 +305,18 @@ describe("AccessTokensTab category filter keyboard (WAI-ARIA tabs)", () => {
     expect(document.activeElement).toBe(addButton);
   });
 });
+
+describe("AccessTokensTab project copy entry, when re-enabled", () => {
+  it("renders the entry and opens the copy dialog, which lists the copy sources", async () => {
+    const user = userEvent.setup();
+    const listCredentialCopySources = vi.fn().mockResolvedValue({ sources: [] });
+    render(<AccessTokensTab
+      showCopyKeysEntry
+      useAccessTokensHook={() => makeAccessTokens()}
+      useOtherCredentialsHook={() => makeOtherCredentials()}
+      useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials: vi.fn() } })}
+    />);
+    await user.click(screen.getByRole("button", { name: "Copy keys from another project…" }));
+    await waitFor(() => expect(listCredentialCopySources).toHaveBeenCalledTimes(1));
+  });
+});
