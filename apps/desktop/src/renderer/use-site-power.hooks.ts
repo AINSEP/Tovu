@@ -23,7 +23,7 @@ import { useCallback, useState } from 'react';
 
 import { runnerInventoryBridge } from './runner-api.js';
 import type { SiteLifecycleStatus, SiteRecord } from '../contracts/project.js';
-import { desktopCopy } from '../desktop-i18n.js';
+import { desktopCopy, runtimeLocale } from '../desktop-i18n.js';
 import { siteOperationError } from './site-shell-policy.js';
 
 /** Which way a click moves a site. */
@@ -45,7 +45,7 @@ export function restartControl({ project, status, restarting }: {
   project: SiteRecord;
   status: SiteLifecycleStatus;
   restarting: boolean;
-}, { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {}) {
+}, { locale = runtimeLocale() }: { locale?: string } = {}) {
   const copy = desktopCopy({ locale });
   const label = restarting ? copy.restarting : copy.restart;
   return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) || Boolean(project.externalUrl) };
@@ -62,7 +62,7 @@ export function restartControl({ project, status, restarting }: {
  */
 export function externalStopConfirm(
   { project }: { project: Pick<SiteRecord, 'displayName' | 'externalUrl' | 'externalLauncher' | 'runningApp'> },
-  { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {},
+  { locale = runtimeLocale() }: { locale?: string } = {},
 ) {
   if (!project.externalUrl || !project.externalLauncher) return null;
   const copy = desktopCopy({ locale }).stopConfirm;
@@ -241,7 +241,10 @@ export function powerToggleIntent({ action, project, inFlight, confirmed }: {
  */
 export function useSitePower(
   onSiteUpdated?: (record: SiteRecord) => void,
-  { onStarted }: Pick<SitePowerCallbacks, 'onStarted'> = {},
+  { onStarted, getBridge = runnerInventoryBridge }: Pick<SitePowerCallbacks, 'onStarted'> & {
+    /** The bridge port, read at press time; defaults to the preload's `window.tovuRunner`. */
+    getBridge?: () => Parameters<typeof performPowerAction>[2];
+  } = {},
 ): SitePower {
   const [pending, setPending] = useState<Readonly<Record<string, SitePowerOperation>>>({});
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
@@ -276,7 +279,7 @@ export function useSitePower(
       setErrors((current) => withoutKey(current, id));
 
       try {
-        const error = await runPowerToggle({ action: intent, id, bridge: runnerInventoryBridge() }, { onSiteUpdated, onStarted });
+        const error = await runPowerToggle({ action: intent, id, bridge: getBridge() }, { onSiteUpdated, onStarted });
         if (error !== null) setErrors((current) => ({ ...current, [id]: error }));
       } finally {
         // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the
@@ -286,7 +289,7 @@ export function useSitePower(
         setPending((current) => withoutKey(current, id));
       }
     },
-    [onSiteUpdated, onStarted, statusOf, inFlight],
+    [onSiteUpdated, onStarted, statusOf, inFlight, getBridge],
   );
 
   const restartControlOf = useCallback((project: SiteRecord) => restartControl({
@@ -300,14 +303,14 @@ export function useSitePower(
     setPending(current => ({ ...current, [id]: 'restart' as const }));
     setErrors(current => withoutKey(current, id));
     try {
-      const result = await performSiteRestart({ id, bridge: runnerInventoryBridge() }, { onStopped: onSiteUpdated });
+      const result = await performSiteRestart({ id, bridge: getBridge() }, { onStopped: onSiteUpdated });
       if (result.error === undefined) onSiteUpdated?.(result.record);
       else setErrors(current => ({ ...current, [id]: result.error }));
     } finally {
       inFlight.delete(id);
       setPending(current => withoutKey(current, id));
     }
-  }, [inFlight, onSiteUpdated, restartControlOf]);
+  }, [inFlight, onSiteUpdated, restartControlOf, getBridge]);
 
   const cancelStop = useCallback(() => setConfirmingStopId(null), []);
   const confirmStop = useCallback(async (project: SiteRecord) => {
