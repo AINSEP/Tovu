@@ -9,5 +9,6 @@ ENV (listed, not fixed): 122 entries — *.postgres.test.ts, pg-fixture (pg part
 | L4 oauth | merged | 2 (api-connections host.ts wrapped unreadable-token cause) | 20 | 0 | 0 | 1d75dba6 | 142/142 pass |
 | L5 | dispatched 08:52 | | | | | | |
 | L1 admin-media | merged | 0 | 10 | 0 | 0 | e1c9f896 | 59/59 pass |
-| L2 redaction/desktop | dispatched 09:00 | | | | | | |
+| L2 redaction/desktop | merged | 7 (home-path leak when HOME outside /home,/Users → redactLocalText at 13 sites; smoke-bridge over-redacted tool id) | 1 (mcp spawn NODE_V8_COVERAGE) | 0 | 1 d (preload-speech needs pretest build:preload); Jini redaction.ts homeDir option follow-up | fa0a922c | desktop 127/127, website 39/39 |
 | L6 vault-db | dispatched 09:01 | | | | | | |
+| L7 server-composition | dispatched 09:05 | | | | | | |
