@@ -216,3 +216,19 @@ test("absent workspaceId or themeId params fall back to the empty string and 404
   assert.deepEqual([noTheme.capture.status, noTheme.capture.json], [404, { code: "THEME_NOT_FOUND", error: "no such static theme" }]);
   assert.deepEqual(enqueued, []);
 });
+
+test("with no explicit preview service, the queue is resolved from the host's site binding", async () => {
+  const { service, enqueued } = fakeService({ stored: { "editorial-rose": 2_000 } });
+  const binding = { name: "site-a", dir: "/sites/site-a" } as never;
+  const resolvedFor: unknown[] = [];
+  const app = express();
+  registerAdminThemePreviewRoute(
+    { app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), themes: [theme("editorial-rose")] as never, siteBinding: binding } },
+    { contentVersion: () => 1_000, shippedImage: () => null, waitMs: 50, previewServiceForHost: ({ binding: b }) => { resolvedFor.push(b); return service; } },
+  );
+  const { res, capture } = response();
+  await extractRouteHandler(app, "get", ROUTE)({ params: { workspaceId: "ws", themeId: "editorial-rose" }, socket: { localPort: 3000 } }, res as never);
+  assert.deepEqual(resolvedFor, [binding]);
+  assert.equal(String(capture.body), "jpeg:editorial-rose:2000");
+  assert.deepEqual(enqueued, []);
+});

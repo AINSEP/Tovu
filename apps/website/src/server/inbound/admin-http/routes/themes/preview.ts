@@ -41,6 +41,8 @@ export interface ThemePreviewRouteOptions {
   contentVersion?: (required: { dir: string }) => number;
   /** The theme's shipped screenshot URL, or `null` — the fallback when no capture can be served. */
   shippedImage?: (required: { dir: string; id: string }) => string | null;
+  /** Resolves the capture queue from `siteBinding` when `themePreviews` is left `undefined`. */
+  previewServiceForHost?: (required: { binding: NonNullable<RouteDeps["siteBinding"]> }) => SitePreviewService | undefined;
 }
 
 /** The page a capture renders: `index` when the theme has one, else its first page. @complexity O(p). */
@@ -86,11 +88,14 @@ async function readThemeCapture(
  */
 export function registerAdminThemePreviewRoute(
   { app, deps }: { app: Express; deps: ThemePreviewRouteDeps },
-  { waitMs = 20_000, contentVersion = themeContentVersion, shippedImage = themePreviewImage }: ThemePreviewRouteOptions = {},
+  {
+    waitMs = 20_000, contentVersion = themeContentVersion, shippedImage = themePreviewImage,
+    previewServiceForHost = themePreviewServiceForHost,
+  }: ThemePreviewRouteOptions = {},
 ): void {
   const previews = deps.themePreviews !== undefined
     ? deps.themePreviews ?? undefined
-    : deps.siteBinding ? themePreviewServiceForHost({ binding: deps.siteBinding }) : undefined;
+    : deps.siteBinding ? previewServiceForHost({ binding: deps.siteBinding }) : undefined;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/preview", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
