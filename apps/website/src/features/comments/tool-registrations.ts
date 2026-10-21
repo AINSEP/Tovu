@@ -40,10 +40,10 @@ import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/h
 const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
 
 /** The model relays this verbatim, so it says what is off and that nothing stored was lost. */
-function providerNote({ providerId }: { providerId: string | null }, _options = {}): string {
-  return providerId === null
-    ? 'Public comments are off. Stored comments, settings and the moderation queue are kept; select built-in to show them again.'
-    : 'The built-in provider is selected but comments are disabled in comments settings; enable them there.';
+function providerNote({ providerId, adapterReady }: { providerId: string | null; adapterReady: boolean }, _options = {}): string {
+  if (providerId === null) return 'Public comments are off. Stored comments, settings and the moderation queue are kept; select built-in to show them again.';
+  if (!adapterReady) return `The '${providerId}' provider is selected but not ready yet; comments are not showing. Try again shortly.`;
+  return `The '${providerId}' provider is selected but comments are disabled in comments settings; enable them there.`;
 }
 
 /**
@@ -233,7 +233,7 @@ export function buildCommentsRegistrations(
       const ready = !!active.adapter && settings.enabled;
       return { providerId: active.providerId, revision: active.revision, ready,
         pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }),
-        ...(ready ? {} : { note: providerNote({ providerId: active.providerId }) }) };
+        ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
     },
     comments_set_provider: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {

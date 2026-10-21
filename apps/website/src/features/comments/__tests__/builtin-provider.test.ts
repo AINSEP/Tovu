@@ -81,7 +81,8 @@ test('submission preserves CMS ingress, hash and honeypot; moderation keeps engi
   assert.deepEqual(f.calls.purge, { workspaceId: 's', id: 'c', actorPrincipalId: 'owner', note: null });
   f.settings.enabled = false;
   await assert.rejects(f.provider.moderation.apply({ siteId: 's', id: 'c', expectedVersion: 1, actorPrincipalId: 'owner', note: null, action: 'approve' }), /disabled/);
-  await assert.rejects(f.provider.moderation.purge({ siteId: 's', id: 'c', actorPrincipalId: 'owner', note: null }), /disabled/);
+  assert.deepEqual(await f.provider.moderation.purge({ siteId: 's', id: 'c', actorPrincipalId: 'owner', note: null }), { ok: true }, 'erasure still works while disabled');
+  await assert.rejects(f.provider.moderation.purge({ siteId: 'foreign', id: 'c', actorPrincipalId: 'owner', note: null }), /site mismatch/);
   assert.equal((await f.provider.moderation.listQueue({ siteId: 's', status: 'pending', limit: 20 })).items.length, 1, 'disabled queue remains readable');
   createBuiltinCommentsProvider(f.deps, {});
 });

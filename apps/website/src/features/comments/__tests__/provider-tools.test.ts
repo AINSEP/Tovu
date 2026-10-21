@@ -84,5 +84,11 @@ test('built-in selected while comments settings are off answers with the setting
   await ensureCommentsSettingDefinitions(settings, { workspaceId: 's', systemPrincipalId: 'system' });
   await setCommentsSettings(settings, { workspaceId: 's', patch: { enabled: false }, callerPrincipalId: 'owner' });
   assert.deepEqual(await f.call('comments_get_provider'), { providerId: 'built-in', revision: 0, ready: false, pendingCount: 3,
-    note: 'The built-in provider is selected but comments are disabled in comments settings; enable them there.' });
+    note: "The 'built-in' provider is selected but comments are disabled in comments settings; enable them there." });
+});
+
+test('a selected provider whose adapter is not ready says so instead of blaming settings', async () => {
+  const f = fixture();
+  f.deps.commentsProviders = { active: async () => ({ providerId: 'built-in', revision: 2, adapter: undefined }) } as unknown as CommentsToolDeps['commentsProviders'];
+  assert.match((await f.call('comments_get_provider') as { note: string }).note, /'built-in' provider is selected but not ready yet/);
 });

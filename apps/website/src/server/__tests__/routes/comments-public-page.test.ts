@@ -43,4 +43,9 @@ test("comments: the Starter post page is no-store, the form 303s to #comment-pen
   const approved = await (await fetch(`${baseUrl}/comments-live`)).text();
   assert.match(approved, /Held until approved/);
   assert.match(approved, /Visitor &lt;b&gt;/);
+
+  const exported = await fetch(`${baseUrl}/comments-live`, { headers: { "x-tovu-static-export": "1" } });
+  const exportedHtml = await exported.text();
+  assert.match(exportedHtml, /<div data-comments-surface><\/div>/, "a static export ships an empty surface: no dead form, no stale snapshot");
+  assert.doesNotMatch(exportedHtml, /Held until approved|action="\/api\/site\/comments"/);
 });

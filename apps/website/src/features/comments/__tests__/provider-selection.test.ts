@@ -52,12 +52,15 @@ test('built-in runtime gates route/tool mutations for provider disable and setti
   assert.equal(await runtime.providers.resolve({ siteId: 'other', providerId: 'built-in' }), undefined);
   await runtime.providers.select({ siteId: 's', providerId: null, expectedRevision: 0, actorPrincipalId: 'owner' });
   await assert.rejects(runtime.writeService.applyModeration(moderation), /No stored/);
+  const purge = { workspaceId: 's', id: 'c', actorPrincipalId: 'owner', note: null };
+  assert.deepEqual(await runtime.writeService.purge(purge), { ok: true }, 'erasure is not gated on the public provider');
+  await assert.rejects(runtime.writeService.purge({ ...purge, workspaceId: 'other' }), /site mismatch/);
   assert.equal((await f.module.commentRepo.listModerationQueue({ workspaceId: 's', status: 'pending', limit: 20 })).items.length, 1);
   const current = await runtime.providers.active({ siteId: 's' });
   await runtime.providers.select({ siteId: 's', providerId: 'built-in', expectedRevision: current.revision, actorPrincipalId: 'owner' });
   await setCommentsSettings(f.deps, { workspaceId: 's', patch: { enabled: false }, callerPrincipalId: 'owner' });
   await assert.rejects(runtime.writeService.applyModeration(moderation), /disabled/);
-  assert.equal(f.writes(), 2);
+  assert.equal(f.writes(), 3, 'two writes while enabled plus the ungated purge');
   createCommentsCapability(args);
 });
 
@@ -90,4 +93,32 @@ test('a stored value that is not a provider id string (cleared or malformed row)
     const settingsRepo = Object.assign(Object.create(f.deps.settingsRepo), { getWorkspaceValue: async () => row });
     assert.deepEqual(await createCommentsSelectionStore({ ...f.deps, settingsRepo }).read({ siteId: 's' }), { providerId: 'built-in', revision: row.seq });
   }
+});
+
+// The in-memory ledger refuses an overlapping transaction outright, so this pins "one winner" only; the
+// Postgres interleaving (both read N, then queue on the advisory lock) is LOCAL-RUN NEEDED.
+test('two confirmations of the same revision: exactly one commits', async () => {
+  const f = await fixture();
+  const store = createCommentsSelectionStore(f.deps);
+  const outcomes = await Promise.allSettled([null, 'built-in'].map(providerId =>
+    store.compareAndSet({ siteId: 's', providerId, expectedRevision: 0, actorPrincipalId: 'owner' })));
+  assert.deepEqual(outcomes.map(outcome => outcome.status).sort(), ['fulfilled', 'rejected']);
+  assert.ok((await store.read({ siteId: 's' })).revision > 0);
+});
+
+test('the guard compares at the value save: a revision that moved after the transaction opened is refused', async () => {
+  const f = await fixture();
+  const store = createCommentsSelectionStore(f.deps);
+  const repo = f.deps.settingsRepo;
+  const original = repo.appendRevision.bind(repo);
+  let raced = false;
+  // A competing writer lands between appendRevision and the value save (what the ledger lock now orders).
+  repo.appendRevision = (async (...args: Parameters<typeof original>) => {
+    const result = await original(...args);
+    if (!raced) { raced = true; await createCommentsSelectionStore({ ...f.deps, settingsRepo: Object.assign(Object.create(repo), {
+      transaction: (run: () => Promise<unknown>) => run() }) }).compareAndSet({ siteId: 's', providerId: null, expectedRevision: 0, actorPrincipalId: 'other' }); }
+    return result;
+  }) as typeof repo.appendRevision;
+  await assert.rejects(store.compareAndSet({ siteId: 's', providerId: 'built-in', expectedRevision: 0, actorPrincipalId: 'owner' }), /changed/);
+  // (A check at transaction open, the previous design, saw revision 0 here and saved the stale value.)
 });

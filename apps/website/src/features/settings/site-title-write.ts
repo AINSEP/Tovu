@@ -56,10 +56,24 @@ export async function set(required: SetValueRequired, optional: {
   if (required.input.value === true && definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
     await requirePublicAssistantReadiness({ workspaceId: required.input.workspaceId }, optional);
   }
+  refuseUncardedCommentsProviderWrite({ required, definition });
   required = await applyPreviewSwitcherPolicy({ required, definition, prepare: optional.preparePreviewSwitcherWrite });
   // Form delivery bindings are validated here too, so no host write path can store a list that
   // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
   return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
+}
+
+/** `core.comments/provider` hides or shows every stored comment, so it is written only by the comments
+ * selection store (`features/comments/provider-selection.ts`: confirmation card, revision CAS,
+ * `comments.configure`). The generic settings route would otherwise reach it with the workspace-settings
+ * permission alone. Resolved by canonical definition, so an alias cannot bypass it. @complexity O(1). */
+function refuseUncardedCommentsProviderWrite({ required, definition }: {
+  required: SetValueRequired; definition: Awaited<ReturnType<typeof resolveDefinitionRaw>>;
+}, _options = {}): void {
+  if (definition?.namespace !== "core.comments" || definition.key !== "provider") return;
+  if (required.input.requiredPermissionOverride !== "comments.configure") {
+    throw new ValueValidationFailedError("Change the comments provider with comments_set_provider; it confirms first and keeps stored comments.");
+  }
 }
 
 /** Resolve aliases before dispatching the theme-owned policy; uncomposed writers fail closed. */

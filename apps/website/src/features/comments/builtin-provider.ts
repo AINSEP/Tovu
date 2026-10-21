@@ -114,7 +114,8 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
         const statuses = { approve: 'approved', mark_spam: 'spam', trash: 'trash', restore: 'approved' } as const;
         return deps.writes.applyModeration({ ...input, action, workspaceId: siteId, toStatus: statuses[action] });
       },
-      async purge({ siteId, ...input }) { await assertEnabled({ siteId }); return deps.writes.purge({ ...input, workspaceId: siteId }); },
+      /** Not gated on `enabled`: erasing is allowed in exactly the state an owner cleans up in. */
+      async purge({ siteId, ...input }) { assertSite({ siteId }); await deps.ready; return deps.writes.purge({ ...input, workspaceId: siteId }); },
     },
   };
 }

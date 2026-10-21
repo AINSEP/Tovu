@@ -3,7 +3,7 @@ import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/com
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resolveProtocol } from "../oauth/public-origin.js";
+import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js";
 
 /**
  * @file ADR-031 §4 (SPEC-033) — the public, unauthenticated comment submission route. The ONLY
@@ -59,12 +59,13 @@ type CommentIngressPolicyLike = Parameters<typeof createCommentSubmitHandler>[0]
  * honeypot, spam check and both rate limits are what bound those). The scheme honors
  * `X-Forwarded-Proto` like the OAuth callback origin does: an attacker cannot set that header on a
  * victim's browser request, and without it every HTTPS visitor behind a TLS-terminating proxy that
- * lacks a `trust proxy` hop count would be refused.
+ * lacks a `trust proxy` hop count would be refused. A misconfigured TOVU_PUBLIC_URL throws (a 500), loudly.
  * @complexity O(1). */
 export function isSameOriginCommentPost({ request }: { request: Parameters<RequestHandler>[0] }, _options = {}): boolean {
   const origin = request.get('origin');
   if (origin === undefined) return request.is('application/json') === 'application/json';
-  return origin === `${resolveProtocol(request)}://${request.get('host')}`;
+  // The configured public origin (TOVU_PUBLIC_URL) also counts, for proxies that rewrite Host.
+  return origin === `${resolveProtocol(request)}://${request.get('host')}` || origin === resolvePublicOrigin(request);
 }
 
 /** Mounts Jini's handler with the site's ingress, request budget, salt and proxy policy.

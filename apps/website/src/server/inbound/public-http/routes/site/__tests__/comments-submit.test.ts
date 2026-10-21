@@ -231,7 +231,7 @@ test('no-JS form uses urlencoded parsing and safe 303 destinations for accepted 
   for (const accepted of [true, false]) {
     const { app, calls } = buildApp(async () => accepted
       ? { ok: true, comment: { id: 'held', status: 'pending' }, autoClassified: 'pending' } as CommentIngressResult
-      : { ok: false, reason: 'honeypot-tripped' });
+      : { ok: false, reason: 'entry-not-found' });
     const route = (app as unknown as ExpressAppWithRouter)._router.stack.find(layer => layer.route?.path === '/api/site/comments')!.route!;
     assert.equal(route.stack.length, 2, 'native urlencoded parser precedes the submission handler');
     let redirected: unknown;
@@ -287,6 +287,14 @@ test('same-origin gate: JSON without Origin is a non-browser client; forwarded h
   assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test', 'x-forwarded-proto': 'https' }) }, {}), true);
   assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test' }) }), false, 'scheme must match');
   assert.equal(isSameOriginCommentPost({ request: request({ origin: 'null' }, 'application/json') }), false);
+  const saved = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = 'https://www.site.test/';
+  try {
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://www.site.test' }) }), true, 'a proxy that rewrote Host');
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://evil.test' }) }), false);
+  } finally {
+    if (saved === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = saved;
+  }
 });
 
 test('behind a trusted proxy hop, two visitors sharing the proxy socket get separate rate-limit buckets (not one shared key)', async (t) => {
