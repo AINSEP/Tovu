@@ -17,7 +17,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
  */
 export const registerAdminMenuListRoute: MenuRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/menus", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }

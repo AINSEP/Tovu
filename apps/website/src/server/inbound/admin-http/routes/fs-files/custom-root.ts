@@ -61,7 +61,7 @@ async function rejectUnlessAuthorized(
   deps: AdminFsFilesCustomRootDeps,
   permission: string,
 ): Promise<boolean> {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+  if (String(req.params.workspaceId) !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return true;
   }
