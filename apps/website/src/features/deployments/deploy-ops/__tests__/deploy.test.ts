@@ -161,3 +161,11 @@ test("an accepted deploy followed by failing status never becomes a confirmed de
   assert.equal(destinations[0]!.kind === "deploy" && destinations[0]!.status, "started");
   assert.equal((await historyStore.list({ workspaceId: "ws" }))[0]!.reachable, false);
 });
+
+test("the chat tool forwards an explicit credential label and omits an absent ref", async () => {
+  let received: DeployOpsDeployInput | undefined;
+  const f = await withDeploy(async (_ctx, input) => { received = input; return accepted({ runId: "10" }); });
+  const tool = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === "deployment_ops_deploy")!;
+  assert.deepEqual(await tool.handler(execution({ platform: "fly", target: "shop", credentialLabel: "ops" })), { platform: "fly", target: "shop", started: true, summary: "accepted", runId: "10" });
+  assert.deepEqual(received, { target: "shop" });
+});
