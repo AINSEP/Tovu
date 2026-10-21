@@ -237,7 +237,8 @@ describe("Caller without role.manage", () => {
     render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
-    const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
+    // Jini adds an About roles tip; the column label excludes that explanatory copy.
+    const headers = screen.getAllByRole("columnheader").map((th) => th.getAttribute("data-label") ?? th.textContent);
     expect(headers).toEqual(["Username", "Email", "Status", "Roles", "Policies", "More"]);
     expect(screen.getByText("Editor")).toBeInTheDocument();
     expect(screen.getByText("Publishing")).toBeInTheDocument();

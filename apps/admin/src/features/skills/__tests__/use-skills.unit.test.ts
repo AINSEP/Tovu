@@ -294,12 +294,13 @@ describe("useSkills", () => {
   });
 });
 
-it.each([{ installed: [] }, { installed: [skill] }])("pins list availability before and after loading %j", async ({ installed }) => {
+it.each([{ installed: [] }, { installed: [skill] }])("keeps list availability consistent before and after loading %j", async ({ installed }) => {
   const read = deferred<InstalledSkill[]>();
   const port = { ...skillsPort(), listSkills: () => read.promise };
   const { result } = renderHook(() => useSkills({ port }));
   expect(result.current.loading).toBe(true);
-  expect(result.current.empty).toBeUndefined();
+  // Availability now exposes a boolean; loading must not display an empty-list state.
+  expect(result.current.empty).toBe(false);
   expect(result.current.addBusy).toBe(false);
   expect(result.current.githubDisabled).toBe(true);
   act(() => result.current.onGithubUrlChange({ target: { value: "   " } } as Parameters<typeof result.current.onGithubUrlChange>[0]));
