@@ -3,5 +3,5 @@
 - F2 HIGH enqueue after commit loses event: fixed — create/update/delete/retire/restore-forward/import emit inside the write transaction
 - F3 HIGH edit straddling go-live double-fires: fixed — same publication id across versions (PG overlap: LOCAL-RUN NEEDED)
 - F4 HIGH reverters announce scheduled posts early: fixed — both reverters use exported emitPublicTransitionEvent inside a postRepo.transaction (still raw save, no before-save hooks)
-- F5 HIGH HTML page edits erase pending announcements: in progress
+- F5 HIGH HTML page edits erase pending announcements: fixed — SQL + in-memory HTML stores announce a pending go-live inside the write transaction (deps.ts/app.ts pass the outbox)
 - F6 MEDIUM missing optionalObj param: fixed (port + both repos)

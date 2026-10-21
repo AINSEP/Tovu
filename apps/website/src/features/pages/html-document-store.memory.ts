@@ -1,10 +1,11 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive } from "@jini-ai/cms/core";
+import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
 import { SYSTEM_ACTOR_ID } from "../post/post.js";
+import { announcePendingGoLive } from "../post/go-live.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
@@ -47,7 +48,8 @@ export class InMemoryPagesHtmlDocumentStore {
     private readonly scope: PagesHtmlDocumentStoreScope,
     // `entryRefsRepo` is optional for the identical reason `PagesHtmlDocumentStoreDeps.entryRefsRepo`
     // (the real adapter) is — see that field's own doc.
-    private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort }
+    /** `outbox`: the real store's go-live catch-up (`PagesHtmlDocumentStoreDeps.outbox`). */
+    private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort }
   ) {}
 
   private async load(): Promise<PostRecord | null> {
@@ -86,6 +88,11 @@ export class InMemoryPagesHtmlDocumentStore {
     });
   }
 
+  /** @see SqlPagesHtmlDocumentStore's `catchUpGoLive`; `row` is the row before this write. */
+  private async catchUpGoLive(row: PostRecord, nowIso: string): Promise<void> {
+    if (this.deps.outbox) await announcePendingGoLive({ outbox: this.deps.outbox, post: row, nowIso });
+  }
+
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
   async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
@@ -120,6 +127,7 @@ export class InMemoryPagesHtmlDocumentStore {
         updatedAt,
       });
       await this.appendRevision(nextVersion, updatedAt);
+      await this.catchUpGoLive(row, updatedAt);
     });
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
@@ -191,6 +199,7 @@ export class InMemoryPagesHtmlDocumentStore {
     // store's own atomic compare-and-set (see this method's own header), so there is nothing left to
     // wrap in a `transaction()` by the time `applied` is known true.
     await this.appendRevision(nextVersion, updatedAt);
+    await this.catchUpGoLive(row, updatedAt);
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(html);
   }
