@@ -1,5 +1,5 @@
 # fix-tovu 2026-10-21 — REPORT
-Window 08:44Z–09:25Z (~41 min; 4h cap not hit). Base `origin/cloud/verify-2026-10-21` @0c5698d4 → result branch **`cloud/fix-tovu-2026-10-21`**.
+Window 08:44Z–09:18Z (~34 min; 4h cap not hit). Base `origin/cloud/verify-2026-10-21` @0c5698d4 → result branch **`cloud/fix-tovu-2026-10-21`**.
 Input: `cloud/verify-results-2026-10-21:.cloud-coord/verify-v2/{REPORT,failures}.md`. Setup OK (Node 24.22.0; Jini pnpm build fails only @jini-ai/mcp + @jini-ai/admin tsc, same as verify; Tovu npm ci ×4, sdk build, link:jini OK).
 
 ## Totals (non-ENV Tovu failures from verify: ~122 entries / 63 files)
@@ -45,5 +45,5 @@ Test counts: no test deleted or skipped. +5 new tests (redact-local-text 6, publ
 - Not run: full website/admin/desktop suites (out of scope).
 
 ## Caps
-Subagents: 8 sessions total (cap 12), at most 3 at once. Lots: 8 (cap 30), 0 follow-up lots. Wall clock about 45 min (cap 4h). Nothing touched in Jini, revert.ts, publish-credentials.ts, users/enable.ts or migrations.
+Subagents: 8 sessions total (cap 12), at most 3 at once. Lots: 8 (cap 30), 0 follow-up lots. Wall clock about 34 min (cap 4h). Nothing touched in Jini, revert.ts, publish-credentials.ts, users/enable.ts or migrations.
 Lot branches: `cloud/fix-tovu-2026-10-21-L1` … `-L8` (all merged with --no-ff).
