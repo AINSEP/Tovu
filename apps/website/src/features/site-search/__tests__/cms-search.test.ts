@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { encodeSearchKey, type SearchDocumentSource } from "@jini-ai/search";
+import { createSearchIndexer, createSearchProviderRegistry, encodeSearchKey, type SearchDocumentSource, type SearchProviderContext, type SearchTarget } from "@jini-ai/search";
+import { createInMemorySearchProvider, createInMemorySearchState } from "@jini-ai/search/testkit";
+import type { DomainEvent } from "@jini-ai/cms/core";
+import { SqlPagesHtmlDocumentStore } from "../../pages/html-document-store.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PostRecord } from "../../post/post.js";
@@ -108,6 +111,64 @@ describeEachDialect("CMS search source + access", { tables: ["posts", "post_revi
     assert.equal(record.document?.url, "/");
     assert.equal(record.document?.body, "Hi Tom & Jerry");
     assert.deepEqual(record.document?.key, key("g1", "page"));
+  });
+
+  test("an HTML page edit after the backfill finished reaches the index through the entry.updated it now emits", async () => {
+    const s = make();
+    await s.repo.save(post("g1", { kind: "page", slug: "about", bodyFormat: "html", bodyHtml: "<p>Old zephyr text</p>" }));
+    await s.repo.save(post("g2", { kind: "page", slug: "draft", status: "draft", bodyFormat: "html", bodyHtml: "<p>Draft text</p>" }));
+    const registry = createSearchProviderRegistry({});
+    registry.register({ definition: { id: "builtin", provider: createInMemorySearchProvider({}, { id: "builtin" }) } });
+    const state = createInMemorySearchState({}, { active: [{ siteId: SITE, providerId: "builtin", generation: 1 }] });
+    const contextFor = async ({ target, workspaceId }: { target: SearchTarget; workspaceId: string }): Promise<SearchProviderContext> => ({
+      workspaceId, siteId: target.siteId, mode: "test", indexName: "cms_html_edit", credentials: {}, timeoutMs: 1000, now: s.clock.now,
+      httpClient: { send: async () => { throw new Error("no network"); } },
+    });
+    const indexer = createSearchIndexer({
+      sources: [s.posts, s.pages], registry, targets: state.targets, state: state.indexState, contextFor, now: s.clock.now,
+      resolveSiteId: async ({ workspaceId }) => (workspaceId === WS ? SITE : null),
+    });
+    const provider = registry.get({ id: "builtin" })!.provider;
+    const ctx = await contextFor({ target: { siteId: SITE, providerId: "builtin", generation: 1 }, workspaceId: WS });
+    const titlesFor = async (text: string) => {
+      const result = await provider.query(ctx, { query: { text, audiences: [] } });
+      return result.status === "ok" ? result.value.hits.map(hit => hit.key.documentId) : [`error:${result.status}`];
+    };
+    assert.equal((await indexer.backfill({ siteId: SITE, workspaceId: WS })).done, true);
+    assert.deepEqual(await titlesFor("zephyr"), ["g1"]);
+
+    const events: DomainEvent[] = [];
+    const outbox = { enqueue: async (event: DomainEvent) => { events.push(event); } };
+    const storeClock = { nowMs: () => T0 + 120_000 };
+    const page = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "g1" }, { kernel: s.kernel, clock: storeClock, outbox });
+    await page.read();
+    await page.write("<p>New quokka text</p>");
+    await page.write("<p>New quokka text</p>");
+    const draft = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "g2" }, { kernel: s.kernel, clock: storeClock, outbox });
+    await draft.read();
+    await draft.write("<p>Changed draft</p>");
+    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [["entry.updated", "g1", "g1-entry.updated-4"]],
+      "one event for the published page's real change; none for an unchanged save or a draft");
+    assert.deepEqual(events[0]!.payload, { entryId: "g1", contentType: "page" });
+
+    // The backfill's watermark is complete, so only the event can carry the edit.
+    assert.equal((await indexer.backfill({ siteId: SITE, workspaceId: WS })).written, 0);
+    s.clock.set(T0 + 180_000);
+    for (const event of events) await indexer.handleEvent({ event });
+    assert.deepEqual(await titlesFor("quokka"), ["g1"]);
+    assert.deepEqual(await titlesFor("zephyr"), [], "the removed text is no longer served");
+  });
+
+  test("an HTML page converted from doc format emits entry.updated only when it is published", async () => {
+    const s = make();
+    await s.repo.save(post("g3", { kind: "page", slug: "converted" }));
+    await s.repo.save(post("g4", { kind: "page", slug: "draft-converted", status: "draft" }));
+    const events: DomainEvent[] = [];
+    const outbox = { enqueue: async (event: DomainEvent) => { events.push(event); } };
+    const storeClock = { nowMs: () => T0 + 120_000 };
+    for (const postId of ["g3", "g4"]) await new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId }, { kernel: s.kernel, clock: storeClock, outbox }).ensureHtmlFormat("<p>Seeded</p>");
+    await new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "g3" }, { kernel: s.kernel, clock: storeClock }).ensureHtmlFormat("<p>Seeded</p>");
+    assert.deepEqual(events.map(event => [event.name, event.aggregateId, event.id]), [["entry.updated", "g3", "g3-entry.updated-4"]]);
   });
 
   test("load: draft, trashed, other kind, other workspace and missing rows load as null with an outranking revision", async () => {

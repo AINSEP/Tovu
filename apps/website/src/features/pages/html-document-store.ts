@@ -2,7 +2,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Kysely, Updateable } from "kysely";
 
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive } from "@jini-ai/cms/core";
+import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
 
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -131,6 +131,13 @@ export interface PagesHtmlDocumentStoreDeps {
    * only two capabilities it needs.
    */
   revisions?: Pick<PostRepoPort, "findById" | "appendRevision" | "transaction" | "listRevisions">;
+  /**
+   * When supplied, every successful content write of a PUBLISHED page enqueues the same
+   * `entry.updated` event `post.ts` emits for a published edit. Without it a bespoke HTML edit was
+   * invisible to every event consumer: site search kept serving the removed text, because its
+   * backfill watermark is complete after the first pass and never rescans. A `Pick`: enqueue only.
+   */
+  outbox?: Pick<OutboxPort, "enqueue">;
 }
 
 /** Scopes one store instance to one Page row — mirrors every other adapter in this feature area
@@ -318,7 +325,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
-      this.thisRow(db).select(["kind", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
+      this.thisRow(db).select(["kind", "body_format", "version", "deleted_at", "status"]).limit(1).executeTakeFirst()
     );
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
@@ -378,12 +385,32 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
       // The POST-conversion snapshot — the row's first ever html-format state.
       await this.appendRevision(nextVersion, updatedAt);
+      await this.emitUpdated({ status: row.status, version: nextVersion, occurredAt: updatedAt });
     };
 
     await (this.deps.revisions ? this.deps.revisions.transaction(runConversion) : runConversion());
 
     this.lastReadVersion = nextVersion;
     await this.reindexEntryRefs(seedHtml);
+  }
+
+  /**
+   * Enqueues `entry.updated` for a content change of a published page (see
+   * {@link PagesHtmlDocumentStoreDeps.outbox}); the same envelope and idempotent id shape as
+   * `post.ts`'s status-transition emitter. A draft or scheduled page emits nothing, exactly as a
+   * `post.ts` edit of a non-published row does: no public-facing content changed.
+   * @complexity O(1) — one outbox insert.
+   */
+  private async emitUpdated(required: { status: string; version: number; occurredAt: string }): Promise<void> {
+    if (!this.deps.outbox || required.status !== "published") return;
+    await this.deps.outbox.enqueue({
+      id: `${this.scope.postId}-entry.updated-${required.version}`,
+      name: "entry.updated",
+      occurredAt: required.occurredAt,
+      aggregateId: this.scope.postId,
+      workspaceId: this.scope.workspaceId,
+      payload: { entryId: this.scope.postId, contentType: "page" },
+    });
   }
 
   /**
@@ -470,7 +497,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
     const runWrite = async () => {
       const current = await this.deps.kernel.run((db) =>
-        this.thisRow(db).select(["body_html", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
+        this.thisRow(db).select(["body_html", "body_format", "version", "deleted_at", "status"]).limit(1).executeTakeFirst()
       );
       // Check freshness before equality: matching HTML must never hide a stale captured version.
       if (!current || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
@@ -483,7 +510,10 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       // result below throws before any append lands (and, inside `revisions.transaction()`, rolls
       // this back too — though there is nothing to roll back on this path, unlike `ensureHtmlFormat`'s
       // two-append converting branch).
-      if (changes > 0) await this.appendRevision(nextVersion, updatedAt);
+      if (changes > 0) {
+        await this.appendRevision(nextVersion, updatedAt);
+        await this.emitUpdated({ status: current.status, version: nextVersion, occurredAt: updatedAt });
+      }
       return changes;
     };
 

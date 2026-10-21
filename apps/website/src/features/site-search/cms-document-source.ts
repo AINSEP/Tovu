@@ -7,8 +7,10 @@
  * past its go-live time — `contracts/core/scheduled-publish.ts`). Everything else loads as
  * `document: null`, which the indexer turns into a tombstone.
  *
- * Known gap: a bespoke HTML page edit (`SqlPagesHtmlDocumentStore.write`) emits no outbox event, so
- * it reaches the index only through a backfill/reindex `scan`, never through `load` on an event.
+ * Bespoke HTML page edits: `SqlPagesHtmlDocumentStore.write` (and its doc→html conversion) does not
+ * go through `post.ts`, so it enqueues the same `entry.updated` itself (its `outbox` dep). Without it
+ * such an edit reached the index only through a backfill/reindex `scan`, never through `load` on an
+ * event — and the backfill watermark is complete after the first pass, so never again.
  */
 import type { Selectable } from "kysely";
 import type { SearchDocument, SearchDocumentSource, SearchSourceEvent, SearchSourceRecord, SearchVisibility } from "@jini-ai/search";

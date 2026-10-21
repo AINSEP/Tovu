@@ -2231,7 +2231,8 @@ async function composeSiteRouteDeps(
     // exposes — one shared index, not a second writer. `revisions: postRepo` (S1, fix plan
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
-    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo }),
+    // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
+    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
