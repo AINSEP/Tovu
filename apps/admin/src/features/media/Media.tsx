@@ -16,6 +16,7 @@ import {
   mediaRowMenuItems,
   sortMediaByOrder,
   MEDIA_ORDER_OPTIONS,
+  resolveLightboxItem,
   type MediaOrderBy,
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
@@ -23,12 +24,12 @@ import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
-import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import { TabBar } from "@jini-ai/ui/tab-strip";
+import { Lightbox } from "@jini-ai/ui/admin-widgets";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport } from "./RemoteImageImport";
@@ -142,33 +143,6 @@ function ExpandIcon() {
   return (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <path d="M6 2H2v4M12 2h4v4M6 16H2v-4M12 16h4v-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** "×" close glyph for the lightbox header. */
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M4 4l10 10M14 4L4 14" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Chevron used for both lightbox nav arrows — `flip` mirrors it horizontally for "next" rather
- *  than shipping a second glyph, the same "one shape, two states" idiom `Sidebar.tsx`'s rail-toggle
- *  chevron already uses (see `styles.css`'s `.cms-nav.is-rail .cms-rail-toggle svg` comment). */
-function ChevronIcon(props: { flip?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 18 18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      aria-hidden="true"
-      style={props.flip ? { transform: "scaleX(-1)" } : undefined}
-    >
-      <path d="M11 3.5 5.5 9l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -703,30 +677,23 @@ function EditMediaModal({ item, onSaved, onCancel, useEditMediaModalHook = useEd
 }
 
 interface MediaLightboxProps {
-  /** The full grid list, not just the open item — see `use-media-lightbox.hooks.ts`'s
-   *  `MediaLightboxHookProps` for why this is the whole array rather than a resolved item. */
+  /** The full grid list, not just the open item, so the lightbox can count the set and clamp
+   *  prev/next from the same data its caller already has in scope. */
   items: AdminMedia[];
-  /** Index into `items` that is open, or `null` when closed — see the hook props' own comment for
-   *  why an index rather than the item itself. */
+  /** Index into `items` that is open, or `null` when closed. An index rather than the item itself
+   *  so navigating just moves this number — `Media()` needs no second piece of "which one" state. */
   activeIndex: number | null;
   onNavigate: (index: number) => void;
   onClose: () => void;
-  /**
-   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
-   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
-   */
-  useMediaLightboxHook?: typeof useMediaLightbox;
   /** Translator closure — see `Media()`'s own `t`; forwarded to the `MediaPreview` this remounts. */
   t: (key: string) => string;
 }
 
 /**
- * Single shared lightbox `<dialog>` for the whole Media grid — see this file's header comment for
- * why one shared instance is used instead of one per card. Controlled exactly like `ConfirmDialog`
- * (native `<dialog>`, stays mounted unconditionally, `showModal()`/`close()` driven by an effect,
- * guarded by the same jsdom-compat `typeof` check `ConfirmDialog` uses — jsdom 29 implements
- * neither method) — see that component's own doc comment for the full rationale of building on
- * native `<dialog>` rather than a hand-rolled focus-trap/backdrop `<div>`.
+ * Single shared lightbox for the whole Media grid — see this file's header comment for why one
+ * shared instance is used instead of one per card. The chrome, keyboard, focus capture/return and
+ * native-`<dialog>` lifecycle are Jini's shared `Lightbox` (`@jini-ai/ui/admin-widgets`); this only
+ * supplies the asset, the translated labels and the agent handles.
  *
  * Renders the enlarged asset via the SAME `MediaPreview` the grid card uses (not a lightbox-
  * specific clone of the image/video/placeholder fallback chain) — `media.css`'s `.media-lightbox-
@@ -736,77 +703,36 @@ interface MediaLightboxProps {
  * place.
  */
 function MediaLightbox(props: MediaLightboxProps) {
-  const { items, activeIndex, onNavigate, onClose, useMediaLightboxHook = useMediaLightbox, t } = props;
-  const { titleId, dialogRef, closeRef, item, hasPrev, hasNext, handleNativeCancel, handleBackdropClick, handleKeyDown, goToPrev, goToNext } =
-    useMediaLightboxHook({ items, activeIndex, onNavigate, onClose });
-
+  const { items, activeIndex, onNavigate, onClose, t } = props;
+  const item = resolveLightboxItem(items, activeIndex);
   return (
-    <dialog
-      ref={dialogRef}
+    <Lightbox
+      open={item !== null}
+      title={item?.title ?? ""}
+      index={activeIndex ?? 0}
+      count={items.length}
+      onNavigate={onNavigate}
+      onClose={onClose}
       className="media-lightbox"
-      aria-labelledby={item ? titleId : undefined}
-      onCancel={handleNativeCancel}
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
+      labels={{ close: t("Close"), previous: t("Previous asset"), next: t("Next asset") }}
+      partAttrs={{
+        close: { ...agentHandle({ handle: "media-lightbox-close" }, { role: "button", label: "Close the lightbox" }) },
+        previous: { ...agentHandle({ handle: "media-lightbox-prev" }, { role: "button", label: "Show the previous asset" }) },
+        next: { ...agentHandle({ handle: "media-lightbox-next" }, { role: "button", label: "Show the next asset" }) },
+      }}
     >
       {item ? (
-        <>
-          <div className="media-lightbox-header">
-            <h2 id={titleId} className="media-lightbox-title">
-              {item.title}
-            </h2>
-            {items.length > 1 ? (
-              <span className="media-lightbox-counter">
-                {activeIndex! + 1} / {items.length}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              ref={closeRef}
-              className="media-lightbox-close"
-              aria-label={t("Close")}
-              onClick={onClose}
-              {...agentHandle({ handle: "media-lightbox-close" }, { role: "button", label: "Close the lightbox" })}
-            >
-              <CloseIcon />
-            </button>
-          </div>
-          <div className="media-lightbox-stage">
-            {hasPrev ? (
-              <button
-                type="button"
-                className="media-lightbox-nav media-lightbox-nav-prev"
-                aria-label={t("Previous asset")}
-                onClick={goToPrev}
-                {...agentHandle({ handle: "media-lightbox-prev" }, { role: "button", label: "Show the previous asset" })}
-              >
-                <ChevronIcon />
-              </button>
-            ) : null}
-            <div className="media-lightbox-media">
-              {/* `key` is load-bearing, not a list-reconciliation habit: `useMediaPreview`'s `stage`
-                  is component state with no reset-on-`item` effect, and this ONE shared lightbox
-                  instance sits at a fixed tree position across prev/next. Without a changing key
-                  React keeps the instance, so a PDF that fell all the way through to `"unsupported"`
-                  leaves the next asset stuck on the placeholder even when it is a perfectly good
-                  image. The grid cards never hit this — each card owns its own instance. */}
-              <MediaPreview key={item.id} item={item} t={t} />
-            </div>
-            {hasNext ? (
-              <button
-                type="button"
-                className="media-lightbox-nav media-lightbox-nav-next"
-                aria-label={t("Next asset")}
-                onClick={goToNext}
-                {...agentHandle({ handle: "media-lightbox-next" }, { role: "button", label: "Show the next asset" })}
-              >
-                <ChevronIcon flip />
-              </button>
-            ) : null}
-          </div>
-        </>
+        <div className="media-lightbox-media">
+          {/* `key` is load-bearing, not a list-reconciliation habit: `useMediaPreview`'s `stage`
+              is component state with no reset-on-`item` effect, and this ONE shared lightbox
+              instance sits at a fixed tree position across prev/next. Without a changing key
+              React keeps the instance, so a PDF that fell all the way through to `"unsupported"`
+              leaves the next asset stuck on the placeholder even when it is a perfectly good
+              image. The grid cards never hit this — each card owns its own instance. */}
+          <MediaPreview key={item.id} item={item} t={t} />
+        </div>
       ) : null}
-    </dialog>
+    </Lightbox>
   );
 }
 

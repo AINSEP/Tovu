@@ -4941,31 +4941,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
-/* Image preview lightbox (`ImagePreviewModal`, 2026-08-10) — same native-`<dialog>` foundation and
-   same `[open]`-scoped `display` trap as `.confirm-dialog` above (an author `display` rule on the
-   bare class always wins over the UA stylesheet's `dialog:not([open]) { display: none }`
-   regardless of specificity — the comment above this block found that live; this dialog inherits
-   the same risk and the same fix). `position`/`margin` deliberately untouched so `showModal()`'s
-   own top-layer centering keeps doing the layout work. Sized to the image, capped at 90vw/90vh —
-   "readable, not full native resolution" per the owner's own framing. */
-.image-preview-modal {
-  border: none; padding: 0; background: transparent; max-width: 90vw; max-height: 90vh;
-}
-.image-preview-modal[open] { display: block; }
-.image-preview-modal::backdrop { background: var(--jini-overlay-bg-lightbox);
-  backdrop-filter: var(--tovu-admin-scrim-backdrop, none);
-}
-.image-preview-modal img { display: block; max-width: 90vw; max-height: 90vh; width: auto; height: auto; border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
-.image-preview-modal-close {
-  position: absolute; top: 0.7rem; right: 0.7rem; width: 2.1rem; height: 2.1rem; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--jini-control-media-bg); color: var(--jini-control-preview-ink); font-size: 1.3rem; line-height: 1;
-  /* A screenshot's own top-right corner can be just as dark as this button's fill (this session's
-     Basic theme's nav bar, verified live) — a light ring keeps the button findable regardless of
-     what's directly behind it, rather than relying on background contrast alone. */
-  border: 1px solid var(--jini-control-media-border); box-shadow: var(--shadow-md);
-}
-.image-preview-modal-close:hover { background: var(--jini-control-media-bg-hover); opacity: 1; }
+/* Image preview lightbox (`ImagePreviewModal`): styled entirely by Jini's shared `Lightbox`
+   (`@jini-ai/ui/admin-widgets.css`, `.jini-lightbox*`) since 2026-10-21 — no host rules. */
 
 /* `MessageOverflowModal.tsx` — the chat pane's "Show in modal" affordance (chat-overflow fix,
    2026-08-30). Same native-`<dialog>` foundation as `.image-preview-modal` above, but sized like

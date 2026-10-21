@@ -684,25 +684,5 @@ export function mediaRowMenuItems(
 /** Resolves the lightbox's currently-open item from an index into `items`, or `null` when
  *  `activeIndex` is `null` (closed). */
 export function resolveLightboxItem(items: AdminMedia[], activeIndex: number | null): AdminMedia | null {
-  return activeIndex !== null ? items[activeIndex] : null;
-}
-
-/** Whether the lightbox's "previous" nav arrow should render — `false` at the first item or when
- *  closed. */
-export function lightboxHasPrev(activeIndex: number | null): boolean {
-  return activeIndex !== null && activeIndex > 0;
-}
-
-/** Whether the lightbox's "next" nav arrow should render — `false` at the last item or when
- *  closed. */
-export function lightboxHasNext(items: AdminMedia[], activeIndex: number | null): boolean {
-  return activeIndex !== null && activeIndex < items.length - 1;
-}
-
-/** Whether `index` is a navigable position within `items` — the lightbox clamps rather than wraps
- *  past either end (see `MediaLightbox`'s own `goTo` doc comment for why: a "next" press on the
- *  last asset staying on the last asset, not silently looping to the first, is the less surprising
- *  default for an operator navigating a specific set of uploads, not a slideshow). */
-export function isValidLightboxIndex(items: AdminMedia[], index: number): boolean {
-  return index >= 0 && index < items.length;
+  return activeIndex !== null ? items[activeIndex] ?? null : null;
 }
