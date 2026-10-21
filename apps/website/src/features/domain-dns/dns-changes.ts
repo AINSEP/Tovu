@@ -112,11 +112,101 @@ async function locateZone(target: Target, ports: DnsChangePorts): Promise<Zone> 
   return { zone: fallback, ref: fallback, found: false };
 }
 
-/** Current records at the required names; anything unreadable is `unknown`, never "empty". */
-async function listCurrent(target: Target, zone: Zone, ports: DnsChangePorts): Promise<{ records: readonly DnsRecord[]; inventory: DnsInventory }> {
-  const names = [...new Set(target.requirements.flatMap(requirement => requirement.records).map(record => normalizeDnsName({ name: record.name })))];
-  const result = await settlePort({ call: () => target.provider.listRecords(ports.context, { zoneRef: zone.ref, names }) });
-  return result.status === "ok" ? result.value : { records: [], inventory: "unknown" };
+type Listed = { records: readonly DnsRecord[]; inventory: DnsInventory };
+
+const INVENTORY_RANK: Readonly<Record<DnsInventory, number>> = { complete: 0, partial: 1, unknown: 2 };
+
+/** The least complete of several inventories: one unread part makes the whole view that unread. */
+const worstInventory = (inventories: readonly DnsInventory[]): DnsInventory =>
+  inventories.reduce<DnsInventory>((worst, next) => (INVENTORY_RANK[next] > INVENTORY_RANK[worst] ? next : worst), "complete");
+
+/** Distinct normalized record names the requirements ask for. */
+function requirementNames(target: Target): string[] {
+  return [...new Set(target.requirements.flatMap(requirement => requirement.records).map(record => normalizeDnsName({ name: record.name })))];
+}
+
+const inZone = (name: string, zone: string): boolean => name === zone || name.endsWith(`.${zone}`);
+
+/** `a.b.example.com` → itself and each parent below the TLD (a wildcard label is dropped). */
+function selfAndAncestors(name: string): string[] {
+  const names: string[] = [];
+  for (let candidate = normalizeDnsName({ name }).replace(/^\*\./, ""); candidate.includes("."); candidate = candidate.slice(candidate.indexOf(".") + 1)) names.push(candidate);
+  return names;
+}
+
+/**
+ * Names whose CAA set can cover a requirement (RFC 8659 tree climbing) and are not already listed:
+ * the zone apex and every ancestor up to (not including) the TLD. Only read when a requirement
+ * names a CA, since only then does the planner check CAA.
+ */
+function caaNames(target: Target): string[] {
+  if (!target.requirements.some(requirement => requirement.caa !== undefined)) return [];
+  const listed = new Set(requirementNames(target));
+  const covered = target.requirements.flatMap(requirement => [requirement.domain, ...requirement.records.map(record => record.name)]);
+  return [...new Set(covered.flatMap(selfAndAncestors))].filter(name => !listed.has(name));
+}
+
+/** The provider's zone ref for a name outside the target zone; `null` when no zone serves it, `undefined` when unreadable. */
+async function zoneRefOf(name: string, target: Target, ports: DnsChangePorts): Promise<string | null | undefined> {
+  const result = await settlePort({ call: () => target.provider.findZone(ports.context, { hostname: name }) });
+  return result.status === "ok" ? (result.value?.ref ?? null) : undefined;
+}
+
+/** The CAA set at one ancestor, read from whichever zone serves it (a parent zone above a delegated child included). */
+async function caaAt(name: string, zone: Zone, target: Target, ports: DnsChangePorts): Promise<Listed> {
+  const ref = inZone(name, zone.zone) ? zone.ref : await zoneRefOf(name, target, ports);
+  // No zone serves the name: nothing there can restrict issuance.
+  if (ref === null) return { records: [], inventory: "complete" };
+  if (ref === undefined) return { records: [], inventory: "unknown" };
+  const result = await settlePort({ call: () => target.provider.listRecords(ports.context, { zoneRef: ref, names: [name] }) });
+  if (result.status !== "ok") return { records: [], inventory: "unknown" };
+  return { records: result.value.records.filter(record => record.type === "CAA"), inventory: result.value.inventory };
+}
+
+/**
+ * Current records at the required names, plus the CAA sets of their ancestors; anything unreadable
+ * is `unknown`, never "empty" (an unread CAA restriction must not pass as no restriction).
+ */
+async function listCurrent(target: Target, zone: Zone, ports: DnsChangePorts): Promise<Listed> {
+  const names = requirementNames(target);
+  const [result, ancestors] = await Promise.all([
+    settlePort({ call: () => target.provider.listRecords(ports.context, { zoneRef: zone.ref, names }) }),
+    Promise.all(caaNames(target).map(name => caaAt(name, zone, target, ports))),
+  ]);
+  const own: Listed = result.status === "ok" ? result.value : { records: [], inventory: "unknown" };
+  return { records: [...own.records, ...ancestors.flatMap(read => read.records)], inventory: worstInventory([own.inventory, ...ancestors.map(read => read.inventory)]) };
+}
+
+/** Which zone serves `name`, as far as can be read: the target zone unless proven otherwise. */
+async function authorityOf(name: string, zone: Zone, target: Target, ports: DnsChangePorts): Promise<string | undefined> {
+  if (!inZone(name, zone.zone)) return undefined;
+  if (name === zone.zone || name === normalizeDnsName({ name: target.hostname })) return zone.zone;
+  const result = await settlePort({ call: () => target.provider.findZone(ports.context, { hostname: name }) });
+  // An unreadable lookup is not proof of another zone.
+  return result.status === "ok" && result.value !== null ? result.value.zone : zone.zone;
+}
+
+/**
+ * Every requirement name must be served by the hostname's zone: outside it, or inside a child zone
+ * delegated elsewhere, its records would be read from and entered at the wrong DNS host. Such a
+ * request is refused; each zone is planned on its own.
+ */
+async function assertSingleZone(required: { target: Target; zone: Zone; errorPrefix: string }, ports: DnsChangePorts): Promise<void> {
+  const { target, zone } = required;
+  const misplaced: string[] = [];
+  for (const name of requirementNames(target)) {
+    const authority = await authorityOf(name, zone, target, ports);
+    if (authority !== zone.zone) misplaced.push(authority === undefined ? `${name} (outside it)` : `${name} (served by the delegated zone ${authority})`);
+  }
+  if (misplaced.length === 0) return;
+  throw new ToolInputError({ message: `${required.errorPrefix}: ${misplaced.join(", ")} is not in the zone ${zone.zone} that serves ${target.hostname}; plan and verify each zone separately.` });
+}
+
+/** The zone serving the target, after checking every requirement belongs to it (when one was found). */
+async function locateCheckedZone(required: { target: Target; errorPrefix: string }, ports: DnsChangePorts): Promise<Zone> {
+  const zone = await locateZone(required.target, ports);
+  if (zone.found) await assertSingleZone({ ...required, zone }, ports);
+  return zone;
 }
 
 function hostBlockers(hostname: string, delegation: DelegationCheck | null): DomainDnsBlocker[] {
@@ -129,8 +219,9 @@ function hostBlockers(hostname: string, delegation: DelegationCheck | null): Dom
   return [{ code: delegation.state === "not_delegated" ? "not_delegated" : "delegation_unknown", name: delegation.zone, message: delegation.reason }];
 }
 
-async function planTarget(target: Target, ports: DnsChangePorts): Promise<DomainDnsPlan> {
-  const zone = await locateZone(target, ports);
+async function planTarget(required: { target: Target; errorPrefix: string }, ports: DnsChangePorts): Promise<DomainDnsPlan> {
+  const { target } = required;
+  const zone = await locateCheckedZone(required, ports);
   const delegation = zone.found ? await checkDelegation({ zone: zone.zone }, { resolver: ports.resolver }) : null;
   const current = delegation?.state === "delegated" ? await listCurrent(target, zone, ports) : { records: [], inventory: "unknown" as const };
   const { capabilities } = target.provider;
@@ -146,13 +237,15 @@ async function planTarget(target: Target, ports: DnsChangePorts): Promise<Domain
  * @complexity O(names · types) DNS reads for the manual provider, then the kernel's O(r·c) plan.
  */
 export async function planDomainDns(required: DnsChangeRequest, ports: DnsChangePorts): Promise<DomainDnsPlan> {
-  return planTarget(await resolveTarget({ ...required, errorPrefix: "dns_plan" }, ports), ports);
+  const errorPrefix = "dns_plan";
+  return planTarget({ target: await resolveTarget({ ...required, errorPrefix }, ports), errorPrefix }, ports);
 }
 
 /** Copyable rows for a person to enter at their DNS host. A blocked plan still lists what is required. */
 export async function domainDnsInstructions(required: DnsChangeRequest, ports: DnsChangePorts): Promise<{ planned: DomainDnsPlan; instructions: DnsInstructions }> {
-  const target = await resolveTarget({ ...required, errorPrefix: "dns_instructions" }, ports);
-  const planned = await planTarget(target, ports);
+  const errorPrefix = "dns_instructions";
+  const target = await resolveTarget({ ...required, errorPrefix }, ports);
+  const planned = await planTarget({ target, errorPrefix }, ports);
   const input = [{ plan: planned.plan }, { requirements: target.requirements }] as const;
   const instructions = target.provider.instructions ? target.provider.instructions(...input) : renderDnsInstructions(...input);
   return { planned, instructions };
@@ -210,8 +303,9 @@ export async function verifyDomainDns(
   required: DnsChangeRequest,
   ports: DnsChangePorts & { bindings: DomainBindingStore; now: () => number },
 ): Promise<DomainDnsVerifyResult> {
-  const target = await resolveTarget({ ...required, errorPrefix: "dns_verify" }, ports);
-  const { zone } = await locateZone(target, ports);
+  const errorPrefix = "dns_verify";
+  const target = await resolveTarget({ ...required, errorPrefix }, ports);
+  const { zone } = await locateCheckedZone({ target, errorPrefix }, ports);
   const delegation = await checkDelegation({ zone }, { resolver: ports.resolver });
   const verification = await verifyRequirements({ zone, requirements: target.requirements }, { resolver: ports.resolver });
   const now = ports.now();

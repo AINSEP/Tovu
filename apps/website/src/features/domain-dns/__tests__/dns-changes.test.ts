@@ -21,12 +21,12 @@ function portsFor(resolver: AuthoritativeDnsPort, optional: { seed?: DnsProvider
 }
 
 /** A provider with a fixed zone and scripted listRecords; no instructions of its own. */
-function customProvider(optional: { list?: "rejected" } = {}): DnsProvider {
+function customProvider(optional: { list?: "rejected" | "ancestors" } = {}): DnsProvider {
   return {
     id: "custom", label: "Custom", credentialKeys: [],
     capabilities: { automatic: false, recordTypes: ["A", "TXT", "MX"], apexFlattening: true, proxy: false },
     findZone: async () => providerOk({ value: { zone: "example.com", ref: "zone-1" } }),
-    listRecords: async () => (optional.list === "rejected" ? providerRejected({ code: "forbidden", message: "no" }) : providerOk({ value: { records: [], inventory: "complete" as const } })),
+    listRecords: async (_ctx, { names }) => (optional.list === "rejected" || (optional.list === "ancestors" && names.includes("example.com")) ? providerRejected({ code: "forbidden", message: "no" }) : providerOk({ value: { records: [], inventory: "complete" as const } })),
   };
 }
 
@@ -35,18 +35,72 @@ const binding = (overrides: Partial<DomainBinding> = {}): DomainBinding => ({
   delegation: "delegated", attempt: 0, startedAt: iso(T0), nextCheckAt: iso(T0 + 30_000), lastCheckedAt: iso(T0), lastResult: null, ...overrides,
 });
 
-test("plan: the manual provider finds the zone past a non-delegated host, reads current records and replaces a conflicting A", async () => {
+test("plan: the manual provider finds the zone past a non-delegated host, reads current records and keeps a conflicting A it does not own", async () => {
   const resolver = fakeAuthoritative({ zones: { "example.com": NS }, records: { "www.example.com|A": ["198.51.100.1"] } });
   const planned = await planDomainDns({ hostname: "www.example.com", requirements: [siteRequirement()] }, portsFor(resolver));
   assert.equal(planned.providerId, "manual");
   assert.equal(planned.zone, "example.com");
   assert.equal(planned.zoneFound, true);
   assert.equal(planned.delegation?.state, "delegated");
-  assert.deepEqual(planned.blockers, []);
   assert.equal(planned.plan.inventory, "complete");
-  assert.deepEqual(planned.plan.changes.map(change => [change.op, change.after?.values]), [["update", ["203.0.113.10"]]]);
+  // The manual provider reads records it did not create, so replacing one is a person's decision (13-dns #2).
+  assert.deepEqual(planned.blockers.map(blocker => blocker.code), ["record_not_owned"]);
+  assert.deepEqual(planned.plan.changes, []);
+  assert.deepEqual(planned.plan.preserved.map(record => record.values), [["198.51.100.1"]]);
   assert.match(planned.plan.fingerprint, /^[0-9a-f]{64}$/);
   assert.ok(resolver.calls.includes("ns:www.example.com"), "the most specific candidate is tried first");
+});
+
+// Regression (review 13-dns #4): only the requirement names were read, so a CAA set at an
+// ancestor (here the zone apex, and a parent zone above a delegated child) was never seen.
+test("plan: an ancestor CAA restriction, in the zone or in a parent zone, blocks the required issuer", async () => {
+  const caaSite = { ...siteRequirement(), caa: { issuer: "letsencrypt.org" } };
+  const apex = fakeAuthoritative({ zones: { "example.com": NS }, records: { "example.com|CAA": ['0 issue "other-ca.test"'] } });
+  const planned = await planDomainDns({ hostname: "www.example.com", requirements: [caaSite] }, portsFor(apex));
+  assert.deepEqual(planned.blockers.map(blocker => [blocker.code, blocker.name]), [["caa_excludes_issuer", "www.example.com"]]);
+  assert.ok(!planned.plan.preserved.some(record => record.name === "example.com" && record.type !== "CAA"), "ancestors contribute only their CAA sets");
+
+  const child = { purpose: "site" as const, domain: "app.dev.example.com", providerId: "host", records: [{ type: "A" as const, name: "app.dev.example.com", value: "203.0.113.10" }], caa: { issuer: "letsencrypt.org" } };
+  const parent = fakeAuthoritative({ zones: { "dev.example.com": ["ns.child.test"], "example.com": NS }, records: { "ns1.dns.test|example.com|CAA": ['0 issue "other-ca.test"'] } });
+  const inherited = await planDomainDns({ hostname: "app.dev.example.com", requirements: [child] }, portsFor(parent));
+  assert.equal(inherited.zone, "dev.example.com");
+  assert.deepEqual(inherited.blockers.map(blocker => blocker.code), ["caa_excludes_issuer"]);
+
+  const allowed = fakeAuthoritative({ zones: { "example.com": NS }, records: { "example.com|CAA": ['0 issue "letsencrypt.org"'] } });
+  assert.deepEqual((await planDomainDns({ hostname: "www.example.com", requirements: [caaSite] }, portsFor(allowed))).blockers, []);
+});
+
+test("plan: an unreadable ancestor CAA set makes the inventory incomplete; a name no zone serves has none", async () => {
+  const caaSite = { ...siteRequirement(), caa: { issuer: "letsencrypt.org" } };
+  const unreadable = fakeAuthoritative({ zones: { "example.com": NS }, records: { "example.com|CAA": "unknown" } });
+  const planned = await planDomainDns({ hostname: "www.example.com", requirements: [caaSite] }, portsFor(unreadable));
+  assert.equal(planned.plan.inventory, "unknown");
+  const lostParent = fakeAuthoritative({ zones: { "dev.example.com": NS, "example.com": "unknown" } });
+  const child = { purpose: "site" as const, domain: "app.dev.example.com", providerId: "host", records: [{ type: "A" as const, name: "app.dev.example.com", value: "203.0.113.10" }], caa: { issuer: "letsencrypt.org" } };
+  assert.equal((await planDomainDns({ hostname: "app.dev.example.com", requirements: [child] }, portsFor(lostParent))).plan.inventory, "unknown");
+  const orphan = fakeAuthoritative({ zones: { "dev.example.com": NS } });
+  const free = await planDomainDns({ hostname: "app.dev.example.com", requirements: [child] }, portsFor(orphan));
+  assert.equal(free.plan.inventory, "complete");
+  assert.deepEqual(free.blockers, []);
+  const listingFails = await planDomainDns({ hostname: "www.example.com", requirements: [caaSite] }, portsFor(fakeAuthoritative({ zones: { "example.com": NS } }), { seed: [customProvider({ list: "ancestors" })], bindings: memoryBindings([binding({ providerId: "custom" })]) }));
+  assert.equal(listingFails.plan.inventory, "unknown", "a refused ancestor listing is not an empty CAA set");
+});
+
+// Regression (review 13-dns #7): the zone came from the hostname alone, so a requirement in
+// another zone (or in a delegated child) was read from and rendered against the wrong servers.
+test("plan, instructions and verify refuse requirement names outside the hostname's zone or in a delegated child", async () => {
+  const resolver = fakeAuthoritative({ zones: { "example.com": NS, "dev.example.com": ["ns.child.test"] } });
+  const foreign = { ...siteRequirement(), records: [{ type: "A" as const, name: "www.other.org", value: "203.0.113.10" }] };
+  await assert.rejects(planDomainDns({ hostname: "www.example.com", requirements: [foreign] }, portsFor(resolver)), { name: "ToolInputError", message: /dns_plan: .*www\.other\.org.*not in the zone example\.com/ });
+  const delegated = { ...siteRequirement(), records: [{ type: "TXT" as const, name: "_v.app.dev.example.com", value: "x" }] };
+  await assert.rejects(domainDnsInstructions({ hostname: "www.example.com", requirements: [delegated] }, portsFor(resolver)), { name: "ToolInputError", message: /_v\.app\.dev\.example\.com.*dev\.example\.com/ });
+  const bindings = memoryBindings();
+  await assert.rejects(verifyDomainDns({ hostname: "www.example.com", requirements: [foreign] }, { ...portsFor(resolver, { bindings }), bindings, now: () => T0 }), { name: "ToolInputError" });
+  assert.deepEqual(bindings.writes, [], "nothing is saved for a mixed-zone request");
+  const sameZone = { ...siteRequirement(), records: [{ type: "TXT" as const, name: "_verify.www.example.com", value: "x" }, { type: "A" as const, name: "example.com", value: "203.0.113.10" }] };
+  assert.equal((await planDomainDns({ hostname: "www.example.com", requirements: [sameZone] }, portsFor(resolver))).zone, "example.com");
+  const unreadable = fakeAuthoritative({ zones: { "example.com": NS, "_verify.www.example.com": "unknown" } });
+  assert.equal((await planDomainDns({ hostname: "www.example.com", requirements: [sameZone] }, portsFor(unreadable))).zone, "example.com", "an unreadable authority lookup is not proof of a different zone");
 });
 
 test("plan: requirements and provider come from the saved binding when the caller passes none", async () => {

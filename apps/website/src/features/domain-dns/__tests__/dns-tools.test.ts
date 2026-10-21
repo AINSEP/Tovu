@@ -86,7 +86,7 @@ test("input: hostnames, record names and requirement domains go through the publ
 });
 
 test("dns_plan authorizes with deployments.read after validation and returns the plan without saving anything", async () => {
-  const h = harness({ records: { "www.example.com|A": ["198.51.100.1"] } });
+  const h = harness();
   await assert.rejects(h.call("dns_plan", { hostname: "bad host" }), { name: "ToolInputError" });
   assert.deepEqual(h.calls, [], "invalid input is refused before authorization");
   const result = await h.call("dns_plan", { hostname: "www.example.com", requirements: [site] });
