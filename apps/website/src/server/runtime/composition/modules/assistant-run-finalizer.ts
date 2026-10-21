@@ -88,6 +88,15 @@ export interface AssistantRunFinalizerOptions {
   /** Least time between two in-flight checkpoints of one run. Default 1000 ms; tests pass 0. */
   readonly checkpointIntervalMs?: number;
   /**
+   * Saved-payload size above which checkpoints back off to `largeCheckpointIntervalMs`, measured
+   * as string characters in the saved events (a lower bound of their serialized size). Each
+   * checkpoint rewrites the whole projection, so a many-MB turn at the 1 s cadence churns ~100 MB/s
+   * (memory cause 3). Default 5_000_000.
+   */
+  readonly largeCheckpointBytes?: number;
+  /** Least time between checkpoints once the saved payload exceeds `largeCheckpointBytes`. Default 5000 ms. */
+  readonly largeCheckpointIntervalMs?: number;
+  /**
    * Records each watched run as one agent run (`RouteDeps.observability`). This is the API-side
    * point that learns every daemon run's terminal outcome, so it is where that signal belongs; the
    * daemon cannot report its own death. Also traces the default daemon client's loopback requests.
@@ -223,9 +232,11 @@ interface Watch {
   /** Split-echo-line memory for the current connection; reset with `events` on every replay. */
   frameCarry?: RunFrameCarry;
   failed: boolean;
-  /** Event count and start time of the latest checkpoint attempt (writes are best effort). */
+  /** Event count, start time and approximate payload size of the latest checkpoint attempt
+   *  (writes are best effort). The size picks the interval before the next one. */
   checkpointedEvents: number;
   checkpointedAt: number;
+  checkpointedBytes: number;
   /** Only one best-effort progress write at a time; later frames are coalesced into the next one. */
   checkpointPending: boolean;
   /** Stops progress scheduling as soon as the terminal outcome is known, before its durable write. */
@@ -237,7 +248,21 @@ interface Watch {
 function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }, _optional = {}) {
   return { reconnectDelayMs: options.reconnectDelayMs ?? 2_000, maxReconnects: Math.max(0, options.maxReconnects ?? 30),
     resolutionTimeoutMs: options.resolutionTimeoutMs ?? 120_000, statusTimeoutMs: options.statusTimeoutMs ?? 5_000,
-    checkpointIntervalMs: options.checkpointIntervalMs ?? 1_000 };
+    checkpointIntervalMs: options.checkpointIntervalMs ?? 1_000, largeCheckpointBytes: options.largeCheckpointBytes ?? 5_000_000,
+    largeCheckpointIntervalMs: options.largeCheckpointIntervalMs ?? 5_000 };
+}
+
+/**
+ * String characters in a JSON-shaped value: a cheap lower bound of its serialized size, measured
+ * without serializing it (the point is to avoid another multi-MB string per checkpoint).
+ * @complexity O(nodes) time, O(depth) stack.
+ */
+function approximateJsonBytes(value: unknown): number {
+  if (typeof value === "string") return value.length;
+  if (value === null || typeof value !== "object") return 1;
+  let total = 0;
+  for (const item of Array.isArray(value) ? value : Object.values(value)) total += approximateJsonBytes(item);
+  return total;
 }
 
 function watchable({ message }: { message: ChatMessage }, _optional = {}): boolean {
@@ -255,7 +280,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const observability = options.observability ?? createNoopObservabilityPort({});
   const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
-  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs } = recoverySettings({ options });
+  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs, largeCheckpointBytes, largeCheckpointIntervalMs } = recoverySettings({ options });
   const scheduler = options.scheduler ?? createNodeSupervisorScheduler({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
   const recoveryStore = options.ledger.durable;
@@ -368,12 +393,15 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
    * slow progress write holds an already-buffered `end` behind it, leaving a finished turn running
    * for startup repair to misclassify. Later progress is coalesced when the pending write finishes.
    * Terminal settlement uses the ledger's terminal guard to reject any late checkpoint.
+   * Once the last saved payload exceeded `largeCheckpointBytes`, the interval is
+   * `largeCheckpointIntervalMs` instead: each write rewrites the whole projection.
    * @complexity O(saved events) per write, with one pending write and one trailing timer per run.
    */
   async function checkpoint(watch: Watch): Promise<void> {
     if (watch.terminal || watch.checkpointPending) return;
     if (watch.events.length <= watch.checkpointedEvents) return;
-    const wait = checkpointIntervalMs - (now() - watch.checkpointedAt);
+    const interval = watch.checkpointedBytes > largeCheckpointBytes ? largeCheckpointIntervalMs : checkpointIntervalMs;
+    const wait = interval - (now() - watch.checkpointedAt);
     if (wait > 0) {
       if (!watch.trailing) {
         watch.trailing = setTimeout(() => {
@@ -389,6 +417,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     watch.checkpointedEvents = watch.events.length;
     watch.checkpointedAt = now();
     watch.checkpointPending = true;
+    const events = runEventsForSave(watch.events);
+    watch.checkpointedBytes = approximateJsonBytes(events);
     // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
     await options.ledger
       .checkpoint({
@@ -396,7 +426,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         messageId: watch.messageId,
         runId: watch.runId,
         content: runContentFromEvents(watch.events),
-        events: runEventsForSave(watch.events),
+        events,
       })
       .catch((error: unknown) => console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error))
       .finally(() => {
@@ -576,6 +606,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         failed: false,
         checkpointedEvents: message.events?.length ?? 0,
         checkpointedAt: Number.NEGATIVE_INFINITY,
+        checkpointedBytes: 0,
         checkpointPending: false,
         terminal: false,
     };
