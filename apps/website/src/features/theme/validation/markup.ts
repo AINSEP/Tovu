@@ -15,9 +15,9 @@ import { checkWebMcpMarkup } from './webmcp-markup.js';
  * owner 2026-10-04, resolves through the contact-form widget path.
  */
 
-/** The complete, current `data-embed-config` `type` vocabulary — thirteen values, kept in sync with
+/** The complete, current `data-embed-config` `type` vocabulary — fourteen values, kept in sync with
  * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/form/taxonomy/media/post/content) plus
- * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection/featured-image/post-author). Duplicated here rather than
+ * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection/featured-image/post-author/comments). Duplicated here rather than
  * imported: both are `resolver-service.ts`-internal (`const`, not exported), and this validator is a
  * different feature's territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for
  * its own, independent duplication of the same literals. Re-verify against current `HEAD` if this drifts. */
@@ -35,6 +35,8 @@ const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "collection",
   "featured-image",
   "post-author",
+  // The active comments provider's thread + form (`features/comments/public-markers.ts`).
+  "comments",
 ]);
 
 /** Tolerant pre-scan for unquoted `data-embed-config` values the REAL runtime scanner

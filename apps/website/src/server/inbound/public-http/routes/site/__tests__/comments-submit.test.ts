@@ -5,7 +5,8 @@ import express from "express";
 
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
-import { registerCommentsSubmitRoute, commentFormReturnTo } from "../comments-submit.js";
+import { registerCommentsSubmitRoute, commentFormReturnTo, isSameOriginCommentPost } from "../comments-submit.js";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 
 /**
@@ -67,7 +68,7 @@ function extractHandler(app: express.Express, path: string): (req: unknown, res:
   if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
   const handle = layer.route.stack.at(-1)!.handle as (req: unknown, res: unknown, next?: (error?: unknown) => void) => unknown;
   return ((req: unknown, res: unknown, next?: (error?: unknown) => void) => handle({
-    protocol: 'http', get: (key: string) => key === 'origin' ? 'http://site.test' : 'site.test', is: () => false,
+    protocol: 'http', headers: {}, get: (key: string) => key === 'origin' ? 'http://site.test' : 'site.test', is: () => false,
     ...(req as object),
   }, res, next)) as (req: unknown, res: unknown) => unknown;
 }
@@ -274,4 +275,41 @@ test('provider submission dispatch preserves hashes and refuses disabled/embedde
   }
   assert.equal(inputs.length, 2);
   assert.match((inputs[0] as { authorIpHash: string }).authorIpHash, /^[a-f0-9]{64}$/);
+});
+
+test('same-origin gate: JSON without Origin is a non-browser client; forwarded https, forms and opaque origins are judged by Origin', () => {
+  const request = (headers: Record<string, string>, type: string | false = false) => ({
+    headers, protocol: 'http', is: (value: string) => (type === value ? type : false),
+    get: (key: string) => (key === 'host' ? 'site.test' : headers[key]),
+  }) as unknown as Parameters<typeof isSameOriginCommentPost>[0]['request'];
+  assert.equal(isSameOriginCommentPost({ request: request({}, 'application/json') }), true);
+  assert.equal(isSameOriginCommentPost({ request: request({}, 'application/x-www-form-urlencoded') }), false, 'a browser form always sends Origin');
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test', 'x-forwarded-proto': 'https' }) }, {}), true);
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test' }) }), false, 'scheme must match');
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'null' }, 'application/json') }), false);
+});
+
+test('behind a trusted proxy hop, two visitors sharing the proxy socket get separate rate-limit buckets (not one shared key)', async (t) => {
+  const keysFor = async (trustProxy: number | false) => {
+    const keys: string[] = [];
+    const app = express();
+    app.set('trust proxy', trustProxy);
+    app.use(express.json());
+    registerCommentsSubmitRoute(app, { workspaceId: WORKSPACE_ID, ipHashSalt: Promise.resolve('salt'),
+      ingressPolicy: { submit: async () => ({ ok: false, reason: 'entry-not-found' }) },
+      rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true }; } } });
+    const baseUrl = await startTestServer(app, t);
+    for (const visitor of ['198.51.100.7', '198.51.100.8']) {
+      const res = await fetch(`${baseUrl}/api/site/comments`, { method: 'POST', body: JSON.stringify({ entryId: 'e', body: 'x' }),
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': visitor }, signal: AbortSignal.timeout(3000) });
+      assert.equal(res.status, 422);
+    }
+    return keys;
+  };
+  const trusted = await keysFor(1);
+  assert.equal(trusted.length, 2);
+  assert.notEqual(trusted[0], trusted[1]);
+  assert.ok(trusted.every(key => /^[a-f0-9]{64}$/.test(key)), 'the key is the salted hash, never the raw address');
+  const untrusted = await keysFor(false);
+  assert.equal(untrusted[0], untrusted[1], 'without the platform hop the socket peer is the only identity (the reason trust-proxy.ts exists)');
 });

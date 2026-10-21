@@ -1,4 +1,5 @@
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
@@ -963,10 +964,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   });
   const commentsModule = createCommentsModule({
     commentRepo,
-    entryLookup: async ({ workspaceId, entryId }) => {
-      const entry = await entryRepo.findById({ workspaceId, id: entryId });
-      return entry ? { status: entry.status, publishedAt: entry.publishedAt } : null;
-    },
+    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
+    // read lazily at submit time, after this root has finished constructing it.
+    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
     outbox,
     clock,
     idGen,

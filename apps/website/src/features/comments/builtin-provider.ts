@@ -23,9 +23,13 @@ function commentHtml({ row, maxDepth }: { row: CommentRecord; maxDepth: number }
   return `<li id="comment-${escapeHtml(row.id)}" data-comment-depth="${depth}"><article><header>${escapeHtml(row.authorName)}</header><p>${escapeHtml(row.bodyText)}</p></article></li>`;
 }
 
+/** The 303 lands on `#comment-pending` / `#comment-error`; each notice shows only while it is the URL
+ * fragment, so a plain page view never claims a submission happened. A stylesheet rule, not script. */
+const NOTICE_STYLE = '<style>#comment-pending:not(:target),#comment-error:not(:target){display:none}</style>';
+
 /** Native form: no scripts, no private values, existing website honeypot retained. */
 function submissionForm({ entryId, path }: { entryId: string; path: string }, _options = {}) {
-  return `<p id="comment-pending" role="status">Submitted comments are held for review when moderation is enabled.</p><p id="comment-error">If your comment was not accepted, check the form and try again.</p>
+  return `${NOTICE_STYLE}<p id="comment-pending" role="status">Submitted comments are held for review when moderation is enabled.</p><p id="comment-error" role="alert">If your comment was not accepted, check the form and try again.</p>
 <form method="post" action="/api/site/comments"><input type="hidden" name="entryId" value="${escapeHtml(entryId)}"><input type="hidden" name="returnTo" value="${escapeHtml(path)}">
 <label>Name <input name="authorName" required maxlength="200" autocomplete="name"></label><label>Email (private, optional) <input name="authorEmail" type="email" maxlength="320" autocomplete="email"></label>
 <label hidden>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label><label>Comment <textarea name="body" required maxlength="10000"></textarea></label><button type="submit">Submit comment</button></form>`;

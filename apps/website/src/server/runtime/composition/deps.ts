@@ -1,4 +1,5 @@
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
@@ -1819,10 +1820,9 @@ async function composeSiteRouteDeps(
   });
   const commentsModule = createCommentsModule({
     commentRepo: new SqliteCommentRepo({ store: kernel }, {}),
-    entryLookup: async ({ workspaceId, entryId }) => {
-      const entry = await entryRepo.findById({ workspaceId, id: entryId });
-      return entry ? { status: entry.status, publishedAt: entry.publishedAt } : null;
-    },
+    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
+    // read lazily at submit time, after this root has finished constructing it.
+    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
     outbox,
     clock,
     idGen,

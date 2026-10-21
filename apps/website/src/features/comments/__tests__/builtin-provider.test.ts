@@ -38,6 +38,7 @@ test('public SSR escapes the corpus, omits private fields and gates status/entry
   assert.match(html, /commentCursor=opaque%2B%2F%3D#comments/);
   assert.match(html, /method="post" action="\/api\/site\/comments"/);
   assert.match(html, /name="website"/);
+  assert.match(html, /#comment-pending:not\(:target\),#comment-error:not\(:target\)\{display:none\}/, 'notices show only after the 303');
   assert.match(html, /name="returnTo" value="\/post"/);
   assert.equal(f.calls.reads, 1);
   assert.equal(BUILTIN_COMMENTS_DEFINITION.implementation, 'adapter');
