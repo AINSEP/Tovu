@@ -29,22 +29,25 @@ async function readSelection({ repo, siteId }: { repo: SettingsRepoPort; siteId:
   return { providerId: providerId === '' ? null : providerId, revision: value?.seq ?? 0 };
 }
 
-/** Adapts the ledger's transaction to a revision CAS without bypassing its authorized write chokepoint.
- * The proxy changes only transaction entry: the check runs inside set()'s OWN transaction, avoiding
- * a nested settings transaction (which the ledger explicitly forbids). All other methods bind to the repo.
+/** A revision CAS through the authorized settings chokepoint. The check guards `saveWorkspaceValue`, which
+ * set() calls AFTER appendRevision has taken the ledger write lock (an advisory transaction lock on
+ * Postgres, BEGIN IMMEDIATE on SQLite), so no other writer can commit between the comparison and the save;
+ * a refusal rolls the appended revision back too (same pattern as `settings/form-delivery-write.ts`).
+ * Checking when the transaction OPENED was not enough on Postgres: two confirmations both read revision N
+ * under READ COMMITTED, then queued on the lock and both committed. Other methods keep their receiver.
  * @complexity O(1) ledger reads/writes; storage failures propagate and roll back. */
 export function createCommentsSelectionStore(deps: SetCommentsSettingsDeps, _options = {}): CommentsSelectionStorePort {
   const clock = deps.clock;
   return {
-    read: ({ siteId }) => readSelection({ repo: deps.settingsRepo, siteId }),
-    async compareAndSet(input) {
+    read: ({ siteId }, _optional = {}) => readSelection({ repo: deps.settingsRepo, siteId }),
+    async compareAndSet(input, _optional = {}) {
       const repo = new Proxy(deps.settingsRepo, { get(target, key) {
-        if (key === 'transaction') return <T>(run: () => Promise<T>) => target.transaction(async () => {
+        if (key === 'saveWorkspaceValue') return async (record: Parameters<SettingsRepoPort['saveWorkspaceValue']>[0]) => {
           const current = await readSelection({ repo: target, siteId: input.siteId });
           if (current.revision !== input.expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
-          return run();
-        });
-        const member = Reflect.get(target, key);
+          await target.saveWorkspaceValue(record);
+        };
+        const member = Reflect.get(target, key, target);
         return typeof member === 'function' ? member.bind(target) : member;
       } });
       await set({ deps: { repo, clock: 'nowMs' in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) }, ids: deps.ids,
@@ -63,11 +66,21 @@ export function createCommentsCapability(required: {
   siteId: string; module: { commentRepo: CommentRepoPort; ingressPolicy: CommentIngressPolicy; writeService: CommentWriteService };
   commentsReady: Promise<void>; settingsReady: Promise<void>; settings: SetCommentsSettingsDeps;
 }, _options = {}) {
-  const providers = createCommentsProviderRegistry({ selections: createCommentsSelectionStore(required.settings) });
+  const store = createCommentsSelectionStore(required.settings);
+  // Boot guard: a stored choice naming a provider that is not registered in this process (a vendor
+  // plugin turned off or removed later) must not hide this site's stored comments or strand its queue,
+  // so it reads as built-in. Nothing is rewritten: the CAS revision is the stored row's, and selecting
+  // again records an explicit choice. An explicit disable (null) stays disabled.
+  const selections: CommentsSelectionStorePort = { ...store, async read(input, _optional = {}) {
+    const current = await store.read(input);
+    return current.providerId !== null && !providers.has({ providerId: current.providerId })
+      ? { ...current, providerId: BUILTIN_COMMENTS_PROVIDER_ID } : current;
+  } };
+  const providers = createCommentsProviderRegistry({ selections });
   const ready = Promise.all([required.commentsReady, required.settingsReady]).then(() => undefined);
   const builtin = createBuiltinCommentsProvider({ siteId: required.siteId, repo: required.module.commentRepo, ingress: required.module.ingressPolicy,
     writes: required.module.writeService, ready, getSettings: ({ siteId }) => getCommentsSettings({ settingsRepo: required.settings.settingsRepo }, { workspaceId: siteId }) });
-  providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }) => {
+  providers.register({ definition: BUILTIN_COMMENTS_DEFINITION, resolve: async ({ siteId }, _optional = {}) => {
     if (siteId !== required.siteId) return undefined;
     await ready;
     return builtin;
@@ -84,7 +97,12 @@ export function createCommentsCapability(required: {
       if (!['approve', 'mark_spam', 'trash', 'restore'].includes(input.action)) throw new ToolInputError({ message: 'Unsupported comments moderation action' });
       return port.apply({ ...input, siteId: input.workspaceId, action: input.action as 'approve' | 'mark_spam' | 'trash' | 'restore' });
     },
-    async purge(input) { return (await moderation(input)).purge({ ...input, siteId: input.workspaceId }); },
+    // Purge only removes data and never publishes anything, so an owner can still erase a comment while
+    // public comments are off or the provider is not built-in (the Trash screen's purge already can).
+    async purge(input) {
+      if (input.workspaceId !== required.siteId) throw new ToolInputError({ message: 'Comments site mismatch' });
+      return builtin.moderation.purge({ ...input, siteId: input.workspaceId });
+    },
   };
   return { providers, writeService };
 }

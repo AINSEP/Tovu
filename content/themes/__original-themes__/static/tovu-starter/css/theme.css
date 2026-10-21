@@ -451,6 +451,21 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
 .post-detail-header .post-meta { font-size: 13px; }
 .post-detail-body { font-size: 17px; line-height: 1.7; max-width: 66ch; }
+/* Comments thread + no-JS form (the `comments` marker under a post). Tokens only, so light and
+   dark both follow the theme; inputs go full width so a 375px screen never scrolls sideways. */
+.post-comments { max-width: 720px; margin: 0 auto; padding-bottom: 96px; }
+.post-comments h2 { font-size: 22px; margin-bottom: 20px; }
+.post-comments ol { list-style: none; padding: 0; margin: 0 0 32px; display: grid; gap: 16px; }
+.post-comments li { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--surface); }
+.post-comments li header { font-weight: 600; margin-bottom: 6px; }
+.post-comments li p { color: var(--fg); overflow-wrap: anywhere; }
+.post-comments [data-comment-depth]:not([data-comment-depth="0"]) { margin-left: min(24px, 6vw); }
+.post-comments form { display: grid; gap: 14px; }
+.post-comments label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.post-comments input, .post-comments textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--fg); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.post-comments textarea { min-height: 120px; }
+.post-comments button { justify-self: start; font: inherit; padding: 10px 18px; border-radius: 999px; border: 0; background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+.post-comments #comment-pending, .post-comments #comment-error { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-strong); margin-bottom: 16px; }
 .post-detail-body h2 { font-size: 26px; margin: 40px 0 16px; letter-spacing: -0.01em; }
 /* Section divider (2026-09-23) — a docs page like /embeds lists one h3 per marker type
    back-to-back; without a rule between them the previous section's live example runs straight

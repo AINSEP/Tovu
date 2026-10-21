@@ -3,19 +3,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { registerHooks } from 'node:module';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
-// Exercise workspace source without building or installing the new Jini entry.
-const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
-  return specifier === '@jini-ai/cms/comments/express'
-    ? { url: pathToFileURL(resolve('../jini-int/packages/cms/src/comments/express/index.ts')).href, shortCircuit: true }
-    : nextResolve(specifier, context);
-} });
-const { registerCommentsSubmitRoute, commentFormReturnTo } = await import('../comments-submit.js');
-hooks.deregister();
+import { registerCommentsSubmitRoute, commentFormReturnTo, isSameOriginCommentPost } from "../comments-submit.js";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+
 
 /**
  * @file Unit-tier coverage for `POST /api/site/comments` (`registerCommentsSubmitRoute`) — this
@@ -76,7 +68,7 @@ function extractHandler(app: express.Express, path: string): (req: unknown, res:
   if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
   const handle = layer.route.stack.at(-1)!.handle as (req: unknown, res: unknown, next?: (error?: unknown) => void) => unknown;
   return ((req: unknown, res: unknown, next?: (error?: unknown) => void) => handle({
-    protocol: 'http', get: (key: string) => key === 'origin' ? 'http://site.test' : 'site.test', is: () => false,
+    protocol: 'http', headers: {}, get: (key: string) => key === 'origin' ? 'http://site.test' : 'site.test', is: () => false,
     ...(req as object),
   }, res, next)) as (req: unknown, res: unknown) => unknown;
 }
@@ -239,7 +231,7 @@ test('no-JS form uses urlencoded parsing and safe 303 destinations for accepted 
   for (const accepted of [true, false]) {
     const { app, calls } = buildApp(async () => accepted
       ? { ok: true, comment: { id: 'held', status: 'pending' }, autoClassified: 'pending' } as CommentIngressResult
-      : { ok: false, reason: 'honeypot-tripped' });
+      : { ok: false, reason: 'entry-not-found' });
     const route = (app as unknown as ExpressAppWithRouter)._router.stack.find(layer => layer.route?.path === '/api/site/comments')!.route!;
     assert.equal(route.stack.length, 2, 'native urlencoded parser precedes the submission handler');
     let redirected: unknown;
@@ -283,4 +275,49 @@ test('provider submission dispatch preserves hashes and refuses disabled/embedde
   }
   assert.equal(inputs.length, 2);
   assert.match((inputs[0] as { authorIpHash: string }).authorIpHash, /^[a-f0-9]{64}$/);
+});
+
+test('same-origin gate: JSON without Origin is a non-browser client; forwarded https, forms and opaque origins are judged by Origin', () => {
+  const request = (headers: Record<string, string>, type: string | false = false) => ({
+    headers, protocol: 'http', is: (value: string) => (type === value ? type : false),
+    get: (key: string) => (key === 'host' ? 'site.test' : headers[key]),
+  }) as unknown as Parameters<typeof isSameOriginCommentPost>[0]['request'];
+  assert.equal(isSameOriginCommentPost({ request: request({}, 'application/json') }), true);
+  assert.equal(isSameOriginCommentPost({ request: request({}, 'application/x-www-form-urlencoded') }), false, 'a browser form always sends Origin');
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test', 'x-forwarded-proto': 'https' }) }, {}), true);
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://site.test' }) }), false, 'scheme must match');
+  assert.equal(isSameOriginCommentPost({ request: request({ origin: 'null' }, 'application/json') }), false);
+  const saved = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = 'https://www.site.test/';
+  try {
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://www.site.test' }) }), true, 'a proxy that rewrote Host');
+    assert.equal(isSameOriginCommentPost({ request: request({ origin: 'https://evil.test' }) }), false);
+  } finally {
+    if (saved === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = saved;
+  }
+});
+
+test('behind a trusted proxy hop, two visitors sharing the proxy socket get separate rate-limit buckets (not one shared key)', async (t) => {
+  const keysFor = async (trustProxy: number | false) => {
+    const keys: string[] = [];
+    const app = express();
+    app.set('trust proxy', trustProxy);
+    app.use(express.json());
+    registerCommentsSubmitRoute(app, { workspaceId: WORKSPACE_ID, ipHashSalt: Promise.resolve('salt'),
+      ingressPolicy: { submit: async () => ({ ok: false, reason: 'entry-not-found' }) },
+      rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true }; } } });
+    const baseUrl = await startTestServer(app, t);
+    for (const visitor of ['198.51.100.7', '198.51.100.8']) {
+      const res = await fetch(`${baseUrl}/api/site/comments`, { method: 'POST', body: JSON.stringify({ entryId: 'e', body: 'x' }),
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': visitor }, signal: AbortSignal.timeout(3000) });
+      assert.equal(res.status, 422);
+    }
+    return keys;
+  };
+  const trusted = await keysFor(1);
+  assert.equal(trusted.length, 2);
+  assert.notEqual(trusted[0], trusted[1]);
+  assert.ok(trusted.every(key => /^[a-f0-9]{64}$/.test(key)), 'the key is the salted hash, never the raw address');
+  const untrusted = await keysFor(false);
+  assert.equal(untrusted[0], untrusted[1], 'without the platform hop the socket peer is the only identity (the reason trust-proxy.ts exists)');
 });

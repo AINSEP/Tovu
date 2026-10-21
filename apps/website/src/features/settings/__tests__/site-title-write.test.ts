@@ -161,3 +161,28 @@ for (const policy of ["missing", "deny", "allow", "throw"] as const) {
     assert.equal(calls, policy === "missing" ? 0 : 1, "missing workspace fails before policy");
   });
 }
+
+test("core.comments/provider is refused at the chokepoint unless written by the comments selection store (comments.configure)", async () => {
+  const ledger = await makeLedger();
+  await ensureSettingDefinitions(ledger, {
+    namespace: "core.comments", systemPrincipalId: SYSTEM_PRINCIPAL_ID, definitions: [{ key: "provider", schema: { type: "string" }, defaultValue: "built-in" }],
+  });
+  const target = { namespace: "core.comments", key: "provider" };
+  const before = await revisionCount(ledger);
+  await assert.rejects(ownerWrite(ledger, target, ""), (err: unknown) => err instanceof ValueValidationFailedError && /comments_set_provider/.test(err.message));
+  assert.equal(await revisionCount(ledger), before, "nothing reaches the ledger");
+  await set({ deps: { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals },
+    input: { ...target, scope: "workspace", workspaceId: WORKSPACE_ID, value: "", callerPrincipalId: OWNER_PRINCIPAL_ID, requiredPermissionOverride: "comments.configure" } });
+  assert.equal(await storedValue(ledger, target), "");
+});
+
+test("core.theme/previewSwitcher fails closed when no theme write policy is composed", async () => {
+  const ledger = await makeLedger();
+  await ensureSettingDefinitions(ledger, {
+    namespace: "core.theme", systemPrincipalId: SYSTEM_PRINCIPAL_ID, definitions: [{ key: "previewSwitcher", schema: { type: "boolean" }, defaultValue: false }],
+  });
+  const before = await revisionCount(ledger);
+  await assert.rejects(ownerWrite(ledger, { namespace: "core.theme", key: "previewSwitcher" }, true),
+    (err: unknown) => err instanceof ValueValidationFailedError && err.message === "Theme preview write policy is unavailable.");
+  assert.equal(await revisionCount(ledger), before, "nothing reaches the ledger");
+});

@@ -325,7 +325,9 @@
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
     "search_reindex": "search reindex rebuild refresh index full backfill",
-    "search_set_provider": "search provider switch change backend meilisearch builtin engine"
+    "search_set_provider": "search provider switch change backend meilisearch builtin engine",
+    "comments_get_provider": "comments provider built-in active readiness pending",
+    "comments_set_provider": "comments provider select switch disable built-in"
   },
   "queries": {
     "media_replace_file": [
@@ -1904,6 +1906,12 @@
       "Is site search working?",
       "Which search provider does my site use?",
       "How many documents are indexed?"
+    ],
+    "comments_get_provider": [
+      "Where do my comments live?"
+    ],
+    "comments_set_provider": [
+      "Switch my comments provider."
     ]
   },
   "approvals": {
@@ -3394,6 +3402,14 @@
     "search_set_provider": {
       "class": "publish",
       "confirmation": "plan"
+    },
+    "comments_get_provider": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "comments_set_provider": {
+      "class": "escalation",
+      "confirmation": "plan"
     }
   },
   "policyConfirmationIds": [
@@ -3446,7 +3462,8 @@
     "mail_set_provider",
     "mail_send_test",
     "search_reindex",
-    "search_set_provider"
+    "search_set_provider",
+    "comments_set_provider"
   ],
   "secretForms": {
     "credential_save": {
@@ -3536,7 +3553,8 @@
     "mail_set_provider",
     "mail_send_test",
     "search_reindex",
-    "search_set_provider"
+    "search_set_provider",
+    "comments_set_provider"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3593,7 +3611,8 @@
     "mail_set_provider",
     "mail_send_test",
     "search_reindex",
-    "search_set_provider"
+    "search_set_provider",
+    "comments_set_provider"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

@@ -39,6 +39,13 @@ import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/h
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
 
+/** The model relays this verbatim, so it says what is off and that nothing stored was lost. */
+function providerNote({ providerId, adapterReady }: { providerId: string | null; adapterReady: boolean }, _options = {}): string {
+  if (providerId === null) return 'Public comments are off. Stored comments, settings and the moderation queue are kept; select built-in to show them again.';
+  if (!adapterReady) return `The '${providerId}' provider is selected but not ready yet; comments are not showing. Try again shortly.`;
+  return `The '${providerId}' provider is selected but comments are disabled in comments settings; enable them there.`;
+}
+
 /**
  * The exact slice of the route-deps bag Comments' tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
@@ -223,8 +230,10 @@ export function buildCommentsRegistrations(
       await providerPermission({ principalId: ctx.principal.id });
       const active = await providerRegistry().active({ siteId: routeDeps.workspaceId });
       const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      return { providerId: active.providerId, revision: active.revision, ready: !!active.adapter && settings.enabled,
-        pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
+      const ready = !!active.adapter && settings.enabled;
+      return { providerId: active.providerId, revision: active.revision, ready,
+        pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }),
+        ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
     },
     comments_set_provider: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {

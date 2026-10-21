@@ -491,6 +491,9 @@ test("site/comments-submit: POST responds 500 (not a hang) when commentIngressPo
     },
   };
   deps.commentIngressPolicy = brokenIngressPolicy;
+  // With a provider registry composed, the public route dispatches through the ACTIVE stored
+  // provider rather than `commentIngressPolicy` directly, so the failure is injected at both doors.
+  deps.commentsProviders = { ...deps.commentsProviders!, active: async () => { throw new Error("simulated provider failure"); } };
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 

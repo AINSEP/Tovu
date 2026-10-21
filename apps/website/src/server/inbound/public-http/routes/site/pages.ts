@@ -2142,7 +2142,7 @@ export async function renderGenericPostPage(
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
     resolveAssignedTermsForRender(deps, post),
   ]);
-  const html = renderSite({
+  const html = await renderSite({
     theme,
     route: "post",
     siteTitle,
@@ -2631,7 +2631,11 @@ class ListingBatchNotFoundError extends Error {}
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch"> {
   const listingBatch = listingBatchRequests.get(req);
-  const commentsCursor = typeof req.query.commentCursor === 'string' ? req.query.commentCursor : undefined;
+  const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
+  // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
+  // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
+  // (`req.header` is absent only on the route tests' direct handler calls.)
+  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, listingBatch, commentsCursor, commentsProviders: undefined };
   return { ...deps, listingBatch, commentsCursor };
 }
 

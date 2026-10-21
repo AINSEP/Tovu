@@ -5,6 +5,7 @@ import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/core/primitives';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { InMemorySettingsRepo } from '../../settings/index.js';
+import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
 import { buildCommentsRegistrations, commentsDerivedRisk, type CommentsToolDeps } from '../tool-registrations.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 
@@ -45,7 +46,8 @@ test('provider tools preserve the eight tools, publish confirmation metadata and
   assert.ok(nativeToolMetadata.redeemableIds.has('comments_set_provider'));
   await f.call('comments_set_provider', input, f.answer('confirm'));
   assert.equal(f.writes(), 1);
-  assert.deepEqual(await f.call('comments_get_provider'), { providerId: null, revision: 1, ready: false, pendingCount: 3 });
+  assert.deepEqual(await f.call('comments_get_provider'), { providerId: null, revision: 1, ready: false, pendingCount: 3,
+    note: 'Public comments are off. Stored comments, settings and the moderation queue are kept; select built-in to show them again.' });
   await f.call('comments_set_provider', { providerId: 'built-in', expectedRevision: 1 }, f.answer('confirm'));
   assert.equal(f.writes(), 2);
   assert.equal(f.surfaceExchanges.size(), 0);
@@ -72,4 +74,21 @@ test('new pending comments, stale cards and unavailable provider services fail c
   }
   const f = fixture(); f.deps.commentsProviders = undefined;
   await assert.rejects(f.call('comments_get_provider'), /unavailable/);
+});
+
+test('built-in selected while comments settings are off answers with the settings note, not a provider note', async () => {
+  const f = fixture();
+  const settings = { settingsRepo: f.deps.settingsRepo, clock: { nowIso: () => '2026-10-21T00:00:00.000Z' }, ids: { newId: () => crypto.randomUUID() },
+    authorize: async () => ({ allowed: true, reason: 'matched' }),
+    principals: { findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) => ({ workspaceId, id, status: 'active' }) } as unknown as SetCommentsSettingsDeps['principals'] };
+  await ensureCommentsSettingDefinitions(settings, { workspaceId: 's', systemPrincipalId: 'system' });
+  await setCommentsSettings(settings, { workspaceId: 's', patch: { enabled: false }, callerPrincipalId: 'owner' });
+  assert.deepEqual(await f.call('comments_get_provider'), { providerId: 'built-in', revision: 0, ready: false, pendingCount: 3,
+    note: "The 'built-in' provider is selected but comments are disabled in comments settings; enable them there." });
+});
+
+test('a selected provider whose adapter is not ready says so instead of blaming settings', async () => {
+  const f = fixture();
+  f.deps.commentsProviders = { active: async () => ({ providerId: 'built-in', revision: 2, adapter: undefined }) } as unknown as CommentsToolDeps['commentsProviders'];
+  assert.match((await f.call('comments_get_provider') as { note: string }).note, /'built-in' provider is selected but not ready yet/);
 });

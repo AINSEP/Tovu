@@ -1,4 +1,5 @@
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
@@ -8,7 +9,6 @@ import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/cons
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
-import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/system/tool-gaps.js";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -970,10 +970,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   });
   const commentsModule = createCommentsModule({
     commentRepo,
-    entryLookup: async ({ workspaceId, entryId }) => {
-      const entry = await entryRepo.findById({ workspaceId, id: entryId });
-      return entry ? { status: entry.status, publishedAt: entry.publishedAt } : null;
-    },
+    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
+    // read lazily at submit time, after this root has finished constructing it.
+    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
     outbox,
     clock,
     idGen,
@@ -2061,7 +2060,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerAdminExportSiteRoutes(app, routeDeps);
   registerAdminSiteShareRoutes({ app, deps: routeDeps });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
-  registerAdminSiteBackupRoutes({ app, deps: routeDeps });
   // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
