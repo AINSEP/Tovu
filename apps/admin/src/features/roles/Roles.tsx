@@ -688,13 +688,14 @@ function PermissionRemoveDialog({
  * The assembly is a straight relocation of what `Roles` used to write inline; nothing about the
  * props changed. It lives in its own component so the two panels can be selected by a flat
  * dispatcher below without `Roles` carrying either branch, which is what the ESLint gate scores.
- * `roles` is non-null by the time this renders — `Roles` returns its loading notice above.
+ * `roles` is non-null by the time this renders — `Roles` returns its loading notice above — so
+ * it arrives as its own, already-narrowed prop.
  */
-function RolesTab({ controller }: { controller: RolesController }) {
+function RolesTab({ controller, roles }: { controller: RolesController; roles: AdminRole[] }) {
   const c = controller;
   return (
     <RolesSection
-      roles={c.roles ?? []}
+      roles={roles}
       create={{
         name: c.roleName,
         setName: c.setRoleName,
@@ -720,11 +721,11 @@ function RolesTab({ controller }: { controller: RolesController }) {
 
 /** The "Policies" tab panel — `PoliciesSection` with its three controller groups, relocated
  *  verbatim from `Roles`'s own JSX for the same reason {@link RolesTab} documents. */
-function PoliciesTab({ controller }: { controller: RolesController }) {
+function PoliciesTab({ controller, policies }: { controller: RolesController; policies: AdminPolicy[] }) {
   const c = controller;
   return (
     <PoliciesSection
-      policies={c.policies ?? []}
+      policies={policies}
       create={{
         name: c.policyName,
         setName: c.setPolicyName,
@@ -770,9 +771,9 @@ function PoliciesTab({ controller }: { controller: RolesController }) {
  *  complexity. Same split `Deployment.tsx`'s `deploymentTabPanel` and `Sites.tsx`'s `sitesTabPanel`
  *  make for the identical gate.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function rolesTabPanel(activeTabId: RolesTabId, controller: RolesController) {
-  if (activeTabId === "policies") return <PoliciesTab controller={controller} />;
-  return <RolesTab controller={controller} />;
+function rolesTabPanel(activeTabId: RolesTabId, controller: RolesController, lists: { roles: AdminRole[]; policies: AdminPolicy[] }) {
+  if (activeTabId === "policies") return <PoliciesTab controller={controller} policies={lists.policies} />;
+  return <RolesTab controller={controller} roles={lists.roles} />;
 }
 
 export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) {
@@ -834,7 +835,7 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
         onChange={goToRolesTab}
         containerHandle="roles-tab-bar"
       />
-      {rolesTabPanel(activeTabId, controller)}
+      {rolesTabPanel(activeTabId, controller, { roles, policies })}
 
       <RoleDeleteDialog
         pendingRoleDelete={pendingRoleDelete}

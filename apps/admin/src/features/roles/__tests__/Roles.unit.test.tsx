@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -853,5 +853,69 @@ describe("section/row controller seam", () => {
 
     expect(screen.getByRole("button", { name: "Remove permission content.write" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Remove permission content.read" })).toBeEnabled();
+  });
+});
+
+describe("inline edit inputs and remaining row states", () => {
+  it("forwards typing in the role rename input to setEditingRoleName", () => {
+    const controller = renderRoles({ editingRoleId: CUSTOM_ROLE.id, editingRoleName: "Draft role" });
+    fireEvent.change(screen.getByDisplayValue("Draft role"), { target: { value: "Reviewer" } });
+    expect(controller.setEditingRoleName).toHaveBeenCalledWith("Reviewer");
+  });
+
+  it("forwards typing in the policy rename inputs, and shows Saving… on that row while it saves", () => {
+    const controller = renderRoles({
+      editingPolicyId: CUSTOM_POLICY.id,
+      editingPolicyName: "Draft policy",
+      editingPolicyDescription: "Draft description",
+      rowSavingId: CUSTOM_POLICY.id,
+    }, POLICIES_TAB);
+    fireEvent.change(screen.getByDisplayValue("Draft policy"), { target: { value: "Publishers" } });
+    fireEvent.change(screen.getByDisplayValue("Draft description"), { target: { value: "Can publish" } });
+    expect(controller.setEditingPolicyName).toHaveBeenCalledWith("Publishers");
+    expect(controller.setEditingPolicyDescription).toHaveBeenCalledWith("Can publish");
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  it("forwards the permission form's inputs, shows a scoped permission's resource type, and Saving… while adding", () => {
+    const scoped = { ...PERMISSION_ROW, resourceType: "post" };
+    const controller = renderRoles({
+      policies: [CUSTOM_POLICY],
+      permissionPolicyId: CUSTOM_POLICY.id,
+      permissionInput: "content.publish",
+      permissionRows: [scoped],
+      rowSavingId: CUSTOM_POLICY.id,
+    }, POLICIES_TAB);
+    fireEvent.change(screen.getByPlaceholderText("e.g. content.write"), { target: { value: "content.delete" } });
+    fireEvent.change(screen.getByPlaceholderText("resource type (optional)"), { target: { value: "page" } });
+    expect(controller.setPermissionInput).toHaveBeenCalledWith("content.delete");
+    expect(controller.setResourceTypeInput).toHaveBeenCalledWith("page");
+    expect(screen.getByText("(post)", { exact: false }).textContent).toBe(" (post)");
+    const permissionRow = screen.getByPlaceholderText("e.g. content.write").closest("tr")!;
+    expect(within(permissionRow).getAllByRole("button").some((button) => button.textContent === "Saving…" && (button as HTMLButtonElement).disabled)).toBe(true);
+  });
+
+  it("labels a built-in policy Built-in", () => {
+    renderRoles({ policies: [{ ...CUSTOM_POLICY, isBuiltin: true }] }, POLICIES_TAB);
+    expect(screen.getByText("Built-in")).toBeInTheDocument();
+  });
+
+  it("shows the create-policy error and forwards the create form's inputs", () => {
+    const controller = renderRoles({ policyError: "failed to create policy" }, POLICIES_TAB);
+    expect(screen.getByText("failed to create policy")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Policy name"), { target: { value: "Moderators" } });
+    fireEvent.change(screen.getByLabelText("Description (optional)"), { target: { value: "Moderate comments" } });
+    expect(controller.setPolicyName).toHaveBeenCalledWith("Moderators");
+    expect(controller.setPolicyDescription).toHaveBeenCalledWith("Moderate comments");
+  });
+
+  it("shows the empty state when there are no policies", () => {
+    renderRoles({ policies: [] }, POLICIES_TAB);
+    expect(screen.getByText("No policies yet.")).toBeInTheDocument();
+  });
+
+  it("names a scoped permission's resource type in the remove confirmation", () => {
+    renderRoles({ pendingPermissionRemove: { policyId: CUSTOM_POLICY.id, row: { ...PERMISSION_ROW, resourceType: "post" } } }, POLICIES_TAB);
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === 'Remove "content.write (post)" from this policy? Anyone with this policy loses it.')).toBeInTheDocument();
   });
 });
