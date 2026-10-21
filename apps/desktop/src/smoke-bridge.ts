@@ -240,7 +240,9 @@ export async function smokeBridge(
     });
   } catch (error) {
     const detail = `${entry.label}: ${error instanceof Error ? error.message : String(error)}${stderr ? `\n${stderr}` : ""}`;
-    throw new Error(sanitizeUntrustedText({ text: redactText({ text: detail }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }));
+    // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
+    throw new Error(sanitizeUntrustedText({ text: redactText({ text: detail }, { username: path.basename(os.homedir()) }) },
+      { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));
   } finally {
     clearTimeout(timer);
     child.kill("SIGKILL");
