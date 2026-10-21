@@ -1489,3 +1489,33 @@ describe("the 'All themes' back arrow navigates back to the theme list", () => {
     window.history.replaceState(null, "", "/");
   });
 });
+
+describe("toolbar and status states", () => {
+  it("says Saving… on the Save button while a save runs, and Resetting… on Reset while a reset runs", () => {
+    renderExplore({ dirty: true, saving: true, resetting: true });
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Resetting…" })).toBeDisabled();
+  });
+
+  it("names the macOS save shortcut on Apple platforms", () => {
+    const original = Object.getOwnPropertyDescriptor(window.navigator, "platform");
+    Object.defineProperty(window.navigator, "platform", { value: "MacIntel", configurable: true });
+    try {
+      renderExplore({ dirty: true });
+      expect(screen.getByTitle("Save (⌘S)")).toBeInTheDocument();
+    } finally {
+      if (original) Object.defineProperty(window.navigator, "platform", original);
+      else delete (window.navigator as { platform?: string }).platform;
+    }
+  });
+
+  it("shows a success notice as a toast", () => {
+    renderExplore({ notice: "Saved index." });
+    expect(screen.getByText("Saved index.")).toBeInTheDocument();
+  });
+
+  it("shows only the load error when the theme detail never arrived", () => {
+    renderExplore({ detail: undefined, error: "Theme novice could not be read." });
+    expect(screen.getByText("Theme novice could not be read.")).toHaveClass("notice", "error");
+  });
+});
