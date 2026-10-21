@@ -98,3 +98,11 @@ test("the generic comparator orders any item by group, then label", () => {
     ["y", "Z", "b", "a"]
   );
 });
+
+test("the generic comparator breaks a group+label tie by tieBreak, and an absent tieBreak sorts first", () => {
+  const compare = publishOrderComparator("en", (item: { label: string; tieBreak?: string }) => ({ group: "publish", ...item }));
+  assert.equal(compare({ label: "Same", tieBreak: "a" }, { label: "Same", tieBreak: "b" }), -1);
+  assert.equal(compare({ label: "Same", tieBreak: "b" }, { label: "Same", tieBreak: "a" }), 1);
+  assert.equal(compare({ label: "Same" }, { label: "Same", tieBreak: "a" }), -1);
+  assert.equal(compare({ label: "same" }, { label: "Same" }), 0, "identical keys compare equal");
+});
