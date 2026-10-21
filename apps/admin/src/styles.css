@@ -5447,6 +5447,15 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
    baseline even when one path's capability list is a row longer. */
 .deployment-path-foot { margin-top: auto; padding-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
 
+/* ---- Import & Export (Operations) ----------------------------------------------------------- */
+/* Same auto-fit grid as the deployment path cards: three across on a wide screen, stacked on a
+   phone. The link sits at each card's bottom so all three line up when one lead wraps longer. */
+.import-export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); }
+.import-export-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.import-export-card .card-title { margin: 0; }
+.import-export-card .card-lead { margin: 0; }
+.import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
+
 /* ---- Capability list ------------------------------------------------------------------------ */
 /* The "what works / what doesn't" rows. Shared by the Overview comparison and the Static Site tab
    so the same fact is stated in the same shape in both places. Meaning is carried by the glyph AND
