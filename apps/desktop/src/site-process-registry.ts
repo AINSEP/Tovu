@@ -258,11 +258,11 @@ function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): vo
  * @returns the rows, or `null` when the unreadable file could not be moved aside: do not write.
  * @complexity O(n) in file size.
  */
-function readOwnRowsForUpdate(filePath: string): SiteProcessRow[] | null {
+function readOwnRowsForUpdate(filePath: string, quarantine: typeof quarantineUnreadableFile = quarantineUnreadableFile): SiteProcessRow[] | null {
   const read = readRegistryFile(filePath);
   if (read.state === "ok") return read.sites;
   if (read.state === "missing") return [];
-  return quarantineUnreadableFile(filePath, REGISTRY_QUARANTINE_NOTICE) ? [] : null;
+  return quarantine(filePath, REGISTRY_QUARANTINE_NOTICE) ? [] : null;
 }
 
 /** {@link recordSiteOpened}'s own options. */
@@ -318,6 +318,8 @@ interface RecordSiteClosedOptions {
   pid?: number;
   /** Test seam: whose file to update. Defaults to this process's own. */
   instanceId?: string;
+  /** Test seam: moves an unreadable file aside, `false` when it could not. Defaults to `quarantineUnreadableFile`. */
+  quarantine?: typeof quarantineUnreadableFile;
 }
 
 /**
@@ -336,7 +338,7 @@ interface RecordSiteClosedOptions {
  */
 function recordSiteClosed(registryDir: string, siteDir: string, options: RecordSiteClosedOptions = {}): void {
   const filePath = instanceFilePath(registryDir, options.instanceId);
-  const sites = readOwnRowsForUpdate(filePath);
+  const sites = readOwnRowsForUpdate(filePath, options.quarantine);
   if (sites === null) return;
   const isDoomed = (existing: SiteProcessRow) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
   writeRegistry(filePath, { sites: sites.filter((existing) => !isDoomed(existing)) });

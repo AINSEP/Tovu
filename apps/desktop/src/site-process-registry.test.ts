@@ -824,3 +824,28 @@ test("reconcileOrphans never touches a live process that is not an orphaned serv
   assert.equal(isProcessAlive(child.pid!), true, "a parented serve is never reaped");
   assert.equal(fs.existsSync(instanceFilePath(registryDir, crashedOwner)), false, "the dead owner's file is still cleaned up");
 });
+
+test("a crashed instance's registry entry that is a dangling link reconciles nothing and is cleaned up", async (t) => {
+  const registryDir = tempRegistryDir();
+  fs.mkdirSync(registryDir, { recursive: true });
+  const crashed = await deadInstanceId();
+  const linkPath = instanceFilePath(registryDir, crashed);
+  // Listed by name, but its target is gone: it reads as "missing", not as rows or as torn bytes.
+  fs.symlinkSync(path.join(registryDir, "nowhere.json"), linkPath);
+  const errors = t.mock.method(console, "error", () => {});
+  assert.deepEqual(await reconcileOrphans(registryDir), []);
+  assert.equal(fs.existsSync(linkPath) || fs.lstatSync(linkPath, { throwIfNoEntry: false }) !== undefined, false, "the dead owner's entry is removed");
+  assert.equal(errors.mock.callCount(), 0);
+});
+
+test("recordSiteClosed over an unreadable own file that cannot be moved aside writes nothing over it", () => {
+  const registryDir = tempRegistryDir();
+  const filePath = instanceFilePath(registryDir);
+  writeRegistry(filePath, { sites: [ROW_A] });
+  const torn = tearFile(filePath);
+  let asked = 0;
+  recordSiteClosed(registryDir, ROW_A.siteDir, { pid: ROW_A.pid, quarantine: () => { asked += 1; return false; } });
+  assert.equal(asked, 1);
+  assert.equal(fs.readFileSync(filePath, "utf8"), torn, "the torn bytes are left exactly as they were");
+  assert.deepEqual(fs.readdirSync(registryDir), [path.basename(filePath)]);
+});
