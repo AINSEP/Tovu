@@ -52,11 +52,14 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
             chooseProps: agentHandle({ handle: `${handleBase}-choose-folder` }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
           }}
         />
-        {!c.updating ? <label className="install-tab-check">
-          <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
-            {...agentHandle({ handle: `${handleBase}-replace` }, { role: "field", label: t("Replace existing version") })} />
-          {t("Replace existing version")}
-        </label> : null}
+        {!c.updating ? <>
+          <label className="install-tab-check">
+            <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
+              {...agentHandle({ handle: `${handleBase}-replace` }, { role: "field", label: t("Replace existing version") })} />
+            {t("Replace existing version")}
+          </label>
+          <p className="field-hint">{t("Replaces the installed version with a newer one. Older versions are refused.")}</p>
+        </> : null}
         {c.warnings.length > 0 ? (
           <div className="install-tab-review" role="status">
             {c.warnings.map((warning) => <p key={warning}>{warning}</p>)}

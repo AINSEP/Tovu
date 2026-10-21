@@ -95,6 +95,15 @@ function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): R
   return next;
 }
 
+/** `plugin` in place of the row with its id, keeping the list's order (an update must not move its
+ *  row to the end), or appended when it is new. @complexity O(n) in row count. */
+function withRow(rows: readonly AdminAgentPlugin[] | null, plugin: AdminAgentPlugin): AdminAgentPlugin[] {
+  const current = rows ?? [];
+  return current.some((entry) => entry.pluginId === plugin.pluginId)
+    ? current.map((entry) => (entry.pluginId === plugin.pluginId ? plugin : entry))
+    : [...current, plugin];
+}
+
 /** Set-enabled refusals the switch explains in its own words: a plugin this Tovu cannot run, and one
  *  whose interrupted update waits for boot recovery. */
 const TOGGLE_REFUSAL_KEYS: Readonly<Record<string, string>> = {
@@ -172,7 +181,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     onInstalled: (plugin: AdminAgentPlugin) => {
       // The install response is newer than any pending list read. Keep its row until a later
       // refresh starts rather than letting an earlier snapshot hide the completed install.
-      setAgentPlugins((current) => [...(current ?? []).filter((entry) => entry.pluginId !== plugin.pluginId), plugin]);
+      setAgentPlugins((current) => withRow(current, plugin));
     },
     expandedIds,
     onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
+
 import { AGENT_PLUGIN_RECOVERY_ACTOR, createAgentPluginUpdateEffects, createDeferredAgentPluginUpdateEffects, type UpdateMcpDeps } from "../../update-effects.js";
 
 /**
@@ -41,7 +43,8 @@ test("provision resolves the candidate's servers and provisions them as the acto
 
 test("a server that fails to provision fails the effect, so the lifecycle owner rolls the update back", async () => {
   const effects = createAgentPluginUpdateEffects({ deps, actor: "owner" }, recorder(["remote"]).optional);
-  await assert.rejects(effects.provision({ workspaceId: "ws-1", installed }), /Plugin MCP reprovisioning failed; the update will be rolled back\./);
+  await assert.rejects(effects.provision({ workspaceId: "ws-1", installed }), (error: unknown) => error instanceof AgentPluginUpdateError
+    && error.code === "PLUGIN_MCP_PROVISION_FAILED" && error.message === "The new version's MCP servers could not be set up; the previous version was restored.");
 });
 
 test("activation and removal stay with their own owner", async () => {

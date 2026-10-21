@@ -120,7 +120,7 @@ test("injected Agent Plugin owners are used in place of the host capability, sco
   const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), {}) as { changed: boolean };
   assert.equal(result.changed, true);
   const root = `/ws-root/${WORKSPACE_ID}`;
-  assert.deepEqual(calls, [["assert", { workspaceRoot: root }], ["list", root], ["list", root], ["set", true, true]]);
+  assert.deepEqual(calls, [["assert", { workspaceRoot: root }], ["list", root], ["list", root], ["list", root], ["set", true, true]], "host-compatibility pre-flight, identity, identity re-check");
   assert.deepEqual(h.events, ["provisionMcp:higgsfield"], "only MCP provisioning still goes through the host");
 });
 

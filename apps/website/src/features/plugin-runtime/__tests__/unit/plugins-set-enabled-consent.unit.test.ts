@@ -7,7 +7,7 @@ import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
-import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, context, harness, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
+import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
 
 /**
  * @file Pins every branch of `plugins_set_enabled`'s consent path — which inputs reach the source
@@ -106,7 +106,8 @@ test("an Agent Plugin enable reaches the policy with sealedHere:false and nothin
   const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean };
   assert.equal(result.changed, true);
   assert.deepEqual(h.policyCalls, [{ sealedHere: false, added: [] }]);
-  assert.deepEqual(h.events, ["assertWritable", "listInstalled", "listInstalled", "setEnabled:true", "provisionMcp:higgsfield"]);
+  assert.deepEqual(h.events, ["assertWritable", "listInstalled", "listInstalled", "listInstalled", "setEnabled:true", "provisionMcp:higgsfield"],
+    "pre-flight host check, identity before the card, identity again before the write");
 });
 
 test("an unwritable Agent Plugin activation record is returned before identity, card or write", async () => {
@@ -128,6 +129,20 @@ test("an Agent Plugin this host cannot run is a nothing-changed result naming PL
   assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
 });
 
+test("an Agent Plugin whose installed revision this host cannot run is refused before identity, card or write", async () => {
+  const h = harness({ confirmEnable: () => true, agentHost: { listInstalled: async () => [installedAgentPlugin(), installedAgentPlugin({ archiveDigest: "b".repeat(64), version: "2.0.0", hostRange: ">=99" })] } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), {}) as Record<string, unknown>;
+  assert.deepEqual([result.changed, result.cancelled, result.reason, result.code, result.restartRequired], [false, false, "host-incompatible", "PLUGIN_HOST_INCOMPATIBLE", false]);
+  assert.match(String(result.note), /^Nothing changed: 'higgsfield' is not made for this Tovu version/);
+  assert.deepEqual(h.events, ["assertWritable", "listInstalled"], "no card was raised (no emitSurface, yet no NO_CHANNEL refusal) and nothing was written");
+});
+
+test("an Agent Plugin whose host range this host satisfies passes the pre-flight", async () => {
+  const h = harness({ confirmEnable: () => false, agentHost: { listInstalled: async () => [installedAgentPlugin({ hostRange: "^1.0.0" }), installedAgentPlugin({ pluginId: "other", hostRange: ">=99" })] } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: true }), { emitSurface: noDialog }) as { changed: boolean };
+  assert.equal(result.changed, true, "another plugin's incompatible range does not block this one");
+});
+
 test("an Agent Plugin whose interrupted update awaits recovery is a nothing-changed update-pending result", async () => {
   const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginUpdateError({ code: "PLUGIN_UPDATE_PENDING", message: "pending" }); } } });
   for (const enabled of [true, false]) {
@@ -136,6 +151,13 @@ test("an Agent Plugin whose interrupted update awaits recovery is a nothing-chan
     assert.match(String(result.note), new RegExp(`was NOT ${enabled ? "enabled" : "disabled"}\\. Tell the user to restart Tovu`));
   }
   assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
+});
+
+test("an Agent Plugin update refusal other than PLUGIN_UPDATE_PENDING asks for manual repair, not a restart", async () => {
+  const h = harness({ confirmEnable: () => false, agentHost: { setEnabled: async () => { throw new AgentPluginUpdateError({ code: "PLUGIN_UPDATE_PATH_UNSAFE", message: "unsafe" }); } } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: false }), { emitSurface: noDialog }) as Record<string, unknown>;
+  assert.deepEqual([result.changed, result.code], [false, "PLUGIN_UPDATE_PATH_UNSAFE"]);
+  assert.match(String(result.note), /was NOT disabled\. Its update recovery record needs manual repair \(PLUGIN_UPDATE_PATH_UNSAFE\); restarting Tovu will not fix it/);
 });
 
 test("Agent Plugin warnings (an unmet requirement, a dependent losing a capability) reach the model", async () => {

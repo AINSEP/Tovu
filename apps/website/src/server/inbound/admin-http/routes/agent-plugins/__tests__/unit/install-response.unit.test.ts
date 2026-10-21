@@ -144,7 +144,7 @@ test("agentPluginLifecycleFields: passes origin, host verdict, requirements, dep
 });
 
 test("installErrorResponse: every update refusal is 409 with the lifecycle owner's code and message", () => {
-  for (const code of ["PLUGIN_CHANGED", "PLUGIN_DOWNGRADE_REFUSED", "PLUGIN_BUNDLED", "PLUGIN_UPDATE_PENDING", "PLUGIN_ID_MISMATCH", "PLUGIN_UPDATE_PATH_UNSAFE"]) {
+  for (const code of ["PLUGIN_CHANGED", "PLUGIN_DOWNGRADE_REFUSED", "PLUGIN_BUNDLED", "PLUGIN_UPDATE_PENDING", "PLUGIN_ID_MISMATCH", "PLUGIN_UPDATE_PATH_UNSAFE", "PLUGIN_MCP_PROVISION_FAILED"]) {
     assert.deepEqual(installErrorResponse(new AgentPluginUpdateError({ code, message: `Refused: ${code}.` })), { status: 409, body: { code, error: `Refused: ${code}.` } });
   }
 });

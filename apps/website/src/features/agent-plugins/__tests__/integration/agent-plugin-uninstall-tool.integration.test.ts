@@ -527,3 +527,20 @@ test("an interrupted update waiting for boot recovery refuses the uninstall as a
     assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
   });
 });
+
+test("an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    const installed = await installReal(WORKSPACE_A, "broken-journal", "archive-update-invalid");
+    const pluginRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).pluginRootDir({ pluginId: "broken-journal" });
+    await writeFile(path.join(pluginRoot, "update-journal.json"), JSON.stringify({ schemaVersion: 99 }));
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const { result } = await answerDialog(findRegistration(fakeDeps().deps, surfaceExchanges), surfaceExchanges, "broken-journal", "confirm");
+    const output = result as UninstallToolOutput & { code: string };
+    assert.equal(output.uninstalled, false);
+    assert.equal(output.code, "UPDATE_JOURNAL_INVALID");
+    assert.match(output.note, /needs manual repair \(UPDATE_JOURNAL_INVALID\); restarting Tovu will not fix it/);
+    assert.doesNotMatch(output.note, /restart Tovu \(recovery runs at start\)/);
+    assert.equal(JSON.stringify(output).includes(dir), false);
+    assert.equal((await stat(installed.packageRoot)).isDirectory(), true);
+  });
+});

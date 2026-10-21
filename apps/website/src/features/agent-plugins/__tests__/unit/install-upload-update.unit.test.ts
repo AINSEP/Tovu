@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
-import { installUploadedAgentPlugin, isAgentPluginId } from "../../install-upload.js";
+import { installUploadedAgentPlugin, isAgentPluginId, previewUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { createTovuAgentPluginLifecycle } from "../../lifecycle.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
@@ -224,6 +224,27 @@ test("replace (install path): a downgrade is refused too, and the installed revi
     await assert.rejects(installUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout }),
       (error: unknown) => error instanceof AgentPluginUpdateError && error.code === "PLUGIN_DOWNGRADE_REFUSED");
     assert.deepEqual(await liveDigests(layout), [old.archiveDigest]);
+  });
+});
+
+test("replace (preview): a downgrade is refused before the operator is offered the install", async () => {
+  await withLayout(async (layout) => {
+    const old = await installFirst(layout, await packageZip("2.0.0"));
+    const archive = await packageZip("1.0.0");
+    await assert.rejects(previewUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout }),
+      (error: unknown) => error instanceof AgentPluginUpdateError && error.code === "PLUGIN_DOWNGRADE_REFUSED");
+    assert.deepEqual(await liveDigests(layout), [old.archiveDigest]);
+  });
+});
+
+test("replace (preview): a newer version previews with the version it upgrades from", async () => {
+  await withLayout(async (layout) => {
+    await installFirst(layout, await packageZip("1.0.0"));
+    const archive = await packageZip("1.1.0");
+    const preview = await previewUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
+    assert.equal(preview.version, "1.1.0");
+    assert.deepEqual(preview.upgradeFrom, ["1.0.0"]);
+    assert.equal(preview.warning, "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant. It stays OFF until you enable it.");
   });
 });
 

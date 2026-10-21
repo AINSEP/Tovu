@@ -200,10 +200,7 @@ export async function installUploadedAgentPlugin(
     // both pass and publish ambiguous digests. Keep check, disabled activation, and swap together.
     publishGuard: async ({ plugin: indexed, publish }) => {
       const run = async () => {
-        const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
-        for (const previous of existing) {
-          if (planAgentPluginUpdate({ installed: previous, candidate: indexed }).action === "downgrade-refused") throw new AgentPluginUpdateError({ code: "PLUGIN_DOWNGRADE_REFUSED", message: "Plugin downgrades are refused." });
-        }
+        const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true, candidate: indexed });
         const same = existing.find(entry => entry.archiveDigest === digest);
         if (same) { alreadyInstalled = true; return same; }
         upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
@@ -257,16 +254,32 @@ async function updateUploadedAgentPlugin(
     layout: optional.layout, workspaceId: required.workspaceId, actor: required.actor, ...required.update, snapshotSettings });
 }
 
+type UpdateRevision = Parameters<typeof planAgentPluginUpdate>[0]["candidate"];
+
 /** Same id is the upgrade identity; different bytes alone are not evidence of a different plugin.
- * Bundled provenance and active/undetermined records are checked strictly before a replacement. */
-async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
+ * Bundled provenance and active/undetermined records are checked strictly before a replacement.
+ * Downgrades are refused here, the path preview and install share, so preview never offers a
+ * replacement that install would then refuse. */
+async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean; candidate: UpdateRevision }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
   const existing = (await listInstalledPlugins(required.workspaceRoot)).filter(plugin => plugin.pluginId === required.pluginId);
-  if (existing.some(plugin => plugin.archiveDigest === required.digest) || existing.length === 0) return existing;
+  if (!existing.some(plugin => plugin.archiveDigest === required.digest) && existing.length > 0) await assertReplaceable(required);
+  for (const previous of existing) {
+    if (planAgentPluginUpdate({ installed: previous, candidate: required.candidate }).action === "downgrade-refused") throw new AgentPluginUpdateError({ code: "PLUGIN_DOWNGRADE_REFUSED", message: "Plugin downgrades are refused." });
+  }
+  return existing;
+}
+
+/** A different package under an installed id replaces it only when asked, never a bundled plugin,
+ * and only while the installed one is switched off. */
+async function assertReplaceable(required: { workspaceRoot: string; pluginId: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<void> {
   if (!required.replace) throw new AgentPluginUploadError("PLUGIN_ID_TAKEN", "This plugin ID is already installed. Choose Replace existing version to upgrade it.");
   if (await isAgentPluginRecordedAsBundled({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })) throw new AgentPluginUploadError("PLUGIN_BUNDLED", "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin.");
   if ((await resolveAgentPluginActivation({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })).verdict !== "inactive") throw new AgentPluginUploadError("PLUGIN_ENABLED", "Switch off the installed plugin before replacing its version.");
-  return existing;
 }
+
+/** Every uploaded package carries this, install and update alike; only install adds that it stays OFF,
+ *  since an update keeps the installed plugin's on/off state. */
+export const UPLOADED_AGENT_PLUGIN_TRUST_WARNING = "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant.";
 
 export interface AgentPluginUploadPreview {
   readonly pluginId: string;
@@ -286,11 +299,11 @@ export async function previewUploadedAgentPlugin(required: InstallUploadedAgentP
   const { prefix, pluginId } = await locatePackage(reader, required.archive);
   const plugin = await installAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256,
     archiveReader: withinPrefix(reader, prefix), layout, workspaceId: required.workspaceId }, { previewOnly: true });
-  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true });
+  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true, candidate: plugin });
   const upgradeFrom = existing.filter(entry => entry.archiveDigest !== plugin.archiveDigest).flatMap(entry => entry.version ? [entry.version] : []);
   return { pluginId, ...(plugin.version ? { version: plugin.version } : {}), digest: plugin.archiveDigest,
     skills: plugin.skills.map(skill => skill.name), ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}),
-    warning: "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant. It stays OFF until you enable it.",
+    warning: `${UPLOADED_AGENT_PLUGIN_TRUST_WARNING} It stays OFF until you enable it.`,
   };
 }
 

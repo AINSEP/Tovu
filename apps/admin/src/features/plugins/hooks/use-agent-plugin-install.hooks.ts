@@ -41,6 +41,7 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   PLUGIN_BUNDLED: "Plugins that ship with Tovu update with Tovu.",
   PLUGIN_UPDATE_PENDING: "An earlier update is still being recovered. Restart Tovu and try again.",
   PLUGIN_HOST_INCOMPATIBLE: "This plugin is not made for this Tovu version.",
+  PLUGIN_MCP_PROVISION_FAILED: "The new version's MCP servers could not be set up; the previous version was restored.",
 };
 
 /** A refusal's dictionary key; `retry` is the install's or the update's own try-again line, used

@@ -81,8 +81,17 @@ function updateJournalRefusedResult(pluginId: string, error: AgentPluginUpdateEr
     reason: "update-pending",
     code: error.code,
     note: `Nothing was removed: an interrupted update of '${pluginId}' is still waiting to be recovered, so it was NOT ` +
-      "uninstalled. Tell the user to restart Tovu (recovery runs at start) and then try again.",
+      `uninstalled. ${updateJournalNextStep(error)}`,
   };
+}
+
+/** Only a pending update recovers at start. Any other journal refusal (an unreadable record, an
+ *  unsafe recorded path) survives a restart, so telling the user to restart would loop them.
+ *  @complexity O(1). */
+function updateJournalNextStep(error: AgentPluginUpdateError): string {
+  return error.code === "PLUGIN_UPDATE_PENDING"
+    ? "Tell the user to restart Tovu (recovery runs at start) and then try again."
+    : `Its update recovery record needs manual repair (${error.code}); restarting Tovu will not fix it. Tell the user an operator has to repair it first.`;
 }
 
 /**

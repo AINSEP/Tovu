@@ -1,4 +1,4 @@
-import { AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
+import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -509,6 +509,27 @@ async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps
   }
 }
 
+/**
+ * Pre-flight for an Agent Plugin ENABLE, run before the confirmation dialog: the host-incompatible result when any
+ * installed revision of the plugin declares a host range this Tovu does not satisfy, otherwise `undefined`.
+ *
+ * Same reason as {@link unwritableAgentPluginActivationsResult}: the write would refuse it anyway, but only after a
+ * human had approved something that cannot happen. Uses the lifecycle owner's own compatibility check against the
+ * same contract version, and, like its enable, requires every installed revision of the id to pass. `hostOk` does
+ * not depend on other plugins' capabilities, so none are supplied.
+ * @complexity O(p) in installed-plugin count.
+ */
+async function hostIncompatibleEnableResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
+  const revisions = (await listInstalledAgentPlugins(routeDeps)).filter(plugin => plugin.pluginId === request.pluginId);
+  const incompatible = revisions.some(revision => !checkAgentPluginCompatibility({ manifest: revision, hostVersion: AGENT_PLUGIN_CONTRACT_VERSION, activeProvides: [] }).hostOk);
+  return incompatible ? hostIncompatibleResult(request, new AgentPluginHostIncompatibleError({ pluginId: request.pluginId })) : undefined;
+}
+
+/** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its two checks. */
+async function agentPluginEnablePreflight(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
+  return (await unwritableAgentPluginActivationsResult(routeDeps, request)) ?? hostIncompatibleEnableResult(routeDeps, request);
+}
+
 /** An interrupted update of this plugin waits for boot recovery (`PLUGIN_UPDATE_PENDING`, or an
  *  unreadable recovery record): its on/off decision is frozen until then, the same 409 the admin
  *  switch answers. Nothing changed, so an ADR-055 Decision 6 result. @complexity O(1). */
@@ -522,8 +543,17 @@ function updatePendingResult(request: SetEnabledRequest, error: AgentPluginUpdat
     reason: "update-pending",
     code: error.code,
     note: `Nothing changed: an interrupted update of '${request.pluginId}' is still waiting to be recovered, so it was NOT ` +
-      `${request.enabled ? "enabled" : "disabled"}. Tell the user to restart Tovu (recovery runs at start) and then try again.`,
+      `${request.enabled ? "enabled" : "disabled"}. ${updateJournalNextStep(error)}`,
   };
+}
+
+/** Only a pending update recovers at start. Any other journal refusal (an unreadable record, an
+ *  unsafe recorded path) survives a restart, so telling the user to restart would loop them.
+ *  @complexity O(1). */
+function updateJournalNextStep(error: AgentPluginUpdateError): string {
+  return error.code === "PLUGIN_UPDATE_PENDING"
+    ? "Tell the user to restart Tovu (recovery runs at start) and then try again."
+    : `Its update recovery record needs manual repair (${error.code}); restarting Tovu will not fix it. Tell the user an operator has to repair it first.`;
 }
 
 /** The plugin declares a host range this Tovu does not satisfy, so it cannot be enabled: the same
@@ -749,7 +779,7 @@ async function prepareSetEnabled(routeDeps: PluginsToolDeps, required: { readonl
   const { ctx } = required;
   const request = readSetEnabledRequest(ctx.input);
   await requireSetEnabledPermission(routeDeps, { principalId: ctx.principal.id, request });
-  const refusal = request.enabled && request.family === "agent-plugin" ? await unwritableAgentPluginActivationsResult(routeDeps, request) : undefined;
+  const refusal = request.enabled && request.family === "agent-plugin" ? await agentPluginEnablePreflight(routeDeps, request) : undefined;
   const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
   const consent = await siteConsentFor(routeDeps, { request, identity });
   return { request, identity, refusal, confirm: enableNeedsConfirmation(routeDeps, consent), capabilities: consent.capabilities, added: consent.added };

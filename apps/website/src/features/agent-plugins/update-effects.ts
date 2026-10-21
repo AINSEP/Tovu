@@ -1,4 +1,4 @@
-import type { AgentPluginMcpProvisioningPort } from '@jini-ai/agent-plugins/lifecycle';
+import { AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from '@jini-ai/agent-plugins/lifecycle';
 import { notifyExternalMcpRosterChanged } from '../../assistant/external-mcp-roster-change.js';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from './federate-mcp.js';
 import type { AgentPluginLayout } from "./layout.js";
@@ -28,7 +28,9 @@ export function createAgentPluginUpdateEffects(
       const servers = await resolveServers({ agentPluginLayout: deps.agentPluginLayout, workspaceId, pluginId: installed.pluginId });
       const result = await provisionServers({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer,
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, { workspaceId, pluginId: installed.pluginId, servers, principalId: actor });
-      if (result.failed.length) throw new Error('Plugin MCP reprovisioning failed; the update will be rolled back.');
+      // A named refusal, so the route answers 409 with this code rather than a redacted 500. The lifecycle
+      // owner rolls the update back before it rethrows this, so the message can say so.
+      if (result.failed.length) throw new AgentPluginUpdateError({ code: 'PLUGIN_MCP_PROVISION_FAILED', message: 'The new version\'s MCP servers could not be set up; the previous version was restored.' });
     },
     notifyRosterChanged: async () => notify(),
     setEnabled: unsupported,

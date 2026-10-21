@@ -97,6 +97,8 @@ test("agent_plugins_update: a newer zip updates the plugin, keeps it enabled, an
     assert.equal(result.enabled, true);
     assert.deepEqual(result.warnings, []);
     assert.deepEqual(result.plugin, { id: PLUGIN, version: "1.1.0" });
+    assert.equal(result.warning, "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant.",
+      "the install trust warning, without 'stays OFF': this plugin stays enabled");
     assert.match(String(result.note), /Memory is kept/);
     assert.deepEqual(snapshots, [{ workspaceId: WORKSPACE, pluginId: PLUGIN }]);
   });

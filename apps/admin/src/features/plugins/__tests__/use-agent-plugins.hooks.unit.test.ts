@@ -258,3 +258,25 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     expect(byId.get("tovu-deploy-fly")).toBe(true);
   });
 });
+
+describe("useAgentPlugins — onInstalled", () => {
+  it("an update replaces its row in place, keeping the list's order", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE, OTHER_PLUGIN] });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
+
+    act(() => result.current.onInstalled({ ...SITE_COMPLIANCE, version: "1.1.0" }));
+
+    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => [plugin.pluginId, plugin.version])).toEqual([["site-compliance", "1.1.0"], ["tovu-deploy-fly", "1.0.0"]]));
+  });
+
+  it("a fresh install is appended after the existing rows", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE] });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
+
+    act(() => result.current.onInstalled(OTHER_PLUGIN));
+
+    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => plugin.pluginId)).toEqual(["site-compliance", "tovu-deploy-fly"]));
+  });
+});

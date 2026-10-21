@@ -296,11 +296,16 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted interna
   const deps = createRouteDeps();
   const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(deps), t);
   const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/layout"); });
+  const logged = t.mock.method(console, "error", () => undefined);
   const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
   const response = await upload(baseUrl, cookie, archive);
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { code: "INTERNAL_ERROR", error: "internal error" });
   assert.equal(fault.mock.callCount(), 1);
+  // Redacted for the client, so the operator's log is the only place the cause survives.
+  assert.equal(logged.mock.callCount(), 1);
+  assert.equal(logged.mock.calls[0]!.arguments[0], "[agent-plugins] install/update request failed");
+  assert.match(String((logged.mock.calls[0]!.arguments[1] as Error).message), /private \/secret\/layout/);
 });
 
 for (const oversized of ["file", "entries"] as const) {

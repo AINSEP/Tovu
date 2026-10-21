@@ -81,6 +81,7 @@ describe("AgentPluginUpdateControl", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("heading", { name: "Update Note Taker" })).toHaveAttribute("id", "row-note-taker-update-title");
     expect(screen.queryByRole("checkbox", { name: "Replace existing version" })).toBeNull();
+    expect(screen.queryByText("Replaces the installed version with a newer one. Older versions are refused.")).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Plugin URL" })).toBeNull();
     await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip());
     const submit = screen.getByRole("button", { name: "Update" });
@@ -116,6 +117,7 @@ describe("AgentPluginUpdateControl", () => {
     ["PLUGIN_BUNDLED", "Plugins that ship with Tovu update with Tovu."],
     ["PLUGIN_UPDATE_PENDING", "An earlier update is still being recovered. Restart Tovu and try again."],
     ["PLUGIN_HOST_INCOMPATIBLE", "This plugin is not made for this Tovu version."],
+    ["PLUGIN_MCP_PROVISION_FAILED", "The new version's MCP servers could not be set up; the previous version was restored."],
     ["UPDATE_JOURNAL_INVALID", "Could not update the plugin. Try again."],
   ])("a 409 %s refusal reads in plain words, never the server's text", async (code, message) => {
     const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { failWith: new ApiError("server english", 409, code) });
@@ -199,6 +201,8 @@ describe("plugins-i18n — every lifecycle string is translated in every locale"
     "An earlier update is still being recovered. Restart Tovu and try again.", "This plugin is not made for this Tovu version.",
     "Could not update the plugin. Try again.", "This package has no release version to compare.",
     "Same version number as the installed one, with different contents.",
+    "The new version's MCP servers could not be set up; the previous version was restored.",
+    "Replaces the installed version with a newer one. Older versions are refused.",
   ];
   const LOCALES = ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"];
 

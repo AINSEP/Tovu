@@ -10,7 +10,7 @@ import type { ToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../../contracts/headless/plugin-install-source.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
-import { AgentPluginUploadError, isAgentPluginId, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
+import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, isAgentPluginId, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { agentPluginActivations } from "./activation-effects.js";
 import { bundledAgentPluginsSourceRoot, listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
@@ -35,7 +35,7 @@ export const catalog: AgentToolDefinition[] = [{
   description: "Installs an AGENT plugin (plugin.json). Choose one source: kind:'zip' with attachmentRef (from chat_list_pending_attachments) or an absolute path; " +
     "kind:'folder' with a local absolute path (packed like an admin folder upload); or kind:'bundled' with bundledId (a plugin shipped with Tovu, e.g. ui-ux-design): no file, never search the disk for it. " +
     "ZIPs and folders preview the full package before installing and carry the unverified-publisher trust warning. Installed OFF. An already installed bundled id is a no-op. " +
-    "replace:true replaces the same plugin ID's disabled operator-installed version, preserving memory. " +
+    "replace:true replaces the same plugin ID's disabled operator-installed version, preserving memory; older versions are refused (no downgrades). " +
     "Bundled or enabled versions cannot be replaced. Enable afterwards with plugins_set_enabled (family 'agent-plugin'). Does not install site plugins, themes or standalone skills.",
   sideEffects: "mutates-durable-state", authorization: { permission: "admin.plugins.enable" },
   inputSchema: { type: "object", additionalProperties: false, required: ["source"], properties: {
@@ -130,8 +130,11 @@ async function updateArchivePlugin(
       ...(deps.snapshotAgentPluginSettings ? { snapshotSettings: deps.snapshotAgentPluginSettings } : {}),
       mcpProvisioning: updateMcpEffects({ deps, actor: ctx.principal.id }),
     });
+    // No preview here: its replace checks refuse an enabled plugin, which an update keeps enabled.
+    // The trust warning is the same static text install's preview carries, minus "stays OFF".
     return { updated: !result.alreadyInstalled, alreadyInstalled: result.alreadyInstalled, enabled: result.enabled ?? null, warnings: result.warnings ?? [],
       plugin: { id: result.plugin.pluginId, ...(result.plugin.version ? { version: result.plugin.version } : {}) },
+      warning: UPLOADED_AGENT_PLUGIN_TRUST_WARNING,
       note: result.alreadyInstalled ? "These exact bytes are already installed; nothing changed."
         : "Updated. Memory is kept. Running chats keep the guidance they already loaded; MCP calls in progress may fail." };
   } catch (error) {

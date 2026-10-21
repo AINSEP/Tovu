@@ -88,9 +88,10 @@ function readUpdateTarget(req: Request): { update?: UpdateTarget } | InstallRefu
 }
 
 /** The installer's optional ports; an update adds its MCP effects and settings-snapshot owner. */
-function installOptions(deps: AgentPluginsRouteDeps, update: UpdateTarget | undefined, actor: string) {
+function installOptions(required: { deps: AgentPluginsRouteDeps; actor: string }, optional: { update?: UpdateTarget } = {}) {
+  const { deps, actor } = required;
   const base = { layout: deps.agentPluginLayout, pluginHost: deps.pluginHost };
-  if (!update) return base;
+  if (!optional.update) return base;
   return { ...base, mcpProvisioning: createAgentPluginUpdateEffects({ deps, actor }), snapshotSettings: deps.snapshotAgentPluginSettings };
 }
 
@@ -109,13 +110,16 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
       const upload = await readZipUpload({ req, res, parseZip });
       if ("status" in upload) return sendRefusal(res, upload);
       const result = await installUploadedAgentPlugin({ ...upload, workspaceId: deps.workspaceId, actor: principal.id, ...target },
-        installOptions(deps, target.update, principal.id));
+        installOptions({ deps, actor: principal.id }, target));
       const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === result.plugin.pluginId);
       // An update replaces an existing row, so it is never 201.
       const status = result.alreadyInstalled || target.update ? 200 : 201;
       res.status(status).json({ alreadyInstalled: result.alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
     } catch (error) {
-      sendRefusal(res, installErrorResponse(error));
+      const refusal = installErrorResponse(error);
+      // A 500 is redacted for the client, so the operator's log is the only place its cause survives.
+      if (refusal.status === 500) console.error("[agent-plugins] install/update request failed", error);
+      sendRefusal(res, refusal);
     }
   };
   app.post("/api/admin/v1/workspaces/:workspaceId/agent-plugins/install/zip", installHandler);
