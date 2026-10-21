@@ -435,3 +435,48 @@ test("nullish reauth input is rejected as a validation error", async () => {
   }
   assert.equal(surfaceExchanges.size(), 0);
 });
+
+/** Raises the notice, applies `whileOpen` to the stored row, then acknowledges it. */
+async function acknowledgeAfter(whileOpen: (repo: InMemoryExternalMcpServerRepo) => Promise<void>) {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
+  const emitted: SurfaceEmission[] = [];
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-ack" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: SERVER_ID } },
+    { emitSurface: async (emission: SurfaceEmission) => { emitted.push(emission); } });
+  await new Promise((resolve) => setImmediate(resolve));
+  await whileOpen(repo);
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emitted[0]!), params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
+  const executed = await pending;
+  assert.equal(executed.status, "completed");
+  return executed.output as { currentStatus: string; note: string };
+}
+
+test("a connection reconnected while the notice was open is reported connected, with a retry-now note", async () => {
+  const output = await acknowledgeAfter(async (repo) => {
+    const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER_ID });
+    assert.ok(row);
+    await repo.upsert({ ...row, oauthStatus: "connected" });
+  });
+  assert.equal(output.currentStatus, "connected");
+  assert.equal(output.note, '"Higgsfield (test)" is reconnected. Retry the original failed call now.');
+});
+
+test("a connection deleted while the notice was open is reported disconnected", async () => {
+  const output = await acknowledgeAfter(async (repo) => {
+    assert.equal(await repo.deleteByServerId({ workspaceId: WORKSPACE, serverId: SERVER_ID }), true);
+  });
+  assert.equal(output.currentStatus, "disconnected");
+  assert.match(output.note, /still 'disconnected'/);
+});
+
+test("the registration's own handler refuses an absent input with the domain's id validation", async () => {
+  const repo = await makeOAuthServerFixture("needs_reauth");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registration = buildExternalMcpReauthRegistrations({ workspaceId: WORKSPACE, externalMcpServerRepo: repo }, { surfaceExchanges })
+    .find((r) => r.descriptor.id === EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID);
+  assert.ok(registration);
+  await assert.rejects(() => registration.handler({ executionId: "exec-1", principal: { id: PRINCIPAL }, run: { id: "run-1" }, input: undefined,
+    signal: new AbortController().signal } as Parameters<typeof registration.handler>[0], {}) as Promise<unknown>,
+  (error: unknown) => error instanceof Error && error.message === `${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
+});

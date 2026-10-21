@@ -1491,3 +1491,56 @@ test('TW3 NAME=VALUE silently drops the __proto__ variable (reported, not fixed)
   assert.equal(Object.hasOwn(json, '__proto__'), true);
   assert.equal(json.__proto__, 'operator-value');
 });
+
+// ---------------------------------------------------------------------------
+// Save-time validation: each malformed field is refused with that field named, and nothing is written
+// ---------------------------------------------------------------------------
+
+function oauthHttpInput(oauth: Record<string, unknown> = {}, overrides: Partial<Parameters<typeof saveExternalMcpServer>[1]> = {}) {
+  return validInput({
+    transport: "streamable_http", command: "", args: "", env: "", url: "https://mcp.example.com/v1", authMode: "oauth",
+    oauth: { providerId: "example", grant: "authorization_code", clientId: "tovu-client", scopes: "read", ...oauth } as never,
+    ...overrides,
+  });
+}
+
+for (const [label, input, field] of [
+  ["an unsupported auth mode", validInput({ authMode: "magic" as never }), "authMode"],
+  ["more than 64 OAuth scopes", oauthHttpInput({ scopes: Array.from({ length: 65 }, (_, i) => `s${i}`).join(" ") }), "oauth.scopes"],
+  ["an unsupported OAuth grant", oauthHttpInput({ grant: "implicit" }), "oauth.grant"],
+  ["an over-long OAuth client id", oauthHttpInput({ clientId: "c".repeat(1025) }), "oauth.clientId"],
+  ["a malformed OAuth provider id", oauthHttpInput({ providerId: "Bad_Provider" }), "oauth.providerId"],
+  ["a stdio OAuth server with no token env name", validInput({ authMode: "oauth", env: "",
+    oauth: { providerId: "example", grant: "authorization_code", clientId: "tovu-client", scopes: "read" } as never }), "oauth.tokenEnvName"],
+  ["a stdio OAuth server with an invalid token env name", validInput({ authMode: "oauth", env: "",
+    oauth: { providerId: "example", grant: "authorization_code", clientId: "tovu-client", scopes: "read", tokenEnvName: "1BAD" } as never }), "oauth.tokenEnvName"],
+  ["a remote URL that does not parse", oauthHttpInput({}, { authMode: "none", oauth: undefined, url: "not a url" }), "url"],
+  ["a whitespace-only environment block", validInput({ env: "   " }), "env"],
+  ["an environment line whose value exceeds the token limit", validInput({ env: `GITHUB_TOKEN=${"x".repeat(8193)}` }), "env"],
+  ["a JSON environment block that is not valid JSON", validInput({ env: "{ not json" }), "env"],
+  ["an over-long OAuth client secret", oauthHttpInput({ clientSecret: "s".repeat(8193) }), "oauth.clientSecret"],
+  ["a stdio access token with an invalid env var name", validInput({ authMode: "static_env", env: "",
+    accessToken: ["tok", "en", "-value"].join(""), accessTokenEnvName: "1BAD" } as never), "accessTokenEnvName"],
+] as const) {
+  test(`saving ${label} is refused naming '${field}', and writes nothing`, async () => {
+    const { deps, repo } = makeDeps();
+    await assert.rejects(
+      () => saveExternalMcpServer(deps, input as Parameters<typeof saveExternalMcpServer>[1]),
+      (err: unknown) => err instanceof ExternalMcpValidationError && err.field === field,
+    );
+    assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
+  });
+}
+
+test("a save from a caller that predates writeAllowedToolNames degrades to no write grants, not a throw", async () => {
+  const { deps, repo } = makeDeps();
+  const { writeAllowedToolNames: _omitted, ...legacy } = validInput();
+  await saveExternalMcpServer(deps, legacy as Parameters<typeof saveExternalMcpServer>[1]);
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(record);
+  const { readExternalMcpToolGrants } = await import("../external-mcp-store.js");
+  assert.deepEqual(readExternalMcpToolGrants(record), {
+    allowedToolNames: ["search_repositories", "get_file_contents"],
+    writeAllowedToolNames: [],
+  });
+});

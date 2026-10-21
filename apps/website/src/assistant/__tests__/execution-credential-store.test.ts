@@ -506,3 +506,29 @@ test('TW3 execution settings-only creation, partial update and explicit provider
   assert.equal(changed.masked, '••••1234');
   assert.deepEqual((await repo.findByWorkspaceAndPrincipal(scope))?.sealed, stored?.sealed);
 });
+
+/** A keyring whose failure is a bare (non-Error) rejection value, as some native bindings produce. */
+class NonErrorKeyring implements KeyringPort {
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    throw "keyring offline";
+  }
+  async deriveSigningSecret(): Promise<Uint8Array> {
+    throw "keyring offline";
+  }
+  async derive(): Promise<Uint8Array> {
+    throw "keyring offline";
+  }
+}
+
+test("a non-Error seal failure still fails closed with the distinct error, carrying the raw reason", async () => {
+  const { repo } = makeDeps();
+  const keyring = new NonErrorKeyring();
+  await assert.rejects(
+    () => setExecutionCredential(
+      { repo, sealer: new AesGcmSecretSealer(keyring), keyring, clock },
+      { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "would-be-a-real-key" }
+    ),
+    (error: unknown) => error instanceof ExecutionCredentialSecretStoreUnconfiguredError && /keyring offline/.test(error.message),
+  );
+  assert.equal(await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
+});

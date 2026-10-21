@@ -61,6 +61,15 @@ test("with nothing retired, nothing is rewritten", () => {
   assert.equal(rewrite(untouched), untouched);
 });
 
+test("a registration with no description keeps it absent while its schema text is still rewritten", () => {
+  const rewrite = createRetiredReadToolIdRewriter({ retiredIds: MENU_RETIRED });
+  const source = { descriptor: { id: "probe_tool", inputSchema: { type: "object", properties: { menuId: { type: "string", description: "From menus_get_menu." } } } },
+    handler: async () => ({}), policy: {} } as unknown as ToolRegistration;
+  const out = rewrite(source);
+  assert.equal(out.descriptor.description, undefined);
+  assert.deepEqual(out.descriptor.inputSchema, { type: "object", properties: { menuId: { type: "string", description: "From content_read.menu." } } });
+});
+
 test("SINK AUDIT: in the real assistant catalog no published description or input-schema text names a retired read tool", () => {
   const contributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),

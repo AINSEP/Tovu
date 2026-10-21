@@ -282,7 +282,7 @@ function runSearchTools(
  */
 function runDescribeTool(
   { catalog, args, audit }: { catalog: ToolCatalogQuery; args: Record<string, unknown>; audit: MetaToolCatalogAudit | undefined },
-  { exposure }: { exposure?: ToolExposure } = {},
+  { exposure }: { exposure?: ToolExposure },
 ): ByokMetaToolResult {
   const id = typeof args.id === "string" ? args.id.trim() : "";
   if (id.length === 0) return err("'id' is required and must be a non-empty string.");

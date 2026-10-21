@@ -68,13 +68,27 @@ function toEntry(manifest: InteractiveComponentManifest): ComponentCatalogEntry 
  * @complexity O(m + p) per snapshot (m manifests, p admitted providers); callers cache by generation.
  * @example chartCatalogManifests({ snapshot });
  */
+/**
+ * Projects the admin snapshot into the chart-provider registry's provider shape for server-side
+ * selection only. Every `load` refuses: chart provider code is a browser bundle, and the server only
+ * needs ids/kinds to pick which provider a manifest advertises.
+ *
+ * @complexity O(p) in snapshot providers.
+ */
+export function serverSideChartProviders(
+  { snapshot }: { snapshot: AdminChartProviderSnapshot },
+  _options: Record<string, never> = {},
+) {
+  return snapshot.providers.map(({ id, kinds }) => ({
+    id, kinds, enabled: true, load: () => Promise.reject(new Error("chart providers load in the browser only")),
+  }));
+}
+
 export function chartCatalogManifests(
   { snapshot }: { snapshot: AdminChartProviderSnapshot },
   _options: Record<string, never> = {},
 ): readonly InteractiveComponentManifest[] {
-  const registry = createChartProviderRegistry({ providers: snapshot.providers.map(({ id, kinds }) => ({
-    id, kinds, enabled: true, load: () => Promise.reject(new Error("chart providers load in the browser only")),
-  })) });
+  const registry = createChartProviderRegistry({ providers: serverSideChartProviders({ snapshot }) });
   return ALL_MANIFESTS.map((manifest) => {
     const capability = manifest.capabilities.includes("chart") ? manifest.capabilities.find((c) => c.endsWith("-chart")) : undefined;
     if (!capability) return manifest;

@@ -121,6 +121,24 @@ function readActionPayload(params: Record<string, unknown>): ActionMessagePayloa
 }
 
 /**
+ * Validates an outgoing message against its own schema before it goes out over the wire — same
+ * dogfooding `examples/reference-web/src/daemon.ts`'s `runA2uiDemo` does, so a typo in one of the
+ * handler's literal messages fails loudly here instead of reaching the renderer as a message it then
+ * has to reject.
+ *
+ * @returns The parsed message, exactly what the renderer will receive.
+ * @throws Error naming this tool and the schema failure when `message` is not a valid A2UI message.
+ * @complexity O(message size) for the schema parse.
+ */
+export function validateDemoA2uiMessage({ message }: { message: unknown }, _options: Record<string, never> = {}): AgentToRendererMessage {
+  const validated = parseAgentToRendererMessage({ raw: message });
+  if (!validated.ok) {
+    throw new Error(`${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: ${validated.message}`);
+  }
+  return validated.message;
+}
+
+/**
  * Builds the result for a turn that never produced an action — expired, or the exchange was
  * abandoned (a cancelled run, or a human who navigated away). Mirrors
  * `demo-choices-tool.ts#describeSelections`'s sibling `answer.status !== "received"` branch:
@@ -176,16 +194,9 @@ export function buildDemoA2uiRegistrations(
       // to smuggle it through. `a2ui-actions-route.ts` cross-checks exactly this equality.
       const surfaceId = exchange.id;
 
-      /** Validates every outgoing message against its own schema before it goes out over the wire —
-       * same dogfooding `examples/reference-web/src/daemon.ts`'s `runA2uiDemo` does, so a typo in one
-       * of the literal messages below fails loudly here instead of reaching the renderer as a
-       * message it then has to reject. */
+      /** Validates every outgoing message (see {@link validateDemoA2uiMessage}) before it goes out. */
       const emitA2ui = async (message: AgentToRendererMessage): Promise<void> => {
-        const validated = parseAgentToRendererMessage({ raw: message });
-        if (!validated.ok) {
-          throw new Error(`${DEMO_A2UI_TOOL_ID}: refusing to emit a message that fails its own schema: ${validated.message}`);
-        }
-        await emitSurface({ channel: "a2ui", payload: { message: validated.message } });
+        await emitSurface({ channel: "a2ui", payload: { message: validateDemoA2uiMessage({ message }) } });
       };
 
       const closeOnAbort = () => exchange.close({});

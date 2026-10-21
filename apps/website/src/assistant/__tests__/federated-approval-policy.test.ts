@@ -170,3 +170,14 @@ test('policy approval checks the same connection permission before asking and af
   await assert.rejects(built.registrations[0].handler(ctx()),{message:"principal 'owner' is not authorized for 'admin.integrations.manage' (denied)"});
   assert.equal(approvals,1,'a denied principal never opens a card');
 });
+
+test('restore-over-existing cards are marked dangerous with their own wording; an unclassified call keeps the generic card', () => {
+  const base = { toolId: 'mcp__test__action', remoteName: 'action', connectionId: 'test', connectionLabel: 'Test', arguments: {}, destructive: true,
+    declaredAnnotations: undefined, origin: undefined, description: '', inputSchema: { type: 'object' }, writeShapedInputs: [],
+  };
+  const restore = buildFederatedCallConfirmSpec({ ...base, approvalClass: 'restore-over-existing' }, { offerChat: true, offerAlways: true });
+  assert.equal(restore.danger, true);
+  assert.equal(restore.warning, 'This action restores over existing data in Test. Approval applies to this call only.');
+  const generic = buildFederatedCallConfirmSpec(base as Parameters<typeof buildFederatedCallConfirmSpec>[0]);
+  assert.doesNotMatch(String(generic.warning ?? ''), /Approval applies to this call only/);
+});

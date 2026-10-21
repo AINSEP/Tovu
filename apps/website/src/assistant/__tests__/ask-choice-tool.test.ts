@@ -521,3 +521,22 @@ test('canonical flat questions use the shared model schema and keep authenticate
   const forged = await executeRegisteredTool({ registration, input: { choice: 'Now', [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
   assert.equal(forged.errorKind, 'validation');
 });
+
+test("a checklist's hint is rendered with the multi-select field it describes", async () => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const handler = buildHandler(surfaceExchanges);
+  const emitted: unknown[] = [];
+  const pending = call(handler, {
+    input: {
+      title: "Extras",
+      multiSelect: { label: "Notify", hint: "Pick every channel that should hear about it", options: [{ value: "email", label: "Email" }] },
+    },
+    emitSurface: async (s) => void emitted.push(s),
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  assert.match(html, /Pick every channel that should hear about it/);
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, selections: ["email"] } }, { toolId: ASK_CHOICE_TOOL_ID });
+  assert.deepEqual((await pending as { selections: unknown }).selections, ["email"]);
+});
