@@ -6,6 +6,7 @@ import { createSiteShareBackend } from "#src/features/site-backup/share-backend"
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
 import { rebuildImportDatabase } from "#src/platform/db/sqlite/import-database";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
+import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import * as importYauzl from "yauzl";
@@ -2795,7 +2796,8 @@ async function composeSiteRouteDeps(
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
       routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
-        startSite: input => importSupervisor.start(input),
+        // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
+        startSite: input => startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }),
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",
       }, { report: ({ importId, status }) => console.info("[site-import]", importId, status) });
     }

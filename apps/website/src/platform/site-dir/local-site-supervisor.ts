@@ -195,3 +195,21 @@ function recordProbe({ entry, ready, readyAttempts }: { entry: Entry; ready: boo
   if (entry.state.status === "running" && entry.misses >= 3) return "crash";
   return "again";
 }
+
+/** Start a site and wait until its server answers, so a caller that hands out `adminUrl` (site import's
+ * "Open" link) never links to a port that is still booting. Returns the latest state once it leaves
+ * `starting`, or the still-starting state after `attempts` waits (callers stay under the admin
+ * client's 60 s request timeout; the supervisor keeps probing either way).
+ * @complexity O(attempts × s) — one bounded `list()` scan per wait.
+ */
+export async function startLocalSiteWhenRunning(
+  { supervisor, name }: { supervisor: Pick<LocalSiteSupervisorPort, "start" | "list">; name: string },
+  { attempts = 90, intervalMs = 500, sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)) }: { attempts?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<LocalSiteState> {
+  let state = await supervisor.start({ name });
+  for (let waits = 0; state.status === "starting" && waits < attempts; waits++) {
+    await sleep(intervalMs);
+    state = supervisor.list().find((entry) => entry.name === name) ?? state;
+  }
+  return state;
+}
