@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "meilisearch",
+  "version": "0.1.0",
+  "description": "Runs the site's visitor search on a Meilisearch server (self-hosted or Meilisearch Cloud) instead of Tovu's built-in search. Ships the search provider itself (Tovu loads it only because Tovu shipped it) and the know-how to connect it. Meilisearch receives PUBLIC content only: published, publicly visible titles, text and URLs. Members-only or otherwise restricted content is never sent to it and stays in Tovu's built-in search.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Powers your site's search with Meilisearch. Only public content is sent to it.",
+      "id": "tovu/meilisearch",
+      "provides": [
+        "site-search"
+      ]
+    }
+  },
+  "keywords": [
+    "meilisearch",
+    "search",
+    "site-search",
+    "full-text-search",
+    "typo-tolerance",
+    "search-engine"
+  ]
+}
