@@ -1,5 +1,9 @@
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import express from "express";
 import { createNativeAgentRuntime, type DetectedAgent } from "@jini-ai/agent-runtime";
@@ -129,15 +133,48 @@ test("test-agent refuses another workspace before authorizing or probing", async
   assert.equal(probes, 0);
 });
 
-test("test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired; an unknown id is reported not found", async () => {
-  const app = express();
-  registerAdminAssistantTestAgentRoute(app, dependencies({}));
-  const { res, capture } = createCapturingResponse();
-  res.locals.principal = { id: "principal-test" };
+/** A shell stub answering the codex def's version and auth probes; every other probe fails. */
+const FAKE_CODEX = `#!/bin/sh
+case "$1" in
+  --version) echo "codex-cli 9.9.9" ;;
+  login) echo "Logged in using an API key" ;;
+  *) exit 1 ;;
+esac
+`;
+
+/** Runs the route in a child whose PATH holds only `binDir`, so the default detector sees exactly that. */
+const DEFAULT_DETECTOR_CHILD = `
+import express from "express";
+const { registerAdminAssistantTestAgentRoute } = await import(process.env.ROUTE_URL);
+const app = express();
+registerAdminAssistantTestAgentRoute(app, { workspaceId: "w", authorize: async () => ({ allowed: true, reason: "granted" }) });
+const layer = app._router.stack.find((l) => l.route?.path?.endsWith("/test-agent"));
+const res = { locals: { principal: { id: "p" } }, statusCode: 200, status(code) { this.statusCode = code; return this; },
+  json(body) { process.stdout.write(JSON.stringify({ status: this.statusCode, body })); } };
+await layer.route.stack.at(-1).handle({ params: { workspaceId: "w" }, body: { agentId: process.env.AGENT_ID } }, res);
+`;
+
+function runDefaultDetector({ binDir, home, agentId }: { binDir: string; home: string; agentId: string }, _options = {}) {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", DEFAULT_DETECTOR_CHILD], {
+    cwd: process.cwd(), encoding: "utf8", timeout: 60_000,
+    env: { PATH: binDir, HOME: home, TSX_TSCONFIG_PATH: process.env.TSX_TSCONFIG_PATH ?? "", AGENT_ID: agentId,
+      ROUTE_URL: new URL("../test-agent.ts", import.meta.url).href },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout) as { status: number; body: unknown };
+}
+
+test("test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH)", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "test-agent-default-detector-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const binDir = path.join(root, "bin"); const home = path.join(root, "home");
+  await mkdir(binDir, { recursive: true }); await mkdir(home, { recursive: true });
+  await writeFile(path.join(binDir, "codex"), FAKE_CODEX, { mode: 0o755 });
+  assert.deepEqual(runDefaultDetector({ binDir, home, agentId: "codex" }), {
+    status: 200, body: { ok: true, message: "Codex CLI codex-cli 9.9.9 is installed and authenticated." },
+  });
   // No catalog entry has this id, so the verdict is the same whichever real CLIs this host has.
-  await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
-    params: { workspaceId: "workspace-test" }, body: { agentId: "no-such-agent-cli" },
-  }, res);
-  assert.equal(capture.statusCode, 200);
-  assert.deepEqual(capture.jsonBody, { ok: false, message: "'no-such-agent-cli' was not found on this server's PATH." });
+  assert.deepEqual(runDefaultDetector({ binDir, home, agentId: "no-such-agent-cli" }), {
+    status: 200, body: { ok: false, message: "'no-such-agent-cli' was not found on this server's PATH." },
+  });
 });
