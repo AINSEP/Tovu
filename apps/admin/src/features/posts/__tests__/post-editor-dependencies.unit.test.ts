@@ -63,6 +63,17 @@ describe("post editor dependencies — live list and rendition bindings, fake li
     expect(calls).toEqual([expect.stringMatching(/\/workspaces\/workspace-local\/posts$/)]);
   });
 
+  it("uploads media through the admin API's media endpoint", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init });
+      return new Response(JSON.stringify({ media: { id: "m1" } }), { status: 201, headers: { "content-type": "application/json" } });
+    }));
+    await expect(defaultPostEditorPort.uploadMedia({ filename: "a.png", dataBase64: "AA==" } as never)).resolves.toEqual({ media: { id: "m1" } });
+    expect(requests[0]?.url).toMatch(/\/workspaces\/workspace-local\/media$/);
+    expect(requests[0]?.init?.method).toBe("POST");
+  });
+
   it("builds the cover preview's resized rendition URL with an encoded id", () => {
     expect(defaultFeaturedImageRenditionUrl("media/1")).toMatch(/\/m\/media%2F1\/public\.v1\/image\.jpg$/);
   });
