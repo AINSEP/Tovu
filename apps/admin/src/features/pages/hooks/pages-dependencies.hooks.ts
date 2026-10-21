@@ -17,11 +17,10 @@ export const defaultPagesPort: PagesPort = {
 
 const FAKE_WORKSPACE_ID = "fake-ws";
 
-/** `id` is required: the one caller (`createPage`) always mints one, so the old
- *  `overrides.id ?? "fake-page-1"` default had no reachable path. */
+/** `id` is required (and lands via the `...overrides` spread): the one caller (`createPage`)
+ *  always mints one, so the old `id: overrides.id ?? "fake-page-1"` default had no reachable path. */
 function fakePage(overrides: Partial<AdminPost> & { id: string }): AdminPost {
   return {
-    id: overrides.id,
     workspaceId: FAKE_WORKSPACE_ID,
     kind: "page",
     title: "Untitled",

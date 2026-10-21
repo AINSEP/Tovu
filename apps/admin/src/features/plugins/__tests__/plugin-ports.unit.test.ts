@@ -90,7 +90,7 @@ describe("createFakeAgentPluginsPort", () => {
 });
 
 describe("createFakePluginsPort refusals mirror the real routes", () => {
-  const userPlugin = { id: "user", source: "installed", enabled: false } as AdminPlugin;
+  const userPlugin = { id: "user", source: "site", enabled: false } as AdminPlugin;
   const builtIn = { id: "core", source: "built-in", enabled: false } as AdminPlugin;
 
   it("refuses to toggle an unknown plugin", async () => {

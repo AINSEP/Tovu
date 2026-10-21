@@ -555,7 +555,7 @@ describe("useMenuEditor — remaining controller contracts", () => {
   });
 
   it("copies the embed through the browser clipboard when none is injected", async () => {
-    const writeText = vi.fn(async () => {});
+    const writeText = vi.fn(async (_text: string) => {});
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     try {
       const port = createFakeMenusPort({ menus: [MENU] });
