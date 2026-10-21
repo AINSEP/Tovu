@@ -21,7 +21,8 @@ describe("legacy media cards", () => {
       return new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
     }));
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);
-    const title = await screen.findByText("Metadata photo");
+    // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
+    const title = await screen.findByRole("button", { name: "Metadata photo.png" });
     const card = title.closest(".media-card")!;
     const line = card.querySelector(".media-card-size")!;
     expect(line).toHaveTextContent("9.5 MB · Oct 4, 2026");
