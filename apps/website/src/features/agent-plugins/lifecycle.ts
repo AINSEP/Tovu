@@ -28,7 +28,7 @@ import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, fo
 export {
   AgentPluginInstallError, AgentPluginNotFoundError, AgentPluginNotUninstallableError,
   AgentPluginChangedSincePreviewError, PackagePathViolation, BUNDLED_DIGESTS_FILENAME,
-  defineExecutablePluginContribution,
+  defineExecutablePluginContribution, defineProviderContribution, contributeProviders,
 } from "@jini-ai/agent-plugins/lifecycle";
 export type {
   AgentPluginInstallErrorCode, InstalledAgentPluginSkill, InstalledAgentPlugin,

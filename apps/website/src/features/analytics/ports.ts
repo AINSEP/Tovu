@@ -10,11 +10,14 @@
  *
  * Port decisions (ADR-006 rule-of-two — a port needs two plausible adapters, one built now):
  * - `AnalyticsSinkPort` (WRITE seam): the ingest beacon hands each normalized, PII-free hit to
- *   this port. Adapters: `@jini-ai/analytics` LocalBufferSink (writes only the process-local raw buffer) built now
- *   / `ForwardingSink` (normalizes + forwards to an external collector via `HttpClientPort`)
- *   named-next. This is the seam that makes "bring your own external analytics" (the Tier-3
- *   replaceability the §3.5 placement rule wants) real without a repaint — the honest analogue
- *   of ADR-027's `BlobStorePort` (local now, S3 named-next).
+ *   this port. Adapters: `@jini-ai/analytics` LocalBufferSink (process-local) and the durable
+ *   `SqliteBufferSink`. This is the seam that makes "bring your own external analytics" (the
+ *   Tier-3 replaceability the §3.5 placement rule wants) real without a repaint — the honest
+ *   analogue of ADR-027's `BlobStorePort` (local now, S3 named-next). The once named-next
+ *   `ForwardingSink` landed (2026-10-21) as `@jini-ai/analytics` vendor FORWARDERS behind a
+ *   fan-out sink, not as a replacement sink: the built-in sink always stays the primary, and the
+ *   per-site `core.analytics.sink` setting adds one plugin-contributed vendor next to it
+ *   (`forwarding.ts`, `.cloud-coord/analytics-DESIGN.md`).
  * - `AnalyticsRepoPort` (STORAGE): read + core-only write over the aggregate/time-series
  *   tables, satisfied by the standard in-memory + SQLite adapter pair (ADR-015), same as every
  *   feature repo. There is deliberately NO `StatsQueryPort`: reads are ordinary core code, with
@@ -149,6 +152,8 @@ export interface AnalyticsConfigPort {
  * (ADR-024 §3): a plugin hook may run out-of-process. `beforeIngest` may annotate or DROP a hit
  * (return `null`) — e.g. exclude internal traffic; it can never see PII because it only ever
  * receives an already-normalized hit.
+ * Wired 2026-10-21: plugin `tovu-analytics-hooks.json` contributions are chained by
+ * `forwarding.ts#createPluginAnalyticsHooks` and reach the beacon route.
  */
 export interface AnalyticsHooks {
   beforeIngest(hit: NormalizedHit): Promise<NormalizedHit | null>;

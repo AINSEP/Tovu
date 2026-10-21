@@ -44,6 +44,7 @@ import type { SiteDisplayNameSource, SiteTitlePreservationStorePort } from "../.
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
+import type { AnalyticsForwardingRequired, AnalyticsProviderSet } from "../../features/analytics/forwarding.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -944,7 +945,18 @@ export interface AnalyticsDeps {
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
-   * Resolves once the one-time `ensureAnalyticsSettingDefinitions()` boot call registers the 6
+   * Plugin-contributed vendor forwarders + `beforeIngest` hooks (`features/analytics/forwarding.ts`,
+   * `.cloud-coord/analytics-DESIGN.md`). Real composition only: the hermetic root leaves it absent,
+   * so its beacon keeps the built-in sink alone and no hooks — the pre-forwarding path.
+   */
+  analyticsProviders?: {
+    /** Cached (`cacheAnalyticsProviders`) — the beacon reads it per request. */
+    load: () => Promise<AnalyticsProviderSet>;
+    resolveCredential: AnalyticsForwardingRequired<unknown>["resolveCredential"];
+    httpClient: AnalyticsForwardingRequired<unknown>["httpClient"];
+  };
+  /**
+   * Resolves once the one-time `ensureAnalyticsSettingDefinitions()` boot call registers the 7
    * `core.analytics.*` setting definitions backing `analyticsConfig`. Same shape/convention as
    * `settingsUiTabsReady`, chained after it in both composition roots for the identical
    * single-SQLite-connection-transaction reason every registration above documents.

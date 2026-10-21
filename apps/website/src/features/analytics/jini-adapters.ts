@@ -1,6 +1,10 @@
 /** Tovu ports/presets around the shared ingestion engine; no normalization or buffer logic lives here. */
 import {
+  createFanOutAnalyticsSink,
   LocalBufferSink,
+  type AnalyticsForwardLimiter,
+  type AnalyticsForwardReport,
+  type BoundAnalyticsForwarder,
   type AnalyticsPrivacyPolicy,
   type AnalyticsSaltContext,
   type IngestHitDeps,
@@ -34,30 +38,46 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 export interface AnalyticsIngestRouteDeps extends IngestDeps {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
   analyticsSeed: string;
+  /**
+   * Per-request vendor forwarders (site `core.analytics.sink` + visitor consent, `forwarding.ts`).
+   * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.
+   */
+  forwarders?: (required: { request: unknown }) => Promise<readonly BoundAnalyticsForwarder[]>;
 }
+
+/** Vendor failures are logged by forwarder id and outcome only — never the hit or a payload. */
+const reportForwardFailure: AnalyticsForwardReport = ({ forwarderId, outcome, message }) =>
+  console.warn(`[analytics] forward to '${forwarderId}' ${outcome}: ${message}`);
 
 /**
  * Convert host ports to the package's object arguments and supply explicit host policy/context.
  * Hooks receive only normalized hits; adapter failures propagate to the HTTP error boundary.
+ * `optional.forwarders` (already consent-checked for this request) receive minimised hits after
+ * the built-in sink accepts; their failures are logged, never propagated. `optional.limiter` is the
+ * route's shared in-flight cap (sinks are built per request, so the cap must outlive them).
  * @returns Required Jini deps and separate optional hooks, without invoking any port.
  * @example const { deps, optional } = createAnalyticsIngestBinding({ deps: hostDeps });
  * @complexity O(1).
  */
 export function createAnalyticsIngestBinding(
   required: { deps: AnalyticsIngestRouteDeps },
-  _optional: Record<string, never> = {},
+  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter } = {},
 ): { deps: IngestHitDeps; optional: IngestHitOptional } {
   const host = required.deps;
   const hooks = host.hooks;
+  // The host's built-in sink stays the awaited primary; forwarders are detached and isolated.
+  const sink = createFanOutAnalyticsSink({
+    primary: {
+      capabilities: () => host.sink.capabilities(),
+      accept: ({ hit }) => host.sink.accept(hit),
+      acceptBatch: ({ hits }) => host.sink.acceptBatch(hits),
+      list: (_required, listOptional) => host.sink.list(listOptional),
+    },
+  }, { forwarders: optional.forwarders ?? [], report: reportForwardFailure, ...(optional.limiter ? { limiter: optional.limiter } : {}) });
   return {
     deps: {
       config: host.config,
-      sink: {
-        capabilities: () => host.sink.capabilities(),
-        accept: ({ hit }) => host.sink.accept(hit),
-        acceptBatch: ({ hits }) => host.sink.acceptBatch(hits),
-        list: (_required, optional) => host.sink.list(optional),
-      },
+      sink,
       resolveWorkspaceForHost: ({ host: siteHost }) => host.resolveWorkspaceForHost(siteHost),
       rootKeySeed: host.analyticsSeed, // site-key-legacy: installed @jini-ai/analytics seed field; remove on/after 2026-11-01
       saltContext: analyticsSaltContext,

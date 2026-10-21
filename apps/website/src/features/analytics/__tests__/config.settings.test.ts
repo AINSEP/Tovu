@@ -57,7 +57,7 @@ async function plantRawWorkspaceValue(
   });
 }
 
-test("ensureAnalyticsSettingDefinitions registers exactly 6 core.analytics definitions, idempotently", async () => {
+test("ensureAnalyticsSettingDefinitions registers exactly 7 core.analytics definitions, idempotently", async () => {
   const settingsRepo = new InMemorySettingsRepo();
   const deps = makeRegistrarDeps(settingsRepo);
   const input = { systemPrincipalId: SYSTEM_PRINCIPAL_ID };
@@ -66,17 +66,17 @@ test("ensureAnalyticsSettingDefinitions registers exactly 6 core.analytics defin
   const firstPass = (await settingsRepo.listActiveDefinitions({ workspaceId: null })).filter(
     (d) => d.namespace === ANALYTICS_NAMESPACE
   );
-  assert.equal(firstPass.length, 6);
+  assert.equal(firstPass.length, 7);
   assert.deepEqual(
     firstPass.map((d) => d.key).sort(),
-    ["enabled", "excludedIpRanges", "excludedPaths", "honorDoNotTrack", "honorGlobalPrivacyControl", "rawRetentionDays"]
+    ["enabled", "excludedIpRanges", "excludedPaths", "honorDoNotTrack", "honorGlobalPrivacyControl", "rawRetentionDays", "sink"]
   );
 
   await ensureAnalyticsSettingDefinitions(deps, input);
   const secondPass = (await settingsRepo.listActiveDefinitions({ workspaceId: null })).filter(
     (d) => d.namespace === ANALYTICS_NAMESPACE
   );
-  assert.equal(secondPass.length, 6, "rerun must not double-register");
+  assert.equal(secondPass.length, 7, "rerun must not double-register");
 });
 
 test("createSettingsAnalyticsConfig().get() falls back to BOOT_ORDERING_FALLBACK when definitions are unregistered", async () => {
@@ -215,4 +215,25 @@ test("createSettingsAnalyticsConfig().get() falls back to the default rawRetenti
   assert.equal(result.rawRetentionDays, 30);
   // Only the malformed field falls back — the rest of resolution is unaffected.
   assert.equal(result.enabled, true);
+});
+
+test("createSettingsAnalyticsConfig().get() reads a stored vendor sink id, trimmed", async () => {
+  const settingsRepo = new InMemorySettingsRepo();
+  await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  await plantRawWorkspaceValue(settingsRepo, "sink", " plausible ");
+  const config = createSettingsAnalyticsConfig({ settingsRepo });
+
+  assert.equal((await config.get({ workspaceId: WORKSPACE_ID })).sink, "plausible");
+  // Per site: another workspace keeps the built-in-only default.
+  assert.equal((await config.get({ workspaceId: "workspace-2" })).sink, "local");
+});
+
+test("createSettingsAnalyticsConfig().get() reads a blank or non-string stored sink as the built-in \"local\"", async () => {
+  for (const stored of ["   ", 7, null]) {
+    const settingsRepo = new InMemorySettingsRepo();
+    await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+    await plantRawWorkspaceValue(settingsRepo, "sink", stored);
+    const config = createSettingsAnalyticsConfig({ settingsRepo });
+    assert.equal((await config.get({ workspaceId: WORKSPACE_ID })).sink, "local", `stored ${JSON.stringify(stored)}`);
+  }
 });

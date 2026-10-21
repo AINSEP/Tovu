@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { ingestHit } from "@jini-ai/analytics";
+import { createAnalyticsForwardLimiter, ingestHit } from "@jini-ai/analytics";
 import { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps } from "#src/features/analytics/jini-adapters";
 import type { IngestBeacon, IngestContext } from "#src/features/analytics/index";
 
@@ -86,13 +86,17 @@ function buildContext(req: Request, receivedAt: string): IngestContext {
  * createApp wires this public route separately from admin RouteDeps.
  */
 export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngestRouteDeps): void {
+  // One cap per route for every request's vendor calls: a beacon flood sheds vendor calls, never local hits.
+  const limiter = createAnalyticsForwardLimiter();
   app.post("/_analytics/e", async (req, res) => {
     const receivedAt = new Date(deps.clock.nowMs()).toISOString();
     const beacon = parseBeacon(req.body, req.hostname ?? "");
     const context = buildContext(req, receivedAt);
 
     try {
-      const binding = createAnalyticsIngestBinding({ deps });
+      // Never throws (fails toward no vendor); resolved before ingest because consent is per request.
+      const forwarders = deps.forwarders ? await deps.forwarders({ request: req }) : [];
+      const binding = createAnalyticsIngestBinding({ deps }, { forwarders, limiter });
       await ingestHit({ input: { beacon, context }, deps: binding.deps }, binding.optional);
     } catch {
       // Never let an ingest-side failure surface to the public beacon caller — see file header.

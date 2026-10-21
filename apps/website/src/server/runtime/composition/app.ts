@@ -144,6 +144,7 @@ import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
+import { analyticsProviderRouteDeps } from "./analytics-providers.js";
 import {
   ConsoleMailerAdapter,
   InMemoryMagicLinkTokenRepo,
@@ -2365,6 +2366,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     config: routeDeps.analyticsConfig,
     resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
     analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
+    ...analyticsProviderRouteDeps(routeDeps),
   });
 
   // ADR-046 Phase 3 (SPEC-034): the public media rendition route now registers earlier, as part of

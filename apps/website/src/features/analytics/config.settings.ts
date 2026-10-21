@@ -6,6 +6,7 @@ import {
   getEffective,
   type SettingsRepoPort,
 } from "../settings/index.js";
+import { LOCAL_ANALYTICS_SINK_ID } from "@jini-ai/analytics";
 import type { AnalyticsConfigPort } from "./ports.js";
 import type { AnalyticsSiteConfig } from "./types.js";
 
@@ -34,13 +35,15 @@ import type { AnalyticsSiteConfig } from "./types.js";
  * first-party visitor analytics (pageviews, the operator's own dashboard),
  * gated on THESE settings, never on vendor consent.
  *
- * NO `sink` KEY IS REGISTERED HERE, deliberately. `AnalyticsSinkKind` is
- * `"local" | "forwarding"`, but no `ForwardingSink` adapter exists
- * (`analytics/ports.ts`'s file header: "named-next", not built) — exposing
- * `sink` as a stored choice would let an operator select an adapter that
- * cannot be constructed, which this project has a standing rule against
- * (controls that lie about what they do). `createSettingsAnalyticsConfig`
- * below always returns the `"local"` literal instead.
+ * `sink` KEY (2026-10-21). Until vendor forwarding existed no `sink` key was
+ * registered, deliberately: exposing it would have let an operator select an
+ * adapter that cannot be constructed (this project's standing rule against
+ * controls that lie about what they do). It lands now together with a
+ * constructible path — the keyed `@jini-ai/analytics` forwarder registry and
+ * its plugin loader (`.cloud-coord/analytics-DESIGN.md`). `"local"` (default)
+ * means the built-in sink only; any other value names a forwarder that
+ * receives hits IN ADDITION to the built-in sink, and an id that is not
+ * installed falls back to built-in only (fail toward not sending data).
  *
  * ADR-PIPE-008 DISCLOSURE (`features/settings/types.ts`'s `SettingValueSchema`
  * doc comment): `{type:"json"}` was, until this file, used exactly once in
@@ -67,13 +70,14 @@ type AnalyticsSettingKey =
   | "honorGlobalPrivacyControl"
   | "rawRetentionDays"
   | "excludedPaths"
-  | "excludedIpRanges";
+  | "excludedIpRanges"
+  | "sink";
 
 /** Narrows the shared spec's open `key: string` to this namespace's own key
  *  union, so a typo here is a compile error rather than a definition
  *  registered under a key nothing reads.
- * The 6 registered `core.analytics.*` definitions. No `sink` key — see this
- *  file's header. Defaults match the values the former `server/app.ts` inline
+ * The 7 registered `core.analytics.*` definitions (`sink` — see this file's
+ *  header). Defaults match the values the former `server/app.ts` inline
  *  stub hardcoded, so upgrading to this adapter changes no behavior. */
 const ANALYTICS_DEFINITIONS: readonly SettingDefinitionSpec<AnalyticsSettingKey>[] = [
   { key: "enabled", schema: { type: "boolean" }, defaultValue: true },
@@ -82,6 +86,7 @@ const ANALYTICS_DEFINITIONS: readonly SettingDefinitionSpec<AnalyticsSettingKey>
   { key: "rawRetentionDays", schema: { type: "number" }, defaultValue: 30 },
   { key: "excludedPaths", schema: { type: "json" }, defaultValue: [] },
   { key: "excludedIpRanges", schema: { type: "json" }, defaultValue: [] },
+  { key: "sink", schema: { type: "string" }, defaultValue: LOCAL_ANALYTICS_SINK_ID },
 ];
 
 export type EnsureAnalyticsSettingDefinitionsDeps = EnsureSettingDefinitionsDeps;
@@ -93,13 +98,13 @@ export interface EnsureAnalyticsSettingDefinitionsInput {
 }
 
 /**
- * Idempotently registers the 6 `core.analytics.*` definitions. Safe to call
+ * Idempotently registers the 7 `core.analytics.*` definitions. Safe to call
  * on every boot. The skip-if-registered loop, the `ownerKind: "core"` /
  * `workspaceId: null` namespace-fence handling, and the boot-trust shim all
  * live in `features/settings/ensure-definitions.ts` — this module owns only
  * the definition list above.
  *
- * @complexity O(1) — 6 definitions, each a skip-if-registered check plus at
+ * @complexity O(1) — 7 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
  */
 export async function ensureAnalyticsSettingDefinitions(
@@ -133,13 +138,13 @@ const BOOT_ORDERING_FALLBACK: Omit<AnalyticsSiteConfig, "workspaceId"> = {
   rawRetentionDays: 30,
   excludedPaths: [],
   excludedIpRanges: [],
-  sink: "local",
+  sink: LOCAL_ANALYTICS_SINK_ID,
 };
 
-/** All 6 keys are registered atomically by `ensureAnalyticsSettingDefinitions`, so a `null`
+/** All 7 keys are registered atomically by `ensureAnalyticsSettingDefinitions`, so a `null`
  *  resolution on ANY of them means the whole namespace is still unregistered (boot ordering — see
  *  `BOOT_ORDERING_FALLBACK`'s doc comment), not a per-field gap. Hoisted into a `.some` scan rather
- *  than a 6-term `||` chain so the caller checks one guard, not a repeated comparison per key. */
+ *  than a 7-term `||` chain so the caller checks one guard, not a repeated comparison per key. */
 function anyEffectiveValueUnregistered(values: ReadonlyArray<Awaited<ReturnType<typeof getEffective>>>): boolean {
   return values.some((value) => value === null);
 }
@@ -153,18 +158,22 @@ function toStringArray(value: JsonValue): readonly string[] {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
+/** A stored sink id, or the built-in `"local"` for anything that is not a non-blank string. */
+function toSinkId(value: JsonValue): string {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : LOCAL_ANALYTICS_SINK_ID;
+}
+
 export interface CreateSettingsAnalyticsConfigDeps {
   settingsRepo: SettingsRepoPort;
 }
 
 /**
  * Builds the real `AnalyticsConfigPort` adapter over the settings ledger,
- * replacing `server/app.ts`'s former hardcoded stub. `get()` reads all 6
+ * replacing `server/app.ts`'s former hardcoded stub. `get()` reads all 7
  * keys via `getEffective` (total, cached, never throws) and recomposes
- * `AnalyticsSiteConfig`; `sink` is always the `"local"` literal (see this
- * file's header — no `sink` key is registered).
+ * `AnalyticsSiteConfig`; a non-string or blank stored `sink` reads as `"local"`.
  *
- * @complexity O(1) per call — 6 independent, parallel `getEffective` reads
+ * @complexity O(1) per call — 7 independent, parallel `getEffective` reads
  * (each itself O(1): cached layer lookups, no scan).
  * @overallScore 100
  */
@@ -182,6 +191,7 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
         read("rawRetentionDays"),
         read("excludedPaths"),
         read("excludedIpRanges"),
+        read("sink"),
       ]);
 
       // Fall back together rather than mixing partially-resolved live values with fallback ones —
@@ -191,10 +201,10 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
       }
 
       // Every element shares the same `getEffective` return type (its shape does not vary by key),
-      // and the guard above has just proven none of the 6 is null — narrowed by cast, not by a
+      // and the guard above has just proven none of the 7 is null — narrowed by cast, not by a
       // per-variable `=== null` check, which is exactly the chain `anyEffectiveValueUnregistered`
       // replaced.
-      const [enabled, honorDoNotTrack, honorGlobalPrivacyControl, rawRetentionDays, excludedPaths, excludedIpRanges] =
+      const [enabled, honorDoNotTrack, honorGlobalPrivacyControl, rawRetentionDays, excludedPaths, excludedIpRanges, sink] =
         resolved as NonNullable<(typeof resolved)[number]>[];
 
       return {
@@ -206,10 +216,7 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
           typeof rawRetentionDays.value === "number" ? rawRetentionDays.value : BOOT_ORDERING_FALLBACK.rawRetentionDays,
         excludedPaths: toStringArray(excludedPaths.value ?? []),
         excludedIpRanges: toStringArray(excludedIpRanges.value ?? []),
-        // No `sink` key is registered (see this file's header) — `ForwardingSink` does not exist,
-        // so exposing sink selection as a stored choice would let an operator pick an adapter that
-        // can't be constructed.
-        sink: "local",
+        sink: toSinkId(sink.value),
       };
     },
   };

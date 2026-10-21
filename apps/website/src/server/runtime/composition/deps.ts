@@ -166,6 +166,8 @@ import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
+import { buildAnalyticsProviders } from "./analytics-providers.js";
+import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
 import {
   SqliteMagicLinkTokenRepo,
   SqliteMemberRepo,
@@ -2349,6 +2351,14 @@ async function composeSiteRouteDeps(
     // inventory flagged.
     analyticsSink: new SqliteBufferSink({ db: kernel, workspaceId: workspaceId }),
     analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
+    // Vendor forwarders + `beforeIngest` hooks from Agent Plugins (`.cloud-coord/analytics-DESIGN.md`).
+    // The durable sink above stays the primary; `core.analytics.sink` = "local" (default) forwards nowhere.
+    // Same egress policy as plugin mail adapters: single-hop HTTPS to a vendor API.
+    analyticsProviders: buildAnalyticsProviders({
+      workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions, clock,
+      findCredential: (input) => resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, input),
+      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    }),
     ...identity,
     principalRepo: settingsPrincipals,
     // Overrides `identity`'s placeholder default (`undefined`/`async () => false`) — see
