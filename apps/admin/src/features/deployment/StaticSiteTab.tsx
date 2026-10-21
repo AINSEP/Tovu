@@ -478,7 +478,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
             <h2 className="card-title">{t({ locale: locale, key: "What a static export gives you" })}</h2>
           </div>
           <div className="card-head-actions">
-            <span className="status status-neutral">{t({ locale: locale, key: "Available from a terminal" })}</span>
+            <span className="status status-neutral">{t({ locale: locale, key: "Available here" })}</span>
           </div>
         </div>
         <div className="deployment-card-body">
