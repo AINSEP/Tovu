@@ -108,11 +108,27 @@ async function loadMediaObjectStore(required: { readonly choice: Exclude<MediaSt
   if (providerId === "local") return required.local();
   const credential = await ports.resolveSharedCredential({ providerId });
   if (!credential) throw new Error(`Media storage '${providerId}' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.`);
-  // The shared connection's bucket is the PUBLIC publish/share bucket; media (drafts included) must
-  // live in a private bucket of its own, so only an explicit `mediaBucket` is ever used.
+  const bucket = privateMediaBucket({ providerId, credential });
+  return createFrom({ loaded: await ports.loadSiteRegistry(), providerId, settings: { bucket, keyPrefix: credential.fields.mediaKeyPrefix }, credential, host: ports.host });
+}
+
+/**
+ * The shared connection's bucket is the PUBLIC publish/share bucket; media (drafts included) must
+ * live in a private bucket of its own, so only an explicit `mediaBucket` is ever used — and one that
+ * names the public bucket again (compared trimmed and case-folded, as bucket names are lowercase) is
+ * refused, or private originals would be written into public storage.
+ * @returns The trimmed `mediaBucket`.
+ * @throws {Error} `mediaBucket` is blank, or is the public `bucket`.
+ * @complexity O(name length).
+ */
+function privateMediaBucket(required: { readonly providerId: string; readonly credential: Credential }): string {
+  const { providerId, credential } = required;
   const bucket = credential.fields.mediaBucket?.trim();
   if (!bucket) throw new Error(`Media storage '${providerId}' needs the connection's 'mediaBucket' field (a private bucket) — the publish bucket is public and is never used for media.`);
-  return createFrom({ loaded: await ports.loadSiteRegistry(), providerId, settings: { bucket, keyPrefix: credential.fields.mediaKeyPrefix }, credential, host: ports.host });
+  if (bucket.toLowerCase() === credential.fields.bucket?.trim().toLowerCase()) {
+    throw new Error(`Media storage '${providerId}' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.`);
+  }
+  return bucket;
 }
 
 /**

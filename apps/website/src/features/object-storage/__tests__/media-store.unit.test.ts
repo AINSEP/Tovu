@@ -338,6 +338,19 @@ test("createMediaBlobStore: a connection without mediaBucket is refused — the 
   assert.equal(calls.site, 0);
 });
 
+test("createMediaBlobStore: a mediaBucket naming the public publish bucket (after trim and case-folding) is refused", async (t) => {
+  const uploadsDir = await tempUploadsDir(t);
+  for (const [bucket, mediaBucket] of [["public-site", "public-site"], ["public-site", " Public-Site "], [" PUBLIC-site", "public-site"]] as const) {
+    const { ports, calls } = fakePorts({
+      readSetting: async () => "s3_compatible",
+      resolveSharedCredential: async () => ({ fields: { accessKeyId: "AK", region: "us-east-1", bucket, mediaBucket }, secret: "s" }),
+    });
+    const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
+    await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 's3_compatible' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.");
+    assert.equal(calls.site, 0, "the provider is never created against the public bucket");
+  }
+});
+
 test("createMediaBlobStore: a whitespace-only mediaBucket counts as absent", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports } = fakePorts({
