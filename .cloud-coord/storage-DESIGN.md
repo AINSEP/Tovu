@@ -58,9 +58,9 @@ interface ObjectStoreProvider<H = unknown> {
 2. Else per-site setting `core.storage.mediaObjectStore` (settings ledger, workspace scope, default `""` →
    registry default `local`).
 3. A non-local setting resolves the **shared credential**: the saved `s3-compatible` connection (the same
-   record shares use). Media writes go to its optional `mediaBucket` field; if absent, media stays
-   refused (loud log, falls back to `local`) — the share/publish bucket is public by design and must not
-   silently hold unpublished media.
+   record shares use). Media writes go to its optional `mediaBucket` field; if absent, every media
+   call rejects with the reason (never a silent fall back to `local`) — the share/publish bucket is
+   public by design and must not hold unpublished media.
 The blob store is resolved once per boot behind a lazy view (boot is sync; plugin/settings reads are
 async). A setting change applies on next restart (documented in the setting description).
 
