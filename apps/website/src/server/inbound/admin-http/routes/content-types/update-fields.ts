@@ -43,7 +43,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       // `write-service.ts`'s CIC U-002-B1 chain — see `field-defs.ts`'s header.
       const fields = parseContentTypeFieldDefs({ value: body.fields });
       if (!fields.ok) {
-        const { status, code } = contentTypeWriteErrorStatus(fields.error);
+        const { status, code } = contentTypeWriteErrorStatus({ error: fields.error });
         res.status(status).json({ error: fields.error.message, code });
         return;
       }
@@ -69,7 +69,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       });
 
       if (!result.ok) {
-        const { status, code } = contentTypeWriteErrorStatus(result.error);
+        const { status, code } = contentTypeWriteErrorStatus({ error: result.error });
         res.status(status).json({ error: result.error.message, code });
         return;
       }

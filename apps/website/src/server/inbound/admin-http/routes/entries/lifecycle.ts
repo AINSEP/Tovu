@@ -65,7 +65,7 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
       });
 
       if (!result.ok) {
-        const { status, code } = entryWriteErrorStatus(result.error);
+        const { status, code } = entryWriteErrorStatus({ error: result.error });
         res.status(status).json({ error: result.error.message, code });
         return;
       }

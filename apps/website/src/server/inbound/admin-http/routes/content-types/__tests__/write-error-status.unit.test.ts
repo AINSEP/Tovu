@@ -38,6 +38,6 @@ const cases: ReadonlyArray<[string, Error, { status: number; code: string }]> = 
 
 for (const [name, error, expected] of cases) {
   test(`contentTypeWriteErrorStatus: ${name} maps to ${expected.status} ${expected.code}`, () => {
-    assert.deepEqual(contentTypeWriteErrorStatus(error), expected);
+    assert.deepEqual(contentTypeWriteErrorStatus({ error }), expected);
   });
 }

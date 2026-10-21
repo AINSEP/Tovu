@@ -16,7 +16,7 @@ import {
  *
  * @complexity O(1).
  */
-export function entryWriteErrorStatus(error: Error): { status: number; code: string } {
+export function entryWriteErrorStatus({ error }: { error: Error }, _optional: Record<string, never> = {}): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
   if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
   if (error instanceof EntryNotFoundError) return { status: 404, code: "ENTRY_NOT_FOUND" };

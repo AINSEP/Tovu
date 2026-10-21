@@ -69,7 +69,7 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
       });
 
       if (!result.ok) {
-        const { status, code } = contentTypeWriteErrorStatus(result.error);
+        const { status, code } = contentTypeWriteErrorStatus({ error: result.error });
         res.status(status).json({ error: result.error.message, code });
         return;
       }

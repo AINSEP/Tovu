@@ -39,7 +39,7 @@ const VALIDATION_ERRORS = [
  *
  * @complexity O(1).
  */
-export function contentTypeWriteErrorStatus(error: Error): { status: number; code: string } {
+export function contentTypeWriteErrorStatus({ error }: { error: Error }, _optional: Record<string, never> = {}): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
   if (error instanceof ContentTypeNotFoundError) return { status: 404, code: "CONTENT_TYPE_NOT_FOUND" };
   if (error instanceof ContentTypeAlreadyExistsError) return { status: 409, code: "CONTENT_TYPE_ALREADY_EXISTS" };
