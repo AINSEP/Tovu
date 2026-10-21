@@ -1038,19 +1038,27 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes it
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
   await grantChatDeletes(deps);
   const surface = createByokToolSurface(deps, { surfaceExchangeStore: store, contributions: firstPartyContributions() });
-  const execute = surface.executeMetaTool.bind(surface);
+  const createRun = surface.createRun.bind(surface);
   let toolSignal: AbortSignal | undefined;
   let resolveFinished!: () => void;
   const finished = new Promise<void>((resolve) => { resolveFinished = resolve; });
-  const observedSurface = {
+  // why: 803ecee9 routes every production turn through createRun()'s per-run executeTool, which
+  // calls the surface's inner executor directly, so the observation wraps that run instead.
+  const observedSurface: ByokToolSurface = {
     ...surface,
-    executeMetaTool: async (...args: Parameters<ByokToolSurface["executeMetaTool"]>) => {
-      toolSignal = args[3];
-      try {
-        return await execute(...args);
-      } finally {
-        resolveFinished();
-      }
+    createRun: (...runArgs: Parameters<ByokToolSurface["createRun"]>) => {
+      const toolRun = createRun(...runArgs);
+      return {
+        ...toolRun,
+        executeTool: async (...args: Parameters<typeof toolRun.executeTool>) => {
+          toolSignal = args[1]?.signal;
+          try {
+            return await toolRun.executeTool(...args);
+          } finally {
+            resolveFinished();
+          }
+        },
+      };
     },
   };
   const { baseUrl } = await bootWithStubSurface(deps, observedSurface, t);

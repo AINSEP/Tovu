@@ -613,6 +613,8 @@ for (const action of ["trash", "purge", "disable"] as const) {
     const f = await setup(`ws-l201-floor-${action}`);
     t.after(() => f.db.$client.close());
     const target = await createBareUser(f, "target");
+    // why: created before the owners are disabled — Jini `createUser` refuses a disabled caller (principal_disabled).
+    const ordinary = await createBareUser(f, "ordinary-without-active-owners");
     const required = { deps: f.identity, workspaceId: f.workspaceId, principalId: target, action };
     await assertUserAccountAction(required);
     await makeOwnerWildcard(f, target);
@@ -624,7 +626,6 @@ for (const action of ["trash", "purge", "disable"] as const) {
     });
     await disablePrincipalDirect(f, target);
     await assertUserAccountAction(required);
-    const ordinary = await createBareUser(f, "ordinary-without-active-owners");
     await assertUserAccountAction({ ...required, principalId: ordinary });
   });
 }

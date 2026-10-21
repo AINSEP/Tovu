@@ -287,20 +287,34 @@ test("apply() keeps only the last 2 previous copies of a tree", async () => {
   assert.deepEqual(css.sort(), ["header { order: 1; }", "header { order: 2; }"]);
 });
 
-test("a mid-write failure (a missing blob) leaves the old tree serving and no staging dir", async (t) => {
+test("a blob that never reached this site is refused before staging writes anything", async () => {
   const fixture = await makeFixture();
   const { entities } = await packThemeFilesEntities({ themesDir: fixture.sourceThemes });
   const missingSha = (entities[0].state.files as Array<{ path: string; sha256: string }>).find((f) => f.path === "theme.json")!.sha256;
   const entity = await packAndStage(fixture, { skipSha: missingSha });
+  await assert.rejects(
+    handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-never-arrived" }),
+    (error: unknown) => error instanceof PublishContentApplyRowError && error.rowOutcome === "blocked" && /^Theme: static\/basic was not published: .*"theme\.json"/.test(error.message)
+  );
+  assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
+  assert.equal(existsSync(path.join(fixture.destThemes, ".publish-staging", createHash("sha256").update("key-never-arrived").digest("hex").slice(0, 32))), false);
+});
+
+test("a mid-write failure (a missing blob) leaves the old tree serving and no staging dir", async (t) => {
+  const fixture = await makeFixture();
+  const { entities } = await packThemeFilesEntities({ themesDir: fixture.sourceThemes });
+  const missingSha = (entities[0].state.files as Array<{ path: string; sha256: string }>).find((f) => f.path === "theme.json")!.sha256;
+  // why: the precheck now reads every small file's bytes for the secret scan, so a blob that never
+  // arrived is refused before staging. To still reach a MID-WRITE failure, the blob is present for the
+  // precheck and vanishes once staging has begun (keyed on the staging dir, not a call count).
+  const entity = await packAndStage(fixture);
   const originalExists = fixture.blobStore.exists.bind(fixture.blobStore);
-  let missingChecks = 0;
+  const stagingDir = path.join(fixture.destThemes, ".publish-staging", createHash("sha256").update("key-missing").digest("hex").slice(0, 32));
   let stagedBeforeFailure: Record<string, string> | undefined;
   t.mock.method(fixture.blobStore, "exists", async (required: { storageKey: string }) => {
-    if (required.storageKey.includes(missingSha) && ++missingChecks === 2) {
-      const key = createHash("sha256").update("key-missing").digest("hex").slice(0, 32);
-      stagedBeforeFailure = await readTree(path.join(fixture.destThemes, ".publish-staging", key));
-    }
-    return originalExists(required);
+    if (!required.storageKey.includes(missingSha) || !existsSync(stagingDir)) return originalExists(required);
+    stagedBeforeFailure = await readTree(stagingDir);
+    return false;
   });
   await assert.rejects(
     handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-missing" }),

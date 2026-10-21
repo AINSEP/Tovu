@@ -9,7 +9,8 @@ import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { vaultFixture, vaultStep, insertFixture, stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { vaultApiConnectionKind } from "#src/platform/db/migrations/0020_vault_api_connection_kind";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials";
+// why: `#src/*` maps to a file, not a directory index; app.ts imports the same barrel this way.
+import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createApiConnectionHost } from "#src/features/api-connections/host";
 import { createSurfaceConnections } from "#src/features/api-connections/surface-connections";
 import { loadPluginContributionsFromSource } from "#src/features/agent-plugins/lifecycle";

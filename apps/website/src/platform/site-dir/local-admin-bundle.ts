@@ -1,8 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../server-logs/console-tee.js";
 import { withFileLock } from "@jini-ai/platform/fs";
 
@@ -18,9 +17,9 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
     const child = spawnBuild(process.execPath, [path.join(repoRoot, "apps/admin/node_modules/vite/bin/vite.js"),
       "build", "--outDir", output], { cwd: path.join(repoRoot, "apps/admin"), env, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout?.pipe(createRedactedOutputSink({ sink: stdout,
-      redact: text => redactText({ text }, { username: path.basename(os.homedir()) }) }));
+      redact: text => redactLocalText({ text }) }));
     child.stderr?.pipe(createRedactedOutputSink({ sink: stderr,
-      redact: text => redactText({ text }, { username: path.basename(os.homedir()) }) }));
+      redact: text => redactLocalText({ text }) }));
     const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Journey admin build did not finish")); }, 120_000);
     child.once("error", () => { clearTimeout(timer); reject(new Error("Journey admin build failed to spawn")); });
     child.once("close", (code, signal) => { clearTimeout(timer); if (code === 0) resolve(); else reject(new Error(`Journey admin build failed (code ${code ?? "none"}, signal ${signal ?? "none"})`)); });

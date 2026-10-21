@@ -121,25 +121,28 @@ describe("Media screen type tabs", () => {
     mockList(ALL_ITEMS);
     renderScreen({ tabId: "images" });
 
-    expect(await screen.findByText("Sunset Photo")).toBeInTheDocument();
-    expect(screen.getByText("Banner Art")).toBeInTheDocument();
-    expect(screen.queryByText("Launch Clip")).not.toBeInTheDocument();
-    expect(screen.queryByText("Mystery Blob")).not.toBeInTheDocument();
+    // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
+    expect(await screen.findByRole("button", { name: "Sunset Photo.png" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Banner Art.webp" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Launch Clip/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Mystery Blob/ })).not.toBeInTheDocument();
   });
 
   it("shows only videos on the Videos tab", async () => {
     mockList(ALL_ITEMS);
     renderScreen({ tabId: "videos" });
 
-    expect(await screen.findByText("Launch Clip")).toBeInTheDocument();
-    expect(screen.queryByText("Sunset Photo")).not.toBeInTheDocument();
+    // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
+    expect(await screen.findByRole("button", { name: "Launch Clip.mp4" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Sunset Photo/ })).not.toBeInTheDocument();
   });
 
   it("explains where untyped items went instead of silently hiding them", async () => {
     mockList(ALL_ITEMS);
     renderScreen({ tabId: "images" });
 
-    await screen.findByText("Sunset Photo");
+    // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
+    await screen.findByRole("button", { name: "Sunset Photo.png" });
     expect(screen.getByText(/no detected type/i)).toBeInTheDocument();
   });
 
@@ -147,7 +150,8 @@ describe("Media screen type tabs", () => {
     mockList([PNG, WEBP, MP4]);
     renderScreen({ tabId: "images" });
 
-    await screen.findByText("Sunset Photo");
+    // why: a card title is now its file name with the extension, split by MiddleTruncate into head/tail spans, so cards are found by the title trigger's accessible name (anchored regexes keep the absence checks from passing vacuously on a renamed title).
+    await screen.findByRole("button", { name: "Sunset Photo.png" });
     expect(screen.queryByText(/no detected type/i)).not.toBeInTheDocument();
   });
 

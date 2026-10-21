@@ -28,7 +28,8 @@ test("theme publication card lists only candidates, reads fresh disk state and d
   ] });
   fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ ...manifest, publishedPages: ["about"] }));
   assert.deepEqual(await card().handler(ctx({ themeId: "plain", page: "about" })), { pages: [{ themeId: "plain", page: "about", published: true }] });
-  await assert.rejects(card().handler(ctx({ themeId: "plain", page: "shell" })), { message: "theme_page_publication 'shell' was not found — call content_read.theme_page_publication without page to list valid ids" });
+  // why: N2 (27264f16) made `id` the canonical card selector (legacy `page` is an alias), so the hint names `id`.
+  await assert.rejects(card().handler(ctx({ themeId: "plain", page: "shell" })), { message: "theme_page_publication 'shell' was not found — call content_read.theme_page_publication without id to list valid ids" });
   await assert.rejects(card().handler(ctx({ themeId: "missing" })), ToolInputError);
   deps.authorize = async () => ({ allowed: false, reason: "denied" });
   await assert.rejects(card().handler(ctx({ themeId: "plain" })), { message: "principal 'owner' is not authorized for 'theme.set' (denied)" });

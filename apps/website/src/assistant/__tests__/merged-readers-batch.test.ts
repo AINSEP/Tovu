@@ -109,6 +109,11 @@ async function harness() {
   };
 }
 
+/** Executor notes for each legacy selector the card renames to its canonical `id`. */
+function legacyIdNotes(reader: typeof READERS[number], prefixes: readonly string[]): string[] {
+  return reader.id === "id" ? [] : prefixes.map(prefix => `${prefix}${reader.id}→id`);
+}
+
 for (const reader of READERS) {
   test(`${reader.source}: three ids succeed through the merged card with the 25-item schema`, async () => {
     const h = await harness();
@@ -163,9 +168,11 @@ for (const reader of READERS) {
   test(`${reader.source}: accepts 25 and refuses 26 items before authorization`, async () => {
     const h = await harness();
     const registration = h.find(h.registrations, reader.card);
+    // why: canonical card ids — a legacy item selector is renamed to `id` and the executor appends that note.
+    const notes = legacyIdNotes(reader, Array.from({ length: 26 }, (_, index) => `items[${index}].`));
     await assert.rejects(invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 26 }, () => h.input(reader, "first")),
-    })), { message: `${reader.source}: 'items' has 26 entries; the most one call takes is 25. Split them into several calls.` });
+    })), { message: `${reader.source}: 'items' has 26 entries; the most one call takes is 25. Split them into several calls.${notes.length ? `\nnormalized: ${notes.join("; ")}` : ""}` });
     assert.deepEqual(h.checks, []);
     const result = await invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 25 }, () => h.input(reader, "first")),
@@ -205,10 +212,12 @@ for (const reader of READERS) {
     assert.equal(registration.descriptor.id, baseline.descriptor.id);
     assert.equal(registration.descriptor.readOnly, baseline.descriptor.readOnly);
     assert.deepEqual(registration.descriptor.metadata, baseline.descriptor.metadata);
-    for (const input of [{ ...reader.shared, ...h.input(reader, "first") }, { ...reader.shared }]) {
+    for (const [input, prefixes] of [[{ ...reader.shared, ...h.input(reader, "first") }, [""]], [{ ...reader.shared }, []]] as const) {
       const expected = await baseline.handler(context(input));
       const actual = await invokeRegisteredTool(registration, context(input));
-      assert.equal(JSON.stringify(actual), JSON.stringify(expected));
+      // why: canonical card ids — a legacy selector still reads the same record, plus the executor's rename note.
+      const notes = legacyIdNotes(reader, prefixes);
+      assert.equal(JSON.stringify(actual), JSON.stringify(notes.length ? { ...expected as object, normalizationNotes: notes } : expected));
       assert.equal(Object.hasOwn(actual as object, "batch"), false);
     }
   });

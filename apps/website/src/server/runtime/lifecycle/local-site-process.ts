@@ -9,7 +9,7 @@ import { format } from "node:util";
 import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
@@ -34,7 +34,7 @@ import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
  * taking the 4096-character diagnostic tail so a sliced vendor-token prefix cannot leak its suffix.
  */
 export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
-  const redact = (text: string) => redactText({ text: redactSecretShapes({ text }).text }, { username: path.basename(os.homedir()) });
+  const redact = (text: string) => redactLocalText({ text: redactSecretShapes({ text }).text });
   const buffer = createLogBuffer({ redact });
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
   let stderrText = "";

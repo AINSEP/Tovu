@@ -1,8 +1,7 @@
 /** Packaged MCP release checks. Command construction and reply validation are independently testable. */
 import { spawn } from "node:child_process";
 import path from "node:path";
-import os from "node:os";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { buildSitesMcpLauncherScript, buildSitesMcpRegistration } from "./sites-mcp-registration.ts";
 import { resolveSmokeTargets } from "./smoke-native.ts";
@@ -90,7 +89,7 @@ export function buildJiniEntryScript(
 export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}): BridgeCommand[] {
   let entries: unknown;
   try { entries = JSON.parse(stdout); }
-  catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactText({ text: stdout }, { username: path.basename(os.homedir()) }) })}`); }
+  catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) })}`); }
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
     if (!isRecord(entry) || typeof entry.command !== "string" || entry.command.length === 0
@@ -240,7 +239,9 @@ export async function smokeBridge(
     });
   } catch (error) {
     const detail = `${entry.label}: ${error instanceof Error ? error.message : String(error)}${stderr ? `\n${stderr}` : ""}`;
-    throw new Error(sanitizeUntrustedText({ text: redactText({ text: detail }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }));
+    // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
+    throw new Error(sanitizeUntrustedText({ text: redactLocalText({ text: detail }) },
+      { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));
   } finally {
     clearTimeout(timer);
     child.kill("SIGKILL");

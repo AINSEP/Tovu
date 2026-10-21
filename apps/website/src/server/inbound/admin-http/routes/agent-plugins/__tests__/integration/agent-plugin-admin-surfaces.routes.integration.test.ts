@@ -102,7 +102,8 @@ test("list: a plugin's admitted surfaces with their frame src, declared actions 
   assert.equal(body.pluginId, PLUGIN);
   assert.deepEqual(body.surfaces[0], {
     id: SURFACE, title: "Manage connection", src: `/api/agent-plugin-surfaces/v1/${PLUGIN}/${SURFACE}/surface/index.html`,
-    actions: [{ name: "save-selection", input: { type: "object", properties: { resourceId: { type: "string", maxLength: 16 } }, required: ["resourceId"] } }],
+    // why: Jini 5791b183 (surface actions are also assistant tools) defaults an undeclared effect to "write".
+    actions: [{ name: "save-selection", effect: "write", input: { type: "object", properties: { resourceId: { type: "string", maxLength: 16 } }, required: ["resourceId"] } }],
     linkOrigins: ["https://help.acme.test"],
   });
 });

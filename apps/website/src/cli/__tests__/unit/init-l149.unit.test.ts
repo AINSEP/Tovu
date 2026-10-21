@@ -19,7 +19,10 @@ for (const mode of ["none", "tokens", "envelope", "empty-envelope"] as const) {
     t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
     const dir = path.join(parent, "site");
     const stdout: string[] = [];
-    t.mock.method(process.stdout, "write", (chunk: unknown) => { stdout.push(String(chunk)); return true; });
+    // why: under `node --test` the runner reports to its parent over this same stdout as serialized
+    // Buffer frames; swallowing them dropped sibling results and polluted `stdout`. The CLI writes strings.
+    const writeThrough = process.stdout.write.bind(process.stdout) as (chunk: unknown) => boolean;
+    t.mock.method(process.stdout, "write", (chunk: unknown) => typeof chunk === "string" ? (stdout.push(chunk), true) : writeThrough(chunk));
     let checked = 0, sealed = 0;
     const token = "fixture-token";
     const input: RunInitCommandInput = { dir, name: "Pinned name",

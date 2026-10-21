@@ -131,11 +131,12 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
     inputSchema?: { required?: string[]; properties?: Record<string, { type?: string; minimum?: number }> };
   };
   assert.equal(entry.id, "pages_write_region");
-  assert.deepEqual(entry.inputSchema?.required, ["id", "handle", "html"]);
+  // why: N3 (42773ffa) publishes regionId as the canonical region field; handle is an executor-side alias.
+  assert.deepEqual(entry.inputSchema?.required, ["id", "regionId", "html"]);
   const properties = entry.inputSchema?.properties;
   assert.equal(properties?.expectedVersion.type, "integer");
   assert.equal(properties?.expectedVersion.minimum, 0);
-  for (const field of ["id", "handle", "html"]) assert.equal(properties?.[field].type, "string");
+  for (const field of ["id", "regionId", "html"]) assert.equal(properties?.[field].type, "string");
 
   // The one instruction the model cannot recover from getting wrong — sending the region element
   // back would nest a second one inside the first rather than replace it — must survive any later

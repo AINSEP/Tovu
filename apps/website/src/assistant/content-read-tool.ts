@@ -435,6 +435,8 @@ function canonicalCardSchema(
   { inputSchema, idProperty }: { inputSchema: Readonly<Record<string, unknown>>; idProperty: string },
   _options = {},
 ): Readonly<Record<string, unknown>> {
+  // A schema-less reader keeps its empty fallback: there is no selector to project.
+  if (inputSchema.properties === undefined && inputSchema.required === undefined) return inputSchema;
   const properties = (inputSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA;
   const projected = Object.fromEntries(Object.entries(properties).map(([key, value]) => [key === idProperty ? "id" : key, value]));
   const batch = properties.items as Readonly<Record<string, unknown>> | undefined;

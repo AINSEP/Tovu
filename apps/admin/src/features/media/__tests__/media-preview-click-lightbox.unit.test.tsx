@@ -32,8 +32,8 @@ describe("media preview click opens lightbox", () => {
   it("clicking the picture itself opens the lightbox at that item, and next/prev cycle", async () => {
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);
-    await screen.findByText("Beta");
-    const card = screen.getByText("Beta").closest(".media-card") as HTMLElement;
+    // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
+    const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
 
     await user.click(card.querySelector(".media-card-preview img")!);
 
@@ -49,8 +49,8 @@ describe("media preview click opens lightbox", () => {
   it("video cards: clicking the video does not open the lightbox; the corner button still does", async () => {
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);
-    await screen.findByText("Beta");
-    const card = screen.getByText("Beta").closest(".media-card") as HTMLElement;
+    // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
+    const card = (await screen.findByRole("button", { name: "Beta.png" })).closest(".media-card") as HTMLElement;
     fireEvent.error(card.querySelector(".media-card-preview img")!);
     const video = await waitFor(() => {
       const v = card.querySelector(".media-card-preview video");

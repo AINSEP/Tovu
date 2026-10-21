@@ -31,10 +31,9 @@
  */
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
-import { redactText } from "@jini-ai/diagnostics";
+import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { validateManifest, detectGateDrift, formatSummary, isFailure, asGateEntryArray } from "../src/quality-gates.ts";
@@ -77,10 +76,10 @@ function todayIso(): string {
 function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
   process.stdout.write(`\n${"=".repeat(66)}\n>>> GATE: ${gate.id}\n${"=".repeat(66)}\n`);
   const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 1_000_000 });
-  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactText({ text: result.stdout }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
-  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: result.stderr }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stdout }) }, { maxLength: 2_000 }) + "\n");
+  if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (result.error) {
-    process.stderr.write(`check-gates: gate "${gate.id}" could not be spawned: ${sanitizeUntrustedText({ text: redactText({ text: result.error.message }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 })}\n`);
+    process.stderr.write(`check-gates: gate "${gate.id}" could not be spawned: ${sanitizeUntrustedText({ text: redactLocalText({ text: result.error.message }) }, { maxLength: 2_000 })}\n`);
     return null;
   }
   if (result.signal) {
@@ -170,6 +169,6 @@ function main(): void {
 
 try { main(); }
 catch (error) {
-  process.stderr.write(sanitizeUntrustedText({ text: redactText({ text: error instanceof Error ? error.message : String(error) }, { username: path.basename(os.homedir()) }) }, { maxLength: 2_000 }) + "\n");
+  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n");
   process.exitCode = 1;
 }

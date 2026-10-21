@@ -76,7 +76,9 @@ const targets = [
   { id: "legacy-host", vendorId: "vendor-test" },
   { id: "tie-host", vendorId: "vendor-tie" },
 ].map(({ id, vendorId }) => ({ descriptor: { id, label: id, credential: { vendorId, tokenField: "token",
-  fields: [{ name: "token", label: "Token", secret: true }] } } }));
+  fields: [{ name: "token", label: "Token", secret: true }] } },
+  // why: LoadedDeployTarget always carries `module` (d19868a6 reads module.acceptsCredential); none narrows eligibility here.
+  module: {} }));
 export const parityDeployTargets = {
   list: () => targets,
   get: (id: string) => targets.find(target => target.descriptor.id === id),

@@ -75,7 +75,8 @@ test('assign-location: authorization failures remain opaque', async () => {
 
 for (const locationKey of [' primary ', 0, false]) {
   test(`assign-location: coerces and trims ${JSON.stringify(locationKey)} and serializes displacement`, async () => {
-    const clock: MenuRouteDeps['clock'] = { nowIso: () => now };
+    // why: the injected Clock port is `{ nowMs }` (@jini-ai/core primitives/time); a `nowIso` stub throws inside assignLocation.
+    const clock: MenuRouteDeps['clock'] = { nowMs: () => Date.parse(now) };
     const { app, deps } = fixture(registerAdminMenuAssignLocationRoute, {
       clock, menuRepo: new InMemoryMenuRepo({}), navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
     });
