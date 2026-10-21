@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import userEvent from "@testing-library/user-event";
 
-import { SiteKeyTab } from "../SiteKeyTab";
+import { SiteKeyGenerateAction, SiteKeyTab } from "../SiteKeyTab";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
 import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/agentic";
@@ -42,6 +42,29 @@ function makeSiteKey(overrides: Partial<SiteKeyController> = {}): SiteKeyControl
     generateError: null,
     generate: async () => {},
     refresh: async () => {},
+    t: (key: string) => key,
+    ...overrides,
+  };
+}
+
+function makeRecovery(overrides: Partial<SiteKeyRecoveryController> = {}): SiteKeyRecoveryController {
+  return {
+    siteKey: "",
+    setSiteKey: () => {},
+    unlocking: false,
+    unlockError: null,
+    unlock: async () => {},
+    startFreshStep: "closed",
+    preview: null,
+    openStartFresh: async () => {},
+    cancelStartFresh: () => {},
+    confirmText: "",
+    setConfirmText: () => {},
+    canConfirmStartFresh: false,
+    startingFresh: false,
+    startFreshError: null,
+    startFresh: async () => {},
+    resultMessage: null,
     t: (key: string) => key,
     ...overrides,
   };
@@ -181,28 +204,6 @@ describe("SiteKeyTab — recovery card for a locked site", () => {
     state: "mismatch",
   };
 
-  function makeRecovery(overrides: Partial<SiteKeyRecoveryController> = {}): SiteKeyRecoveryController {
-    return {
-      siteKey: "",
-      setSiteKey: () => {},
-      unlocking: false,
-      unlockError: null,
-      unlock: async () => {},
-      startFreshStep: "closed",
-      preview: null,
-      openStartFresh: async () => {},
-      cancelStartFresh: () => {},
-      confirmText: "",
-      setConfirmText: () => {},
-      canConfirmStartFresh: false,
-      startingFresh: false,
-      startFreshError: null,
-      startFresh: async () => {},
-      resultMessage: null,
-      t: (key: string) => key,
-      ...overrides,
-    };
-  }
 
   function renderLocked(status: AdminSiteKeyStatus, recovery: Partial<SiteKeyRecoveryController> = {}) {
     return render(
@@ -312,3 +313,81 @@ describe("SiteKeyTab — status note for a locked site", () => {
   });
 });
 
+
+describe("SiteKeyTab — load, reveal and env-source states", () => {
+  const ACTIVE_ENV_STATUS: AdminSiteKeyStatus = { ...ACTIVE_FILE_STATUS, source: "env" };
+
+  it("shows a status read failure instead of the cards", () => {
+    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ loadError: "Couldn't load the site key status." })} />);
+    expect(screen.getByRole("status").textContent).toBe("Couldn't load the site key status.");
+    expect(screen.queryByRole("heading", { name: "Site key" })).not.toBeInTheDocument();
+  });
+
+  it("explains an active key set on the server, not in a file", () => {
+    renderTab(ACTIVE_ENV_STATUS);
+    expect(screen.getByText(/This key was set up directly on the server rather than as a file/)).toBeInTheDocument();
+  });
+
+  it("reveals on click, shows the in-flight label disabled, and surfaces a reveal failure", () => {
+    const reveal = vi.fn(async () => {});
+    const { unmount } = render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, reveal })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reveal" }));
+    expect(reveal).toHaveBeenCalledTimes(1);
+    unmount();
+
+    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealing: true, revealError: "Reveal refused." })} />);
+    expect(screen.getByRole("button", { name: "Revealing…" })).toBeDisabled();
+    expect(screen.getByText("Reveal refused.")).toBeInTheDocument();
+  });
+
+  it("copies the revealed value to the clipboard and confirms it", async () => {
+    const user = userEvent.setup();
+    render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status: ACTIVE_FILE_STATUS, revealedHex: "00ff".repeat(16) })} />);
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    expect(await navigator.clipboard.readText()).toBe("00ff".repeat(16));
+    expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
+  });
+
+  it("wires the real site-key controller by default and shows the status the server returns", async () => {
+    vi.stubGlobal("fetch", async (url: string) => {
+      expect(String(url)).toBe("/api/admin/v1/workspaces/workspace-local/system/site-key");
+      return Response.json(ACTIVE_ENV_STATUS);
+    });
+    try {
+      render(<SiteKeyTab useSiteKeyRecoveryHook={() => makeRecovery()} />);
+      expect(await screen.findByText(/This key was set up directly on the server rather than as a file/)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("SiteKeyGenerateAction — kept wired but hidden by default (§A.6)", () => {
+  const NO_KEY: AdminSiteKeyStatus = { active: false, source: "none", keyFilePath: "/data/tovu/site-key.hex", runtimeMode: "local", state: "missing" };
+
+  it("renders nothing until a status has loaded, or once any key source exists", () => {
+    const { container, rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey()} />);
+    expect(container.innerHTML).toBe("");
+    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: ACTIVE_FILE_STATUS })} />);
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("generates on click when there is no key, and shows the in-flight label disabled", () => {
+    const generate = vi.fn(async () => {});
+    const { rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generate })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate a key" }));
+    expect(generate).toHaveBeenCalledTimes(1);
+    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generating: true })} />);
+    expect(screen.getByRole("button", { name: "Generating…" })).toBeDisabled();
+  });
+
+  it("explains each generate failure kind in its own words", () => {
+    const { rerender } = render(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "already-exists" } })} />);
+    expect(screen.getByRole("status").textContent).toBe("A key file already exists. This tab only creates a new key — it never overwrites one.");
+    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "generic", detail: "disk full" } })} />);
+    expect(screen.getByRole("status").textContent).toContain("disk full");
+    expect(screen.getByRole("status").textContent).not.toBe("disk full");
+    rerender(<SiteKeyGenerateAction controller={makeSiteKey({ status: NO_KEY, generateError: { kind: "refused", code: "KEY_INVALID", detail: "The key on disk is unreadable." } })} />);
+    expect(screen.getByRole("status").textContent).toBe("The key on disk is unreadable.");
+  });
+});
