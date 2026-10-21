@@ -35,18 +35,23 @@ function parseRestorePointCreateBody(rawBody: unknown): { trigger: string; costA
 
 /**
  * Resolves the two fields the `capture` closure fills in, into the shape `restorePointsRepo.save`
- * persists — `watermarkAtCapture` defaults to `null` (never captured), `artifactRef` stays
- * `undefined` the same way the inline version did (see the 2026-07-16 note this route carries).
+ * persists (see the 2026-07-16 note this route carries).
+ *
+ * Takes the captured value, not `| undefined`: `createRestorePoint` either throws before capture
+ * (unavailable / un-acknowledged expensive) or awaits `capture()` exactly once before it resolves,
+ * so by the time the route persists, the closure has always assigned it. The former "never
+ * captured" `null`/`undefined` defaults could not be reached by any adapter honouring
+ * `DbOpsPort.captureRestorePoint`'s return type.
  *
  * @complexity O(1).
  */
-function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: number } | undefined): {
-  watermarkAtCapture: number | null;
-  artifactRef: string | undefined;
+function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: number }): {
+  watermarkAtCapture: number;
+  artifactRef: string;
 } {
   return {
-    watermarkAtCapture: captured?.watermarkAtCapture ?? null,
-    artifactRef: captured?.artifactRef,
+    watermarkAtCapture: captured.watermarkAtCapture,
+    artifactRef: captured.artifactRef,
   };
 }
 
@@ -203,7 +208,8 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
         // 2026-07-16: was captured above but previously never persisted — the root cause of why
         // Recovery's restore ceremony could only write a "ledger-only" note (no way to know which
         // file to restore from). See `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`.
-        ...toCapturedRow(captured),
+        // `captured` is always set here — see `toCapturedRow`'s doc for the `createRestorePoint` contract.
+        ...toCapturedRow(captured!),
       });
 
       res.status(201).json({ restorePoint: summary });
