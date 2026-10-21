@@ -22,7 +22,7 @@ export class FormDeliveryBindingsConflictError extends Error {}
  * appended revision too. Other repo methods keep their original receiver and behavior.
  * @complexity One bindings read and O(s) time/space for s serialized snapshot bytes.
  */
-function guardedBindingsRepo(
+export function guardedBindingsRepo(
   required: { repo: SettingsRepoPort; workspaceId: string; expectedValue: readonly FormDeliveryBinding[] },
   _optional: Record<string, never> = {},
 ): SettingsRepoPort {
