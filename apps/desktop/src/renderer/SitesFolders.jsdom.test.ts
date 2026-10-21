@@ -34,6 +34,10 @@ const Shell: typeof SettingsDialogShell = ({ tabs, onClose, className }) => crea
   createElement('button', { type: 'button', 'data-shell-close': '', onClick: onClose }, 'Close'),
   tabs[0]!.panel);
 
+/** `SitesFolders` as a plain props component: its optional props argument otherwise steers
+ *  `createElement` to the attribute-less overload. */
+const Folders: React.FC<NonNullable<Parameters<typeof SitesFolders>[0]>> = SitesFolders;
+
 /** The folders hook as a fake over a mutable record, recording every action it is asked for. */
 function fakeFolders(initial: SiteFolders, extra: Partial<SiteFoldersSettings> = {}) {
   const calls: unknown[] = [];
@@ -75,7 +79,7 @@ const folders: SiteFolders = {
 
 test('the trigger opens the dialog; every row reflects the folders and its buttons reach the hook', async (t) => {
   const fake = fakeFolders(folders);
-  const view = render(t, createElement(SitesFolders, { useSettings: fake.useSettings, Shell }));
+  const view = render(t, createElement(Folders, { useSettings: fake.useSettings, Shell }));
   assert.equal(view.host.querySelector('[role="dialog"]'), null, 'closed until asked');
   assert.equal(view.host.querySelector('.sites-settings__warning'), null, 'no provider warning, nothing outside');
   view.click(view.button('Sites settings'));
@@ -113,7 +117,7 @@ test('environment overrides disable their rows and say why; busy disables Save; 
   const fake = fakeFolders({ ...folders, configPath: undefined, overrides: { sitesHome: true, siteRoots: true } } as SiteFolders);
   fake.state.busy = true;
   fake.state.error = 'Could not save settings.';
-  const view = render(t, createElement(SitesFolders, { useSettings: fake.useSettings, Shell }));
+  const view = render(t, createElement(Folders, { useSettings: fake.useSettings, Shell }));
   view.click(view.button('Sites settings'));
   const dialog = view.host.querySelector('[role="dialog"]')!;
   const notes = [...dialog.querySelectorAll('.sites-settings__note')].map((note) => note.textContent);
@@ -129,7 +133,7 @@ test('a synced-folder warning shows beside the trigger and inside the dialog, wi
   const warned = { ...folders, warning: { provider: 'iCloud', message: 'Your sites folder is synced by iCloud.', localHome: '/Users/me/Local' } } as SiteFolders;
   const fake = fakeFolders(warned);
   fake.state.error = 'Could not move the databases.';
-  const view = render(t, createElement(SitesFolders, { useSettings: fake.useSettings, Shell }));
+  const view = render(t, createElement(Folders, { useSettings: fake.useSettings, Shell }));
   const outside = view.host.querySelector('.sites-settings__warning')!;
   assert.equal(outside.querySelector('p')!.textContent, 'Your sites folder is synced by iCloud.');
   assert.equal(outside.querySelector('.sites-settings__error')!.textContent, 'Could not move the databases.',

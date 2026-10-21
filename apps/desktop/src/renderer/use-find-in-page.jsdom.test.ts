@@ -369,7 +369,7 @@ test('useComposedGuestRef feeds one webview node to every registration, and is s
   act(() => root.render(createElement(Probe)));
   assert.equal(refs[0], refs[1], 'unchanged inputs keep the same ref callback');
   const node = {} as HTMLWebViewElement;
-  refs[1](node);
+  refs[1]!(node);
   assert.deepEqual(calls, [['guest', node], ['find', 'site-a', node], ['zoom', node]]);
 
   withExtra = false;

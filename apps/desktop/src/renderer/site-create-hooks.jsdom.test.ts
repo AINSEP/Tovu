@@ -172,7 +172,8 @@ test('useCreateSitePluginTokens: offers the services Tovu lists, and sends trimm
     assert.equal(field.value, '', 'the token leaves the DOM before the create is sent');
     received.push(value);
   })(input);
-  assert.deepEqual(received, [{ ...input, agentPluginTokens: { supabase: 'sbp_value' } }]);
+  // A copy, so the assertion does not narrow `received` to the literal it is compared with.
+  assert.deepEqual([...received], [{ ...input, agentPluginTokens: { supabase: 'sbp_value' } }]);
 
   hook.current().inputRef('supabase')(null);
   hook.current().inputRef('other')(null);
