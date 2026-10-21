@@ -178,7 +178,9 @@ function addMediaConfigRefs({ config, path, input, refs }: { config: unknown; pa
  * @overallScore 100
  */
 function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
-  for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt ?? {})) {
+  // `fieldsExt` is a required bag: every caller (the widget/region/embed write services and
+  // content-references) passes an object, `{}` when the entry has no ext fields.
+  for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt)) {
     const namespaceRecord = { value: namespaceValue };
     if (!isNonArrayRecord(namespaceRecord)) continue;
     const config = { value: namespaceRecord.value.config };
