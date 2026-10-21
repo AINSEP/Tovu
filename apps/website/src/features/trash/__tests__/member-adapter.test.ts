@@ -242,3 +242,34 @@ test("member restore cutoff failure rolls back status, marker and Trash index", 
   assert.equal(stillHidden.credentialsRevokedAt, AT);
   assert.equal((await h.trash.list({ workspaceId: WS, now: LATER, limit: 50 })).items.length, 1);
 });
+
+test("member adapter: a refused or no-op marker flip returns verbatim and never touches credentials", async () => {
+  const { client, kernel, registry, seed } = harness();
+  seed("member-scripted");
+  const inner = createTableTrashAdapter({ entry: registry.get("member")!, db: kernel });
+  const outcomes = [
+    { ok: false as const, reason: "version-changed" as const },
+    { ok: false as const, reason: "blocked" as const, code: "member-blocker", count: 2 },
+    { ok: true as const, version: 2, noop: true as const },
+  ];
+  const credentialState = () => ({
+    member: client.prepare("SELECT credentials_revoked_at FROM members WHERE id = ?").get("member-scripted"),
+    session: client.prepare("SELECT revoked_at FROM member_sessions WHERE member_id = ?").get("member-scripted"),
+    link: client.prepare("SELECT consumed_at FROM member_magic_tokens WHERE member_id = ?").get("member-scripted"),
+  });
+  const before = credentialState();
+  assert.deepEqual(before, { member: { credentials_revoked_at: null }, session: { revoked_at: null }, link: { consumed_at: null } });
+  for (const outcome of outcomes) {
+    const seen: unknown[] = [];
+    const adapter = createMemberTrashAdapter({ adapter: {
+      ...inner,
+      hide: async (input, options) => { seen.push(["hide", input.entityId, options]); return outcome; },
+      unhide: async (input, options) => { seen.push(["unhide", input.entityId, options]); return outcome; },
+    }, db: kernel });
+    const input = { workspaceId: WS, entityId: "member-scripted", at: LATER, expectedVersion: 1 };
+    assert.deepEqual(await adapter.hide(input), outcome);
+    assert.deepEqual(await adapter.unhide(input), outcome);
+    assert.deepEqual(seen, [["hide", "member-scripted", {}], ["unhide", "member-scripted", {}]], "options default to {} and reach the wrapped adapter");
+    assert.deepEqual(credentialState(), before, `outcome ${JSON.stringify(outcome)} must not revoke anything`);
+  }
+});

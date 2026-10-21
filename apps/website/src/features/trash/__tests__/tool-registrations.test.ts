@@ -214,6 +214,16 @@ test("list refuses a non-positive or fractional limit before reading, and caps o
   assert.deepEqual(h.listCalls.map((call) => call.limit), [100, 25]);
 });
 
+test("a call with no input at all lists the first default-sized page, like an empty input", async () => {
+  const h = harness();
+  const omitted = await h.byId.get("trash_list_items")!.handler(ctx(undefined));
+  const empty = await list(h, {});
+  assert.deepEqual(omitted, empty);
+  assert.equal(h.listCalls.length, 2);
+  assert.deepEqual(h.listCalls[0], h.listCalls[1]);
+  assert.equal(h.listCalls[0]!.limit, 25);
+});
+
 test("content.write without content.read cannot list deleted titles or reach either repository", async () => {
   const h = harness({ granted: ["content.write"] });
   await assert.rejects(() => list(h), /content\.read/);

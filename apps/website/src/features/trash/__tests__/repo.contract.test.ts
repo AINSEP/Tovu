@@ -179,6 +179,7 @@ function runSuite(adapterName: string, makeRepo: () => TrashRepoPort) {
     await repo.insert({ row: item({ id: "theirs", entityId: "post-2", workspaceId: WS2 }) });
 
     assert.deepEqual((await repo.findByIds({ workspaceId: WS, ids: ["mine", "theirs"] })).map((r) => r.id), ["mine"]);
+    assert.deepEqual(await repo.findByIds({ workspaceId: WS, ids: [] }), [], "no ids asks for nothing, even with rows present");
 
     await repo.deleteById({ workspaceId: WS, id: "theirs" });
     assert.notEqual(await repo.findByEntity({ workspaceId: WS2, entityType: "post", entityId: "post-2" }), null);

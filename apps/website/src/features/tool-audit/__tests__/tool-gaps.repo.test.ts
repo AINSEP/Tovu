@@ -74,4 +74,27 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     // A separately constructed reader sees the same durable row.
     assert.deepEqual(await createToolGapReader({ kernel }, {}).list({ workspaceId: 'w', principalId: 'owner' }, {}), entries);
   });
+
+  test('skips rows whose detail is not a tool-gap entry, and clamps the limit to 1..200 (non-finite falls back to 100)', async () => {
+    const kernel = makeKernel();
+    const sink = new SqlToolAttemptAuditSink(kernel);
+    const base = { executionId: null, workspaceId: 'w', principalId: 'owner', runId: 'r', toolId: TOOL_GAP_AUDIT_ID, phase: 'requested' as const, at: '2026-10-17T00:00:00Z' };
+    const entryFor = (id: string): ToolGapEntry => ({ id, at: base.at, site: 'a', chatId: 'c', runId: 'r', provider: 'claude', toolUsed: 'Bash', summary: id, type: 'tool_gap', gapLine: null });
+    for (let i = 0; i < 3; i += 1) await sink.append({ ...base, attemptId: `gap-${i}` }, { detail: JSON.stringify(entryFor(`gap-${i}`)) });
+    await sink.append({ ...base, attemptId: 'garbled' }, { detail: '{ not json' });
+    await sink.append({ ...base, attemptId: 'wrong-shape' }, { detail: JSON.stringify({ hello: 'world' }) });
+    // Reader and list both called with their optional arguments omitted: the defaults apply.
+    const reader = createToolGapReader({ kernel });
+    const scope = { workspaceId: 'w', principalId: 'owner' };
+
+    const all = await reader.list(scope);
+    assert.deepEqual(all.map(entry => entry.id), ['gap-2', 'gap-1', 'gap-0'], 'undecodable rows are dropped, newest first');
+    assert.deepEqual((await reader.list(scope, { limit: Number.NaN })).map(entry => entry.id), ['gap-2', 'gap-1', 'gap-0']);
+    assert.deepEqual((await reader.list(scope, { limit: Number.POSITIVE_INFINITY })).map(entry => entry.id), ['gap-2', 'gap-1', 'gap-0']);
+    // Limit applies to rows before decoding: the two newest rows are the undecodable ones.
+    assert.deepEqual(await reader.list(scope, { limit: 2.9 }), []);
+    assert.deepEqual(await reader.list(scope, { limit: -5 }), [], 'below 1 clamps to one row (the newest, undecodable)');
+    assert.deepEqual((await reader.list(scope, { limit: 3 })).map(entry => entry.id), ['gap-2']);
+    assert.deepEqual((await reader.list(scope, { limit: 10_000 })).map(entry => entry.id), ['gap-2', 'gap-1', 'gap-0']);
+  });
 });
