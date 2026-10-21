@@ -475,3 +475,44 @@ test("registered destination preview and Create share suffix selection; preview 
   assert.equal(f.adoptions.length, 1);
   assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.planNewDir, payload: { name: 42 } }), { message: "Website name must be a string." });
 });
+
+test("without shared settings the settings channels refuse clearly and the folder list is the built-in scan roots", async (t) => {
+  const f = fixture({ t });
+  await assert.rejects(Promise.resolve().then(() => f.invoke({ channel: SITE_IPC_CHANNELS.setHome })), { message: "Sites home settings are unavailable in this desktop version." });
+  assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.saveSettings, payload: { databases: "appData" } }), { message: "Sites settings are unavailable in this desktop version." });
+  assert.deepEqual(f.invoke({ channel: SITE_IPC_CHANNELS.listFolders }), { roots: f.deps.siteScanRoots, extraRoots: [] });
+  await assert.rejects(Promise.resolve().then(() => f.invoke({ channel: SITE_IPC_CHANNELS.addFolder })), { message: "Sites folders settings are unavailable in this desktop version." });
+  for (const payload of [undefined, { root: "relative/sites" }, { root: 7 }]) {
+    assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.removeFolder, payload }), { message: "Choose an absolute sites folder path to remove." });
+  }
+  assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.removeFolder, payload: { root: path.join(f.root, "websites") } }), { message: "Sites folders settings are unavailable in this desktop version." });
+  assert.equal(f.dialogs.length, 0, "no picker opens for a setting this version cannot save");
+});
+
+test("setHome refuses a picked file or relative path, and without folder settings reports just the new home", async (t) => {
+  const f = sharedFixture({ t });
+  const file = path.join(f.root, "a-file"); fs.writeFileSync(file, "");
+  const before = f.workspace.home({});
+  for (const picked of [file, "relative/home"]) {
+    f.pickedFolders.push(picked);
+    await assert.rejects(Promise.resolve().then(() => f.invoke({ channel: SITE_IPC_CHANNELS.setHome })), { message: "Choose an existing absolute sites folder." });
+  }
+  assert.equal(f.workspace.home({}), before, "nothing was saved");
+  f.deps.siteFolders = undefined;
+  const home = path.join(f.root, "chosen-home"); fs.mkdirSync(home); f.pickedFolders.push(home);
+  assert.deepEqual(await f.invoke({ channel: SITE_IPC_CHANNELS.setHome }), { roots: [], extraRoots: [], home });
+});
+
+test("a lease held under this window's own server pid lets Delete erase, unless that entry is an attached external server", async (t) => {
+  const f = sharedFixture({ t }), id = f.site({ name: "own-lease" });
+  trackSite(f.deps.projectsPath, id, "created", { siteId: "own-lease" });
+  const claim = f.workspace.claim({ path: id, app: "Desktop", port: 4321 });
+  const release = async () => { f.workspace.running({ path: id }).release({ token: claim.record.token }); };
+  f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, external: true, stop: release } });
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id }), { message: "Running in Desktop (port 4321). Stop it in that app before deleting." });
+  assert.equal(fs.existsSync(id), true);
+  f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, stop: release } });
+  await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
+  assert.equal(fs.existsSync(id), false, "this window's own server was stopped and the folder erased");
+  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+});

@@ -176,3 +176,13 @@ test("real ports read this test process, argv-only, and win32 reads nothing", as
   await NODE_PORTS.sleep(1);
   NODE_PORTS.kill(process.pid, 0 as unknown as NodeJS.Signals); // signal 0: an existence probe, sends nothing
 });
+
+test("readProcessStartMs asks ps for argv-free lstart and reads output that is not a date as unknown", () => {
+  const calls: string[][] = [];
+  const fixedStart = new Date(2026, 9, 21, 9, 30, 15);
+  const lstart = fixedStart.toString().slice(0, 24);
+  assert.equal(readProcessStartMs(4242, "linux", { runPs: (args) => (calls.push(args), `  ${lstart}\n`) }), fixedStart.getTime());
+  assert.deepEqual(calls, [["-o", "lstart=", "-p", "4242"]]);
+  assert.equal(readProcessStartMs(4242, "darwin", { runPs: () => "\n" }), null, "an empty answer is not a start time");
+  assert.equal(readProcessStartMs(4242, "darwin", { runPs: () => "ps: lstart: keyword not found" }), null);
+});

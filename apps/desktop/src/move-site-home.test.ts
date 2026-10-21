@@ -36,6 +36,11 @@ test("CLI running-site refusals reach the desktop without invoking a stop", asyn
   const input = fixture({ t });
   await assert.rejects(moveSiteHome(input, { execute: async () => ({ ok: false, error: new Error("failed"), code: 1, stdout: "", stderr: "Stop this site before moving it." }) }), /Stop this site before moving it/);
 });
+test("a CLI failure with no stderr reports the spawn error, and a bare failure a generic refusal", async (t) => {
+  const input = fixture({ t });
+  await assert.rejects(moveSiteHome(input, { execute: async () => ({ ok: false, error: new Error("spawn ENOENT"), code: null, stdout: "", stderr: "" }) }), { message: "spawn ENOENT" });
+  await assert.rejects(moveSiteHome(input, { execute: async () => ({ ok: false, error: null, code: 1, stdout: "", stderr: "" }) }), { message: "Could not move the stopped site." });
+});
 test("a missing destination contract is rejected", async (t) => {
   const input = fixture({ t });
   await assert.rejects(moveSiteHome(input, { execute: async () => ({ ok: true, error: null, code: 0, stdout: "{}", stderr: "" }) }), /no destination/);
@@ -45,6 +50,8 @@ test("move destination parser reads exactly the final line and preserves its str
   assert.equal(parseMovedSiteDestination({ stdout: 'progress\n{"to":"/sites/alpha"}' }), "/sites/alpha");
   assert.equal(parseMovedSiteDestination({ stdout: 'progress\r\n{"to":"  /sites/alpha  "}' }), "  /sites/alpha  ");
   assert.equal(parseMovedSiteDestination({ stdout: '{"to":""}' }), "");
+  // A lone "\r" is not a line break: only "\n" (optionally preceded by "\r") ends a line.
+  assert.throws(() => parseMovedSiteDestination({ stdout: 'progress\r{"to":"/sites/alpha"}' }), SyntaxError);
   for (const stdout of ['{}', '{"to":null}', '{"to":42}']) {
     assert.throws(() => parseMovedSiteDestination({ stdout }), /Site move returned no destination/);
   }

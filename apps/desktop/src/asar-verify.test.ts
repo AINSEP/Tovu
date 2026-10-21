@@ -35,8 +35,8 @@ function packedBytes(node: RawHeaderNode): number {
  *  write stream to flush, so under a loaded machine (the full `npm run gates` run) a test read the
  *  archive half-written: file content "not found" or "differs from source". The header is awaited
  *  before any data is streamed, so the complete size is known — wait until the file reaches it. */
-async function packArchive(root: string, asarPath: string): Promise<void> {
-  await createPackageWithOptions(root, asarPath, {});
+async function packArchive(root: string, asarPath: string, options: Parameters<typeof createPackageWithOptions>[2] = {}): Promise<void> {
+  await createPackageWithOptions(root, asarPath, options);
   const { header, headerSize } = getRawHeader(asarPath);
   const completeSize = 8 + headerSize + packedBytes(header as RawHeaderNode);
   const deadline = Date.now() + 10_000;
@@ -112,6 +112,28 @@ async function buildFixture() {
   await packArchive(root, asarPath);
   return { root, asarPath, files };
 }
+
+test("an entry the header lists but extractFile cannot read is reported as a read failure, not a pass", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "tovu-asar-verify-unreadable-"));
+  try {
+    mkdirSync(path.join(root, "src"), { recursive: true });
+    writeFileSync(path.join(root, "src", "a.js"), "// readable fixture A\n");
+    writeFileSync(path.join(root, "src", "gone.js"), "// fixture whose unpacked copy goes missing\n");
+    const asarPath = path.join(root, "app.asar");
+    // `unpack` keeps gone.js in the header but stores its bytes beside the archive; deleting that
+    // sibling directory leaves a header entry whose content no read can reach.
+    await packArchive(path.join(root, "src"), asarPath, { unpack: "**/gone.js" });
+    rmSync(`${asarPath}.unpacked`, { recursive: true, force: true });
+
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, path.join(root, "src"), ["a.js", "gone.js"]);
+    assert.equal(checkedCount, 2);
+    assert.equal(mismatches.length, 1);
+    assert.equal(mismatches[0]!.relPath, "gone.js");
+    assert.match(mismatches[0]!.reason, /^present in the asar header but extractFile could not read it \(.+\)$/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("a clean archive matches source on every file, byte-for-byte", async () => {
   const { root, asarPath, files } = await buildFixture();

@@ -94,7 +94,9 @@ export function createSiteThemePreviewSubscriptions(
       stream.close = ports.open({ siteDir, target, getRevision: () => stream.revision, onFrame: (frame) => {
         if (streams.get(siteDir) !== stream || ports.current({ siteDir }, {})?.lifecycle !== target.lifecycle || stream.revision === frame.revision) return;
         stream.revision = frame.revision;
-        for (const listener of watchers.get(siteDir) ?? []) {
+        // A live stream implies watchers for its site: `sync` opens one only for a watched site, and
+        // every path that empties a site's watchers (`watch`'s unsubscribe, `dispose`) stops it first.
+        for (const listener of watchers.get(siteDir)!) {
           try { listener({ siteDir, ...frame }); } catch { /* A destroyed renderer cannot stop other tabs' notifications. */ }
         }
       } }, {});

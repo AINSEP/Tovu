@@ -60,6 +60,32 @@ for (const layout of ["mac", "windows"] as const) {
   });
 }
 
+test("the win32 copier keeps relative symlinks verbatim, whatever host runs it", async t => {
+  const root = mkdtempSync(path.join(tmpdir(), "gate-win32-copier-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const appRoot = path.join(root, "win-unpacked");
+  const targets = { executablePath: path.join(appRoot, "Tovu.exe"), nodeModulesDir: path.join(appRoot, "resources", "tovu", "node_modules") };
+  mkdirSync(targets.nodeModulesDir, { recursive: true });
+  writeFileSync(targets.executablePath, "shipped executable");
+  writeFileSync(path.join(appRoot, "app.asar"), "signed bytes");
+  symlinkSync("app.asar", path.join(appRoot, "relative-link"));
+  let seen = "";
+  await withIsolatedSmokeTargets({ targets, run(copied, directory) {
+    seen = readFileSync(copied.executablePath, "utf8");
+    assert.equal(readlinkSync(path.join(directory, "win-unpacked", "relative-link")), "app.asar", "not rewritten to an absolute path into the source");
+    assert.ok(existsSync(copied.nodeModulesDir));
+  } }, { tempRoot: root, platform: "win32" });
+  assert.equal(seen, "shipped executable");
+  assert.deepEqual(readdirSync(root), ["win-unpacked"], "the copy is removed afterwards");
+});
+
+test("the ancestor walk reaches the filesystem root itself", t => {
+  // A temp directory whose every ancestor is clean passes; the walk must also stop at "/" rather than loop.
+  const root = mkdtempSync(path.join(tmpdir(), "gate-walk-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.doesNotThrow(() => assertPackagedGateIsolation({ directory: path.parse(root).root }));
+});
+
 test("a contaminated temp root never runs the gate, and copy or gate failures still remove the copy", async t => {
   const root = mkdtempSync(path.join(tmpdir(), "gate-failed-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

@@ -1,11 +1,17 @@
 /** Reverse the shipped 0.1.14 nesting at startup through the existing stopped-site CLI owner. */
 import fs from "node:fs";
 import path from "node:path";
-import type { SitesWorkspace } from "./shared-sites.ts";
 import { moveSiteHome } from "./move-site-home.ts";
 import type { CliMode } from "./tovu-server.ts";
 
-type MigrationWorkspace = Pick<SitesWorkspace, "nestedSitesRoot" | "home" | "running" | "config">;
+/** The slice of `shared-sites.ts`'s `SitesWorkspace` the migration reads; the real workspace satisfies it structurally. */
+type MigrationWorkspace = {
+  nestedSitesRoot: (required: Record<string, never>) => string | undefined;
+  home: (required: Record<string, never>) => string;
+  running: (required: { path: string }) => { peek: (required: Record<string, never>) => unknown };
+  config: (required: Record<string, never>) => { configPath: string };
+};
+type RemoveDir = (dir: string) => void;
 
 function migrationTargetExists({ to }: { to: string }): boolean {
   // lstat also sees dangling symlinks: an existing name is never an available target.
@@ -39,9 +45,9 @@ function removeDisposableNestedCache({ root }: { root: string }): void {
   } catch { /* The rmdir below keeps the container whenever anything remains. */ }
 }
 
-function removeNestedSitesContainer({ root }: { root: string }, { report }: { report: (message: string) => void }): void {
+function removeNestedSitesContainer({ root }: { root: string }, { report, removeDir }: { report: (message: string) => void; removeDir: RemoveDir }): void {
   // rmdir is non-recursive: a race or any retained site/file keeps the container intact.
-  try { fs.rmdirSync(root); }
+  try { removeDir(root); }
   catch (error) {
     if (!["ENOTEMPTY", "EEXIST", "ENOENT"].includes((error as NodeJS.ErrnoException).code ?? "")) report("Tovu kept the former sites folder because it could not be removed safely.");
   }
@@ -51,12 +57,13 @@ function removeNestedSitesContainer({ root }: { root: string }, { report }: { re
  * The CLI repeats admission under its locks, verifies SQLite/files, and commits both catalogs.
  * @param required.workspace The shared settings and running-lease owner.
  * @param options.move Existing CLI adapter, injectable without loading SQLite into Electron.
+ * @param options.removeDir Non-recursive directory removal for the emptied container; defaults to `fs.rmdirSync`.
  * @returns Nothing; failures preserve discovery and must not prevent desktop startup.
  * @complexity O(n log n) ordered immediate candidates plus the existing mover's verification cost per stopped site.
  */
 export async function migrateNestedSitesHome(
   { workspace, repoRoot, cliMode, projectsPath }: { workspace: MigrationWorkspace; repoRoot: string; cliMode: CliMode; projectsPath: string },
-  { move = moveSiteHome, report = console.warn }: { move?: typeof moveSiteHome; report?: (message: string) => void } = {},
+  { move = moveSiteHome, report = console.warn, removeDir = fs.rmdirSync }: { move?: typeof moveSiteHome; report?: (message: string) => void; removeDir?: RemoveDir } = {},
 ): Promise<void> {
   try {
     const root = workspace.nestedSitesRoot({});
@@ -68,7 +75,7 @@ export async function migrateNestedSitesHome(
       await migrateNestedSite({ workspace, home, dir, to, repoRoot, cliMode, projectsPath }, { move, report });
     }
     removeDisposableNestedCache({ root });
-    removeNestedSitesContainer({ root }, { report });
+    removeNestedSitesContainer({ root }, { report, removeDir });
   } catch {
     report("Tovu could not inspect the former sites folder; existing website paths remain available.");
   }

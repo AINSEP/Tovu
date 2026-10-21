@@ -23,7 +23,9 @@ export async function moveSiteHome({ dir, repoRoot, cliMode, projectsPath }: { d
  * @complexity O(n) in captured stdout bytes.
  */
 export function parseMovedSiteDestination({ stdout }: { stdout: string }, _options = {}): string {
-  const line = stdout.split(/\r?\n/).at(-1) ?? "";
+  // Everything after the last "\n" — the same final line `split(/\r?\n/).at(-1)` yields (a "\r"
+  // before that "\n" belongs to the separator), but always a string, so no fallback is needed.
+  const line = stdout.slice(stdout.lastIndexOf("\n") + 1);
   const value = JSON.parse(line) as { to?: unknown };
   if (typeof value.to !== "string") throw new Error("Site move returned no destination.");
   return value.to;

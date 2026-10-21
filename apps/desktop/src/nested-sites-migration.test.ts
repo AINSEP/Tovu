@@ -209,3 +209,76 @@ for (const platform of ["darwin", "win32"] as const) {
     assert.equal(createSitesWorkspace({}, f.options).home({}), f.home);
   });
 }
+
+/** A hand-written workspace for the failure paths: a fixed nested root and home, nothing running, no locks. */
+function failureFixture(t: TestContext) {
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-nested-failures-")));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const root = path.join(base, "Tovu", "sites"), home = path.join(base, "Tovu");
+  fs.mkdirSync(root, { recursive: true });
+  const reports: string[] = [];
+  const moved: string[] = [];
+  const workspace = (overrides: { root?: string; home?: string } = {}) => ({
+    nestedSitesRoot: () => overrides.root ?? root,
+    home: () => overrides.home ?? home,
+    running: () => ({ peek: () => null }),
+    config: () => ({ configPath: path.join(base, "profile", "sites-home.json") }),
+  });
+  const migrate = (
+    ws: ReturnType<typeof workspace>,
+    options: Partial<Parameters<typeof migrateNestedSitesHome>[1] & object> = {},
+  ) => migrateNestedSitesHome({ workspace: ws, repoRoot: base, cliMode: "source", projectsPath: path.join(base, "projects.json") }, {
+    move: async ({ dir }) => { moved.push(dir); return dir; }, report: (message) => reports.push(message), ...options,
+  });
+  return { base, root, home, reports, moved, workspace, migrate };
+}
+
+test("a former sites folder that cannot be read is reported once, and startup carries on", async (t) => {
+  const f = failureFixture(t);
+  await f.migrate(f.workspace({ root: path.join(f.base, "gone") }));
+  assert.deepEqual(f.reports, ["Tovu could not inspect the former sites folder; existing website paths remain available."]);
+  assert.deepEqual(f.moved, []);
+});
+
+test("a target name that cannot be inspected keeps that site in place with the reason, and nothing is moved", async (t) => {
+  const f = failureFixture(t);
+  fs.mkdirSync(path.join(f.root, "alpha"));
+  // A home that is a FILE makes lstat(home/alpha) fail with ENOTDIR, not ENOENT: unknown is never "free".
+  const fileHome = path.join(f.base, "not-a-folder");
+  fs.writeFileSync(fileHome, "");
+  await f.migrate(f.workspace({ home: fileHome }));
+  assert.deepEqual(f.moved, []);
+  assert.equal(f.reports.length, 1);
+  assert.match(f.reports[0]!, new RegExp(`^Tovu kept ${path.join(f.root, "alpha").replaceAll("\\", "\\\\")} in place; automatic relocation will retry next launch\\. .*ENOTDIR`));
+  assert.equal(fs.existsSync(path.join(f.root, "alpha")), true);
+});
+
+test("a mover that rejects with a non-Error value is reported with that value", async (t) => {
+  const f = failureFixture(t);
+  fs.mkdirSync(path.join(f.root, "alpha"));
+  await f.migrate(f.workspace(), { move: () => Promise.reject("site busy") });
+  assert.deepEqual(f.reports, [`Tovu kept ${path.join(f.root, "alpha")} in place; automatic relocation will retry next launch. site busy`]);
+});
+
+test("a .tovu that is a file, not the regenerable cache folder, is kept and so is the container — silently", async (t) => {
+  const f = failureFixture(t);
+  fs.writeFileSync(path.join(f.root, ".tovu"), "not a cache");
+  await f.migrate(f.workspace());
+  assert.equal(fs.readFileSync(path.join(f.root, ".tovu"), "utf8"), "not a cache");
+  assert.deepEqual(f.reports, [], "a non-empty container is an expected keep, not a failure");
+});
+
+test("a container that cannot be removed for any reason but non-empty/gone is reported, even with no error code", async (t) => {
+  for (const failure of [Object.assign(new Error("operation not permitted"), { code: "EPERM" }), new Error("no code at all")]) {
+    const f = failureFixture(t);
+    const removed: string[] = [];
+    await f.migrate(f.workspace(), { removeDir: (dir) => { removed.push(dir); throw failure; } });
+    assert.deepEqual(removed, [f.root]);
+    assert.deepEqual(f.reports, ["Tovu kept the former sites folder because it could not be removed safely."]);
+  }
+  for (const code of ["ENOTEMPTY", "EEXIST", "ENOENT"]) {
+    const f = failureFixture(t);
+    await f.migrate(f.workspace(), { removeDir: () => { throw Object.assign(new Error(code), { code }); } });
+    assert.deepEqual(f.reports, [], `${code} is an expected keep`);
+  }
+});

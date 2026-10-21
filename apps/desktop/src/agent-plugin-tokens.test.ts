@@ -253,3 +253,33 @@ test("a failing list is an empty list at the IPC boundary, never an error", asyn
   });
   assert.deepEqual(listed, []);
 });
+
+test("listTokenSignInPlugins spawns the real compiled CLI by default, in a scratch site dir it removes afterwards", async () => {
+  const repoRoot = fakeRepoRoot();
+  // A stand-in CLI entry that reports what it was run with: its argv and whether TOVU_SITE_DIR existed.
+  fs.writeFileSync(
+    path.join(repoRoot, "dist", "src", "cli", "main.js"),
+    [
+      'const fs = require("node:fs");',
+      "const siteDir = process.env.TOVU_SITE_DIR;",
+      'console.log("booting");',
+      "console.log(JSON.stringify({ plugins: [{ pluginId: \"stub\", displayName: process.argv.slice(2).join(\" \"), helpUrl: \"https://example.test/\" + (fs.existsSync(siteDir) ? \"scratch-present\" : \"scratch-missing\"), siteDir }] }));",
+    ].join("\n"),
+  );
+  fs.writeFileSync(path.join(repoRoot, "dist", "src", "cli", "package.json"), JSON.stringify({ type: "commonjs" }));
+  const plugins = await listTokenSignInPlugins({ repoRoot, baseEnv: {} });
+  assert.deepEqual(plugins, [{ pluginId: "stub", displayName: "agent-plugins token-sign-in --json", helpUrl: "https://example.test/scratch-present" }]);
+});
+
+test("a list with no JSON line, or one whose plugins is not an array, is an empty list", async () => {
+  const repoRoot = fakeRepoRoot();
+  assert.deepEqual(await listTokenSignInPlugins({ repoRoot, baseEnv: {}, spawnFn: () => fakeChild(0, { stdout: "warming up\nno json here\n" }) }), []);
+  assert.deepEqual(await listTokenSignInPlugins({ repoRoot, baseEnv: {}, spawnFn: () => fakeChild(0, { stdout: '{"plugins":"supabase"}\n' }) }), []);
+});
+
+test("a failing list with no structured error line reports the CLI's raw stderr", async () => {
+  await assert.rejects(
+    listTokenSignInPlugins({ repoRoot: fakeRepoRoot(), baseEnv: {}, spawnFn: () => fakeChild(2, { stderr: "  Segmentation fault  \n" }) }),
+    (error: Error) => error.message === "tovu agent-plugins token-sign-in failed: Segmentation fault",
+  );
+});

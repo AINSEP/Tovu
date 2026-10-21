@@ -143,15 +143,25 @@ export async function waitForExternalSiteStop(
   }
 }
 
+/** `ps` with `args`, in the C locale so its dates parse; throws when `ps` exits non-zero (a gone pid). */
+function runPsInCLocale(args: string[]): string {
+  return execFileSync("ps", args, { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } });
+}
+
 /**
  * Process start time via `ps -o lstart=` (argv-free, like `readProcessCommand`), in the C locale so
  * the date parses. `null` on win32, for a gone pid, or for output that does not parse.
+ * @param options.runPs runs `ps` and returns its stdout (test seam); defaults to the real `ps`.
  * @complexity O(1); one subprocess call.
  */
-export function readProcessStartMs(pid: number, platform: NodeJS.Platform = process.platform): number | null {
+export function readProcessStartMs(
+  pid: number,
+  platform: NodeJS.Platform = process.platform,
+  { runPs = runPsInCLocale }: { runPs?: (args: string[]) => string } = {},
+): number | null {
   if (platform === "win32") return null;
   try {
-    const parsed = Date.parse(execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } }).trim());
+    const parsed = Date.parse(runPs(["-o", "lstart=", "-p", String(pid)]).trim());
     return Number.isFinite(parsed) ? parsed : null;
   } catch {
     return null;

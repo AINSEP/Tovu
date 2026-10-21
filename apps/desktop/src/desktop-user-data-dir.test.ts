@@ -10,6 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -84,4 +85,11 @@ test("an unknown platform THROWS rather than guessing a directory", () => {
     () => resolveDesktopUserDataDir({ env: {}, platform: "aix", homedir: "/home/u" }),
     /no known userData location for platform 'aix'.*TOVU_DESKTOP_USER_DATA_DIR/s,
   );
+});
+
+test("with no options it resolves from this process's own env, platform and home directory", () => {
+  const explicit = resolveDesktopUserDataDir({ env: process.env, platform: process.platform, homedir: os.homedir() });
+  assert.equal(resolveDesktopUserDataDir(), explicit);
+  assert.ok(path.isAbsolute(explicit));
+  assert.equal(path.basename(explicit), DESKTOP_APP_NAME);
 });

@@ -28,6 +28,18 @@ test('bad field values cannot accidentally disable updates', () => {
     }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+test('a preferences file holding JSON that is not an object reads as defaults and is replaced by an object on write', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-updates-'));
+  const preferencePath = path.join(dir, 'preferences.json');
+  try {
+    for (const value of [null, [false], 'off']) {
+      fs.writeFileSync(preferencePath, JSON.stringify(value));
+      assert.equal(readAutomaticUpdates({ preferencePath }), true, JSON.stringify(value));
+      writeAutomaticUpdates({ preferencePath, enabled: false });
+      assert.deepEqual(JSON.parse(fs.readFileSync(preferencePath, 'utf8')), { automaticUpdates: false });
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
 test('native checkbox applies the chosen value, and restores it after a persistence failure', () => {
   const saved: boolean[] = [];
   const errors: unknown[] = [];
