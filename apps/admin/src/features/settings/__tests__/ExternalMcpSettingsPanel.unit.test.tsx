@@ -7,6 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
+import type { ExternalMcpAdmissionsController } from "../hooks/use-external-mcp-admissions.hooks";
 
 /**
  * @file Component-level coverage for `ExternalMcpSettingsPanel` — specifically the property
@@ -315,5 +316,142 @@ describe("ExternalMcpSettingsPanel — the Tools modal moves focus on open and r
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
+  });
+});
+
+describe("ExternalMcpSettingsPanel — card actions, draft test, failures and write grants", () => {
+  function idleAdmissions(connections: ExternalMcpAdmissionsController["connections"] = []): ExternalMcpAdmissionsController {
+    return {
+      loading: false,
+      unavailable: null,
+      waitingForAssistant: false,
+      connections,
+      restartHelps: false,
+      canRestart: false,
+      restarting: false,
+      restartError: null,
+      restartAccepted: false,
+      restart: () => {},
+    };
+  }
+
+  function renderWith(input: { sources: SourceConfigItem[]; connections?: ExternalMcpAdmissionsController["connections"]; fetchError?: Error; showTitle?: boolean; saveStatusLabel?: string }) {
+    const dependencies = createFakeSourceConfigDependencies<SourceConfigItem>({
+      sources: input.sources,
+      createSource: (draft) => ({ id: draft.fields.id?.trim() || "new-server", fields: draft.fields }),
+    });
+    if (input.fetchError) vi.spyOn(dependencies.port, "fetchSources").mockRejectedValue(input.fetchError);
+    const savedIntents: Array<Record<string, unknown>> = [];
+    render(
+      <FetchQueryProvider>
+        <ExternalMcpSettingsPanel
+          dependencies={dependencies}
+          {...(input.showTitle === undefined ? {} : { showTitle: input.showTitle })}
+          {...(input.saveStatusLabel === undefined ? {} : { saveStatusLabel: input.saveStatusLabel })}
+          useExternalMcpAdmissionsHook={(saved) => { savedIntents.push(saved); return idleAdmissions(input.connections); }}
+        />
+      </FetchQueryProvider>,
+    );
+    return { port: dependencies.port, savedIntents };
+  }
+
+  it("refreshes, tests and edits a configured server through the list port, showing its test result", async () => {
+    const user = userEvent.setup();
+    const { port } = renderWith({ sources: [{ id: "higgsfield", fields: { id: "higgsfield", transport: "stdio", authMode: "none", command: "npx" } }] });
+    const refresh = vi.spyOn(port, "refreshSource" as never);
+    const update = vi.spyOn(port, "updateSource" as never);
+    const [card] = await screen.findAllByTestId("source-config-item-card");
+    await user.click(within(card!).getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledWith("higgsfield"));
+    await user.click(within(card!).getByRole("button", { name: "higgsfield" }));
+    await user.click(within(card!).getByRole("button", { name: "Test" }));
+    expect(await within(card!).findByText(/Connection ok\./)).toBeInTheDocument();
+    await user.click(within(card!).getByRole("button", { name: "Edit" }));
+    await user.click(within(card!).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect((update.mock.calls[0] as unknown[])[0]).toBe("higgsfield");
+  });
+
+  it("tests the unsaved add-form draft and shows the result inside the form", async () => {
+    const user = userEvent.setup();
+    const { port } = renderWith({ sources: [] });
+    const test = vi.spyOn(port, "testSource" as never);
+    await openAddForm(user);
+    await user.type(screen.getByLabelText(/^ID/), "linear");
+    await user.selectOptions(screen.getByLabelText(/^Credentials/), "None needed");
+    await user.type(screen.getByLabelText(/^Command/), "npx");
+    await user.click(screen.getByRole("button", { name: "Test" }));
+    expect(await screen.findByText(/Connection ok\./)).toBeInTheDocument();
+    expect((test.mock.calls[0] as unknown[])[0]).toBeUndefined();
+  });
+
+  it("shows the add form's submit failure inline", async () => {
+    const user = userEvent.setup();
+    const { port } = renderWith({ sources: [] });
+    vi.spyOn(port, "addSource").mockResolvedValue({ ok: false, message: "Server id already exists" });
+    await openAddForm(user);
+    await user.type(screen.getByLabelText(/^ID/), "linear");
+    await user.selectOptions(screen.getByLabelText(/^Credentials/), "None needed");
+    await user.type(screen.getByLabelText(/^Command/), "npx");
+    await user.click(screen.getAllByRole("button", { name: "Add server" }).at(-1)!);
+    expect(await screen.findByText("Server id already exists")).toBeInTheDocument();
+  });
+
+  it("shows a failed roster read as the panel banner", async () => {
+    renderWith({ sources: [], fetchError: new Error("roster unavailable") });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("hands the admissions read each server's saved intent, an absent command reading as empty", async () => {
+    const hosted: SourceConfigItem = { id: "hosted", fields: { id: "hosted", transport: "http", url: "https://mcp.example.test" } };
+    const { savedIntents } = renderWith({ sources: [hosted] });
+    await screen.findAllByTestId("source-config-item-card");
+    expect(savedIntents.at(-1)).toMatchObject({ hosted: { allowedToolNames: "", enabled: true, command: "" } });
+  });
+
+  it("toggles a built-in server's Enable checkbox through the list port", async () => {
+    const user = userEvent.setup();
+    const builtIn: SourceConfigItem = { id: "tovu-site", enabled: true, fields: { id: "tovu-site", builtIn: "true" } };
+    const { port } = renderWith({ sources: [builtIn] });
+    const update = vi.spyOn(port, "updateSource" as never);
+    await user.click(await screen.findByRole("checkbox", { name: "Enable" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("tovu-site", { enabled: false }));
+  });
+
+  it("omits the heading when told to and renders the save-status footer when given one", async () => {
+    renderWith({ sources: [], showTitle: false, saveStatusLabel: "Restart the assistant to apply." });
+    expect(await screen.findByText("Restart the assistant to apply.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "External MCP servers" })).toBeNull();
+  });
+
+  it("opens no remove confirmation for a drift row naming a server that is not configured", async () => {
+    const user = userEvent.setup();
+    const missing = { connectionId: "ghost", remoteName: null, kind: "missing-launcher" as const, messageKey: "missing", messageVars: {} };
+    renderWith({ sources: [HIGGSFIELD], connections: [{ connectionId: "ghost", liveToolCount: 0, notLoaded: [], savedToolCount: 0, entries: [missing] }] });
+    await screen.findAllByTestId("source-config-item-card");
+    await user.click(document.querySelector<HTMLButtonElement>('[data-agent-element="mcp-drift-remove-ghost"]')!);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("granting write from a drift row writes that tool into its own card, and ignores a row for an unknown server", async () => {
+    const user = userEvent.setup();
+    const entry = (connectionId: string) => ({
+      connectionId,
+      remoteName: "create_issue",
+      kind: "needs-write-grant" as const,
+      messageKey: "needs write",
+      messageVars: {},
+    });
+    const connection = (connectionId: string) => ({ connectionId, liveToolCount: 1, notLoaded: [], savedToolCount: 1, entries: [entry(connectionId)] });
+    const { port } = renderWith({ sources: [HIGGSFIELD], connections: [connection("higgsfield"), connection("ghost")] });
+    const update = vi.spyOn(port, "updateSource" as never);
+    await screen.findAllByTestId("source-config-item-card");
+    await user.click(document.querySelector<HTMLInputElement>('[data-agent-element="mcp-drift-grant-ghost-create_issue"]')!);
+    expect(update).not.toHaveBeenCalled();
+    await user.click(document.querySelector<HTMLInputElement>('[data-agent-element="mcp-drift-grant-higgsfield-create_issue"]')!);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    const [id, patch] = update.mock.calls[0] as unknown as [string, { fields: Record<string, string> }];
+    expect(id).toBe("higgsfield");
+    expect(patch.fields.writeAllowedToolNames).toContain("create_issue");
   });
 });
