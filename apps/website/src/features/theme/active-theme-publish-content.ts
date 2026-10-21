@@ -101,7 +101,10 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
         deps: { repo: ports.presentation, clock: deps.clock, availableThemeIds: available },
         input: { workspaceId, activeThemeId },
       });
-      return { version: Date.parse(settings.updatedAt) || 0 };
+      // `setActiveTheme` stamps updatedAt via the kernel's nowIso (`new Date(ms).toISOString()`, which
+      // throws on an invalid time), so it always parses; no NaN fallback is needed here, unlike the read
+      // path in findActiveTheme, which sees whatever a stored row carries.
+      return { version: Date.parse(settings.updatedAt) };
     },
     errors: { blocked: [PresentationSettingsNotFoundError, PresentationSettingsValidationError] },
   });
