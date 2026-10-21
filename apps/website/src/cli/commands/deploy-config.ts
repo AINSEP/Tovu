@@ -46,8 +46,23 @@ export interface RunDeployConfigCommandInput {
 /** The bundled hosting plugins' source root. Same resolution as
  *  `server/runtime/composition/deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module
  *  pulls in the whole server composition graph for one path). @complexity O(1). */
-function bundledDeploySourceRoot(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+function bundledDeploySourceRoot(env: NodeJS.ProcessEnv): string {
+  return env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+}
+
+/** Injectable effects of the deploy-config command; defaults are the process env and stdio. */
+export interface DeployConfigCommandPorts {
+  env?: NodeJS.ProcessEnv;
+  stdout?: (message: string) => void;
+  stderr?: (message: string) => void;
+}
+
+function writeStdout(message: string): void {
+  process.stdout.write(message);
+}
+
+function writeStderr(message: string): void {
+  process.stderr.write(message);
 }
 
 /**
@@ -57,9 +72,9 @@ function bundledDeploySourceRoot(): string {
  *
  * @complexity O(g) in the declared generator count.
  */
-export function deployConfigTargetOptionHelp(): string {
+export function deployConfigTargetOptionHelp({ env = process.env }: Pick<DeployConfigCommandPorts, "env"> = {}): string {
   try {
-    return formatTargetOptionHelp(readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot() }));
+    return formatTargetOptionHelp(readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }));
   } catch { return formatTargetOptionHelp([]); }
 }
 
@@ -72,9 +87,9 @@ export function formatTargetOptionHelp(ids: readonly string[]): string {
 
 /** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
  *  @complexity O(g) generators, one import each. */
-async function loadGenerators(): Promise<DeployConfigGeneratorRegistry> {
-  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot() });
-  for (const refusal of registry.refusals) process.stderr.write(`tovu deploy config: ${refusal}\n`);
+async function loadGenerators(env: NodeJS.ProcessEnv, stderr: (message: string) => void): Promise<DeployConfigGeneratorRegistry> {
+  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot(env) });
+  for (const refusal of registry.refusals) stderr(`tovu deploy config: ${refusal}\n`);
   return registry;
 }
 
@@ -88,9 +103,11 @@ async function loadGenerators(): Promise<DeployConfigGeneratorRegistry> {
  *   extraction patterns.
  * @complexity O(g) generator imports, plus `buildDeploymentDescriptor`'s and the chosen generator's own bounded costs.
  */
-export async function runDeployConfigCommand(input: RunDeployConfigCommandInput): Promise<void> {
+export async function runDeployConfigCommand(input: RunDeployConfigCommandInput, optional: DeployConfigCommandPorts = {}): Promise<void> {
+  // Default ports are wired here, at the command edge; tests inject their own.
+  const { env = process.env, stdout = writeStdout, stderr = writeStderr } = optional;
   const targetRaw = input.target ?? "";
-  const generators = await loadGenerators();
+  const generators = await loadGenerators(env, stderr);
   const generator = generators.get(targetRaw);
   if (generator === undefined) {
     const ids = generators.list().map((loaded) => loaded.descriptor.id);
@@ -104,12 +121,12 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput)
   if (input.out !== undefined) {
     const outPath = path.resolve(input.out);
     writeFileSync(outPath, rendered.contents, "utf8");
-    process.stdout.write(`tovu deploy config: wrote ${rendered.filename} (${targetRaw}) to ${outPath}\n`);
+    stdout(`tovu deploy config: wrote ${rendered.filename} (${targetRaw}) to ${outPath}\n`);
   } else {
-    process.stdout.write(rendered.contents);
+    stdout(rendered.contents);
   }
 
   for (const note of rendered.notes) {
-    process.stderr.write(`tovu deploy config: ${note}\n`);
+    stderr(`tovu deploy config: ${note}\n`);
   }
 }
