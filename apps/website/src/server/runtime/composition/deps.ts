@@ -178,7 +178,6 @@ import {
 } from "../configuration/seed.js";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import { buildAnalyticsProviders } from "./analytics-providers.js";
-import { resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
 import {
   SqliteMagicLinkTokenRepo,
   SqliteMemberRepo,
