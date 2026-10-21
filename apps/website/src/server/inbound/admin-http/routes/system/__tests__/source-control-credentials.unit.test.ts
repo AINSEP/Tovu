@@ -1,26 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSourceControlCredentialsRoutes } from "../source-control-credentials.js";
+import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "../source-control-credentials.js";
 
 /**
  * Direct-invoke contracts for the source-control credential routes, with hand-written fakes for the
  * credential repo and the provider loader — no listener, no database, no plugins.
  */
+type ProviderRegistry = Awaited<ReturnType<AdminSourceControlCredentialsDeps["loadSourceControlProviders"]>>;
+type LoadedProvider = ReturnType<ProviderRegistry["list"]>[number];
+type ProviderDescriptor = LoadedProvider["descriptor"];
+const TOKEN_FIELD = { name: "token", label: "Token", required: true, secret: true } as const;
 const BASE = "/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials";
 const PROVIDERS = "/api/admin/v1/workspaces/:workspaceId/system/source-control/providers";
 const offline = async () => { throw new Error("SECRET repo detail"); };
 const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
 
-function harness(overrides: Record<string, unknown> = {}) {
+function harness(overrides: PortFake<AdminSourceControlCredentialsDeps> = {}) {
   const app = express();
-  registerAdminSourceControlCredentialsRoutes(app, {
+  registerAdminSourceControlCredentialsRoutes(app, portFake<AdminSourceControlCredentialsDeps>({
     workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowIso: () => "2026-10-21T00:00:00.000Z", nowMs: () => 0 }, idGen: { newId: () => "cred-1" },
     sourceControlCredentialSetRepo: { listByWorkspace: offline, findById: offline, delete: offline },
     loadSourceControlProviders: offline, ...overrides,
-  } as any);
+  }));
   return async (method: "get" | "post" | "put" | "delete", path: string, req: { params?: Record<string, string>; body?: unknown } = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-1" };
@@ -42,18 +47,18 @@ test("providers list optional credential/i18n fields only when declared, names s
   t.mock.method(console, "warn", (message: unknown) => { warned.push(message); });
   const invoke = harness({ loadSourceControlProviders: async (workspaceId: string) => {
     assert.equal(workspaceId, "ws-1");
-    return {
+    return portFake<ProviderRegistry>({
       refusals: ["plugin 'broken' refused: bad manifest"],
       list: () => [
-        { descriptor: { id: "github", label: "GitHub", credential: { fields: ["token"] }, i18n: { fr: { label: "GitHub" } } } },
-        { descriptor: { id: "plain", label: "Plain Git" } },
+        portFake<LoadedProvider>({ pluginId: "plugin-github", descriptor: portFake<ProviderDescriptor>({ id: "github", label: "GitHub", credential: { fields: [TOKEN_FIELD] }, i18n: { fr: { label: "GitHub" } } }) }),
+        portFake<LoadedProvider>({ pluginId: "plugin-plain", descriptor: portFake<ProviderDescriptor>({ id: "plain", label: "Plain Git" }) }),
       ],
       switchedOff: new Map([["gitlab", "plugin-gitlab"]]),
-    };
+    });
   } });
   assert.deepEqual(await invoke("get", PROVIDERS), { statusCode: 200, jsonBody: {
     providers: [
-      { id: "github", label: "GitHub", credential: { fields: ["token"] }, i18n: { fr: { label: "GitHub" } } },
+      { id: "github", label: "GitHub", credential: { fields: [TOKEN_FIELD] }, i18n: { fr: { label: "GitHub" } } },
       { id: "plain", label: "Plain Git" },
     ],
     switchedOff: [{ id: "gitlab", pluginId: "plugin-gitlab" }],

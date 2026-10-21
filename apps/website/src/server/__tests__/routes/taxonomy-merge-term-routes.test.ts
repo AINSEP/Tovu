@@ -180,8 +180,9 @@ test("taxonomy mergeTerm: replaying an already-redeemed confirmation token is re
 
 const MERGE_BASE = "/api/admin/v1/taxonomy/terms/:id/merge";
 /** Every method of this repo/store port throws a non-Error value, as a broken driver might. */
-function throwingNonErrorPort(): unknown {
-  return new Proxy({}, { get: () => async () => { throw "storage offline"; } });
+function throwingNonErrorPort<T extends object>(): T {
+  const methods: Record<string, unknown> = {};
+  return new Proxy(methods, { get: () => async () => { throw "storage offline"; } }) as T;
 }
 async function invokeMerge(app: express.Express, step: "plan" | "confirm" | "execute", req: { params: Record<string, string>; body?: unknown }, principalId = "owner") {
   const { res, capture } = createCapturingResponse();
@@ -200,7 +201,7 @@ async function ownerOf(deps: RouteDeps): Promise<string> {
 
 test("taxonomy mergeTerm: each step rejects a missing or non-string body field with 400 before any gateway call", async () => {
   const { deps } = buildTestApp();
-  const app = mergeApp({ ...deps, gatedMutations: { gatewayDeps: throwingNonErrorPort() } } as unknown as RouteDeps);
+  const app = mergeApp({ ...deps, gatedMutations: { gatewayDeps: throwingNonErrorPort<RouteDeps["gatedMutations"]["gatewayDeps"]>() } });
   const cases: Array<["plan" | "confirm" | "execute", unknown, string]> = [
     ["plan", undefined, "'intoTermId' (string) is required"],
     ["plan", { intoTermId: 7 }, "'intoTermId' (string) is required"],
@@ -247,7 +248,7 @@ test("taxonomy mergeTerm: an expired confirmation token is rejected 409 TOKEN_EX
   const { confirmationToken } = (await confirmRes.json()) as { confirmationToken: string };
   const farFuture = Date.parse("2100-01-01T00:00:00.000Z");
   const lateClock = { nowIso: () => new Date(farFuture).toISOString(), nowMs: () => farFuture };
-  const lateApp = mergeApp({ ...deps, gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, clock: lateClock } } } as unknown as RouteDeps);
+  const lateApp = mergeApp({ ...deps, gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, clock: lateClock } } });
   const capture = await invokeMerge(lateApp, "execute", { params: { id: fromTermId }, body: { intoTermId, confirmationToken } }, await ownerOf(deps));
   assert.equal(capture.statusCode, 409);
   assert.equal((capture.jsonBody as { code: string }).code, "TOKEN_EXPIRED");
@@ -256,8 +257,8 @@ test("taxonomy mergeTerm: an expired confirmation token is rejected 409 TOKEN_EX
 test("taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 INTERNAL_ERROR", async () => {
   const { deps } = buildTestApp();
   const owner = await ownerOf(deps);
-  const broken = mergeApp({ ...deps, termRepo: throwingNonErrorPort(), entryTermRepo: throwingNonErrorPort(),
-    gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, tokens: throwingNonErrorPort(), authorize: async () => { throw "authz offline"; } } } } as unknown as RouteDeps);
+  const broken = mergeApp({ ...deps, termRepo: throwingNonErrorPort<RouteDeps["termRepo"]>(), entryTermRepo: throwingNonErrorPort<RouteDeps["entryTermRepo"]>(),
+    gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, tokens: throwingNonErrorPort<RouteDeps["gatedMutations"]["gatewayDeps"]["tokens"]>(), authorize: async () => { throw "authz offline"; } } } });
   const expected = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
   assert.deepEqual(await invokeMerge(broken, "plan", { params: { id: "term-1" }, body: { intoTermId: "term-2" } }, owner), expected);
   assert.deepEqual(await invokeMerge(broken, "confirm", { params: { id: "term-1" }, body: { planId: "plan-1", planHash: "hash-1" } }, owner), expected);

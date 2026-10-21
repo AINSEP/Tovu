@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { ContentRouteDeps } from "../../content/deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemesListRoute } from "../list.js";
@@ -49,13 +51,13 @@ test("an absent or foreign workspace 404s and a caller without theme.set gets 40
   let reads = 0;
   let allowed = false;
   const app = express();
-  registerAdminThemesListRoute(app, {
+  registerAdminThemesListRoute(app, portFake<ContentRouteDeps>({
     workspaceId: "ws-7", themes: [], authorize: async (input: unknown) => {
       assert.deepEqual(input, { principalId: "principal-7", permission: "theme.set", workspaceId: "ws-7", entityType: "presentation" });
       return { allowed, reason: "no grant" };
     },
     presentationRepo: { findByWorkspaceId: async () => { reads++; return null; } },
-  } as any);
+  }));
   const call = async (params: Record<string, string>) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

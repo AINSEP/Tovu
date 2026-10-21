@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { TaxonomyRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminTaxonomyCreateTermRoute } from "../create-term.js";
@@ -11,12 +13,12 @@ import { registerAdminTaxonomyDeleteTermRoute } from "../delete-term.js";
  * repos/ports each route hands to its service function — no HTTP listener, no database.
  */
 const allow = async () => ({ allowed: true, reason: "matched" });
-function harness(overrides: Record<string, unknown>) {
+function harness(overrides: PortFake<TaxonomyRouteDeps>) {
   const app = express();
-  const deps = {
+  const deps = portFake<TaxonomyRouteDeps>({
     workspaceId: "ws-7", authorize: allow, clock: { nowIso: () => "2026-10-21T00:00:00.000Z" }, idGen: { newId: () => "term-new" },
     outbox: { enqueue: async () => {} }, postRepo: {}, ...overrides,
-  } as any;
+  });
   registerAdminTaxonomyCreateTermRoute(app, deps);
   registerAdminTaxonomyDeleteRoute(app, deps);
   registerAdminTaxonomyDeleteTermRoute(app, deps);

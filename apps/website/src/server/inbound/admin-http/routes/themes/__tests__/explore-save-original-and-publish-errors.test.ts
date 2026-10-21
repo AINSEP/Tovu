@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemePagePublishRoute, registerAdminThemeSaveOriginalRoute } from "../explore.js";
@@ -12,7 +13,7 @@ import type { ContentRouteDeps } from "../../content/deps.js";
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId";
 async function invoke(authorize: ContentRouteDeps["authorize"], suffix: "/original" | "/page/publish") {
   const app = express();
-  const deps = { workspaceId: "ws-1", authorize, themes: [], themesDir: "/nonexistent" } as unknown as ContentRouteDeps;
+  const deps = portFake<ContentRouteDeps>({ workspaceId: "ws-1", authorize, themes: [], themesDir: "/nonexistent" });
   registerAdminThemeSaveOriginalRoute(app, deps);
   registerAdminThemePagePublishRoute(app, deps);
   const { res, capture } = createCapturingResponse();

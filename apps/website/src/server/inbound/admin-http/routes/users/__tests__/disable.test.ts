@@ -333,7 +333,7 @@ test("DISABLE_PRINCIPAL route: 500 internal error when an unexpected error is th
 
 test("DISABLE_PRINCIPAL route: an IdentityValidationError from the transaction maps to 400 VALIDATION_ERROR", async (t) => {
   const { app } = await buildApp({
-    transactions: { run: async () => { throw new IdentityValidationError({ message: "target is not disableable" }); } } as unknown as UsersRouteDeps["transactions"],
+    transactions: { run: async () => { throw new IdentityValidationError({ message: "target is not disableable" }); } },
   });
   const baseUrl = await startTestServer(app, t);
 

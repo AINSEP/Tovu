@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
@@ -112,15 +113,15 @@ test("share creation accepts a non-UUID job id (reported, not fixed)", async t =
 test("share artifact routes admit a connected-computer grant, and every route refuses or sanitizes before effects", async t => {
   let allowed = true, trusted = false, authorizeFault: unknown, registryFault: unknown;
   const effects: string[] = [];
-  const registry = {
+  const registry = portFake<SiteShareRegistry>({
     directory: "/nonexistent",
     get: async () => { effects.push("get"); if (registryFault) throw registryFault; return null; },
     list: async () => { effects.push("list"); if (registryFault) throw registryFault; return []; },
-  };
+  });
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; if (trusted) res.locals.publishTrust = { sourceInstallationId: "source", capabilities: ["publish_content.apply"], entityTypes: [], generation: 1 }; next(); });
-  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", siteShareBackend: { registry },
-    authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } } as unknown as RouteDeps });
+  registerAdminSiteShareRoutes({ app, deps: portFake<RouteDeps>({ workspaceId: "ws", siteShareBackend: { registry },
+    authorize: async () => { if (authorizeFault) throw authorizeFault; return { allowed, reason: "test" }; } }) });
   const root = (await startTestServer(app, t)) + "/api/admin/v1/workspaces/ws/site-shares";
   const artifact = root + "/artifacts/" + "a".repeat(64) + "/received.tovu.zip";
   const sanitized = { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." };

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { TrashRouteDeps } from "../deps.js";
+import type { TrashItem } from "@jini-ai/cms/trash";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -171,7 +174,7 @@ test("unexpected failures on every trash route return generic 500 without detail
 test("trash list and purge 404 an absent or foreign workspace before authorizing", async () => {
   const app = express();
   let calls = 0;
-  const deps = { workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } } as any;
+  const deps = portFake<TrashRouteDeps>({ workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } });
   registerAdminTrashListRoute(app, deps);
   registerAdminTrashPurgeRoute(app, deps);
   for (const [method, suffix] of [["get", ""], ["post", "/purge"]] as const) {
@@ -199,8 +202,9 @@ test("trash list and purge answer the standard 403 when content.read is denied",
   assert.deepEqual(await invoke("post", "/purge", { ids: ["trash-1"] }), forbidden);
 });
 test("trash row projection sends a null actorUsername for an unknown actor and flags the system actor", () => {
-  const item = { id: "trash-1", workspaceId: "ws-7", entityType: "post", entityId: "post-1", displayTitle: "T", displaySubtitle: null,
-    trashedAt: "2026-09-30T12:00:00.000Z", purgeAfter: "2026-10-02T12:00:00.000Z", actorPrincipalId: "gone-user", actorPluginId: null } as any;
+  const item: TrashItem = { id: "trash-1", workspaceId: "ws-7", entityType: "post", entityId: "post-1", displayTitle: "T", displaySubtitle: null,
+    trashedAt: "2026-09-30T12:00:00.000Z", purgeAfter: "2026-10-02T12:00:00.000Z", actorPrincipalId: "gone-user", actorPluginId: null,
+    entityVersion: null, priorMarker: null };
   const names = new Map([["someone-else", "ada"]]);
   const unknown = toAdminTrashResponse(item, now, names);
   assert.equal(unknown.actorUsername, null);

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { UsersRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminPolicyListRoute } from "../list-policies.js";
@@ -92,7 +94,7 @@ test("denied role.manage returns the standard 403 before any repository access",
 // Route-param guards (`String(req.params.X ?? "")`): a request with no params must still 404 cleanly.
 test("absent workspaceId param falls back to empty string and 404s on every list route", async () => {
   const app = express();
-  const deps = { workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }) } as any;
+  const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }) });
   registerAdminPolicyListRoute(app, deps);
   registerAdminRoleListRoute(app, deps);
   registerAdminPolicyPermissionListRoute(app, deps);
@@ -104,9 +106,9 @@ test("absent workspaceId param falls back to empty string and 404s on every list
 });
 test("absent policyId param falls back to empty string and looks up policy ''", async () => {
   const app = express();
-  const deps = { workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }), policyRepo: {
+  const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }), policyRepo: {
     findById: async (input: unknown) => { assert.deepEqual(input, { workspaceId: "ws-7", id: "" }); return null; },
-  } } as any;
+  } });
   registerAdminPolicyPermissionListRoute(app, deps);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };

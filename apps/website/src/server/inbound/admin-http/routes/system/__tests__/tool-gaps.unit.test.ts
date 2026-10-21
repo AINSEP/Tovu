@@ -36,7 +36,7 @@ test('Tool gaps answer 503 when the composition root wired no audit store', asyn
 test('Tool gaps audit read failures return a generic 500 and log without the storage detail', async (t) => {
   const logged: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
-  const failing = { list: async () => { throw new Error('private storage detail'); } } as unknown as ToolGapsToolDeps['toolGaps'];
+  const failing: ToolGapsToolDeps['toolGaps'] = { list: async () => { throw new Error('private storage detail'); } };
   assert.deepEqual(await invoke('owner', 'w', failing), { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 });
   assert.deepEqual(logged, [['[tool-gaps] audit read failed']]);
 });

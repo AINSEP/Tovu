@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { portFake } from "#src/server/__tests__/helpers/port-fake";
+import type { TaxonomyRouteDeps } from "../deps.js";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { ContentTypeMismatchError, WorkspaceMismatchError } from "#src/features/taxonomy/index";
@@ -12,7 +14,7 @@ import { registerAdminTaxonomyAssignedTermsRoute } from "../assign-terms.js";
  */
 async function readAssigned(authorize: () => Promise<never>) {
   const app = express();
-  registerAdminTaxonomyAssignedTermsRoute(app, { workspaceId: "ws-1", authorize } as any);
+  registerAdminTaxonomyAssignedTermsRoute(app, portFake<TaxonomyRouteDeps>({ workspaceId: "ws-1", authorize }));
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-1" };
   await extractRouteHandler(app, "get", "/api/admin/v1/taxonomy/assigned-terms")({ params: {}, query: { contentType: "post", contentId: "p1" } }, res);
