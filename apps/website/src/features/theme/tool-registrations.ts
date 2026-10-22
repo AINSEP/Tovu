@@ -385,11 +385,10 @@ function countOccurrences(haystack: string, needle: string): number {
  * @complexity O(n) in the file's size, for the split/replace `oldString`/`newString` each perform.
  */
 function applyThemeFileEdit(
-  currentContent: string,
-  edit: { oldString: string; newString: string; replaceAll: boolean; intent?: "delete" },
-  relativePath: string
+  { currentContent, edit, relativePath }: { currentContent: string; edit: { oldString: string; newString: string; replaceAll: boolean; intent?: "delete" }; relativePath: string },
+  _optional: Record<string, never> = {},
 ): string {
-  const nextContent = replaceThemeFileText(currentContent, edit, relativePath);
+  const nextContent = replaceThemeFileText({ currentContent, edit, relativePath });
   // An empty `newString` deletes text (allowed as is); only an edit that leaves NOTHING (empty or
   // whitespace-only) needs the explicit `intent: "delete"` — the one deletion a too-wide oldString
   // could do by accident, and a whole-file wipe is never what "remove this line" meant.
@@ -402,9 +401,8 @@ function applyThemeFileEdit(
 }
 
 function replaceThemeFileText(
-  currentContent: string,
-  edit: { oldString: string; newString: string; replaceAll: boolean },
-  relativePath: string
+  { currentContent, edit, relativePath }: { currentContent: string; edit: { oldString: string; newString: string; replaceAll: boolean }; relativePath: string },
+  _optional: Record<string, never> = {},
 ): string {
   const occurrences = countOccurrences(currentContent, edit.oldString);
   if (occurrences === 0) {
@@ -825,7 +823,7 @@ export function buildThemesRegistrations(
         assertThemeFileWritable(theme, relativePath);
 
         const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
-        const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath);
+        const nextContent = applyThemeFileEdit({ currentContent, edit: { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath });
         const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);

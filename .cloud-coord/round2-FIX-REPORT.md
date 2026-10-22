@@ -1,166 +1,157 @@
-Programmer(Execution): Programmer + TDD personas loaded; implementation/security fixes and DI-based regression definitions.
+Programmer(Execution): Programmer persona selected and loaded for the implementation, boundary repairs, and DI regression definitions.
 
-Round-2 FIX handoff, 2026-10-22. Branch `codex/round2-fix`, reviewed tip `0b5977af5de9004d08c3085b797152039c37dd3b`. No commits or other git mutations. No tests, installs, builds, application servers or provider calls run. Jini and the live Tovu checkout remained read-only.
+Opus round-2 review repairs, 2026-10-22. Branch `codex/r2-review-fixes`, base/live HEAD `4d8a35a03fd2100d2a794b91f509d99d606211ff`. This report supersedes the earlier 41-finding repair handoff at this path; the finding numbers below refer to `/Users/la/Programming/Tovu/ADS-memory/reports/2026-10-22-opus-review-round2.md`.
 
-Inputs: supplied CHECK findings 1–41; `.cloud-coord/email-design.md` with overriding Owner decisions; `.cloud-coord/round2-progress.md`; `.cloud-coord/round2-REPORT.md`; canonical architecture sections 13/14 and ADR-066. Local ADS-memory references were absent, so canonical `/Users/la/Programming/Tovu/ADS-memory` files were consulted. MCP graph tools were not available; direct source/manifest/installed-package searches used. Existing Post/Pages transactions, custom credential storage, provider resolver, Jini delivery policy and limiter, and store owner/close lifecycle are the reused owners.
+All 17 findings have source changes. “Fixed” below means implemented and statically reviewed; regression tests are defined but unexecuted. No tests, installs, builds, application servers, provider calls, commits, staging, stash, checkout, or reset were run. Runtime certification remains with the Coordinator under the dispatch's explicit no-tests instruction. No helper agents were spawned.
 
-Status means implementation/test definitions changed, not runtime certification. **Coverage execution and the requested 100% line/branch/function proof remain deferred to the coordinator under the explicit no-tests instruction.** No coverage exclusions or ignores added. New DI tests cover the named missing cases; runtime failures may remain until those tests run.
+| Finding | Disposition | Change and files (under `apps/website/src/` unless stated) |
+| --- | --- | --- |
+| 1 High — observer throws after accepted send | Fixed | `server/runtime/boot/mail-delivery-policy.ts`: observer runs inside a catch, warns once with the fixed line `[mail] activity observation failed`, contains logger faults, and returns the exact policy result unchanged. DI tests in adjacent `__tests__/mail-delivery-policy.unit.test.ts` assert success, reference identity, all three batch recipients attempted, no raw error text, and a failing logger. |
+| 2 High — repeated writes and unindexed retention | Fixed | `features/mail/retention.ts`: ledger update requires `activity_retained = 1`; feedback scrub requires `(recipient <> '' OR provider_message_id <> '')`. New 0031 supplies timestamp-leading indexes for the cross-workspace owner pass. `features/mail/__tests__/attempts-retention.dialects.test.ts` counts actual affected rows using RETURNING on SQLite and PGlite; a second pass must change zero rows. |
+| 3 Medium — raw provider error in test send | Fixed | `features/mail-status/test-send.ts`: code-to-fixed-copy mapping for local refusals and generic `The provider refused the message (code X).` otherwise; never forwards `result.message`. Secret-bearing SMTP/provider message tests cover operation, assistant tool, and route body (`features/mail-status/__tests__/test-send.test.ts`, `server/inbound/admin-http/routes/system/__tests__/mail-dns-and-test-send.unit.test.ts`). |
+| 4 Medium — final ledger metadata kept forever | Fixed | `features/mail/retention.ts`: DELETE entire final `sent`/`failed`/`unknown` rows when both creation and last reserve/mark update are at least 30 days old. Recent retry windows, unresolved reservations and webhook replay IDs are preserved. Exact schedule and fields below. |
+| 5 Medium — missing tracked Jini backlog | Fixed | All three extraction records now live in the already tracked `.cloud-coord/round2-progress.md`, under “Jini extraction backlog”: source, destination package, two-object API/ports, invariants, and the reason extraction cannot land in this checkout. Headers in cache, setup parser, and renderer point there. No reliance on ignored SURVEY.md, new untracked prose, or staging. |
+| 6 Medium — toHeadlessPost complexity 11 | Fixed | `server/inbound/public-http/http/shared/post.ts`: shared `requirePublicPost({ post }, {})` returns the narrowed public record before mapping. Mapper meets complexity ≤10 and still refuses templates. Adjacent `__tests__/post.test.ts` pins both DTO refusals. |
+| 7 Medium — activity scans full history | Fixed | Observer persists `use_id` once; 0031 backfills existing attempts and indexes workspace/use/time/id and workspace/effective-recipient. `features/mail/activity.repo.ts` pushes use, recipient, identity, cutoff and cursor predicates into base sources. Ordinary reads limit each ordered source before UNION and feedback probes; legacy history is bounded to the recent 30 days. Outcome filtering is correctly applied before the final limit. Complexity docs explicitly disclose the remaining recent-window legacy/derived-outcome scans. Tests cover stored purpose, newest-page selection and an older failed row behind a newer accepted row. |
+| 8 Low — permission docs promise delegation | Fixed | `features/mail-status/permissions.ts` and `suppressions.ts`: owner only; the grant alone is not enough. Owner-only code remains intact. |
+| 9 Low — orphaned bucket why-comment | Fixed | Moved from `server/runtime/composition/deps.ts` to `mailTestSendLimiter` in `site-mailer.ts`. |
+| 10 Low — stale derived-risk comment | Fixed | `features/email-templates/tool-registrations.ts` names `postRepo.listHtmlByKind`. |
+| 11 Low — Pages/template kind confusion | Fixed | `features/pages/html-document-store{,.memory}.ts`: factory options select allowed kinds, default page only; enforce on read, conversion, and write, including CAS. Template operations explicitly select email-template only. Composition roots `app.ts`, `deps.ts`, and `peer-site-reads.ts` forward factory options. Memory and SQL template operation tests pin Pages refusal while template create/edit still uses the same writer. |
+| 12 Low — active send HTML vectors | Fixed | `features/email-templates/render.ts` extends the existing parse5/Jini sanitizer: removes base/form/link/http-equiv meta and non-image data URLs, including control-character obfuscation. `__tests__/render.test.ts` asserts malicious removal and preserved inline image/style/viewport content. |
+| 13 Low — false approval change after boot/switch | Fixed | `planMailTestSend` awaits the existing `mailLaneReady` port before reading synchronous capabilities or resolving the sender. `MailStatusToolDeps` carries the same optional port; site operations already expose it to routes and tools. Test pins resolved driver and successful execution. |
+| 14 Low — credential refusal contains store text | Fixed | `server/runtime/boot/mail-provider-catalog.ts`: fixed could-not-decrypt/read copy; detail goes only to a server diagnostic sink, with logging faults contained. Catalog setup tests cover Error, non-Error, decrypt failure, and failing logger; resolver assertion updated to forbid raw store text. |
+| 15 Low — DNS requirements has no deadline | Fixed | `server/runtime/boot/resolve-mailer.ts`: provider call races a 5 s default timeout, clears the timer in finally, and rejects with fixed copy so existing DNS operations return `requirements_failed`. Injected timeout seam and a never-settling provider regression in `__tests__/resolve-mailer.unit.test.ts`. |
+| 16 Low — refresh bypass unthrottled | Fixed | Existing `createTtlCache` accepts a minimum forced-refresh interval. Resolver sets 5 s shared by HTTP and tools. Cold concurrent refreshes coalesce; refresh inside the interval reuses the report; invalidation permits immediate rebuild. Cache and resolver lifecycle tests pin boundaries, superseding generations and invalidation. |
+| 17 Low — scalar helper arguments | Fixed | `features/theme/tool-registrations.ts`: applyThemeFileEdit/replaceThemeFileText take required object plus optional object. `server/inbound/admin-http/routes/system/mail-activity.ts`: statusAllowed/handle use the same shape; call sites updated. Existing external mailer/Express/store signatures remain compatible. |
 
-| Finding | Disposition | Change / evidence |
-|---|---|---|
-| 1 | fixed | Owner identity checked independently of action permission in prepare and run; reason required; tool always asks. |
-| 2 | fixed | Frozen provider/driver/From/mode/effective-recipient approval; rechecked by operation and actual policy dispatch. |
-| 3 | fixed | Reviewed suppression incarnation carried into execution; advisory lock, conditional DELETE RETURNING, audit in the same transaction only for the winner. |
-| 4 | fixed | Status errors use fixed safe diagnostics; raw send/check errors and codes never enter lastError. DNS requirement failures are also safe. |
-| 5 | fixed | Composed boot/minute retention pass: delete captures at 24 h and attempts at 30 d; hide expired ledger activity and scrub completed feedback recipient/message metadata; preserve dedup identities and suppression protection. |
-| 6 | fixed | Existing Tovu delivery-policy wrapper observes actual results including pre-reservation suppression/throttling and capture; separate body-free attempt projection. |
-| 7 | fixed | Attempt metadata retains original/effective recipient and mode; displayed redirect recipient and feedback joins use the effective address. |
-| 8 | fixed | Generation-tag in-flight resolutions; detach on invalidation, suppress stale publications, and recheck credential fingerprint after decrypt. |
-| 9 | fixed | Published createMailLaneLimiter reused. Remaining generic owners recorded with exact extraction APIs/files in the required SURVEY backlog; Jini unchanged. |
-| 10 | fixed test definitions; verification deferred | Deferred-load cache tests cover cold sharing, rejection/retry, expiry, invalidation, stale completion and refresh interleavings. |
-| 11 | fixed test definitions; verification deferred | Parser tests add null/array boundaries, non-string labels, and oversized optional text with exact refusal assertions. |
-| 12 | fixed test definitions; verification deferred | New saved-SMTP-without-username DTO test asserts saved/selectable false and exact refusal. |
-| 13 | fixed test definitions; verification deferred | Added missing label, creation/rotation sealing and repository-write failures, and disappearing-row tests; unchanged state and no invalidation/activation asserted. |
-| 14 | fixed test definitions; verification deferred | Empty limits/recipients, overlong recipients and nonintegral cursor payload refusal tested. New cursors use stable keys instead of offsets. |
-| 15 | fixed test definitions; verification deferred | Explicit empty suppression search and empty continuation tested, including cursor and empty classification. |
-| 16 | fixed test definitions; verification deferred | Non-Error/form/settings/probe failures isolated and unaffected readiness rows asserted. |
-| 17 | fixed test definitions; verification deferred | Real dialect transactions with injected delete/audit faults assert rollback; concurrent removal and recreation tests assert one audit and no inherited approval. |
-| 18 | fixed test definitions; verification deferred | Provider/credential/inbox failures covered at shared operation, HTTP and tool seams; HTTP logs exclude arbitrary dependency text. |
-| 19 | fixed test definitions; verification deferred | Typed duplicate/not-found/vault failures injected through route ports; status/code, no secrets and unchanged state asserted. |
-| 20 | fixed test definitions; verification deferred | Production mail bindings now live in createSiteMailer.operations, directly consumed by deps.ts; public-operation tests cover composed settings, credentials, sender, test mode and readiness plus failures. |
-| 21 | fixed test definitions; verification deferred | Replaced result-label redirect fake with actual policy executions asserting transport destination, captures, suppression and replay without another token. |
-| 22 | fixed test definitions; verification deferred | Replaced manufactured not-live exception with real seeded/trashed templates; separate race between lookup and real Pages-store read. |
-| 23 | fixed test definitions; verification deferred | Real Jini page deadline clock advances through stable attempt; asserts fallback gets 4 s, successful metadata read, and exhausted fallback prevents metadata read. |
-| 24 | fixed | Unknown delivery outcome preserved explicitly; retryable false. |
-| 25 | fixed | Site-scoped request-result single flight precedes limiter; same request replays result without another token or capture. In-memory result retention is bounded; durable send ledger still protects external sends. |
-| 26 | fixed | Readiness uses the resolved provider for each row's transactional/bulk lane. |
-| 27 | fixed | Readiness uses mailSenderIdentityFor; missing configured sender blocks SMTP. |
-| 28 | fixed | Template row and Pages HTML conversion join existing Post/kernel transaction; rollback test asserts no orphan and clean retry. |
-| 29 | fixed | Activity and suppression paging use timestamp plus stable opaque row identity; no offset skipped rows and no address in masked cursors. |
-| 30 | fixed | Only processed feedback establishes receiving; pending signed events remain unhealthy until processing completes. |
-| 31 | fixed | Resolver exposes the shared richer sender-domain verdict; whole check bounded to 5 s. DNS requirement lookup starts independently. |
-| 32 | fixed | Bounded kind-filtered live-HTML query in SQL/memory Post owners; template list accepts limit/cursor. No unrelated post/page bodies loaded. |
-| 33 | fixed | Stored PostKind includes email-template; public Post/Page lookups and both search dialects exclude it; generic Trash classifies it through the existing Post deletion owner. |
-| 34 | fixed | New operation dependencies moved into required object; second options object reserved. Scalar helpers converted; TypeScript type predicates retain scalar signatures as required for language narrowing, and framework callback ABIs remain compatible. |
-| 35 | fixed | Optional setup validation extracted to withSetup; static ESLint complexity confirms parseDescriptorV2 and new/changed small functions at or below 10. |
-| 36 | fixed | Known credential-store errors return the documented {error, code} envelope without raw detail. |
-| 37 | fixed | Minimal withSetup wrapper avoids another descriptor-return merge owner; exact credentialCard/setup combination documented below. Live branch remains read-only. |
-| 38 | fixed | Only unapplied 0029/0030 rewritten with schema builders; same builders compile fresh-SQLite DDL. Ordered IDs retained and their two checksums repinned. |
-| 39 | not-a-bug | Not a bug in this tip: the skeleton already uses a single \n escape producing an actual newline. Added rendered-visible-text regression. |
-| 40 | fixed | Separate fieldsDeclared flag ensures an empty first declaration still wins. |
-| 41 | fixed | Object field names/samples with unsupported delimiters refused before persistence; supported object input round trip tested. |
+Retention policy and timing:
 
-Merge instructions for mail-adapter-registry.ts
+- The existing owner-store lifecycle starts one pass at boot, then every 60,000 ms. Passes never overlap; close stops ticks and drains the active transaction. Worker/non-owner stores do not start the sweep.
+- Captures with `created_at <= now − 24 h` are physically deleted, including captured bodies. Attempts with `created_at <= now − 30 d` are physically deleted, including original/effective addresses and observation metadata.
+- Final ledger rows (`sent`, `failed`, `unknown`) with `created_at <= now − 30 d AND updated_at <= now − 30 d` are physically deleted. This deletes recipient, idempotency key, payload hash, lane, provider id/message id, outcome/error code, activity identity/flag and timestamps together. The existing reservation/mark implementation updates `updated_at` on a retry; retaining a recently retried row for that window avoids deleting active dedup protection merely because its original creation was old. No longer final-result replay window was found in callers. Old `reserved` rows remain because deleting an unresolved reservation can authorize duplicate delivery.
+- Remaining expired ledger rows are hidden/scrubbed only once, guarded by `activity_retained = 1`.
+- Completed feedback received at least 30 days ago has recipient and provider-message id cleared and occurrence time reduced to received time, only while those fields remain populated. Verified event IDs remain to reject webhook replay; unprocessed feedback and suppression state remain untouched.
+- All five statements run atomically through the existing storage-kernel transaction. The first pass after an eligible boundary performs deletion, typically at boot or the next minute tick.
 
-Keep the live branch's `MailCredentialCard` parsing, `credentialCard`/`credentialCardRefusal` descriptor fields, and `loadMailCredentialCards` unchanged. In `parseDescriptorV2`, build the live `card` contribution as today, then pass its descriptor to round-2's wrapper: `return withSetup({ descriptor: { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...card }, setup: entry.setup, at });`. Keep `setup?: MailProviderSetup` on the descriptor. Keep both catalog surfaces: live credential-card loader/form-prefill owner and round-2 `setupFor`. Do not replace credential-card secure forms with the setup parser or its username follow-up. Coordinator must run the combined-descriptor + secure-prefill test after merging the live card implementation; that implementation is absent from this branch, so no fabricated combined-card test was added here.
+Migration 0031:
 
-Jini extraction
+- New file: `apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts`, registered immediately after 0030 and pinned as `164f0f2db8b390a0aabd7c5ef12c7c24ba32d02d57e16719f57e5181a9d29608`.
+- Adds non-null text `mail_activity_attempts.use_id`, default `unknown`, and classifies existing attempts from the five existing key prefixes. Preserves send outcomes and identities. Kysely schema builders supply portable DDL; backfill is one portable data statement in the runner transaction.
+- New indexes: attempts `(workspace_id,use_id,created_at,id)`, `(workspace_id,effective_recipient)`, `(workspace_id,recipient)`; legacy ledger `(workspace_id,created_at,activity_id)`; ledger retention `(created_at,updated_at)`; attempts/capture retention `(created_at)` each; inbox retention `(received_at)`.
+- `platform/db/sqlite/fresh-content-db.ts` compiles the same builders for fresh SQLite. Its empty tables require no data backfill. New dual-dialect migration test covers fresh indexes, 0030 upgrade, all six classifications, preserved outcomes, pinned registration, and rerun applying nothing.
+- 0029 and 0030 are unchanged. No generated/frozen Drizzle migration was edited. Checksum was calculated by the same TypeScript comment-removal/whitespace/SHA-256 algorithm without executing the checksum test.
 
-See `ADS-memory/.local-artifacts/tovu-to-jini-extract/SURVEY.md` for exact source/destination paths, required-object APIs and invariants. Installed canonical platform package 0.5.10 satisfies Tovu's ^0.5.10 limiter requirement. This checkout has no node_modules; nothing was installed. No equivalent generation-aware TTL cache, mail setup parser, or reusable safe email renderer was found in the inspected Jini owners. They remain local per the dispatch exception until Coordinator schedules and publishes Jini extraction. SMTP stays core; no new vendor-specific core branches or cross-plugin imports. Production `durableOutboxReady` remains the same `() => false` function.
+Static verification:
 
-Verification and limitations
+- `git diff --check`: passed.
+- Standard ESLint over all changed TypeScript plus new migration/test files: exit 0, zero errors, 59 warnings across 44 files (existing style warnings plus advisory test/style diagnostics; no suppressions added).
+- Strict cyclomatic/cognitive limit 10 over changed production files: only pre-existing `composeSiteRouteDeps` at 13 is reported. The repaired mapper, mail/cache/renderer/store units and 0031 meet the limit. No suppressions added. The review explicitly classified this composition function and unrelated DNS resolveTarget complexity as pre-existing; their algorithms were not refactored.
+- `node_modules/.bin/tsc -p tsconfig.json --noEmit --incremental false`: 371 diagnostics; a read-only compiler-host comparison against unchanged HEAD sources gives 372. Zero new diagnostic signatures; the removed diagnostic is the deleted unused laneForPurpose import. Installed Jini artifacts lack branch-required APIs (createMailDeliveryPolicy, createMailLaneLimiter, provider registry/DNS exports, newer result types), among other existing issues. No installs or builds attempted.
+- Test-definition tsc also encounters broad existing dependency/type errors. New migration test's invariant kernel type mismatch found by this check was corrected with the existing migration-test `StorageKernel<unknown>` seam. The final test-definition check completed with exit 2 on the existing workspace issues; the new 0031 migration test, added template-isolation tests, headless template refusal test, and credential-sink test have no reported type diagnostics. No test-pass or coverage claim is made.
+- Runtime self-validation: not run, explicitly prohibited by the user. No live query-plan or provider-behavior certification. The optional broader test-source HEAD comparison was stopped rather than leave a long-running compiler process.
 
-Read-only TypeScript parsing and contract diagnostics used the canonical installed dependencies through an in-memory resolution host, with no emitter or application execution. Static complexity analysis reports no new function above 10 after splitting template pagination validation. The pre-existing `composeSiteRouteDeps` remains 13; this round only replaces its inline mail bindings with the existing mail composition owner. `git diff --check` was clean. Final static outcomes are recorded in the final handoff message.
+Architecture/reuse review: static PASS for the changed boundaries, validation PARTIAL due to the prohibited test execution and existing package mismatch. SMTP remains core; no vendor runtime implementation added to core; production durableOutboxReady is unchanged. Existing ports, test approval, permission owner check and ledger transactions remain the behavior owners. No coverage ignores, scope exclusions, deleted tests, or weakened protection assertions were added. Legacy immediate-refresh and perpetual-final-ledger assertions were updated to the explicitly requested throttle/retention policies, with boundary/preservation assertions added.
 
-Retention uses a boot pass and a minute interval, disposed and drained with the content store. Minimal send deduplication tombstones intentionally survive 30 days; activity projection and completed feedback recipient/message metadata do not. Captured bodies are physically deleted at the 24-hour cutoff on each pass. Request replay results are in memory (bounded to 4096); a restart loses capture-result replay, while durable send identities continue preventing duplicate external sends. Generic durable request-result replay belongs in the follow-up Jini policy extraction.
+Reuse: delivery observation; inspected Tovu policy wrapper, attempts observer, resolver warn-once behavior and installed/sibling Jini mail sources; extended the existing wrapper rather than introducing another send lifecycle. Owner: MailerPort/policy contract in the brief.
 
-Next assignee: Coordinator for test execution/100% coverage verification, combined credential-card merge tests, review and commit. No certification or release readiness is claimed.
+Reuse: retention/activity; traced boot/close, reserve/reclaim/mark, capture and feedback reads/writes plus ADR-066 0023/0029/0030; extended existing repositories and sweep, native indexed SQL, and ordered migration runner. Persisted migration backfill is a frozen snapshot, not a competing runtime purpose classifier.
 
-Files changed
+Reuse: status throttle/DNS deadline; inspected existing cache and sender-domain verification timeout; extended the existing cache with a port-fed clock and used the same bounded Promise.race/finally timer lifecycle at the existing provider boundary. No new cache/deadline module or dependency.
 
-- `apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts`
-- `apps/website/src/features/agent-plugins/mail-adapter-registry.ts`
+Reuse: template kind/sanitizer; traced Pages SQL/memory factories, template operations, composition and existing Jini stripActiveHtml/htmlToText; extended the sole HTML writer and existing parse5 email pass. The two store adapters retain their existing distinct storage contracts (post-repository memory vs SQL kernel), without adding a third writer.
+
+Reuse: provider refusal and helper shapes; extended the existing credential refusal owner and test-send operation, retaining the shared route/tool result, rather than sanitizing separately in each transport. Updated existing helper signatures rather than adding wrappers.
+
+Function-quality/documentation review:
+
+| Units | Disposition | Risk handled / evidence |
+| --- | --- | --- |
+| observeResult / wrapped send / batch | Required finding repaired | Post-delivery observer/logger failure isolated; exact result and aggregate batch tests. |
+| purgeExpiredMail / 0031 / observer purpose | Required finding repaired | Physical final deletion, replay-window preservation, one-write guards, timestamp indexes; actual zero-write second-pass and migration tests. |
+| activity source selection / projection | Recommended scale risk disclosed | Indexed predicates and bounded ordinary candidates; recent legacy/outcome-filter scans remain explicitly documented and need real database plans at scale. |
+| test-send planning/error DTO / credentialFailureReason | Required finding repaired | Resolve-before-freeze and no raw error copy; secret-bearing operation/route/tool and log-sink tests. |
+| sanitizer / allowed-kind stores | Required finding repaired | Existing parser/writer reused, kind-bound CAS and static mail policy; malicious inputs and cross-kind regression definitions. |
+| cache refresh / DNS requirements / headless guard | Required finding repaired | Bounds, clocks and timers explicit; fresh strict complexity evidence, deadline/refresh/type-narrowing checks. |
+| argument-only helpers / permission and why-comments | No additional behavior finding | Same caller results and permissions; corrected signatures and docs. |
+
+Public API docs were updated for cache refresh semantics, DNS timeout, allowed store kinds, retention and activity query cost. The new private helpers have narrow contracts; trivial argument plumbing inherits the caller's docs. No zero-findings claim is made: the recent-window query tradeoff and unavailable runtime evidence remain explicit. A final skepticism pass caught and repaired lost TypeScript narrowing in the extracted headless guard and a test factory that dropped the new options.
+
+Tests to run after the Coordinator provides matching Jini dependencies (NOT run in this dispatch):
+
+```bash
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks \
+  apps/website/src/server/runtime/boot/__tests__/mail-delivery-policy.unit.test.ts \
+  apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts \
+  apps/website/src/features/mail/__tests__/retention.unit.test.ts \
+  apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts \
+  apps/website/src/platform/db/migrations/__tests__/mail-activity-retention-step.test.ts \
+  apps/website/src/platform/db/migrations/__tests__/mail-activity-indexes-step.test.ts \
+  apps/website/src/platform/db/migrations/__tests__/mail-suppression-admin-step.test.ts \
+  apps/website/src/platform/db/migrations/__tests__/checksums.test.ts \
+  apps/website/src/features/mail-status/__tests__/test-send.test.ts \
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-dns-and-test-send.unit.test.ts \
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-activity.unit.test.ts \
+  apps/website/src/features/email-templates/__tests__/render.test.ts \
+  apps/website/src/features/email-templates/__tests__/operations.test.ts \
+  apps/website/src/features/email-templates/__tests__/operations.sql.test.ts \
+  apps/website/src/features/email-templates/__tests__/tool-registrations.test.ts \
+  apps/website/src/server/runtime/boot/__tests__/mail-status-cache.unit.test.ts \
+  apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts \
+  apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts \
+  apps/website/src/server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts \
+  apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts \
+  apps/website/src/server/inbound/public-http/http/shared/__tests__/post.test.ts
+```
+
+Also run `apps/website/src/features/pages/__tests__/html-document-store.memory.test.ts`, `apps/website/src/features/pages/__tests__/html-document-store.sqlite.test.ts`, `apps/website/src/features/theme/__tests__/tool-registrations.edge-refusals.test.ts`, and `apps/website/src/features/theme/__tests__/tool-registrations.page-publication-read.test.ts`, plus schema/type drift checks and the normal project checks. No claim that lint or tsc substitutes for these runtime tests.
+
+Changed-file inventory:
+
+- `.cloud-coord/round2-FIX-REPORT.md`
+- `.cloud-coord/round2-progress.md`
 - `apps/website/src/features/agent-plugins/mail-provider-setup.ts`
-- `apps/website/src/features/domain-dns/__tests__/mail-dns-status.test.ts`
-- `apps/website/src/features/domain-dns/mail-dns-status.ts`
+- `apps/website/src/features/email-templates/__tests__/operations.sql.test.ts`
 - `apps/website/src/features/email-templates/__tests__/operations.test.ts`
 - `apps/website/src/features/email-templates/__tests__/render.test.ts`
-- `apps/website/src/features/email-templates/agent-tools.ts`
+- `apps/website/src/features/email-templates/__tests__/tool-registrations.test.ts`
 - `apps/website/src/features/email-templates/operations.ts`
 - `apps/website/src/features/email-templates/render.ts`
 - `apps/website/src/features/email-templates/tool-registrations.ts`
-- `apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/mail-status-tool.test.ts`
-- `apps/website/src/features/mail-status/__tests__/provider-operations.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/provider-tools.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts`
 - `apps/website/src/features/mail-status/__tests__/test-send.test.ts`
-- `apps/website/src/features/mail-status/activity.ts`
-- `apps/website/src/features/mail-status/delivery-tool-registrations.ts`
-- `apps/website/src/features/mail-status/feedback-setup.ts`
-- `apps/website/src/features/mail-status/provider-operations.ts`
-- `apps/website/src/features/mail-status/provider-tool-registrations.ts`
+- `apps/website/src/features/mail-status/permissions.ts`
 - `apps/website/src/features/mail-status/suppressions.ts`
 - `apps/website/src/features/mail-status/test-send.ts`
 - `apps/website/src/features/mail-status/tool-registrations.ts`
-- `apps/website/src/features/mail-status/use-readiness.ts`
 - `apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts`
 - `apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts`
 - `apps/website/src/features/mail/__tests__/retention.unit.test.ts`
-- `apps/website/src/features/mail/__tests__/suppression-admin.repo.dialects.test.ts`
 - `apps/website/src/features/mail/activity.repo.ts`
 - `apps/website/src/features/mail/attempts.repo.ts`
-- `apps/website/src/features/mail/ledger.repo.ts`
 - `apps/website/src/features/mail/retention.ts`
-- `apps/website/src/features/mail/suppression-admin.repo.ts`
-- `apps/website/src/features/mail/suppression.repo.ts`
-- `apps/website/src/features/post/post.ts`
-- `apps/website/src/features/post/repo.memory.ts`
-- `apps/website/src/features/post/repo.ts`
-- `apps/website/src/features/post/search-index.postgres.ts`
-- `apps/website/src/features/post/search-index.sqlite.ts`
-- `apps/website/src/features/trash/trash-item-tool.ts`
-- `apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts`
-- `apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts`
-- `apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts`
-- `apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts`
+- `apps/website/src/features/pages/html-document-store.memory.ts`
+- `apps/website/src/features/pages/html-document-store.ts`
+- `apps/website/src/features/theme/tool-registrations.ts`
+- `apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts`
+- `apps/website/src/platform/db/migrations/__tests__/mail-activity-retention-step.test.ts`
 - `apps/website/src/platform/db/migrations/checksums.ts`
-- `apps/website/src/platform/mail/index.ts`
-- `apps/website/src/platform/mail/ports.ts`
-- `apps/website/src/platform/mail/sender-domain-verification.ts`
-- `apps/website/src/server/__tests__/routes/mail-providers-route.test.ts`
-- `apps/website/src/server/inbound/admin-http/routes/email-templates/__tests__/routes.test.ts`
-- `apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts`
-- `apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-activity.unit.test.ts`
+- `apps/website/src/platform/db/migrations/index.ts`
+- `apps/website/src/platform/db/sqlite/fresh-content-db.ts`
 - `apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-dns-and-test-send.unit.test.ts`
 - `apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts`
-- `apps/website/src/server/inbound/admin-http/routes/system/mail-providers.ts`
-- `apps/website/src/server/inbound/admin-http/routes/system/mail-test-send.ts`
-- `apps/website/src/server/routes/types.ts`
+- `apps/website/src/server/inbound/public-http/http/shared/__tests__/post.test.ts`
+- `apps/website/src/server/inbound/public-http/http/shared/post.ts`
+- `apps/website/src/server/runtime/boot/__tests__/mail-delivery-policy.unit.test.ts`
 - `apps/website/src/server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts`
 - `apps/website/src/server/runtime/boot/__tests__/mail-status-cache.unit.test.ts`
 - `apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts`
+- `apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts`
 - `apps/website/src/server/runtime/boot/mail-delivery-policy.ts`
-- `apps/website/src/server/runtime/boot/mail-provider-configuration.ts`
+- `apps/website/src/server/runtime/boot/mail-provider-catalog.ts`
+- `apps/website/src/server/runtime/boot/mail-status-cache.ts`
 - `apps/website/src/server/runtime/boot/resolve-mailer.ts`
-- `apps/website/src/server/runtime/boot/sender-domain-verification.ts`
-- `apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts`
+- `apps/website/src/server/runtime/composition/app.ts`
 - `apps/website/src/server/runtime/composition/deps.ts`
+- `apps/website/src/server/runtime/composition/peer-site-reads.ts`
 - `apps/website/src/server/runtime/composition/site-mailer.ts`
 
-Tests added or extended (exact paths; unexecuted)
-
-- `apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts`
-- `apps/website/src/features/domain-dns/__tests__/mail-dns-status.test.ts`
-- `apps/website/src/features/email-templates/__tests__/operations.test.ts`
-- `apps/website/src/features/email-templates/__tests__/render.test.ts`
-- `apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/mail-status-tool.test.ts`
-- `apps/website/src/features/mail-status/__tests__/provider-operations.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/provider-tools.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts`
-- `apps/website/src/features/mail-status/__tests__/test-send.test.ts`
-- `apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts`
-- `apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts`
-- `apps/website/src/features/mail/__tests__/retention.unit.test.ts`
-- `apps/website/src/features/mail/__tests__/suppression-admin.repo.dialects.test.ts`
-- `apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts`
-- `apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts`
-- `apps/website/src/server/__tests__/routes/mail-providers-route.test.ts`
-- `apps/website/src/server/inbound/admin-http/routes/email-templates/__tests__/routes.test.ts`
-- `apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-activity.unit.test.ts`
-- `apps/website/src/server/inbound/admin-http/routes/system/__tests__/mail-dns-and-test-send.unit.test.ts`
-- `apps/website/src/server/runtime/boot/__tests__/mail-provider-catalog-setup.unit.test.ts`
-- `apps/website/src/server/runtime/boot/__tests__/mail-status-cache.unit.test.ts`
-- `apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts`
-- `apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts`
+All compiler/linter sessions launched for this dispatch completed or were explicitly interrupted; no application process was started. The pre-existing untracked `AI-Dev-Shop` link was left untouched. The two new migration/test source files are intentionally uncommitted and must be included with the eventual patch.

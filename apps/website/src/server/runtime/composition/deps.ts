@@ -2275,7 +2275,7 @@ async function composeSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
-    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
@@ -2458,7 +2458,6 @@ async function composeSiteRouteDeps(
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
     ...resolvedMailer.operations,
-    // One bucket per site, so the Email page's button and the assistant's tool share it.
     // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
     mailActivity: createMailActivityRepo({ db: kernel }),
     // Email page phase 5: the do-not-send list's operator side (list, audited removal) and feedback setup.

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { InMemoryCustomCredentialSetRepo, CustomCredentialSecretStoreUnconfiguredError } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
-import { loadMailProviderCatalog, SMTP_PROVIDER_SETUP } from "../mail-provider-catalog.js";
+import { loadMailProviderCatalog, SMTP_PROVIDER_SETUP, credentialFailureReason } from "../mail-provider-catalog.js";
 
 /**
  * @file `MailProviderCatalog.setupFor`: SMTP's protocol form is core, a plugin's comes from its
@@ -48,4 +48,16 @@ test("a saved SMTP row without username is incomplete in the configuration DTO",
   const smtp = report.providers.find(p => p.id === "smtp")!;
   assert.equal(smtp.credential.saved, false); assert.equal(smtp.selectable, false);
   assert.equal(smtp.refusal, `has no complete saved credential "${MAIL_SMTP_CREDENTIAL_LABEL}" under Access Tokens (category "ops")`);
+});
+
+
+test("credential failures disclose fixed text while preserving detail only in server diagnostics", () => {
+  for (const err of [new CustomCredentialSecretStoreUnconfiguredError("token=secret-decrypt"), new Error("token=secret-store"), "secret-non-error"]) {
+    const diagnostics: unknown[][] = [];
+    const reason = credentialFailureReason({ label: "Mail key", err }, { log: (...args) => { diagnostics.push(args); } });
+    assert.equal(reason, err instanceof CustomCredentialSecretStoreUnconfiguredError ? 'the "Mail key" credential is saved but could not be decrypted' : 'the "Mail key" credential could not be read');
+    assert.doesNotMatch(reason, /secret/);
+    assert.deepEqual(diagnostics, [["[mail] credential lookup failed", err]]);
+    assert.equal(credentialFailureReason({ label: "Mail key", err }, { log: () => { throw new Error("logger unavailable"); } }), reason);
+  }
 });

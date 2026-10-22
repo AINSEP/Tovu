@@ -139,3 +139,28 @@ test("a rate-limited provider uses the wall clock when no clock is injected", as
   const mailer = wrapper().wrap({ providerId: "fixture", provider: provider({ perSecond: 10, burst: 5 }), mailer: recordingMailer() });
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
 });
+
+
+test("a throwing observer preserves an accepted result and logs only a fixed line once", async () => {
+  const accepted = { ok: true as const, providerMessageId: "pm-1", acceptedAt: "2026-10-22T00:00:00.000Z" };
+  const lines: string[] = [];
+  let observed: Awaited<ReturnType<MailerPort["send"]>> | undefined;
+  const wrap = createMailPolicyWrapper({ ledger: memoryLedger(), suppression: suppression(), readTestMode: async () => ({ mode: "off" }), observe: async ({ result }) => { observed = result; throw new Error("token=observer-secret"); } }, { warn: line => { lines.push(line); } });
+  const mailer = wrap({ providerId: "fixture", provider: provider(), mailer: recordingMailer(accepted) });
+  const result = await mailer.send(MESSAGE, OPTIONS);
+  assert.deepEqual(result, accepted);
+  assert.strictEqual(result, observed, "return the exact policy result unchanged");
+  assert.deepEqual(await mailer.send(MESSAGE, { ...OPTIONS, idempotencyKey: "next" }), accepted);
+  assert.deepEqual(lines, ["[mail] activity observation failed"]);
+});
+
+test("a failing observer and logger cannot abort a batch after provider acceptance", async () => {
+  const inner = recordingMailer(); let observations = 0;
+  const wrap = createMailPolicyWrapper({ ledger: memoryLedger(), suppression: suppression(), readTestMode: async () => ({ mode: "off" }), observe: async () => { observations++; throw new Error("SQLITE_BUSY"); } }, { warn: () => { throw new Error("logger failed"); } });
+  const mailer = wrap({ providerId: "fixture", provider: provider(), mailer: inner });
+  const messages = [MESSAGE, { ...MESSAGE, to: { email: "second@example.com" } }, { ...MESSAGE, to: { email: "third@example.com" } }];
+  const results = await mailer.sendBatch(messages, OPTIONS);
+  assert.deepEqual(results.map(result => result.ok), [true, true, true]);
+  assert.deepEqual(inner.calls.map(call => call.message.to.email), messages.map(message => message.to.email));
+  assert.equal(observations, 3);
+});

@@ -143,3 +143,12 @@ test("the starter contains a real newline and no visible backslash-n text", () =
   assert.ok(html.includes('\n<meta name="email-fields"'));
   const sent = renderEmailForSend({ html, values: { name: "Ada" } }); assert.equal(sent.text, "Hello Ada,"); assert.doesNotMatch(sent.text, /\\n/);
 });
+
+
+test("send sanitizer removes active data URLs, navigation, forms and linked styles but keeps inline images", () => {
+  const html = `<html><head><base href="https://attacker.test/"><meta http-equiv="refresh" content="0;url=javascript:alert(1)"><link rel="stylesheet" href="https://attacker.test/x.css"><meta name="viewport" content="width=device-width"></head><body><form action="https://attacker.test"><input name="secret"></form><a href="data:text/html,evil">bad</a><a href="d&#x09;ata:text/html,evil">obfuscated</a><img src="data:image/png;base64,AAAA"><style>p{color:red}</style><p>kept</p></body></html>`;
+  const safe = sanitizeEmailHtml({ html });
+  assert.doesNotMatch(safe, /<base|http-equiv|<link|<form|<input|data:text|attacker\.test/i);
+  assert.match(safe, /data:image\/png;base64,AAAA/);
+  assert.match(safe, /name="viewport"/); assert.match(safe, /<style>/); assert.match(safe, /<p>kept<\/p>/);
+});

@@ -1,5 +1,5 @@
-/** Owner policy: 30-day activity, 24-hour captured bodies. The send and feedback deduplication
- * identities survive expiry; deleting them would authorize old requests/webhooks to run again. */
+/** Owner policy: 30-day activity and final send identities, 24-hour captured bodies.
+ * Unresolved reservations and verified feedback event IDs retain their replay protection. */
 import { sql } from "kysely";
 import type { MailRepoDeps } from "./ledger.repo.js";
 export const MAIL_ACTIVITY_RETENTION_MS = 30 * 24 * 60 * 60_000;
@@ -7,18 +7,23 @@ export const MAIL_CAPTURE_RETENTION_MS = 24 * 60 * 60_000;
 export const MAIL_RETENTION_INTERVAL_MS = 60_000;
 
 /** One atomic privacy pass; timestamps and the clock are injected for deterministic boundary tests.
- * @complexity Indexed deletes/updates over expired rows, no body reads. */
+ * @complexity Five statements using 0031 timestamp-leading indexes; work is proportional to expired candidates, no body reads. */
 export async function purgeExpiredMail<DB>({ db }: MailRepoDeps<DB>, { now = Date.now }: { now?: () => number } = {}): Promise<void> {
   const activityBefore = new Date(now() - MAIL_ACTIVITY_RETENTION_MS).toISOString();
   const captureBefore = new Date(now() - MAIL_CAPTURE_RETENTION_MS).toISOString();
   await db.transaction(async () => {
     await db.execute(sql`DELETE FROM mail_capture WHERE created_at <= ${captureBefore}`);
     await db.execute(sql`DELETE FROM mail_activity_attempts WHERE created_at <= ${activityBefore}`);
-    // Keep payload hash, outcome and key for idempotency; suppress the historical activity projection.
-    await db.execute(sql`UPDATE mail_send_ledger SET activity_retained = 0, provider_message_id = NULL, error_code = NULL WHERE created_at <= ${activityBefore}`);
+    // No caller requires final-result replay beyond 30 days. A recent retry still needs its window:
+    // created_at is the original reservation time; updated_at is the last reserve/mark time.
+    await db.execute(sql`DELETE FROM mail_send_ledger WHERE created_at <= ${activityBefore}
+      AND updated_at <= ${activityBefore} AND outcome IN ('sent', 'failed', 'unknown')`);
+    // In-flight reservations cannot be deleted: that would authorize a duplicate delivery.
+    await db.execute(sql`UPDATE mail_send_ledger SET activity_retained = 0, provider_message_id = NULL, error_code = NULL
+      WHERE created_at <= ${activityBefore} AND activity_retained = 1`);
     // Keep verified event IDs and suppression state; discard completed feedback's activity metadata.
     await db.execute(sql`UPDATE mail_feedback_inbox SET recipient = '', provider_message_id = '', occurred_at = received_at
-      WHERE received_at <= ${activityBefore} AND processed_at IS NOT NULL`);
+      WHERE received_at <= ${activityBefore} AND processed_at IS NOT NULL AND (recipient <> '' OR provider_message_id <> '')`);
   });
 }
 

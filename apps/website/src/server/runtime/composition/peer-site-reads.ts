@@ -227,7 +227,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
-    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0]) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo }),
+    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
     // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
     blobStore: {

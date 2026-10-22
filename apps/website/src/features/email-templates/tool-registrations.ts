@@ -24,7 +24,7 @@ export interface EmailTemplatesToolDeps extends EmailTemplateDeps {
 }
 
 export const emailTemplatesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> postRepo.list only.
+  // -> postRepo.listHtmlByKind only.
   ["email_template_list", "none"],
   // -> postRepo.findById only.
   ["email_template_get", "none"],

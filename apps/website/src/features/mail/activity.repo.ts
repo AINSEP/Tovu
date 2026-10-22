@@ -1,7 +1,7 @@
 /**
  * @file Read projection over the send ledger joined with provider feedback (email phase 4): the
  * Email page's **Recent sends and failures** and `mail_list_activity`/`mail_get_activity`. One SQL
- * body for SQLite and Postgres; migration 0029 adds the two indexes these reads use.
+ * body for SQLite and Postgres; migrations 0029 and 0031 add the source and lookup indexes.
  *
  * Only body-free metadata leaves here: the ledger stores no subject, body or link, and this never
  * reads `mail_capture`. Outcomes are derived, never stored:
@@ -13,13 +13,14 @@
  * - `reserved` (in flight, or a crash mid-send) and `unknown` are `unknown`: the provider may have
  *   taken it, which is exactly why there is no general Resend.
  *
- * The use (purpose) is read from the idempotency key prefix each owner already writes
+ * The observer persists use (purpose) from the idempotency key prefix each owner already writes
  * (`members:signin:`, `newsletter:confirm-email:`, `forms:notify:`, `newsletter:`, `mail:test:`).
- * 0023 stores no purpose column, so any other key, historical or new, is `unknown` rather than
+ * Historical ledgers derive it within the recent window; any other key is `unknown` rather than
  * guessed.
  */
 import { sql, type RawBuilder } from "kysely";
 import type { MailRepoDeps } from "./ledger.repo.js";
+import { MAIL_ACTIVITY_RETENTION_MS } from "./retention.js";
 
 export const MAIL_ACTIVITY_OUTCOMES = ["accepted", "delivered", "bounced", "complained", "suppressed", "deferred", "failed", "unknown", "captured"] as const;
 export type MailActivityOutcome = (typeof MAIL_ACTIVITY_OUTCOMES)[number];
@@ -73,32 +74,80 @@ type Row = {
   activity_outcome: MailActivityOutcome; provider_message_id: string | null; error_code: string | null; created_at: string; updated_at: string;
 };
 
+const USE_PREFIXES = [
+  ["members:signin:", "sign_in"], ["newsletter:confirm-email:", "newsletter_confirmation"],
+  ["forms:notify:", "form_notification"], ["mail:test:", "test"], ["newsletter:", "newsletter"],
+] as const;
+
+/** Classify an observation once, before writing it; unknown keys stay explicitly unknown. */
+export function mailActivityUse({ idempotencyKey }: { idempotencyKey: string }, _optional: Record<string, never> = {}): MailActivityUse {
+  return USE_PREFIXES.find(([prefix]) => idempotencyKey.startsWith(prefix))?.[1] ?? "unknown";
+}
+
+/** Historical ledgers predate the purpose column. Only their recent window is projected. */
+function legacyUse(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): RawBuilder<unknown> {
+  const clauses = USE_PREFIXES.map(([prefix, use]) => {
+    const pattern = `${prefix}%`;
+    return sql`WHEN old.idempotency_key LIKE ${pattern} THEN ${use}`;
+  });
+  return sql`CASE ${sql.join(clauses, sql` `)} ELSE 'unknown' END`;
+}
+
 const feedbackExists = (kind: MailFeedbackRecord["kind"]) => sql`EXISTS (SELECT 1 FROM mail_feedback_inbox f
   WHERE f.workspace_id = l.workspace_id AND f.provider_message_id = l.provider_message_id AND f.provider_id = l.provider_id AND f.recipient = l.effective_recipient AND f.kind = ${kind} AND f.processed_at IS NOT NULL)`;
 
-/** The derived projection, one row per ledger identity; filters apply to its derived columns. */
-function projection(workspaceId: string): RawBuilder<unknown> {
-  return sql`SELECT l.activity_id, l.effective_recipient, l.delivery_mode, l.idempotency_key, l.recipient, l.lane, l.provider_id, l.provider_message_id, l.error_code, l.created_at, l.updated_at,
-    CASE WHEN l.idempotency_key LIKE 'members:signin:%' THEN 'sign_in'
-      WHEN l.idempotency_key LIKE 'newsletter:confirm-email:%' THEN 'newsletter_confirmation'
-      WHEN l.idempotency_key LIKE 'forms:notify:%' THEN 'form_notification'
-      WHEN l.idempotency_key LIKE 'mail:test:%' THEN 'test'
-      WHEN l.idempotency_key LIKE 'newsletter:%' THEN 'newsletter'
-      ELSE 'unknown' END AS use_id,
+type SourceQuery = { workspaceId: string; cutoff: string; filter: MailActivityFilter & { before?: MailActivityPosition }; limit?: number; idempotencyKey?: string; effectiveOnly?: boolean };
+
+/** Push non-derived predicates into each indexed source; outcome is resolved after feedback. */
+function sourceConditions(required: SourceQuery & { legacy: boolean }, _optional: Record<string, never> = {}): RawBuilder<unknown> {
+  const { filter, legacy } = required;
+  const alias = legacy ? "old" : "a";
+  const col = (name: string) => sql.ref(`${alias}.${name}`);
+  const where = [sql`${col("workspace_id")} = ${required.workspaceId}`, sql`${col("created_at")} >= ${required.cutoff}`];
+  if (filter.use) where.push(sql`${legacy ? legacyUse() : col("use_id")} = ${filter.use}`);
+  if (required.idempotencyKey) where.push(sql`${col("idempotency_key")} = ${required.idempotencyKey}`);
+  if (filter.recipient) where.push(recipientCondition({ ...required, recipient: filter.recipient }));
+  if (filter.before) where.push(sql`(${col("created_at")} < ${filter.before.createdAt} OR (${col("created_at")} = ${filter.before.createdAt} AND ${col(legacy ? "activity_id" : "id")} < ${filter.before.key}))`);
+  return sql.join(where, sql` AND `);
+}
+
+/** Exact effective-recipient lookup for details; list filters also match the original address. */
+function recipientCondition(required: { legacy: boolean; recipient: string; effectiveOnly?: boolean }, _optional: Record<string, never> = {}): RawBuilder<unknown> {
+  const address = required.recipient.trim().toLowerCase();
+  const original = sql.ref(required.legacy ? "old.recipient" : "a.recipient");
+  const effective = sql.ref(required.legacy ? "old.recipient" : "a.effective_recipient");
+  return required.effectiveOnly ? sql`${effective} = ${address}` : sql`(${original} = ${address} OR ${effective} = ${address})`;
+}
+
+/** Limit each ordered source before the UNION/feedback work on ordinary page reads. */
+function activitySources(required: SourceQuery, _optional: Record<string, never> = {}): RawBuilder<unknown> {
+  const limit = required.limit === undefined ? sql`` : sql`LIMIT ${required.limit}`;
+  return sql`SELECT * FROM (
+    SELECT a.id AS activity_id, a.workspace_id, a.idempotency_key, a.recipient, a.effective_recipient, a.delivery_mode,
+      a.lane, a.provider_id, a.outcome, a.provider_message_id, a.error_code, a.created_at, a.updated_at, a.use_id
+      FROM mail_activity_attempts a WHERE ${sourceConditions({ ...required, legacy: false })}
+      ORDER BY a.created_at DESC, a.id DESC ${limit}
+    ) attempts
+    UNION ALL SELECT * FROM (
+      SELECT old.activity_id, old.workspace_id, old.idempotency_key, old.recipient, old.recipient AS effective_recipient, 'off' AS delivery_mode,
+        old.lane, old.provider_id, old.outcome, old.provider_message_id, old.error_code, old.created_at, old.updated_at, ${legacyUse()} AS use_id
+      FROM mail_send_ledger old WHERE ${sourceConditions({ ...required, legacy: true })}
+        AND old.activity_retained = 1 AND NOT EXISTS (SELECT 1 FROM mail_activity_attempts a
+          WHERE a.workspace_id = old.workspace_id AND a.idempotency_key = old.idempotency_key AND a.recipient = old.recipient)
+      ORDER BY old.created_at DESC, old.activity_id DESC ${limit}
+    ) legacy`;
+}
+
+/** Feedback is probed only for candidate rows; the attempts' stored purpose remains indexable. */
+function projection(required: SourceQuery, _optional: Record<string, never> = {}): RawBuilder<unknown> {
+  return sql`SELECT l.*,
     CASE WHEN l.outcome = 'captured' THEN 'captured' WHEN l.outcome = 'sent' THEN
         CASE WHEN ${feedbackExists("complained")} THEN 'complained' WHEN ${feedbackExists("bounced")} THEN 'bounced'
           WHEN ${feedbackExists("delivered")} THEN 'delivered' ELSE 'accepted' END
       WHEN l.outcome = 'failed' THEN
         CASE WHEN l.error_code = 'MAIL_RECIPIENT_SUPPRESSED' THEN 'suppressed' WHEN l.error_code = 'MAIL_RATE_LIMITED' THEN 'deferred' ELSE 'failed' END
       ELSE 'unknown' END AS activity_outcome
-    FROM (
-      SELECT a.id AS activity_id, a.workspace_id, a.idempotency_key, a.recipient, a.effective_recipient, a.delivery_mode,
-        a.lane, a.provider_id, a.outcome, a.provider_message_id, a.error_code, a.created_at, a.updated_at FROM mail_activity_attempts a
-      UNION ALL
-      SELECT activity_id, workspace_id, idempotency_key, recipient, recipient AS effective_recipient, 'off' AS delivery_mode,
-        lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at FROM mail_send_ledger old
-        WHERE old.activity_retained = 1 AND NOT EXISTS (SELECT 1 FROM mail_activity_attempts a WHERE a.workspace_id = old.workspace_id AND a.idempotency_key = old.idempotency_key AND a.recipient = old.recipient)
-    ) l WHERE l.workspace_id = ${workspaceId}`;
+    FROM (${activitySources(required)}) l`;
 }
 
 function toRecord(row: Row): MailActivityRecord {
@@ -109,30 +158,27 @@ function toRecord(row: Row): MailActivityRecord {
   };
 }
 
-function conditions(optional: MailActivityFilter & { before?: MailActivityPosition }): RawBuilder<unknown>[] {
-  const where: RawBuilder<unknown>[] = [sql`1 = 1`];
-  if (optional.before) where.push(sql`(a.created_at < ${optional.before.createdAt} OR (a.created_at = ${optional.before.createdAt} AND a.activity_id < ${optional.before.key}))`);
-  if (optional.outcome) where.push(sql`a.activity_outcome = ${optional.outcome}`);
-  if (optional.use) where.push(sql`a.use_id = ${optional.use}`);
-  if (optional.recipient) where.push(sql`(a.recipient = ${optional.recipient.trim().toLowerCase()} OR a.effective_recipient = ${optional.recipient.trim().toLowerCase()})`);
-  return where;
-}
-
 /**
- * The activity reads. Newest first by creation, ties broken by the ledger key, so a page boundary
- * inside one timestamp is resumed by `skip` without exposing a key or address in the cursor.
- * @complexity One indexed range read per page plus three feedback probes per returned row.
+ * The activity reads. Newest first by creation, ties broken by the opaque activity id, so a page boundary
+ * inside one timestamp is resumed by its keyset position without exposing a key or address in the cursor.
+ * @complexity Ordinary lists merge at most two limit-sized indexed candidate pages, then probe
+ * feedback at most three times per candidate. The legacy branch can scan the recent 30-day window
+ * for purpose/duplicate exclusion. Outcome filters evaluate candidates in that window before LIMIT;
+ * they are not constant-time indexed reads. Detail uses indexed identity/recipient predicates.
  * @example createMailActivityRepo({ db: kernel }).list({ workspaceId, limit: 26 }, { outcome: "bounced" })
  */
-export function createMailActivityRepo<DB>({ db }: MailRepoDeps<DB>): MailActivityRepo {
+export function createMailActivityRepo<DB>({ db }: MailRepoDeps<DB>, optional: { now?: () => number } = {}): MailActivityRepo {
+  const cutoff = () => new Date((optional.now ?? Date.now)() - MAIL_ACTIVITY_RETENTION_MS).toISOString();
   return {
     async list(required, optional = {}) {
-      const rows = await db.query<Row>(sql`SELECT * FROM (${projection(required.workspaceId)}) a WHERE ${sql.join(conditions(optional), sql` AND `)}
+      const source: SourceQuery = { workspaceId: required.workspaceId, cutoff: cutoff(), filter: optional, ...(optional.outcome ? {} : { limit: required.limit }) };
+      const outcome = optional.outcome ? sql`WHERE a.activity_outcome = ${optional.outcome}` : sql``;
+      const rows = await db.query<Row>(sql`SELECT * FROM (${projection(source)}) a ${outcome}
         ORDER BY a.created_at DESC, a.activity_id DESC LIMIT ${required.limit}`);
       return rows.map(toRecord);
     },
     async get({ workspaceId, idempotencyKey, recipient }) {
-      const [row] = await db.query<Row>(sql`SELECT * FROM (${projection(workspaceId)}) a WHERE a.idempotency_key = ${idempotencyKey} AND a.effective_recipient = ${recipient}`);
+      const [row] = await db.query<Row>(sql`SELECT * FROM (${projection({ workspaceId, cutoff: cutoff(), filter: { recipient }, idempotencyKey, effectiveOnly: true, limit: 1 })}) a LIMIT 1`);
       if (!row) return null;
       const feedback = row.provider_message_id === null ? [] : await db.query<{ kind: MailFeedbackRecord["kind"]; hard_bounce: number; provider_id: string; occurred_at: string; received_at: string }>(
         sql`SELECT kind, hard_bounce, provider_id, occurred_at, received_at FROM mail_feedback_inbox

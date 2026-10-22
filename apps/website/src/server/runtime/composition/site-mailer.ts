@@ -71,7 +71,9 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   const operations: SiteMailer["operations"] = {
     mailTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); },
     mailTestProvider: async () => { await ready(); return (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null; },
-    mailTestRequests: new Map(), mailTestSendLimiter: createMailTestSendLimiter(),
+    mailTestRequests: new Map(),
+    // One bucket per site, so the Email page's button and the assistant's tool share it.
+    mailTestSendLimiter: createMailTestSendLimiter(),
     mailLaneReady: resolved.laneReady, mailSenderDomainVerification: resolved.senderDomainVerification,
     mailSenderIdentity: createMailSenderIdentityResolver({ mailer: resolved.mailer }, {
       readConfiguredSender: required.readConfiguredSender ?? (async () => ({ email: await required.readSenderEmail() })), settle: resolved.settle,

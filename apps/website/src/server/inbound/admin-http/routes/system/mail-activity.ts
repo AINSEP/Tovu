@@ -46,7 +46,7 @@ function forbidden(res: Response, permission: string, reason: string): void {
 }
 
 /** The Email page's status permission (uses, feedback setup); answers the 403 itself. */
-async function statusAllowed(deps: AdminMailActivityDeps, principalId: string, res: Response): Promise<boolean> {
+async function statusAllowed({ deps, principalId, res }: { deps: AdminMailActivityDeps; principalId: string; res: Response }, _optional: Record<string, never> = {}): Promise<boolean> {
   const auth = await deps.authorize({ principalId, permission: MAIL_STATUS_PERMISSION, workspaceId: deps.workspaceId, entityType: "mail" });
   if (!auth.allowed) forbidden(res, MAIL_STATUS_PERMISSION, auth.reason);
   return auth.allowed;
@@ -66,7 +66,7 @@ function fail(res: Response, err: unknown): void {
   }
 }
 
-function handle(deps: AdminMailActivityDeps, run: (req: Request, res: Response, principalId: string) => Promise<void>) {
+function handle({ deps, run }: { deps: AdminMailActivityDeps; run: (req: Request, res: Response, principalId: string) => Promise<void> }, _optional: Record<string, never> = {}) {
   return async (req: Request, res: Response) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -86,22 +86,22 @@ function handle(deps: AdminMailActivityDeps, run: (req: Request, res: Response, 
  * @example registerAdminMailActivityRoutes(app, routeDeps)
  */
 export function registerAdminMailActivityRoutes(app: Express, deps: AdminMailActivityDeps): void {
-  app.get(`${BASE}/mail-uses`, handle(deps, async (_req, res, principalId) => {
-    if (await statusAllowed(deps, principalId, res)) res.json(await readMailUseReadiness(mailUseReadinessDepsFrom(deps)));
-  }));
-  app.get(`${BASE}/mail-activity`, handle(deps, async (req, res, principalId) => {
+  app.get(`${BASE}/mail-uses`, handle({ deps, run: async (_req, res, principalId) => {
+    if (await statusAllowed({ deps, principalId, res })) res.json(await readMailUseReadiness(mailUseReadinessDepsFrom(deps)));
+  } }));
+  app.get(`${BASE}/mail-activity`, handle({ deps, run: async (req, res, principalId) => {
     const query = readMailActivityQuery({ input: req.query as Record<string, unknown> });
     res.json(await listMailActivity({ ...{ principalId, query }, deps: deps }));
-  }));
-  app.get(`${BASE}/mail-activity/:activityId`, handle(deps, async (req, res, principalId) => {
+  } }));
+  app.get(`${BASE}/mail-activity/:activityId`, handle({ deps, run: async (req, res, principalId) => {
     const found = await getMailActivity({ ...{ principalId, activityId: readMailActivityId({ value: req.params.activityId }) }, deps: deps });
     if (found) res.json(found);
     else res.status(404).json({ error: "no such email send", code: "NOT_FOUND" });
-  }));
-  app.get(`${BASE}/mail-suppressions`, handle(deps, async (req, res, principalId) => {
+  } }));
+  app.get(`${BASE}/mail-suppressions`, handle({ deps, run: async (req, res, principalId) => {
     res.json(await listMailSuppressions({ ...{ principalId, query: readMailSuppressionQuery({ input: req.query as Record<string, unknown> }) }, deps: deps }));
-  }));
-  app.post(`${BASE}/mail-suppressions/remove`, handle(deps, async (req, res, principalId) => {
+  } }));
+  app.post(`${BASE}/mail-suppressions/remove`, handle({ deps, run: async (req, res, principalId) => {
     const body = (req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
     const plan = await planMailSuppressionRemoval({ ...{ principalId, input: readMailSuppressionRemoval({ input: body }) }, deps: deps });
     if (body.confirmed !== true) {
@@ -110,8 +110,8 @@ export function registerAdminMailActivityRoutes(app: Express, deps: AdminMailAct
     }
     if (body.revision !== plan.revision) throw new ToolInputError({ message: "Suppression changed or no reviewed revision was supplied. Review and confirm the current suppression." });
     res.json(await runMailSuppressionRemoval({ ...{ principalId, plan }, deps: deps }));
-  }));
-  app.get(`${BASE}/mail-feedback`, handle(deps, async (_req, res, principalId) => {
-    if (await statusAllowed(deps, principalId, res)) res.json(await readMailFeedbackSetup(deps));
-  }));
+  } }));
+  app.get(`${BASE}/mail-feedback`, handle({ deps, run: async (_req, res, principalId) => {
+    if (await statusAllowed({ deps, principalId, res })) res.json(await readMailFeedbackSetup(deps));
+  } }));
 }

@@ -47,4 +47,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0028_search_index_retired": "f996ef75e19887474111b1d8d75d5f5e051786ff21e1a4d1f6a4d5bc418c5b54",
   "0029_mail_activity_indexes": "25d2c17ae98790635739b8de1a7c654a21f9401a5c2e6b4578a72b733d459482",
   "0030_mail_suppression_admin": "c20e15d2f7965eed4cb580daa0eaa066f8ae5f70a1bfc5e99d55c4108e0f0381",
+  "0031_mail_activity_retention": "164f0f2db8b390a0aabd7c5ef12c7c24ba32d02d57e16719f57e5181a9d29608",
 };

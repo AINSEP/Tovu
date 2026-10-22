@@ -34,3 +34,14 @@ test("an older refresh finishing last cannot replace a newer refresh", async () 
   const cache = createTtlCache({ load: () => ++n === 1 ? a.promise : b.promise, nowMs: () => 0, ttlMs: 1 });
   const old = cache.get({ refresh: true }), fresh = cache.get({ refresh: true }); b.resolve(2); assert.equal(await fresh, 2); a.resolve(1); assert.equal(await old, 1); assert.equal(await cache.get(), 2);
 });
+
+
+test("refresh minimum interval coalesces concurrent and repeated forced reads; invalidation permits immediate rebuild", async () => {
+  let now = 0, calls = 0;
+  const cache = createTtlCache({ load: async () => ++calls, ttlMs: 30_000, nowMs: () => now }, { minRefreshIntervalMs: 5_000 });
+  assert.deepEqual(await Promise.all([cache.get({ refresh: true }), cache.get({ refresh: true })]), [1, 1]);
+  now = 4_999; assert.equal(await cache.get({ refresh: true }), 1); assert.equal(calls, 1);
+  now = 5_000; assert.equal(await cache.get({ refresh: true }), 2);
+  cache.invalidate(); assert.equal(await cache.get({ refresh: true }), 3);
+  assert.equal(calls, 3);
+});

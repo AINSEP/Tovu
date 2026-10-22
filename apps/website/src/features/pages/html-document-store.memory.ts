@@ -4,7 +4,7 @@ import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
-import { HTML_DOCUMENT_KINDS, SYSTEM_ACTOR_ID } from "../post/post.js";
+import { SYSTEM_ACTOR_ID, type PostKind } from "../post/post.js";
 import { announcePendingGoLive } from "../post/go-live.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
@@ -43,14 +43,15 @@ import {
  */
 export class InMemoryPagesHtmlDocumentStore {
   private lastReadVersion: number | null = null;
+  private readonly allowedKinds: ReadonlySet<PostKind>;
 
   constructor(
     private readonly scope: PagesHtmlDocumentStoreScope,
     // `entryRefsRepo` is optional for the identical reason `PagesHtmlDocumentStoreDeps.entryRefsRepo`
     // (the real adapter) is — see that field's own doc.
     /** `outbox`: the real store's go-live catch-up (`PagesHtmlDocumentStoreDeps.outbox`). */
-    private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort }
-  ) {}
+    private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> }
+  ) { this.allowedKinds = deps.allowedKinds ?? new Set(["page"]); }
 
   private async load(): Promise<PostRecord | null> {
     return this.deps.repo.findById({ workspaceId: this.scope.workspaceId, id: this.scope.postId });
@@ -100,9 +101,9 @@ export class InMemoryPagesHtmlDocumentStore {
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
-    // An email template is born through this same store (`post.ts`'s HTML_DOCUMENT_KINDS).
-    if (!HTML_DOCUMENT_KINDS.has(row.kind)) {
-      throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
+    // The factory scopes this shared writer to the calling surface's own document kinds.
+    if (!this.allowedKinds.has(row.kind)) {
+      throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
 
     if (row.bodyFormat === "html") {
@@ -139,7 +140,7 @@ export class InMemoryPagesHtmlDocumentStore {
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
-    if (row.bodyFormat !== "html" || row.bodyHtml === null) {
+    if (!this.allowedKinds.has(row.kind) || row.bodyFormat !== "html" || row.bodyHtml === null) {
       throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     }
     this.lastReadVersion = row.version;
@@ -176,7 +177,7 @@ export class InMemoryPagesHtmlDocumentStore {
     if (row && isTrashed(row)) {
       assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: "trashed" });
     }
-    if (!row || row.bodyFormat !== "html" || row.version !== expectedVersion) {
+    if (!row || !this.allowedKinds.has(row.kind) || row.bodyFormat !== "html" || row.version !== expectedVersion) {
       throw new PageConcurrentEditError(
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
       );

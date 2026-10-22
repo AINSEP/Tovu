@@ -128,6 +128,8 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
   clock?: { nowMs(): number };
   /** Status freshness window; defaults to {@link MAIL_STATUS_TTL_MS}. */
   statusTtlMs?: number;
+  /** Provider DNS-requirements deadline; defaults to five seconds. */
+  domainRequirementsTimeoutMs?: number;
 }
 
 
@@ -366,7 +368,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const statusCache = createTtlCache({
     load: () => computeStatusReport({ deps, setting: currentSetting, recordError, nowMs, senderDomainVerification }),
     ttlMs: deps.statusTtlMs ?? MAIL_STATUS_TTL_MS, nowMs,
-  });
+  }, { minRefreshIntervalMs: 5_000 });
   const status = async (optional: { refresh?: boolean } = {}): Promise<MailStatusReport> => {
     const report = await statusCache.get(optional);
     return lastError ? { ...report, lastError } : report;
@@ -397,7 +399,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const provider = id === null ? undefined : catalog.registry.get({ id })?.provider;
     if (!domain || !provider?.capabilities.domainVerification) return null;
     const { credential } = await providerCredential(catalog, id!);
-    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }) : null;
+    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }, { timeoutMs: deps.domainRequirementsTimeoutMs }) : null;
   };
   return { senderDomainVerification, laneReady: async ({ lane }) => (await forLane(lane)).capabilities().driver !== "console", mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
 }
@@ -416,13 +418,20 @@ function callContext(deps: ResolveMailerDeps, credential: MailAdapterCredential)
 
 /** One provider call; a provider-reported failure becomes a caller-safe error. @complexity One call. */
 async function requestDomainRequirements(
-  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string }
+  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string },
+  optional: { timeoutMs?: number } = {},
 ): Promise<DomainRequirement> {
   const { ctx, providerId, provider, domain } = required;
   // `domainVerification` is true exactly when the module implements domainRequirements (registry-validated).
-  const result = await provider.domainRequirements!(ctx, { domain });
-  if (result.status === "ok") return result.value;
-  throw new Error("The mail provider could not list its required DNS records.");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error("The mail provider could not list its required DNS records.")), optional.timeoutMs ?? 5_000);
+  });
+  try {
+    const result = await Promise.race([provider.domainRequirements!(ctx, { domain }), timeout]);
+    if (result.status === "ok") return result.value;
+    throw new Error("The mail provider could not list its required DNS records.");
+  } finally { clearTimeout(timer); }
 }
 
 /** Lane providers' credentials, looked up in parallel; a failed lookup is recorded and counts as none. @complexity O(lanes) lookups. */

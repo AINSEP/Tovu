@@ -139,3 +139,12 @@ test("mail-test-send: another workspace is a 404 and an unexpected fault a fixed
   assert.deepEqual(await callRoute(broken.app, "post", SEND_PATH, { body: {} }), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(logged.mock.calls[0]!.arguments[0], "[system/mail-test-send] unexpected error");
 });
+
+
+test("mail-test-send never returns provider error text in its HTTP body", async () => {
+  const fixture = sendDeps({}, { ok: false, retryable: false, errorCode: "SMTP_AUTH", message: "token=super-secret recipient=private@example.com" });
+  const response = await callRoute(fixture.app, "post", SEND_PATH, { body: { requestId: "safe-error-1" } });
+  assert.equal(response.statusCode, 200);
+  assert.match(JSON.stringify(response.jsonBody), /The provider refused the message/);
+  assert.doesNotMatch(JSON.stringify(response.jsonBody), /super-secret|private@example/);
+});

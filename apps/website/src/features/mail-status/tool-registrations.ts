@@ -29,6 +29,7 @@ export interface MailStatusToolDeps {
   mailTestSendLimiter?: MailTestSendDeps["mailTestSendLimiter"];
   mailTestMode?: MailTestSendDeps["mailTestMode"];
   mailTestProvider?: MailTestSendDeps["mailTestProvider"];
+  mailLaneReady?: MailTestSendDeps["mailLaneReady"];
   mailTestRequests?: MailTestSendDeps["mailTestRequests"];
 }
 export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([

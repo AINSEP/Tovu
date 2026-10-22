@@ -8,7 +8,6 @@ import {
   type MailSendLedgerPort,
   type MailSuppressionRepoPort,
   type MailTestMode,
-  laneForPurpose,
 } from "@jini-ai/platform/mail";
 
 import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
@@ -39,6 +38,8 @@ export interface MailPolicyWrapperOptions {
   capture?: MailCapturePort;
   /** Limiter clock in ms; defaults to `Date.now`. */
   now?: () => number;
+  /** Fixed observation-failure diagnostic; faults in the logger never affect delivery. */
+  warn?: (line: string) => void;
 }
 
 /**
@@ -68,6 +69,15 @@ const CAPTURE_UNAVAILABLE: MailerSendResult = { ok: false, retryable: false, err
  * @complexity Per send: one test-mode read plus the policy's ledger round-trips.
  */
 export function createMailPolicyWrapper(required: MailPolicyWrapperDeps, optional: MailPolicyWrapperOptions = {}) {
+  let observationWarned = false;
+  // Delivery has already happened: activity storage and diagnostics must never alter its result.
+  const observeResult = async (event: Parameters<NonNullable<MailPolicyWrapperDeps["observe"]>>[0]): Promise<void> => {
+    try { await required.observe?.(event); } catch {
+      if (observationWarned) return;
+      observationWarned = true;
+      try { (optional.warn ?? console.warn)("[mail] activity observation failed"); } catch { /* ADR-024: diagnostics cannot reject a send. */ }
+    }
+  };
   const limiters = new Map<string, MailLaneLimiter>();
   const limiterFor = (provider: MailProviderModule, providerId: string): MailLaneLimiter | undefined => {
     const limit = provider.capabilities.rateLimit;
@@ -95,7 +105,7 @@ export function createMailPolicyWrapper(required: MailPolicyWrapperDeps, optiona
         { ...(limiter ? { limiter } : {}), ...(testMode ? { testMode } : {}), resendPolicy: () => resendPolicyFor({ options }) },
       );
       const result = await policy.deliver({ message, options, send: (call) => mailer.send(call.message, options) });
-      await required.observe?.({ message, options, providerId, mode: setting, result });
+      await observeResult({ message, options, providerId, mode: setting, result });
       return result;
     };
     return {

@@ -1,7 +1,9 @@
+// Generic, Jini candidate: tracked in .cloud-coord/round2-progress.md#jini-extraction-backlog.
 /**
  * @file A short-TTL, single-flight cache for the mail status report (email phase 2, 2026-10-22).
  * Building the report can call the provider (domain status) and decrypt keys, which took 4–9 s per
- * admin page load; within the TTL every reader shares one result. `refresh` forces a fresh build,
+ * admin page load; within the TTL every reader shares one result. `refresh` requests a fresh build,
+ * subject to the optional minimum refresh interval.
  * `invalidate` drops the cached one (a provider switch or a key save). A failed build is never
  * cached, and a build that started before an invalidation is not stored over it.
  */
@@ -18,14 +20,18 @@ export interface TtlCache<T> {
  * @param required.load - Builds a fresh value; its rejection reaches every concurrent caller.
  * @param required.ttlMs - How long a built value is served.
  * @param required.nowMs - Injected clock.
- * @complexity O(1) per call; at most one `load` in flight.
+ * @param optional.minRefreshIntervalMs - Ignore forced refresh inside this interval after a build
+ *   starts; zero preserves unrestricted superseding refreshes. Invalidation resets the interval.
+ * @complexity O(1) per call; ordinary reads share one pending load. Explicit refresh may supersede it.
  */
-export function createTtlCache<T>(required: { load: () => Promise<T>; ttlMs: number; nowMs: () => number }, _optional: Record<string, never> = {}): TtlCache<T> {
+export function createTtlCache<T>(required: { load: () => Promise<T>; ttlMs: number; nowMs: () => number }, optional: { minRefreshIntervalMs?: number } = {}): TtlCache<T> {
   let cached: { value: T; expiresAt: number } | undefined;
   let inFlight: Promise<T> | undefined;
   let generation = 0;
+  let lastBuildAt = -Infinity;
 
   const start = (): Promise<T> => {
+    lastBuildAt = required.nowMs();
     const startedIn = generation;
     const started = required.load().then((value) => {
       if (startedIn === generation) cached = { value, expiresAt: required.nowMs() + required.ttlMs };
@@ -35,9 +41,10 @@ export function createTtlCache<T>(required: { load: () => Promise<T>; ttlMs: num
     return started;
   };
 
+  const minRefreshIntervalMs = optional.minRefreshIntervalMs ?? 0;
   return {
     get: async (optional = {}) => {
-      if (optional.refresh) {
+      if (optional.refresh && required.nowMs() - lastBuildAt >= minRefreshIntervalMs) {
         generation += 1;
         return start();
       }
@@ -48,6 +55,7 @@ export function createTtlCache<T>(required: { load: () => Promise<T>; ttlMs: num
       generation += 1;
       cached = undefined;
       inFlight = undefined;
+      lastBuildAt = -Infinity;
     },
   };
 }

@@ -511,14 +511,15 @@ test("first boot: a keyless plugin is never the migrated pick, and a v1 plugin s
   assert.deepEqual(v1.writes, [{ transactional: "postal", bulk: "postal" }]);
 });
 
-test("first boot: a credential store throwing a non-Error is reported by value and defers the migration", async () => {
+test("first boot: a credential store throwing a non-Error is redacted and defers the migration", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   const failing = Object.assign(Object.create(credentialDeps.repo) as CustomCredentialSetRepoPort, { vault: credentialDeps.repo.vault, listByWorkspace: async () => { throw "eio"; } });
   const warnings: string[] = [];
   const providerSetting = memorySetting({ transactional: "smtp", bulk: null });
   const { mailer } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: failing, sealer: credentialDeps.sealer, providerSetting }, warnings));
   await mailer.send(MESSAGE, OPTIONS);
-  assert.match(warnings[0]!, /looking up the "Tovu Mail — SMTP Server" credential failed \(eio\)/);
+  assert.match(warnings[0]!, /the "Tovu Mail — SMTP Server" credential could not be read/);
+  assert.doesNotMatch(warnings[0]!, /eio/);
   // Status treats an unreadable key as missing rather than failing.
   const status = await createResolvedMailer(makeResolveDeps({ customCredentialRepo: failing, sealer: credentialDeps.sealer, providerSetting, readSenderEmail: async () => "news@example.com" })).status();
   assert.equal(status.lanes[0]!.state, "missing_credential");
@@ -572,4 +573,7 @@ test("domainRequirements: the active transactional provider's records for the se
 
   answer = { status: "rejected", error: { code: "unauthorized", message: "bad key" } };
   await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
+  // A provider that never settles must still allow mail_dns_status to return requirements_failed.
+  const stalled = fixtureRegistry({ capabilities: { hosted: true, feedback: false, domainVerification: true }, domainRequirements: () => new Promise(() => {}), domainStatus: async () => ({ status: "ok", value: { domain: "example.com", state: "verified" } }), create: () => FIXTURE_MAILER });
+  await assert.rejects(make({ loadMailAdapters: async () => stalled, domainRequirementsTimeoutMs: 1 }).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
 });

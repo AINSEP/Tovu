@@ -31,6 +31,8 @@ export interface MailTestSendLimiter {
 export interface MailTestSendDeps {
   workspaceId: string;
   mailer: MailerPort;
+  /** Await current transactional resolution before freezing synchronous capabilities. */
+  mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
   /** The operator's account, for the default recipient. */
   userRepo?: Pick<UserRepoPort, "findByPrincipalId">;
   /** The site's system-mail From (`platform/mail/sender-identity.ts`). */
@@ -106,6 +108,7 @@ async function operatorAddress({ deps, principalId }: { deps: MailTestSendDeps; 
  */
 export async function planMailTestSend(required: { principalId: string; to?: string ; deps: MailTestSendDeps }, _options: Record<string, never> = {}): Promise<MailTestSendPlan> {
   const { deps } = required;
+  await deps.mailLaneReady?.({ lane: "transactional" });
   const to = required.to ?? await operatorAddress({ deps: deps, principalId: required.principalId });
   const mode = deps.mailTestMode ? await deps.mailTestMode() : { mode: "off" as const };
   const identity = mailSenderIdentityFor({ mailer: deps.mailer }, deps.mailSenderIdentity ? { senderIdentity: deps.mailSenderIdentity } : {});
@@ -187,7 +190,24 @@ async function performMailTestSend(
   );
   const common = { ...base, at: at() };
   if (result.ok) return successResult({ common: common, plan: plan, providerMessageId: result.providerMessageId, mailer: deps.mailer });
-  return { ...common, outcome: result.unknown ? "unknown" : "failed", errorCode: result.errorCode, message: result.message, retryable: result.unknown ? false : result.retryable, ...(result.retryAfterMs === undefined ? {} : { retryAfterMs: result.retryAfterMs }) };
+  return { ...common, outcome: result.unknown ? "unknown" : "failed", errorCode: result.errorCode, message: testSendFailureMessage({ errorCode: result.errorCode }), retryable: result.unknown ? false : result.retryable, ...(result.retryAfterMs === undefined ? {} : { retryAfterMs: result.retryAfterMs }) };
+}
+
+/** Only locally owned codes get specific copy; provider/SMTP text is never caller-safe. */
+const SAFE_SEND_FAILURES: Readonly<Record<string, string>> = {
+  MAIL_TEST_DUPLICATE: REFUSALS.duplicate.message,
+  MAIL_TEST_RATE_LIMITED: REFUSALS.rate_limited.message,
+  MAIL_TEST_CAPTURE_UNAVAILABLE: "Capture mode is unavailable. Nothing was sent.",
+  MAIL_TEST_APPROVAL_CHANGED: "Mail configuration changed. Prepare a new approval; nothing was sent.",
+  MAIL_RECIPIENT_SUPPRESSED: "The recipient is on the do-not-send list. Nothing was sent.",
+  MAIL_RATE_LIMITED: "The mail delivery rate limit was reached. Try again later.",
+  MAIL_UNCONFIGURED: "No mail provider is configured. Nothing was sent.",
+  MAIL_PROVIDER_UNAVAILABLE: "The configured mail provider is unavailable. Check its configuration.",
+};
+
+/** Fixed copy by code, without reading the provider's message. @complexity O(1). */
+function testSendFailureMessage({ errorCode }: { errorCode: string }, _optional: Record<string, never> = {}): string {
+  return Object.hasOwn(SAFE_SEND_FAILURES, errorCode) ? SAFE_SEND_FAILURES[errorCode] : `The provider refused the message (code ${errorCode}).`;
 }
 
 /** Defaults: 5 deliberate tests in a burst, one more every 12 minutes; a second click within 15 s is a duplicate. */

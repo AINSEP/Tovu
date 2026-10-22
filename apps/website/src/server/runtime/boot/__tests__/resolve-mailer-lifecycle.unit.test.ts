@@ -170,7 +170,10 @@ test("status is cached for the TTL on the injected clock; refresh and invalidate
   assert.equal((await resolved.status()).checkedAt, "2026-10-22T10:00:01.000Z");
   assert.equal(loads, before + 2);
   await resolved.status({ refresh: true });
-  assert.equal(loads, before + 3);
+  assert.equal(loads, before + 2, "refresh inside five seconds reuses the cached report");
+  now += 5_000;
+  await resolved.status({ refresh: true });
+  assert.equal(loads, before + 3, "refresh at the interval boundary rebuilds");
   resolved.invalidate();
   await resolved.status();
   assert.equal(loads, before + 4);
@@ -189,19 +192,23 @@ test("lastError records the provider's own send failures (single and batch); che
   assert.deepEqual(await resolved.mailer.sendBatch([MESSAGE], OPTIONS), [failure]);
 });
 
-test("status runs the domain check with the lane key and records its failure; a thrown check is recorded by value", async () => {
+test("status runs the domain check with the lane key and records a caller-safe failure", async () => {
   const creds = credentialDeps();
   await saveKey(creds, "key-one");
   let answer: () => Promise<unknown> = async () => ({ status: "error", error: { message: "rate limited" } });
   const { registry } = fakeProvider({ domainStatus: () => answer() });
-  const resolved = createResolvedMailer(deps({ creds, registry }, { readSenderEmail: async () => "news@example.com" }));
+  let now = Date.parse("2026-10-22T12:00:00Z");
+  const resolved = createResolvedMailer(deps({ creds, registry }, { readSenderEmail: async () => "news@example.com", clock: { nowMs: () => now } }));
   const rejected = await resolved.status();
   assert.deepEqual(rejected.warnings, []);
   assert.deepEqual({ ...rejected.lastError, at: undefined }, { providerId: "fakemail", source: "check", message: "The provider configuration check could not complete.", at: undefined });
+  now += 5_000;
   answer = async () => { throw "dns down"; };
   assert.match((await resolved.status({ refresh: true })).lastError!.message, /provider configuration check could not complete/);
+  now += 5_000;
   answer = async () => { throw new Error("socket hang up"); };
   assert.match((await resolved.status({ refresh: true })).lastError!.message, /provider configuration check could not complete/);
+  now += 5_000;
   answer = async () => ({ status: "ok", value: { domain: "example.com", state: "pending" } });
   assert.deepEqual((await resolved.status({ refresh: true })).warnings, ["sender_unverified"]);
 });

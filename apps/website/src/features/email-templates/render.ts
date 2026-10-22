@@ -1,3 +1,4 @@
+// Generic, Jini candidate: tracked in .cloud-coord/round2-progress.md#jini-extraction-backlog.
 import { parse, serialize, type DefaultTreeAdapterMap } from "parse5";
 import { htmlToText, stripActiveHtml } from "@jini-ai/platform/web";
 
@@ -30,7 +31,7 @@ const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
 const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 
 /** Tags a sent email never carries: embedded documents and plugins, on top of `stripActiveHtml`'s. */
-const SEND_STRIPPED_TAGS = new Set(["iframe", "object", "embed", "frame", "frameset", "applet"]);
+const SEND_STRIPPED_TAGS = new Set(["iframe", "object", "embed", "frame", "frameset", "applet", "base", "form", "link"]);
 /** Script-bearing URL schemes; tested after removing the whitespace/control characters a browser ignores. */
 const ACTIVE_URL = /^(?:javascript|vbscript):/i;
 
@@ -169,13 +170,21 @@ function isActiveUrl({ value }: { value: string }, _options: Record<string, neve
   // Browsers drop ASCII tab/newline anywhere in a URL and leading C0 controls/space, so
   // `java\nscript:` is still script; `stripActiveHtml`'s own test only trims leading whitespace.
   // eslint-disable-next-line no-control-regex
-  return ACTIVE_URL.test(value.replace(/[\u0000- ]/g, ""));
+  const normalized = value.replace(/[\u0000- ]/g, "");
+  return ACTIVE_URL.test(normalized) || (/^data:/i.test(normalized) && !/^data:image\/[^;,]+[;,]/i.test(normalized));
+}
+
+/** Static mail excludes navigation instructions, form submissions and external stylesheets. */
+function stripMailElement({ child }: { child: ChildNode }, _optional: Record<string, never> = {}): boolean {
+  if (!isElement(child)) return false;
+  if (SEND_STRIPPED_TAGS.has(child.tagName) || isFieldsMeta(child)) return true;
+  return child.tagName === "meta" && attribute({ element: child, name: "http-equiv" }) !== undefined;
 }
 
 /** Second, email-specific pass after `stripActiveHtml`: embeds, obfuscated script URLs, the fields meta. */
 function stripForMail(root: ParentNode, _options: Record<string, never> = {}): void {
   for (const node of elementsIn(root)) {
-    node.childNodes = node.childNodes.filter((child) => !(isElement(child) && (SEND_STRIPPED_TAGS.has(child.tagName) || isFieldsMeta(child))));
+    node.childNodes = node.childNodes.filter((child) => !stripMailElement({ child }));
     node.attrs = node.attrs.filter((attr) => !isActiveUrl({ value: attr.value }));
   }
 }
@@ -184,7 +193,8 @@ function stripForMail(root: ParentNode, _options: Record<string, never> = {}): v
  * The static HTML a mail client receives: `<script>`/`<noscript>`/`<template>`, comments, inline
  * `on*` handlers and `javascript:` URLs removed (the shared `stripActiveHtml` policy), then
  * `<iframe>`/`<object>`/`<embed>` (and their legacy kin), obfuscated script URLs and the template's
- * own field declarations. Styles and classes survive: email layout depends on them.
+ * own field declarations. Navigation/form/link elements and non-image data URLs are removed.
+ * Inline styles and classes survive: email layout depends on them.
  *
  * Known cost: comments are removed, so Outlook `<!--[if mso]>` conditional blocks do not survive.
  * @complexity O(nodes), two parses.

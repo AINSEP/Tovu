@@ -1,3 +1,4 @@
+// Generic, Jini candidate: tracked in .cloud-coord/round2-progress.md#jini-extraction-backlog.
 import type { MailProviderField, MailProviderSetup } from "#src/platform/mail/mail-status";
 
 /**

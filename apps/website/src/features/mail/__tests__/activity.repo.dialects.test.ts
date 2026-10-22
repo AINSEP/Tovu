@@ -4,6 +4,8 @@ import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { createMailActivityRepo } from "../activity.repo.js";
+import { createMailAttemptObserver } from "../attempts.repo.js";
+import { MAIL_ACTIVITY_RETENTION_MS } from "../retention.js";
 
 /**
  * @file The activity projection (email phase 4) on SQLite and PGlite: derived outcome and use,
@@ -103,4 +105,25 @@ describeEachDialect("mail activity repo", {
     assert.deepEqual((await repo.get({ workspaceId: "wa", idempotencyKey: "members:signin:b", recipient: "a@x.test" }))?.feedback, []);
     assert.equal(await repo.get({ workspaceId: "wb", idempotencyKey: "members:signin:a", recipient: "a@x.test" }), null);
   });
+
+  test("stored purpose filters survive opaque keys; outcome filtering precedes page limits and expired history is excluded", async () => {
+    const { db } = make();
+    await seed(db, [{ key: "members:signin:expired", outcome: "sent", at: -MAIL_ACTIVITY_RETENTION_MS / 1000 - 1 }]);
+    let at = 1;
+    const observe = createMailAttemptObserver({ db }, { nowIso: () => T(at), newId: () => `attempt-${at}` });
+    const message = { workspaceId: "wa", to: { email: "reader@x.test" }, from: { email: "sender@x.test" }, subject: "ignored", text: "ignored" };
+    const options = { workspaceId: "wa", idempotencyKey: "members:signin:failed", sourceContext: { module: "members" } };
+    await observe({ message, options, providerId: "smtp", mode: { mode: "off" }, result: { ok: false, retryable: false, errorCode: "REFUSED", message: "not stored" } });
+    at = 2;
+    await observe({ message, options: { ...options, idempotencyKey: "members:signin:new" }, providerId: "smtp", mode: { mode: "off" }, result: { ok: true, providerMessageId: "pm-new", acceptedAt: T(at) } });
+    // A purpose is persisted once, so the read never has to classify every key in the history.
+    await db.execute(sql`UPDATE mail_activity_attempts SET idempotency_key = 'opaque-request' WHERE id = 'attempt-2'`);
+    const repo = createMailActivityRepo({ db }, { now: () => Date.parse(T(10)) });
+    const latest = await repo.list({ workspaceId: "wa", limit: 1 }, { use: "sign_in" });
+    assert.deepEqual(latest.map(row => [row.idempotencyKey, row.use]), [["opaque-request", "sign_in"]]);
+    const failed = await repo.list({ workspaceId: "wa", limit: 1 }, { use: "sign_in", outcome: "failed" });
+    assert.deepEqual(failed.map(row => row.idempotencyKey), ["members:signin:failed"]);
+    assert.equal((await repo.list({ workspaceId: "wa", limit: 10 })).length, 2, "expired legacy history is bounded even before the purge runs");
+  });
+
 });

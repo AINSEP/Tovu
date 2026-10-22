@@ -96,10 +96,10 @@ test("real policy redirects the transport, captures locally, suppresses, and rep
   }
 });
 
-test("runMailTestSend: a refusal keeps its own code, message, retryability and retry hint", async () => {
+test("runMailTestSend: a refusal uses fixed code-specific copy and keeps retryability and retry hint", async () => {
   const throttled = mailerWith({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "slow down", retryAfterMs: 900 });
   assert.deepEqual(await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer: throttled }) }, { now: () => T0 }),
-    { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "failed", errorCode: "MAIL_RATE_LIMITED", message: "slow down", retryable: true, retryAfterMs: 900 });
+    { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "failed", errorCode: "MAIL_RATE_LIMITED", message: "The mail delivery rate limit was reached. Try again later.", retryable: true, retryAfterMs: 900 });
   const suppressed = mailerWith({ ok: false, retryable: false, errorCode: "MAIL_SUPPRESSED", message: "recipient is suppressed" });
   const result = await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer: suppressed }) });
   assert.equal(result.outcome, "failed");
@@ -215,4 +215,25 @@ test("a console transport reports local capture rather than external acceptance"
   const prepared = await planMailTestSend({ deps, principalId: "owner" });
   const result = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "console" });
   assert.deepEqual([result.outcome, "where" in result && result.where], ["captured", "console"]);
+});
+
+
+test("provider failure text never reaches the shared operation or tool result", async () => {
+  const failure: MailerSendResult = { ok: false, retryable: false, errorCode: "SMTP_AUTH", message: "token=super-secret recipient=private@example.com" };
+  const deps = depsWith({ mailer: mailerWith(failure) });
+  const result = await runMailTestSend({ deps, principalId: "owner", plan: await planMailTestSend({ deps, principalId: "owner" }), ref: "safe" });
+  assert.equal("message" in result && result.message, "The provider refused the message (code SMTP_AUTH).");
+  assert.doesNotMatch(JSON.stringify(result), /super-secret|private@example/);
+  const tool = sendTool({ mailer: mailerWith(failure) });
+  const toolResult = await tool.call({});
+  assert.match(JSON.stringify(toolResult), /The provider refused the message/);
+  assert.doesNotMatch(JSON.stringify(toolResult), /super-secret|private@example/);
+});
+
+test("test-send planning settles the current lane before freezing driver and sender", async () => {
+  let driver = "console"; const base = mailerWith(ok());
+  const deps = depsWith({ mailer: { ...base, capabilities: () => ({ ...base.capabilities(), driver }) }, mailLaneReady: async ({ lane }) => { assert.equal(lane, "transactional"); driver = "smtp"; return true; } });
+  const prepared = await planMailTestSend({ deps, principalId: "owner" });
+  assert.equal(prepared.driver, "smtp"); assert.equal(prepared.approval.driver, "smtp");
+  assert.equal((await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "after-boot" })).outcome, "accepted");
 });

@@ -37,7 +37,7 @@ describeEachDialect("mail observations and retention", { tables: ["mail_activity
     assert.doesNotMatch(JSON.stringify(rows), /Private auth|private|sign-in/);
   });
 
-  test("expiry removes bodies and activity but preserves send identity and suppression protection", async () => {
+  test("expiry deletes final send identities and bodies while preserving unresolved reservations, recent retries and suppression protection", async () => {
     const db = make(); await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES ('w','W','w',${iso(NOW)})`);
     const capture = createMailCaptureRepo({ db }, { nowIso: () => iso(NOW - MAIL_CAPTURE_RETENTION_MS) }); await capture.capture({ message, lane: "transactional", idempotencyKey: "capture-old" });
     const fresh = createMailCaptureRepo({ db }, { nowIso: () => iso(NOW - MAIL_CAPTURE_RETENTION_MS + 1) }); await fresh.capture({ message, lane: "transactional", idempotencyKey: "capture-new" });
@@ -47,10 +47,34 @@ describeEachDialect("mail observations and retention", { tables: ["mail_activity
     const observer = createMailAttemptObserver({ db }, { nowIso: () => iso(NOW - MAIL_ACTIVITY_RETENTION_MS) });
     await observer({ message, options: { ...options, idempotencyKey: "old" }, providerId: "smtp", mode: { mode: "off" }, result: { ok: false, retryable: false, unknown: true, errorCode: "MAIL_OUTCOME_UNKNOWN", message: "unknown" } });
     const suppression = createMailSuppressionRepo({ db }); await suppression.suppress({ workspaceId: "w", normalizedAddress: "real@example.com", scope: "all", reason: "bounced" });
+    for (const outcome of ["sent", "failed"] as const) {
+      await ledger.reserve({ ...key, idempotencyKey: outcome, payloadHash: "hash", lane: "transactional", providerId: "smtp" });
+      await ledger.mark({ ...key, idempotencyKey: outcome, outcome });
+    }
+    await ledger.reserve({ ...key, idempotencyKey: "reserved", payloadHash: "hash", lane: "transactional", providerId: "smtp" });
+    await ledger.reserve({ ...key, idempotencyKey: "recent-retry", payloadHash: "hash", lane: "transactional", providerId: "smtp" });
+    const currentLedger = createMailSendLedgerRepo({ db }, { nowIso: () => iso(NOW) });
+    await currentLedger.mark({ ...key, idempotencyKey: "recent-retry", outcome: "sent", providerMessageId: "recent" });
+    await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id,event_id,workspace_id,recipient,kind,hard_bounce,provider_message_id,occurred_at,received_at,processed_at)
+      VALUES ('smtp','retained-event','w','real@example.com','delivered',0,'old-message',${iso(NOW - MAIL_ACTIVITY_RETENTION_MS)},${iso(NOW - MAIL_ACTIVITY_RETENTION_MS)},${iso(NOW)}),
+      ('smtp','pending-event','w','pending@example.com','delivered',0,'pending-message',${iso(NOW - MAIL_ACTIVITY_RETENTION_MS)},${iso(NOW - MAIL_ACTIVITY_RETENTION_MS)},NULL)`);
     await purgeExpiredMail({ db }, { now: () => NOW });
+    const remaining = await db.query<{ idempotency_key: string }>(sql`SELECT idempotency_key FROM mail_send_ledger ORDER BY idempotency_key`);
+    assert.deepEqual(remaining.map(row => row.idempotency_key), ["recent-retry", "reserved"]);
+    const feedback = await db.query(sql`SELECT event_id, recipient, provider_message_id FROM mail_feedback_inbox ORDER BY event_id`);
+    assert.deepEqual(feedback, [{ event_id: "pending-event", recipient: "pending@example.com", provider_message_id: "pending-message" }, { event_id: "retained-event", recipient: "", provider_message_id: "" }]);
+    // RETURNING counts actual writes on both engines, including redundant same-value UPDATEs.
+    let changes = 0;
+    const counted = new Proxy(db, { get(target, property) {
+      if (property === "execute") return async (statement: Parameters<typeof db.execute>[0]) => { changes += (await target.query(sql`${statement} RETURNING 1`)).length; };
+      const value = Reflect.get(target, property); return typeof value === "function" ? value.bind(target) : value;
+    } });
+    await purgeExpiredMail({ db: counted }, { now: () => NOW });
+    assert.equal(changes, 0, "a second pass changes zero rows, including reserved and already-scrubbed rows");
     assert.deepEqual((await fresh.listCaptured({ workspaceId: "w" })).map(r => r.idempotencyKey), ["capture-new"]);
     assert.deepEqual(await createMailActivityRepo({ db }).list({ workspaceId: "w", limit: 10 }), []);
-    const replay = await ledger.reserve({ ...key, payloadHash: "hash", lane: "transactional", providerId: "smtp" }); assert.equal(replay.status, "existing");
+    const replay = await currentLedger.reserve({ ...key, idempotencyKey: "reserved", payloadHash: "hash", lane: "transactional", providerId: "smtp" }); assert.equal(replay.status, "existing");
+    assert.deepEqual(await db.query(sql`SELECT * FROM mail_send_ledger WHERE idempotency_key IN ('old', 'sent', 'failed')`), [], "all expired final metadata, including addresses and keys, is deleted");
     assert.equal(await suppression.isSuppressed({ workspaceId: "w", normalizedAddress: "real@example.com", lane: "transactional" }), true);
   });
 });

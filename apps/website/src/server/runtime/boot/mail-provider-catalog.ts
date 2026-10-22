@@ -162,12 +162,13 @@ export async function resolveMailCredential(
   return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
 }
 
-/** A log-safe reason a credential lookup threw. */
-export function credentialFailureReason(required: { label: string; err: unknown }, _optional: Record<string, never> = {}): string {
+/** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */
+export function credentialFailureReason(required: { label: string; err: unknown }, optional: { log?: (line: string, error: unknown) => void } = {}): string {
   const { label, err } = required;
+  try { (optional.log ?? console.error)("[mail] credential lookup failed", err); } catch { /* Diagnostics cannot replace the caller-safe refusal. */ }
   return err instanceof CustomCredentialSecretStoreUnconfiguredError
-    ? `the "${label}" credential is saved but could not be decrypted (${err.message})`
-    : `looking up the "${label}" credential failed (${err instanceof Error ? err.message : String(err)})`;
+    ? `the "${label}" credential is saved but could not be decrypted`
+    : `the "${label}" credential could not be read`;
 }
 
 /**

@@ -183,7 +183,7 @@ export async function createEmailTemplate(
   // Both adapters join the same kernel transaction, so conversion failure leaves no hidden doc row.
   return deps.postRepo.transaction(async () => {
     await deps.postRepo.save(row);
-    await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }).ensureHtmlFormat(seed);
+    await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) }).ensureHtmlFormat(seed);
     return toDetail(await loadTemplate({ deps: deps, id: row.id }));
   });
 }
@@ -203,7 +203,7 @@ export async function editEmailTemplate(
   const html = requireText({ value: input.html, key: "html", max: Number.MAX_SAFE_INTEGER });
   const expectedVersion = readExpectedVersion({ value: input.expectedVersion });
   await loadTemplate({ deps: deps, id: id });
-  const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: id, actorId });
+  const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: id, actorId }, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) });
   await store.read();
   const basis = store.capturedVersion();
   if (expectedVersion !== undefined && expectedVersion !== basis) {

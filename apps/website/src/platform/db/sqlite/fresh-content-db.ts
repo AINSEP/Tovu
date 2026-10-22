@@ -7,6 +7,7 @@ import { DOMAIN_BINDING_VERSION_STATEMENTS } from "../migrations/0026_domain_bin
 import { SEARCH_INDEX_STATEMENTS } from "../migrations/0027_search_index.js";
 import { SEARCH_INDEX_RETIRED_STATEMENTS } from "../migrations/0028_search_index_retired.js";
 import { MAIL_ACTIVITY_INDEXES_STATEMENTS } from "../migrations/0029_mail_activity_indexes.js";
+import { MAIL_ACTIVITY_RETENTION_STATEMENTS } from "../migrations/0031_mail_activity_retention.js";
 import { MAIL_SUPPRESSION_ADMIN_STATEMENTS } from "../migrations/0030_mail_suppression_admin.js";
 import { documentBlobOwnershipStatements } from "../migrations/0015_document_blob_ownership.js";
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
@@ -183,6 +184,9 @@ export function bootstrapFreshContentDb(
     },
     "0029_mail_activity_indexes": () => {
       for (const statement of MAIL_ACTIVITY_INDEXES_STATEMENTS) client.exec(statement);
+    },
+    "0031_mail_activity_retention": () => {
+      for (const statement of MAIL_ACTIVITY_RETENTION_STATEMENTS) client.exec(statement);
     },
     "0030_mail_suppression_admin": () => {
       for (const statement of MAIL_SUPPRESSION_ADMIN_STATEMENTS) client.exec(statement);

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo, createPost, updatePost, type PostKind, type PostRecord } from "../../post/index.js";
 import { EMAIL_TEMPLATE_KIND } from "../../post/post.js";
-import { InMemoryPagesHtmlDocumentStore, PageConcurrentEditError, type PagesHtmlDocumentStoreFactory } from "../../pages/index.js";
+import { InMemoryPagesHtmlDocumentStore, PageConcurrentEditError, PageNotFoundError, PageKindMismatchError, type PagesHtmlDocumentStoreFactory } from "../../pages/index.js";
 import {
   createEmailTemplate,
   editEmailTemplate,
@@ -33,7 +33,7 @@ function harness(options: { storeFactory?: (repo: InMemoryPostRepo, clock: { now
     postRepo: repo,
     clock,
     idGen: { newId: () => `tpl-${++n}` },
-    pagesHtmlStore: options.storeFactory?.(repo, clock) ?? ((scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock })),
+    pagesHtmlStore: options.storeFactory?.(repo, clock) ?? ((scope, options = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock })),
   };
   return { repo, deps, tick: () => { ms += 1000; } };
 }
@@ -134,8 +134,8 @@ test("edit refuses bad input and unknown ids", async () => {
 test("edit maps a concurrent write to a version conflict and lets any other failure through", async () => {
   for (const [thrown, expected] of [[new PageConcurrentEditError("raced"), EmailTemplateVersionConflictError], [new Error("disk"), Error]] as const) {
     const { deps } = harness({
-      storeFactory: (repo, clock) => (scope) => {
-        const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+      storeFactory: (repo, clock) => (scope, options = {}) => {
+        const store = new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock });
         return Object.assign(store, { write: async () => { throw thrown; } });
       },
     });
@@ -200,8 +200,8 @@ test("readFieldValues and requireText contracts", () => {
 
 test("a Pages conversion failure rolls back the template and permits a clean retry", async () => {
   let broken = true;
-  const { deps, repo } = harness({ storeFactory: (repo, clock) => scope => {
-    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+  const { deps, repo } = harness({ storeFactory: (repo, clock) => (scope, options = {}) => {
+    const store = new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock });
     return { read: () => store.read(), capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: async seed => { if (broken) throw new Error("conversion failed"); return store.ensureHtmlFormat(seed); } };
   } });
   await assert.rejects(createEmailTemplate({ deps, input: { name: "Atomic", html: HTML }, actorId: "u" }), /conversion failed/);
@@ -239,4 +239,21 @@ test("generic Trash classifies an email template through the existing Post lifec
   const { deps, repo } = harness(); const template = await createEmailTemplate({ deps, input: { name: "Trash me", html: HTML }, actorId: "u" });
   const delegate = TRASH_ITEM_DELEGATES.get("post")!;
   assert.deepEqual(await delegate.toDelegateInput({ workspaceId: WS, postRepo: repo } as never, template.id), { id: template.id, kind: "post" });
+});
+
+
+test("Pages stores cannot read, convert or write templates; template-scoped stores cannot read Pages", async () => {
+  const { deps, repo } = harness();
+  const template = await createEmailTemplate({ deps, input: { name: "Private template", html: HTML }, actorId: "owner" });
+  const page = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: template.id }, { repo, clock: deps.clock });
+  await assert.rejects(page.read(), PageNotFoundError);
+  await assert.rejects(page.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
+  await assert.rejects(page.write("<p>bypass</p>"), /before read/);
+  assert.equal((await getEmailTemplate({ deps, id: template.id })).html, HTML);
+  await createPost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "only-page", title: "Page", kind: "page" } });
+  const pageScope = { workspaceId: WS, postId: "only-page" };
+  await new InMemoryPagesHtmlDocumentStore(pageScope, { repo, clock: deps.clock }).ensureHtmlFormat("<p>page</p>");
+  const templateStore = deps.pagesHtmlStore(pageScope, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) });
+  await assert.rejects(templateStore.read(), PageNotFoundError);
+  await assert.rejects(templateStore.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
 });

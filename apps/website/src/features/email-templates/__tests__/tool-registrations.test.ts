@@ -20,7 +20,7 @@ function harness(granted: ReadonlySet<string>) {
     postRepo: repo,
     clock,
     idGen: { newId: () => `tpl-${++n}` },
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
+    pagesHtmlStore: (scope, options = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock }),
     authorize: (async (request: { permission: string }) => {
       asked.push(request.permission);
       return granted.has(request.permission) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "no grant" };

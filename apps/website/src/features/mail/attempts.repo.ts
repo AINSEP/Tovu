@@ -1,4 +1,5 @@
 /** Body-free observation of every policy result, including preflight refusals and captures. */
+import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { laneForPurpose } from "@jini-ai/platform/mail";
@@ -16,10 +17,10 @@ export function createMailAttemptObserver<DB>({ db }: MailRepoDeps<DB>, options:
     const effective = mode.mode === "redirect" ? mode.to.trim().toLowerCase() : recipient;
     const outcome = result.ok ? ((result.providerMessageId.startsWith("captured:") || providerId === "console") ? "captured" : "sent") : (result.unknown ? "unknown" : "failed");
     await db.execute(sql`INSERT INTO mail_activity_attempts
-      (id, workspace_id, idempotency_key, recipient, effective_recipient, delivery_mode, lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at)
-      VALUES (${newId()}, ${send.workspaceId}, ${send.idempotencyKey}, ${recipient}, ${effective}, ${mode.mode}, ${laneForPurpose({ purpose: send.purpose })}, ${providerId}, ${outcome}, ${result.ok ? result.providerMessageId : null}, ${result.ok ? null : result.errorCode}, ${at}, ${at})
+      (id, workspace_id, idempotency_key, recipient, effective_recipient, delivery_mode, use_id, lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at)
+      VALUES (${newId()}, ${send.workspaceId}, ${send.idempotencyKey}, ${recipient}, ${effective}, ${mode.mode}, ${mailActivityUse({ idempotencyKey: send.idempotencyKey })}, ${laneForPurpose({ purpose: send.purpose })}, ${providerId}, ${outcome}, ${result.ok ? result.providerMessageId : null}, ${result.ok ? null : result.errorCode}, ${at}, ${at})
       ON CONFLICT (workspace_id, idempotency_key, recipient) DO UPDATE SET
-        effective_recipient = excluded.effective_recipient, delivery_mode = excluded.delivery_mode,
+        effective_recipient = excluded.effective_recipient, delivery_mode = excluded.delivery_mode, use_id = excluded.use_id,
         provider_id = excluded.provider_id, outcome = excluded.outcome, provider_message_id = excluded.provider_message_id,
         error_code = excluded.error_code, updated_at = excluded.updated_at`);
   };

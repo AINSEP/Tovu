@@ -3,7 +3,7 @@
  * `mail_remove_suppression` and `GET/POST system/mail-suppressions[/remove]`.
  *
  * Reading the list needs `mail.activity.read`: it is a list of addresses, the same recipient detail
- * the activity history guards. Removal needs `mail.suppressions.manage` (owner-only by default, see
+ * the activity history guards. Removal needs `mail.suppressions.manage` (owner only; the grant alone is not enough, see
  * `./permissions.ts`), a written reason that is recorded with the removal
  * (`mail_suppression_removals`), and a fresh confirmation every time: the tool's card has no
  * remember option and the route performs only with `confirmed: true`. Removal stops the do-not-send

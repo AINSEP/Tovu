@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
-import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
+import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "#src/features/pages/html-document-store";
 import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates, type EmailTemplateDeps } from "../operations.js";
 
 /**
@@ -28,11 +28,15 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
       postRepo,
       clock,
       idGen: { newId: () => `tpl-${++n}` },
-      pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore(scope, { kernel, clock, revisions: postRepo }),
+      pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
     };
     const a = await createEmailTemplate({ deps, input: { name: "A", html: HTML }, actorId: "u1" });
     await createEmailTemplate({ deps, input: { name: "B", fields: ["code"] }, actorId: "u1" });
     assert.equal(a.subject, "Hi {{name}}");
+    const pagesSurface = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: a.id }, { kernel, clock, revisions: postRepo });
+    await assert.rejects(pagesSurface.read(), PageNotFoundError);
+    await assert.rejects(pagesSurface.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
+    await assert.rejects(pagesSurface.write("<p>bypass</p>"), /before read/);
     const edited = await editEmailTemplate({ deps, input: { id: a.id, html: HTML.replace("<p>", "<p>Dear "), expectedVersion: a.version }, actorId: "u1" });
     assert.equal(edited.version, a.version + 1);
     assert.match((await getEmailTemplate({ deps, id: a.id })).html, /Dear/);
