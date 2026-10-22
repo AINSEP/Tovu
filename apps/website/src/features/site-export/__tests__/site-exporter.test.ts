@@ -1450,3 +1450,32 @@ test("exportSite: a see-more listing with a card <template> exports its JSON bat
   assert.equal(existsSync(batch(36)), false);
   assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/_more/")), []);
 });
+
+test("exportSite: a paged post listing exports every page as <page>/page/<n>/index.html (Bug C)", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const themeDir = makeTmpOutputDir();
+  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const paged = `<div data-embed-config='{"type":"post-previews","limit":10,"paged":true}'>none</div>`;
+  base.themes = [{
+    manifest: { id: "paged-listing-export-theme", name: "Paged listing", version: "1.0.0", tier: "static", engine: 1, templates: [], publishedPages: ["blog"] },
+    dir: themeDir,
+    tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { index: `<html><body>${paged}</body></html>`, blog: `<html><body>${paged}</body></html>` },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme];
+  base.postRepo = new InMemoryPostRepo(Array.from({ length: 25 }, (_, i) => ({
+    id: `paged-export-${i}`, workspaceId: base.workspaceId, title: `Paged export ${i}`, slug: `paged-export-${i}`, bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
+  }) as PostRecord));
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  for (const dir of ["page/2", "page/3", "blog/page/2", "blog/page/3"]) assert.equal(existsSync(path.join(outputDir, dir, "index.html")), true, dir);
+  assert.equal(existsSync(path.join(outputDir, "page", "4")), false);
+  const third = readFileSync(path.join(outputDir, "blog", "page", "3", "index.html"), "utf8");
+  assert.match(third, /href="\/paged-export-24"/);
+  assert.match(third, /rel="prev" href="\/blog\/page\/2"/);
+  assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/page/")), []);
+});

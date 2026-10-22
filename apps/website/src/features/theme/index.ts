@@ -101,6 +101,8 @@ export {
   scanMenuEmbedIds,
   scanPostPreviewsLimit,
   postPreviewsBatchSize,
+  isPagedPostPreviewsMarker,
+  type StaticPostPreviewsPage,
   type StaticMenuItem,
   type StaticHtmlMenu,
   type StaticMenuContent,

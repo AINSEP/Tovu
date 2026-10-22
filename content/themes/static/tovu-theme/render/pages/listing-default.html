@@ -75,8 +75,9 @@
        widening `.post-detail-body .live-example`'s existing reach. -->
   <section class="wrap latest-posts" style="max-width: 720px; padding-bottom: 96px;">
     <div class="live-example">
-      <!-- Marker: your 6 latest posts, as cards. What is inside shows only when there are no posts. -->
-      <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
+      <!-- Marker: your posts, 6 per page, as cards, with Newer/Older posts links when there are more
+         (`"paged":true`; page 2 is <this page>/page/2). What is inside shows only when there are no posts. -->
+      <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6,"paged":true}'>
         <p style="color: var(--muted);">No articles published yet.</p>
       </section>
     </div>

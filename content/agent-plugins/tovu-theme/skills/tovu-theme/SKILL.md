@@ -204,6 +204,46 @@ A duplicated theme has the mirror-image problem: `theme_duplicate` rewrites only
 so every hardcoded `/theme-assets/<old-id>/` path keeps loading the ORIGINAL theme's logo and
 icons. Replace each with the new id.
 
+## Rule 6 — A post list that can outgrow one page must page
+
+One `{"type":"post-previews"}` marker shows at most **24** posts (its `limit` is clamped to 24;
+no `limit` means 6). Older posts still exist at their own URLs, but no list links to them unless
+the list pages. So whenever you build or convert a theme's blog/news/archive list (or a home page
+that lists posts):
+
+1. Check how many posts the site has: `content_post_list` (it returns at most 200 per call; if it
+   returns the full 200, there are at least that many).
+2. If the count can exceed the marker's `limit` (assume it can on any site that is still
+   publishing — a 24-post site is one post away), add `"paged":true` to the marker. The route then
+   serves page 1 at the page's own URL and later pages at `<page>/page/2`, `<page>/page/3`, … (the
+   home page's are `/page/2`, …), and renders a "Newer posts / Older posts" nav right after the
+   list. A static export writes every page.
+
+Exact snippet (the inner `<p>` is the authored fallback, shown only when there are no posts):
+
+```html
+<section class="blog-grid" data-embed-config='{"type":"post-previews","limit":12,"paged":true}'>
+  <p>No posts yet.</p>
+</section>
+```
+
+What the nav renders (no CSS of its own — it inherits the theme's `nav`/`a` styles; style it by
+these classes only if the theme needs to):
+
+```html
+<nav class="jini-pagination" aria-label="Pagination">
+  <a class="jini-pagination-prev" rel="prev" href="/blog">Newer posts</a>
+  <span class="jini-pagination-status">Page 2 of 3</span>
+  <a class="jini-pagination-next" rel="next" href="/blog/page/3">Older posts</a>
+</nav>
+```
+
+- Only the list a reader browses pages. A "latest 3 posts" teaser on a home page that also links
+  to the blog does not need `"paged":true`; the blog list it links to does.
+- One paged list per page: every paged marker on a page shows the same page, sized by the first.
+- Do not hand-write page links or a second "Older posts" link; a page with no paged marker
+  answers `/page/2` with a 404.
+
 ## Assets: what can and cannot reach a theme folder
 
 `fs_read_file` refuses anything that trips its binary/NUL-byte sniff, and caps every read at
@@ -387,6 +427,7 @@ fails — a theme that isn't in the list or shows errors is not done. From a Tov
 - [ ] every `templates` entry resolves to a real `render/pages/` file with at least one
       `content` marker
 - [ ] every page except `index` is in `publishedPages`
+- [ ] every post list that can hold more posts than its `limit` carries `"paged":true` (Rule 6)
 
 ## A6 — Tell the user what they actually have
 
