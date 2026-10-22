@@ -1,5 +1,5 @@
 # cov-fill-T2-2026-10-21 REPORT (Tovu lots tovu-019..037, 395 files)
-Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) from `cloud/merge-2026-10-21`. Ran 00:41Z–~02:20Z. 6 of 8 Opus subagents used, at most 3 at once (S1–S3, then S4/S5 for handoffs). Changes are mostly tests. The source refactors are listed below.
+Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) from `cloud/merge-2026-10-21`. Ran 00:41Z–~02:20Z. 5 of 8 Opus subagents used, at most 3 at once (S1–S3, then S4/S5 for handoffs). Changes are mostly tests. The source refactors are listed below.
 
 ## Method (read first)
 - Node 24.22.0; the website is node:test + tsx lcov, scoped per directory group: the dir's tests, its `__tests__`, and tests that directly import a target. No whole-suite run, no Postgres, no Chromium.
