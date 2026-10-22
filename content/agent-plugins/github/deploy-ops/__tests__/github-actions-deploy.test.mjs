@@ -80,7 +80,7 @@ test("through the real registry: runDeploy sends one JSON dispatch and deploymen
   const answers = {
     [`${repo}/commits/main`]: { sha: SHA },
     [lookup]: { workflow_runs: [run(77)] },
-    [`${repo}/actions/runs/77`]: { id: 77, name: "Deploy to Fly.io", status: "completed", conclusion: "success", head_sha: SHA, html_url: "https://github.com/owner/repo/actions/runs/77" },
+    [`${repo}/actions/runs/77`]: { id: 77, name: "Deploy to production", status: "completed", conclusion: "success", head_sha: SHA, html_url: "https://github.com/owner/repo/actions/runs/77" },
     [`${repo}/actions/runs/77/jobs?per_page=100`]: { jobs: [] },
   };
   f.deps.deployOpsHttpClient = { send: async (request) => {
