@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
@@ -108,25 +108,42 @@ describe("sections", () => {
 });
 
 describe("rows", () => {
-  it("gives setting rows a check state and a check mark, and plain rows neither", () => {
+  it("draws an all-radio section as the dialog's segmented control, and other setting rows with a check mark", () => {
     renderMenu(PLACED);
+    const radios = Array.from(document.querySelectorAll<HTMLInputElement>(".dock-settings-menu-choice .jini-chat-settings-segment input"));
+    expect(radios.map((radio) => [radio.type, radio.getAttribute("role"), radio.getAttribute("aria-checked"), radio.checked, radio.labels?.[0]?.textContent])).toEqual([
+      ["radio", "menuitemradio", "true", true, "Shown"], ["radio", "menuitemradio", "false", false, "Hidden"],
+    ]);
     const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".row-menu-item"));
     expect(rows.map((row) => [row.getAttribute("role"), row.getAttribute("aria-checked"), Boolean(row.querySelector(".dock-settings-menu-check"))])).toEqual([
-      ["menuitemradio", "true", true], ["menuitemradio", "false", true], ["menuitemcheckbox", "false", true],
-      ["menuitem", null, false], ["menuitem", null, false],
+      ["menuitemcheckbox", "false", true], ["menuitem", null, false], ["menuitem", null, false],
     ]);
   });
 
   it("marks only disabled rows aria-disabled and describes only rows with their own tooltip", () => {
     renderMenu(PLACED);
     const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".row-menu-item"));
-    expect(rows.map((row) => row.getAttribute("aria-disabled"))).toEqual([null, null, null, null, "true"]);
-    expect(rows.map((row) => row.getAttribute("aria-describedby")?.endsWith("-wrap") ?? null)).toEqual([null, null, true, null, null]);
+    expect(rows.map((row) => row.getAttribute("aria-disabled"))).toEqual([null, null, "true"]);
+    expect(rows.map((row) => row.getAttribute("aria-describedby")?.endsWith("-wrap") ?? null)).toEqual([true, null, null]);
   });
 
-  it("registers every row for roving focus at its position across sections", () => {
+  it("registers one roving-focus stop per choice (its checked option) and one per other row", () => {
     const { menu } = renderMenu(PLACED);
-    expect(menu.itemRefs.current.map((button) => button?.textContent)).toEqual(["Shown", "Hidden", "Wrap", "Open settings", "Coming soon"]);
+    const name = (element: HTMLElement | null) => (element as HTMLInputElement | null)?.labels?.[0]?.textContent ?? element?.textContent;
+    expect(menu.itemRefs.current.map(name)).toEqual(["Shown", "Wrap", "Open settings", "Coming soon"]);
+  });
+
+  it("applies a choice in place without the close-then-run path", () => {
+    const onSelect = vi.fn();
+    const sections: DockSettingsMenuSection[] = [{ key: "show", label: "Show", items: [
+      { key: "shown", label: "Shown", role: "menuitemradio", checked: true },
+      { key: "hidden", label: "Hidden", role: "menuitemradio", onSelect },
+    ] }];
+    const fake = fakeMenu(PLACED);
+    render(<DockSettingsMenu label="Chat settings" sections={sections} useMenu={fake.useMenu} />);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(fake.selected).toEqual([]);
   });
 
   it("closes-then-runs an action row and ignores a disabled one", () => {

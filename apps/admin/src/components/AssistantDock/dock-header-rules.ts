@@ -52,6 +52,17 @@ export interface DockSettingsMenuSection {
 }
 
 /**
+ * Whether a section is one multi-option choice (every row a `menuitemradio`): the gear draws it as
+ * the Chat settings dialog's segmented control (owner, 2026-10-21) and folds its help into one tip.
+ * @param section - One section as built.
+ * @returns `true` for a non-empty all-radio section.
+ * @complexity O(n) in the section's rows.
+ */
+export function isChoiceSection(section: DockSettingsMenuSection): boolean {
+  return section.items.length > 0 && section.items.every((item) => item.role === "menuitemradio");
+}
+
+/**
  * One ⓘ per multi-option setting (owner, 2026-10-18: "ONE tooltip next to 'Tool calls' with 3
  * bullets for Show, Collapsed, Hidden … looks way cleaner"), instead of one beside every option.
  * A radio section's per-option help becomes a "• Label: help" line each in the section's own
@@ -63,7 +74,7 @@ export interface DockSettingsMenuSection {
  */
 export function groupOptionTooltips(section: DockSettingsMenuSection): DockSettingsMenuSection {
   const helped = section.items.filter((item) => item.tooltip);
-  if (!helped.length || !section.items.every((item) => item.role === "menuitemradio")) return section;
+  if (!helped.length || !isChoiceSection(section)) return section;
   return {
     ...section,
     tooltip: helped.map((item) => `• ${item.label}: ${item.tooltip}`).join("\n"),
