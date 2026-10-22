@@ -245,3 +245,41 @@ test("planPublishToPeer labels an unnamed workspace by its id, honours a scope, 
   assert.deepEqual(result.itemNames["post:draft"], ["Draft"]);
   assert.equal(result.entityCount, 2);
 });
+
+test("planPublishToPeer keys blob probes by this workspace's storage key and gives URLs only to post/page rows", async () => {
+  const sha256 = "a".repeat(64);
+  const withBlob = { ...post("one", "Has Image"), requiredBlobs: [sha256] };
+  const page = { ...post("p", "A Page"), entityType: "page" };
+  const note = { ...post("n", "A Note"), entityType: "note" };
+  const f = await fixture([withBlob]);
+  for (const extra of [page, note]) registerPublishContentContributor({ entityType: extra.entityType, dependsOn: [], build: () => ({
+    entityType: extra.entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
+    pack: async function* () { yield extra; },
+    inspect: async () => null,
+    precheck: async () => null,
+    apply: async () => { throw new Error("not applied in a plan"); },
+  }) });
+  const probed: unknown[] = [];
+  const send = f.deps.publishContentPeerHttpClient!.send;
+  f.deps.publishContentPeerHttpClient = { send: async request => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/blobs/probe")) {
+      probed.push(JSON.parse(String(request.body)).shas);
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ missing: [sha256] }) };
+    }
+    return send(request);
+  } };
+  const storageKeys: string[] = [];
+  f.deps.blobStore.exists = async ({ storageKey }: { storageKey: string }) => { storageKeys.push(storageKey); return false; };
+  const credential = { id: "live", label: "Live site", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "private-key" };
+  const result = await planPublishToPeer({
+    deps: { ...f.deps, publishContentDeps: { workspaceId: "local", clock: f.deps.clock, idGen: f.deps.idGen, ports: {} } },
+    peer: { credential, httpClient: f.deps.publishContentPeerHttpClient },
+    principalId: OWNER,
+  });
+  assert.deepEqual(probed, [[sha256]]);
+  assert.equal(storageKeys.length > 0 && storageKeys.every(key => key.includes(sha256)), true);
+  assert.deepEqual(result.blobsUnavailable, [sha256]);
+  assert.equal("note:n" in result.publicUrls, false);
+  assert.equal(typeof result.publicUrls["page:p"], "string");
+});
