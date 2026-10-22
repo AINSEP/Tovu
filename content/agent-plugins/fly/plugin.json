@@ -10,7 +10,6 @@
       "displayName": "Fly.io",
       "summary": "Puts the Tovu server itself online on Fly.io.",
       "id": "tovu/fly",
-      "seededEnabled": true,
       "provides": [
         "deploy-ops:fly",
         "deploy-config:fly",
