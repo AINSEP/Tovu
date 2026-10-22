@@ -24,7 +24,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  * Domain types only — no I/O.
  */
 
-/** A deploy target id the registry knows (`netlify`-style lowercase hyphenated). */
+/** A deploy target id the registry knows (lowercase hyphenated). */
 export type StaticPublishTargetId = string;
 
 /**
@@ -62,8 +62,8 @@ export type StaticPublishOutcome =
       readonly url: string;
       readonly status: string;
       readonly deploymentId?: string;
-      /** The base path this publish's export was rewritten for — `/${repo}` for GitHub Pages,
-       *  absent for Vercel. Echoed back so a caller can show "published at /repo" without having to
+      /** The base path this publish's export was rewritten for — e.g. `/${repo}` for a host that
+       *  serves the site under a repository subpath; absent for a host serving it at the root. Echoed back so a caller can show "published at /repo" without having to
        *  re-derive the same computation this module already did. */
       readonly basePath?: string;
       /** The host's own facts about this publish (`DeployPublishResult.providerMetadata`), e.g. the

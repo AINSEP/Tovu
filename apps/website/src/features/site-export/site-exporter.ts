@@ -129,7 +129,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
    */
 /**
    * The normalized base path this export rewrote every root-relative reference for (e.g. `"/repo"`
-   * for a GitHub Pages project site), or `undefined` when none was requested — the default,
+   * for a host that serves the site under a repository subpath), or `undefined` when none was requested — the default,
    * byte-for-byte-unchanged apex-domain case. Set only when non-empty; see
    * {@link basePathRewriteWarning} for the disclosed limit that applies whenever this is set.
    */
@@ -176,7 +176,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
    *  did not write is destructive — see `cli/commands/export.ts` for the `--clean` flag).
    *  Pass `true` to remove the directory's existing contents before writing. */
 /**
-   * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
+   * When set (e.g. `"/my-repo"` for a host that serves the site under a repository subpath), every root-relative reference this
    * exporter writes — HTML `href`/`src`/`srcset`/`poster`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
    * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
    * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by
@@ -223,8 +223,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 // ---------------------------------------------------------------------------
 // --base-path support (2026-08-15, team-lead-approved option (a)): every route in this exporter's
 // output is root-relative (`href="/about"`, `<loc>/welcome</loc>`, `Sitemap: /sitemap.xml`) because
-// that is what the LIVE server actually emits — correct at an apex domain, broken at a GitHub Pages
-// PROJECT site (`https://<owner>.github.io/<repo>/`, not the domain root). Rather than touch
+// that is what the LIVE server actually emits — correct at an apex domain, broken at a host that
+// serves the site under a subpath (e.g. `https://<owner>.<host>/<repo>/`, not the domain root). Rather than touch
 // `render.ts`'s 10+ scattered hand-written `href="/…"` template strings (there is no single
 // `urlFor`-style chokepoint for site hrefs to intercept upstream), this rewrites the ALREADY-
 // RENDERED response bytes this exporter already holds — one small, scoped regex per response shape,
@@ -379,8 +379,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
   // This page was authored locally (see renderRedirectStub's own doc), never fetched — there is no
   // response header to read, so contentType is a fixed value describing what was actually written.
 /** The 404 probe is written to `<outputDir>/404.html` — not to its own sentinel path — matching
- *  the convention static hosts (Netlify, GitHub Pages, S3+CloudFront) already look for at the
- *  output root. */
+ *  the convention static hosts already look for at the output root. */
   // Bounded on BOTH sides, matching redirectOutcomeFor's own `< 300 || >= 400` shape one status
   // class over: a genuine 404 page is a 4xx, full stop. Unbounded above, a 500 from a crashed
   // 404-page render would previously be ACCEPTED — its body written verbatim to <outputDir>/404.html
@@ -494,7 +493,7 @@ export interface ExportSiteOptions {
    *  Pass `true` to remove the directory's existing contents before writing. */
   clean?: boolean;
   /**
-   * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
+   * When set (e.g. `"/my-repo"` for a host that serves the site under a repository subpath), every root-relative reference this
    * exporter writes — HTML `href`/`src`/`srcset`/`poster`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
    * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
    * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by

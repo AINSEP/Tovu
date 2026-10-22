@@ -44,12 +44,11 @@ import type { PublishContentPeerSummary } from "#src/features/publish-content/pe
 export type PublishTrigger = "admin_ui" | "agent_tool";
 
 /** One recorded publish — a row in the append-only ledger, not a cache slot. `owner`/`repo`/`branch`/
- *  `commitSha` are present only for `github-pages` (`StaticPublishConfig`'s own per-target field
- *  split — see `types.ts`); every other target carries none of the four. `commitSha` specifically is
+ *  `commitSha` are present only for a git-backed target (`StaticPublishConfig`'s own per-target
+ *  field split — see `types.ts`); every other target carries none of the four. `commitSha` specifically is
  *  NOT a placeholder that is always empty for every other target because it could not be obtained —
- *  it genuinely does not exist for them (Vercel/Netlify/Cloudflare Pages publishes are not git
- *  commits); see `publish-run.ts`'s `toHistoryEntry` for where this is derived and verified against
- *  `@jini-ai/devops`'s own `GitHubPagesDeployTarget.publish()`. */
+ *  it genuinely does not exist for them (their publishes are not git commits); see
+ *  `publish-run.ts`'s `toHistoryEntry` for where this is derived from the target's own outcome. */
 export interface PublishHistoryEntry {
   /** Absent/null legacy discriminator means static. Other kinds reuse target as their owner id. */
   readonly kind?: "static" | "tovu-peer" | "deploy";
@@ -71,13 +70,13 @@ export interface PublishHistoryEntry {
   readonly repo?: string;
   readonly basePath?: string;
   /** The provider's own opaque identifier for this publish — `StaticPublishOutcome.deploymentId`,
-   *  verbatim, whatever it means for that target (a Vercel/Netlify/Cloudflare deploy id, or, for
-   *  github-pages, the same commit sha `commitSha` below also carries). Absent when the outcome
-   *  carried none (s3-compatible has no `deploymentId` at all). */
+   *  verbatim, whatever it means for that target (a host deploy id, or, for a git-backed target, the
+   *  same commit sha `commitSha` below also carries). Absent when the outcome carried none (a
+   *  target with no deployment concept, e.g. an object-store upload). */
   readonly deploymentId?: string;
-  /** github-pages only — see this interface's own header. */
+  /** Git-backed targets only — see this interface's own header. */
   readonly commitSha?: string;
-  /** github-pages only — the branch actually published to. */
+  /** Git-backed targets only — the branch actually published to. */
   readonly branch?: string;
   readonly triggeredBy: PublishTrigger;
 }

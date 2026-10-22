@@ -264,8 +264,8 @@ export interface StaticPublishInput {
    *  replaces the `routeDeps: RouteDeps` field this input used to carry. */
   readonly exportSiteBound: ExportSiteBoundFn;
   readonly config: StaticPublishConfig;
-  /** Human-facing label — becomes the GitHub commit message subject / the Vercel project-name seed.
-   *  Sanitized further by Jini's own `safeProjectLabel`/`safeVercelProjectName`; validated here only
+  /** Human-facing label — becomes e.g. a commit message subject or a host project-name seed.
+   *  Sanitized further by the host's deploy target; validated here only
    *  for length and non-blankness. */
   readonly projectName: string;
   /** The saved connection the OPERATOR chose for this publish, when the caller has one (terra review
@@ -429,9 +429,8 @@ function buildSuccessPublishOutcome(targetId: StaticPublishTargetId, result: Dep
  * `err.message` only — never `DeployError.details` (the raw upstream response body) or the error
  * object itself. This crosses an HTTP/tool-result boundary (the admin route's JSON response, the
  * agent tool's result), the same "message, never the raw error" discipline `export-site.ts`'s own
- * errored-run summary already follows. No observed code path in `github-pages.ts`/`vercel.ts` puts
- * `credential.token` into a `DeployError` message — verified by reading every `DeployError`
- * construction in both files — but this boundary still holds even if that ever changed upstream.
+ * errored-run summary already follows. No observed host deploy target puts `credential.token`
+ * into a `DeployError` message, but this boundary still holds even if one ever did.
  */
 async function publishAndMapOutcome(
   jiniTarget: DeployTarget,

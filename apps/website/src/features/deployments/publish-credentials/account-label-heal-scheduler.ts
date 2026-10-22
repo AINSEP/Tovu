@@ -35,8 +35,8 @@ import type { PublishCredentialSummary, PublishProviderId } from "./types.js";
 
 /**
  * Every id in `credentials` whose `accountLabel` is still unknown AND whose provider can ever produce
- * one — probing a provider `canYieldAccountLabel` already says "no" for (Netlify, Cloudflare Pages,
- * S3-compatible today — see `static-publish/verify.ts`'s own header) would be a wasted network call on
+ * one — probing a provider `canYieldAccountLabel` already says "no" for (see
+ * `static-publish/verify.ts`'s own header) would be a wasted network call on
  * a read path for a result that can never arrive, so those rows are excluded here rather than left for
  * the scheduler to attempt and silently no-op.
  * @complexity O(n) in `credentials.length` — one filter pass, no per-row I/O.

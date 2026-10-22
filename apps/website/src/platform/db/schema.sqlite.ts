@@ -1749,8 +1749,7 @@ export const publishHistory = sqliteTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** `StaticPublishTargetId` — `"github-pages" | "vercel" | "netlify" | "cloudflare-pages" |
-     *  "s3-compatible"`. */
+    /** `StaticPublishTargetId` — a deploy target id contributed by a host plugin. */
     target: text("target").notNull(),
     url: text("url").notNull(),
     /** `false` only for the s3-compatible "uploaded, not yet confirmed reachable" partial outcome

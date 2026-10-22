@@ -35,7 +35,7 @@ import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEn
 /** The file a plugin ships at its root to contribute deploy targets. */
 export const DEPLOY_TARGETS_FILENAME = "tovu-deploy-targets.json";
 
-/** Same shape as today's provider ids (`github-pages`, `cloudflare-pages`, `s3-compatible`). */
+/** Same shape as today's provider ids: lowercase, hyphenated (e.g. `s3-compatible`). */
 const TARGET_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_TARGET_ID_LENGTH = 64;
 const MAX_LABEL_LENGTH = 100;

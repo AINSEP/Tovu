@@ -255,7 +255,7 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // preview tool relies on). No write, no decrypt, no network call.
   ["deployment_get_static_publish_capabilities", "none"],
   // -> on confirm, calls `publishStaticSite`: a real `exportSite` pass plus a real provider API call
-  // (GitHub/Vercel/Netlify/Cloudflare Pages) using a write-scoped credential — genuinely mutates
+  // (the selected host plugin's deploy target) using a write-scoped credential — genuinely mutates
   // external durable state. See this file's header for the full risk story.
   ["deployment_execute_static_publish", "mutates-durable-state"],
   // -> on submit, calls `createPublishCredential`/`updatePublishCredential` — a real encrypted write to
@@ -310,7 +310,7 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   credentialSource?: PublishCredentialSource;
   /** Test-only override for `publishStaticSite`'s own `StaticPublishDeps.buildTarget` — lets a test
    *  substitute a fake `DeployTarget` so `deployment_execute_static_publish`'s CONFIRMED path can be
-   *  exercised end-to-end without ever constructing a real GitHub/Vercel/Netlify/Cloudflare Pages
+   *  exercised end-to-end without ever constructing a real host plugin's
    *  client or touching `fetch` (mirrors `static-publish/adapter.ts`'s own test-injection seam,
    *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
    *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
@@ -549,9 +549,9 @@ function buildProviderCapabilityResult(spec: {
     credentialOrigin,
     verified,
     verifiedAt: verification?.checkedAt ?? null,
-    // The verified credential's own public account login/username (GitHub `login`, Vercel
-    // `username`) — `null` when not yet verified, or for a provider `verify.ts` has no reviewed
-    // field to read (Netlify, Cloudflare Pages, s3-compatible; see that file's header).
+    // The verified credential's own public account login/username, when the host's verifier
+    // reports one — `null` when not yet verified, or for a provider whose verifier has no reviewed
+    // account field to read (see `verify.ts`'s header).
     accountLabel: defaultCredential?.accountLabel ?? verification?.accountLabel ?? null,
     lastPublish,
     savedCredentials,
@@ -630,8 +630,8 @@ interface PublishConfirmationContext {
  * Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
  * `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable, credential-free
  * message: `NO_CREDENTIALS_CONFIGURED` names the provider via the resolved credential source's own
- * reason text, a Cloudflare-Pages-credential-missing-its-account-id failure names the exact missing
- * field (`buildJiniTarget`'s own `DeployError`), and `PROVIDER_ERROR` is `err.message` only — never a
+ * reason text, a credential missing a host-required field (e.g. an account id) names the exact
+ * missing field (the target's own `DeployError`), and `PROVIDER_ERROR` is `err.message` only — never a
  * raw response body, never a credential. Passed straight through rather than re-wrapped, and straight
  * into the outcome surface too — the same actionable text a human would need either way.
  */

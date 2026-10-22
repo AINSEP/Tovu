@@ -6,12 +6,12 @@ import { escapeHtml } from "#src/platform/html/escape";
  * plain files served by someone else's host. Every value comes from the ONE shared set in
  * `contracts/core/public-page-security-headers.ts`; nothing here retypes a header.
  *
- * - Netlify and Cloudflare Pages: a `_headers` file ({@link renderHeadersFile}), applied to every
- *   path. Cloudflare Pages applies it only when the uploader sends it as its own form field, which
- *   Jini's direct upload does for a root `_headers` (sent as a plain asset, it would be served publicly).
- * - A host with its own header config format renders it in its deploy module (the deploy plugin's
- *   Vercel module writes `vercel.json` from the publish's `responseHeaders`).
- * - Everywhere else (GitHub Pages, S3-compatible buckets, a hand-copied folder): only what HTML
+ * - A host that reads a `_headers` file ({@link renderHeadersFile}'s format), applied to every
+ *   path. How the file must reach that host (e.g. as its own upload field, never a public asset)
+ *   is the host plugin's concern, documented in its deploy module.
+ * - A host with its own header config format renders it in its plugin's deploy module from the
+ *   publish's `responseHeaders`.
+ * - Everywhere else (a host with no header config, a hand-copied folder): only what HTML
  *   itself can say, via {@link withSecurityMeta}.
  *
  * What a `<meta>` CANNOT carry, so those hosts go without it:
@@ -25,7 +25,7 @@ import { escapeHtml } from "#src/platform/html/escape";
  */
 
 
-/** The Netlify / Cloudflare Pages `_headers` format: a path pattern, then two-space-indented `Name: value` lines. */
+/** The `_headers` file format some static hosts read: a path pattern, then two-space-indented `Name: value` lines. */
 export function renderHeadersFile(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
   const lines = Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`);
   return `/*\n${lines.join("\n")}\n`;
