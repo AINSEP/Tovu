@@ -310,3 +310,58 @@ test("generateStaticPortabilityIndex skips (does not write) a non-static-tier th
   assert.equal(result.status, "skipped");
   assert.equal(fs.existsSync(path.join(dir, "index.html")), false);
 });
+
+// ---------------------------------------------------------------------------
+// buildStaticPortabilityIndex — manifests without slots/defaultMode/stylesheet link
+// ---------------------------------------------------------------------------
+
+function inMemoryStaticTheme(overrides: { manifest?: Partial<DiscoveredTheme["manifest"]>; index: string; partials: Record<string, string> }): DiscoveredTheme {
+  return {
+    manifest: { id: "mem", name: "Mem", version: "1.0.0", tier: "static", engine: 1, ...overrides.manifest },
+    dir: "/nonexistent",
+    tokens: { "--fg": "#111" },
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: { index: overrides.index },
+    partials: overrides.partials,
+    css: "",
+    source: "built-in",
+    status: "valid",
+    errors: [],
+  };
+}
+
+test("no declared slots: the default nav/footer slots splice; undeclared, id-less and non-partial markers are placeholdered, not guessed", () => {
+  const html = buildStaticPortabilityIndex(inMemoryStaticTheme({
+    index: `<html lang="en"><head></head><body><div data-embed-config='{"type":"partial","id":"nav"}'></div><div data-embed-config='{"type":"partial","id":"sidebar"}'>side</div><div data-embed-config='{"type":"partial"}'>anon</div></body></html>`,
+    partials: { nav: "<nav>Default nav slot</nav>", sidebar: "<aside>never spliced</aside>" },
+  }));
+  assert.ok(html);
+  assert.match(html, /<nav>Default nav slot<\/nav>/);
+  assert.doesNotMatch(html, /never spliced/, "a slot the manifest does not declare is never resolved by partial id");
+  assert.doesNotMatch(html, /<html[^>]*data-theme=/, "no defaultMode: the root element is left without a data-theme");
+  assert.doesNotMatch(html, /<style>/, "no stylesheet link: no token block is injected");
+});
+
+test("a slot whose source has no .html suffix resolves the partial stored under that bare id", () => {
+  const html = buildStaticPortabilityIndex(inMemoryStaticTheme({
+    manifest: { slots: { side: { source: "side" } } },
+    index: `<html><head></head><body><div data-embed-config='{"type":"partial","id":"side"}'></div></body></html>`,
+    partials: { side: "<aside>Bare id partial</aside>" },
+  }));
+  assert.ok(html);
+  assert.match(html, /<aside>Bare id partial<\/aside>/);
+});
+
+test("generateStaticPortabilityIndex skips a theme that loads but is not static-tier, writing nothing", () => {
+  const dir = tmpDir("tovu-portability-skip-valid-declarative-");
+  fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+  for (const template of ["home", "entry"]) fs.writeFileSync(path.join(dir, "templates", `${template}.json`), '{"type":"doc","content":[]}', "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "t", name: "T", version: "1.0.0", tier: "declarative", engine: 1 }), "utf8");
+  assert.equal(loadTheme({ themeDir: dir, id: "t", source: "built-in" }).status, "valid");
+  assert.deepEqual(generateStaticPortabilityIndex({ themeDir: dir, id: "t" }), { status: "skipped", reason: "not a static-tier theme, or ships no index page" });
+  assert.equal(fs.existsSync(path.join(dir, "index.html")), false);
+});
