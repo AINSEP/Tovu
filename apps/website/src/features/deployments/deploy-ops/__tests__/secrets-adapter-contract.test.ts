@@ -7,13 +7,13 @@ import path from "node:path";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { runListSecrets, runSetSecret } from "../secrets.js";
-import { fixture } from "./ops-fixture.js";
+import { fixture } from "./example-ops-fixture.js";
 
 /**
  * The generic secrets verbs against small scripted adapter modules, so the adapter-shaped edge cases
  * (malformed listings, numeric versions, read-less adapters, secrets-less registries) are exact.
  */
-const MANIFEST = (id: string) => ({ id, label: id, module: `${id}.mjs`, hosts: ["api.machines.dev"] });
+const MANIFEST = (id: string) => ({ id, label: id, module: `${id}.mjs`, hosts: ["api.example-host.dev"] });
 const CAPS = 'secretCapabilities: { appliesOn: "immediately", supportsStaging: false }';
 
 async function withAdapters(modules: Record<string, string>, run: (deps: Record<string, unknown>) => Promise<void>) {
@@ -48,7 +48,7 @@ test("an aborted signal refuses before loading any platform", async () => {
   let loads = 0;
   const f = await fixture();
   const controller = new AbortController(); controller.abort();
-  await assert.rejects(runListSecrets({ deps: { ...f.deps, loadDeployOps: async () => { loads++; return f.registry; } } as never, input: { platform: "fly", target: "shop" } }, { signal: controller.signal }), { message: "Deployment ops wait was aborted." });
+  await assert.rejects(runListSecrets({ deps: { ...f.deps, loadDeployOps: async () => { loads++; return f.registry; } } as never, input: { platform: "example-host", target: "shop" } }, { signal: controller.signal }), { message: "Deployment ops wait was aborted." });
   assert.equal(loads, 0);
 });
 
