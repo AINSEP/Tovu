@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createSitesWorkspace, desktopSourceRoots, desktopAppDataDir, shareAvailableDirectories, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen } from "./shared-sites.ts";
+import { createSitesWorkspace, desktopSourceRoots, desktopAppDataDir, shareAvailableDirectories, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen, sitesSettingsFile } from "./shared-sites.ts";
 import { handleCreate, handleList } from "./project-ipc.ts";
 import { discoverSiteDirs } from "./tracked-sites.ts";
 import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
@@ -328,5 +328,35 @@ test("catalog recovery, when asked for, still serves the same shared home", () =
     const dir = path.join(root, "Documents", "Tovu", "alpha"); writeSite(dir, "alpha-id");
     recovering.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "test", lastOpened: null }] });
     assert.deepEqual(plain.registry({}).list({}).map((row) => row.id), ["alpha-id"]);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("a nested sites folder that vanishes between its probe and its listing leaves the plain roots", (t) => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-nested-race-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
+    const nested = path.join(workspace.home({}), "sites");
+    writeSite(path.join(nested, "beta"), "beta-id");
+    assert.deepEqual(workspace.roots({}), [workspace.home({}), nested], "sanity: listed while present");
+    // `nestedSitesRoot` has already confirmed the folder; it is removed (an unmounted volume, a
+    // concurrent move) before `roots` lists it.
+    const realReaddir = fs.readdirSync;
+    t.mock.method(fs, "readdirSync", ((dir: fs.PathLike, ...rest: unknown[]) => {
+      if (String(dir) === nested) throw Object.assign(new Error(`ENOENT: ${nested}`), { code: "ENOENT" });
+      return (realReaddir as (...args: unknown[]) => unknown)(dir, ...rest);
+    }) as typeof fs.readdirSync);
+    assert.deepEqual(workspace.roots({}), [workspace.home({})]);
+  } finally { t.mock.restoreAll(); fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("a lock on the sites settings file that cannot be taken times out with Tovu's own wording", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-settings-lock-")));
+  try {
+    const settings = sitesSettingsFile({ filePath: path.join(root, "settings.json") });
+    // The lock is deliberately non-reentrant, so a second taker inside the first is held out.
+    assert.throws(
+      () => settings.withLock({ critical: () => settings.withLock({ critical: () => "unreachable" }, { waitMs: 0 }) }),
+      { message: "Tovu sites settings are locked." },
+    );
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
