@@ -15,7 +15,7 @@
  * handed, every statement through `kernel.run` so one body serves SQLite and Postgres.
  *
  * Deviating from it on three points, deliberately. (1) An open registry replaces the closed
- * `DeployTarget` union and its `if (target === "vercel")` dispatch — a closed union makes every
+ * `DeployTarget` union and its `if (target === "<host>")` dispatch — a closed union makes every
  * provider a core edit. (2) A per-provider credential BUNDLE replaces `getToken(target)`, since one
  * opaque string cannot carry `{secretKey, webhookSecret, merchantId, passkey}`. (3) Payments need a
  * lifecycle deploy does not model at all: deploy is fire-and-forget with a two-state history row

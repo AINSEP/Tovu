@@ -24,8 +24,8 @@ import { PUBLIC_PAGE_SECURITY_HEADERS, type SecurityHeaderSet } from "#src/contr
  * - Admin (`/admin`, `/api/admin`): a separate app with its own headers; left unchanged.
  *
  * The values live in `contracts/core/public-page-security-headers.ts` so a static export carries the
- * SAME set (`features/site-export/static-security-headers.ts`: a `_headers` file / `vercel.json` per
- * host, or a `<meta name="referrer">` where the host has no header config).
+ * SAME set (`features/site-export/static-security-headers.ts`: a `_headers` file or the host's own header
+ * config, rendered by its plugin, or a `<meta name="referrer">` where the host has no header config).
  */
 
 function isAdminPath(path: string): boolean {

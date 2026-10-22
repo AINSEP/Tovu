@@ -11,3 +11,6 @@ behaviours generically; the vendor detail lives here.
   skips these credentials.
 - **Security headers.** Root `_headers` is applied only when sent as its own upload field, never as an asset
   (see `lib/pages-upload.mjs`, `skills/cloudflare/references/pages.md`).
+- **Forms receiver hides the sent form.** On 2026-10-19 a theme's `.oh-form form{display:grid}` kept a sent
+  form on screen after the Cloudflare Worker's script set `hidden` on it; core's form CSS now forces
+  `[hidden]{display:none!important}` (core `site/form-render.ts`).
