@@ -2,7 +2,7 @@
  * scripts with no trace. Each call that removed anything reports ONCE, naming what and how many. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sanitizePageHtml } from '#src/features/widgets/media-html';
+import { renderMediaRawHtml, sanitizePageHtml } from '#src/features/widgets/media-html';
 
 test('one report per call, listing every dropped tag and attribute with counts', () => {
   const reports: Record<string, number>[] = [];
@@ -24,4 +24,20 @@ test('the default reporter logs exactly one console warning per dropping call', 
   sanitizePageHtml({ html: '<p>clean</p>' });
   assert.equal(warn.mock.callCount(), 1);
   assert.deepEqual(warn.mock.calls[0].arguments, ['[media] Raw HTML sanitizer dropped markup', { script: 2, 'img@onerror': 1 }]);
+});
+
+test('elements nested past the 128-level bound are dropped and reported, keeping the shallower markup', () => {
+  const reports: Record<string, number>[] = [];
+  const html = `${'<div>'.repeat(130)}deep${'</div>'.repeat(130)}`;
+  const output = sanitizePageHtml({ html }, { reportDrops: ({ dropped }) => reports.push(dropped) });
+  assert.equal(output, `${'<div>'.repeat(128)}${'</div>'.repeat(128)}`);
+  assert.deepEqual(reports, [{ div: 1 }]);
+});
+
+test('the default unknown-slug reporter warns once per slug that the media renderer cannot resolve', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  const output = renderMediaRawHtml({ html: '<p>{{media:ghost}} and {{media:ghost}}</p>', media: {}, renderMedia: () => '' });
+  assert.equal(output, '', 'markup holding an unresolvable token is dropped, never shown with the raw token');
+  assert.equal(warn.mock.callCount(), 1);
+  assert.deepEqual(warn.mock.calls[0].arguments, ['[media] unknown slug in raw HTML', { slug: 'ghost' }]);
 });
