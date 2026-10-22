@@ -172,10 +172,11 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
 
 /** Compatibility exports below accept explicit roots/layouts. Site-dependent operations must use
  * a lifecycle bound at boot; importing this module must never select a site from process state. */
-const explicitRootLifecycle = createTovuAgentPluginLifecycle({ layout: {
+export const unboundSiteAgentPluginLayout: AgentPluginLayout = {
   root: "", workspacesDir: "",
   forWorkspace() { throw new Error("Agent Plugin layout must be supplied by the booted site binding"); },
-} });
+};
+const explicitRootLifecycle = createTovuAgentPluginLifecycle({ layout: unboundSiteAgentPluginLayout });
 export const {
   installAgentPlugin, uninstallAgentPlugin, previewAgentPluginUninstall, stageForRemoval,
   restoreStagedTrees, removeFrozenPackageTree, seedBundledAgentPlugins, retireBundledAgentPlugins,
