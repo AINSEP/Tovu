@@ -70,7 +70,7 @@ function body(req: Request): Record<string, unknown> {
 /** Workspace check, then authorization BEFORE any body validation, then the operation. */
 function route(deps: ContentRouteDeps, permission: string, handler: Handler, status = 200) {
   return async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (String(req.params.workspaceId) !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -85,7 +85,7 @@ function route(deps: ContentRouteDeps, permission: string, handler: Handler, sta
 }
 
 const actor = (res: Response) => getAuthedPrincipal(res).id;
-const templateId = (req: Request) => String(req.params.templateId ?? "");
+const templateId = (req: Request) => String(req.params.templateId);
 
 /**
  * - `GET    …/email-templates` (`content.read`) -> `{ templates: EmailTemplateSummary[] }`

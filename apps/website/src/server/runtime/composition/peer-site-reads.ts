@@ -69,6 +69,7 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'publish-content': 'Publishing uses tokens and peer trust.',
   'source-control': 'Source-control providers use credentials.',
   'domain-dns': 'Live DNS/TLS probes and saved hosting credentials are not peer data reads.',
+  'email-templates': 'Email templates are read on the active site only; peer reads were not designed for them yet.',
   'site-backup': 'Backup planning uses credentials and the active backup source layout.',
   'database-transfer': 'Transfer planning uses sealed destination credentials.',
   'media-generation': 'Generation providers require credentials.',

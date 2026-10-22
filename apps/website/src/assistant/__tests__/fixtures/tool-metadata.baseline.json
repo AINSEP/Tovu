@@ -44,6 +44,11 @@
     "domain_lookup_dns": "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
     "domain_check_dns": "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
     "domain_tls_status": "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
+    "email_template_create": "create new email template html email design welcome confirmation fields placeholders",
+    "email_template_edit": "edit change update email template html subject fields layout",
+    "email_template_get": "email template read open html subject fields",
+    "email_template_list": "email template templates list html email transactional message design",
+    "email_template_preview": "preview email template render fields values sample what will be sent plain text",
     "dns_plan": "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
     "dns_instructions": "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
     "dns_verify": "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
@@ -643,6 +648,26 @@
       "Is HTTPS trusted on this domain?",
       "Has my site's certificate expired?",
       "Does the certificate match the domain hostname?"
+    ],
+    "email_template_create": [
+      "Make a welcome email template.",
+      "Design an HTML email with a {{name}} field."
+    ],
+    "email_template_edit": [
+      "Change the subject of my welcome email.",
+      "Make the email template's button blue."
+    ],
+    "email_template_get": [
+      "Open the order confirmation email template.",
+      "Show me the HTML of my welcome email."
+    ],
+    "email_template_list": [
+      "What email templates does my site have?",
+      "Show my email templates."
+    ],
+    "email_template_preview": [
+      "Preview the welcome email for Ada.",
+      "What will this email look like when it is sent?"
     ],
     "dns_plan": [
       "What DNS changes does my domain need?",
@@ -2504,6 +2529,26 @@
       "confirmation": "direct"
     },
     "domain_tls_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "email_template_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "email_template_edit": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "email_template_get": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "email_template_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "email_template_preview": {
       "class": "read",
       "confirmation": "direct"
     },

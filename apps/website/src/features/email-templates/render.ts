@@ -27,6 +27,7 @@ export const EMAIL_FIELDS_META_NAME = "email-fields";
 /** `{{ name }}` — a field name is an identifier, optionally dotted or dashed. */
 const PLACEHOLDER = /\{\{\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*\}\}/g;
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
+const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 
 /** Tags a sent email never carries: embedded documents and plugins, on top of `stripActiveHtml`'s. */
 const SEND_STRIPPED_TAGS = new Set(["iframe", "object", "embed", "frame", "frameset", "applet"]);
@@ -116,13 +117,16 @@ function attribute(element: Element, name: string): string | undefined {
   return element.attrs.find((attr) => attr.name === name)?.value;
 }
 
-/** Every element under `root`, depth first. */
+/** Every element under `root`, in document order (so "the first `<title>`" means the first one written). */
 function* elementsIn(root: ParentNode): Generator<Element> {
   const pending: ParentNode[] = [root];
   while (pending.length > 0) {
     const node = pending.pop() as ParentNode;
     if (isElement(node)) yield node;
-    for (const child of node.childNodes) if ("childNodes" in child) pending.push(child);
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+      const child = node.childNodes[i];
+      if ("childNodes" in child) pending.push(child);
+    }
   }
 }
 
@@ -142,7 +146,8 @@ export function readTemplateDeclarations({ html }: { html: string }, _optional: 
   let subject: string | undefined;
   let fields: EmailTemplateField[] = [];
   for (const element of elementsIn(parse(html))) {
-    if (element.tagName === "title" && subject === undefined) subject = textOf(element).trim();
+    // HTML namespace only: an inline `<svg><title>` is an image's tooltip, not the subject.
+    if (element.tagName === "title" && element.namespaceURI === HTML_NAMESPACE && subject === undefined) subject = textOf(element).trim();
     if (isFieldsMeta(element) && fields.length === 0) fields = parseFieldDeclarations({ content: attribute(element, "content") ?? "" });
   }
   return { subject: subject ?? "", fields };
