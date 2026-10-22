@@ -161,7 +161,7 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
   assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
     "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "assistant-history", "change-sets", "comments", "consent",
     "content-duplication", "content-stats", "content-types", "credential-copy", "credential-save", "custom-credentials",
-    "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "entries",
+    "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "email-templates", "entries",
     "external-mcp", "external-mcp-operations", "forms", "fs-files", "identity",
     "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
     "media-providers", "media-video-view", "media-view", "members", "menus", "newsletter", "newsletter-delivery",

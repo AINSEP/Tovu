@@ -57,6 +57,8 @@ import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
+import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
+import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
@@ -213,7 +215,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "theme-set-page-published": themePagePublishedCatalog as unknown as AgentToolDefinition[],
 
   "permanent-delete": permanentDeleteAgentToolCatalog,
-  "domain-dns": [...domainDnsAgentToolCatalog, ...dnsChangeAgentToolCatalog],
+  "domain-dns": [...domainDnsAgentToolCatalog, ...dnsChangeAgentToolCatalog, ...mailDnsAgentToolCatalog] as unknown as AgentToolDefinition[],
+  "email-templates": emailTemplatesAgentToolCatalog as unknown as AgentToolDefinition[],
   "content-types": contentTypesAgentToolCatalog,
   forms: formsAgentToolCatalog,
   identity: identityAgentToolCatalog,
