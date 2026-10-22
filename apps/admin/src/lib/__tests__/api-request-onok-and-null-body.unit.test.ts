@@ -131,7 +131,7 @@ test("custom error contracts retain the upstream-refused proof needed to safely 
     .mockImplementationOnce(async () => new Response('{"ok":true}', { status: 200 }));
   vi.stubGlobal("fetch", fetchFake);
   const waitUntilReachable = vi.fn(async () => true);
-  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {} };
+  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {}, markReachable: () => {} };
   await expect(requestRidingOutRestart({
     method: "POST",
     send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {
@@ -148,7 +148,7 @@ test("custom error contracts do not replay a write that may already have reached
   const fetchFake = vi.fn(async () => new Response(null, { status: 503 }));
   vi.stubGlobal("fetch", fetchFake);
   const waitUntilReachable = vi.fn(async () => true);
-  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {} };
+  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {}, markReachable: () => {} };
   await expect(requestRidingOutRestart({
     method: "POST",
     send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {

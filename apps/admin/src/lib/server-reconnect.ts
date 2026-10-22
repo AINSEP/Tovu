@@ -41,6 +41,10 @@ export interface ServerReconnect {
   /** Polls until the server answers or the timeout passes. Concurrent callers share one poll.
    *  @returns whether the server is back. */
   waitUntilReachable(): Promise<boolean>;
+  /** A request just reached the server: an "unreachable" status is over (A-2, 2026-10-22). Only the
+   *  poll used to set "online", so after a timed-out outage the banner stayed up on a working admin
+   *  until the next outage. A running poll keeps "reconnecting" and settles it itself. */
+  markReachable(): void;
 }
 
 /**
@@ -89,6 +93,9 @@ export function createServerReconnect(deps: ServerReconnectDeps, optional: Serve
       inFlight = new Promise<boolean>((resolve) => (start = resolve)).finally(() => (inFlight = null));
       start(poll());
       return inFlight;
+    },
+    markReachable() {
+      if (status === "unreachable") setStatus("online");
     },
   };
 }
@@ -141,6 +148,7 @@ const neverReconnects: ServerReconnect = {
   getStatus: () => "online",
   subscribe: () => () => {},
   waitUntilReachable: async () => false,
+  markReachable: () => {},
 };
 
 /**

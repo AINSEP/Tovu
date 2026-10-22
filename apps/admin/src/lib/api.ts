@@ -2575,7 +2575,9 @@ export async function requestRidingOutRestart<T>(
   { retryWrites = false, reconnect = serverReconnect }: { retryWrites?: boolean; reconnect?: ServerReconnect } = {},
 ): Promise<T> {
   try {
-    return await send();
+    const result = await send();
+    reconnect.markReachable();
+    return result;
   } catch (error) {
     const retry = error instanceof ApiError && shouldRetryAfterReconnect({
       code: error.code, unreachableCode: API_UNREACHABLE_CODE, method, upstreamRefused: upstreamRefusedErrors.has(error), retryWrites,

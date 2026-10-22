@@ -13,12 +13,14 @@ function fakeClock() {
   return { now: () => now, sleep: async (ms: number) => void (now += ms) };
 }
 
-function fakeReconnect(back: boolean): ServerReconnect & { waits: number } {
+function fakeReconnect(back: boolean): ServerReconnect & { waits: number; reached: number } {
   const fake = {
     waits: 0,
+    reached: 0,
     getStatus: () => "online" as const,
     subscribe: () => () => {},
     waitUntilReachable: async () => (fake.waits++, back),
+    markReachable: () => void fake.reached++,
   };
   return fake;
 }
@@ -140,6 +142,51 @@ describe("requestRidingOutRestart", () => {
   });
 });
 
+describe("a request that reaches the server (A-2, 2026-10-22)", () => {
+  /** A reconnect whose first outage already timed out: status "unreachable". */
+  async function gaveUp() {
+    const reconnect = createServerReconnect({ probe: async () => false, ...fakeClock() }, { pollMs: 500, timeoutMs: 400 });
+    expect(await reconnect.waitUntilReachable()).toBe(false);
+    return reconnect;
+  }
+
+  it("brings an unreachable server back online and tells listeners once", async () => {
+    const reconnect = await gaveUp();
+    const seen: string[] = [];
+    reconnect.subscribe(() => seen.push(reconnect.getStatus()));
+    reconnect.markReachable();
+    reconnect.markReachable();
+    expect(reconnect.getStatus()).toBe("online");
+    expect(seen).toEqual(["online"]);
+  });
+
+  it("leaves a running poll's 'reconnecting' to the poll, and an online server untouched", async () => {
+    const answers = [false, true];
+    let reconnect!: ServerReconnect;
+    const during: string[] = [];
+    reconnect = createServerReconnect({ probe: async () => { reconnect.markReachable(); during.push(reconnect.getStatus()); return answers.shift()!; }, ...fakeClock() });
+    const seen: string[] = [];
+    reconnect.subscribe(() => seen.push(reconnect.getStatus()));
+    reconnect.markReachable();
+    expect(await reconnect.waitUntilReachable()).toBe(true);
+    expect(during).toEqual(["reconnecting", "reconnecting"]);
+    expect(seen).toEqual(["reconnecting", "online"]);
+  });
+
+  it("a successful request through requestRidingOutRestart clears the unreachable banner", async () => {
+    const reconnect = await gaveUp();
+    expect(await requestRidingOutRestart({ send: async () => "ok", method: "GET" }, { reconnect })).toBe("ok");
+    expect(reconnect.getStatus()).toBe("online");
+  });
+
+  it("marks only a request that succeeded, never a failed one", async () => {
+    const reconnect = fakeReconnect(false);
+    await requestRidingOutRestart({ send: async () => "ok", method: "POST" }, { reconnect });
+    await expect(requestRidingOutRestart({ send: async () => Promise.reject(unreachable()), method: "GET" }, { reconnect })).rejects.toThrow("unreachable");
+    expect([reconnect.reached, reconnect.waits]).toEqual([1, 1]);
+  });
+});
+
 describe("createServerReconnect listeners", () => {
   it("stops notifying a listener once it unsubscribes", async () => {
     const answers = [false, true, false, true];
@@ -216,6 +263,7 @@ describe("browser reconnect wiring", () => {
     let notified = 0;
     const unsubscribe = inert.subscribe(() => { notified++; });
     expect(await inert.waitUntilReachable()).toBe(false);
+    inert.markReachable();
     unsubscribe();
     expect([inert.getStatus(), notified, probes]).toEqual(["online", 0, []]);
 
