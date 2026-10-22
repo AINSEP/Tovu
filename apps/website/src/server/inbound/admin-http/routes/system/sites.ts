@@ -16,6 +16,7 @@ import {
   switcherBaseForBinding,
   persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
+  resolveNewSiteAdminPassword,
   type ServingSiteListEntry,
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
@@ -206,6 +207,12 @@ function siteListing({ req, deps, listSites, isSiteSwitcherEnabled, readPersiste
   const previewVersions = listingPreviewVersions({ req, sites, binding, localSites, sitePreviews, isSiteSwitcherEnabled });
   return {
     sitesHome: isSiteSwitcherEnabled() ? sitesWorkspace.home({}) : undefined,
+    // What a new site's admin gets when the create form's password is left blank — resolved by the
+    // same function the create path seeds with, so the shown value cannot drift from the seeded one.
+    // Sent only where this boot can create sites, and only to a caller already holding
+    // `system.read`; the admin bundle itself never contains it (`default-credential-exposure.ts`).
+    // Owner, 2026-10-22: show the starter password so a new site can be signed into.
+    starterAdminPassword: isSiteSwitcherEnabled() ? resolveNewSiteAdminPassword({}) : undefined,
     switchingEnabled: isSiteSwitcherEnabled(),
     ...listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart, binding, isSiteSwitcherEnabled, localSites }),
     sites: sites.map((site) => {

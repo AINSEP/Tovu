@@ -41,10 +41,19 @@ export function resolveCreateSubmitDisabled(args: {
 /** Credential copy describes the chosen password without shipping a default or custom secret.
  * @complexity O(1).
  */
-export function resolveCreatedAdminLogin({ customPassword, t }: { customPassword: boolean; t: Translate }, _options: Record<string, never> = {}): string {
-  return customPassword
-    ? t("Admin login: admin / the one you set — change it later under Users")
-    : t("Admin login: admin / the default password — change it later under Users");
+export function resolveCreatedAdminLogin({ customPassword, starterAdminPassword, t }: { customPassword: boolean; starterAdminPassword?: string; t: Translate }, _options: Record<string, never> = {}): string {
+  if (customPassword) return t("Admin login: admin / the one you set — change it later under Users");
+  // Owner, 2026-10-22: name the starter password outright, or a new site cannot be signed into.
+  if (starterAdminPassword) {
+    return interpolate({ template: t("Admin login: admin / {password} — change it under Users before you deploy"), vars: { password: starterAdminPassword } });
+  }
+  return t("Admin login: admin / the default password — change it later under Users");
+}
+
+/** The starter password the create form shows while its own password field is blank; `null` once
+ *  one is typed, or when the server sent none (switching off, older server). @complexity O(1). */
+export function resolveShownStarterPassword({ adminPassword, starterAdminPassword }: { adminPassword: string; starterAdminPassword?: string }, _options: Record<string, never> = {}): string | null {
+  return adminPassword === "" && starterAdminPassword ? starterAdminPassword : null;
 }
 
 /** Mask/reveal presentation stays out of the form markup. @complexity O(1). */

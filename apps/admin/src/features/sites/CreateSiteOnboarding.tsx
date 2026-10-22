@@ -98,7 +98,7 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
 export interface CreateSiteOnboardingProps {
   controller: Pick<
     ReturnType<typeof useWiredSites>,
-    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t" | "adminPassword" | "setAdminPassword" | "adminPasswordInputType" | "adminPasswordRevealLabel" | "toggleAdminPasswordVisibility"
+    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t" | "adminPassword" | "setAdminPassword" | "adminPasswordInputType" | "adminPasswordRevealLabel" | "toggleAdminPasswordVisibility" | "shownStarterPassword"
   >;
   /** Back to the "All sites" tab, creating nothing. Supplied by `Sites.tsx` so this form owns no
    *  routing of its own — same seam Runner's own `onBack` is. */
@@ -312,6 +312,14 @@ export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCr
         <DetailsSection controller={controller} />
         <div className="onboarding-section">
           <p className="field-hint site-admin-login-hint">
+            {/* Shown while the field below is blank (owner, 2026-10-22): the value comes from the
+                sites listing, never from this bundle — see `default-credential-exposure.ts`. */}
+            {controller.shownStarterPassword ? (
+              <>
+                {controller.t("Starter login:")} <strong>admin</strong> / <strong className="site-admin-starter-password">{controller.shownStarterPassword}</strong>.{" "}
+                {controller.t("Change it under Users before you deploy.")}
+              </>
+            ) : null}
             <InfoTip
               label={controller.t("This is a starter password for this site only. Change it after your first sign-in under Users → admin, or set a different one below.")}
               triggerLabel={controller.t("About the default admin login")}

@@ -578,6 +578,9 @@ export interface AdminSitesSnapshot {
   currentSite: AdminSiteBinding;
   /** The site name a previous Activate persisted to `.env`, pending a restart — `null` when none. */
   persistedSiteName: string | null;
+  /** The admin password a new site gets when the create form's password is left blank. Sent only
+   *  when switching is enabled; absent from an older server. Never written in this bundle. */
+  starterAdminPassword?: string;
 }
 
 /** The `201` body of `POST .../system/sites`. */

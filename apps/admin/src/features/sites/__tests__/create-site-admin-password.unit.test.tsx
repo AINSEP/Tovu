@@ -26,9 +26,9 @@ function Harness({ port }: { port: SitesPort }) {
   </>;
 }
 
-function setup() {
+function setup(listing: AdminSitesSnapshot = snapshot) {
   const requests: Parameters<SitesPort["createSite"]>[0][] = [];
-  const port = createFakeSitesPort(snapshot, { createSite: async (input) => {
+  const port = createFakeSitesPort(listing, { createSite: async (input) => {
     requests.push(input);
     return { site: { name: input.name, dir: `/repo/sites/${input.name}`, siteId: "fake-site-id" } };
   } });
@@ -58,6 +58,24 @@ describe("new-site admin credentials", () => {
     const notice = screen.getByText("new-site").closest("p")!;
     expect(notice.textContent).toContain(DEFAULT_LOGIN);
     expect(document.body.textContent).not.toContain("tovu-dev");
+  });
+
+  it("shows the server's starter password while the field is blank, and names it after a create", async () => {
+    const starter = "starter-fixture-pw";
+    const { requests, user } = setup({ ...snapshot, starterAdminPassword: starter });
+    await waitFor(() => expect(screen.getByText(starter)).toBeVisible());
+    const hint = screen.getByText(starter).closest("p")!;
+    expect(hint.textContent).toContain("Starter login: admin / starter-fixture-pw.");
+    expect(hint.textContent).toContain("Change it under Users before you deploy.");
+    const password = screen.getByLabelText("Set a different admin password");
+    expect(password).not.toBeRequired();
+    await user.type(password, "x");
+    expect(screen.queryByText(starter)).toBeNull();
+    await user.clear(password);
+    await user.type(screen.getByLabelText("Folder name"), "starter-site");
+    await user.click(screen.getByRole("button", { name: "Create site" }));
+    await waitFor(() => expect(requests).toEqual([{ name: "starter-site" }]));
+    await waitFor(() => expect(screen.getByText("Admin login: admin / starter-fixture-pw — change it under Users before you deploy")).toBeVisible());
   });
 
   it("reveals and masks the optional password, preserves it exactly, and confirms it without echoing it", async () => {

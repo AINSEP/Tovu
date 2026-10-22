@@ -173,6 +173,8 @@ input[type="checkbox"], input[type="radio"] {
 /* New-site admin password: the reveal toggle sits flush inside the input's right edge. */
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
+/* One click selects the whole starter password for copying. */
+.site-admin-starter-password { font-family: var(--font-mono); user-select: all; }
 .site-admin-password-wrap { position: relative; display: flex; }
 .site-admin-password-wrap input { padding-right: 2.4rem; }
 .site-admin-password-toggle {
