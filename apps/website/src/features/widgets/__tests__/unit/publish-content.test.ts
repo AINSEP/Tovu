@@ -152,3 +152,19 @@ test("widget: a contact-form widget's form reference travels as the form's slug 
   await roundTrip(src.site, dst.site);
   assert.match(JSON.stringify((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.fieldsJson), /\\"formDefinitionId\\":\\"form-dst\\"/);
 });
+
+test("widget/widget-area references: a widget names the media its config uses; an area names the widgets it places", async () => {
+  const { src, a, b } = await sites();
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  await src.ports.entries.save({ ...row, fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "text", config: { body: '<img src="/media/hero-key/original">' }, status: "active" }) } } } });
+  const entities = await packAll(src.site);
+  const byType = new Map([["widget", contributeWidgetPublish().build(src.site)], ["widget-area", contributeWidgetAreaPublish().build(src.site)]] as const);
+  const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const area = entities.find((e) => e.entityType === "widget-area")!;
+  const unknownType = { ...widget, state: { ...widget.state, widgetType: "no-such-widget-type" } };
+  assert.deepEqual(await byType.get("widget")!.references!(unknownType), [], "an unregistered widget type references nothing");
+  assert.deepEqual(await byType.get("widget")!.references!(widget), [{ entityType: "media", key: "hero-key" }]);
+  const areaRefs = (await byType.get("widget-area")!.references!(area)).map((r) => JSON.stringify(r));
+  assert.ok(areaRefs.some((r) => r.includes(a.id)) && areaRefs.some((r) => r.includes(b.id)), `area references name both placed widgets: ${areaRefs.join(" ")}`);
+});
