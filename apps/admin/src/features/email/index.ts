@@ -3,3 +3,4 @@
  * inside this folder.
  */
 export { Email } from "./Email";
+export { EmailTemplateEditor } from "./EmailTemplateEditor";
