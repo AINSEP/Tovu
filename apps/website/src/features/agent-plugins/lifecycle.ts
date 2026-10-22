@@ -24,6 +24,10 @@ import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js"
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryDeployDisabled, carryCloudflareActivation } from "./deploy-split-activation.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
+import {
+  readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
+  defaultBundledSourceRoot, type SupersessionManifestsPort,
+} from "./supersession.js";
 
 export {
   AgentPluginInstallError, AgentPluginNotFoundError, AgentPluginNotUninstallableError,
@@ -86,7 +90,7 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
@@ -117,27 +121,23 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     fetch: unbound, outboundGuard: { assertAllowed: unbound },
     mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
   }, policy);
+  const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
+    readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
+    readBundledSource: createBundledSourceManifestReader({ sourceRoot: () => defaultBundledSourceRoot({ env: process.env }) }),
+  };
   return {
     ...owner,
     // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.
     // A failed retirement may leave both packages on disk; a disabled successor must stay disabled.
+    // What a replacement supersedes is declared by that plugin (`supersession.ts`), never named here.
     loadPluginContributions: async <D, T>(input: { readonly workspaceId: string; readonly definition: PluginContributionDefinition<D, T> }, options: LoadPluginContributionsOptional = {}) => {
       const verdicts = await owner.findTrustedPluginPackages({ workspaceId: input.workspaceId, filename: input.definition.filename,
         contribution: input.definition.contribution, requireActive: false });
-      const successor = verdicts.find(verdict => "trusted" in verdict && verdict.trusted.pluginId === "cloudflare");
-      const replaced = successor !== undefined;
-      const definition = { ...input.definition, load: async (context: Parameters<typeof input.definition.load>[0]) => {
-        const descriptor = context.descriptor;
-        const oldPackage = context.plugin.pluginId === "deploy" || context.plugin.pluginId === "cloudflare-pages";
-        if (replaced && oldPackage && typeof descriptor === "object" && descriptor !== null && "id" in descriptor && descriptor.id === "cloudflare-pages") {
-          return "deploy target 'cloudflare-pages' is provided by the trusted 'cloudflare' replacement";
-        }
-        return input.definition.load(context);
-      } };
-      return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) => {
-        if (replaced && plugin.pluginId === "cloudflare-pages") return `contributions from 'cloudflare-pages' were superseded by trusted 'cloudflare'`;
-        return options.packageRefusal?.({ plugin });
-      } });
+      const supersessions = await readSupersessions({ verdicts, manifests });
+      const definition = { ...input.definition, load: async (context: Parameters<typeof input.definition.load>[0]) =>
+        supersededDescriptorRefusal({ supersessions, pluginId: context.plugin.pluginId, descriptor: context.descriptor }) ?? input.definition.load(context) };
+      return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) =>
+        supersededPackageRefusal({ supersessions, pluginId: plugin.pluginId }) ?? options.packageRefusal?.({ plugin }) });
     },
     installAgentPlugin: (input: InstallAgentPluginRequired, options: Parameters<typeof owner.installAgentPlugin>[1] = {}) => owner.installAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }, options),
     updateAgentPlugin: (input: Omit<import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired, "layout" | "archiveReader"> & { layout: AgentPluginLayout; archiveReader: AgentPluginArchiveReaderPort }) => owner.updateAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }),

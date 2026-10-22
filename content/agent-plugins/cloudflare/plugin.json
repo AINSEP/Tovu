@@ -14,7 +14,13 @@
         "deploy-target:cloudflare-workers",
         "deploy-target:cloudflare-pages",
         "form-destination:cloudflare-d1"
-      ]
+      ],
+      "supersedes": {
+        "packages": ["cloudflare-pages"],
+        "contributions": [
+          { "fromPlugins": ["deploy", "cloudflare-pages"], "descriptorId": "cloudflare-pages", "label": "deploy target" }
+        ]
+      }
     }
   },
   "keywords": [

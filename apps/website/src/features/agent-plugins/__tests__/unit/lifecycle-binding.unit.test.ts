@@ -161,3 +161,56 @@ test("a trusted bundled package's files and modules are read through the binding
   assert.deepEqual(await lifecycle.importContainedModule(trusted[0]!, "seam.mjs"), { exported: { answer: 42 } });
   assert.match(String(await lifecycle.importContainedModule(trusted[0]!, "../escape.mjs")), /escapes the plugin root/);
 });
+
+/** Seeds three bundled packages that all ship `seam.json`: a successor whose manifest carries
+ *  `extraManifest`, a package it may supersede wholesale, and one it may supersede one descriptor of. */
+async function seededSupersessionFixture(t: TestContext, extraManifest: Record<string, unknown>, optional: Parameters<typeof createTovuAgentPluginLifecycle>[1] = {}) {
+  const { dir, layout } = await boundLifecycle(t);
+  const lifecycle = createTovuAgentPluginLifecycle({ layout }, optional);
+  const sourceRoot = path.join(dir, "bundled");
+  for (const [name, manifest] of [["successor", extraManifest], ["old-pkg", {}], ["shared-pkg", {}]] as const) {
+    await mkdir(path.join(sourceRoot, name), { recursive: true });
+    await writeFile(path.join(sourceRoot, name, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, version: "1.0.0", ...manifest }));
+    await writeFile(path.join(sourceRoot, name, "seam.json"), JSON.stringify([{ id: "moved" }, { id: `${name}-own` }]));
+  }
+  await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE, sourceRoot });
+  return { lifecycle, sourceRoot };
+}
+function seamDefinition() {
+  return {
+    filename: "seam.json", contribution: "test seams", kind: "data" as const,
+    parse: ({ raw }: { readonly raw: string }) => ({ ok: true as const, descriptors: JSON.parse(raw) as readonly { readonly id: string }[] }),
+    load: ({ plugin, descriptor }: { readonly plugin: { readonly pluginId: string }; readonly descriptor: { readonly id: string } }) => ({ loaded: `${plugin.pluginId}:${descriptor.id}` }),
+  };
+}
+const SUPERSEDES = { extensions: { tovu: { supersedes: {
+  packages: ["old-pkg"],
+  contributions: [{ fromPlugins: ["shared-pkg", "old-pkg"], descriptorId: "moved", label: "test seam" }],
+} } } };
+
+test("a trusted plugin's own supersedes declaration refuses the packages and descriptors it names", async t => {
+  const { lifecycle } = await seededSupersessionFixture(t, SUPERSEDES);
+  const result = await lifecycle.loadPluginContributions({ workspaceId: WORKSPACE, definition: seamDefinition() }, { requireActive: false, packageRefusal: () => undefined });
+  assert.deepEqual(result.items.map(item => item.loaded).sort(), ["shared-pkg:shared-pkg-own", "successor:moved", "successor:successor-own"]);
+  assert.ok(result.refusals.includes("contributions from 'old-pkg' were superseded by trusted 'successor'"), JSON.stringify(result.refusals));
+  assert.ok(result.refusals.includes("test seam 'moved' is provided by the trusted 'successor' replacement"), JSON.stringify(result.refusals));
+});
+
+test("without any supersedes declaration every package contributes and the caller's packageRefusal still applies", async t => {
+  const { lifecycle } = await seededSupersessionFixture(t, {});
+  const result = await lifecycle.loadPluginContributions({ workspaceId: WORKSPACE, definition: seamDefinition() },
+    { requireActive: false, packageRefusal: ({ plugin }) => plugin.pluginId === "shared-pkg" ? "caller refused shared-pkg" : undefined });
+  assert.deepEqual(result.items.map(item => item.loaded).sort(), ["old-pkg:moved", "old-pkg:old-pkg-own", "successor:moved", "successor:successor-own"]);
+  assert.deepEqual(result.refusals, ["caller refused shared-pkg"]);
+});
+
+test("an installed successor that predates its declaration is superseded through the build's bundled source manifest", async t => {
+  const reads: string[] = [];
+  const { lifecycle } = await seededSupersessionFixture(t, {}, { supersessionManifests: {
+    readInstalled: async ({ plugin }) => { reads.push(`installed:${plugin.pluginId}`); return JSON.stringify({ name: plugin.pluginId }); },
+    readBundledSource: async ({ pluginId }) => { reads.push(`source:${pluginId}`); return JSON.stringify(pluginId === "successor" ? SUPERSEDES : {}); },
+  } });
+  const result = await lifecycle.loadPluginContributions({ workspaceId: WORKSPACE, definition: seamDefinition() }, { requireActive: false });
+  assert.deepEqual(result.items.map(item => item.loaded).sort(), ["shared-pkg:shared-pkg-own", "successor:moved", "successor:successor-own"]);
+  assert.ok(reads.includes("installed:successor") && reads.includes("source:successor"), reads.join());
+});
