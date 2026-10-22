@@ -334,6 +334,9 @@
     "mail_get_readiness": "email uses readiness sign-in links confirmations form notifications newsletter blocked ready why not sending",
     "mail_list_activity": "email activity recent sends history log failures bounced delivered complained suppressed outcome",
     "mail_get_activity": "email send detail feedback timeline delivered bounced message id provider error",
+    "mail_list_suppressions": "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
+    "mail_remove_suppression": "email unblock remove suppression allow email again bounced complained do not send list",
+    "mail_get_feedback_setup": "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
     "search_reindex": "search reindex rebuild refresh index full backfill",
@@ -1962,6 +1965,19 @@
       "Show the details of that email send.",
       "What happened to this email after the provider accepted it?"
     ],
+    "mail_list_suppressions": [
+      "Which addresses will my site not email?",
+      "Is this address blocked from my emails?",
+      "Show bounced email addresses."
+    ],
+    "mail_remove_suppression": [
+      "Let my site email this address again.",
+      "Remove this address from the do-not-send list."
+    ],
+    "mail_get_feedback_setup": [
+      "Is bounce and complaint reporting set up for my email?",
+      "What webhook URL do I give my mail provider?"
+    ],
     "search_query": [
       "Search my site for posts about pricing.",
       "Which pages mention our refund policy?",
@@ -3500,6 +3516,18 @@
       "class": "read",
       "confirmation": "direct"
     },
+    "mail_list_suppressions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_remove_suppression": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "mail_get_feedback_setup": {
+      "class": "read",
+      "confirmation": "direct"
+    },
     "search_query": {
       "class": "read",
       "confirmation": "direct"
@@ -3574,6 +3602,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3666,6 +3695,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3725,6 +3755,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",

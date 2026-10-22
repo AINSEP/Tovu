@@ -98,14 +98,16 @@ function oneOf<T extends string>(required: { value: unknown; allowed: readonly T
   throw new ToolInputError({ message: `${required.field} must be one of ${required.allowed.join(", ")}.` });
 }
 
-function readLimit(value: unknown): number {
+/** A page size from a tool argument or a query string; shared with the suppression list. */
+export function readMailPageLimit(value: unknown): number {
   if (value === undefined || value === "") return DEFAULT_MAIL_ACTIVITY_LIMIT;
   const limit = typeof value === "string" ? Number(value) : value;
   if (typeof limit === "number" && Number.isInteger(limit) && limit >= 1 && limit <= MAX_MAIL_ACTIVITY_LIMIT) return limit;
   throw new ToolInputError({ message: `limit must be a whole number from 1 to ${MAX_MAIL_ACTIVITY_LIMIT}.` });
 }
 
-function readCursor(value: unknown): MailActivityPosition | undefined {
+/** A keyset position from a `nextCursor` this server returned; shared with the suppression list. */
+export function readMailCursor(value: unknown): MailActivityPosition | undefined {
   if (value === undefined || value === "") return undefined;
   const decoded = typeof value === "string" ? (decode(value) as { c?: unknown; s?: unknown } | undefined) : undefined;
   if (decoded && typeof decoded.c === "string" && Number.isInteger(decoded.s) && (decoded.s as number) >= 0) return { createdAt: decoded.c, skip: decoded.s as number };
@@ -126,9 +128,9 @@ export function readMailActivityQuery({ input }: { input: Record<string, unknown
   const outcome = oneOf({ value: input.outcome, allowed: MAIL_ACTIVITY_OUTCOMES, field: "outcome" });
   const use = oneOf({ value: input.use, allowed: MAIL_ACTIVITY_USES, field: "use" });
   const recipient = readRecipient(input.recipient);
-  const before = readCursor(input.cursor);
+  const before = readMailCursor(input.cursor);
   return {
-    limit: readLimit(input.limit),
+    limit: readMailPageLimit(input.limit),
     ...(before ? { before } : {}),
     filter: { ...(outcome ? { outcome } : {}), ...(use ? { use } : {}), ...(recipient ? { recipient } : {}) },
   };
@@ -155,11 +157,12 @@ function toItem(record: MailActivityRecord, access: MailActivityAccess): MailAct
   return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, providerMessageId: record.providerMessageId, ...base };
 }
 
-/** The next keyset position: the page's last timestamp, skipping every row already shown at it. */
-function nextPosition(page: MailActivityRecord[], before: MailActivityPosition | undefined): MailActivityPosition {
-  const last = (page.at(-1) as MailActivityRecord).createdAt;
+/** The next page's opaque cursor: the page's last timestamp, skipping every row already shown at it.
+ *  Shared with the suppression list, whose rows page the same way. */
+export function nextMailCursor(page: readonly { createdAt: string }[], before: MailActivityPosition | undefined): string {
+  const last = (page.at(-1) as { createdAt: string }).createdAt;
   const shownAtLast = page.filter((row) => row.createdAt === last).length;
-  return { createdAt: last, skip: shownAtLast + (before?.createdAt === last ? before.skip : 0) };
+  return encode({ c: last, s: shownAtLast + (before?.createdAt === last ? before.skip : 0) });
 }
 
 function repo(deps: MailActivityDeps): MailActivityRepo {
@@ -179,11 +182,10 @@ export async function listMailActivity(required: { principalId: string; query: M
   const rows = await repo(deps).list({ workspaceId: deps.workspaceId, limit: query.limit + 1 }, { ...query.filter, ...(query.before ? { before: query.before } : {}) });
   const page = rows.slice(0, query.limit);
   const filtered = Object.keys(query.filter).length > 0;
-  const next = rows.length > query.limit ? nextPosition(page, query.before) : undefined;
   return {
     access,
     items: page.map((row) => toItem(row, access)),
-    nextCursor: next ? encode({ c: next.createdAt, s: next.skip }) : null,
+    nextCursor: rows.length > query.limit ? nextMailCursor(page, query.before) : null,
     empty: page.length > 0 || query.before ? null : filtered ? "no_matches" : "none_recorded",
   };
 }

@@ -67,4 +67,25 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  "mail_list_suppressions": {
+    search: {
+      keywords: "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
+      queries: ["Which addresses will my site not email?", "Is this address blocked from my emails?", "Show bounced email addresses."],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_remove_suppression": {
+    search: {
+      keywords: "email unblock remove suppression allow email again bounced complained do not send list",
+      queries: ["Let my site email this address again.", "Remove this address from the do-not-send list."],
+    },
+    approval: { class: 'escalation', confirmation: 'plan' },
+  },
+  "mail_get_feedback_setup": {
+    search: {
+      keywords: "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
+      queries: ["Is bounce and complaint reporting set up for my email?", "What webhook URL do I give my mail provider?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

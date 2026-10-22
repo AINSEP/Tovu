@@ -34,7 +34,8 @@ for (const adapter of eachDialect({ tables: ["mail_send_ledger", "workspaces"], 
       assert.ok(step && ledgers);
       assert.equal(step.checksum, MIGRATION_CHECKSUMS[MAIL_ACTIVITY_INDEXES_ID]);
       await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('w', 'W', 'w', ${AT})`);
-      for (const table of ["mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
+      // The dialect matrix built the head schema; rebuild 0023 alone, then apply 0029 to it.
+      for (const table of ["mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "mail_activity_indexes_step_migrations" };
       await runMigrations(kernel, [ledgers], options);
       await kernel.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at)

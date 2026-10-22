@@ -141,6 +141,8 @@ const EXPECTED_ALLOWLIST = [
   // Mail provider switch and the operator's own test send (email provider contract v1, 2026-10-21).
   "mail_set_provider",
   "mail_send_test",
+  // Suppression removal (email phase 5): owner-only, a fresh plan card every time.
+  "mail_remove_suppression",
   // Provider switching uses the same principal-bound plan confirmation as mail provider changes.
   "comments_set_provider",
   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.

@@ -667,6 +667,8 @@ export interface MembersDeps {
   mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;
   /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
   mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+  /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
+  mailSuppressionAdmin?: import("#src/features/mail/suppression-admin.repo").MailSuppressionAdminRepo;
 }
 
 /**

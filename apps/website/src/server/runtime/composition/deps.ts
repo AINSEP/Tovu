@@ -112,6 +112,7 @@ import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapte
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
 import { createMailActivityRepo } from "#src/features/mail/activity.repo";
+import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
 import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
 import { ensureMailProviderSettings, readMailProviderSetting, readMailTestMode } from "#src/features/settings/mail-provider";
@@ -2468,6 +2469,8 @@ async function composeSiteRouteDeps(
     // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
     mailActivity: createMailActivityRepo({ db: kernel }),
     mailPurposeGate: createMailPurposeGateProbe({ mode: runtimeMode, durableOutboxReady: mailDurableOutboxReady }),
+    // Email page phase 5: the do-not-send list's operator side (list, audited removal) and feedback setup.
+    mailSuppressionAdmin: createMailSuppressionAdminRepo({ db: kernel }),
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

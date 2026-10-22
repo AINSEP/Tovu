@@ -264,14 +264,15 @@ const ctx: ToolExecutionContext = { executionId: "e", principal: { id: "owner" }
 function tools(overrides: Partial<MailDeliveryToolDeps> = {}, granted = ["*"]) {
   const { newsletterLaunchGate: _gate, ...host } = readinessDeps();
   const deps: MailDeliveryToolDeps = { ...host, authorize: grants(granted), mailActivity: memoryActivity([record("a", 1)]), ...overrides };
-  const registrations = buildMailDeliveryRegistrations(deps);
+  // No card is shown by these read-only tools; the removal card is exercised in suppressions-feedback.unit.test.ts.
+  const registrations = buildMailDeliveryRegistrations(deps, {} as never);
   return { registrations, call: (name: string, input: unknown = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }) };
 }
 
-test("the delivery tools are read-only with derived none risk under their own contributor", () => {
+test("the phase-4 delivery tools are read-only with derived none risk under their own contributor", () => {
   const { registrations } = tools();
-  assert.deepEqual(registrations.map((r) => r.descriptor.id), ["mail_get_readiness", "mail_list_activity", "mail_get_activity"]);
-  for (const registration of registrations) {
+  assert.deepEqual(registrations.map((r) => r.descriptor.id).slice(0, 3), ["mail_get_readiness", "mail_list_activity", "mail_get_activity"]);
+  for (const registration of registrations.slice(0, 3)) {
     assert.equal(isReadOnlyTool({ descriptor: registration.descriptor }), true);
     assert.equal(mailDeliveryDerivedRisk.get(registration.descriptor.id), "none");
   }

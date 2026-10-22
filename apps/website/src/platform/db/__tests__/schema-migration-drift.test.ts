@@ -122,6 +122,7 @@ const RAW_SQL_MANAGED_TABLES: Readonly<Record<string, string>> = {
   search_index_watermarks: 'ADR-066 step 0027 owns resumable search backfill cursors; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
   search_index_targets: 'ADR-066 step 0027 owns the per-site active/building search target pointer; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
   search_index_retired: 'ADR-066 step 0028 owns replaced search generations awaiting their index drop; the site-search store tests assert the exact columns. No Drizzle declaration (frozen).',
+  mail_suppression_removals: 'ADR-066 step 0030 owns the audit record of deliberate suppression removals; suppression-admin.repo.dialects.test.ts asserts its columns. No Drizzle declaration (frozen).',
 };
 
 function fts5ShadowPrefixes(): string[] {

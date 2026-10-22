@@ -45,6 +45,7 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "newsletter_schedule_campaign", reason: `schedules a list-wide email; ${ASKS}` },
   { toolId: "newsletter_resume_campaign", reason: `resumes a list-wide email; ${ASKS}` },
   { toolId: "mail_send_test", reason: `sends mail through the provider; ${ASKS}` },
+  { toolId: "mail_remove_suppression", reason: `lets mail reach one address again, each with its own recorded reason; ${ASKS}` },
   { toolId: "consent_publish_settings", reason: `publishes consent settings live; ${ASKS}` },
   { toolId: "custom_credential_make_request", reason: `an outbound credentialed request whose DELETE ${ASKS}` },
   // Escalations, overwrites and permanent deletes that ask.

@@ -6,6 +6,7 @@ import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { MailerPort } from "#src/platform/mail/index";
 import type { MailActivityRecord } from "#src/features/mail/activity.repo";
+import type { MailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "../mail-activity.js";
 
 /**
@@ -17,6 +18,19 @@ const WS = "ws-mail";
 const USES = "/api/admin/v1/workspaces/:workspaceId/system/mail-uses";
 const LIST = "/api/admin/v1/workspaces/:workspaceId/system/mail-activity";
 const ONE = "/api/admin/v1/workspaces/:workspaceId/system/mail-activity/:activityId";
+const SUPPRESSIONS = "/api/admin/v1/workspaces/:workspaceId/system/mail-suppressions";
+const REMOVE = "/api/admin/v1/workspaces/:workspaceId/system/mail-suppressions/remove";
+const FEEDBACK = "/api/admin/v1/workspaces/:workspaceId/system/mail-feedback";
+
+function suppressionRepo(removed: unknown[] = []): MailSuppressionAdminRepo {
+  const row = { address: "ann@example.com", scope: "all" as const, reason: "bounced" as const, createdAt: "2026-10-22T12:00:00.000Z" };
+  return {
+    list: async () => [row],
+    find: async ({ address }) => (address === row.address ? row : null),
+    remove: async (required) => { removed.push(required); return { id: "r1", address: row.address, scope: row.scope, suppressionReason: row.reason, suppressedAt: row.createdAt, removalReason: required.removalReason, removedBy: required.removedBy, removedAt: "2026-10-22T13:00:00.000Z" }; },
+    lastFeedbackEvent: async () => null,
+  };
+}
 
 const ROW: MailActivityRecord = {
   idempotencyKey: "members:signin:h", recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in",
@@ -38,12 +52,12 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
   };
 }
 
-async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS) {
+async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get") {
   const app = express();
   registerAdminMailActivityRoutes(app, d);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
-  await extractRouteHandler(app, "get", path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);
+  await extractRouteHandler(app, method, path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);
   return capture;
 }
 
@@ -87,4 +101,30 @@ test("mail-activity/:activityId returns the detail, 404 when absent, 403 masked,
   } finally {
     console.error = original;
   }
+});
+
+test("mail-suppressions lists under mail.activity.read; mail-feedback reports setup under admin.forms.manage", async () => {
+  const listed = await call(deps(["mail.activity.read"], { mailSuppressionAdmin: suppressionRepo() }), SUPPRESSIONS, { query: { scope: "all" } });
+  assert.deepEqual([listed.statusCode, (listed.jsonBody as { items: { address: string }[] }).items[0]!.address], [200, "ann@example.com"]);
+  assert.equal((await call(deps(["admin.forms.manage"], { mailSuppressionAdmin: suppressionRepo() }), SUPPRESSIONS)).statusCode, 403);
+  assert.equal((await call(deps(["mail.activity.read"]), SUPPRESSIONS)).statusCode, 503);
+  const feedback = await call(deps(["admin.forms.manage"]), FEEDBACK);
+  assert.deepEqual([feedback.statusCode, feedback.jsonBody], [200, { available: false, providers: [] }]);
+  assert.equal((await call(deps(["mail.activity.read"]), FEEDBACK)).statusCode, 403);
+});
+
+test("mail-suppressions/remove previews without confirmed: true, removes with it, and needs mail.suppressions.manage", async () => {
+  const removed: unknown[] = [];
+  const d = deps(["mail.suppressions.manage"], { mailSuppressionAdmin: suppressionRepo(removed) });
+  const body = { address: "Ann@Example.com", scope: "all", reason: "mailbox restored" };
+  const preview = await call(d, REMOVE, { body }, WS, "post");
+  assert.deepEqual([preview.statusCode, (preview.jsonBody as { removed: boolean; confirmationRequired: boolean }).removed, (preview.jsonBody as { confirmationRequired: boolean }).confirmationRequired], [200, false, true]);
+  assert.equal(removed.length, 0, "a preview changes nothing");
+  const done = await call(d, REMOVE, { body: { ...body, confirmed: true } }, WS, "post");
+  assert.deepEqual([done.statusCode, (done.jsonBody as { removed: boolean }).removed], [200, true]);
+  assert.deepEqual(removed, [{ workspaceId: WS, address: "ann@example.com", scope: "all", removalReason: "mailbox restored", removedBy: "owner" }]);
+  assert.equal((await call(d, REMOVE, { body: { address: "ann@example.com", scope: "all" } }, WS, "post")).statusCode, 400, "the reason is required");
+  assert.equal((await call(d, REMOVE, { body: [] }, WS, "post")).statusCode, 400, "a non-object body has no fields");
+  assert.equal((await call(d, REMOVE, {}, WS, "post")).statusCode, 400);
+  assert.equal((await call(deps(["mail.activity.read"], { mailSuppressionAdmin: suppressionRepo() }), REMOVE, { body: { ...body, confirmed: true } }, WS, "post")).statusCode, 403);
 });
