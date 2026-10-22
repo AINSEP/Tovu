@@ -1094,10 +1094,11 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // Email (2026-10-22) replaces the `soon` Notifications placeholder in the same nav slot, so the
     // Administration group keeps its row count. Phase 1 of
     // `ADS-memory/reports/2026-10-22-email-page-design-codex.md`: configuration diagnostics from
-    // `GET …/system/mail-status`, which checks `admin.forms.manage`.
+    // `GET …/system/mail-status`, which checks `admin.forms.manage`. Same `?tab=` deep-linking
+    // convention as `admin-ui`'s and `consent`'s.
     id: "email",
     anyOfPermissions: ["admin.forms.manage"],
-    render: () => <Email />,
+    render: (ctx) => <Email tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Email",
       group: "Administration",

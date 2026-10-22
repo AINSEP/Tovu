@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import "@jini-ai/ui/settings-dialog.css";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import type { AdminMailStatus } from "../../lib/api";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { adminHref } from "../../lib/router";
+import { adminHref, navigate } from "../../lib/router";
 import { t } from "./email-i18n";
 import { emailSummary, useWiredEmail, type EmailController, type EmailStatusView, type EmailSummary } from "./hooks/use-email.hooks";
 import "./email.css";
@@ -15,9 +17,23 @@ import "./email.css";
  *
  * Phase 1 of `ADS-memory/reports/2026-10-22-email-page-design-codex.md`: configuration diagnostics
  * from the existing mail-status read. Every section keeps its place; the ones whose data has no
- * server contract yet (DNS records, test send, uses, activity) say "Coming next" instead of showing
- * made-up rows. No provider-name branches: everything shown comes from the status payload.
+ * server contract yet (DNS records, test send, uses, templates, activity) say "Coming next" instead
+ * of showing made-up rows. No provider-name branches: everything shown comes from the status payload.
+ *
+ * Tabs (`/admin/email?tab=overview|provider|sender|templates|activity`) use the shared `TabBar`, the
+ * same as Admin UI and Cookie Consent: the URL owns the selection, so a reload or a link (the mail
+ * banner's "Set up email" opens `?tab=provider`) lands on that tab.
  */
+
+const TAB_IDS = ["overview", "provider", "sender", "templates", "activity"] as const;
+type EmailTabId = (typeof TAB_IDS)[number];
+const TAB_LABELS: Record<EmailTabId, string> = {
+  overview: "Overview",
+  provider: "Provider",
+  sender: "Sender & DNS",
+  templates: "Templates",
+  activity: "Activity",
+};
 
 type Tone = "ok" | "warning" | "neutral";
 
@@ -55,7 +71,7 @@ function Chip(props: { tone: Tone; children: ReactNode }) {
   return <span className={`status status-${props.tone}`}>{props.children}</span>;
 }
 
-/** One titled card; `id` doubles as the in-page anchor (`/admin/email#provider`). */
+/** One titled card; `id` doubles as the in-page anchor within its tab. */
 function Section(props: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={props.id} className="jini-settings-section email-section" aria-labelledby={`email-${props.id}-title`}>
@@ -183,13 +199,21 @@ function SenderBody(props: { status: AdminMailStatus; locale: string }) {
 }
 
 /**
- * The Email screen. `useEmailHook` is the DI seam — a test mounts it over a fake port.
+ * The Email screen. `tabId` is the `?tab=` query value; `useEmailHook` is the DI seam — a test
+ * mounts it over a fake port.
  */
-export function Email(props: { useEmailHook?: () => EmailController } = {}) {
+export function Email(props: { tabId?: string | null; useEmailHook?: () => EmailController } = {}) {
   const controller = (props.useEmailHook ?? useWiredEmail)();
   const { view, locale } = controller;
   const themeBoundary = useAdminThemeBoundary({}, {});
   const loaded = view.kind === "loaded" ? view.status : null;
+  const activeId = resolveActiveTabId({ tabId: props.tabId, validIds: TAB_IDS, defaultId: "overview" });
+  const tabs: TabBarTab[] = TAB_IDS.map((id) => ({
+    id, label: t({ locale, key: TAB_LABELS[id] }), handle: `email-tab-${id}`, handleLabel: `Switch to the ${TAB_LABELS[id]} tab of Email`,
+  }));
+  // A tab whose data is the status read shows the read's own loading / 403 / error-with-Retry line
+  // until it loads, so landing on `?tab=provider` never shows an empty card.
+  const pending = <StatusBody view={view} locale={locale} retry={controller.retry} />;
   return (
     <div className="page email-page">
       <div className="page-header">
@@ -201,30 +225,54 @@ export function Email(props: { useEmailHook?: () => EmailController } = {}) {
           </p>
         </div>
       </div>
+      <TabBar
+        ariaLabel={translateAdminNavLabel({ locale, key: "Email" })}
+        tabs={tabs}
+        activeId={activeId}
+        onChange={(next) => navigate(`/email?tab=${next}`, { replace: true })}
+        containerHandle="email-tab-bar"
+      />
       {/* Same wrapper classes as Authentication: `settings-ui-section` + the theme boundary is what
           gives `.jini-settings-section-card` its white Classic panel (styles/settings.css). */}
       <div className="settings-ui-section settings-ui-section--page-flow email-sections" {...themeBoundary}>
-        <Section id="status" title={t({ locale, key: "Status" })}>
-          <StatusBody view={view} locale={locale} retry={controller.retry} />
-        </Section>
-        <Section id="provider" title={t({ locale, key: "Provider" })}>
-          {loaded ? <ProviderBody status={loaded} locale={locale} /> : null}
-        </Section>
-        <Section id="sender" title={t({ locale, key: "Sender" })}>
-          {loaded ? <SenderBody status={loaded} locale={locale} /> : null}
-        </Section>
-        <Section id="dns" title={t({ locale, key: "DNS" })}>
-          <ComingNext locale={locale} text="The records your domain needs, with a live check." />
-        </Section>
-        <Section id="test" title={t({ locale, key: "Send test email" })}>
-          <ComingNext locale={locale} text="Send a test message and see the provider's answer." />
-        </Section>
-        <Section id="uses" title={t({ locale, key: "What uses email" })}>
-          <ComingNext locale={locale} text="Whether sign-in links, confirmations and form notifications can send." />
-        </Section>
-        <Section id="activity" title={t({ locale, key: "Recent sends and failures" })}>
-          <ComingNext locale={locale} text="Each send, its outcome and any failure reason." />
-        </Section>
+        {activeId === "overview" ? (
+          <>
+            <Section id="status" title={t({ locale, key: "Status" })}>
+              <StatusBody view={view} locale={locale} retry={controller.retry} />
+            </Section>
+            <Section id="uses" title={t({ locale, key: "What uses email" })}>
+              <ComingNext locale={locale} text="Whether sign-in links, confirmations and form notifications can send." />
+            </Section>
+            <Section id="test" title={t({ locale, key: "Send test email" })}>
+              <ComingNext locale={locale} text="Send a test message and see the provider's answer." />
+            </Section>
+          </>
+        ) : null}
+        {activeId === "provider" ? (
+          <Section id="provider" title={t({ locale, key: "Provider" })}>
+            {loaded ? <ProviderBody status={loaded} locale={locale} /> : pending}
+          </Section>
+        ) : null}
+        {activeId === "sender" ? (
+          <>
+            <Section id="sender" title={t({ locale, key: "Sender" })}>
+              {loaded ? <SenderBody status={loaded} locale={locale} /> : pending}
+            </Section>
+            <Section id="dns" title={t({ locale, key: "DNS" })}>
+              <ComingNext locale={locale} text="The records your domain needs, with a live check." />
+            </Section>
+          </>
+        ) : null}
+        {activeId === "templates" ? (
+          <Section id="templates" title={t({ locale, key: "Templates" })}>
+            <ComingNext locale={locale} text="HTML email templates you or the assistant edit like Pages, with a live preview." />
+          </Section>
+        ) : null}
+        {activeId === "activity" ? (
+          <Section id="activity" title={t({ locale, key: "Activity" })}>
+            <ComingNext locale={locale} text="Recent sends, failures, bounces and blocked addresses." />
+          </Section>
+        ) : null}
       </div>
     </div>
   );

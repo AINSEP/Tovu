@@ -76,10 +76,10 @@ describe("MailStatusBanner", () => {
     expect(fetchStatus).toHaveBeenCalledTimes(1);
   });
 
-  it("links Set up email to the Email screen instead of naming Access Tokens", async () => {
+  it("links Set up email to the Email screen's Provider tab instead of naming Access Tokens", async () => {
     render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} />);
     const link = await screen.findByRole("link", { name: "Set up email" });
-    expect(link).toHaveAttribute("href", "/admin/email");
+    expect(link).toHaveAttribute("href", "/admin/email?tab=provider");
     expect(screen.getByRole("alert")).not.toHaveTextContent("Access Tokens");
   });
 

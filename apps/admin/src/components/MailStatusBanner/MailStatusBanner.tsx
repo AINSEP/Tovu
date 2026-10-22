@@ -10,7 +10,7 @@ import "./mail-status-banner.css";
  * Banner while no mail provider is chosen (`state: "unconfigured"`, email provider contract v1,
  * 2026-10-21): sign-in links, confirmations and form notifications are refused in production until a
  * provider is set. Owner sign-in itself never needs mail. Dismissible per browser (owner, 2026-10-21:
- * email stays unconfigured on purpose). "Set up email" opens the Email screen (2026-10-22). Logic:
+ * email stays unconfigured on purpose). "Set up email" opens the Email screen's Provider tab (2026-10-22). Logic:
  * `useMailStatusBanner`.
  */
 export function MailStatusBanner(props: {
@@ -25,7 +25,7 @@ export function MailStatusBanner(props: {
     <div className="mail-status-banner" role="alert">
       <span className="mail-status-banner-text">
         {props.labels.text}{" "}
-        <a className="mail-status-banner-link" href={adminHref("/email")}>{props.labels.setUp}</a>
+        <a className="mail-status-banner-link" href={adminHref("/email?tab=provider")}>{props.labels.setUp}</a>
       </span>
       <button
         type="button"
