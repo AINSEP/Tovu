@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -422,4 +423,23 @@ test("hash verification stops at the cumulative 64MiB cap, independently of the 
   assert.equal(issues[0].page, "over.js");
   assert.equal(issues[0].rule, "artifact-hash");
   assert.match(issues[0].message, /total verified size exceeds the 67108864-byte cap/);
+});
+
+test("a non-file, non-directory entry in the generated tree (a FIFO) is skipped: neither hashed nor reported", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "js"), { recursive: true });
+  fs.writeFileSync(path.join(root, "js", "main.js"), "console.log(1)", "utf8");
+  execFileSync("mkfifo", [path.join(root, "js", "pipe")]);
+  assert.equal(fs.lstatSync(path.join(root, "js", "pipe")).isFIFO(), true, "fixture: a real FIFO");
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: { "js/main.js": sha256("console.log(1)") },
+  });
+
+  assert.deepEqual(issues, []);
 });
