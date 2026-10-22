@@ -2,14 +2,10 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, verify } from "node:crypto";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-
-import type { DeploymentProviderContext } from "../../ports.js";
-import type { DeploymentTargetRecord, ReleaseRecord } from "../../types.js";
-import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned } from "../github.js";
+import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned } from "../deployments/github.mjs";
 
 /**
- * @file Regression tests for `../github.ts`.
+ * @file Regression tests for `../deployments/github.mjs`.
  *
  * Mirrors `src/webhooks/http.memory.ts`'s `RecordingHttpClient` shape (scripted responses in
  * call order, every request recorded) rather than reusing it directly, so this feature's tests do
@@ -20,12 +16,12 @@ import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned }
  * peer designs this adapter was built from assumed incorrectly.
  */
 
-class FakeHttpClient implements HttpClientPort {
-  readonly calls: HttpRequest[] = [];
-  private cursor = 0;
-  constructor(private readonly responses: readonly HttpResponse[]) {}
+class FakeHttpClient {
+   calls = [];
+   cursor = 0;
+  constructor(responses) { this.responses = responses; }
 
-  async send(request: HttpRequest): Promise<HttpResponse> {
+  async send(request) {
     this.calls.push(request);
     const response = this.responses[this.cursor];
     assert.ok(response, `unexpected request: ${request.method} ${request.url}`);
@@ -41,20 +37,20 @@ const { privateKey, publicKey } = generateKeyPairSync("rsa", {
 });
 const TEST_PRIVATE_KEY_PEM = privateKey;
 
-function jsonResponse(status: number, body: unknown): HttpResponse {
+function jsonResponse(status, body) {
   return { status, headers: {}, bodyText: JSON.stringify(body) };
 }
 
-function rawResponse(status: number, bodyText: string): HttpResponse {
+function rawResponse(status, bodyText) {
   return { status, headers: {}, bodyText };
 }
 
 /** Always throws — proves the `try/catch` around each `sendPinned` call site (mint, create,
  * poll) surfaces a network failure as a typed, retryable `TRANSPORT_ERROR` instead of an
  * unhandled rejection. */
-class ThrowingHttpClient implements HttpClientPort {
-  constructor(private readonly message: string) {}
-  async send(): Promise<HttpResponse> {
+class ThrowingHttpClient {
+  constructor(message) { this.message = message; }
+  async send() {
     throw new Error(this.message);
   }
 }
@@ -62,12 +58,12 @@ class ThrowingHttpClient implements HttpClientPort {
 /** Like `FakeHttpClient`, but a step may be a thunk that throws instead of a canned response —
  * lets a test succeed on the token mint (call 1) and fail the transport on the second call
  * (deployment create / status poll) without a second class per call site. */
-class ScriptedHttpClient implements HttpClientPort {
-  readonly calls: HttpRequest[] = [];
-  private cursor = 0;
-  constructor(private readonly steps: ReadonlyArray<HttpResponse | (() => never)>) {}
+class ScriptedHttpClient {
+   calls = [];
+   cursor = 0;
+  constructor(steps) { this.steps = steps; }
 
-  async send(request: HttpRequest): Promise<HttpResponse> {
+  async send(request) {
     this.calls.push(request);
     const step = this.steps[this.cursor];
     assert.ok(step, `unexpected request: ${request.method} ${request.url}`);
@@ -77,7 +73,7 @@ class ScriptedHttpClient implements HttpClientPort {
   }
 }
 
-function makeTarget(overrides: Partial<DeploymentTargetRecord["config"]> = {}): DeploymentTargetRecord {
+function makeTarget(overrides = {}) {
   return {
     workspaceId: "ws-1",
     id: "target-1",
@@ -91,7 +87,7 @@ function makeTarget(overrides: Partial<DeploymentTargetRecord["config"]> = {}): 
   };
 }
 
-function makeRelease(overrides: Partial<ReleaseRecord> = {}): ReleaseRecord {
+function makeRelease(overrides = {}) {
   return {
     workspaceId: "ws-1",
     id: "release-1",
@@ -104,7 +100,7 @@ function makeRelease(overrides: Partial<ReleaseRecord> = {}): ReleaseRecord {
   };
 }
 
-function makeContext(http: HttpClientPort): DeploymentProviderContext {
+function makeContext(http) {
   return {
     credentials: { appId: "1", installationId: "2", privateKeyPem: TEST_PRIVATE_KEY_PEM },
     httpClient: http,
@@ -125,30 +121,30 @@ test("startRun mints a token, creates a deployment, and returns a callback-recon
   assert.equal(http.calls.length, 2);
   assert.equal(http.calls[0].url, "https://api.github.com/app/installations/2/access_tokens");
   assert.equal(http.calls[1].url, "https://api.github.com/repos/acme/site/deployments");
-  const createBody = JSON.parse(String(http.calls[1].body)) as Record<string, unknown>;
+  const createBody = JSON.parse(String(http.calls[1].body));
   assert.equal(createBody.ref, "a".repeat(40));
   assert.equal(createBody.environment, "production");
   assert.equal(createBody.production_environment, true);
   assert.deepEqual(createBody, { ref: "a".repeat(40), environment: "production", description: "Tovu deployment of release release-1", auto_merge: false, required_contexts: [], transient_environment: false, production_environment: true });
-  const mint = http.calls[0]!;
+  const mint = http.calls[0];
   assert.equal(mint.method, "POST");
   assert.deepEqual(JSON.parse(String(mint.body)), { permissions: { deployments: "write" } });
-  assert.match(mint.headers!.authorization!, /^Bearer /);
-  const jwt = mint.headers!.authorization!.slice("Bearer ".length);
+  assert.match(mint.headers.authorization, /^Bearer /);
+  const jwt = mint.headers.authorization.slice("Bearer ".length);
   const parts = jwt.split(".");
   assert.equal(parts.length, 3);
-  assert.deepEqual(JSON.parse(Buffer.from(parts[0]!, "base64url").toString()), { alg: "RS256", typ: "JWT" });
-  const claims = JSON.parse(Buffer.from(parts[1]!, "base64url").toString());
+  assert.deepEqual(JSON.parse(Buffer.from(parts[0], "base64url").toString()), { alg: "RS256", typ: "JWT" });
+  const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
   const now = Date.parse("2026-08-12T19:00:00Z") / 1000;
   assert.deepEqual(claims, { iss: "1", iat: now - 60, exp: now + 9 * 60 });
   assert.ok(claims.exp - claims.iat <= 600);
-  assert.equal(verify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, Buffer.from(parts[2]!, "base64url")), true);
-  assert.equal(http.calls[1]!.method, "POST");
-  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
+  assert.equal(verify("RSA-SHA256", Buffer.from(`${parts[0]}.${parts[1]}`), publicKey, Buffer.from(parts[2], "base64url")), true);
+  assert.equal(http.calls[1].method, "POST");
+  assert.equal(http.calls[1].headers.authorization, "Bearer ghs_opaque");
   for (const request of http.calls) {
-    assert.equal(request.headers!.accept, "application/vnd.github+json");
-    assert.equal(request.headers!["content-type"], "application/json");
-    assert.equal(request.headers!["x-github-api-version"], "2022-11-28");
+    assert.equal(request.headers.accept, "application/vnd.github+json");
+    assert.equal(request.headers["content-type"], "application/json");
+    assert.equal(request.headers["x-github-api-version"], "2022-11-28");
   }
 });
 
@@ -157,7 +153,7 @@ test("startRun marks staging as non-production and preserves the deployment poli
   const result = await createGitHubDeploymentProvider().startRun({ target: makeTarget({ environmentName: "staging" }), release: makeRelease() }, makeContext(http));
   assert.equal(result.ok, true);
   assert.equal(http.calls.length, 2);
-  assert.deepEqual(JSON.parse(String(http.calls[1]!.body)), { ref: "a".repeat(40), environment: "staging", description: "Tovu deployment of release release-1", auto_merge: false, required_contexts: [], transient_environment: false, production_environment: false });
+  assert.deepEqual(JSON.parse(String(http.calls[1].body)), { ref: "a".repeat(40), environment: "staging", description: "Tovu deployment of release release-1", auto_merge: false, required_contexts: [], transient_environment: false, production_environment: false });
 });
 
 test("startRun rejects an external-artifact release (the honesty constraint)", async () => {
@@ -178,7 +174,7 @@ test("startRun rejects an external-artifact release (the honesty constraint)", a
 test("startRun reports NO_CREDENTIALS_CONFIGURED without ever calling the network", async () => {
   const http = new FakeHttpClient([jsonResponse(200, {})]);
   const provider = createGitHubDeploymentProvider();
-  const ctx: DeploymentProviderContext = { ...makeContext(http), credentials: {} };
+  const ctx = { ...makeContext(http), credentials: {} };
 
   const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, ctx);
 
@@ -196,11 +192,11 @@ test("origin pinning: every outbound call stays under https://api.github.com eve
 
   const target = makeTarget({ owner: "../../hostile-owner", repo: "../../app/installations/1" });
   const base = makeContext(http);
-  const ctx: DeploymentProviderContext = { ...base, credentials: { ...base.credentials, installationId: "../../hostile-installation" } };
+  const ctx = { ...base, credentials: { ...base.credentials, installationId: "../../hostile-installation" } };
   await provider.startRun({ target, release: makeRelease() }, ctx);
   assert.equal(http.calls.length, 2);
-  assert.equal(http.calls[0]!.url, "https://api.github.com/app/installations/..%2F..%2Fhostile-installation/access_tokens");
-  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/..%2F..%2Fhostile-owner/..%2F..%2Fapp%2Finstallations%2F1/deployments");
+  assert.equal(http.calls[0].url, "https://api.github.com/app/installations/..%2F..%2Fhostile-installation/access_tokens");
+  assert.equal(http.calls[1].url, "https://api.github.com/repos/..%2F..%2Fhostile-owner/..%2F..%2Fapp%2Finstallations%2F1/deployments");
 
   for (const call of http.calls) {
     assert.equal(new URL(call.url).origin, "https://api.github.com");
@@ -219,7 +215,7 @@ test("sendPinned refuses any request whose resolved origin is not https://api.gi
   // an adapter-level test cannot prove this guard is load-bearing — a mutation check confirmed
   // disabling it did not fail any adapter-level test. This is the guard's own proof.
   const http = new FakeHttpClient([jsonResponse(200, {})]);
-  const hostile: HttpRequest = { method: "GET", url: "https://evil.example.com/steal", headers: {}, timeoutMs: 1000 };
+  const hostile = { method: "GET", url: "https://evil.example.com/steal", headers: {}, timeoutMs: 1000 };
 
   await assert.rejects(() => sendPinned(http, hostile), /refused to send.*evil\.example\.com/);
   assert.equal(http.calls.length, 0, "the hostile request must never reach the transport");
@@ -242,10 +238,10 @@ test("pollRun takes the status with the greatest id, not statuses[0] (GitHub doc
   assert.equal(result.ok && result.update.status, "succeeded");
   assert.equal(result.ok && result.update.providerStatusId, "3");
   assert.equal(http.calls.length, 2);
-  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/acme/site/deployments/42/statuses?per_page=100");
-  assert.equal(http.calls[1]!.method, "GET");
-  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
-  assert.equal(http.calls[1]!.headers!.accept, "application/vnd.github+json");
+  assert.equal(http.calls[1].url, "https://api.github.com/repos/acme/site/deployments/42/statuses?per_page=100");
+  assert.equal(http.calls[1].method, "GET");
+  assert.equal(http.calls[1].headers.authorization, "Bearer ghs_opaque");
+  assert.equal(http.calls[1].headers.accept, "application/vnd.github+json");
 });
 
 test("pollRun returns queued when GitHub has not reported any status yet", async () => {
@@ -256,13 +252,13 @@ test("pollRun returns queued when GitHub has not reported any status yet", async
 
   assert.deepEqual(result, { ok: true, update: { status: "queued", providerStatusId: null, message: null } });
   assert.equal(http.calls.length, 2);
-  assert.equal(http.calls[1]!.method, "GET");
-  assert.equal(http.calls[1]!.url, "https://api.github.com/repos/acme/site/deployments/73/statuses?per_page=100");
-  assert.equal(http.calls[1]!.headers!.authorization, "Bearer ghs_opaque");
+  assert.equal(http.calls[1].method, "GET");
+  assert.equal(http.calls[1].url, "https://api.github.com/repos/acme/site/deployments/73/statuses?per_page=100");
+  assert.equal(http.calls[1].headers.authorization, "Bearer ghs_opaque");
 });
 
 test("mapGitHubDeploymentStatus covers the real seven-value state enum explicitly", () => {
-  const cases: Array<[string, string]> = [
+  const cases = [
     ["error", "failed"],
     ["failure", "failed"],
     ["success", "succeeded"],
@@ -309,7 +305,7 @@ test("startRun marks a 5xx token-exchange failure as retryable", async () => {
 });
 
 test("startRun and pollRun report INVALID_TARGET_CONFIG for each missing or malformed github field", async () => {
-  const invalidConfigs: Array<[string, Record<string, unknown>]> = [
+  const invalidConfigs = [
     ["owner not a string", { owner: 42 }],
     ["owner empty", { owner: "" }],
     ["repo not a string", { repo: 42 }],
@@ -357,7 +353,7 @@ test("pollRun reports INVALID_TARGET_CONFIG for a providerRunRef that is not a p
 test("pollRun reports NO_CREDENTIALS_CONFIGURED without ever calling the network", async () => {
   const http = new FakeHttpClient([jsonResponse(200, {})]);
   const provider = createGitHubDeploymentProvider();
-  const ctx: DeploymentProviderContext = { ...makeContext(http), credentials: {} };
+  const ctx = { ...makeContext(http), credentials: {} };
 
   const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, ctx);
 
@@ -367,7 +363,7 @@ test("pollRun reports NO_CREDENTIALS_CONFIGURED without ever calling the network
 });
 
 test("startRun reports NO_CREDENTIALS_CONFIGURED for each partially-configured credential set", async () => {
-  const partialSets: Array<[string, Record<string, string>]> = [
+  const partialSets = [
     ["appId only", { appId: "1" }],
     ["appId and installationId, no privateKeyPem", { appId: "1", installationId: "2" }],
   ];
@@ -375,7 +371,7 @@ test("startRun reports NO_CREDENTIALS_CONFIGURED for each partially-configured c
   for (const [label, credentials] of partialSets) {
     const http = new FakeHttpClient([jsonResponse(200, {})]);
     const provider = createGitHubDeploymentProvider();
-    const ctx: DeploymentProviderContext = { ...makeContext(http), credentials };
+    const ctx = { ...makeContext(http), credentials };
 
     const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, ctx);
 
@@ -440,7 +436,7 @@ test("startRun surfaces a deployment-create transport failure as a typed, retrya
 });
 
 test("startRun surfaces a non-2xx deployment-create response as PROVIDER_ERROR with correct retryability", async () => {
-  const cases: Array<[number, boolean]> = [
+  const cases = [
     [422, false],
     [503, true],
   ];
@@ -513,7 +509,7 @@ test("pollRun surfaces a status-poll transport failure as a typed, retryable TRA
 });
 
 test("pollRun surfaces a non-2xx status-poll response as PROVIDER_ERROR with correct retryability", async () => {
-  const cases: Array<[number, boolean]> = [
+  const cases = [
     [404, false],
     [500, true],
   ];
@@ -573,11 +569,11 @@ test("mapGitHubDeploymentStatus reports absent and non-string descriptions as nu
 
 test("a non-Error transport throw at each call site (mint, create, poll) is reported by its string form", async () => {
   const provider = createGitHubDeploymentProvider();
-  const thrown = (value: unknown) => () => { throw value; };
+  const thrown = (value) => () => { throw value; };
   const mint = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(new ScriptedHttpClient([thrown("mint refused")])));
   const create = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), thrown(503)])));
   const poll = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), thrown({ toString: () => "poll refused" })])));
-  for (const [result, message] of [[mint, "mint refused"], [create, "503"], [poll, "poll refused"]] as const) {
+  for (const [result, message] of [[mint, "mint refused"], [create, "503"], [poll, "poll refused"]]) {
     assert.equal(!result.ok && result.error.code, "TRANSPORT_ERROR");
     assert.equal(!result.ok && result.error.message, message);
     assert.equal(!result.ok && result.error.retryable, true);

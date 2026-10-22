@@ -1,19 +1,5 @@
 import { createSign } from "node:crypto";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-
-import type {
-  DeploymentError,
-  DeploymentProviderContext,
-  DeploymentProviderPort,
-  DeploymentRunStatusUpdate,
-  PollDeploymentRunInput,
-  PollDeploymentRunResult,
-  StartDeploymentRunInput,
-  StartDeploymentRunResult,
-} from "../ports.js";
-import type { DeploymentTargetRecord } from "../types.js";
-
 /**
  * @file The first-party `github` deployment provider — GitHub App installation auth over the
  * guarded ADR-038 `HttpClientPort`.
@@ -28,7 +14,7 @@ import type { DeploymentTargetRecord } from "../types.js";
  * used to mint it must be RS256 with `exp` no more than ten minutes past `iat` — verified against
  * docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app.
  *
- * `EgressPolicy` cannot pin a host — see `../ports.ts`'s file header. `sendPinned` below is this
+ * `EgressPolicy` cannot pin a host — see the host deployment port's file header. `sendPinned` below is this
  * file's answer: the ONLY function allowed to call `http.send`, and it refuses anything whose
  * resolved origin is not exactly `https://api.github.com`, so a malformed URL template (or a
  * future workspace-supplied GitHub Enterprise base URL, if that is ever added) fails closed instead
@@ -49,10 +35,10 @@ const APP_JWT_TTL_SECONDS = 9 * 60;
 const APP_JWT_CLOCK_SKEW_SECONDS = 60;
 
 function fail(
-  code: DeploymentError["code"],
-  message: string,
-  optional: { retryable?: boolean; providerStatus?: number } = {}
-): DeploymentError {
+  code,
+  message,
+  optional = {}
+) {
   return {
     code,
     message,
@@ -61,19 +47,13 @@ function fail(
   };
 }
 
-interface GitHubTargetConfig {
-  readonly owner: string;
-  readonly repo: string;
-  readonly environmentName: string;
-}
-
 /**
  * Reads and validates `target.config`'s three required GitHub-specific fields.
  *
  * @complexity O(1).
  */
-function readGitHubTargetConfig(target: DeploymentTargetRecord): GitHubTargetConfig | null {
-  const { owner, repo, environmentName } = target.config as Record<string, unknown>;
+function readGitHubTargetConfig(target) {
+  const { owner, repo, environmentName } = target.config;
   if (typeof owner !== "string" || owner.length === 0) return null;
   if (typeof repo !== "string" || repo.length === 0) return null;
   if (typeof environmentName !== "string" || environmentName.length === 0) return null;
@@ -85,7 +65,7 @@ function readGitHubTargetConfig(target: DeploymentTargetRecord): GitHubTargetCon
  * (minting a token, creating a deployment, polling statuses) is routed through it. See the file
  * header for why this check cannot be delegated to `EgressPolicy`.
  *
- * Exported so this guard can be tested directly (see `__tests__/github.test.ts`'s "sendPinned
+ * Exported so this guard can be tested directly (see `../__tests__/deployments-provider.test.mjs`'s "sendPinned
  * refuses..." case) — every current call site builds its URL through `githubApiUrl()`, which
  * already can only resolve under `GITHUB_API_ORIGIN`, so an adapter-level test alone cannot prove
  * this check is load-bearing (confirmed by a mutation check: disabling it did not fail any
@@ -95,7 +75,7 @@ function readGitHubTargetConfig(target: DeploymentTargetRecord): GitHubTargetCon
  *
  * @complexity O(1) beyond the underlying `http.send` call.
  */
-export async function sendPinned(http: HttpClientPort, request: HttpRequest): Promise<HttpResponse> {
+export async function sendPinned(http, request) {
   const url = new URL(request.url);
   if (url.origin !== GITHUB_API_ORIGIN) {
     throw new Error(
@@ -111,11 +91,11 @@ export async function sendPinned(http: HttpClientPort, request: HttpRequest): Pr
  * interpreted as a literal dot-segment and resolving outside the intended endpoint: RFC 3986
  * dot-segment removal only recognizes literal, unencoded `..` between `/` characters, never a
  * percent-encoded `%2E%2E`. */
-function githubApiUrl(path: string): string {
+function githubApiUrl(path) {
   return new URL(path, GITHUB_API_ORIGIN).toString();
 }
 
-function githubHeaders(token: string): Record<string, string> {
+function githubHeaders(token) {
   return {
     accept: "application/vnd.github+json",
     authorization: `Bearer ${token}`,
@@ -124,7 +104,7 @@ function githubHeaders(token: string): Record<string, string> {
   };
 }
 
-function base64url(input: string): string {
+function base64url(input) {
   return Buffer.from(input).toString("base64url");
 }
 
@@ -133,12 +113,7 @@ function base64url(input: string): string {
  *
  * @complexity O(1) (one RSA signature over a short, fixed-shape payload).
  */
-function signGitHubAppJwt(input: {
-  appId: string;
-  privateKeyPem: string;
-  issuedAt: number;
-  expiresAt: number;
-}): string {
+function signGitHubAppJwt(input) {
   const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const payload = base64url(JSON.stringify({ iat: input.issuedAt, exp: input.expiresAt, iss: input.appId }));
   const signature = createSign("RSA-SHA256")
@@ -148,12 +123,10 @@ function signGitHubAppJwt(input: {
   return `${header}.${payload}.${signature}`;
 }
 
-function sanitizeMessage(value: unknown): string | null {
+function sanitizeMessage(value) {
   if (typeof value !== "string") return null;
   return value.replace(/[\r\n\0]/g, " ").slice(0, 500);
 }
-
-type TokenResult = { ok: true; token: string } | { ok: false; error: DeploymentError };
 
 /**
  * Mints a short-lived App JWT, exchanges it for an installation access token narrowed to exactly
@@ -164,10 +137,10 @@ type TokenResult = { ok: true; token: string } | { ok: false; error: DeploymentE
  * @complexity One outbound HTTP request, hard-bounded by `DEFAULT_TIMEOUT_MS`.
  */
 async function mintInstallationToken(
-  http: HttpClientPort,
-  credentials: { appId: string; installationId: string; privateKeyPem: string },
-  nowMs: () => number
-): Promise<TokenResult> {
+  http,
+  credentials,
+  nowMs
+) {
   const now = Math.floor(nowMs() / 1000);
   const jwt = signGitHubAppJwt({
     appId: credentials.appId,
@@ -176,7 +149,7 @@ async function mintInstallationToken(
     expiresAt: now + APP_JWT_TTL_SECONDS,
   });
 
-  let response: HttpResponse;
+  let response;
   try {
     response = await sendPinned(http, {
       method: "POST",
@@ -199,9 +172,9 @@ async function mintInstallationToken(
     };
   }
 
-  let body: { token?: unknown };
+  let body;
   try {
-    body = JSON.parse(response.bodyText) as { token?: unknown };
+    body = JSON.parse(response.bodyText);
   } catch {
     return { ok: false, error: fail("PROVIDER_RESPONSE_INVALID", "GitHub returned invalid JSON minting an installation token") };
   }
@@ -213,8 +186,8 @@ async function mintInstallationToken(
 }
 
 function requireCredentials(
-  credentials: Readonly<Record<string, string>>
-): { appId: string; installationId: string; privateKeyPem: string } | null {
+  credentials
+) {
   const { appId, installationId, privateKeyPem } = credentials;
   if (!appId || !installationId || !privateKeyPem) return null;
   return { appId, installationId, privateKeyPem };
@@ -227,12 +200,12 @@ function requireCredentials(
  * `input.release` by `startRun`'s own `kind !== "git-revision"` guard.
  */
 async function createGitHubDeployment(
-  ctx: DeploymentProviderContext,
-  token: string,
-  config: GitHubTargetConfig,
-  release: { commitSha: string; releaseId: string }
-): Promise<StartDeploymentRunResult> {
-  let response: HttpResponse;
+  ctx,
+  token,
+  config,
+  release
+) {
+  let response;
   try {
     response = await sendPinned(ctx.httpClient, {
       method: "POST",
@@ -263,13 +236,13 @@ async function createGitHubDeployment(
     };
   }
 
-  let body: { id?: unknown };
+  let body;
   try {
-    body = JSON.parse(response.bodyText) as { id?: unknown };
+    body = JSON.parse(response.bodyText);
   } catch {
     return { ok: false, error: fail("PROVIDER_RESPONSE_INVALID", "GitHub returned invalid JSON creating a deployment") };
   }
-  if (!Number.isSafeInteger(body.id) || (body.id as number) <= 0) {
+  if (!Number.isSafeInteger(body.id) || (body.id) <= 0) {
     return { ok: false, error: fail("PROVIDER_RESPONSE_INVALID", "GitHub returned an invalid deployment id") };
   }
 
@@ -285,7 +258,7 @@ async function createGitHubDeployment(
  * @complexity Two outbound HTTP requests (mint token, create deployment), each hard-bounded by
  * `DEFAULT_TIMEOUT_MS`.
  */
-async function startRun(input: StartDeploymentRunInput, ctx: DeploymentProviderContext): Promise<StartDeploymentRunResult> {
+async function startRun(input, ctx) {
   const config = readGitHubTargetConfig(input.target);
   if (!config) {
     return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
@@ -313,12 +286,6 @@ async function startRun(input: StartDeploymentRunInput, ctx: DeploymentProviderC
   });
 }
 
-interface GitHubDeploymentStatus {
-  readonly id: number;
-  readonly state: string;
-  readonly description?: string | null;
-}
-
 /**
  * GitHub's real deployment-status `state` enum has SEVEN values — `error`, `failure`, `inactive`,
  * `in_progress`, `queued`, `pending`, `success` — verified against
@@ -332,7 +299,7 @@ interface GitHubDeploymentStatus {
  *
  * @complexity O(1).
  */
-export function mapGitHubDeploymentStatus(status: GitHubDeploymentStatus): DeploymentRunStatusUpdate {
+export function mapGitHubDeploymentStatus(status) {
   const providerStatusId = String(status.id);
   const message = sanitizeMessage(status.description);
   switch (status.state) {
@@ -362,12 +329,12 @@ export function mapGitHubDeploymentStatus(status: GitHubDeploymentStatus): Deplo
  * independent of array position.
  */
 async function pollGitHubDeploymentStatuses(
-  ctx: DeploymentProviderContext,
-  token: string,
-  config: GitHubTargetConfig,
-  providerRunRef: string
-): Promise<PollDeploymentRunResult> {
-  let response: HttpResponse;
+  ctx,
+  token,
+  config,
+  providerRunRef
+) {
+  let response;
   try {
     response = await sendPinned(ctx.httpClient, {
       method: "GET",
@@ -392,11 +359,11 @@ async function pollGitHubDeploymentStatuses(
     };
   }
 
-  let statuses: GitHubDeploymentStatus[];
+  let statuses;
   try {
-    const parsed: unknown = JSON.parse(response.bodyText);
+    const parsed = JSON.parse(response.bodyText);
     if (!Array.isArray(parsed)) throw new Error("not an array");
-    statuses = parsed as GitHubDeploymentStatus[];
+    statuses = parsed;
   } catch {
     return { ok: false, error: fail("PROVIDER_RESPONSE_INVALID", "GitHub returned a malformed statuses response") };
   }
@@ -415,7 +382,7 @@ async function pollGitHubDeploymentStatuses(
  * @complexity One outbound HTTP request (plus the token mint) and a single linear scan over the
  * returned statuses (bounded by `per_page=100`), each hard-bounded by `DEFAULT_TIMEOUT_MS`.
  */
-async function pollRun(input: PollDeploymentRunInput, ctx: DeploymentProviderContext): Promise<PollDeploymentRunResult> {
+async function pollRun(input, ctx) {
   const config = readGitHubTargetConfig(input.target);
   if (!config) {
     return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
@@ -438,7 +405,7 @@ async function pollRun(input: PollDeploymentRunInput, ctx: DeploymentProviderCon
  * Builds the `github` deployment provider adapter. Stateless — safe to construct once and reuse
  * across requests; all per-call state lives in the `ctx` passed to each method.
  */
-export function createGitHubDeploymentProvider(): DeploymentProviderPort {
+export function createGitHubDeploymentProvider() {
   return {
     id: GITHUB_DEPLOYMENT_PROVIDER_ID,
     credentialKeys: ["appId", "installationId", "privateKeyPem"],

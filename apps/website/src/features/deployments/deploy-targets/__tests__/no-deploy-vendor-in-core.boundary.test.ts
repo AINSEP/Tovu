@@ -82,3 +82,8 @@ test("tool search metadata scan covers the deployments tools, which carry no hos
   // "Workers" is a hosting product here, unlike "pages", which CMS pages legitimately use.
   assert.doesNotMatch(text, /\bworkers\b/i);
 });
+
+test("the extracted declaration consumers remain inside the vendor boundary", () => {
+  assert.ok(SCAN_ROOTS.includes("apps/website/src/features/publish-trust/"));
+  assert.deepEqual(countDeployVendors('const provider = createGitHubDeploymentProvider();'), { "github-deployment": 1 });
+});

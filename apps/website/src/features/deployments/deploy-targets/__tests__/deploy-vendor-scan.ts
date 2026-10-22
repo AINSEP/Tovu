@@ -43,6 +43,8 @@ export const SCAN_ROOTS: readonly string[] = [
 
 /** One rule per vendor, matched case-insensitively on code and string text only. */
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
+  // The dormant deployment provider moved unregistered; its implementation cannot return to core.
+  { id: "github-deployment", pattern: /createGitHubDeploymentProvider|GITHUB_DEPLOYMENT_PROVIDER_ID|mapGitHubDeploymentStatus/gi },
   { id: "netlify", pattern: /netlify/gi },
   { id: "vercel", pattern: /vercel/gi },
   { id: "cloudflare", pattern: /cloudflare|pages\.dev|workers\.dev/gi },
