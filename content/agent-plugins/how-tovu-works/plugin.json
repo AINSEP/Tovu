@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "how-tovu-works",
   "version": "0.1.0",
-  "description": "Consult the read-only site_guide before designing or building. Explains Tovu content, forms, widgets, themes, members, SEO, deploy, plugins and shared Jini packages using caller-scoped live facts.",
+  "description": "Consult the read-only site_guide before designing or building. Explains Tovu content, forms, widgets, themes, members, SEO, deploy, plugins and shared Jini packages using caller-scoped live facts. Includes build-agent-plugin guidance for self-contained contributions, hosted MCP, plugin-owned key cards and tests.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "keywords": [
@@ -15,7 +15,9 @@
     "planner",
     "directory",
     "themes",
-    "Jini"
+    "Jini",
+    "build-agent-plugin",
+    "credential-card"
   ],
   "extensions": {
     "tovu": {

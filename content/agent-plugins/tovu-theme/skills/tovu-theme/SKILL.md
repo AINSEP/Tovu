@@ -6,6 +6,10 @@ argument-hint: "[new: theme id, tier static|templated|declarative, authored|comp
 
 # Tovu themes: make a new one, convert an existing static site, or match a reference site
 
+The in-app assistant uses the Tovu tools below; never use Bash, curl, or a framework
+CLI from chat. Shell/build examples apply only to an authorized coding-agent checkout
+or the operator's terminal. If a compiled build needs that environment, hand it off.
+
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
 This plugin covers three jobs that share one theme format:

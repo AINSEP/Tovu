@@ -1,9 +1,16 @@
 ---
 name: higgsfield-media
-description: Connect Higgsfield from nothing, then generate an image or video and land it in this site's Media library. Covers the cold start (Higgsfield authenticates by OAuth browser sign-in, NOT an API key, and discovers its own endpoints and client — the only value a human supplies is the URL; the enable step and, where TOVU_PUBLIC_URL is unset, the authorization step both need the admin UI) and the whole generate chain — generate_image (asynchronous, returns a job id and not an image), job_status polling (never with sync:true, which cannot complete over Tovu's federated transport), and media_import_from_url for the CDN URL. Also covers the two things that make this fail silently for a whole session: the per-tool write grant a federated write tool needs, and the account plan gate that rejects some models at submit with "Requires basic plan or higher".
+description: Connect Higgsfield with agent_plugin_connect and browser sign-in, then generate an image or video and import it into this site's Media library. Discover this account's live tools and model access first. Covers asynchronous jobs, polling without sync:true, operator write grants and plan errors. No API key is requested.
 ---
 
 # Higgsfield → Media library
+
+Use Tovu tools throughout, never Bash, curl or a vendor CLI. The bundled connection
+already declares the service URL: start with
+`agent_plugin_connect { pluginId: "higgsfield-media" }`, which provisions it and
+shows the browser sign-in card. `connected` means continue; `waiting-for-sign-in`
+means wait for the person, then call once again. The manual connection procedure
+below is recovery for an existing operator-managed connection, not the normal setup.
 
 ## Discover this account and remember what you verified
 
@@ -78,7 +85,8 @@ Verified 2026-09-09 against the live connection row and Higgsfield's own publish
   endpoints and mints its own OAuth client on the first connect (`assistant/external-mcp-oauth.ts`,
   "Self-configuration: discovery + dynamic client registration"). The live row's stored endpoints
   (`…/oauth2/authorize`, `…/oauth2/token`) and its `oauth_client_id` were both produced that way,
-  not typed by a human. **The only thing a human supplies is the URL.**
+  not typed by a human. **The only thing a human supplies is the URL** when configuring a
+  manual connection; the bundled plugin already supplies it.
 - Scopes `openid email offline_access`; PKCE `S256`.
 - **The access token lasts about a day.** The live row was refreshed at `17:58:41Z` and expires
   `17:58:40Z` the following day. Re-authorization is a routine recurring event, not a defect.
@@ -94,9 +102,10 @@ report what actually happened.
 
 ---
 
-## Connecting from zero
+## Manual connection recovery
 
-This is the path for an operator who has **no Higgsfield connection at all**. Do not assume the
+For a bundled cold start use `agent_plugin_connect` above. The steps here describe manual
+recovery when that tool reports a configuration problem. Do not assume the
 steps below can be skipped because a `mcp__higgsfield__*` tool is missing for some other reason —
 check `content_read.external_mcp` (or `external_mcp_list`) first and see what actually exists.
 
@@ -148,9 +157,9 @@ reading `oauth.status` — **there is no "wait for it" tool**.
 refused until it is in `writeAllowedToolNames` *and* the assistant has restarted. See the next
 section — this is the failure that looks like nothing at all.
 
-**The honest summary: the cold start is not fully in-chat.** Step A always requires the admin UI
-plus a restart, and Step C requires it too wherever `TOVU_PUBLIC_URL` is unset. Say that plainly
-rather than implying you can finish it alone.
+**Manual recovery may require the admin UI and a restart.** Plugin enablement has its own
+confirmation dialog; Step C needs the admin UI wherever `TOVU_PUBLIC_URL` is unset.
+The normal connect card still requires the person's own browser sign-in.
 
 ---
 
