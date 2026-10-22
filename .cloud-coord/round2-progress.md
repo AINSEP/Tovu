@@ -8,4 +8,4 @@
 | E Jini trust.ts | agent-CE | done Jini a3fb7570 |
 | D Email Phase 4 | agent-DF | started |
 | F Email Phase 5 | agent-DF | queued after D |
-| G Templates backend | agent-G | started |
+| G Templates backend | agent-G | done 626adebf |
