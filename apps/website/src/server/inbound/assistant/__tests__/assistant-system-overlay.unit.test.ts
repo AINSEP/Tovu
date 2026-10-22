@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
 
 import {
   ASSISTANT_DISALLOWED_TOOLS,
@@ -68,12 +69,24 @@ test("the rest of the base overlay is identical whether the flag is on or off", 
   );
 });
 
-test("both overlays still carry the surrounding tool-catalog protocol untouched", () => {
-  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
-    assert.equal(overlay.includes("search_tools FIRST"), true);
-    assert.equal(overlay.includes("What to do instead when you believe no tool fits"), true);
+test("every overlay applies the single search-first procedure to site files and third-party APIs", () => {
+  for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
+    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    assert.match(overlay, /For every action, including reading or editing site files \(themes, content, config\) and third-party API calls: call search_tools FIRST/);
+    assert.equal(overlay.match(/phrasing the query as a description of what the tool DOES/g)?.length, 1);
+    assert.equal(overlay.includes("What to do instead when you believe no tool fits"), !nativeToolAccess);
     assert.equal(overlay.includes("assistant_ask_choice"), true);
   }
+});
+
+test("native file fallbacks and Tool gap reports require a search and retry with named queries", () => {
+  assert.match(TOOLS_FIRST_RULE, /Before any Bash or direct file read\/edit\/write of site files \(themes, content, config\), call search_tools describing the job/);
+  assert.match(TOOLS_FIRST_RULE, /retry with different phrasing or a higher limit/);
+  assert.match(TOOLS_FIRST_RULE, /Only if those searches find no suitable Tovu tool may you use native fallbacks/);
+  assert.match(TOOLS_FIRST_RULE, /Only after those searches, report the fallback/);
+  assert.ok(TOOLS_FIRST_RULE.includes("`Tool gap: <what you needed> — no Tovu tool for it.`"));
+  assert.match(TOOLS_FIRST_RULE, /Include the queries you searched in <what you needed>/);
+  assert.ok(buildBaseSystemOverlay(false, { nativeToolAccess: true }).includes(TOOLS_FIRST_RULE));
 });
 
 test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids", () => {
@@ -108,8 +121,9 @@ test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools
 // from the prompt text — a maintainer reworking the retry guidance would have to fight a
 // brittle test unrelated to the property that actually matters. These assert the specific,
 // load-bearing phrases the behavior depends on instead.
-test("both overlays tell the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
-  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
+test("every overlay tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
+  for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
+    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
     assert.match(overlay, /search again with a higher limit \(up to 25\) or different phrasing/);
     assert.match(overlay, /weak evidence, not proof that no matching tool exists/);
   }

@@ -1,6 +1,6 @@
 import { assistantCliPermissions, type AssistantCliPermissions } from "../headless/assistant-subagents-policy.js";
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
-export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Use Bash or direct file edits only when no Tovu tool can do the job. When you do, say in one line: `Tool gap: <what you needed> — no Tovu tool for it.`';
+export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any Bash or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>.';
 
 /** Hosted signals override every owner opt-in, including legacy permission-mode overrides. */
 export function isHostedAssistantRuntime(required: {

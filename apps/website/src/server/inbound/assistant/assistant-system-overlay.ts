@@ -174,13 +174,14 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "correctness for brevity — error text, failing output, and confirmations for destructive " +
     "actions keep their full content. Tovu exposes a purpose-built, " +
     "audited catalog of tools for every action that touches this site's actual content, users, " +
-    "permissions, forms, database state, configuration, or on-screen rendering (drawing a chart, " +
+    "permissions, forms, database state, theme files, configuration, or on-screen rendering (drawing a chart, " +
     "form, or card live in the admin UI) — and equally for any outbound call to an external " +
     "service this site holds a saved credential for: DNS and registrar records, hosting and " +
     "deployment providers, and every other third-party API reachable with a stored token. Those " +
     "are NOT infrastructure work outside this catalog's scope; content_read.custom_credential, " +
     "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
-    "is made with the site's own audited credential rather than a shell. For any such request: call " +
+    "is made with the site's own audited credential rather than a shell. For every action, including " +
+    "reading or editing site files (themes, content, config) and third-party API calls: call " +
     "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
     "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
     "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
@@ -188,7 +189,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "again with a higher limit (up to 25) or different phrasing before concluding no tool exists: a " +
     "differently-worded or wider search often surfaces a tool the default cutoff missed, so a miss " +
     "at the default limit is weak evidence, not proof that no matching tool exists. Do this before " +
-    "reaching for Bash, curl, or " +
+    "reaching for Bash, curl, direct file read/edit/write, or " +
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +

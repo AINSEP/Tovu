@@ -771,7 +771,18 @@ const bridgeInjection = {
   diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
   // Resolve at launch inside deleteScope.fresh: concurrent runs must not share a delete grant,
   // and diagnostic IDs must never publish schemas for tools this run cannot discover.
-  startupToolIds: (_required: { readonly runId: string }, _optional = {}) => visibleRegistry.list({}).map(tool => tool.id),
+  /** Put theme file tools first within Jini's bounded startup publication (64 tools / 256 KiB of
+   * schemas): late contributor registration must not hide them while native file tools are visible.
+   * Only reorder admitted IDs; the catalog and executor still own visibility and authorization.
+   * @complexity O(n) time/space for n visible tools and four fixed priority IDs. No I/O. */
+  startupToolIds: (_required: { readonly runId: string }, _optional = {}) => {
+    const toolIds = visibleRegistry.list({}).map(tool => tool.id);
+    const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
+    return [
+      ...themeFileTools.filter(id => toolIds.includes(id)),
+      ...toolIds.filter(id => !themeFileTools.includes(id)),
+    ];
+  },
 };
 const agentExecutor = createAgentExecutor({
   lifecycle,

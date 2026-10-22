@@ -182,6 +182,24 @@ test("host startup IDs reach a typed MCP call and the existing Tovu executor", {
   assert.equal(host.invocations.length, 1);
 });
 
+test("late theme file tools are exposed directly before unrelated tools exhaust the startup budget", { timeout: 5000 }, async t => {
+  const host = hostFixture();
+  for (let i = 0; i < 64; i++) host.registry.register(host.registration(`unrelated_${i}`));
+  const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
+  for (const id of themeFileTools) host.registry.register(host.registration(id));
+
+  const bridge = await launch({ t, host, principalId: "editor" });
+  const startupIds: string[] = JSON.parse(bridge.entry.env.JINI_STARTUP_TOOL_IDS!);
+  assert.deepEqual(startupIds.slice(0, 4), themeFileTools);
+  assert.equal(new Set(startupIds).size, startupIds.length);
+  for (const id of themeFileTools) assert.equal(bridge.typed(id).name, id);
+  assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_63"), false);
+
+  const result = await bridge.client.callTool({ name: bridge.typed("theme_edit_file").name, arguments: { id: "stylesheet" } });
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(host.invocations, [{ principalId: "editor", runId: bridge.run.id, input: { id: "stylesheet" } }]);
+});
+
 test("startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs", { timeout: 5000 }, async t => {
   const host = hostFixture();
   const bridge = await launch({ t, host, principalId: "editor" });
