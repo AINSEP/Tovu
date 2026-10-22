@@ -80,21 +80,6 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@v1
 
-      # Snapshot the sites volume before every deploy: migrations run on boot, and a bad one must be
-      # recoverable from a point taken minutes before. No snapshot, no deploy.
-      - name: Snapshot the sites volume before deploy
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          FLY_APP: <<PLACEHOLDER: fly app name>>
-          FLY_VOLUME: <<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>
-        run: |
-          ids=$(flyctl volumes list -a "$FLY_APP" --json | jq -r --arg name "$FLY_VOLUME" '.[] | select(.name == $name and .state != "pending_destroy" and .state != "destroyed") | .id')
-          if [[ -z "$ids" ]]; then
-            echo "::error title=No volume to snapshot::No live volume named $FLY_VOLUME on $FLY_APP. Nothing was deployed."
-            exit 1
-          fi
-          for id in $ids; do flyctl volumes snapshots create "$id"; done
-
       # Fly's REMOTE builder does the image build. This runner only uploads the
       # build context and polls status, so no Docker or BuildKit setup is needed
       # here.

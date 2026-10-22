@@ -255,20 +255,6 @@ jobs:
           writeFileSync(result.filename, result.contents);
           NODE
 
-      # Every deploy snapshots the sites volume first: migrations run on boot, and a bad one must be
-      # recoverable from a point taken minutes before, not from Fly's daily auto-snapshot. flyctl runs
-      # here on the runner, never on an operator's machine. No snapshot, no deploy.
-      - name: Snapshot the sites volume before deploy
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          ids=$(flyctl volumes list -a "$FLY_APP" --json | jq -r --arg name "$FLY_VOLUME" '.[] | select(.name == $name and .state != "pending_destroy" and .state != "destroyed") | .id')
-          if [[ -z "$ids" ]]; then
-            echo "::error title=No volume to snapshot::No live volume named $FLY_VOLUME on $FLY_APP. Nothing was deployed."
-            exit 1
-          fi
-          for id in $ids; do flyctl volumes snapshots create "$id"; done
-
       # Fly's remote builder does the actual image build; this runner just uploads the build
       # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
       # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
