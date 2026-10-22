@@ -87,7 +87,6 @@ for (const scenario of realInputs) {
     assert.ok(html.includes(`<legend class="mcpui-label">${scenario.label}<`));
     for (const label of scenario.labels) assert.ok(html.includes(`>${label}</label>`));
     assert.deepEqual([...html.matchAll(/<input[^>]*type="radio"[^>]*value="([^"]+)"/g)].map(match => match[1]), scenario.values);
-    assert.doesNotMatch(html, /Recommended\. Focus on the reader\.|Emphasize the result\./);
     const ticket = html.match(/__askChoiceAnswerTicket"\s*:\s*"([^"]+)"/)?.[1];
     assert.ok(ticket, 'the real card must carry an answer ticket');
     const answer = await executeRegisteredTool({ registration: fixture.registration,
@@ -108,7 +107,8 @@ test('typed MCP + gate: flat multiple flag and explicit label render a checklist
   assert.ok(html.includes('<h1 class="mcpui-title">Publish destinations</h1>'));
   assert.ok(html.includes('<legend class="mcpui-label">Choose every destination</legend>'));
   assert.deepEqual([...html.matchAll(/<input[^>]*type="checkbox"[^>]*value="([^"]+)"/g)].map(match => match[1]), ['preview', 'live']);
-  assert.doesNotMatch(html, /Private preview only|type="radio"/);
+  assert.ok(html.includes('>Preview — Private preview only</label>'));
+  assert.doesNotMatch(html, /type="radio"/);
   const ticket = html.match(/__askChoiceAnswerTicket"\s*:\s*"([^"]+)"/)?.[1];
   assert.ok(ticket);
   const answer = await executeRegisteredTool({ registration: fixture.registration,
@@ -130,14 +130,23 @@ test('typed MCP + gate: an explicit false multiple flag renders radios using the
 });
 
 for (const field of ['singleSelect', 'multiSelect']) {
-  test(`typed MCP + gate: nested ${field} accepts IDs, label defaults and ignored descriptions`, async () => {
+  test(`typed MCP + gate: nested ${field} renders descriptions and retains IDs and label-default answer values`, async () => {
     const fixture = createTypedChoiceFixture({});
     const html = cardHtml({ reply: await fixture.invoke({ input: { title: 'Next step?', [field]: { label: 'Choose', options: [
-      { id: 'publish', label: 'Publish', description: 'Ignored description' }, { label: 'Hold' },
+      { id: 'publish', label: 'Publish', description: 'Publish immediately' }, { label: 'Hold', description: 'Keep it local' },
     ] } } }) });
     const type = field === 'singleSelect' ? 'radio' : 'checkbox';
     assert.deepEqual([...html.matchAll(new RegExp(`<input[^>]*type="${type}"[^>]*value="([^"]+)"`, 'g'))].map(match => match[1]), ['publish', 'Hold']);
-    assert.doesNotMatch(html, /Ignored description/);
+    assert.ok(html.includes('>Publish — Publish immediately</label>'));
+    assert.ok(html.includes('>Hold — Keep it local</label>'));
+    const ticket = html.match(/__askChoiceAnswerTicket"\s*:\s*"([^"]+)"/)?.[1];
+    assert.ok(ticket);
+    const values = field === 'singleSelect' ? { choice: 'publish' } : { selections: ['publish', 'Hold'] };
+    const answer = await executeRegisteredTool({ registration: fixture.registration,
+      input: { ...values, [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+    assert.equal(answer.status, 'completed');
+    assert.deepEqual(answer.output, { submitted: true, ...values,
+      note: 'Tell the administrator what you understood from their answer, in plain language, before proceeding.' });
   });
 }
 

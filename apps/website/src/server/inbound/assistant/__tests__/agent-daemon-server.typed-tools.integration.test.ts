@@ -182,7 +182,7 @@ test("host startup IDs reach a typed MCP call and the existing Tovu executor", {
   assert.equal(host.invocations.length, 1);
 });
 
-test("startup publication preserves catalog admission order when late theme tools exceed the budget", { timeout: 5000 }, async t => {
+test("startup publication prioritizes late theme tools within the budget and preserves remaining catalog order", { timeout: 5000 }, async t => {
   const host = hostFixture();
   for (let i = 0; i < 64; i++) host.registry.register(host.registration(`unrelated_${i}`));
   const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
@@ -190,12 +190,21 @@ test("startup publication preserves catalog admission order when late theme tool
 
   const bridge = await launch({ t, host, principalId: "editor" });
   const startupIds: string[] = JSON.parse(bridge.entry.env.JINI_STARTUP_TOOL_IDS!);
-  assert.deepEqual(startupIds, host.registry.list({}).map(tool => tool.id));
+  const expectedIds = [...themeFileTools, ordinaryId, ...Array.from({ length: 64 }, (_, i) => `unrelated_${i}`)];
+  assert.deepEqual(startupIds, expectedIds);
   assert.equal(new Set(startupIds).size, startupIds.length);
-  for (const id of themeFileTools) assert.equal(bridge.tools.some(tool => tool.annotations?.title === id), false);
+  const publishedIds = bridge.tools.flatMap(tool => typeof tool.annotations?.title === "string" && startupIds.includes(tool.annotations.title)
+    ? [tool.annotations.title] : []);
+  assert.deepEqual(publishedIds, expectedIds.slice(0, 64));
+  for (const id of themeFileTools) assert.ok(bridge.typed(id));
+  assert.ok(bridge.typed("unrelated_58"));
+  assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_59"), false);
   assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_63"), false);
+  for (const id of ["workspace_delete", "collections_execute_cleanup", ...PERMANENT_DELETE_TOOLS.map(tool => tool.id)]) {
+    assert.equal(bridge.tools.some(tool => tool.annotations?.title === id), false, id);
+  }
 
-  const result = await bridge.client.callTool({ name: bridge.typed("unrelated_0").name, arguments: { id: "stylesheet" } });
+  const result = await bridge.client.callTool({ name: bridge.typed("theme_read_file").name, arguments: { id: "stylesheet" } });
   assert.equal(result.isError, undefined);
   assert.deepEqual(host.invocations, [{ principalId: "editor", runId: bridge.run.id, input: { id: "stylesheet" } }]);
 });

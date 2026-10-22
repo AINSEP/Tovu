@@ -147,7 +147,7 @@ test("a combined descriptor feeds both plugin cards and provider setup's secure 
   assert.deepEqual(catalog.refusals, []);
   assert.deepEqual(catalog.pluginIds, ["merged"]);
   assert.deepEqual(catalog.setupFor({ id: "merged" }), descriptor.setup);
-  assert.deepEqual(cards, [{ providerId: "merged", label, category: MAIL_CREDENTIAL_CATEGORY, title: "Connect merged mail", baseUrl }]);
+  assert.deepEqual(cards, [{ pluginId: "merged-plugin", providerId: "merged", label, category: MAIL_CREDENTIAL_CATEGORY, title: "Connect merged mail", baseUrl }]);
   assert.deepEqual(buildPluginCredentialForm({ card: cards[0]! }).fields.map(field => [field.name, field.secret]), [["token", true]]);
   let activations = 0;
   const configure = buildMailProviderRegistrations({ workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "matched" }),
