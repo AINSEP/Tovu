@@ -15,7 +15,7 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -98,8 +98,8 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
       return { newId: () => `deps-cred-${++n}` };
     })(),
     customCredentialsHttpClient: httpClient,
-    // The bundled Fly plugin's scheme rules from source, as the hermetic root passes them.
-    loadAuthSchemes: loadBundledAuthSchemes,
+    // The example-host fixture plugin's scheme rules from source, shaped as a bundled plugin ships them.
+    loadAuthSchemes: loadFixtureAuthSchemes,
     customCredentialsAudit: audit,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -121,16 +121,16 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
   return { deps, repo, sealer, httpClient, audit, authorizeCalls, writeDeps, setAllow: (value: boolean) => { allow = value; } };
 }
 
-/** Seeds one real, decryptable `fly.io` credential — the multi-host motivating case — so the
+/** Seeds one real, decryptable `example-host.io` credential — the multi-host motivating case — so the
  *  confirmed-DELETE test can prove a real Authorization header actually reaches the guarded client. */
-async function seedFlyIo(writeDeps: CustomCredentialWriteDeps) {
+async function seedExampleHost(writeDeps: CustomCredentialWriteDeps) {
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    additionalHosts: ["https://api.machines.dev"],
-    connection: { token: "flyio-secret-token" },
+    baseUrl: "https://api.example-host.io",
+    additionalHosts: ["https://machines.example-host.dev"],
+    connection: { token: "example-host-secret-token" },
   });
   // The authorized setup save now unseals to derive its safe token hint (C3, 2026-10-07).
   // Count only the request under test, retaining zero-decrypt assertions for unconfirmed DELETEs.
@@ -160,7 +160,7 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
-    input: options.input ?? { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/my-app" },
+    input: options.input ?? { label: "example-host.io", method: "DELETE", url: "https://api.example-host.io/v1/apps/my-app" },
     signal: options.signal ?? new AbortController().signal,
   };
   return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
@@ -185,7 +185,7 @@ function actionFromDialog(ui: UIResource, action: "confirm" | "cancel") {
 }
 
 /** Raises the DELETE dialog and returns everything a test needs to answer it. */
-async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, unknown> = { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/my-app" }) {
+async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, unknown> = { label: "example-host.io", method: "DELETE", url: "https://api.example-host.io/v1/apps/my-app" }) {
   const emitted: unknown[] = [];
   const pending = call(deleteTool, { input, emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
@@ -203,7 +203,7 @@ async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, u
 
 test("the call stays open after the dialog is shown, and nothing is decrypted or sent while it is pending", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildRegistrations(deps, surfaceExchanges);
   const deleteTool = tool(registrations, TOOL_ID);
@@ -227,20 +227,20 @@ test("the call stays open after the dialog is shown, and nothing is decrypted or
 
 test("the dialog names exactly what is about to be sent — label, resolved host, method, and path", async () => {
   const { deps, writeDeps, httpClient } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const url = "https://api.fly.io/v1/apps/my-app?force=true&destroy_volumes=true";
-  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "fly.io", method: "DELETE", url });
+  const url = "https://api.example-host.io/v1/apps/my-app?force=true&destroy_volumes=true";
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "example-host.io", method: "DELETE", url });
 
-  assert.match(ui.resource.text, /fly\.io/);
-  assert.match(ui.resource.text, /api\.fly\.io/);
+  assert.match(ui.resource.text, /example-host\.io/);
+  assert.match(ui.resource.text, /api\.example-host\.io/);
   assert.match(ui.resource.text, /DELETE/);
   assert.match(ui.resource.text, /\/v1\/apps\/my-app/);
   assert.match(ui.resource.text, /irreversible/i);
-  assert.match(ui.resource.text, /<dt>Credential<\/dt><dd>fly\.io<\/dd>/);
-  assert.match(ui.resource.text, /<dt>Host<\/dt><dd>api\.fly\.io<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Credential<\/dt><dd>example-host\.io<\/dd>/);
+  assert.match(ui.resource.text, /<dt>Host<\/dt><dd>api\.example-host\.io<\/dd>/);
   assert.match(ui.resource.text, /<dt>Method<\/dt><dd>DELETE<\/dd>/);
   assert.match(ui.resource.text, /<dt>Path<\/dt><dd>\/v1\/apps\/my-app\?force=true&amp;destroy_volumes=true<\/dd>/);
 
@@ -252,13 +252,13 @@ test("the dialog names exactly what is about to be sent — label, resolved host
 
 test("the dialog names a url resolved through additionalHosts exactly the same way as its base host", async () => {
   const { deps, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "fly.io", method: "DELETE", url: "https://api.machines.dev/v1/apps/my-app/machines/m1" });
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool, { label: "example-host.io", method: "DELETE", url: "https://machines.example-host.dev/v1/apps/my-app/machines/m1" });
 
-  assert.match(ui.resource.text, /api\.machines\.dev/);
+  assert.match(ui.resource.text, /machines\.example-host\.dev/);
   assert.match(ui.resource.text, /\/v1\/apps\/my-app\/machines\/m1/);
 
   surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "cancel" } }, { toolId: TOOL_ID });
@@ -271,7 +271,7 @@ test("the dialog names a url resolved through additionalHosts exactly the same w
 
 test("the model's own schema publishes only label/method/url/headers/body — no decision or exchange-id field", async () => {
   const { deps, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -286,7 +286,7 @@ test("the model's own schema publishes only label/method/url/headers/body — no
 
 test("confirm: the human's click performs the real DELETE (decrypting exactly once) and the SAME call reports it to the agent", async () => {
   const { deps, sealer, httpClient, audit, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 204, headers: {}, bodyText: "" }] });
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -303,18 +303,18 @@ test("confirm: the human's click performs the real DELETE (decrypting exactly on
   assert.equal(httpClient.calls.length, 1);
   const sent = httpClient.calls[0]!;
   assert.equal(sent.method, "DELETE");
-  assert.equal(sent.url, "https://api.fly.io/v1/apps/my-app");
-  assert.equal(sent.headers.Authorization, "Bearer flyio-secret-token");
+  assert.equal(sent.url, "https://api.example-host.io/v1/apps/my-app");
+  assert.equal(sent.headers.Authorization, "Bearer example-host-secret-token");
   assert.equal(sealer.openCalls, 1, "a confirmed DELETE decrypts exactly once");
 
   assert.equal(audit.entries.length, 1);
   assert.equal(audit.entries[0]!.method, "DELETE");
-  assert.ok(!JSON.stringify(audit.entries).includes("flyio-secret-token"));
+  assert.ok(!JSON.stringify(audit.entries).includes("example-host-secret-token"));
 });
 
 test("cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTTP client — the SAME call reports the cancellation", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -326,7 +326,7 @@ test("cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTT
   const result = await pending;
   assert.deepEqual(result, { executed: false, cancelled: true });
   assert.equal(sealer.openCalls, 0, "a cancelled DELETE must never decrypt the credential");
-  assert.equal(sealer.sealCalls, 1, "the only seal() call is from seedFlyIo's own setup, not from the cancelled DELETE");
+  assert.equal(sealer.sealCalls, 1, "the only seal() call is from seedExampleHost's own setup, not from the cancelled DELETE");
   assert.equal(httpClient.calls.length, 0, "a cancelled DELETE must never reach the guarded HTTP client");
 });
 
@@ -338,7 +338,7 @@ test("cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTT
 
 test("an answer with no 'decision' field at all is NOT confirm — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -352,7 +352,7 @@ test("an answer with no 'decision' field at all is NOT confirm — never decrypt
 
 test("an answer with a non-string 'decision' is NOT confirm — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -366,7 +366,7 @@ test("an answer with a non-string 'decision' is NOT confirm — never decrypts, 
 
 test("an answer with an empty-string 'decision' is NOT confirm — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -380,7 +380,7 @@ test("an answer with an empty-string 'decision' is NOT confirm — never decrypt
 
 test("an answer with an unrecognised 'decision' string is NOT confirm — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -394,7 +394,7 @@ test("an answer with an unrecognised 'decision' string is NOT confirm — never 
 
 test("an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -407,7 +407,7 @@ test("an unanswered dialog expires and reports {executed:false, cancelled:false,
 
 test("a cancelled run abandons the dialog and reports {executed:false, cancelled:false, reason:'abandoned'} — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
   const controller = new AbortController();
@@ -430,7 +430,7 @@ test("a cancelled run abandons the dialog and reports {executed:false, cancelled
 // The short TTL makes that regression an 'expired' result instead of a hang.
 test("a run cancelled before the DELETE dialog opens returns {executed:false, cancelled:false, reason:'abandoned'} at once — no dialog, no decrypt, no send", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 50 });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
   const controller = new AbortController();
@@ -452,7 +452,7 @@ test("a run cancelled before the DELETE dialog opens returns {executed:false, ca
 
 test("with no emitSurface, a DELETE is refused outright with the exact fail-closed message — no exchange, no decrypt, no send", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -479,7 +479,7 @@ test("with no emitSurface, a DELETE is refused outright with the exact fail-clos
 
 test("a denied principal never even sees a dialog, and the credential is never decrypted", async () => {
   const { deps, sealer, httpClient, authorizeCalls, writeDeps } = fakeRouteDeps({ allow: false });
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -492,16 +492,16 @@ test("a denied principal never even sees a dialog, and the credential is never d
 
 test("an unknown label is refused as not-found before any dialog is raised", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   // A `ToolInputError` since 2026-09-16: the map-level model-facing wrap re-classified
   // `CustomCredentialNotFoundError` so the real reason was not redacted on its way to the model.
   // Credential setup now returns a diagnostic; DELETE is still not dispatched or confirmed here.
-  const result = await call(deleteTool, { input: { label: "does-not-exist", method: "DELETE", url: "https://api.fly.io/v1/apps" } }) as { credentialSetup: unknown };
+  const result = await call(deleteTool, { input: { label: "does-not-exist", method: "DELETE", url: "https://api.example-host.io/v1/apps" } }) as { credentialSetup: unknown };
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", label: "does-not-exist", baseUrl: "https://api.fly.io" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", label: "does-not-exist", baseUrl: "https://api.example-host.io" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
   assert.equal(surfaceExchanges.size(), 0, "an unresolvable target must never raise a dialog");
@@ -511,18 +511,18 @@ test("an unknown label is refused as not-found before any dialog is raised", asy
 
 test("an off-allowlist url is refused with the exact validation message before any dialog is raised, and never decrypts", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(
-    () => call(deleteTool, { input: { label: "fly.io", method: "DELETE", url: "https://evil.example.com/steal" } }),
+    () => call(deleteTool, { input: { label: "example-host.io", method: "DELETE", url: "https://evil.example.com/steal" } }),
     (err: unknown) => {
       // A `ToolInputError` since 2026-09-16 — see the not-found case above.
       assert.ok(err instanceof ToolInputError);
       assert.equal(
         (err as Error).message,
-        "CUSTOM_CREDENTIALS_REQUEST_REJECTED: url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.fly.io, https://api.machines.dev) — add it to this credential in the Access Tokens form first"
+        "CUSTOM_CREDENTIALS_REQUEST_REJECTED: url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.example-host.io, https://machines.example-host.dev) — add it to this credential in the Access Tokens form first"
       );
       return true;
     }
@@ -540,11 +540,11 @@ test("an off-allowlist url is refused with the exact validation message before a
 
 test("GET runs immediately with no confirmation, no emitSurface required, and the credential decrypts exactly once", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 200, headers: {}, bodyText: "{}" }] });
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const getTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const result = await call(getTool, { input: { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" } });
+  const result = await call(getTool, { input: { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" } });
 
   assert.deepEqual((result as { executed: boolean }).executed, true);
   assert.equal(httpClient.calls.length, 1);
@@ -555,14 +555,14 @@ test("GET runs immediately with no confirmation, no emitSurface required, and th
 
 test("the tool reads its token scheme rules through the injected loadAuthSchemes, for this workspace", async () => {
   const { deps, httpClient, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 200, headers: {}, bodyText: "{}" }] });
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const seen: string[] = [];
   const getTool = tool(
-    buildRegistrations({ ...deps, loadAuthSchemes: async ({ workspaceId }) => (seen.push(workspaceId), loadBundledAuthSchemes()) }, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })),
+    buildRegistrations({ ...deps, loadAuthSchemes: async ({ workspaceId }) => (seen.push(workspaceId), loadFixtureAuthSchemes()) }, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })),
     TOOL_ID,
   );
 
-  await call(getTool, { input: { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" } });
+  await call(getTool, { input: { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" } });
 
   assert.deepEqual(seen, [WORKSPACE_ID]);
   assert.equal(httpClient.calls.length, 1);
@@ -570,11 +570,11 @@ test("the tool reads its token scheme rules through the injected loadAuthSchemes
 
 test("POST runs immediately with no confirmation and sends the given body", async () => {
   const { deps, httpClient, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 201, headers: {}, bodyText: '{"id":"m1"}' }] });
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const postTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const result = await call(postTool, { input: { label: "fly.io", method: "POST", url: "https://api.fly.io/v1/apps/my-app/machines", body: '{"config":{}}' } });
+  const result = await call(postTool, { input: { label: "example-host.io", method: "POST", url: "https://api.example-host.io/v1/apps/my-app/machines", body: '{"config":{}}' } });
 
   assert.deepEqual((result as { executed: boolean; status: number }).executed, true);
   assert.equal((result as { status: number }).status, 201);
@@ -585,11 +585,11 @@ test("POST runs immediately with no confirmation and sends the given body", asyn
 test("PUT and PATCH also run immediately with no confirmation", async () => {
   for (const method of ["PUT", "PATCH"] as const) {
     const { deps, httpClient, writeDeps } = fakeRouteDeps({ httpResponses: [{ status: 200, headers: {}, bodyText: "{}" }] });
-    await seedFlyIo(writeDeps);
+    await seedExampleHost(writeDeps);
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const reqTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-    const result = await call(reqTool, { input: { label: "fly.io", method, url: "https://api.fly.io/v1/apps/my-app", body: "{}" } });
+    const result = await call(reqTool, { input: { label: "example-host.io", method, url: "https://api.example-host.io/v1/apps/my-app", body: "{}" } });
 
     assert.equal((result as { executed: boolean }).executed, true, `${method} must run immediately`);
     assert.equal(httpClient.calls[0]!.method, method);
@@ -600,7 +600,7 @@ test("PUT and PATCH also run immediately with no confirmation", async () => {
 
 test("a grant revoked while DELETE approval is open refuses the approved request without decrypting", async () => {
   const { deps, sealer, httpClient, writeDeps, setAllow } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { pending, exchangeId } = await raiseDialog(tool(buildRegistrations(deps, exchanges), TOOL_ID));
   setAllow(false);
@@ -613,7 +613,7 @@ test("a grant revoked while DELETE approval is open refuses the approved request
 
 test("an abort during approved DELETE reauthorization prevents decryption and sending", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
-  await seedFlyIo(writeDeps);
+  await seedExampleHost(writeDeps);
   const controller = new AbortController();
   let authorizations = 0;
   const authorize = deps.authorize;

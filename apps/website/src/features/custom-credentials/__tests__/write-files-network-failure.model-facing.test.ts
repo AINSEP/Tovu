@@ -40,7 +40,7 @@ const LEAK_MARKER = "LEAK-";
 const SAVED_TOKEN = "LEAK-GITHUB-TOKEN-5d0e";
 const INTERNAL_ADDRESS = "10.0.4.7";
 
-const VALID_INPUT = { label: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const VALID_INPUT = { label: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] };
 
 type Step = { match: RegExp; status: number; json?: unknown } | { match: RegExp; error: Error };
 
@@ -59,7 +59,7 @@ class SteppedHttpClient implements HttpClientPort {
 const PLAN_STEPS: Step[] = [
   { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: "parent-sha" } } },
   { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
-  // One listing per parent directory (S21): root-level fly.toml is checked via the root listing.
+  // One listing per parent directory (S21): root-level example-host.toml is checked via the root listing.
   { match: /\/contents\?ref=main$/, status: 200, json: [] },
   // Commit now reads the immutable base tree to preserve existing file modes.
   { match: /\/git\/trees\/base-tree-sha$/, status: 200, json: { tree: [] } },

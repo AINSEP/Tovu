@@ -475,10 +475,10 @@ test("submit with no category hint at all: the credential is still created, land
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  // No `category` key in the model-issued call at all — the realistic "human typed 'save my fly.io
+  // No `category` key in the model-issued call at all — the realistic "human typed 'save my example-host.io
   // token', model had no category guess" path this fix closes.
   const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "fly.io", baseUrl: "https://api.fly.io", token: "a-fly-token" } }, { toolId: TOOL_ID });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "example-host.io", baseUrl: "https://api.example-host.io", token: "an-example-host-token" } }, { toolId: TOOL_ID });
 
   const result = (await pending) as { created: true; credential: { category: string } };
   assert.equal(result.created, true, "an omitted category must never block the save");
