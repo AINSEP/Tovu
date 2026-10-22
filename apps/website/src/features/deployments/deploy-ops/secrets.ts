@@ -111,7 +111,7 @@ const nextStep = (platform: LoadedDeployOps, target: string) => (platform.module
  * @returns Names, vendor digests, update times, truncation and when writes take effect.
  * @throws {ToolInputError} Unknown or secrets-less platforms, credential/host/auth failures, malformed adapter output.
  * @complexity Time and space: O(credentials + secrets).
- * @example await runListSecrets({ deps, input: { platform: "fly", target: "my-app" } });
+ * @example await runListSecrets({ deps, input: { platform: "my-host", target: "my-app" } });
  */
 export async function runListSecrets(required: { deps: DeployOpsToolDeps; input: SecretTargetInput }, optional: { signal?: AbortSignal } = {}) {
   const { deps, input } = required; const { signal } = optional;

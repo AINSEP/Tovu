@@ -3,9 +3,9 @@ import { RETIRED_PLUGIN_REPLACEMENTS, toAgentPluginToolId } from "./bundled-cata
 
 /**
  * @file Keeps a retired plugin's tool name callable (Phase B7, 2026-10-12): `agent_plugin_deploy`
- * answers with `agent_plugin_fly`'s registration — the same handler and the same policy, so Fly's
- * activation/digest/revocation gate decides every call; switching Fly off or uninstalling it
- * silences the alias too. An agent, a saved conversation or a skill that still names the old tool
+ * answers with its successor's registration (`RETIRED_PLUGIN_REPLACEMENTS`) — the same handler and the
+ * same policy, so the successor's activation/digest/revocation gate decides every call; switching the
+ * successor off or uninstalling it silences the alias too. An agent, a saved conversation or a skill that still names the old tool
  * then reaches the guidance that replaced it instead of an unknown-tool error.
  *
  * Aliases are registered only AFTER the family's own registrations, and only for an id nothing

@@ -155,8 +155,8 @@ ENV NODE_ENV=production
 # - `web_screenshot_page`: reports `available: false` instead of a screenshot.
 #
 # HOW TO OPT IN, per host: `docker build --build-arg TOVU_INSTALL_BROWSER=1`;
-# docker-compose.yml's `build.args`; the Fly plugin's generated `[build.args]` (or
-# `flyctl deploy --build-arg TOVU_INSTALL_BROWSER=1`); the GitHub workflows'
+# docker-compose.yml's `build.args`; a hosting plugin's generated build args (its own
+# docs name the host CLI's `--build-arg` form); the GitHub workflows'
 # `TOVU_INSTALL_BROWSER` build arg; Render/Railway: a service environment
 # variable `TOVU_INSTALL_BROWSER=1` (both pass service variables to Dockerfile
 # builds as build args for every declared `ARG`).
