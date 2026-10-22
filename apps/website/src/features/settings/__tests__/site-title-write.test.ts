@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, ForbiddenError, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { set, ValueValidationFailedError } from "../index.js";
 import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../site-title.js";
@@ -169,7 +169,7 @@ test("core.comments/provider is refused at the chokepoint unless written by the 
   });
   const target = { namespace: "core.comments", key: "provider" };
   const before = await revisionCount(ledger);
-  await assert.rejects(ownerWrite(ledger, target, ""), (err: unknown) => err instanceof ValueValidationFailedError && /comments_set_provider/.test(err.message));
+  await assert.rejects(ownerWrite(ledger, target, ""), (err: unknown) => err instanceof ForbiddenError && /comments_set_provider/.test(err.message));
   assert.equal(await revisionCount(ledger), before, "nothing reaches the ledger");
   await set({ deps: { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals },
     input: { ...target, scope: "workspace", workspaceId: WORKSPACE_ID, value: "", callerPrincipalId: OWNER_PRINCIPAL_ID, requiredPermissionOverride: "comments.configure" } });

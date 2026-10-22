@@ -147,7 +147,7 @@ async function handleSitesMcpRequest(message: InboundMessage | null | undefined,
   // undefined — the `!` below states that rather than re-testing it.
   if (NOTIFICATIONS.has(method) || !hasRequestId(message!.id)) return null;
 
-  const handler = (METHODS as Record<string, McpMethodHandler>)[method];
+  const handler = Object.hasOwn(METHODS, method) ? (METHODS as Record<string, McpMethodHandler>)[method] : undefined;
   if (handler === undefined) {
     return {
       jsonrpc: "2.0",

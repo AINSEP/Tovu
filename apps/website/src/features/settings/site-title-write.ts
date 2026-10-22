@@ -82,13 +82,14 @@ function isCommentsProvider(definition: ResolvedDefinition, _options = {}): bool
   return definition?.namespace === COMMENTS_PROVIDER_SETTING.namespace && definition.key === COMMENTS_PROVIDER_SETTING.key;
 }
 
-/** See {@link COMMENTS_PROVIDER_SETTING}. @complexity O(1). */
+/** Refuse writes without the comments approval; see {@link COMMENTS_PROVIDER_SETTING}.
+ * @throws {ForbiddenError} When the comments selection permission is absent. @complexity O(1). */
 function refuseUncardedCommentsProviderWrite({ required, definition }: {
   required: SetValueRequired; definition: ResolvedDefinition;
 }, _options = {}): void {
   if (!isCommentsProvider(definition)) return;
   if (required.input.requiredPermissionOverride !== "comments.configure") {
-    throw new ValueValidationFailedError(COMMENTS_PROVIDER_WRITE_REASON);
+    throw new ForbiddenError(COMMENTS_PROVIDER_WRITE_REASON);
   }
 }
 

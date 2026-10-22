@@ -144,6 +144,14 @@ test("an unsupported method answers -32601 and never a result", async () => {
   assert.match(response!.error!.message, /resources\/list/);
 });
 
+test("prototype names are unsupported request methods", async () => {
+  for (const method of ["toString", "constructor", "__proto__"]) {
+    const response = await handleSitesMcpRequest({ jsonrpc: "2.0", id: 7, method }, fakeContext());
+    assert.equal(response!.error!.code, METHOD_NOT_FOUND);
+    assert.equal(response!.result, undefined);
+  }
+});
+
 test("every response carries jsonrpc 2.0 and echoes its request id", async () => {
   const context = fakeContext();
 

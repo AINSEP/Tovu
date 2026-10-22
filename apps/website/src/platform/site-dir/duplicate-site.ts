@@ -58,6 +58,7 @@ import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
  *   `domain`/`port`: two site directories claiming the same custom domain, or the same fixed port,
  *   is a live-traffic footgun this function refuses to create silently. A caller who genuinely wants
  *   either carried over sets it explicitly after duplicating, the same as after `createSite`.
+ *   The source's optional timezone is kept so copied content retains its local dates.
  * - `.site-meta.json` — THE SCHEMA-STAMP TRAP. This function performs no migration of its own; the
  *   `content.db` it ships is a copy of the SOURCE's database — minus the chat/session tables — at
  *   whatever schema state that database was actually in. Stamping the RUNTIME's
@@ -197,7 +198,7 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
 
   const resolvedName = resolveSiteName(target, name); // pre-write VALIDATION, mirrors initSite step 1.
   validateInitTarget(target); // pre-write INIT_DIR_NOT_EMPTY, mirrors initSite step 2.
-  const { meta: sourceMeta } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
+  const { meta: sourceMeta, config: sourceConfig } = readSiteDir({ dir: source }); // pre-write SITE_DIR_INVALID — nothing created yet.
   const storage = duplicableStorage(sourceMeta.storage);
 
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
@@ -207,7 +208,7 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
   const progress: DuplicateProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
-    writeDuplicateFolder({ source, target, resolvedName }, progress);
+    writeDuplicateFolder({ source, target, resolvedName, sourceConfig, progress });
     await copySiteDatabase({ source, target, storage, contentDbPath: paths.contentDbPath, externalDbDir, workspace }, progress);
 
     // .site-meta.json — the commit marker, written LAST on success (mirrors initSite's own
@@ -245,8 +246,11 @@ function duplicableStorage(stored: SiteMetaJson["storage"]): DuplicableStorage {
   return storage;
 }
 
-/** The target folder, its portable entries and its own `config.json`, raising `progress.wroteAnything` before each write. */
-function writeDuplicateFolder({ source, target, resolvedName }: { source: string; target: string; resolvedName: string }, progress: DuplicateProgress): void {
+/** Write portable entries and the new site's config, preserving its source timezone.
+ * Raises `progress.wroteAnything` before each write. @complexity O(source bytes) time, O(1) extra space. */
+function writeDuplicateFolder({ source, target, resolvedName, sourceConfig, progress }: {
+  source: string; target: string; resolvedName: string; sourceConfig: ConfigJson; progress: DuplicateProgress;
+}, _options = {}): void {
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target);
     progress.wroteAnything = true;
@@ -275,7 +279,8 @@ function writeDuplicateFolder({ source, target, resolvedName }: { source: string
   progress.wroteAnything = true;
 
   // config.json — new display name, domain/port reset (see this file's own header).
-  const config: ConfigJson = { name: resolvedName, domain: null, port: null };
+  const config: ConfigJson = { name: resolvedName, domain: null, port: null,
+    ...(sourceConfig.timezone === undefined ? {} : { timezone: sourceConfig.timezone }) };
   writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
 }
 
