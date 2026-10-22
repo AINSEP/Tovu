@@ -364,6 +364,20 @@ export type ThemeExplorePublishState =
   | { kind: "locked"; on: boolean; reason: string };
 
 /**
+ * What a click on the publish switch does: a live toggle asks for the opposite of its published
+ * state; a locked switch dispatches nothing. Checked on `state.kind` rather than trusting the DOM's
+ * "a disabled button doesn't fire click", so no wrapper or simulated click can publish a locked page.
+ *
+ * @complexity O(1).
+ */
+export function dispatchPublishToggle(
+  state: ThemeExplorePublishState,
+  setPagePublished: (published: boolean) => Promise<void>,
+): void {
+  if (state.kind === "toggle") void setPagePublished(!state.published);
+}
+
+/**
  * The reason — and the fixed switch position that goes with it — for a page that EXISTS but can
  * never be independently toggled. `theme.ts`'s `isPublishableThemePageCandidate` returns false for
  * exactly three shapes: `index`/`404` (`NON_ROUTABLE_THEME_PAGE_IDS`) or a declared Post/Page
