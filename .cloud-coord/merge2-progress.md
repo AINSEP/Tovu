@@ -1,0 +1,11 @@
+# merge2 progress (cloud/merge-2026-10-21, job 2, started 02:13Z)
+- 02:15 setup; pre-merge2 tips Tovu f27498bd7, Jini 9cee44e4.
+- local-ui: Jini clean, Tovu clean (ba7265ff1).
+- fix-site-port-bugs: clean both (Tovu 698866eed, Jini 866129af).
+- assistant-runtime: clean both (Tovu 0ad4a3052, Jini 76fefca0).
+- cov-fill-rest: clean both (Tovu b53868318, Jini 1c82b1a0).
+- cov-fill-T2 (Tovu only): clean bb1aaa43a.
+- cov-fill-T3 (Tovu): 2 conflicts (assistant-system-overlay.ts + its unit test; kept BATCH_GUIDANCE and buildBashGuidanceBlock) d16e52dfc; sub-branch s5 had 2 commits not in T3 -> merged c57f0fa8f.
+- Jini install+build green; Jini tsc 0 errors in all 10 touched pkgs; Tovu tsc web 9 / admin 4 errors = identical to f27498bd7 baseline.
+- OWNER ITEM ad1476668.
+- 02:25 test batches running.
