@@ -2,7 +2,7 @@ import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
-import type { WorkspaceRouteRegistrar } from "./deps.js";
+import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
  * Maps `deleteWorkspace`'s thrown error types onto the admin error envelope (mirrors
@@ -29,6 +29,41 @@ export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
 
   console.error(`admin workspace delete route failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
   res.status(500).json({ error: "internal error" });
+}
+
+/**
+ * INV-05 (identity, not count — see the route's header below) followed by the domain delete.
+ *
+ * Extracted from the route handler and exported for direct-invoke coverage, for the same reason
+ * `sendDeleteWorkspaceError` is: the route's `:workspaceId` check narrows every addressable target
+ * to `deps.workspaceId`, so over HTTP this always takes the BOUND_WORKSPACE refusal in v1, and the
+ * not-bound path below has no live caller until a second workspace becomes addressable. Deletes
+ * `targetWorkspaceId` — the only id this path can ever see is one that is NOT the bound workspace.
+ * Throws the domain's typed errors for the caller's `sendDeleteWorkspaceError` to map.
+ *
+ * @complexity O(1) plus `deleteWorkspace`'s own O(workspaces) roster check.
+ */
+export async function deleteWorkspaceUnlessBound(
+  res: Response,
+  deps: Pick<WorkspaceRouteDeps, "workspaceId" | "workspaceRepo">,
+  targetWorkspaceId: string
+): Promise<void> {
+  if (targetWorkspaceId === deps.workspaceId) {
+    res.status(409).json({
+      error: "the workspace this server is bound to cannot be deleted while it is serving that workspace",
+      code: "BOUND_WORKSPACE",
+    });
+    return;
+  }
+
+  const transaction = deps.workspaceRepo.transaction;
+  if (!transaction) throw new Error("workspace deletion requires a transaction port");
+  await deleteWorkspace({
+    deps: { repo: deps.workspaceRepo, transaction: transaction.bind(deps.workspaceRepo) },
+    input: { id: targetWorkspaceId },
+  });
+
+  res.status(204).send();
 }
 
 /**
@@ -80,23 +115,7 @@ export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, 
       )
         return;
 
-      // INV-05: identity, not count. See this file's header.
-      if (targetWorkspaceId === deps.workspaceId) {
-        res.status(409).json({
-          error: "the workspace this server is bound to cannot be deleted while it is serving that workspace",
-          code: "BOUND_WORKSPACE",
-        });
-        return;
-      }
-
-      const transaction = deps.workspaceRepo.transaction;
-      if (!transaction) throw new Error("workspace deletion requires a transaction port");
-      await deleteWorkspace({
-        deps: { repo: deps.workspaceRepo, transaction: transaction.bind(deps.workspaceRepo) },
-        input: { id: deps.workspaceId },
-      });
-
-      res.status(204).send();
+      await deleteWorkspaceUnlessBound(res, deps, targetWorkspaceId);
     } catch (err) {
       sendDeleteWorkspaceError(res, err);
     }
