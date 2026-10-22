@@ -168,3 +168,19 @@ test("widget/widget-area references: a widget names the media its config uses; a
   const areaRefs = (await byType.get("widget-area")!.references!(area)).map((r) => JSON.stringify(r));
   assert.ok(areaRefs.some((r) => r.includes(a.id)) && areaRefs.some((r) => r.includes(b.id)), `area references name both placed widgets: ${areaRefs.join(" ")}`);
 });
+
+test("widget precheck refuses a widget type the destination lacks, and settings its schema rejects", async () => {
+  const { src, dst, a } = await sites();
+  const entities = await packAll(src.site);
+  const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const others = entities.filter((e) => e !== widget && e.entityType === "widget");
+  const reasonFor = async (state: Record<string, unknown>) =>
+    (await plan([...others, { ...widget, state: { ...widget.state, ...state } }], dst.site)).rows.find((r) => r.entityId === a.id);
+
+  const unknown = await reasonFor({ widgetType: "no-such-widget-type" });
+  assert.equal(unknown?.outcome, "blocked");
+  assert.equal(unknown?.reason, `widget '${a.id}': widget type 'no-such-widget-type' is not installed on the destination`);
+  const invalid = await reasonFor({ config: { body: 42 } });
+  assert.equal(invalid?.outcome, "blocked");
+  assert.equal(invalid?.reason, `widget '${a.id}': its settings do not fit the destination's 'text' widget`);
+});
