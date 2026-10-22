@@ -13,6 +13,8 @@ import {
   CHAT_SHOW_USAGE_LINE_KEY,
   CHAT_TOOL_CALLS_KEY,
   ensureAdminInterfaceSettingDefinitions,
+  PREFER_SUBAGENTS_KEY,
+  USE_CLAUDE_IN_CHROME_KEY,
 } from "../admin-interface.js";
 
 /**
@@ -148,4 +150,31 @@ test('Agent plugins defaults Auto and supports independent per-person values', a
   assert.equal((await read('alice')).value, 'auto');
   assert.equal((await read('bob')).value, 'off');
   await assert.rejects(set({ deps: writeDeps, input: { ...input, value: 'invalid' } }));
+});
+
+test("assistant runtime preference: preferSubagents is a per-person boolean defaulting ON", async () => {
+  const { settingsRepo } = await registeredLedger();
+  // The admin mirror (`assistant-runtime-preferences.ts`) and the run-time reader use this literal.
+  assert.equal(PREFER_SUBAGENTS_KEY, "preferSubagents");
+  const def = await definition(settingsRepo, PREFER_SUBAGENTS_KEY);
+  assert.ok(def, "core.interface/preferSubagents must be registered");
+  assert.deepEqual(def.schema, { type: "boolean" });
+  assert.equal(def.defaultValue, true);
+  assert.equal(def.scopes, PER_OPERATOR);
+  const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
+  assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: PREFER_SUBAGENTS_KEY, scopeContext }),
+    { value: true, sourceLayer: "default", defVersion: 1 });
+});
+
+test("assistant runtime preference: useClaudeInChrome is a per-person boolean defaulting OFF", async () => {
+  const { settingsRepo } = await registeredLedger();
+  assert.equal(USE_CLAUDE_IN_CHROME_KEY, "useClaudeInChrome");
+  const def = await definition(settingsRepo, USE_CLAUDE_IN_CHROME_KEY);
+  assert.ok(def, "core.interface/useClaudeInChrome must be registered");
+  assert.deepEqual(def.schema, { type: "boolean" });
+  assert.equal(def.defaultValue, false);
+  assert.equal(def.scopes, PER_OPERATOR);
+  const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
+  assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext }),
+    { value: false, sourceLayer: "default", defVersion: 1 });
 });

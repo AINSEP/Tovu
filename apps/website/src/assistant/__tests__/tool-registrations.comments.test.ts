@@ -37,6 +37,7 @@ import { contributeCommentsTools } from "../../features/comments/tool-registrati
 
 import { commentTrashDoubles } from "../../features/comments/__tests__/comment-trash-doubles.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -201,8 +202,8 @@ test("every wired Comments registration publishes its catalog entry's inputSchem
     // file could not have built its registrations at all had that thrown.
     if (id.startsWith("content_read.")) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

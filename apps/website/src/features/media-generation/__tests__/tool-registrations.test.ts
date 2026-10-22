@@ -34,6 +34,7 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
 import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegistry, type MediaGenerationRequest, type MediaProviderContribution, type MediaProviderRegistry, type MediaGenerationResult, type ProviderCredentials } from "@jini-ai/integrations/media-providers";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -216,8 +217,9 @@ test("media_generate_asset publishes its catalog entry's inputSchema and descrip
   const { deps } = fakeRouteDeps();
   const registration = wired("media_generate_asset", deps);
   assert.ok(registration.descriptor.inputSchema);
-  assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
-  assert.equal(registration.descriptor.description, catalogEntry("media_generate_asset").description);
+  const published = publishedCatalogDescriptor({ registration, entry: catalogEntry("media_generate_asset") });
+  assert.deepEqual(registration.descriptor.inputSchema, published.inputSchema);
+  assert.equal(registration.descriptor.description, published.description);
   assert.equal(registration.descriptor.description?.includes("call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved."), true);
   assert.equal(registration.descriptor.description?.includes("Do not retry"), false);
 });

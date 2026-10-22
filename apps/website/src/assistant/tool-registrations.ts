@@ -372,7 +372,7 @@ export function buildAssistantToolRegistrations(
    *  this at its default. */
   options: {
     readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
-    /** Test seam: which tools take `items` (default `BATCHABLE_TOOLS`); lets a test batch a tool whose approval class asks. */
+    /** Test seam: which tools take `items` (default: every tool not on `BATCH_OPT_OUT`); lets a test batch a tool whose approval class asks. */
     readonly batchableTools?: readonly BatchableTool[];
     /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
     readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;

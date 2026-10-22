@@ -11,6 +11,7 @@ import ts from "typescript";
 import { createChatDeleteScope } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective, set } from "@jini-ai/core/settings";
 import { readAssistantCliPermissions } from "../../../../assistant/subagent-settings.js";
+import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 
 /**
  * @file Wiring proof for Finding 2 of SEC-assistant-env-isolation-2026-09-07: reads the SOURCE of
@@ -178,6 +179,7 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
       buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantSubagentsContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },
+      buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     });
   const observed: { enabled: boolean; overlay: string; tools: readonly string[] }[] = [];
   await Promise.all([true, false].map(enabled => captureDaemonRun({ prompt: "Import posts" }, { bindings: {

@@ -36,6 +36,7 @@ import { contributeRecoveryTools } from "../../features/recovery/tool-registrati
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 
 const contributions = {
@@ -375,8 +376,8 @@ test("every wired database/recovery registration publishes its catalog entry's i
     // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
     // `buildDomainRegistrations` call at construction time.
     if (id.startsWith("content_read.")) continue;
-    assert.deepEqual(registration.descriptor.inputSchema, databaseCatalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, databaseCatalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: databaseCatalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: databaseCatalogEntry(id) }).description);
   }
   for (const [id, registration] of recoveryRegistrations(deps)) {
     // Skip the one id that collides across both catalogs — this registration IS Database's own
@@ -389,8 +390,8 @@ test("every wired database/recovery registration publishes its catalog entry's i
     // description are cross-checked against ITS OWN catalog by `deriveContentReadRegistrations`'s
     // `buildDomainRegistrations` call at construction time.
     if (id.startsWith("content_read.")) continue;
-    assert.deepEqual(registration.descriptor.inputSchema, recoveryCatalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, recoveryCatalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: recoveryCatalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: recoveryCatalogEntry(id) }).description);
   }
 });
 

@@ -375,6 +375,8 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
+    // Chrome/subagent preferences resolve before the run; OFF contributes no options here.
+    runtimeLaunch: { guidance: "", runOptions: {} },
   });
   const { required, optional } = await captured;
   assert.equal(Object.hasOwn(required, "permissionMode"), false);

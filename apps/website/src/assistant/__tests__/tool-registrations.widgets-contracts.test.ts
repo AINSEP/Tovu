@@ -37,6 +37,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -212,8 +213,8 @@ test("every wired Widgets registration publishes its catalog entry's inputSchema
   for (const [id, registration] of widgetsRegistrations(deps)) {
     if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

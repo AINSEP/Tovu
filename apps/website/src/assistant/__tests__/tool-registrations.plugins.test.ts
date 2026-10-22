@@ -25,6 +25,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 
 const contributions = {
@@ -162,8 +163,8 @@ test("every wired plugins registration publishes its catalog entry's inputSchema
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.plugin") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

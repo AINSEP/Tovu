@@ -24,7 +24,7 @@ import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
@@ -192,8 +192,8 @@ test("every wired Forms registration publishes its catalog entry's inputSchema a
     if (id === "content_read.form_definition" || id === "content_read.collection_content_type") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     // A batchable tool publishes its catalog entry plus the shared `items` field.
-    const batchable = BATCHABLE_TOOLS.find(tool => tool.toolId === id);
     const catalog = { ...registration.descriptor, inputSchema: catalogEntry(id).inputSchema, description: catalogEntry(id).description };
+    const [batchable] = resolveBatchableTools({ registrations: [{ ...registration, descriptor: catalog }] });
     const expected = batchable ? batchDescriptorFor({ descriptor: catalog, tool: batchable }) : catalog;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);

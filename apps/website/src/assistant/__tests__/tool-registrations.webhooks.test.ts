@@ -33,6 +33,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from "./fixtures/execute-registered-tool.js";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 
 const contributions = {
@@ -166,11 +167,11 @@ test("every wired webhooks registration publishes its catalog contract, includin
     const descriptor = { id, inputSchema: catalog.inputSchema, description: catalog.description };
     // d1c1fbd9a added one-card delete plans; 13138e356 normalizes their items in Jini.
     const plan = id === "webhooks_delete_subscription";
-    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : descriptor;
+    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : publishedCatalogDescriptor({ registration, entry: catalog });
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must derive from its catalog entry`);
     assert.equal(registration.descriptor.description, plan
       ? `${catalog.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.`
-      : catalog.description);
+      : expected.description);
   }
 });
 

@@ -24,7 +24,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { toolGapsAgentToolCatalog } from "../tool-gaps-tool.js";
-import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
@@ -115,6 +115,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -379,7 +380,8 @@ test("every wired registration publishes the inputSchema from its catalog entry 
     const catalogDescriptor = { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
     // A batchable tool publishes its catalog contract plus `items` — asserted against the REAL
     // derivation (`batchDescriptorFor`), in the order the assembly applies it (batch, then rewrite).
-    const batchable = BATCHABLE_TOOLS.find((tool) => tool.toolId === id);
+    // load_agent_plugin is run-scoped: both roots append it after the assembly's batch pass.
+    const [batchable] = id === "load_agent_plugin" ? [] : resolveBatchableTools({ registrations: [{ ...registration, descriptor: catalogDescriptor }] });
     const expected = rewrite({ ...registration, descriptor: batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor }).descriptor;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);
@@ -776,7 +778,7 @@ test("assistant_admin_screen_link is wired into the real assistant tool registry
 
   assert.equal(registration.descriptor.readOnly, true, "a fallback that only points at a screen must be read-only");
   assert.equal(registration.descriptor.requiresConfirmation, undefined);
-  assert.deepEqual(registration.descriptor.inputSchema, adminScreenLinkAgentToolCatalog[0]!.inputSchema);
+  assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: adminScreenLinkAgentToolCatalog[0]! }).inputSchema);
 });
 
 // ---------------------------------------------------------------------------

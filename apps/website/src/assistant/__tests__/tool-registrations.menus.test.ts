@@ -28,6 +28,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeMenusTools } from "../../features/navigation/tool-registrations.js";
 import { createRetiredReadToolIdRewriter } from "../content-read-tool.js";
 import { KEYWORD_MARKER } from "../tool-search-keywords.js";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const rewriteRetiredMenuReads = createRetiredReadToolIdRewriter({ retiredIds: new Set(["menus_list_menus", "menus_get_menu"]) });
 
@@ -151,7 +152,7 @@ test("every wired Menus registration publishes its catalog entry's inputSchema a
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     // The one sanctioned difference: the collapse points the catalog's mentions of the retired
     // menus_list_menus/menus_get_menu at content_read.menu (`createRetiredReadToolIdRewriter`).
-    const expected = rewriteRetiredMenuReads({ ...registration, descriptor: { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema } }).descriptor;
+    const expected = rewriteRetiredMenuReads({ ...registration, descriptor: publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }) }).descriptor;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);
   }

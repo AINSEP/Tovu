@@ -545,6 +545,32 @@ for (const scope of ['user', 'workspace'] as const) {
   });
 }
 
+// Claude in Chrome drives the person's real, logged-in browser: an agent must never turn it on (or
+// clear an OFF override) without a fresh human card, even when a plugin's escalation is remembered.
+test("core.interface.useClaudeInChrome asks a human every time, even with a saved plugin grant", async () => {
+  const f = fixture("core.interface", "useClaudeInChrome", { type: "boolean" });
+  f.deps.approvalIdentityForRun = async () => ({ key: "already-approved-plugin", label: "Example" });
+  f.deps.nativeApprovalMemory = {
+    has: async () => assert.fail("Claude in Chrome must not consult saved grants"),
+    grant: async () => assert.fail("Claude in Chrome must not save approval grants"),
+  };
+  const input = { namespace: "core.interface", key: "useClaudeInChrome", scope: "user" as const };
+  const cards: string[] = [];
+  const answer = (toolId: string, decision: "confirm" | "cancel") => ({ emitSurface: async (emission: unknown) => {
+    cards.push(JSON.stringify(emission));
+    assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision } }, { toolId }), { ok: true });
+  } });
+  await assert.rejects(f.call("settings_set_value", { ...input, value: true }), /NO_CONFIRMATION_CHANNEL/);
+  await assert.rejects(f.call("settings_set_value", { ...input, value: true }, answer("settings_set_value", "cancel")), /human did not confirm/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+  for (const value of [true, false]) await f.call("settings_set_value", { ...input, value }, answer("settings_set_value", "confirm"));
+  assert.equal((await f.settingsRepo.getUserValue({ workspaceId: "ws-1", settingId: "setting-1", principalId: "caller" }))?.valueJson, false);
+  await assert.rejects(f.call("settings_clear_value", input, answer("settings_clear_value", "cancel")), /human did not confirm/);
+  assert.equal(cards.length, 4);
+  assert.ok(cards[0]!.includes("Lets the assistant control your own Chrome browser"), "the card says what the change does");
+  assert.ok(cards.every(card => card.includes("This change requires your confirmation every time.")));
+});
+
 // Delivery bindings route every new submission's answers to outside destinations, and the receiver
 // decides where a static site's visitors submit: an agent must never change either without a human,
 // and a plugin's saved escalation grant does not cover them.

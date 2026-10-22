@@ -14,7 +14,7 @@ import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
-import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
+import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
@@ -198,8 +198,8 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
     // file could not have built its registrations at all had that thrown.
     if (id.startsWith("content_read.")) continue;
     // A batchable tool publishes its catalog entry plus `items`, via the real `batchDescriptorFor`.
-    const batchable = BATCHABLE_TOOLS.find((tool) => tool.toolId === id);
     const catalogDescriptor = { id, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
+    const [batchable] = resolveBatchableTools({ registrations: [{ ...registration, descriptor: { ...registration.descriptor, ...catalogDescriptor } }] });
     const expected = batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, expected.description);

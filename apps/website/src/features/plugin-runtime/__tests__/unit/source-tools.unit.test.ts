@@ -8,7 +8,7 @@ import { PluginInstallError, PluginSourceError, type PluginSourcePort, type Plug
 import { buildPluginSourceRegistrations, contributePluginSourceTools, pluginSourceAgentToolCatalog, pluginSourceDerivedRisk } from '../../source-tools.js';
 import { pluginAgentToolCatalog } from '../../agent-tools.js';
 import { toolMetadata } from '../../../../contracts/core/tool-metadata/plugin-runtime.js';
-import { BATCHABLE_TOOLS } from '../../../../assistant/batch-tool-inputs.js';
+import { resolveBatchableTools } from '../../../../assistant/batch-tool-inputs.js';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';
 
 const preview: PluginInstallPreview = { id: 'rules', name: 'Rules', version: '0.1.0', tier: 'tier-3', capabilities: [], hooks: [], hasCode: true, digest: 'sha256-' + 'a'.repeat(64), contentTypes: [], conflicts: [] };
@@ -116,7 +116,11 @@ test('tool schema, metadata, callback admission and batch mirrors cover the work
     const policy = toolMetadata[tool.name as keyof typeof toolMetadata].approval;
     assert.equal(policy.confirmation, tool.name === 'plugin_source_delete' ? 'plan' : 'direct');
   }
-  for (const name of ['plugin_source_read', 'plugin_source_write', 'plugin_source_edit']) assert.equal(BATCHABLE_TOOLS.some(tool => tool.toolId === name), true);
+  const batchable = resolveBatchableTools({ registrations: pluginSourceAgentToolCatalog.map(tool => ({
+    descriptor: { id: tool.name, description: tool.description, inputSchema: tool.inputSchema, readOnly: tool.sideEffects === 'none' },
+    handler: async () => ({}), policy: { authorize: () => 'allow' as const } })) }).map(tool => tool.toolId);
+  for (const name of ['plugin_source_read', 'plugin_source_write', 'plugin_source_edit']) assert.equal(batchable.includes(name), true);
+  assert.equal(batchable.includes('plugin_source_delete'), false, 'a permanent delete never batches per item');
   assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', true), true);
   assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', false), false);
 });
