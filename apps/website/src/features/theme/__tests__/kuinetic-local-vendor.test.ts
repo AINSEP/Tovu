@@ -3,6 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { renderStaticPage } from "../static-render.js";
+import { loadTheme } from "../theme.js";
+
 const ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const STOCK_THEMES = ["tovu-starter", "tovu-theme"];
 // Fixing only the live tree reintroduces the CDN tag on Reset/reinstall, so both copies are checked.
@@ -71,6 +74,19 @@ test("each stock footer partial loads the theme's local kUInetic exactly once", 
       assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.js`], `${id}/${partial}: one local kUInetic tag`);
       assert.doesNotMatch(markup, /<script\b[^>]*src=["']https?:/i, `${id}/${partial}: no remote script`);
       assert.ok(!markup.includes("document.write("), `${id}/${partial}: no document.write`);
+    }
+  }
+});
+
+test("every rendered stock page runs exactly one kUInetic script, the theme's local copy", () => {
+  for (const id of STOCK_THEMES) {
+    const theme = loadTheme({ themeDir: path.join(ROOT, "content/themes/static", id), id, source: "site" });
+    assert.equal(theme.status, "valid", `${id}: ${JSON.stringify(theme.errors)}`);
+    for (const pageId of Object.keys(theme.pages)) {
+      const html = renderStaticPage({ theme, pageId, menus: {} }) ?? "";
+      const tags = [...html.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<script\b[^>]*src=["']([^"']*kuinetic[^"']*)["']/gi)].map((m) => m[1]);
+      assert.deepEqual(tags, [`/theme-assets/${id}/scripts/vendor/kuinetic.all.js`], `${id}/${pageId}`);
+      assert.ok(!html.includes("document.write("), `${id}/${pageId}: no document.write`);
     }
   }
 });
