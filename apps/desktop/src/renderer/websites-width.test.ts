@@ -24,7 +24,10 @@ test('Websites fits at 375px with every nav control and header action inside the
   const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const foldersSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
   const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
-  const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(foldersSource, 'SitesFoldersWarning') });
+  // `SettingsDialogShell` is the dialog's default `Shell` parameter; the dialog stays closed here, so its frame never renders.
+  const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog', {
+    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(foldersSource, 'SitesFoldersWarning'), SettingsDialogShell: () => null,
+  });
   const SitesFolders = () => createElement(SitesFoldersDialog, { settings });
   const NavLink = sourceFunction(source, 'NavLink', { navLinkClick, navAvailability, SectionIcon });
   const SettingsControl = sourceFunction(source, 'SettingsControl', {
