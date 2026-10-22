@@ -218,6 +218,31 @@ export async function editEmailTemplate(
   return toDetail(await loadTemplate({ deps: deps, id: id }));
 }
 
+/**
+ * Renames a template: only the row's title changes, through the post repo's compare-and-set write,
+ * so the HTML body and its revision ledger are untouched. Added for the admin Templates list
+ * (2026-10-22); the HTML store has no title of its own, which is why this is not a store write.
+ * @param required.input - `{ id, name, expectedVersion? }`.
+ * @throws {EmailTemplateNotFoundError} When `id` is not a live template.
+ * @throws {EmailTemplateVersionConflictError} On a stale `expectedVersion` or a concurrent write.
+ */
+export async function renameEmailTemplate(
+  { deps, input }: { deps: EmailTemplateDeps; input: Record<string, unknown> },
+  _optional: Record<string, never> = {},
+): Promise<EmailTemplateDetail> {
+  const id = requireText({ value: input.id, key: "id", max: EMAIL_TEMPLATE_NAME_MAX });
+  const name = requireText({ value: input.name, key: "name", max: EMAIL_TEMPLATE_NAME_MAX });
+  const expectedVersion = readExpectedVersion({ value: input.expectedVersion });
+  const row = await loadTemplate({ deps: deps, id: id });
+  if (expectedVersion !== undefined && expectedVersion !== row.version) {
+    throw new EmailTemplateVersionConflictError(`email template '${id}' is at version ${row.version}, not ${expectedVersion} — re-read it and retry`);
+  }
+  const record = { ...row, title: name, version: row.version + 1, updatedAt: nowIso({ clock: deps.clock }) };
+  const { applied } = await deps.postRepo.saveIfVersion({ record, ifVersion: row.version });
+  if (!applied) throw new EmailTemplateVersionConflictError(`email template '${id}' was edited elsewhere — re-read it and retry`);
+  return toDetail(await loadTemplate({ deps: deps, id: id }));
+}
+
 /** Every live template in the workspace, most recently updated first. */
 export async function listEmailTemplates({ deps, input = {} }: { deps: EmailTemplateDeps; input?: { limit?: unknown; cursor?: unknown } }, _optional: Record<string, never> = {}): Promise<{ templates: EmailTemplateSummary[]; nextCursor?: string }> {
   const limit = templatePageLimit({ value: input.limit });

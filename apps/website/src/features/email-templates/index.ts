@@ -17,6 +17,7 @@ export {
   listEmailTemplates,
   previewEmailTemplate,
   readFieldValues,
+  renameEmailTemplate,
   renderEmailTemplateForSend,
   type EmailTemplateDeps,
   type EmailTemplateDetail,

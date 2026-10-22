@@ -130,3 +130,25 @@ test("an unexpected listing failure is a bare 500", async (t) => {
   const broken = await boot(t, { override: { postRepo: { listHtmlByKind: async () => { throw new Error("disk"); } } as never } });
   assert.deepEqual(await broken.send("GET", BASE), { status: 500, json: { error: "internal error" } });
 });
+
+test("PATCH renames behind pages.edit_html: the title changes, the HTML does not, a stale version is 409", async (t) => {
+  const { send, asked } = await boot(t);
+  const created = await send("POST", BASE, { name: "Welcome", html: HTML });
+  const id = String(created.json.id);
+  const renamed = await send("PATCH", `${BASE}/${id}`, { name: "  Welcome back  ", expectedVersion: created.json.version });
+  assert.equal(renamed.status, 200);
+  assert.deepEqual([renamed.json.name, renamed.json.html, renamed.json.version], ["Welcome back", created.json.html, Number(created.json.version) + 1]);
+  const stale = await send("PATCH", `${BASE}/${id}`, { name: "Again", expectedVersion: created.json.version });
+  assert.deepEqual([stale.status, stale.json.code], [409, "CONCURRENT_EDIT"]);
+  assert.equal((await send("PATCH", `${BASE}/${id}`, { name: " " })).json.code, "VALIDATION_ERROR");
+  assert.equal((await send("PATCH", `${BASE}/nope`, { name: "X" })).json.code, "ENTRY_NOT_FOUND");
+  assert.deepEqual(asked.slice(1), ["pages.edit_html", "pages.edit_html", "pages.edit_html", "pages.edit_html"]);
+});
+
+test("PATCH refuses a concurrent write that lands between the read and the save", async (t) => {
+  const r = await boot(t);
+  const id = String((await r.send("POST", BASE, { name: "W", html: HTML })).json.id);
+  t.mock.method(r.deps.postRepo, "saveIfVersion", async () => ({ applied: false }));
+  const response = await r.send("PATCH", `${BASE}/${id}`, { name: "X" });
+  assert.deepEqual([response.status, response.json.code], [409, "CONCURRENT_EDIT"]);
+});

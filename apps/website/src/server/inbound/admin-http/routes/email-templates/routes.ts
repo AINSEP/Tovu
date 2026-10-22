@@ -10,6 +10,7 @@ import {
   listEmailTemplates,
   previewEmailTemplate,
   readFieldValues,
+  renameEmailTemplate,
   renderEmailTemplateForSend,
   type EmailTemplateDeps,
 } from "#src/features/email-templates/index";
@@ -93,6 +94,8 @@ const templateId = (req: Request) => String(req.params.templateId);
  * - `POST   …/email-templates/preview` (`content.read`) `{ id? | html?, values?, mode? }` -> preview
  * - `GET    …/email-templates/:templateId` (`content.read`) -> detail
  * - `PUT    …/email-templates/:templateId/html` (`pages.edit_html`) `{ html, expectedVersion? }` -> detail
+ * - `PATCH  …/email-templates/:templateId` (`pages.edit_html`) `{ name, expectedVersion? }` -> detail (rename; trash is the
+ *   generic `POST …/trash/items {type: "post", id}`, a template being a `posts` row)
  * - `POST   …/email-templates/:templateId/render` (`admin.forms.manage`) `{ values? }` -> `{ subject, html, text, missingFields }`
  */
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = (app, deps) => {
@@ -103,5 +106,6 @@ export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = (app, dep
   app.post(`${BASE}/preview`, limit, route(deps, "content.read", (req, _res, ops) => previewEmailTemplate({ deps: ops, input: body(req) })));
   app.get(`${BASE}/:templateId`, route(deps, "content.read", (req, _res, ops) => getEmailTemplate({ deps: ops, id: templateId(req) })));
   app.put(`${BASE}/:templateId/html`, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, res, ops) => editEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) }, actorId: actor(res) })));
+  app.patch(`${BASE}/:templateId`, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, _res, ops) => renameEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) } })));
   app.post(`${BASE}/:templateId/render`, limit, route(deps, "admin.forms.manage", (req, _res, ops) => renderEmailTemplateForSend({ deps: ops, id: templateId(req), values: readFieldValues({ value: body(req).values }) })));
 };
