@@ -75,7 +75,7 @@ function planSteps() {
 }
 
 /** The commit phase's first call (bebc5736f): a non-recursive read of the CONFIRMED base tree, so an
- *  overwritten file keeps its mode (100644/100755). `fly.toml` is absent here, so it is written 100644. */
+ *  overwritten file keeps its mode (100644/100755). `example-host.toml` is absent here, so it is written 100644. */
 function modeLookupStep() {
   return { match: /\/git\/trees\/base-tree-sha$/, status: 200, json: { tree: [], truncated: false } };
 }
@@ -128,7 +128,7 @@ async function seedGithub(writeDeps: CustomCredentialWriteDeps) {
   });
 }
 
-const VALID_INPUT = { label: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const VALID_INPUT = { label: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] };
 
 function buildRegistrations(deps: CustomCredentialsToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
   return new Map(buildCustomCredentialsRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
@@ -208,7 +208,7 @@ test("the direct call performs the real write (blob, tree, commit, ref) and repo
   assert.equal(blob!.method, "POST");
   assert.equal(blobBody.encoding, "base64");
   assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), VALID_INPUT.files[0]!.content);
-  assert.deepEqual(JSON.parse(Buffer.from(tree!.body!).toString("utf8")), { base_tree: "base-tree-sha", tree: [{ path: "fly.toml", mode: "100644", type: "blob", sha: "blob-sha" }] });
+  assert.deepEqual(JSON.parse(Buffer.from(tree!.body!).toString("utf8")), { base_tree: "base-tree-sha", tree: [{ path: "example-host.toml", mode: "100644", type: "blob", sha: "blob-sha" }] });
   assert.deepEqual(JSON.parse(Buffer.from(commit!.body!).toString("utf8")), { message: VALID_INPUT.commitMessage, tree: "new-tree-sha", parents: ["parent-sha"] });
   assert.deepEqual(JSON.parse(Buffer.from(ref!.body!).toString("utf8")), { sha: "new-commit-sha" });
   assert.ok(httpClient.calls.some((c) => c.url.endsWith("/git/blobs")));

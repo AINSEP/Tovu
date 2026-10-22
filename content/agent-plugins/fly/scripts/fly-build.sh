@@ -7,8 +7,8 @@
 # whatever the shell happens to be in.
 #
 # Usage:
-#   development/scripts/fly-build.sh [extra flyctl flags...]
-#   development/scripts/fly-build.sh --build-only --push --image-label mytag
+#   content/agent-plugins/fly/scripts/fly-build.sh [extra flyctl flags...]
+#   content/agent-plugins/fly/scripts/fly-build.sh --build-only --push --image-label mytag
 #
 # Requires:
 #   - flyctl on PATH, authenticated (`flyctl auth login` or FLY_API_TOKEN)
@@ -18,10 +18,13 @@
 #
 # This script only ASSEMBLES and RUNS the flyctl command; it does not decide
 # to deploy for you — that's still your call every time you invoke it.
+#
+# Lives in the Fly agent plugin (owner rule: vendor scripts stay out of core), four directories
+# below the Tovu repo root it deploys; TOVU_ROOT below walks back up to it.
 
 set -euo pipefail
 
-TOVU_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TOVU_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 if [ ! -f "$TOVU_ROOT/fly.toml" ]; then
   echo "error: $TOVU_ROOT/fly.toml does not exist." >&2

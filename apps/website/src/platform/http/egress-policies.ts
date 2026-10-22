@@ -106,7 +106,7 @@ export const MEDIA_IMPORT_EGRESS_POLICY: EgressPolicy = {
 /**
  * `features/custom-credentials`'s own policy for `custom_credential_verify`/
  * `custom_credential_make_request` — an authenticated call through a saved credential
- * (`fly.io`, `github`, ...) to its own operator-typed `baseUrl`. Differs from
+ * (`my-host`, `github`, ...) to its own operator-typed `baseUrl`. Differs from
  * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY} on exactly ONE axis, `maxRedirects` (everything else about
  * the call shape — a small JSON/text response, API-call-speed timeout — is unchanged, which is why
  * this is not a variant of {@link MEDIA_IMPORT_EGRESS_POLICY} either: that policy differs on THREE

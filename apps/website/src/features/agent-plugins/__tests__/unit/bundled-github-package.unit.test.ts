@@ -11,7 +11,7 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * @file The `github` bundled Agent Plugin's package is VALID, INSTALLABLE, host-AGNOSTIC, and still
  * says the specific things it was built to say.
  *
- * Mirrors `bundled-deploy-fly-server.unit.test.ts` and
+ * Mirrors `content/agent-plugins/fly/__tests__/bundled-package.test.mjs` and
  * `bundled-site-compliance-package.unit.test.ts` deliberately — same kinds of assertion, for the
  * same reasons — with one whole class those two do not need:
  *

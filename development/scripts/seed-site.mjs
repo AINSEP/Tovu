@@ -286,7 +286,7 @@ function uploadFileHasValidBytes(row, liveDir) {
  * Every uploads file git actually TRACKS under `liveDir`, as the `uploads/...`-relative,
  * forward-slash paths `git ls-files` prints — the same shape `uploads/${row.storage_key}` has.
  *
- * WHY GIT AND NOT THE DISK (2026-09-18). CI and the Fly image build from a git CLONE, and the
+ * WHY GIT AND NOT THE DISK (2026-09-18). CI and the production image build from a git CLONE, and the
  * Dockerfile copies `uploads/` out of that clone — so a blob that was never staged is absent from the
  * build context however valid it looks here. Checking only the working tree passed 16 such rows on
  * branch HEAD while the deployed commit shipped 6 of them (measured in

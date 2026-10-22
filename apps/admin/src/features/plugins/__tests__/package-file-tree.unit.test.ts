@@ -16,12 +16,12 @@ const DEPLOY_PATHS = [
   "mcp.json",
   "plugin.json",
   "tovu-deploy-targets.json",
-  "deploy-configs/fly.mjs",
+  "deploy-configs/example-host.mjs",
   "deploy-configs/railway.mjs",
   "targets/vercel.mjs",
   "targets/cloudflare-pages.mjs",
   "skills/deploy/SKILL.md",
-  "skills/deploy/references/fly-deploy.template.yml",
+  "skills/deploy/references/example-host-deploy.template.yml",
   "skills/deploy/references/cloudflare-pages.md",
 ];
 
@@ -39,14 +39,14 @@ describe("buildPackageFileTree", () => {
       "plugin.json",
       "tovu-deploy-targets.json",
       "deploy-configs/",
-      "  fly.mjs",
+      "  example-host.mjs",
       "  railway.mjs",
       "skills/",
       "  deploy/",
       "    SKILL.md",
       "    references/",
       "      cloudflare-pages.md",
-      "      fly-deploy.template.yml",
+      "      example-host-deploy.template.yml",
       "targets/",
       "  cloudflare-pages.mjs",
       "  vercel.mjs",
@@ -54,12 +54,12 @@ describe("buildPackageFileTree", () => {
   });
 
   it("gives folders their full path and files their path exactly as listed", () => {
-    const [configs] = buildPackageFileTree(["deploy-configs/fly.mjs"]);
+    const [configs] = buildPackageFileTree(["deploy-configs/example-host.mjs"]);
     expect(configs).toEqual({
       kind: "folder",
       name: "deploy-configs",
       path: "deploy-configs",
-      children: [{ kind: "file", name: "fly.mjs", path: "deploy-configs/fly.mjs" }],
+      children: [{ kind: "file", name: "example-host.mjs", path: "deploy-configs/example-host.mjs" }],
     });
   });
 
@@ -194,9 +194,9 @@ describe("packageFileIconKind", () => {
   it.each([
     ["mcp.json", "json"],
     ["SKILL.md", "markdown"],
-    ["fly.mjs", "javascript"],
+    ["example-host.mjs", "javascript"],
     ["index.ts", "typescript"],
-    ["fly-deploy.template.yml", "config"],
+    ["example-host-deploy.template.yml", "config"],
     ["logo.PNG", "image"],
     ["run.sh", "shell"],
     [".env", "config"],

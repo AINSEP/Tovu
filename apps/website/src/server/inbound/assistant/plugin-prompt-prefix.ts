@@ -47,7 +47,7 @@ export async function resolveAgentPluginPromptPrefix(
   if (pluginRefIds.length === 0) return "";
 
   const workspaceLayout = agentPluginLayout.forWorkspace(workspaceId);
-  // A run saved before a plugin was retired still pins its old id (`deploy` -> `fly`).
+  // A run saved before a plugin was retired still pins its old id (`RETIRED_PLUGIN_REPLACEMENTS` names the successor).
   const result = await resolveAgentPluginRefs(translateRetiredPluginRefs(pluginRefIds), workspaceLayout);
 
   if (!result.ok) {

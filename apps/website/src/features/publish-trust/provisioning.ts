@@ -492,7 +492,7 @@ export const COMMITTED_JSON_CODEC: ProvisioningCodec = {
  * Every adapter in this feature is this function plus a codec. Keeping the read/decode/parse/edit/
  * encode/write sequence in one place means a provider cannot accidentally get different merge
  * semantics from another — the bug that would show up as "connecting my desktop disconnected my
- * laptop, but only on Fly".
+ * laptop, but only on the hosted server".
  *
  * @param deps - `path` overrides the codec's conventional location; callers pass an absolute path.
  * @complexity O(n) in the provisioned grant count per call; one file read and at most one write.

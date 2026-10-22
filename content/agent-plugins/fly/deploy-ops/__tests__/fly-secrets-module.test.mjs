@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AT } from "./module-fixture.js";
-const fly = (await import(new URL("../../../../../../../content/agent-plugins/fly/deploy-ops/fly.mjs", import.meta.url).href)).default;
+import { AT } from "./module-fixture.mjs";
+import fly from "../fly.mjs";
 const API = "https://api.machines.dev/v1/apps/shop/secrets";
 
 /** A bound-facade double: scripted GET bodies and recorded writes; no host, credential or network. */
-function context(gets: Record<string, unknown>, sendResult: unknown = {}) {
-  const calls: string[] = []; const sent: Array<{ method: string; url: string; body?: unknown }> = [];
-  return { calls, sent, nowIso: () => AT, sleep: async () => {}, fail: (message: string): never => { throw new Error(message); },
-    get: async (url: string) => { calls.push(url); assert.equal(Object.hasOwn(gets, url), true, `unexpected GET ${url}`); return { status: 200, json: gets[url], text: JSON.stringify(gets[url]) }; },
-    send: async (request: { method: string; url: string; body?: unknown }) => { sent.push(request); return { status: 200, json: sendResult, text: JSON.stringify(sendResult) }; } };
+function context(gets, sendResult = {}) {
+  const calls = []; const sent = [];
+  return { calls, sent, nowIso: () => AT, sleep: async () => {}, fail: (message) => { throw new Error(message); },
+    get: async (url) => { calls.push(url); assert.equal(Object.hasOwn(gets, url), true, `unexpected GET ${url}`); return { status: 200, json: gets[url], text: JSON.stringify(gets[url]) }; },
+    send: async (request) => { sent.push(request); return { status: 200, json: sendResult, text: JSON.stringify(sendResult) }; } };
 }
 
 test("Fly declares staged secrets and lists names, digests and times without values", async () => {

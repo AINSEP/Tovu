@@ -6,10 +6,11 @@ import { parse as parseToml } from "smol-toml";
 import { load as parseYaml } from "js-yaml";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { packAgentPluginDirectory } from "../../lifecycle.js";
+import { packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 
 /**
- * @file The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be
+ * @file Moved from core (`apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-fly-server.unit.test.ts`)
+ * into the Fly plugin: vendor tests live with the vendor. The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be
  * its own bundled plugin, `tovu-deploy-fly` (merged 2026-09-29: one deploy plugin for every host,
  * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10). Since the 2026-10-12
  * Phase B split gives this procedure to `fly` ("Fly.io"), alongside its ops/config/scheme data.
@@ -28,22 +29,22 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  *    one of them wrong, and they are the kind of prose that erodes silently during an unrelated edit.
  */
 
-const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+const CONTENT_ROOT = path.resolve(import.meta.dirname, "../..");
 const PACKAGE_ROOT = path.join(CONTENT_ROOT, "fly");
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "fly");
-const FLY_REFERENCES = ["fly-server.md", "fly.template.toml", "fly-deploy.template.yml", "machines-api-path.md"] as const;
+const FLY_REFERENCES = ["fly-server.md", "fly.template.toml", "fly-deploy.template.yml", "machines-api-path.md"];
 
-async function readPackageFile(relativePath: string): Promise<string> {
+async function readPackageFile(relativePath) {
   return readFile(path.join(PACKAGE_ROOT, relativePath), "utf8");
 }
 
 /** The Fly server procedure — what the old plugin's SKILL.md said, now a reference of `deploy`. */
-async function readSkill(): Promise<string> {
+async function readSkill() {
   return readFile(path.join(SKILL_DIR, "references", "fly-server.md"), "utf8");
 }
 
 test("the old tovu-deploy-fly package is gone — retire-bundled.ts removes it from workspaces", async () => {
-  await assert.rejects(() => access(path.join(CONTENT_ROOT, "tovu-deploy-fly")), (error: unknown) => (error as { code?: string }).code === "ENOENT");
+  await assert.rejects(() => access(path.join(CONTENT_ROOT, "tovu-deploy-fly")), (error) => error.code === "ENOENT");
 });
 
 test("plugin.json still parses and carries the fly vocabulary an operator would search for", async () => {
@@ -122,19 +123,15 @@ test("every operator-supplied value in both templates is marked as a placeholder
     source: "<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>",
     destination: "/workspace/Tovu/sites",
   }]);
-  const service = config.http_service as Record<string, unknown>;
+  const service = config.http_service;
   assert.equal(service.auto_stop_machines, false);
   assert.equal(service.auto_start_machines, true);
   assert.equal(service.min_machines_running, 1);
 
   const workflowText = await readFile(path.join(SKILL_DIR, "references", "fly-deploy.template.yml"), "utf8");
   // Substitute syntax-safe tokens before parsing: placeholder punctuation is not YAML.
-  const token = (value: string) => `placeholder_${Buffer.from(value).toString("hex")}`;
-  const workflow = parseYaml(workflowText.replace(/<<PLACEHOLDER:[^>]+>>/g, token)) as {
-    on: { push: { branches: string[] } };
-    concurrency: { group: string; "cancel-in-progress": boolean };
-    jobs: { deploy: { steps: unknown[] } };
-  };
+  const token = (value) => `placeholder_${Buffer.from(value).toString("hex")}`;
+  const workflow = parseYaml(workflowText.replace(/<<PLACEHOLDER:[^>]+>>/g, token));
   assert.deepEqual(workflow.on.push.branches, [token("<<PLACEHOLDER: default branch, e.g. main>>")]);
   assert.equal(workflow.concurrency.group, `fly-deploy-${token("<<PLACEHOLDER: fly app name>>")}`);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
@@ -266,13 +263,13 @@ test("fly-server.md never tells the assistant to handle a secret value itself", 
 });
 
 test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds enabled", async () => {
-  const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../bundled-catalog.js");
+  const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../apps/website/src/features/agent-plugins/bundled-catalog.ts");
   const manifest = JSON.parse(await readPackageFile("plugin.json"));
   assert.equal(manifest.extensions.tovu.id, "tovu/fly");
   assert.equal(manifest.extensions.tovu.displayName, "Fly.io");
   assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-ops:fly", "deploy-config:fly", "credential-scheme:fly-io"]);
-  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry: { id: string }) => entry.id), ["fly"]);
-  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry: { id: string }) => entry.id), ["fly"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-ops.json")).platforms.map((entry) => entry.id), ["fly"]);
+  assert.deepEqual(JSON.parse(await readPackageFile("tovu-deploy-configs.json")).generators.map((entry) => entry.id), ["fly"]);
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
   assert.ok(packed.files.includes("deploy-ops/fly.mjs"));
   assert.ok(packed.files.includes("deploy-configs/fly.mjs"));

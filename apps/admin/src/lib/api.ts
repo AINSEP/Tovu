@@ -1057,8 +1057,8 @@ export interface AdminCustomCredentialSummary {
   readonly label: string;
   readonly category: AdminCustomCredentialCategoryId;
   readonly baseUrl: string;
-  /** Extra allowed origins beyond `baseUrl` (e.g. fly.io needs both `api.fly.io` and
-   *  `api.machines.dev`) — mirrors `src/features/custom-credentials/types.ts`'s server-side
+  /** Extra allowed origins beyond `baseUrl` (e.g. a provider whose API spans two
+   *  hosts for one account) — mirrors `src/features/custom-credentials/types.ts`'s server-side
    *  `CustomCredentialSummary.additionalHosts` (2026-08-31 multi-host widening). Empty, never
    *  `undefined` — the server's own read path normalizes a `null` column to `[]`. */
   readonly additionalHosts: readonly string[];

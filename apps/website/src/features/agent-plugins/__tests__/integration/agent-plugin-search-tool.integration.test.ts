@@ -229,17 +229,17 @@ test("MCP server ids are surfaced, but never their transport config (command/arg
   await withAgentPluginsDir(async () => {
     await installReal(
       WORKSPACE_A,
-      "fly-deploy",
+      "example-host-deploy",
       {
-        "plugin.json": manifestJson("fly-deploy", { description: "Deploy Tovu sites to fly.io", keywords: ["fly", "fly.io", "deploy", "deployment"] }),
-        "mcp.json": mcpJson(["fly-cli"]),
+        "plugin.json": manifestJson("example-host-deploy", { description: "Deploy Tovu sites to example-host.io", keywords: ["example-host", "example-host.io", "deploy", "deployment"] }),
+        "mcp.json": mcpJson(["example-host-cli"]),
       },
       "archive-mcp",
     );
 
-    const result = await search(WORKSPACE_A, { query: "fly.io deploy" });
+    const result = await search(WORKSPACE_A, { query: "example-host.io deploy" });
     assert.equal(result.matches.length, 1);
-    assert.deepEqual(result.matches[0]?.mcpServers, ["fly-cli"]);
+    assert.deepEqual(result.matches[0]?.mcpServers, ["example-host-cli"]);
 
     const serialized = JSON.stringify(result);
     assert.doesNotMatch(serialized, /should-never-leave-disk/, "mcp.json's transport config (command) must never reach the response");

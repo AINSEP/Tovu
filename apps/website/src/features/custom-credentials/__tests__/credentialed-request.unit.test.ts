@@ -18,7 +18,7 @@ import {
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
-import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /**
  * @file `credentialed-request.ts` — the two capabilities that let the agent actually USE a saved
@@ -86,8 +86,8 @@ function makeDeps(overrides: Partial<CredentialedRequestDeps> & { httpClient: Ht
     repo: base.repo,
     sealer: base.sealer,
     clock: base.clock,
-    // The bundled Fly plugin's shipped scheme rules (FlyV1), as the hermetic root passes them.
-    loadAuthSchemes: loadBundledAuthSchemes,
+    // The example-host fixture plugin's scheme rules (ExampleV1), shaped as a bundled plugin ships them.
+    loadAuthSchemes: loadFixtureAuthSchemes,
     ...overrides,
   };
 }
@@ -100,7 +100,7 @@ test("credential target resolution preserves storage failure identity before any
 });
 
 test("credential verification preserves scheme-loading failures without sending a request", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const failure = new Error("scheme registry unavailable");
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient, loadAuthSchemes: async () => { throw failure; } }, writeDeps);
@@ -108,11 +108,11 @@ test("credential verification preserves scheme-loading failures without sending 
   assert.deepEqual(httpClient.calls, []);
 });
 
-/** Seeds both `name.com` and `fly.io` custom credentials, single-host — the owner's own real
- *  motivating case. `fly.io` here has no `additionalHosts`; see {@link seedFlyIoMultiHost} for the
+/** Seeds both `name.com` and `example-host.io` custom credentials, single-host — the owner's own real
+ *  motivating case. `example-host.io` here has no `additionalHosts`; see {@link seedExampleHostMultiHost} for the
  *  multi-host shape. Returns the write deps so a test can build `CredentialedRequestDeps` from the
  *  SAME repo/sealer. */
-async function seedNameComAndFlyIo(): Promise<CustomCredentialWriteDeps> {
+async function seedNameComAndExampleHost(): Promise<CustomCredentialWriteDeps> {
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
@@ -123,28 +123,28 @@ async function seedNameComAndFlyIo(): Promise<CustomCredentialWriteDeps> {
   });
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "flyio-secret-token" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "example-host-secret-token" },
   });
   return writeDeps;
 }
 
-/** Seeds a `fly.io` credential with a SECOND real host (`api.machines.dev`, fly.io's actual
- *  Machines REST API alongside its GraphQL `api.fly.io`) via `additionalHosts` — the real
+/** Seeds a `example-host.io` credential with a SECOND real host (`machines.example-host.dev`, example-host.io's actual
+ *  Machines REST API alongside its GraphQL `api.example-host.io`) via `additionalHosts` — the real
  *  functional gap 2026-08-31's multi-host widening closes (see `types.ts`'s `allowedOriginsFor`
  *  doc). Also seeds `name.com` (single-host) in the SAME workspace so a test can prove one
  *  credential's widened host set still never leaks into another credential's own allowlist. */
-async function seedFlyIoMultiHostAndNameCom(): Promise<CustomCredentialWriteDeps> {
+async function seedExampleHostMultiHostAndNameCom(): Promise<CustomCredentialWriteDeps> {
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    additionalHosts: ["https://api.machines.dev"],
-    connection: { token: "flyio-secret-token" },
+    baseUrl: "https://api.example-host.io",
+    additionalHosts: ["https://machines.example-host.dev"],
+    connection: { token: "example-host-secret-token" },
   });
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
@@ -160,18 +160,18 @@ async function seedFlyIoMultiHostAndNameCom(): Promise<CustomCredentialWriteDeps
 // Per-credential host binding / SSRF-shaped rejections — single host, written and proven first.
 // ---------------------------------------------------------------------------------------------
 
-test("makeCredentialedRequest: provider A's token cannot reach provider B's host — a url naming fly.io is refused while calling with the name.com credential, before any request is sent", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+test("makeCredentialedRequest: provider A's token cannot reach provider B's host — a url naming example-host.io is refused while calling with the name.com credential, before any request is sent", async () => {
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
   await assert.rejects(
-    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.fly.io/v1/apps" }),
+    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.example-host.io/v1/apps" }),
     (err: unknown) => {
       assert.ok(err instanceof CredentialedRequestValidationError);
       assert.equal(
         (err as Error).message,
-        "url 'https://api.fly.io/v1/apps' resolves to origin 'https://api.fly.io', which is not one of this credential's saved hosts (https://api.name.com) — add it to this credential in the Access Tokens form first"
+        "url 'https://api.example-host.io/v1/apps' resolves to origin 'https://api.example-host.io', which is not one of this credential's saved hosts (https://api.name.com) — add it to this credential in the Access Tokens form first"
       );
       return true;
     }
@@ -180,7 +180,7 @@ test("makeCredentialedRequest: provider A's token cannot reach provider B's host
 });
 
 test("makeCredentialedRequest: a url embedding credentials (user:pass@) is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -199,7 +199,7 @@ test("makeCredentialedRequest: a url embedding credentials (user:pass@) is refus
 });
 
 test("makeCredentialedRequest: a non-http(s) url scheme is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -215,7 +215,7 @@ test("makeCredentialedRequest: a non-http(s) url scheme is refused", async () =>
 });
 
 test("makeCredentialedRequest: a url that is not a valid absolute URL is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -231,7 +231,7 @@ test("makeCredentialedRequest: a url that is not a valid absolute URL is refused
 });
 
 test("makeCredentialedRequest: an empty url is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -246,8 +246,8 @@ test("makeCredentialedRequest: an empty url is refused", async () => {
   assert.equal(httpClient.calls.length, 0);
 });
 
-test("makeCredentialedRequest: a legitimate url against name.com never touches fly.io's host, and carries name.com's own Authorization, not fly.io's", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+test("makeCredentialedRequest: a legitimate url against name.com never touches example-host.io's host, and carries name.com's own Authorization, not example-host.io's", async () => {
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: '{"domains":[]}' }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -256,26 +256,26 @@ test("makeCredentialedRequest: a legitimate url against name.com never touches f
   assert.equal(httpClient.calls.length, 1);
   const sent = httpClient.calls[0]!;
   assert.equal(sent.url, "https://api.name.com/v4/domains");
-  assert.ok(!sent.url.includes("fly.io"), "the request must never be addressed to fly.io's host");
+  assert.ok(!sent.url.includes("example-host.io"), "the request must never be addressed to example-host.io's host");
   // name.com's saved connection carries a username -> HTTP Basic, base64("namecom-user:namecom-secret-token").
   assert.equal(sent.headers.Authorization, `Basic ${Buffer.from("namecom-user:namecom-secret-token").toString("base64")}`);
-  assert.ok(!sent.headers.Authorization!.includes("flyio-secret-token"));
+  assert.ok(!sent.headers.Authorization!.includes("example-host-secret-token"));
   assert.equal(result.executed, true);
   assert.equal(result.status, 200);
   assert.equal(result.bodyText, '{"domains":[]}');
 });
 
-test("makeCredentialedRequest: fly.io's own credential resolves to fly.io's own host and token — no cross-contamination in the other direction either", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+test("makeCredentialedRequest: example-host.io's own credential resolves to example-host.io's own host and token — no cross-contamination in the other direction either", async () => {
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   const sent = httpClient.calls[0]!;
-  assert.equal(sent.url, "https://api.fly.io/v1/apps/my-app");
-  // fly.io's saved connection has no username -> Bearer.
-  assert.equal(sent.headers.Authorization, "Bearer flyio-secret-token");
+  assert.equal(sent.url, "https://api.example-host.io/v1/apps/my-app");
+  // example-host.io's saved connection has no username -> Bearer.
+  assert.equal(sent.headers.Authorization, "Bearer example-host-secret-token");
   assert.ok(!sent.headers.Authorization!.includes("namecom-secret-token"));
 });
 
@@ -284,26 +284,27 @@ test("makeCredentialedRequest: fly.io's own credential resolves to fly.io's own 
 // its own literal scheme word (`FlyV1`), and `Authorization: Bearer <the same token unmodified>` is
 // affirmatively rejected by Fly's own API while `Authorization: FlyV1 <rest>` is accepted — see
 // `credentialed-request.ts`'s header, "Self-describing token schemes", for the live verification.
-// Every fixture below uses a SYNTHETIC token (`FlyV1fake_test_token_value`), never a real credential.
+// Every fixture below uses a SYNTHETIC token (`ExampleV1fake_test_token_value`) from the neutral
+// `example-host` fixture plugin, never a real credential; the real FlyV1 rule is tested in the Fly plugin.
 // ---------------------------------------------------------------------------------------------
 
-test("makeCredentialedRequest: a token starting with the FlyV1 self-describing scheme is sent as `FlyV1 <rest>`, not `Bearer FlyV1<rest>`", async () => {
+test("makeCredentialedRequest: a token starting with the ExampleV1 self-describing scheme is sent as `ExampleV1 <rest>`, not `Bearer ExampleV1<rest>`", async () => {
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "FlyV1fake_test_token_value" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "ExampleV1fake_test_token_value" },
   });
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   const sent = httpClient.calls[0]!;
-  assert.equal(sent.headers.Authorization, "FlyV1 fake_test_token_value");
-  assert.notEqual(sent.headers.Authorization, "Bearer FlyV1fake_test_token_value");
+  assert.equal(sent.headers.Authorization, "ExampleV1 fake_test_token_value");
+  assert.notEqual(sent.headers.Authorization, "Bearer ExampleV1fake_test_token_value");
 });
 
 test("makeCredentialedRequest: an ordinary opaque token with no recognized scheme prefix is still sent as `Bearer <token>`, unchanged", async () => {
@@ -340,22 +341,22 @@ test("makeCredentialedRequest: a saved username does not affect the Basic-auth p
   assert.equal(httpClient.calls[0]!.headers.Authorization, `Basic ${Buffer.from("generic-user:opaque-secret-token").toString("base64")}`);
 });
 
-test("makeCredentialedRequest: a self-describing-scheme token takes priority over a saved username — it is sent as FlyV1, never Basic", async () => {
+test("makeCredentialedRequest: a self-describing-scheme token takes priority over a saved username — it is sent as ExampleV1, never Basic", async () => {
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "FlyV1fake_test_token_value", username: "leftover-username" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "ExampleV1fake_test_token_value", username: "leftover-username" },
   });
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   const sent = httpClient.calls[0]!;
-  assert.equal(sent.headers.Authorization, "FlyV1 fake_test_token_value");
+  assert.equal(sent.headers.Authorization, "ExampleV1 fake_test_token_value");
   assert.ok(!sent.headers.Authorization!.startsWith("Basic "), "a self-describing scheme must never be displaced by a saved username");
 });
 
@@ -363,27 +364,27 @@ test("makeCredentialedRequest: a reflecting response still redacts the full self
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "FlyV1fake_test_token_value" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "ExampleV1fake_test_token_value" },
   });
   const httpClient = new FakeHttpClient([
-    { status: 200, headers: { "X-Reflected-Auth": "FlyV1 fake_test_token_value" }, bodyText: '{"echo":"FlyV1fake_test_token_value"}' },
+    { status: 200, headers: { "X-Reflected-Auth": "ExampleV1 fake_test_token_value" }, bodyText: '{"echo":"ExampleV1fake_test_token_value"}' },
   ]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   assert.equal(result.headers["X-Reflected-Auth"], undefined);
-  assert.ok(!result.bodyText.includes("FlyV1fake_test_token_value"));
+  assert.ok(!result.bodyText.includes("ExampleV1fake_test_token_value"));
   assert.ok(!result.bodyText.includes("fake_test_token_value"));
 });
 
-// The leak shape the two tests above CANNOT catch: their fixtures echo the FULL "FlyV1 <value>"
-// (or "FlyV1<value>") token back, so the existing `authorizationHeader`/`connection.token` secrets
+// The leak shape the two tests above CANNOT catch: their fixtures echo the FULL "ExampleV1 <value>"
+// (or "ExampleV1<value>") token back, so the existing `authorizationHeader`/`connection.token` secrets
 // already redact it as a side effect. A real provider error body reflecting only the BARE macaroon
-// value — no "FlyV1" scheme word at all, e.g. `{"error":"invalid macaroon <value>"}` — matches
+// value — no "ExampleV1" scheme word at all, e.g. `{"error":"invalid macaroon <value>"}` — matches
 // neither: `resolveAuthorizationScheme`'s `value` field (the bare token with its scheme word
 // stripped) was never added to `buildResponseSecrets`'s self-describing branch. Every fixture below
 // uses a SYNTHETIC token, never a real credential.
@@ -392,15 +393,15 @@ test("makeCredentialedRequest: a self-describing token's BARE value (no scheme p
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "FlyV1fake_test_token_value" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "ExampleV1fake_test_token_value" },
   });
   const httpClient = new FakeHttpClient([{ status: 400, headers: {}, bodyText: '{"error":"invalid macaroon fake_test_token_value"}' }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   assert.ok(!result.bodyText.includes("fake_test_token_value"), "the bare self-describing token value must be redacted even with no scheme prefix");
   assert.equal(result.bodyText, '{"error":"invalid macaroon [REDACTED]"}');
@@ -410,15 +411,15 @@ test("makeCredentialedRequest: a self-describing token's BARE value (no scheme p
   const writeDeps = makeWriteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "FlyV1fake_test_token_value" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "ExampleV1fake_test_token_value" },
   });
   const httpClient = new FakeHttpClient([{ status: 200, headers: { "X-Debug-Echo": "fake_test_token_value" }, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
   assert.equal(result.headers["X-Debug-Echo"], undefined, "a header carrying the bare self-describing token value must be dropped");
 });
@@ -429,47 +430,47 @@ test("makeCredentialedRequest: a self-describing token's BARE value (no scheme p
 // ---------------------------------------------------------------------------------------------
 
 test("makeCredentialedRequest: a url on a credential's additionalHosts entry is accepted, with that same credential's own Authorization", async () => {
-  const writeDeps = await seedFlyIoMultiHostAndNameCom();
+  const writeDeps = await seedExampleHostMultiHostAndNameCom();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: '{"machines":[]}' }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.machines.dev/v1/apps/my-app/machines",
+    url: "https://machines.example-host.dev/v1/apps/my-app/machines",
   });
 
   assert.equal(httpClient.calls.length, 1);
   const sent = httpClient.calls[0]!;
-  assert.equal(sent.url, "https://api.machines.dev/v1/apps/my-app/machines");
-  assert.equal(sent.headers.Authorization, "Bearer flyio-secret-token");
+  assert.equal(sent.url, "https://machines.example-host.dev/v1/apps/my-app/machines");
+  assert.equal(sent.headers.Authorization, "Bearer example-host-secret-token");
   assert.equal(result.status, 200);
   assert.equal(result.bodyText, '{"machines":[]}');
 });
 
 test("makeCredentialedRequest: a url on the credential's baseUrl still works unchanged once additionalHosts is set — the primary host is not displaced", async () => {
-  const writeDeps = await seedFlyIoMultiHostAndNameCom();
+  const writeDeps = await seedExampleHostMultiHostAndNameCom();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
 
-  assert.equal(httpClient.calls[0]!.url, "https://api.fly.io/v1/apps/my-app");
+  assert.equal(httpClient.calls[0]!.url, "https://api.example-host.io/v1/apps/my-app");
 });
 
 test("makeCredentialedRequest: a url whose origin is NOT in the saved set (neither baseUrl nor additionalHosts) is refused before any network call, naming every allowed host", async () => {
-  const writeDeps = await seedFlyIoMultiHostAndNameCom();
+  const writeDeps = await seedExampleHostMultiHostAndNameCom();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
   await assert.rejects(
-    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://evil.example.com/steal" }),
+    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://evil.example.com/steal" }),
     (err: unknown) => {
       assert.ok(err instanceof CredentialedRequestValidationError);
       assert.equal(
         (err as Error).message,
-        "url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.fly.io, https://api.machines.dev) — add it to this credential in the Access Tokens form first"
+        "url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', which is not one of this credential's saved hosts (https://api.example-host.io, https://machines.example-host.dev) — add it to this credential in the Access Tokens form first"
       );
       return true;
     }
@@ -478,24 +479,24 @@ test("makeCredentialedRequest: a url whose origin is NOT in the saved set (neith
 });
 
 test("makeCredentialedRequest: provider A's credential still cannot reach provider B's host, even when provider A has additionalHosts of its own", async () => {
-  const writeDeps = await seedFlyIoMultiHostAndNameCom();
+  const writeDeps = await seedExampleHostMultiHostAndNameCom();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
-  // fly.io (multi-host) reaching for name.com's host.
+  // example-host.io (multi-host) reaching for name.com's host.
   await assert.rejects(
-    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.name.com/v4/domains" }),
+    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.name.com/v4/domains" }),
     (err: unknown) => {
       assert.ok(err instanceof CredentialedRequestValidationError);
-      assert.match((err as Error).message, /not one of this credential's saved hosts \(https:\/\/api\.fly\.io, https:\/\/api\.machines\.dev\)/);
+      assert.match((err as Error).message, /not one of this credential's saved hosts \(https:\/\/api\.example-host\.io, https:\/\/machines\.example-host\.dev\)/);
       return true;
     }
   );
 
-  // name.com (single-host) reaching for fly.io's SECONDARY host — proves the widened set is
+  // name.com (single-host) reaching for example-host.io's SECONDARY host — proves the widened set is
   // per-credential, not global.
   await assert.rejects(
-    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.machines.dev/v1/apps" }),
+    () => makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://machines.example-host.dev/v1/apps" }),
     (err: unknown) => {
       assert.ok(err instanceof CredentialedRequestValidationError);
       assert.match((err as Error).message, /not one of this credential's saved hosts \(https:\/\/api\.name\.com\)/);
@@ -511,7 +512,7 @@ test("makeCredentialedRequest: provider A's credential still cannot reach provid
 // ---------------------------------------------------------------------------------------------
 
 test("makeCredentialedRequest: a caller-supplied Authorization header is refused, case-insensitively", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -534,7 +535,7 @@ test("makeCredentialedRequest: a caller-supplied Authorization header is refused
 });
 
 test("makeCredentialedRequest: a caller-supplied Cookie/Host/Proxy-Authorization header is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -559,7 +560,7 @@ test("makeCredentialedRequest: a caller-supplied Cookie/Host/Proxy-Authorization
 });
 
 test("makeCredentialedRequest: a forbidden header name with leading/trailing whitespace is still refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -584,7 +585,7 @@ test("makeCredentialedRequest: a forbidden header name with leading/trailing whi
 });
 
 test("makeCredentialedRequest: an unsupported method value is refused with the exact reason", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -607,7 +608,7 @@ test("makeCredentialedRequest: an unsupported method value is refused with the e
 
 test("makeCredentialedRequest: POST/PUT/PATCH each send the given body exactly to the guarded client, and the audit records only its byte size, never the body itself", async () => {
   for (const method of ["POST", "PUT", "PATCH"] as const) {
-    const writeDeps = await seedNameComAndFlyIo();
+    const writeDeps = await seedNameComAndExampleHost();
     const httpClient = new FakeHttpClient([{ status: 201, headers: {}, bodyText: '{"ok":true}' }]);
     const audit = new InMemoryCredentialedRequestAuditLog();
     const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -637,7 +638,7 @@ test("makeCredentialedRequest: POST/PUT/PATCH each send the given body exactly t
 });
 
 test("makeCredentialedRequest: a caller-supplied User-Agent header is NOT forbidden — it reaches the guarded client unchanged (2026-09-03 decision: parity with what a human can already do via curl -A, no bearing on the host-binding security boundary)", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -655,7 +656,7 @@ test("makeCredentialedRequest: a caller-supplied User-Agent header is NOT forbid
 });
 
 test("makeCredentialedRequest: DELETE itself runs immediately with no confirmation — this module has no gating logic; that lives one layer up", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 204, headers: {}, bodyText: "" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -668,7 +669,7 @@ test("makeCredentialedRequest: DELETE itself runs immediately with no confirmati
 });
 
 test("makeCredentialedRequest: an omitted body degrades to no body sent and bodyBytes:0 audited", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "[]" }]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -680,7 +681,7 @@ test("makeCredentialedRequest: an omitted body degrades to no body sent and body
 });
 
 test("makeCredentialedRequest: a request body over the 1MB cap is refused before any network call", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
   const oversized = "a".repeat(1_000_001);
@@ -697,7 +698,7 @@ test("makeCredentialedRequest: a request body over the 1MB cap is refused before
 });
 
 test("makeCredentialedRequest: a request body at exactly the 1MB cap is accepted (the cap rejects only what EXCEEDS it)", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -711,7 +712,7 @@ test("makeCredentialedRequest: a request body at exactly the 1MB cap is accepted
 });
 
 test("makeCredentialedRequest: a non-string body is refused", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient();
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -777,7 +778,7 @@ test("makeCredentialedRequest: for an unknown label, an off-allowlist/malformed 
 // ---------------------------------------------------------------------------------------------
 
 test("makeCredentialedRequest: audits exactly {label, host, method, status, bodyBytes, at} and never the token", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -791,7 +792,7 @@ test("makeCredentialedRequest: audits exactly {label, host, method, status, body
 });
 
 test("makeCredentialedRequest: a transport failure throws CredentialedRequestTransportError, audits status:0, and the error message never carries the token", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([new Error("getaddrinfo ENOTFOUND api.name.com")]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -819,7 +820,7 @@ test("makeCredentialedRequest: a transport failure throws CredentialedRequestTra
 // `assertNoPrivateAddress`, refusing a redirect to a private/loopback address) must reach the
 // caller with its OWN type intact, not folded into `CredentialedRequestTransportError`.
 test("makeCredentialedRequest: an EgressRefusedError from the http client passes through with its own type, not wrapped into CredentialedRequestTransportError", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([new EgressRefusedError({ message: "egress to 'api.name.com' (169.254.169.254) rejected: resolved address is link-local" })]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -858,7 +859,7 @@ test("ConsoleCredentialedRequestAuditLog: an egress refusal's full detail, resol
 });
 
 test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structured line (including bodyBytes) and never the token", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const lines: string[] = [];
   const deps = makeDeps({ httpClient, audit: new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)) }, writeDeps);
@@ -877,7 +878,7 @@ test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structu
 // ---------------------------------------------------------------------------------------------
 
 test("resolveRequestTarget: resolves label + url without needing (or being able to use) a sealer", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
 
   const target = await resolveRequestTarget({ repo: writeDeps.repo }, { workspaceId: WORKSPACE, label: "name.com", url: "https://api.name.com/v4/domains" });
 
@@ -886,11 +887,11 @@ test("resolveRequestTarget: resolves label + url without needing (or being able 
 });
 
 test("resolveRequestTarget: accepts a url on additionalHosts, exactly like makeCredentialedRequest does", async () => {
-  const writeDeps = await seedFlyIoMultiHostAndNameCom();
+  const writeDeps = await seedExampleHostMultiHostAndNameCom();
 
-  const target = await resolveRequestTarget({ repo: writeDeps.repo }, { workspaceId: WORKSPACE, label: "fly.io", url: "https://api.machines.dev/v1/apps" });
+  const target = await resolveRequestTarget({ repo: writeDeps.repo }, { workspaceId: WORKSPACE, label: "example-host.io", url: "https://machines.example-host.dev/v1/apps" });
 
-  assert.equal(target.url.origin, "https://api.machines.dev");
+  assert.equal(target.url.origin, "https://machines.example-host.dev");
 });
 
 test("resolveRequestTarget: an unknown label throws CustomCredentialNotFoundError", async () => {
@@ -907,15 +908,15 @@ test("resolveRequestTarget: an unknown label throws CustomCredentialNotFoundErro
 });
 
 test("resolveRequestTarget: an off-allowlist url throws CredentialedRequestValidationError with the exact same message makeCredentialedRequest would give", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
 
   await assert.rejects(
-    () => resolveRequestTarget({ repo: writeDeps.repo }, { workspaceId: WORKSPACE, label: "name.com", url: "https://api.fly.io/v1/apps" }),
+    () => resolveRequestTarget({ repo: writeDeps.repo }, { workspaceId: WORKSPACE, label: "name.com", url: "https://api.example-host.io/v1/apps" }),
     (err: unknown) => {
       assert.ok(err instanceof CredentialedRequestValidationError);
       assert.equal(
         (err as Error).message,
-        "url 'https://api.fly.io/v1/apps' resolves to origin 'https://api.fly.io', which is not one of this credential's saved hosts (https://api.name.com) — add it to this credential in the Access Tokens form first"
+        "url 'https://api.example-host.io/v1/apps' resolves to origin 'https://api.example-host.io', which is not one of this credential's saved hosts (https://api.name.com) — add it to this credential in the Access Tokens form first"
       );
       return true;
     }
@@ -927,7 +928,7 @@ test("resolveRequestTarget: an off-allowlist url throws CredentialedRequestValid
 // ---------------------------------------------------------------------------------------------
 
 test("verifyCustomCredential: a 2xx response classifies as 'valid'", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "secret account details" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -939,7 +940,7 @@ test("verifyCustomCredential: a 2xx response classifies as 'valid'", async () =>
 });
 
 test("verifyCustomCredential: a 401 response classifies as 'invalid'", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -950,7 +951,7 @@ test("verifyCustomCredential: a 401 response classifies as 'invalid'", async () 
 });
 
 test("verifyCustomCredential: a 403 response also classifies as 'invalid'", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 403, headers: {}, bodyText: "" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -959,7 +960,7 @@ test("verifyCustomCredential: a 403 response also classifies as 'invalid'", asyn
 });
 
 test("verifyCustomCredential: a 500 response classifies as 'unreachable', not 'invalid'", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 500, headers: {}, bodyText: "" }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -968,7 +969,7 @@ test("verifyCustomCredential: a 500 response classifies as 'unreachable', not 'i
 });
 
 test("verifyCustomCredential: a network failure classifies as 'unreachable' and never throws", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([new Error("connect ETIMEDOUT")]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
@@ -978,7 +979,7 @@ test("verifyCustomCredential: a network failure classifies as 'unreachable' and 
 });
 
 test("verifyCustomCredential: audits with bodyBytes:0 (a verify never sends a body) and never the token", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -1009,7 +1010,7 @@ test("verifyCustomCredential: an unknown label throws CustomCredentialNotFoundEr
 // ---------------------------------------------------------------------------------------------
 
 test("makeCredentialedRequest: strips sensitive response headers (Authorization, Set-Cookie, Cookie) before returning to the caller", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([
     {
       status: 200,
@@ -1044,14 +1045,14 @@ test("makeCredentialedRequest: strips sensitive response headers (Authorization,
 });
 
 test("makeCredentialedRequest: strips response headers that reflect the credential's token or injected Authorization value", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([
     {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "X-Echoed-Token": "flyio-secret-token",
-        "X-Reflected-Auth": "Bearer flyio-secret-token",
+        "X-Echoed-Token": "example-host-secret-token",
+        "X-Reflected-Auth": "Bearer example-host-secret-token",
         "X-Safe-Header": "safe-value",
       },
       bodyText: "ok",
@@ -1061,20 +1062,20 @@ test("makeCredentialedRequest: strips response headers that reflect the credenti
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.fly.io/v1/apps",
+    url: "https://api.example-host.io/v1/apps",
   });
 
   assert.equal(result.headers["Content-Type"], "application/json");
   assert.equal(result.headers["X-Safe-Header"], "safe-value");
   assert.equal(result.headers["X-Echoed-Token"], undefined);
   assert.equal(result.headers["X-Reflected-Auth"], undefined);
-  assert.ok(!JSON.stringify(result.headers).includes("flyio-secret-token"));
+  assert.ok(!JSON.stringify(result.headers).includes("example-host-secret-token"));
 });
 
 test("makeCredentialedRequest: strips response headers reflecting basic-auth credentials or tokens for username-authenticated credentials", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const basicAuthPayload = Buffer.from("namecom-user:namecom-secret-token").toString("base64");
   const httpClient = new FakeHttpClient([
     {
@@ -1108,7 +1109,7 @@ test("makeCredentialedRequest: strips a response header that echoes ONLY the bar
   // FULL "Basic <payload>" header value and the raw token alone are both caught, but the bare
   // base64 payload — neither wrapped in "Basic " nor equal to the raw token — was not itself listed
   // as a secret, so an endpoint reflecting just that payload leaked it straight through.
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const basicAuthPayload = Buffer.from("namecom-user:namecom-secret-token").toString("base64");
   const httpClient = new FakeHttpClient([
     {
@@ -1140,13 +1141,13 @@ test("makeCredentialedRequest: a response header is redacted when it merely EMBE
   // Authorization value inside a larger diagnostic string. Under exact-equality matching this header
   // would pass through unredacted (leaking the token); this test would then fail because
   // `X-Debug-Echo` would be defined instead of undefined.
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([
     {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "X-Debug-Echo": "request-id=r1; sent-auth=Bearer flyio-secret-token; region=us-east",
+        "X-Debug-Echo": "request-id=r1; sent-auth=Bearer example-host-secret-token; region=us-east",
       },
       bodyText: "ok",
     },
@@ -1155,9 +1156,9 @@ test("makeCredentialedRequest: a response header is redacted when it merely EMBE
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.fly.io/v1/apps",
+    url: "https://api.example-host.io/v1/apps",
   });
 
   assert.equal(result.headers["Content-Type"], "application/json");
@@ -1165,24 +1166,24 @@ test("makeCredentialedRequest: a response header is redacted when it merely EMBE
 });
 
 test("makeCredentialedRequest: strips the injected token from the response BODY too, while leaving the rest of the body intact", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([
     {
       status: 200,
       headers: {},
-      bodyText: '{"echo":{"authorization":"Bearer flyio-secret-token"},"machines":["m-1","m-2"]}',
+      bodyText: '{"echo":{"authorization":"Bearer example-host-secret-token"},"machines":["m-1","m-2"]}',
     },
   ]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.fly.io/v1/apps",
+    url: "https://api.example-host.io/v1/apps",
   });
 
-  assert.ok(!result.bodyText.includes("flyio-secret-token"));
+  assert.ok(!result.bodyText.includes("example-host-secret-token"));
   assert.equal(result.bodyText, '{"echo":{"authorization":"[REDACTED]"},"machines":["m-1","m-2"]}');
 });
 
@@ -1191,17 +1192,17 @@ test("makeCredentialedRequest: a TRUNCATED response body whose tail is only a pa
   // mid-token never contains the full string, so the ordinary redaction pass leaves this dangling
   // fragment untouched. `bodyTruncated: true` is what tells `resolveRedactedResponseBody` the body
   // isn't complete and its tail needs the extra check.
-  const writeDeps = await seedNameComAndFlyIo();
-  const tokenTailPrefix = "flyio-secret-token".slice(0, 12); // "flyio-secret" — >= the 4-char floor
+  const writeDeps = await seedNameComAndExampleHost();
+  const tokenTailPrefix = "example-host-secret-token".slice(0, 12); // "example-host-secret" — >= the 4-char floor
   const bodyText = `{"echo":"leaked-fragment-${tokenTailPrefix}`;
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText, bodyTruncated: true }]);
   const deps = makeDeps({ httpClient }, writeDeps);
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.fly.io/v1/apps",
+    url: "https://api.example-host.io/v1/apps",
   });
 
   assert.ok(!result.bodyText.includes(tokenTailPrefix), "a partial-token tail must not survive truncation either");
@@ -1209,17 +1210,17 @@ test("makeCredentialedRequest: a TRUNCATED response body whose tail is only a pa
 });
 
 test("makeCredentialedRequest: a NON-truncated body with the identical partial-token-shaped tail is left byte-for-byte unchanged — the tail check only fires when bodyTruncated is true", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
-  const tokenTailPrefix = "flyio-secret-token".slice(0, 12);
+  const writeDeps = await seedNameComAndExampleHost();
+  const tokenTailPrefix = "example-host-secret-token".slice(0, 12);
   const bodyText = `{"echo":"leaked-fragment-${tokenTailPrefix}`;
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText }]); // bodyTruncated omitted: a complete response.
   const deps = makeDeps({ httpClient }, writeDeps);
 
   const result = await makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE,
-    label: "fly.io",
+    label: "example-host.io",
     method: "GET",
-    url: "https://api.fly.io/v1/apps",
+    url: "https://api.example-host.io/v1/apps",
   });
 
   assert.equal(result.bodyText, bodyText);
@@ -1272,7 +1273,7 @@ test("makeCredentialedRequest: a pathologically short credential token withholds
 
 
 test("makeCredentialedRequest: the UTF-8 byte cap accepts exactly 1MB and rejects oversized multibyte bodies", async () => {
-  const writeDeps = await seedNameComAndFlyIo();
+  const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const audit = new InMemoryCredentialedRequestAuditLog();
   const deps = makeDeps({ httpClient, audit }, writeDeps);
@@ -1297,22 +1298,22 @@ test("makeCredentialedRequest: the UTF-8 byte cap accepts exactly 1MB and reject
 for (const fixture of [
   { connection: { username: "user", token: "password" }, header: "Basic dXNlcjpwYXNzd29yZA==" },
   { connection: { token: "bearer-test-token" }, header: "Bearer bearer-test-token" },
-  { connection: { token: "FlyV1fake_test_token_value" }, header: "FlyV1 fake_test_token_value" },
+  { connection: { token: "ExampleV1fake_test_token_value" }, header: "ExampleV1 fake_test_token_value" },
 ]) {
   test(`verifyCustomCredential sends the exact ${fixture.header.split(" ")[0]} authentication header`, async () => {
     const writeDeps = makeWriteDeps();
-    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "probe", category: "ops", baseUrl: "https://api.fly.io", connection: fixture.connection });
+    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "probe", category: "ops", baseUrl: "https://api.example-host.io", connection: fixture.connection });
     const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
     const result = await verifyCustomCredential(makeDeps({ httpClient }, writeDeps), { workspaceId: WORKSPACE, label: "probe" });
     assert.equal(result.status, "valid");
     assert.equal(httpClient.calls.length, 1);
-    assert.equal(httpClient.calls[0]!.url, "https://api.fly.io/");
+    assert.equal(httpClient.calls[0]!.url, "https://api.example-host.io/");
     assert.equal(httpClient.calls[0]!.method, "GET");
     assert.deepEqual(httpClient.calls[0]!.headers, { Authorization: fixture.header });
   });
 }
 
-test("disabled installed Fly retains its trusted FlyV1 rule and sends the exact auth header", async () => {
+test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and sends the exact auth header", async () => {
   const { mkdtemp } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { default: path } = await import("node:path");
@@ -1320,24 +1321,24 @@ test("disabled installed Fly retains its trusted FlyV1 rule and sends the exact 
   const { resolveAgentPluginLayout } = await import("../../agent-plugins/layout.js");
   const { createTovuAgentPluginLifecycle } = await import("../../agent-plugins/lifecycle.js");
   const { loadCredentialSchemeRegistry } = await import("../auth-schemes.js");
-  const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-fly-header-"));
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-example-host-header-"));
   try {
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout });
-    const packed = await lifecycle.packAgentPluginDirectory(path.resolve("content/agent-plugins/fly"));
+    const packed = await lifecycle.packAgentPluginDirectory(EXAMPLE_HOST_PLUGIN_ROOT);
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: WORKSPACE, archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
-    await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "fly", archiveDigest: installed.archiveDigest }] });
-    await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: false, actor: "operator" }, { origin: "bundled" });
+    await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "example-host", archiveDigest: installed.archiveDigest }] });
+    await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "example-host", enabled: false, actor: "operator" }, { origin: "bundled" });
     const writeDeps = makeWriteDeps();
-    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "fly.io", category: "ops", baseUrl: "https://api.fly.io", connection: { token: "FlyV1fake_test_token_value" } });
+    await createCustomCredential(writeDeps, { workspaceId: WORKSPACE, label: "example-host.io", category: "ops", baseUrl: "https://api.example-host.io", connection: { token: "ExampleV1fake_test_token_value" } });
     const httpClient = new FakeHttpClient();
     const deps = makeDeps({ httpClient, loadAuthSchemes: async () => {
       const registry = await loadCredentialSchemeRegistry({ workspaceId: WORKSPACE }, { loadContributions: lifecycle.loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       return registry.rules;
     } }, writeDeps);
-    await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
-    assert.equal(httpClient.calls[0]!.headers.Authorization, "FlyV1 fake_test_token_value");
+    await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps/my-app" });
+    assert.equal(httpClient.calls[0]!.headers.Authorization, "ExampleV1 fake_test_token_value");
   } finally { await forceRemove(root); }
 });

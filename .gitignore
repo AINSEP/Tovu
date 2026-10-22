@@ -44,8 +44,8 @@ apps/admin/.certs*/
 # README.md stays tracked so the directory exists in a fresh clone -- openContentDb does not create
 # its parent, so an absent sites/ fails boot with SQLITE_CANTOPEN.
 #
-# 2026-08-31: sites/ is now TRACKED. Ignoring it wholesale meant every git-based deploy (Fly,
-# Railway, Render, App Runner) booted a container with no content.db, no themes and no theme.json --
+# 2026-08-31: sites/ is now TRACKED. Ignoring it wholesale meant every git-based container
+# deploy booted a container with no content.db, no themes and no theme.json --
 # a correct image with no site in it. Tracking the site is what makes a deploy carry its content.
 # Still never tracked, and these must stay ignored:
 #   - content.db itself: this is each site's LIVE, growing database (real chat transcripts, session

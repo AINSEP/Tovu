@@ -34,7 +34,7 @@ import type { PublishContentRouteDeps } from "./deps.js";
  * end becomes the one question worth asking them.
  *
  * `GET` pre-fills the candidate from the deploy config the repo already carries, so in the common
- * case the dialog asks "Publish to tovu.fly.dev?" and the owner presses one button. That is the one
+ * case the dialog asks "Publish to <live site host>?" and the owner presses one button. That is the one
  * irreducible step: choosing which site is theirs, once.
  *
  * These are ordinary admin routes rather than UI-only logic so the same action is reachable from a

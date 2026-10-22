@@ -6,7 +6,7 @@ import { ValidationError } from "#src/platform/site-dir/index";
 /**
  * @file The ONE `DeploymentDescriptor` every platform config generator is a thin, pure function over —
  * `tovu deploy config --target <id>`'s single source of truth (`cli/commands/deploy-config.ts`). The
- * generators themselves are plugin modules (the bundled `fly`, `render` and `railway` plugins'
+ * generators themselves are plugin modules (the bundled hosting plugins'
  * `deploy-configs/*.mjs`, declared in each one's `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
  * keeps only the vendor-neutral half: the descriptor, the injection guard, the migrations note, and
  * the {@link DeployConfigGeneratorModule} port with the {@link DeployConfigKit} the host passes in.
@@ -244,18 +244,16 @@ export const MIGRATIONS_NOTE =
   "content.db's schema (including new tables — e.g. gated_mutation_tokens, added by the SPEC-022 gated-mutations durability fix, migration 0052) migrates automatically on every boot. No separate migration command is needed before or after this deploy.";
 
 /**
- * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file (the
- * `fly` and `render` plugins' `deploy-configs/*.mjs`; passed to them in the
- * {@link DeployConfigKit}) — unlike the `railway` plugin's `deploy-configs/railway.mjs`, which is safe by construction
- * because it builds its config through `JSON.stringify` rather than a hand-written template string. Two
- * distinct sink shapes call this, so it covers two distinct hazards:
+ * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file (a
+ * hosting plugin's `deploy-configs/*.mjs` that builds its config from a hand-written template
+ * string; passed to it in the {@link DeployConfigKit}). A generator that builds its config through
+ * `JSON.stringify` is safe by construction and does not need it. Two distinct sink shapes call
+ * this, so it covers two distinct hazards:
  *
- * 1. QUOTED sinks (`fly.mjs`'s `app = "${...}"`, `source = "${...}"`,
- *    `primary_region = "${...}"`; `render.mjs`'s `region: ${...}` after it already
- *    passed `RENDER_VALID_REGIONS`). A value containing a double-quote can close the quoted
- *    string early; one also containing a newline can then inject an entirely new top-level key on
- *    the next line (reproduced with `--region 'iad"\nprimary_region_evil="x'`, which emits a real
- *    extra `primary_region_evil` key into `fly.toml`).
+ * 1. QUOTED sinks (a TOML `key = "${...}"`, or a YAML value after the generator's own allow-list
+ *    already passed it). A value containing a double-quote can close the quoted string early; one
+ *    also containing a newline can then inject an entirely new top-level key on the next line (the
+ *    reproduction and its regression test live with the TOML-emitting plugin's generator).
  * 2. UNQUOTED YAML plain-scalar sinks (`render.mjs`'s `name: ${descriptor.appName}`
  *    and the disk's `name: ${descriptor.volumeName}` — YAML, unlike the TOML sinks above, is
  *    rendered with no surrounding quotes at all). Here a `"`/newline isn't the only hazard: `:`,
@@ -265,9 +263,9 @@ export const MIGRATIONS_NOTE =
  *    `&`/`*` are anchor/alias indicators; a leading `-` reads as a block-sequence entry) — the
  *    guard passing these through was this task's bug (then `deploy-config-render.ts:65-78`).
  *
- * Rejecting outright is the reliable fix for both — a Fly region allow-list (the shape
- * `render.mjs`'s `RENDER_VALID_REGIONS` uses) was considered too, but Fly's ~30-region
- * catalog had no authoritative source to enumerate against without risking rejecting a real region;
+ * Rejecting outright is the reliable fix for both — a per-host region allow-list (the shape
+ * `render.mjs`'s `RENDER_VALID_REGIONS` uses) is each generator's own choice, and one host's
+ * catalog had no authoritative source to enumerate against (its generator says why);
  * the same reasoning extends to app/volume names here — quoting the two unquoted YAML sinks at
  * render time was considered instead of widening this check, but every renderer's own exact-string
  * golden test already pins the CURRENT unquoted rendering for a safe name (e.g.

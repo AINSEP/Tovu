@@ -9,7 +9,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  * leading prefix (a vendor token such as `<Scheme><rest>` must be sent as `Authorization: <Scheme>
  * <rest>`, and is rejected when sent as `Bearer <whole token>`). Core names no vendor: the rules are
  * DATA that Agent Plugins ship in {@link CREDENTIAL_SCHEMES_FILENAME}, and Jini applies them.
- * The `fly` plugin ships the one rule known today, with its live-verification
+ * A bundled hosting plugin ships the one rule known today, with its live-verification
  * evidence in the file's `note`.
  *
  * Recognition is by the token's own content, never by the credential's saved host: a
@@ -21,7 +21,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  * only a plugin package this build shipped may add a rule, since a rule decides how a saved secret is
  * sent. The activation gate deliberately does NOT apply: a rule is inert data (no code runs), and a
  * saved credential that already works must keep working unchanged when an operator switches the
- * contributing plugin off. Switching `fly` off hides Fly deploy tools; it must not silently turn a
+ * contributing plugin off. Switching that plugin off hides its deploy tools; it must not silently turn a
  * working credential's header into one its provider rejects.
  *
  * Architectural role: `features/custom-credentials` capability, read by `credentialed-request.ts`.

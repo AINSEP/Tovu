@@ -50,7 +50,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * `Basic <username:token>` — an assumption some vendors' tokens break: the token string is
  * self-describing, e.g. `<Scheme>fm2_...` (a macaroon), and the leading scheme word is not incidental
  * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
- * the value. The live verification is recorded with the rule itself, in the `fly` plugin's
+ * the value. The live verification is recorded with the rule itself, in the contributing plugin's
  * `tovu-credential-schemes.json` (`note`).
  *
  * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes

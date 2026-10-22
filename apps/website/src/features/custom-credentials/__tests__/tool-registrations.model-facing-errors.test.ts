@@ -42,7 +42,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
-import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -50,7 +50,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const WORKSPACE_ID = "ws-cred-model-facing";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-16T00:00:00.000Z";
-const SEEDED_TOKEN = "flyio-secret-token-value";
+const SEEDED_TOKEN = "example-host-secret-token-value";
 
 /** Scripted `HttpClientPort` double: throws the scripted error, or answers 200. */
 class ScriptedHttpClient implements HttpClientPort {
@@ -76,9 +76,9 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     { repo, sealer: realSealer, keyring, clock, idGen },
     {
       workspaceId: WORKSPACE_ID,
-      label: "fly.io",
+      label: "example-host.io",
       category: "ops",
-      baseUrl: "https://api.fly.io",
+      baseUrl: "https://api.example-host.io",
       connection: { token: SEEDED_TOKEN },
     }
   );
@@ -93,8 +93,8 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     idGen,
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
-    // The bundled Fly plugin's scheme rules from source, as the hermetic root passes them.
-    loadAuthSchemes: loadBundledAuthSchemes,
+    // The example-host fixture plugin's scheme rules from source, shaped as a bundled plugin ships them.
+    loadAuthSchemes: loadFixtureAuthSchemes,
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(),
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
@@ -139,7 +139,7 @@ const SECRET_STORE_UNAVAILABLE_MESSAGE =
   "its Site key is missing or unusable, or the stored credential is unreadable. No request was sent. " +
   "An operator can check this site's token on the admin Secrets page.";
 
-const VALID_WRITE_FILES_INPUT = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const VALID_WRITE_FILES_INPUT = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] };
 
 /* ------------------------------------------------------------------------------------------------
  * Authorization — the arm `requireToolPermission` shares with every other domain
@@ -164,13 +164,13 @@ test("EVERY wired custom-credentials tool surfaces the denial, not just the firs
   // parks on a confirmation the delegated bridge's always-present `emitSurface` would otherwise wait on.
   const inputs: Record<string, Record<string, unknown>> = {
     custom_credential_list: {},
-    custom_credential_verify: { label: "fly.io" },
-    custom_credential_set_username: { label: "fly.io", username: "someone" },
-    custom_credential_set_token: { label: "fly.io" },
+    custom_credential_verify: { label: "example-host.io" },
+    custom_credential_set_username: { label: "example-host.io", username: "someone" },
+    custom_credential_set_token: { label: "example-host.io" },
     custom_credential_create: {},
-    custom_credential_make_request: { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/x" },
+    custom_credential_make_request: { label: "example-host.io", method: "DELETE", url: "https://api.example-host.io/v1/apps/x" },
     // write_files validates its input BEFORE the permission check, so the input must be valid.
-    custom_credential_write_files: { label: "fly.io", ...VALID_WRITE_FILES_INPUT },
+    custom_credential_write_files: { label: "example-host.io", ...VALID_WRITE_FILES_INPUT },
   };
 
   // Driven off the CATALOG, not a hand-written list: an eighth tool added without a wrap fails here
@@ -201,9 +201,9 @@ test("an unknown label says not-found on every tool that resolves one, rather th
     custom_credential_verify: { label: "nope" },
     custom_credential_set_username: { label: "nope", username: "someone" },
     custom_credential_set_token: { label: "nope" },
-    custom_credential_make_request: { label: "nope", method: "GET", url: "https://api.fly.io/v1/apps" },
+    custom_credential_make_request: { label: "nope", method: "GET", url: "https://api.example-host.io/v1/apps" },
     // The DELETE pre-check (`resolveRequestTarget`) is a separate arm from GET's.
-    "custom_credential_make_request (DELETE)": { label: "nope", method: "DELETE", url: "https://api.fly.io/v1/apps" },
+    "custom_credential_make_request (DELETE)": { label: "nope", method: "DELETE", url: "https://api.example-host.io/v1/apps" },
     custom_credential_write_files: { label: "nope", ...VALID_WRITE_FILES_INPUT },
   };
 
@@ -220,7 +220,7 @@ test("an unknown label says not-found on every tool that resolves one, rather th
       const output = result.value.result.output as { credentialSetup?: unknown };
       assert.deepEqual(output.credentialSetup, {
         setupToolId: "credential_save", remedyToolId: "credential_save",
-        prefill: { kind: "api", label: "nope", ...(input.url ? { baseUrl: "https://api.fly.io" } : {}) },
+        prefill: { kind: "api", label: "nope", ...(input.url ? { baseUrl: "https://api.example-host.io" } : {}) },
         hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
       });
       assert.equal(httpClient.calls.length, 0);
@@ -246,7 +246,7 @@ test("custom_credential_set_username refuses a smuggled token field by NAME, and
   const { deps } = await makeRouteDeps();
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_set_username", { label: "fly.io", username: "someone", token: "smuggled-token-value-123" });
+  const result = await call(harness, "custom_credential_set_username", { label: "example-host.io", username: "someone", token: "smuggled-token-value-123" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -262,7 +262,7 @@ test("custom_credential_set_token refuses a smuggled token field by NAME, and ne
   const { deps } = await makeRouteDeps();
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_set_token", { label: "fly.io", token: "smuggled-token-value-456" });
+  const result = await call(harness, "custom_credential_set_token", { label: "example-host.io", token: "smuggled-token-value-456" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -280,7 +280,7 @@ test("custom_credential_set_username with a blank username says why", async () =
   const { deps } = await makeRouteDeps();
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_set_username", { label: "fly.io", username: "   " });
+  const result = await call(harness, "custom_credential_set_username", { label: "example-host.io", username: "   " });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -294,7 +294,7 @@ test("a DELETE to an off-allowlist url is refused by the pre-check with the real
   const { deps, httpClient } = await makeRouteDeps();
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_make_request", { label: "fly.io", method: "DELETE", url: "https://evil.example.com/steal" });
+  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "DELETE", url: "https://evil.example.com/steal" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -302,7 +302,7 @@ test("a DELETE to an off-allowlist url is refused by the pre-check with the real
     code: "BAD_REQUEST",
     message:
       "CUSTOM_CREDENTIALS_REQUEST_REJECTED: url 'https://evil.example.com/steal' resolves to origin 'https://evil.example.com', " +
-      "which is not one of this credential's saved hosts (https://api.fly.io) — add it to this credential in the Access Tokens form first",
+      "which is not one of this credential's saved hosts (https://api.example-host.io) — add it to this credential in the Access Tokens form first",
   });
   assert.equal(httpClient.calls.length, 0);
 });
@@ -315,7 +315,7 @@ test("a GET off-allowlist rejection keeps its schema decoration and gains no sec
   const { deps } = await makeRouteDeps();
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://evil.example.com/steal" });
+  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://evil.example.com/steal" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -342,7 +342,7 @@ test("a secret-store failure names its KIND under a fixed message — its own te
   });
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_verify", { label: "fly.io" });
+  const result = await call(harness, "custom_credential_verify", { label: "example-host.io" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -371,8 +371,8 @@ test("a MISSING SITE KEY reaches the model as the actionable secret-store reason
   const harness = await buildHarness(deps);
 
   for (const [toolId, input] of [
-    ["custom_credential_verify", { label: "fly.io" }],
-    ["custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps" }],
+    ["custom_credential_verify", { label: "example-host.io" }],
+    ["custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps" }],
   ] as const) {
     const result = await call(harness, toolId, input);
 
@@ -393,7 +393,7 @@ test("a transport failure stays redacted — its message can carry an internal a
   const { deps } = await makeRouteDeps({ httpError: new Error("connect ECONNREFUSED 10.0.4.7:443") });
   const harness = await buildHarness(deps);
 
-  const result = await call(harness, "custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps" });
+  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps" });
 
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
@@ -404,10 +404,10 @@ test("a transport failure stays redacted — its message can carry an internal a
 
 test("a make-request egress refusal exposes only its caller-safe reason on the wire and in run events", async () => {
   const privateAddress = "10.23.45.67";
-  const safeMessage = "egress to 'api.fly.io' rejected: resolved address is private";
-  const { deps, httpClient } = await makeRouteDeps({ httpError: new EgressRefusedError({ message: `egress to 'api.fly.io' (${privateAddress}) rejected: resolved address is private` }, { callerSafeMessage: safeMessage }) });
+  const safeMessage = "egress to 'api.example-host.io' rejected: resolved address is private";
+  const { deps, httpClient } = await makeRouteDeps({ httpError: new EgressRefusedError({ message: `egress to 'api.example-host.io' (${privateAddress}) rejected: resolved address is private` }, { callerSafeMessage: safeMessage }) });
   const harness = await buildHarness(deps);
-  const result = await call(harness, "custom_credential_make_request", { label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps" });
+  const result = await call(harness, "custom_credential_make_request", { label: "example-host.io", method: "GET", url: "https://api.example-host.io/v1/apps" });
   assert.equal(result.ok, false);
   assert.ok(!result.ok);
   assert.equal(result.error.code, "BAD_REQUEST");
@@ -421,7 +421,7 @@ test("a make-request egress refusal exposes only its caller-safe reason on the w
     assert.ok(!text.includes(SEEDED_TOKEN));
   }
   assert.equal(httpClient.calls.length, 1);
-  assert.equal(httpClient.calls[0]!.url, "https://api.fly.io/v1/apps");
+  assert.equal(httpClient.calls[0]!.url, "https://api.example-host.io/v1/apps");
 });
 
 /* ------------------------------------------------------------------------------------------------
@@ -439,7 +439,7 @@ test("every no-emitSurface guard carries the ToolInputError marker, so it cannot
   // `errorKind: 'internal'`, and only that bucket is SEC-005-redacted.
   const guards: Record<string, { input: unknown; message: string }> = {
     custom_credential_set_token: {
-      input: { label: "fly.io" },
+      input: { label: "example-host.io" },
       message:
         "custom_credential_set_token: this execution context has no interactive confirmation channel " +
         "(no emitSurface), so a token cannot be collected here. Nothing was changed.",
@@ -451,7 +451,7 @@ test("every no-emitSurface guard carries the ToolInputError marker, so it cannot
         "(no emitSurface), so a credential cannot be created here. Nothing was changed.",
     },
     custom_credential_make_request: {
-      input: { label: "fly.io", method: "DELETE", url: "https://api.fly.io/v1/apps/x" },
+      input: { label: "example-host.io", method: "DELETE", url: "https://api.example-host.io/v1/apps/x" },
       message:
         "custom_credential_make_request: this execution context has no interactive confirmation channel " +
         "(no emitSurface), so a DELETE cannot be gated here. Nothing was sent.",

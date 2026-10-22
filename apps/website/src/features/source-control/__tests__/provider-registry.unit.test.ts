@@ -233,12 +233,12 @@ test("the bundled github plugin declares .github/workflows as its workflow path"
 
 test("isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively", () => {
   const github = [".github/workflows"];
-  assert.equal(isUnderWorkflowPath(".github/workflows/fly-deploy.yml", github), true);
-  assert.equal(isUnderWorkflowPath("fly.toml", github), false);
-  assert.equal(isUnderWorkflowPath(".github/workflow/fly-deploy.yml", github), false, "singular 'workflow' is not the real directory GitHub reads");
-  assert.equal(isUnderWorkflowPath("sub/.github/workflows/fly-deploy.yml", github), false, "a nested .github is not the repo-root one GitHub Actions reads");
-  assert.equal(isUnderWorkflowPath(".GitHub/workflows/fly-deploy.yml", github), false, "GitHub reads only the exact spelling");
-  assert.equal(isUnderWorkflowPath(".github/workflows/fly-deploy.yml", undefined), false, "a host that declares none flags nothing");
+  assert.equal(isUnderWorkflowPath(".github/workflows/example-host-deploy.yml", github), true);
+  assert.equal(isUnderWorkflowPath("example-host.toml", github), false);
+  assert.equal(isUnderWorkflowPath(".github/workflow/example-host-deploy.yml", github), false, "singular 'workflow' is not the real directory GitHub reads");
+  assert.equal(isUnderWorkflowPath("sub/.github/workflows/example-host-deploy.yml", github), false, "a nested .github is not the repo-root one GitHub Actions reads");
+  assert.equal(isUnderWorkflowPath(".GitHub/workflows/example-host-deploy.yml", github), false, "GitHub reads only the exact spelling");
+  assert.equal(isUnderWorkflowPath(".github/workflows/example-host-deploy.yml", undefined), false, "a host that declares none flags nothing");
 });
 
 test("a module whose validateTarget is not a function is refused", async () => {

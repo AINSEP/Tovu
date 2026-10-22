@@ -97,9 +97,9 @@ async function inProductionMode<T>(run: () => Promise<T>): Promise<T> {
 }
 
 test("buildSitemap end-to-end: with TOVU_PUBLIC_URL configured, loc is absolute in production (2026-09-18)", async () => {
-  const entries = await inProductionMode(() => sitemapFromRegisteredOrigin("https://tovu.fly.dev"));
+  const entries = await inProductionMode(() => sitemapFromRegisteredOrigin("https://tovu.example-host.dev"));
   assert.equal(entries.length, 1);
-  assert.equal(entries[0]!.loc, "https://tovu.fly.dev/published-visible");
+  assert.equal(entries[0]!.loc, "https://tovu.example-host.dev/published-visible");
 });
 
 test("buildSitemap end-to-end: with nothing configured, loc stays a safe relative path in production -- never localhost", async () => {

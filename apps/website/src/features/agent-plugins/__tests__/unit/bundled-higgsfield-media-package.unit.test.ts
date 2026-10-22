@@ -12,7 +12,7 @@ import { packAgentPluginDirectory } from "../../lifecycle.js";
  * @file The `higgsfield-media` bundled Agent Plugin's package is VALID, INSTALLABLE, and still says
  * the specific things it was built to say.
  *
- * Mirrors `bundled-deploy-fly-server.unit.test.ts` and
+ * Mirrors `content/agent-plugins/fly/__tests__/bundled-package.test.mjs` and
  * `bundled-site-compliance-package.unit.test.ts` deliberately — same three kinds of assertion, for
  * the same reasons.
  *

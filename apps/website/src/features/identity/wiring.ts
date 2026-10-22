@@ -190,7 +190,7 @@ function buildIdentityRouteDeps(
       // the same owner credential. The env mapping (with its unchanged defaults) now lives in
       // `resolveOwnerCredentials`, called only by composition roots — see its doc.
       // Init supplies BOTH explicitly. Only this server's own first-boot seed retains the env
-      // contract (including Fly's secret); a new site cannot inherit that deployment credential.
+      // contract (including the host's secret); a new site cannot inherit that deployment credential.
       ownerUsername: required.ownerCredentials.username, ownerPassword: required.ownerCredentials.password } });
 
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can

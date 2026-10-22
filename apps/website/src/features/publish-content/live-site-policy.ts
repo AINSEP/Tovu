@@ -3,7 +3,7 @@ import { resolveRuntimeMode, type ResolveRuntimeModeOptions } from "#src/contrac
 /**
  * @file Whether THIS instance may publish content to a live site at all.
  *
- * The live site (`TOVU_RUNTIME_MODE=production`, set by the Fly plugin's generated `[env]`) is the publish
+ * The live site (`TOVU_RUNTIME_MODE=production`, set by the hosting plugin's generated config) is the publish
  * DESTINATION — there is nothing further for it to push to. It still RECEIVES pushes (the import,
  * bundle and blob routes), so only the outbound push routes consult this. `/auth/me` echoes it as
  * `canPublishToLive` so the admin hides every Publish entry point there; the push routes refuse

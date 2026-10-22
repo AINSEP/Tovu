@@ -130,22 +130,22 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     );
     await installReal(
       WORKSPACE_A,
-      "tovu-deploy-fly",
+      "example-host-deploy",
       {
-        "plugin.json": manifestJson("tovu-deploy-fly", { version: "1.0.0", description: "Deploys to fly.io.", extensions: { tovu: { displayName: "  Deploy Online  ", summary: "\n Puts your site online.\n\nOne click.  " } } }),
-        "skills/tovu-deploy-fly/SKILL.md": "---\nname: tovu-deploy-fly\n---\n# Deploy to fly.io\nReal skill body.",
+        "plugin.json": manifestJson("example-host-deploy", { version: "1.0.0", description: "Deploys to example-host.io.", extensions: { tovu: { displayName: "  Deploy Online  ", summary: "\n Puts your site online.\n\nOne click.  " } } }),
+        "skills/example-host-deploy/SKILL.md": "---\nname: example-host-deploy\n---\n# Deploy to example-host.io\nReal skill body.",
       },
-      "seed-tovu-deploy-fly",
+      "seed-example-host-deploy",
     );
     // Real activation state — one explicitly enabled, one explicitly disabled — so the response's
     // `enabled` field is proven to reflect this workspace's OWN record, not a constant. Both are
-    // recorded explicitly rather than relying on `tovu-deploy-fly` falling back to
+    // recorded explicitly rather than relying on `example-host-deploy` falling back to
     // `isAgentPluginActive`'s "absent means active" default: that default exists to keep an
     // OPERATOR-installed plugin usable without an extra step, which is a different case from the
     // one this test needs (a plugin whose activation record explicitly says disabled).
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
-    await setAgentPluginActivation({ workspaceRoot, pluginId: "tovu-deploy-fly", enabled: false, actor: "test" });
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "example-host-deploy", enabled: false, actor: "test" });
 
     const { app, agentPluginsDeps } = buildTestApp();
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -170,13 +170,13 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
 
     assert.equal(byId.size, 2, "both real installed plugins are reported");
     assert.equal(byId.get("site-compliance")?.enabled, true);
-    assert.equal(byId.get("tovu-deploy-fly")?.enabled, false, "an explicitly disabled plugin reports enabled:false, not omitted");
+    assert.equal(byId.get("example-host-deploy")?.enabled, false, "an explicitly disabled plugin reports enabled:false, not omitted");
     assert.equal(byId.get("site-compliance")?.version, "1.0.0");
     assert.deepEqual(byId.get("site-compliance")?.keywords, ["compliance", "gdpr"]);
-    assert.equal(byId.get("tovu-deploy-fly")?.displayName, "Deploy Online", "extensions.tovu.displayName reaches the wire, trimmed");
+    assert.equal(byId.get("example-host-deploy")?.displayName, "Deploy Online", "extensions.tovu.displayName reaches the wire, trimmed");
     assert.equal(byId.get("site-compliance")?.displayName, null, "no display name sends null so the admin title-cases the id");
-    assert.equal(byId.get("tovu-deploy-fly")?.summary, "Puts your site online.\n\nOne click.", "extensions.tovu.summary reaches the wire, trimmed, paragraph breaks kept");
-    assert.equal(byId.get("tovu-deploy-fly")?.description, "Deploys to fly.io.", "the agent-facing description is untouched by the summary");
+    assert.equal(byId.get("example-host-deploy")?.summary, "Puts your site online.\n\nOne click.", "extensions.tovu.summary reaches the wire, trimmed, paragraph breaks kept");
+    assert.equal(byId.get("example-host-deploy")?.description, "Deploys to example-host.io.", "the agent-facing description is untouched by the summary");
     assert.equal(byId.get("site-compliance")?.summary, null, "no summary sends null so the admin shows the description");
     assert.ok(byId.get("site-compliance")?.skills.some((s) => s.name === "site-compliance"));
     agentPluginsDeps.authorize = async () => ({ allowed: false, reason: "no_grant" });
