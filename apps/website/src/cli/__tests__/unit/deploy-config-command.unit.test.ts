@@ -11,14 +11,21 @@ import { deployConfigTargetOptionHelp, runDeployConfigCommand } from "../../comm
  * plugin root for refusals), with stdout/stderr/env injected instead of read from the process.
  */
 
-function capture() {
+/** A plugin root holding only the neutral `example-host` generator (core stays vendor-neutral). */
+const FIXTURE_PLUGINS_DIR = path.resolve(import.meta.dirname, "../fixtures/deploy-config-plugins");
+
+function capture(env: Record<string, string> = {}) {
   const out: string[] = []; const err: string[] = [];
-  return { out, err, ports: { env: {}, stdout: (m: string) => { out.push(m); }, stderr: (m: string) => { err.push(m); } } };
+  return { out, err, ports: { env, stdout: (m: string) => { out.push(m); }, stderr: (m: string) => { err.push(m); } } };
 }
 
-test("renders the fly config to stdout and its operator notes to stderr", async () => {
-  const io = capture();
-  await runDeployConfigCommand({ target: "fly", region: "ams" }, io.ports);
+function captureFixture() {
+  return capture({ TOVU_BUNDLED_AGENT_PLUGINS_DIR: FIXTURE_PLUGINS_DIR });
+}
+
+test("renders the generator's config to stdout and its operator notes to stderr", async () => {
+  const io = captureFixture();
+  await runDeployConfigCommand({ target: "example-host", region: "ams" }, io.ports);
   assert.equal(io.out.length, 1);
   assert.match(io.out[0]!, /ams/);
   assert.ok(io.err.every((line) => line.startsWith("tovu deploy config: ")));
@@ -26,18 +33,18 @@ test("renders the fly config to stdout and its operator notes to stderr", async 
 
 test("--out writes the rendered file and reports where", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-out-")); t.after(() => rm(dir, { recursive: true, force: true }));
-  const io = capture();
-  const outPath = path.join(dir, "fly.toml");
-  await runDeployConfigCommand({ target: "fly", region: "ams", out: outPath }, io.ports);
+  const io = captureFixture();
+  const outPath = path.join(dir, "example-host.conf");
+  await runDeployConfigCommand({ target: "example-host", region: "ams", out: outPath }, io.ports);
   const written = await readFile(outPath, "utf8");
   assert.ok(written.length > 0);
   assert.equal(io.out.length, 1);
-  assert.match(io.out[0]!, new RegExp(`^tovu deploy config: wrote \\S+ \\(fly\\) to ${outPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n$`));
+  assert.match(io.out[0]!, new RegExp(`^tovu deploy config: wrote \\S+ \\(example-host\\) to ${outPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n$`));
 });
 
-test("without --region the generator receives an empty region and fly refuses to assume one", async () => {
-  const io = capture();
-  await assert.rejects(runDeployConfigCommand({ target: "fly" }, io.ports), { name: "ValidationError", message: /--region is required for --target fly/ });
+test("without --region the generator receives an empty region and refuses to assume one", async () => {
+  const io = captureFixture();
+  await assert.rejects(runDeployConfigCommand({ target: "example-host" }, io.ports), { name: "ValidationError", message: /--region is required for --target example-host/ });
   assert.deepEqual(io.out, []);
 });
 
@@ -72,8 +79,13 @@ test("by default the rendered config goes to stdout", async (t) => {
   t.mock.method(process.stdout, "write", (chunk: string) => { written.push(chunk); return true; });
   const errors: string[] = [];
   t.mock.method(process.stderr, "write", (chunk: string) => { errors.push(chunk); return true; });
+  const previous = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
+  process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = FIXTURE_PLUGINS_DIR;
   try {
-    await runDeployConfigCommand({ target: "fly", region: "ams" });
-  } finally { t.mock.restoreAll(); }
+    await runDeployConfigCommand({ target: "example-host", region: "ams" });
+  } finally {
+    t.mock.restoreAll();
+    if (previous === undefined) delete process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR; else process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = previous;
+  }
   assert.ok(written.some((chunk) => chunk.includes("ams")));
 });
