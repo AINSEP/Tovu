@@ -152,8 +152,8 @@ function buildWorksForField({ prefill, providers }: { prefill: CreateCredentialP
   return {
     kind: "multi-enum",
     name: "worksFor",
-    label: "Works for",
-    hint: "Choose the hosts or vendors this credential can be used with. The label is a display name.",
+    label: "Works for (optional)",
+    hint: "Also use this key for deploying? Leave this empty unless this is a hosting or deploy key.",
     options: options.map(id => ({ value: id })),
     value: worksFor,
   };

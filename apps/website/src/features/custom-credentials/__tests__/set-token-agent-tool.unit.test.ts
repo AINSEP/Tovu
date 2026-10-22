@@ -226,6 +226,25 @@ test("the tool's own result never echoes the submitted token, on success or fail
   assert.ok(!JSON.stringify(result).includes("brand-new-secret-token"), "the result must never contain the submitted token");
 });
 
+test("a rotated token is trimmed of paste junk; an interior space is refused in plain words", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const first = await raiseForm(setTokenTool);
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: { token: "\u200brotated-token\n" } }, { toolId: TOOL_ID });
+  assert.deepEqual(await first.pending, { saved: true });
+  assert.equal((await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" }))!.connection.token, "rotated-token");
+
+  const second = await raiseForm(setTokenTool);
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { token: "rotated token" } }, { toolId: TOOL_ID });
+  const refused = await second.pending as { saved: boolean; message?: string };
+  assert.equal(refused.saved, false);
+  assert.equal(refused.message, "The token has a space, line break or special character in it — paste it again.");
+  assert.equal((await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" }))!.connection.token, "rotated-token");
+});
+
 test("the durable audit trail records only the model-issued call's key NAMES, never any value — describeInput never carries the label's own value, let alone a token", () => {
   // The exchange DELIVERY (the browser POST carrying the actual token) never reaches
   // `toolExecutor.execute`/`describeInput` at all — `mcp-ui-tool-calls-route.ts`'s own header: "Shape 1

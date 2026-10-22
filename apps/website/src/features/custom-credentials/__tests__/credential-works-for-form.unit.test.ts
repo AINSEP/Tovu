@@ -26,6 +26,13 @@ test("a non-hosting credential gets no Works-for picker and no deploy host", () 
   }
 });
 
+test("a shown Works-for picker says it is optional and when to leave it empty", () => {
+  const field = worksForField({ label: "Vercel" });
+  assert.equal(field?.label, "Works for (optional)");
+  assert.match(field?.hint ?? "", /Leave this empty unless this is a hosting or deploy key/);
+  assert.equal(field?.required, undefined);
+});
+
 test("source-control credentials still get the catalog", () => {
   assert.ok(worksForField({ label: "My repo", category: "source-control" })?.options.some(option => option.value === "github"));
 });

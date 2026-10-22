@@ -313,6 +313,34 @@ test("submit: an optional username is saved alongside the token", { timeout: 5_0
   assert.equal(resolved!.connection.username, "leonaburime@gmail.com");
 });
 
+for (const [name, pasted] of [["trailing newline", "re_pasted_key\n"], ["trailing space", "re_pasted_key "], ["zero-width edges", "\u200bre_pasted_key\ufeff"]] as const) {
+  test(`submit: a pasted token with a ${name} is trimmed and saved`, { timeout: 5_000 }, async (t) => {
+    const { deps, repo, sealer } = fakeRouteDeps();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+    const { pending, exchangeId } = await raiseForm(createTool, {}, { signal: t.signal });
+    surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "mail", baseUrl: "https://api.example.com", category: "ops", token: pasted } }, { toolId: TOOL_ID });
+    assert.equal((await pending as { created: boolean }).created, true);
+    const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "mail" });
+    assert.equal(resolved!.connection.token, "re_pasted_key");
+  });
+}
+
+test("submit: a token with an interior space or line break is refused in plain words, never echoing it", { timeout: 5_000 }, async (t) => {
+  for (const pasted of ["re_pasted key", "re_pasted\nkey", "re_pasted\u200bkey"]) {
+    const { deps, repo } = fakeRouteDeps();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+    const { pending, exchangeId, emitted } = await raiseForm(createTool, {}, { signal: t.signal });
+    surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "mail", baseUrl: "https://api.example.com", category: "ops", token: pasted } }, { toolId: TOOL_ID });
+    const result = await pending as { created: boolean; message?: string };
+    assert.equal(result.created, false);
+    assert.equal(result.message, "The token has a space, line break or special character in it — paste it again.");
+    assert.doesNotMatch(JSON.stringify([result, emitted]), /re_pasted/);
+    assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 4. Rejections: blank token, duplicate label, invalid category — nothing written or re-sealed
 // ---------------------------------------------------------------------------

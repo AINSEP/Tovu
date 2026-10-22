@@ -49,6 +49,7 @@ import {
   type CredentialedRequestOutcome,
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
+import { cleanCardToken } from "./card-token.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
@@ -568,6 +569,8 @@ interface SetTokenAnswerContext {
 async function saveSetToken(
   { token, signal, routeDeps, existing }: SetTokenAnswerContext & { token: string; signal: AbortSignal }, _optional = {},
 ): Promise<CustomCredentialSummary> {
+  // Paste artifacts are dropped before anything is read or written; see card-token.ts.
+  const cleanedToken = cleanCardToken({ token });
   // Re-reads the username HERE, at write time — never trusts `existing` (captured back when
   // `custom_credential_set_token`'s handler first resolved the label, before the form was even shown
   // to a human who may sit on it for an arbitrarily long time). `custom_credential_set_username` can
@@ -603,7 +606,7 @@ async function saveSetToken(
       // the fresh read above rather than the `existing` snapshot. If the row was deleted while the
       // form was open, `current` is `null` and `updateCustomCredential`'s own `findById` throws
       // `CustomCredentialNotFoundError` below, same as it always has.
-      connection: { token, ...(username !== undefined ? { username } : {}) },
+      connection: { token: cleanedToken, ...(username !== undefined ? { username } : {}) },
     }
   );
 }
@@ -814,7 +817,7 @@ async function saveCreateCard(
       worksFor: submission.worksFor,
       category: submission.category,
       baseUrl: submission.baseUrl,
-      connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
+      connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) },
     }
   );
   if (registry && routeDeps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: routeDeps.workspaceId, registry, cache: routeDeps.publishCredentialVerificationCache, after: saved });
