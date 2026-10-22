@@ -1,0 +1,1 @@
+{ "schemaVersion": 1, "platforms": [{ "id": "example-host", "label": "Example Host", "module": "deploy-ops/example-host.mjs", "hosts": ["api.example-host.dev"] }] }
