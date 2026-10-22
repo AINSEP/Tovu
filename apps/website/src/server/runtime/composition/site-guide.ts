@@ -38,6 +38,41 @@ export function resolveSiteGuideEngine(_input: Record<string, never>, _options: 
   return exports as SiteGuideEngine;
 }
 
+/** The fact-source ports the guide's `facts.read` hands `readSiteGuideFacts`: the site's own deps
+ * plus field-projected registries and the agent-plugin inventory. Extracted from
+ * `createTovuSiteGuide` so each projection is unit-testable without running a guide engine.
+ * @complexity O(p) agent-plugin activation reads for p installed plugins (capped at 256).
+ */
+export function siteGuideFactDeps(
+  { deps, lifecycle }: { deps: TovuSiteGuideDeps; lifecycle: TovuAgentPluginLifecycle },
+  _options: Record<string, never> = {},
+) {
+  return {
+    ...deps,
+    listWidgetTypes: () => Object.values(WIDGET_TYPE_REGISTRATIONS).map(item => item.typeKey),
+    listFormFieldTypes: () => [...FIELD_TYPES],
+    listMarkers: () => [...new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE])],
+    listLayouts: () => [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir],
+    // No membership enable/disable toggle exists; a wired repository does not establish feature state.
+    readMembersEnabled: async () => null,
+    readAgentPlugins: async () => {
+      const layout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+      const installed = lifecycle.preferBundledAgentPluginDigests(
+        await lifecycle.listInstalledPlugins(layout.root), await lifecycle.readBundledAgentPluginDigests(layout.root),
+      );
+      if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
+      return Promise.all(installed.map(async plugin => {
+        const activation = await lifecycle.resolveAgentPluginActivation({ workspaceRoot: layout.root, pluginId: plugin.pluginId });
+        return {
+          id: plugin.id ?? plugin.pluginId, name: plugin.displayName ?? plugin.pluginId, version: plugin.version ?? null,
+          // An unreadable activation is unknown, not an operator's decision to disable it.
+          enabled: activation.verdict === "undetermined" ? null : activation.verdict === "active",
+        };
+      }));
+    },
+  };
+}
+
 /** Bind the generic Jini shell to THIS site's owners. Every fact is field-projected, never a
  * spread of an installed manifest or repo record. Plugin loading uses the existing bound lifecycle.
  * @param input - Boot-scoped site ports, never a root inferred from env or cwd.
@@ -53,30 +88,7 @@ export function createTovuSiteGuide({ deps }: { deps: TovuSiteGuideDeps }, optio
     (await deps.authorize({ principalId: caller.principalId, permission, workspaceId: deps.workspaceId })).allowed;
   const service = engine.createSiteGuide({
     builtInTopics: TOVU_CAPABILITY_CARDS, authorize,
-    facts: { read: input => readSiteGuideFacts({ ...input, deps: {
-      ...deps,
-      listWidgetTypes: () => Object.values(WIDGET_TYPE_REGISTRATIONS).map(item => item.typeKey),
-      listFormFieldTypes: () => [...FIELD_TYPES],
-      listMarkers: () => [...new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE])],
-      listLayouts: () => [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir],
-      // No membership enable/disable toggle exists; a wired repository does not establish feature state.
-      readMembersEnabled: async () => null,
-      readAgentPlugins: async () => {
-        const layout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
-        const installed = lifecycle.preferBundledAgentPluginDigests(
-          await lifecycle.listInstalledPlugins(layout.root), await lifecycle.readBundledAgentPluginDigests(layout.root),
-        );
-        if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
-        return Promise.all(installed.map(async plugin => {
-          const activation = await lifecycle.resolveAgentPluginActivation({ workspaceRoot: layout.root, pluginId: plugin.pluginId });
-          return {
-            id: plugin.id ?? plugin.pluginId, name: plugin.displayName ?? plugin.pluginId, version: plugin.version ?? null,
-            // An unreadable activation is unknown, not an operator's decision to disable it.
-            enabled: activation.verdict === "undetermined" ? null : activation.verdict === "active",
-          };
-        }));
-      },
-    } }) },
+    facts: { read: input => readSiteGuideFacts({ ...input, deps: siteGuideFactDeps({ deps, lifecycle }) }) },
     // The shell filters each contributed topic, pointer and workflow by its own permissions.
     loadContributions: async () => {
       return loadSiteGuideContributions({ workspaceId: deps.workspaceId, loadContributions: lifecycle.loadPluginContributions, engine });

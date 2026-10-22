@@ -6,7 +6,7 @@ import type { SecretSealerPort } from "#src/features/webhooks/ports";
 import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import type { SealedSecret } from "#src/features/webhooks/types";
 
-import { siteSecretSealer } from "./storage-secret.js";
+import { siteSecretSealer, type SiteSecretSealer } from "./storage-secret.js";
 
 /**
  * @file Access tokens typed into create-site onboarding, held for the NEW site until it first boots.
@@ -39,18 +39,26 @@ function pendingTokenAad(pluginId: string): string {
  * @throws {Error} The site key could not be made, or the write failed. The message names no token.
  * @complexity One seal per token, one small file write.
  */
-export async function sealPendingAgentPluginTokensForNewSite(required: {
-  siteDir: string;
-  siteKeyId: string;
-  tokens: Readonly<Record<string, string>>;
-}): Promise<void> {
+export async function sealPendingAgentPluginTokensForNewSite(
+  required: {
+    siteDir: string;
+    siteKeyId: string;
+    tokens: Readonly<Record<string, string>>;
+  },
+  // Ports, real by default (same seam as `sealConnectionStringForNewSite`): unit tests drive the
+  // refusal and sealing arms in-process without minting a key under the real home directory.
+  {
+    ensure = ensureSiteKey,
+    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer(required.siteDir, process.env, siteKeyIdForSite),
+  }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
+): Promise<void> {
   const { siteDir, siteKeyId, tokens } = required;
   // A site being created holds no key-dependent data yet.
-  const ensured = await ensureSiteKey({ siteDir, siteKeyId, findSiteKeyDependentData: async () => false });
+  const ensured = await ensure({ siteDir, siteKeyId, findSiteKeyDependentData: async () => false });
   if (ensured.action === "invalid" || ensured.action === "refuse") {
     throw new Error(`could not prepare the new site's key to store its access tokens (${ensured.action})`);
   }
-  const { sealer, keyring } = siteSecretSealer(siteDir, process.env, siteKeyId);
+  const { sealer, keyring } = sealerFor(siteKeyId);
   const key = await keyring.activeKey();
   const file: PendingTokensFile = { version: 1, tokens: {} };
   for (const [pluginId, token] of Object.entries(tokens)) {
