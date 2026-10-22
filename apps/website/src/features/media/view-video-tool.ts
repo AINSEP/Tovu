@@ -24,10 +24,8 @@ export interface MediaViewVideoToolDeps extends MediaVideoToolPorts {
 }
 export const MEDIA_VIEW_VIDEO_INPUT_SCHEMA = {
   type: 'object', additionalProperties: false,
-  oneOf: [
-    { anyOf: [{ required: ['mediaId'] }, { required: ['slug'] }], not: { required: ['attachmentRef'] } },
-    { required: ['attachmentRef'], not: { anyOf: [{ required: ['mediaId'] }, { required: ['slug'] }] } },
-  ],
+  // MOVE: the published batch wrapper retains root oneOf, which would reject items-only calls.
+  // The normalizer and readSource enforce the source alternatives on each individual input.
   not: { required: ['at', 'every'] },
   properties: {
     mediaId: { type: 'string', minLength: 1, description: 'One owned media-library id, from content_read.media_asset. Supply mediaId or slug OR attachmentRef.' },
