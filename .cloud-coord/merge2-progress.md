@@ -9,3 +9,4 @@
 - Jini install+build green; Jini tsc 0 errors in all 10 touched pkgs; Tovu tsc web 9 / admin 4 errors = identical to f27498bd7 baseline.
 - OWNER ITEM ad1476668.
 - 02:25 test batches running.
+- 03:25 VERIFY done; REPORT written.
