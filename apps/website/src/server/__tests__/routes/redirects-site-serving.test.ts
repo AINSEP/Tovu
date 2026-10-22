@@ -95,6 +95,32 @@ test("nested redirect sources retain their status code and the existing trailing
   }
 });
 
+// Bug A (2026-10-22): WordPress date permalinks are imported WITH their trailing slash, while the
+// site route sees the request without it (and sometimes percent-encoded). Depths 1-5 must all redirect.
+test("imported multi-segment sources stored with a trailing slash redirect at depths 1-5, with or without the slash", async (t) => {
+  const { app } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
+  const segments = ["2022", "06", "13", "craving", "caf%C3%A9"];
+
+  for (let depth = 1; depth <= 5; depth += 1) {
+    const source = `/${segments.slice(0, depth).join("/")}/`;
+    const create = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ matchType: "exact", fromPattern: depth === 5 ? source.replace("caf%C3%A9", "café") : source, toTarget: `/blog/post-${depth}`, statusCode: 301, override: false }),
+    });
+    assert.equal(create.status, 201, await create.text());
+
+    for (const visitPath of [source, source.slice(0, -1)]) {
+      const visit = await fetch(`${baseUrl}${visitPath}`, { redirect: "manual" });
+      assert.equal(visit.status, 301, visitPath);
+      assert.equal(visit.headers.get("location"), `/blog/post-${depth}`);
+      await visit.arrayBuffer();
+    }
+  }
+});
+
 test("a nested override redirect wins pre_content before a more specific ordinary rule can win post_content", async (t) => {
   const { app } = buildTestApp();
   const baseUrl = await startTestServer(app, t);

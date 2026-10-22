@@ -884,6 +884,40 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
 });
 
+// Bug A (2026-10-22): a WordPress port carried 51 date-permalink rules stored WITH a trailing slash.
+// The exporter re-requests each source; before the fix every one 404'd ("Cannot GET") and the
+// export refused to publish, so all 51 had to be switched off.
+test("exportSite: 51 WordPress date-permalink rules with trailing slashes all export as stubs, with zero redirect failures", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const sources: string[] = [];
+  for (let i = 0; i < 51; i += 1) {
+    const from = `/2022/${String((i % 12) + 1).padStart(2, "0")}/${String((i % 28) + 1).padStart(2, "0")}/post-${i}/`;
+    sources.push(from);
+    const rule: RedirectRecord = {
+      id: `redir-wp-${i}`, workspaceId: base.workspaceId, matchType: "exact",
+      fromPattern: from, toTarget: `/blog/post-${i}`, statusCode: 301, status: "active", override: false,
+      priority: 0, source: "import", createdByPrincipal: "system", createdAt: now, updatedAt: now, version: 1,
+    };
+    await base.redirectRepo.save({
+      record: rule,
+      revision: { redirectId: rule.id, workspaceId: rule.workspaceId, seq: 1, state: rule, tombstoned: false, actorId: "system", recordedAt: now },
+    });
+  }
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  assert.deepEqual(report.routes.failed.filter((r) => sources.includes(r.path)), []);
+  for (const [i, from] of sources.entries()) {
+    const succeeded = report.routes.succeeded.find((r) => r.path === from);
+    assert.equal(succeeded?.kind, "redirect", from);
+    const stub = readFileSync(path.join(outputDir, ...from.split("/").filter(Boolean), "index.html"), "utf8");
+    assert.match(stub, new RegExp(`<meta http-equiv="refresh" content="0; url=/blog/post-${i}">`));
+  }
+});
+
 test("exportSite: multi-segment exact active redirect rules are exported as static meta-refresh stubs", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
