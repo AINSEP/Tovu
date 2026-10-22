@@ -6,6 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { buildRegistrations } from "../../install-tool.js";
+import type { PluginHostPort } from "../../../../contracts/headless/plugin-host.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -181,4 +182,50 @@ test("a replacing upload reports the version it upgraded from; a manifest withou
   await writeFile(path.join(unversioned, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "no-version" }));
   const result = await f.install.handler(context({ source: { kind: "folder", path: unversioned } }), {}) as { plugin: unknown };
   assert.deepEqual(result.plugin, { id: "no-version" });
+});
+
+/** Records each identity admission the install path routes through the host, then runs it. */
+function recordingPluginHost(candidates: unknown[]): PluginHostPort {
+  return {
+    async withInstallIdentity({ candidate, run }: { candidate: unknown; run: () => Promise<unknown> }) { candidates.push(candidate); return run(); },
+    getHostCapability: () => undefined,
+  } as unknown as PluginHostPort;
+}
+
+test("without an injected source root, bundled ids come from the build's own bundled packages", async t => {
+  const f = await fixture(t);
+  const { bundledAgentPluginsSourceRoot: _root, ...deps } = f.deps;
+  const install = buildRegistrations(deps).find(tool => tool.descriptor.id === "agent_plugins_install")!;
+  await assert.rejects(() => install.handler(context({ source: { kind: "bundled", bundledId: "no-such-bundled-plugin" } }), {}),
+    (error: unknown) => error instanceof ToolInputError && /^Unknown bundled plugin id 'no-such-bundled-plugin'\. Bundled ids: .*\bgithub\b/.test((error as Error).message));
+  assert.deepEqual(await listInstalledPlugins(f.workspaceRoot), []);
+});
+
+test("an already-installed bundled plugin with an unreadable activation record reports enabled as unknown", async t => {
+  const f = await fixture(t);
+  await writePackage(path.join(f.sourceRoot, "plain-bundled"), "plain-bundled");
+  const input = { source: { kind: "bundled", bundledId: "plain-bundled" } };
+  await f.install.handler(context(input), {});
+  // A well-formed file whose own entry keeps bundled provenance but carries a non-boolean `enabled`.
+  const activationsPath = path.join(f.workspaceRoot, "activations.json");
+  const activations = JSON.parse(await readFile(activationsPath, "utf8")) as { plugins: Record<string, Record<string, unknown>> };
+  assert.equal(activations.plugins["plain-bundled"]?.origin, "bundled");
+  activations.plugins["plain-bundled"]!.enabled = "sometimes";
+  await writeFile(activationsPath, JSON.stringify(activations));
+  assert.deepEqual(await f.install.handler(context(input), {}), { installed: true, alreadyInstalled: true, enabled: null, plugin: { id: "plain-bundled" },
+    note: "Bundled plugin 'plain-bundled' is already installed; activation was not changed." });
+});
+
+test("a folder install admits its identity through the host's plugin directory when one is wired", async t => {
+  const f = await fixture(t);
+  const folder = path.join(f.root, "hosted");
+  await writePackage(folder, "hosted-plugin");
+  const candidates: unknown[] = [];
+  const install = buildRegistrations({ ...f.deps, pluginHost: recordingPluginHost(candidates) }).find(tool => tool.descriptor.id === "agent_plugins_install")!;
+  const result = await install.handler(context({ source: { kind: "folder", path: folder } }), {}) as { installed: boolean; plugin: { id: string } };
+  assert.equal(result.installed, true);
+  assert.equal(result.plugin.id, "hosted-plugin");
+  assert.ok(candidates.length >= 1, "identity admission went through the host");
+  assert.ok(candidates.every(candidate => (candidate as { family: string }).family === "agent-plugin"));
+  assert.deepEqual((await listInstalledPlugins(f.workspaceRoot)).map(plugin => plugin.pluginId), ["hosted-plugin"]);
 });

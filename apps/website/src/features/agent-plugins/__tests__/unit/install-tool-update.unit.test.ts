@@ -167,3 +167,18 @@ test("agent_plugins_update: permission is checked before the target", async () =
     .find((entry) => entry.descriptor.id === AGENT_PLUGINS_UPDATE_TOOL_ID)!;
   await assert.rejects(() => registration.handler(context({ pluginId: "Bad_Id" }), {}), (error: unknown) => !(error instanceof ToolInputError));
 });
+
+test("agent_plugins_update: a version-less package updates through the host's identity admission and reports no version", async () => {
+  await withInstalled(async ({ dir, layout, oldDigest }) => {
+    const file = path.join(dir, "notes-unversioned.zip");
+    await writeFile(file, await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, description: "unversioned" }) }]));
+    const candidates: unknown[] = [];
+    const pluginHost = { async withInstallIdentity({ candidate, run }: { candidate: unknown; run: () => Promise<unknown> }) { candidates.push(candidate); return run(); }, getHostCapability: () => undefined };
+    const tool = updateTool({ agentPluginLayout: layout, ...mcpDeps(), pluginHost, snapshotAgentPluginSettings: async () => ({ keys: [] }) });
+    const result = await tool.handler(context({ source: { kind: "zip", path: file }, pluginId: PLUGIN, expectedOldDigest: oldDigest }), {}) as Record<string, unknown>;
+    assert.equal(result.updated, true);
+    assert.deepEqual(result.plugin, { id: PLUGIN });
+    assert.ok(candidates.length >= 1);
+    assert.ok(candidates.every(candidate => (candidate as { family: string }).family === "agent-plugin"));
+  });
+});
