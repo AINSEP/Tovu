@@ -322,3 +322,29 @@ test("pages update: a change-set record failure after the edit applied is rolled
   assert.deepEqual(restored.bodyJson, prior.bodyJson);
   assert.equal(restored.version, prior.version + 2, "compensation is a forward restore after the failed write");
 });
+
+test("pages list: a denied content.read is 403 FORBIDDEN naming the permission and reason", async (t) => {
+  const { app, deps } = buildApp();
+  deps.authorize = async () => ({ allowed: false, reason: "no-grant" });
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${PAGES}`);
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "content.read", reason: "no-grant" });
+});
+
+test("pages delete: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const page = await createPage(baseUrl, "Delete Once Page");
+  const request = { method: "DELETE" as const, headers: { "Idempotency-Key": "page-delete-replay" } };
+  const first = await fetch(`${baseUrl}${PAGES}/${page.id}`, request);
+  assert.equal(first.status, 200, await first.clone().text());
+  const second = await fetch(`${baseUrl}${PAGES}/${page.id}`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.equal(typeof body.changeSetId, "string");
+  assert.ok(body.changeSetId.length > 0);
+});
