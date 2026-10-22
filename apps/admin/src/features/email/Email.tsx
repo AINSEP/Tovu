@@ -58,9 +58,11 @@ function Chip(props: { tone: Tone; children: ReactNode }) {
 /** One titled card; `id` doubles as the in-page anchor (`/admin/email#provider`). */
 function Section(props: { id: string; title: string; children: ReactNode }) {
   return (
-    <section id={props.id} className="card jini-settings-section email-section" aria-labelledby={`email-${props.id}-title`}>
-      <h2 className="card-title" id={`email-${props.id}-title`}>{props.title}</h2>
-      {props.children}
+    <section id={props.id} className="jini-settings-section email-section" aria-labelledby={`email-${props.id}-title`}>
+      <div className="jini-settings-section-card email-card">
+        <h2 className="jini-byok-card-title" id={`email-${props.id}-title`}>{props.title}</h2>
+        {props.children}
+      </div>
     </section>
   );
 }
@@ -94,7 +96,7 @@ function StatusBody(props: { view: EmailStatusView; locale: string; retry: () =>
     <>
       <div className="email-row">
         <Chip tone={summary.tone}>{t({ locale, key: summary.chip })}</Chip>
-        <span>{t({ locale, key: summary.line })}</span>
+        <span className="jini-field-hint">{t({ locale, key: summary.line })}</span>
       </div>
       <p className="jini-field-hint">{t({ locale, key: "This checks configuration only. It does not prove that mail arrives." })}</p>
     </>
@@ -118,9 +120,9 @@ function ProviderBody(props: { status: AdminMailStatus; locale: string }) {
             const state = LANE_STATE[lane.state] ?? { tone: "neutral" as const, label: lane.state };
             return (
               <div key={lane.lane} className="email-fact">
-                <dt>{t({ locale, key: LANE_LABEL[lane.lane] })}</dt>
+                <dt className="jini-field-label">{t({ locale, key: LANE_LABEL[lane.lane] })}</dt>
                 <dd>
-                  <span>{providerLabel(status, lane.providerId, locale)}</span>
+                  <span className="jini-field-hint">{providerLabel(status, lane.providerId, locale)}</span>
                   <Chip tone={state.tone}>{t({ locale, key: state.label })}</Chip>
                 </dd>
               </div>
@@ -128,7 +130,7 @@ function ProviderBody(props: { status: AdminMailStatus; locale: string }) {
           })}
         </dl>
       ) : null}
-      <h3 className="email-subhead">{t({ locale, key: "Installed providers" })}</h3>
+      <h3 className="jini-field-label email-subhead">{t({ locale, key: "Installed providers" })}</h3>
       {providers.length === 0 ? (
         <p className="jini-field-hint">
           {t({ locale, key: "No mail providers are installed." })}{" "}
@@ -138,7 +140,7 @@ function ProviderBody(props: { status: AdminMailStatus; locale: string }) {
         <ul className="email-list">
           {providers.map((provider) => (
             <li key={provider.id} className="email-row">
-              <span>{provider.label}</span>
+              <span className="jini-field-hint">{provider.label}</span>
               {active.has(provider.id) ? <Chip tone="ok">{t({ locale, key: "Active" })}</Chip> : null}
               {provider.hosted ? null : <Chip tone="neutral">{t({ locale, key: "Local only" })}</Chip>}
             </li>
@@ -147,7 +149,7 @@ function ProviderBody(props: { status: AdminMailStatus; locale: string }) {
       )}
       {(status.refusals ?? []).length > 0 ? (
         <>
-          <h3 className="email-subhead">{t({ locale, key: "Not loaded" })}</h3>
+          <h3 className="jini-field-label email-subhead">{t({ locale, key: "Not loaded" })}</h3>
           <ul className="email-list">
             {status.refusals!.map((reason) => <li key={reason} className="jini-field-hint">{reason}</li>)}
           </ul>
@@ -170,7 +172,7 @@ function SenderBody(props: { status: AdminMailStatus; locale: string }) {
           {warnings.map((warning) => (
             <li key={warning} className="email-row">
               <Chip tone="warning">{t({ locale, key: "Needs attention" })}</Chip>
-              <span>{t({ locale, key: SENDER_WARNING[warning] })}</span>
+              <span className="jini-field-hint">{t({ locale, key: SENDER_WARNING[warning] })}</span>
             </li>
           ))}
         </ul>
@@ -199,7 +201,9 @@ export function Email(props: { useEmailHook?: () => EmailController } = {}) {
           </p>
         </div>
       </div>
-      <div className="email-sections" {...themeBoundary}>
+      {/* Same wrapper classes as Authentication: `settings-ui-section` + the theme boundary is what
+          gives `.jini-settings-section-card` its white Classic panel (styles/settings.css). */}
+      <div className="settings-ui-section settings-ui-section--page-flow email-sections" {...themeBoundary}>
         <Section id="status" title={t({ locale, key: "Status" })}>
           <StatusBody view={view} locale={locale} retry={controller.retry} />
         </Section>
