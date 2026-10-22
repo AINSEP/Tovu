@@ -7,8 +7,12 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
-/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendResetPasswordError(res: Response, err: unknown): void {
+/** Maps this route's thrown error types onto the admin error envelope. Exported for direct-invoke
+ *  coverage: `assertUserAccountAction` deliberately exempts `reset-password` from its self-target
+ *  refusal (the owner may reset its own password), so no current service path raises
+ *  `SelfDeleteError` here — the mapping stays as defence-in-depth should that exemption change.
+ *  @complexity O(1). */
+export function sendResetPasswordError(res: Response, err: unknown): void {
   if (err instanceof UserInTrashError) {
     res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
     return;

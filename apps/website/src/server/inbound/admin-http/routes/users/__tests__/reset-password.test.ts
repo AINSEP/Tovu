@@ -10,7 +10,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminUserResetPasswordRoute } from "../reset-password.js";
+import { registerAdminUserResetPasswordRoute, sendResetPasswordError } from "../reset-password.js";
+import { SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { createSessionForPrincipal, createUser, validateSession } from "@jini-ai/user-management/server";
 
@@ -357,4 +358,12 @@ test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently 
   assert.equal(body.error, "this user is in the Trash; restore them first");
   assert.equal((await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId }))?.passwordHash, originalHash);
   assert.deepEqual(await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: session.id }), session);
+});
+
+// No service path raises SelfDeleteError for reset-password today (assertUserAccountAction exempts
+// it so an owner can reset its own password); the mapping is defence-in-depth, proven directly.
+test("RESET_USER_PASSWORD error mapping: SelfDeleteError maps to 409 SELF_DELETE", () => {
+  const { res, capture } = createCapturingResponse();
+  sendResetPasswordError(res, new SelfDeleteError("you cannot reset your own password here"));
+  assert.deepEqual(capture, { statusCode: 409, jsonBody: { error: "you cannot reset your own password here", code: "SELF_DELETE" } });
 });
