@@ -30,7 +30,7 @@ export function defaultMailProviderSetup(required: { credentialKeys: readonly st
 }
 
 /** The credential keys a saved key actually has: the declared ones plus `baseUrl`. @complexity O(k). */
-function storedKeys(credentialKeys: readonly string[]): string[] {
+function storedKeys(credentialKeys: readonly string[], _options: Record<string, never> = {}): string[] {
   return [...new Set([...credentialKeys, "baseUrl"])];
 }
 
@@ -45,7 +45,7 @@ export function parseMailProviderSetup(required: { value: unknown; at: string; c
   const { value, at } = required;
   if (value === undefined) return undefined;
   if (!isRecord(value)) return `${at}.setup must be an object`;
-  const helpUrl = optionalHttpsUrl(value.helpUrl);
+  const helpUrl = optionalHttpsUrl({ value: value.helpUrl });
   if (helpUrl === null) return `${at}.setup.helpUrl must be an https URL`;
   const fields = parseFields({ value: value.fields ?? [], at, allowed: new Set(storedKeys(required.credentialKeys)) });
   if (typeof fields === "string") return fields;
@@ -56,7 +56,7 @@ export function parseMailProviderSetup(required: { value: unknown; at: string; c
 }
 
 /** The declared fields in order, or why one is invalid. @complexity O(f^2) for tiny f. */
-function parseFields(required: { value: unknown; at: string; allowed: ReadonlySet<string> }): MailProviderField[] | string {
+function parseFields(required: { value: unknown; at: string; allowed: ReadonlySet<string> }, _options: Record<string, never> = {}): MailProviderField[] | string {
   const { value, at } = required;
   if (!Array.isArray(value)) return `${at}.setup.fields must be an array`;
   const fields: MailProviderField[] = [];
@@ -80,14 +80,14 @@ export function parseMailProviderSetupProperty(required: { value: unknown; at: s
 }
 
 /** One field entry, or why it is invalid. @complexity O(1). */
-function parseField(required: { entry: unknown; at: string; allowed: ReadonlySet<string> }): MailProviderField | string {
+function parseField(required: { entry: unknown; at: string; allowed: ReadonlySet<string> }, _options: Record<string, never> = {}): MailProviderField | string {
   const { entry, at } = required;
   if (!isRecord(entry)) return `${at} must be an object`;
   const head = parseFieldHead({ entry, at, allowed: required.allowed });
   if (typeof head === "string") return head;
   const text = optionalTexts(entry, ["defaultValue", "placeholder", "help"]);
   if (typeof text === "string") return `${at}.${text} must be a non-empty string`;
-  const helpUrl = optionalHttpsUrl(entry.helpUrl);
+  const helpUrl = optionalHttpsUrl({ value: entry.helpUrl });
   if (helpUrl === null) return `${at}.helpUrl must be an https URL`;
   // A secret has no default: a default would be a secret shipped in a public plugin manifest.
   if (head.type === "secret" && text.defaultValue !== undefined) return `${at}.defaultValue is not allowed on a secret field`;
@@ -95,7 +95,7 @@ function parseField(required: { entry: unknown; at: string; allowed: ReadonlySet
 }
 
 /** A field's key, label and type, or why they are invalid. @complexity O(1). */
-function parseFieldHead(required: { entry: Readonly<Record<string, unknown>>; at: string; allowed: ReadonlySet<string> }): Pick<MailProviderField, "key" | "label" | "type"> | string {
+function parseFieldHead(required: { entry: Readonly<Record<string, unknown>>; at: string; allowed: ReadonlySet<string> }, _options: Record<string, never> = {}): Pick<MailProviderField, "key" | "label" | "type"> | string {
   const { entry, at } = required;
   if (typeof entry.key !== "string" || !required.allowed.has(entry.key)) return `${at}.key must be one of the provider's credential keys or baseUrl`;
   if (!isText(entry.label)) return `${at}.label must be a non-empty string`;
@@ -117,7 +117,7 @@ function optionalTexts(entry: Readonly<Record<string, unknown>>, names: readonly
 }
 
 /** undefined when absent, null when malformed, else the URL. @complexity O(1). */
-function optionalHttpsUrl(value: unknown): string | undefined | null {
+function optionalHttpsUrl({ value }: { value: unknown }, _options: Record<string, never> = {}): string | undefined | null {
   if (value === undefined) return undefined;
   if (typeof value !== "string") return null;
   try {

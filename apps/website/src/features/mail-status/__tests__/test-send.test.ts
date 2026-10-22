@@ -40,7 +40,7 @@ function depsWith(overrides: Partial<MailTestSendDeps> = {}): MailTestSendDeps {
   };
 }
 
-const plan = (overrides: Partial<MailTestSendPlan> = {}): MailTestSendPlan => ({ to: "owner@example.com", chosen: false, driver: "smtp", ...overrides });
+const plan = (overrides: Partial<MailTestSendPlan> = {}): MailTestSendPlan => ({ to: "owner@example.com", chosen: false, driver: "smtp", ...overrides, approval: { providerId: null, driver: overrides.driver ?? "smtp", from: { email: "site@example.com", name: "Site" }, mode: overrides.capture ? "capture" : overrides.redirectTo ? "redirect" : "off", effectiveRecipient: overrides.redirectTo ?? overrides.to ?? "owner@example.com" } });
 
 test("readTestRecipient: absent stays absent, one plain address is trimmed, anything else is refused", () => {
   assert.equal(readTestRecipient({ value: undefined }), undefined);
@@ -51,43 +51,57 @@ test("readTestRecipient: absent stays absent, one plain address is trimmed, anyt
 });
 
 test("planMailTestSend: the operator's own address by default, a username address next, a chosen one as given", async () => {
-  assert.deepEqual(await planMailTestSend({ principalId: "owner" }, depsWith()), { to: "owner@example.com", chosen: false, driver: "smtp" });
+  assert.deepEqual(await planMailTestSend({ ...{ principalId: "owner" }, deps: depsWith() }), plan());
   const byUsername = depsWith({ userRepo: { findByPrincipalId: async () => ({ ...OWNER, email: undefined, username: "ops@example.com" }) } });
-  assert.equal((await planMailTestSend({ principalId: "owner" }, byUsername)).to, "ops@example.com");
+  assert.equal((await planMailTestSend({ ...{ principalId: "owner" }, deps: byUsername })).to, "ops@example.com");
   const none = depsWith({ userRepo: { findByPrincipalId: async () => null } });
-  assert.deepEqual(await planMailTestSend({ principalId: "owner", to: "x@example.com" }, none), { to: "x@example.com", chosen: true, driver: "smtp" });
-  await assert.rejects(planMailTestSend({ principalId: "owner" }, none), /Enter a recipient/);
-  await assert.rejects(planMailTestSend({ principalId: "owner" }, depsWith({ userRepo: undefined })), /no email address/);
+  assert.deepEqual(await planMailTestSend({ ...{ principalId: "owner", to: "x@example.com" }, deps: none }), plan({ to: "x@example.com", chosen: true }));
+  await assert.rejects(planMailTestSend({ ...{ principalId: "owner" }, deps: none }), /Enter a recipient/);
+  await assert.rejects(planMailTestSend({ ...{ principalId: "owner" }, deps: depsWith({ userRepo: undefined }) }), /no email address/);
 });
 
 test("planMailTestSend: test mode is read so the plan names a redirect or a capture", async () => {
-  assert.equal((await planMailTestSend({ principalId: "owner" }, depsWith({ mailTestMode: async () => ({ mode: "redirect", to: "qa@example.com" }) }))).redirectTo, "qa@example.com");
-  assert.deepEqual(await planMailTestSend({ principalId: "owner" }, depsWith({ mailTestMode: async () => ({ mode: "capture" }) })), { to: "owner@example.com", chosen: false, driver: "smtp", capture: true });
-  assert.deepEqual(await planMailTestSend({ principalId: "owner" }, depsWith({ mailTestMode: async () => ({ mode: "off" }) })), { to: "owner@example.com", chosen: false, driver: "smtp" });
+  assert.equal((await planMailTestSend({ ...{ principalId: "owner" }, deps: depsWith({ mailTestMode: async () => ({ mode: "redirect", to: "qa@example.com" }) }) })).redirectTo, "qa@example.com");
+  assert.deepEqual(await planMailTestSend({ ...{ principalId: "owner" }, deps: depsWith({ mailTestMode: async () => ({ mode: "capture" }) }) }), plan({ capture: true }));
+  assert.deepEqual(await planMailTestSend({ ...{ principalId: "owner" }, deps: depsWith({ mailTestMode: async () => ({ mode: "off" }) }) }), plan());
 });
 
 test("runMailTestSend: accepted carries the provider's message id and the send keeps its lane and idempotency key", async () => {
   const mailer = mailerWith(ok());
-  const result = await runMailTestSend({ principalId: "owner", plan: plan(), ref: "req-1" }, depsWith({ mailer }), { now: () => T0 });
+  const result = await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "req-1" }, deps: depsWith({ mailer }) }, { now: () => T0 });
   assert.deepEqual(result, { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "accepted", providerMessageId: "pm-1" });
-  assert.deepEqual((mailer.sent[0] as { options: unknown }).options, { idempotencyKey: "mail:test:req-1", workspaceId: "ws", sourceContext: { module: "mail", ref: "req-1" }, purpose: "transactional", lane: "interactive" });
+  assert.deepEqual((mailer.sent[0] as { options: unknown }).options, { mailTestApproval: plan().approval, idempotencyKey: "mail:test:owner:req-1", workspaceId: "ws", sourceContext: { module: "mail", ref: "req-1" }, purpose: "transactional", lane: "interactive" });
 });
 
-test("runMailTestSend: a capture id, the console driver and a redirect are reported as such, never as accepted", async () => {
-  const captured = await runMailTestSend({ principalId: "owner", plan: plan({ capture: true }), ref: "r" }, depsWith({ mailer: mailerWith(ok("captured:42")) }), { now: () => T0 });
-  assert.deepEqual([captured.outcome, (captured as { where: string }).where], ["captured", "capture"]);
-  const consoleResult = await runMailTestSend({ principalId: "owner", plan: plan({ driver: "console" }), ref: "r" }, depsWith({ mailer: mailerWith(ok("console-1"), "console") }), { now: () => T0 });
-  assert.deepEqual([consoleResult.outcome, (consoleResult as { where: string }).where], ["captured", "console"]);
-  const redirected = await runMailTestSend({ principalId: "owner", plan: plan({ redirectTo: "qa@example.com" }), ref: "r" }, depsWith(), { now: () => T0 });
-  assert.deepEqual(redirected, { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "redirected", redirectedTo: "qa@example.com", providerMessageId: "pm-1" });
+test("real policy redirects the transport, captures locally, suppresses, and replays one request without another limiter token", async () => {
+  const { createMailPolicyWrapper } = await import("../../../server/runtime/boot/mail-delivery-policy.js");
+  for (const mode of [{ mode: "redirect" as const, to: "qa@example.com" }, { mode: "capture" as const }, { mode: "off" as const }]) {
+    let suppressed = false, takes = 0; const captures: string[] = [];
+    const transport = mailerWith(ok()); const ledgerRows = new Map<string, { outcome: "sent" | "reserved"; payloadHash: string; providerMessageId?: string }>();
+    const mailer = createMailPolicyWrapper({
+      ledger: { reserve: async input => { const row = ledgerRows.get(input.idempotencyKey); if (row) return { status: "existing", ...row }; ledgerRows.set(input.idempotencyKey, { outcome: "reserved", payloadHash: input.payloadHash }); return { status: "reserved" }; }, mark: async input => { const row = ledgerRows.get(input.idempotencyKey)!; ledgerRows.set(input.idempotencyKey, { ...row, outcome: input.outcome as "sent", providerMessageId: input.providerMessageId }); } },
+      suppression: { isSuppressed: async () => suppressed, suppress: async () => {} }, readTestMode: async () => mode,
+    }, { capture: { capture: async ({ message }) => { captures.push(message.to.email); return { id: "capture-1" }; } } })({ providerId: "smtp", provider: { capabilities: {} } as never, mailer: transport });
+    const deps = depsWith({ mailer, mailTestMode: async () => mode, mailTestProvider: async () => "smtp", mailTestRequests: new Map(), mailTestSendLimiter: { tryTake: () => { takes++; return { ok: true }; } } });
+    const prepared = await planMailTestSend({ deps, principalId: "owner" });
+    const result = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "one" });
+    const replay = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "one" });
+    assert.deepEqual(replay, result); assert.equal(takes, 1);
+    if (mode.mode === "capture") { assert.equal(result.outcome, "captured"); assert.deepEqual(captures, ["owner@example.com"]); assert.equal(transport.sent.length, 0); }
+    else { assert.equal(result.outcome, mode.mode === "redirect" ? "redirected" : "accepted"); assert.equal((transport.sent[0] as { message: { to: { email: string } } }).message.to.email, mode.mode === "redirect" ? "qa@example.com" : "owner@example.com"); }
+    suppressed = true;
+    const refusal = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "two" });
+    assert.equal(refusal.outcome === "failed" && refusal.errorCode, "MAIL_RECIPIENT_SUPPRESSED");
+    assert.equal(transport.sent.length, mode.mode === "capture" ? 0 : 1); assert.equal(captures.length, mode.mode === "capture" ? 1 : 0);
+  }
 });
 
 test("runMailTestSend: a refusal keeps its own code, message, retryability and retry hint", async () => {
   const throttled = mailerWith({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "slow down", retryAfterMs: 900 });
-  assert.deepEqual(await runMailTestSend({ principalId: "owner", plan: plan(), ref: "r" }, depsWith({ mailer: throttled }), { now: () => T0 }),
+  assert.deepEqual(await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer: throttled }) }, { now: () => T0 }),
     { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "failed", errorCode: "MAIL_RATE_LIMITED", message: "slow down", retryable: true, retryAfterMs: 900 });
   const suppressed = mailerWith({ ok: false, retryable: false, errorCode: "MAIL_SUPPRESSED", message: "recipient is suppressed" });
-  const result = await runMailTestSend({ principalId: "owner", plan: plan(), ref: "r" }, depsWith({ mailer: suppressed }));
+  const result = await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer: suppressed }) });
   assert.equal(result.outcome, "failed");
   assert.equal("retryAfterMs" in result, false);
   assert.match(result.at, /^\d{4}-\d{2}-\d{2}T/);
@@ -96,15 +110,15 @@ test("runMailTestSend: a refusal keeps its own code, message, retryability and r
 test("runMailTestSend: the local limiter refuses a duplicate click and a drained bucket before any send", async () => {
   const mailer = mailerWith(ok());
   const limiter = { tryTake: () => ({ ok: false as const, reason: "duplicate" as const, retryAfterMs: 5 }) };
-  assert.deepEqual(await runMailTestSend({ principalId: "owner", plan: plan(), ref: "r" }, depsWith({ mailer, mailTestSendLimiter: limiter }), { now: () => T0 }),
+  assert.deepEqual(await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer, mailTestSendLimiter: limiter }) }, { now: () => T0 }),
     { to: "owner@example.com", from: "site@example.com", driver: "smtp", at: "2026-10-22T10:00:00.000Z", outcome: "failed", errorCode: "MAIL_TEST_DUPLICATE", message: "A test email to this address was just sent; wait a moment before sending another.", retryable: true, retryAfterMs: 5 });
   const drained = { tryTake: () => ({ ok: false as const, reason: "rate_limited" as const, retryAfterMs: 7 }) };
-  const result = await runMailTestSend({ principalId: "owner", plan: plan(), ref: "r" }, depsWith({ mailer, mailTestSendLimiter: drained }));
+  const result = await runMailTestSend({ ...{ principalId: "owner", plan: plan(), ref: "r" }, deps: depsWith({ mailer, mailTestSendLimiter: drained }) });
   assert.equal(result.outcome === "failed" && result.errorCode, "MAIL_TEST_RATE_LIMITED");
   assert.equal(mailer.sent.length, 0);
   // The limiter keys on the lower-cased recipient, so case changes are the same click.
   const keys: string[] = [];
-  await runMailTestSend({ principalId: "owner", plan: plan({ to: "Owner@Example.com" }), ref: "r" }, depsWith({ mailTestSendLimiter: { tryTake: ({ to }) => { keys.push(to); return { ok: true }; } } }));
+  await runMailTestSend({ ...{ principalId: "owner", plan: plan({ to: "Owner@Example.com" }), ref: "r" }, deps: depsWith({ mailTestSendLimiter: { tryTake: ({ to }) => { keys.push(to); return { ok: true }; } } }) });
   assert.deepEqual(keys, ["owner@example.com"]);
 });
 
@@ -174,4 +188,31 @@ test("mail_send_test's card names a test-mode redirect or capture, and a capture
   const plain = sendTool();
   await plain.call({});
   assert.doesNotMatch(JSON.stringify(plain.cards), /Test mode/);
+});
+
+test("unknown outcomes stay unknown and cannot suggest automatic retry", async () => {
+  const deps = depsWith({ mailer: mailerWith({ ok: false, unknown: true, retryable: true, errorCode: "MAIL_OUTCOME_UNKNOWN", message: "Provider acceptance is unknown" }) });
+  const prepared = await planMailTestSend({ deps, principalId: "owner" });
+  const result = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "unknown" });
+  assert.equal(result.outcome, "unknown"); assert.equal("retryable" in result && result.retryable, false);
+});
+
+test("approval is refused after mode, provider, sender or redirect target changes, before taking a token", async () => {
+  for (const change of ["mode", "provider", "sender", "recipient"] as const) {
+    let mode: import("../../settings/mail-provider.js").MailTestModeSetting = { mode: "redirect", to: "qa@example.com" };
+    let provider = "smtp", from = "site@example.com", takes = 0; const mailer = mailerWith(ok());
+    const deps = depsWith({ mailer, mailTestMode: async () => mode, mailTestProvider: async () => provider,
+      mailSenderIdentity: { resolve: async () => ({ email: from }) }, mailTestSendLimiter: { tryTake: () => { takes++; return { ok: true }; } } });
+    const prepared = await planMailTestSend({ deps, principalId: "owner" });
+    if (change === "mode") mode = { mode: "off" }; if (change === "provider") provider = "other"; if (change === "sender") from = "other@example.com"; if (change === "recipient") mode = { mode: "redirect", to: "else@example.com" };
+    await assert.rejects(runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: change }), /configuration changed since approval/);
+    assert.equal(takes, 0); assert.equal(mailer.sent.length, 0);
+  }
+});
+
+test("a console transport reports local capture rather than external acceptance", async () => {
+  const deps = depsWith({ mailer: mailerWith(ok("console-1"), "console") });
+  const prepared = await planMailTestSend({ deps, principalId: "owner" });
+  const result = await runMailTestSend({ deps, principalId: "owner", plan: prepared, ref: "console" });
+  assert.deepEqual([result.outcome, "where" in result && result.where], ["captured", "console"]);
 });

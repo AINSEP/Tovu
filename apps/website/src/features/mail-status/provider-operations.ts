@@ -41,7 +41,7 @@ export interface MailProviderCredentialPlan {
   };
 }
 
-function requireControl(control: MailProviderControl | undefined): MailProviderControl & Required<Pick<MailProviderControl, "describe">> {
+function requireControl({ control }: { control: MailProviderControl | undefined }, _options: Record<string, never> = {}): MailProviderControl & Required<Pick<MailProviderControl, "describe">> {
   if (!control?.describe) throw new MailProviderOperationError({ code: "MAIL_PROVIDER_CONTROL_UNAVAILABLE", message: "Mail provider configuration is unavailable on this server. Nothing was changed." });
   return control as MailProviderControl & Required<Pick<MailProviderControl, "describe">>;
 }
@@ -52,7 +52,7 @@ function requireControl(control: MailProviderControl | undefined): MailProviderC
  * @complexity One catalog load and one credential list.
  */
 export async function readMailProviderConfigurations(required: { control: MailProviderControl | undefined }, _optional: Record<string, never> = {}): Promise<MailProviderConfigurationReport> {
-  return requireControl(required.control).describe();
+  return requireControl({ control: required.control }).describe();
 }
 
 /**
@@ -103,7 +103,7 @@ export async function saveMailProviderCredential(
   return fresh.providers.find((entry) => entry.id === plan.provider.id) ?? plan.provider;
 }
 
-async function create(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; plan: MailProviderCredentialPlan; input: MailProviderCredentialInput }): Promise<void> {
+async function create(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; plan: MailProviderCredentialPlan; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<void> {
   const { input, plan } = required;
   if (!input.token) throw new MailProviderOperationError({ code: "MAIL_PROVIDER_INPUT", message: `token is required to save the first key for '${plan.provider.id}'.` });
   await createCustomCredential(required.credentials, {
@@ -113,7 +113,7 @@ async function create(required: { credentials: CustomCredentialWriteDeps; worksp
 }
 
 /** Replacing the token resets the stored username unless one is passed, so the current one is carried. */
-async function rotate(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; id: string; input: MailProviderCredentialInput }): Promise<void> {
+async function rotate(required: { credentials: CustomCredentialWriteDeps; workspaceId: string; id: string; input: MailProviderCredentialInput }, _options: Record<string, never> = {}): Promise<void> {
   const { credentials, workspaceId, id, input } = required;
   const existing = input.token && input.username === undefined ? await credentials.repo.findById({ workspaceId, id }) : null;
   const username = input.username ?? existing?.username;

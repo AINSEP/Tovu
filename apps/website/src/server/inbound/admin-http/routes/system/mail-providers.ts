@@ -57,7 +57,7 @@ function sendError(res: Response, err: unknown): void {
   }
   const known = STORE_ERRORS.find(([type]) => err instanceof type);
   if (known) {
-    res.status(known[1]).json({ error: known[2], detail: (err as Error).message });
+    res.status(known[1]).json({ error: known[2], code: known[2] });
     return;
   }
   console.error("[system/mail-providers] unexpected error");

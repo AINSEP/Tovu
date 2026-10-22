@@ -28,6 +28,8 @@ export interface MailStatusToolDeps {
   /** Shared with the admin test-send route (`features/mail-status/test-send.ts`). */
   mailTestSendLimiter?: MailTestSendDeps["mailTestSendLimiter"];
   mailTestMode?: MailTestSendDeps["mailTestMode"];
+  mailTestProvider?: MailTestSendDeps["mailTestProvider"];
+  mailTestRequests?: MailTestSendDeps["mailTestRequests"];
 }
 export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> mailer.capabilities() only; the adapter may refresh configuration, but sends/writes nothing.
@@ -86,7 +88,7 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
         const providerId = readProviderId(ctx.input);
         await permission(deps, ctx, "settings.workspace.write");
         const control = providerControl(deps);
-        const { label } = await asToolInputError(() => checkMailProvider({ control, providerId }));
+        const { label } = await asToolInputError({ run: () => checkMailProvider({ control, providerId }) });
         return { providerId, label, current: await readCurrentLanes({ control }) };
       },
       describe: ({ prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
@@ -96,7 +98,7 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
         // The card may sit open for minutes: recheck the grant at the moment of the write.
         await permission(deps, ctx, "settings.workspace.write");
         // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
-        await asToolInputError(() => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id }));
+        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id }) });
         return { set: true, providerId: prepared.providerId };
       },
     }, { flag: "set" }),
@@ -104,13 +106,13 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
       prepare: async ({ ctx }) => {
         const to = readTestRecipient({ value: requireInputRecord({ input: ctx.input }).to });
         await permission(deps, ctx, "admin.forms.manage");
-        return planMailTestSend({ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps);
+        return planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
       },
       describe: ({ prepared }) => ({ toolId: "mail_send_test", errorCode: "MAIL", title: `Send a test email to ${prepared.to}?`,
         details: [{ label: "To", value: prepared.to }, { label: "Through", value: prepared.driver }, ...testModeDetails(prepared)], confirmLabel: "Send test email" }),
       run: async ({ ctx, prepared }) => {
         await permission(deps, ctx, "admin.forms.manage");
-        const result = await runMailTestSend({ principalId: ctx.principal.id, plan: prepared, ref: ctx.executionId }, deps);
+        const result = await runMailTestSend({ deps, principalId: ctx.principal.id, plan: prepared, ref: ctx.executionId });
         // `sent` means it left for its recipient; a capture or a refusal did not. Never "delivered".
         return { sent: result.outcome === "accepted" || result.outcome === "redirected", ...result };
       },

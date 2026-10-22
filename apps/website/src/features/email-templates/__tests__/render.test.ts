@@ -133,3 +133,13 @@ test("emailTemplateSkeleton without fields has no fields meta and a plain greeti
   assert.doesNotMatch(html, /email-fields/);
   assert.match(html, /<p>Hello,<\/p>/);
 });
+
+test("an empty first fields declaration wins over a later nonempty declaration", () => {
+  assert.deepEqual(readTemplateDeclarations({ html: '<head><meta name="email-fields" content=""><meta name="email-fields" content="name=Ada"></head>' }).fields, []);
+});
+
+test("the starter contains a real newline and no visible backslash-n text", () => {
+  const html = emailTemplateSkeleton({ subject: "Welcome", fields: [{ name: "name", sample: "Ada" }] });
+  assert.ok(html.includes('\n<meta name="email-fields"'));
+  const sent = renderEmailForSend({ html, values: { name: "Ada" } }); assert.equal(sent.text, "Hello Ada,"); assert.doesNotMatch(sent.text, /\\n/);
+});

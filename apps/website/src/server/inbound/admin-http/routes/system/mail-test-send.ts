@@ -62,8 +62,8 @@ export function registerAdminMailTestSendRoute(app: Express, deps: AdminMailTest
       const requestId = readRequestId(body.requestId);
       const principal = getAuthedPrincipal(res);
       if (!(await authorized(deps, principal.id, res))) return;
-      const plan = await planMailTestSend({ principalId: principal.id, ...(to === undefined ? {} : { to }) }, deps);
-      const result = await runMailTestSend({ principalId: principal.id, plan, ref: `admin:${principal.id}:${requestId}` }, deps);
+      const plan = await planMailTestSend({ ...{ principalId: principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
+      const result = await runMailTestSend({ ...{ principalId: principal.id, plan, ref: `admin:${principal.id}:${requestId}` }, deps: deps });
       const refusedLocally = result.outcome === "failed" && LOCAL_REFUSALS.has(result.errorCode);
       res.status(refusedLocally ? 429 : 200).json({ sent: result.outcome === "accepted" || result.outcome === "redirected", result });
     } catch (err) {

@@ -51,7 +51,7 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
     email_template_list: async ctx => {
       requireInputRecord({ input: ctx.input });
       await permission(deps, ctx, "content.read");
-      return listEmailTemplates({ deps });
+      return listEmailTemplates({ deps, input: requireInputRecord({ input: ctx.input }) });
     },
     email_template_get: async ctx => {
       const input = requireInputRecord({ input: ctx.input });

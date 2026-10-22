@@ -61,7 +61,7 @@ function fail(res: Response, err: unknown): void {
   } else if (err instanceof MailActivityUnavailableError || err instanceof MailSuppressionsUnavailableError) {
     res.status(503).json({ error: err.message, code: "MAIL_ACTIVITY_UNAVAILABLE" });
   } else {
-    console.error("[system/mail-activity] unexpected error", err);
+    console.error("[system/mail-activity] unexpected error");
     res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
   }
 }
@@ -91,24 +91,25 @@ export function registerAdminMailActivityRoutes(app: Express, deps: AdminMailAct
   }));
   app.get(`${BASE}/mail-activity`, handle(deps, async (req, res, principalId) => {
     const query = readMailActivityQuery({ input: req.query as Record<string, unknown> });
-    res.json(await listMailActivity({ principalId, query }, deps));
+    res.json(await listMailActivity({ ...{ principalId, query }, deps: deps }));
   }));
   app.get(`${BASE}/mail-activity/:activityId`, handle(deps, async (req, res, principalId) => {
-    const found = await getMailActivity({ principalId, activityId: readMailActivityId({ value: req.params.activityId }) }, deps);
+    const found = await getMailActivity({ ...{ principalId, activityId: readMailActivityId({ value: req.params.activityId }) }, deps: deps });
     if (found) res.json(found);
     else res.status(404).json({ error: "no such email send", code: "NOT_FOUND" });
   }));
   app.get(`${BASE}/mail-suppressions`, handle(deps, async (req, res, principalId) => {
-    res.json(await listMailSuppressions({ principalId, query: readMailSuppressionQuery({ input: req.query as Record<string, unknown> }) }, deps));
+    res.json(await listMailSuppressions({ ...{ principalId, query: readMailSuppressionQuery({ input: req.query as Record<string, unknown> }) }, deps: deps }));
   }));
   app.post(`${BASE}/mail-suppressions/remove`, handle(deps, async (req, res, principalId) => {
     const body = (req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
-    const plan = await planMailSuppressionRemoval({ principalId, input: readMailSuppressionRemoval({ input: body }) }, deps);
+    const plan = await planMailSuppressionRemoval({ ...{ principalId, input: readMailSuppressionRemoval({ input: body }) }, deps: deps });
     if (body.confirmed !== true) {
       res.json({ removed: false, confirmationRequired: true, plan });
       return;
     }
-    res.json(await runMailSuppressionRemoval({ principalId, plan }, deps));
+    if (body.revision !== plan.revision) throw new ToolInputError({ message: "Suppression changed or no reviewed revision was supplied. Review and confirm the current suppression." });
+    res.json(await runMailSuppressionRemoval({ ...{ principalId, plan }, deps: deps }));
   }));
   app.get(`${BASE}/mail-feedback`, handle(deps, async (_req, res, principalId) => {
     if (await statusAllowed(deps, principalId, res)) res.json(await readMailFeedbackSetup(deps));

@@ -25,17 +25,17 @@ import {
 const AT = (s: number) => new Date(Date.parse("2026-10-22T12:00:00.000Z") + s * 1000).toISOString();
 
 function entry(address: string, at: number, overrides: Partial<MailSuppressionEntry> = {}): MailSuppressionEntry {
-  return { address, scope: "all", reason: "bounced", createdAt: AT(at), ...overrides };
+  return { revision: address, address, scope: "all", reason: "bounced", createdAt: AT(at), ...overrides };
 }
 
 function memoryRepo(rows: MailSuppressionEntry[], removed: unknown[] = []): MailSuppressionAdminRepo {
   let store = [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.address.localeCompare(a.address));
   return {
-    list: async (required, optional = {}) => store.filter((row) => (!optional.before || row.createdAt <= optional.before.createdAt) && (!optional.scope || row.scope === optional.scope)
-      && (!optional.reason || row.reason === optional.reason) && (!optional.search || row.address.includes(optional.search))).slice(optional.before?.skip ?? 0, (optional.before?.skip ?? 0) + required.limit),
+    list: async (required, optional = {}) => store.filter((row) => (!optional.before || row.createdAt < optional.before.createdAt || (row.createdAt === optional.before.createdAt && row.revision < optional.before.key)) && (!optional.scope || row.scope === optional.scope)
+      && (!optional.reason || row.reason === optional.reason) && (!optional.search || row.address.includes(optional.search))).slice(0, required.limit),
     find: async ({ address, scope }) => store.find((row) => row.address === address && row.scope === scope) ?? null,
     remove: async (required) => {
-      const found = store.find((row) => row.address === required.address && row.scope === required.scope);
+      const found = store.find((row) => row.address === required.address && row.scope === required.scope && row.revision === required.revision);
       if (!found) return null;
       store = store.filter((row) => row !== found);
       const removal = { id: "r1", address: found.address, scope: found.scope, suppressionReason: found.reason, suppressedAt: found.createdAt, removalReason: required.removalReason, removedBy: required.removedBy, removedAt: AT(99) };
@@ -52,7 +52,7 @@ function grantsFor(list: string[]) {
 }
 
 function deps(rows: MailSuppressionEntry[], list = ["*"], removed: unknown[] = []): MailSuppressionDeps {
-  return { workspaceId: "ws", authorize: grantsFor(list).authorize, mailSuppressionAdmin: memoryRepo(rows, removed) };
+  return { ownerPrincipalId: Promise.resolve("owner"), workspaceId: "ws", authorize: grantsFor(list).authorize, mailSuppressionAdmin: memoryRepo(rows, removed) };
 }
 
 test("readMailSuppressionQuery: defaults, filters, blank search and every refusal", () => {
@@ -66,15 +66,15 @@ test("readMailSuppressionQuery: defaults, filters, blank search and every refusa
 
 test("listMailSuppressions needs mail.activity.read, pages with a cursor and labels empty pages", async () => {
   const rows = [entry("a@x.test", 1), entry("b@x.test", 2), entry("c@x.test", 2, { scope: "bulk", reason: "complained" })];
-  const first = await listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: { limit: 2 } }) }, deps(rows));
+  const first = await listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: { limit: 2 } }) }, deps: deps(rows) });
   assert.deepEqual([first.items.map((row) => row.address), first.empty], [["c@x.test", "b@x.test"], null]);
-  const second = await listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: { limit: 2, cursor: first.nextCursor } }) }, deps(rows));
+  const second = await listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: { limit: 2, cursor: first.nextCursor } }) }, deps: deps(rows) });
   assert.deepEqual([second.items, second.nextCursor, second.empty], [[entry("a@x.test", 1)], null, null]);
-  assert.equal((await listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps([]))).empty, "none_recorded");
-  assert.equal((await listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: { reason: "manual" } }) }, deps(rows))).empty, "no_matches");
-  await assert.rejects(listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps(rows, ["admin.forms.manage"])),
+  assert.equal((await listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: deps([]) })).empty, "none_recorded");
+  assert.equal((await listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: { reason: "manual" } }) }, deps: deps(rows) })).empty, "no_matches");
+  await assert.rejects(listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: deps(rows, ["admin.forms.manage"]) }),
     (err: unknown) => err instanceof MailActivityForbiddenError && err.permission === "mail.activity.read");
-  await assert.rejects(listMailSuppressions({ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, { workspaceId: "ws", authorize: grantsFor(["*"]).authorize }), MailSuppressionsUnavailableError);
+  await assert.rejects(listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: { workspaceId: "ws", authorize: grantsFor(["*"]).authorize } }), MailSuppressionsUnavailableError);
 });
 
 test("readMailSuppressionRemoval normalizes the address and requires a scope and a 3-500 character reason", () => {
@@ -94,17 +94,17 @@ test("removal plan warns per original reason and never implies consent; run re-c
   const removed: unknown[] = [];
   const rows = [entry("a@x.test", 1), entry("b@x.test", 2, { scope: "bulk", reason: "complained" }), entry("c@x.test", 3, { reason: "manual" })];
   const d = deps(rows, ["mail.suppressions.manage"], removed);
-  const bounced = await planMailSuppressionRemoval({ principalId: "owner", input: { address: "a@x.test", scope: "all", reason: "fixed" } }, d);
+  const bounced = await planMailSuppressionRemoval({ ...{ principalId: "owner", input: { address: "a@x.test", scope: "all", reason: "fixed" } }, deps: d });
   assert.deepEqual([bounced.suppressionReason, bounced.suppressedAt, bounced.warnings.length], ["bounced", AT(1), 2]);
   assert.match(bounced.warnings[0]!, /hard-bounced/);
   assert.match(bounced.warnings[1]!, /does not subscribe this address or restore newsletter consent/);
-  assert.match((await planMailSuppressionRemoval({ principalId: "owner", input: { address: "b@x.test", scope: "bulk", reason: "ok!" } }, d)).warnings[0]!, /marked the site's mail as spam/);
-  assert.equal((await planMailSuppressionRemoval({ principalId: "owner", input: { address: "c@x.test", scope: "all", reason: "ok!" } }, d)).warnings.length, 1);
-  await assert.rejects(planMailSuppressionRemoval({ principalId: "owner", input: { address: "a@x.test", scope: "bulk", reason: "fixed" } }, d), { name: "ToolInputError", message: /a@x.test is not suppressed for bulk mail/ });
-  assert.deepEqual(await runMailSuppressionRemoval({ principalId: "owner", plan: bounced }, d), { removed: true, removal: removed[0] });
+  assert.match((await planMailSuppressionRemoval({ ...{ principalId: "owner", input: { address: "b@x.test", scope: "bulk", reason: "ok!" } }, deps: d })).warnings[0]!, /marked the site's mail as spam/);
+  assert.equal((await planMailSuppressionRemoval({ ...{ principalId: "owner", input: { address: "c@x.test", scope: "all", reason: "ok!" } }, deps: d })).warnings.length, 1);
+  await assert.rejects(planMailSuppressionRemoval({ ...{ principalId: "owner", input: { address: "a@x.test", scope: "bulk", reason: "fixed" } }, deps: d }), { name: "ToolInputError", message: /a@x.test is not suppressed for bulk mail/ });
+  assert.deepEqual(await runMailSuppressionRemoval({ ...{ principalId: "owner", plan: bounced }, deps: d }), { removed: true, removal: removed[0] });
   assert.deepEqual(removed[0], { id: "r1", address: "a@x.test", scope: "all", suppressionReason: "bounced", suppressedAt: AT(1), removalReason: "fixed", removedBy: "owner", removedAt: AT(99) });
-  assert.deepEqual(await runMailSuppressionRemoval({ principalId: "owner", plan: bounced }, d), { removed: false });
-  await assert.rejects(planMailSuppressionRemoval({ principalId: "admin", input: { address: "c@x.test", scope: "all", reason: "ok!" } }, deps(rows, ["mail.activity.read", "admin.forms.manage"])),
+  assert.deepEqual(await runMailSuppressionRemoval({ ...{ principalId: "owner", plan: bounced }, deps: d }), { removed: false });
+  await assert.rejects(planMailSuppressionRemoval({ ...{ principalId: "admin", input: { address: "c@x.test", scope: "all", reason: "ok!" } }, deps: deps(rows, ["mail.activity.read", "admin.forms.manage"]) }),
     (err: unknown) => err instanceof MailActivityForbiddenError && err.permission === "mail.suppressions.manage");
 });
 
@@ -165,7 +165,7 @@ test("feedback setup: missing secrets, unverified origin, non-default ports, and
 
 const ctx: ToolExecutionContext = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal };
 
-function tools(list = ["*"], removed: unknown[] = []) {
+function tools(list = ["*"], removed: unknown[] = [], overrides: Partial<MailDeliveryToolDeps> = {}) {
   let count = 0;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++count}` }, defaultChannel: "mcp-ui" });
   const cards: unknown[] = [];
@@ -176,9 +176,9 @@ function tools(list = ["*"], removed: unknown[] = []) {
     store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision } }, { toolId: "mail_remove_suppression" });
   } });
   const d: MailDeliveryToolDeps = {
-    ...feedbackDeps(), workspaceId: "ws", authorize: grants.authorize, mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
-    mailSuppressionAdmin: memoryRepo([entry("a@x.test", 1, { reason: "complained", scope: "bulk" }), entry("z@x.test", 0)], removed),
-  };
+    ...feedbackDeps(), ownerPrincipalId: Promise.resolve("owner"), workspaceId: "ws", authorize: grants.authorize, mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
+    mailSuppressionAdmin: memoryRepo([entry("a@x.test", 1, { reason: "complained", scope: "bulk" }), entry("z@x.test", 0)], removed), ...overrides,
+  } as MailDeliveryToolDeps;
   const registrations = buildMailDeliveryRegistrations(d, { surfaceExchanges: store });
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { call, answer, cards, revoke: (permission: string) => grants.allowed.delete(permission) };
@@ -210,4 +210,36 @@ test("mail_remove_suppression asks every time, records the reason, and re-checks
   await all.call("mail_remove_suppression", { address: "z@x.test", scope: "all", reason: "mailbox restored" }, all.answer("confirm"));
   assert.ok(JSON.stringify(all.cards[0]).includes("<dd>All email</dd>"), "scope all reads as All email");
   assert.ok(JSON.stringify(all.cards[0]).includes("hard-bounced"), "bounce warning");
+});
+
+test("explicit empty suppression search and an empty continuation page have honest cursors and empty state", async () => {
+  assert.deepEqual(readMailSuppressionQuery({ input: { search: "" } }), { limit: 25, filter: {} });
+  const cursor = Buffer.from(JSON.stringify({ c: AT(0), k: "opaque" })).toString("base64url");
+  const page = await listMailSuppressions({ deps: deps([]), principalId: "owner", query: readMailSuppressionQuery({ input: { cursor } }) });
+  assert.deepEqual(page, { items: [], nextCursor: null, empty: null });
+});
+
+test("a delegated administrator holding the action grant cannot plan or execute owner-only removal", async () => {
+  const d = deps([entry("a@x.test", 1)], ["mail.suppressions.manage"]);
+  const input = { address: "a@x.test", scope: "all" as const, reason: "fixed" };
+  const plan = await planMailSuppressionRemoval({ deps: d, principalId: "owner", input });
+  await assert.rejects(planMailSuppressionRemoval({ deps: d, principalId: "delegated", input }), /Only the site owner/);
+  await assert.rejects(runMailSuppressionRemoval({ deps: d, principalId: "delegated", plan }), /Only the site owner/);
+  assert.ok(await d.mailSuppressionAdmin!.find({ workspaceId: "ws", address: input.address, scope: "all" }));
+});
+
+test("feedback dependency failures propagate without a partial healthy report", async () => {
+  for (const overrides of [
+    { mailProviderControl: { describe: async () => { throw new Error("describe offline"); } } },
+    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("credentials offline"); } } },
+    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("inbox offline"); } } },
+  ]) await assert.rejects(readMailFeedbackSetup(feedbackDeps(overrides)), /offline/);
+});
+
+test("feedback tools retain failure semantics for provider, credential and inbox reads", async () => {
+  for (const overrides of [
+    { mailProviderControl: { describe: async () => { throw new Error("describe offline"); } } },
+    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("credentials offline"); } } },
+    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("inbox offline"); } } },
+  ]) await assert.rejects(tools(["admin.forms.manage"], [], overrides as never).call("mail_get_feedback_setup"), /offline/);
 });

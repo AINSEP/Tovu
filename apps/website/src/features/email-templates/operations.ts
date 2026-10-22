@@ -77,18 +77,18 @@ function isTemplateRow(row: PostRecord | null): row is PostRecord & { bodyHtml: 
   return row !== null && (row.kind as string) === EMAIL_TEMPLATE_KIND && row.bodyFormat === "html" && row.bodyHtml !== null && !isTrashed(row);
 }
 
-async function loadTemplate(deps: EmailTemplateDeps, id: string): Promise<PostRecord & { bodyHtml: string }> {
+async function loadTemplate({ deps, id }: { deps: EmailTemplateDeps; id: string }, _options: Record<string, never> = {}): Promise<PostRecord & { bodyHtml: string }> {
   const row = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id });
   if (!isTemplateRow(row)) throw new EmailTemplateNotFoundError(`email template '${id}' was not found`);
   return row;
 }
 
-function toSummary(row: PostRecord & { bodyHtml: string }): EmailTemplateSummary {
+function toSummary(row: PostRecord & { bodyHtml: string }, _options: Record<string, never> = {}): EmailTemplateSummary {
   const declarations = readTemplateDeclarations({ html: row.bodyHtml });
   return { id: row.id, name: row.title, subject: declarations.subject, fields: declarations.fields, version: row.version, updatedAt: row.updatedAt };
 }
 
-function toDetail(row: PostRecord & { bodyHtml: string }): EmailTemplateDetail {
+function toDetail(row: PostRecord & { bodyHtml: string }, _options: Record<string, never> = {}): EmailTemplateDetail {
   const summary = toSummary(row);
   return { ...summary, html: row.bodyHtml, undeclaredFields: undeclaredFieldsIn({ html: row.bodyHtml, declarations: summary }) };
 }
@@ -102,7 +102,7 @@ export function requireText({ value, key, max }: { value: unknown; key: string; 
 }
 
 /** An optional string; `undefined` when absent. */
-function optionalString(value: unknown, key: string): string | undefined {
+function optionalString({ value, key }: { value: unknown; key: string }, _options: Record<string, never> = {}): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new EmailTemplateInputError(`${key} must be a string.`);
   return value;
@@ -121,28 +121,30 @@ export function readFieldValues({ value }: { value: unknown }, _optional: Record
 }
 
 /** Field declarations from either a list of names / `{name, sample}` objects, or the meta `content` string form. */
-function readFieldsInput(value: unknown): EmailTemplateField[] {
+function readFieldsInput({ value }: { value: unknown }, _options: Record<string, never> = {}): EmailTemplateField[] {
   if (value === undefined) return [];
   if (typeof value === "string") return parseFieldDeclarations({ content: value });
   if (!Array.isArray(value)) throw new EmailTemplateInputError("fields must be a list of field names.");
-  const entries = value.map((entry) => (typeof entry === "string" ? entry : formatFieldObject(entry)));
+  const entries = value.map((entry) => (typeof entry === "string" ? entry : formatFieldObject({ entry: entry })));
   return parseFieldDeclarations({ content: entries.join(",") });
 }
 
-function formatFieldObject(entry: unknown): string {
+function formatFieldObject({ entry }: { entry: unknown }, _options: Record<string, never> = {}): string {
   const record = (entry ?? {}) as { name?: unknown; sample?: unknown };
   if (typeof record.name !== "string") throw new EmailTemplateInputError("each field must be a name or {name, sample}.");
+  if (record.name.includes(",") || record.name.includes("=")) throw new EmailTemplateInputError("field names cannot contain commas or equals signs.");
+  if (typeof record.sample === "string" && record.sample.includes(",")) throw new EmailTemplateInputError("field samples cannot contain commas.");
   return typeof record.sample === "string" ? `${record.name}=${record.sample}` : record.name;
 }
 
-function readExpectedVersion(value: unknown): number | undefined {
+function readExpectedVersion({ value }: { value: unknown }, _options: Record<string, never> = {}): number | undefined {
   if (value === undefined) return undefined;
   if (!Number.isInteger(value) || (value as number) < 1) throw new EmailTemplateInputError("expectedVersion must be the positive integer version a read returned.");
   return value as number;
 }
 
 /** A fresh, `doc`-format template row for `ensureHtmlFormat` to convert, as a new Page is. */
-function newTemplateRow(deps: EmailTemplateDeps, name: string): PostRecord {
+function newTemplateRow({ deps, name }: { deps: EmailTemplateDeps; name: string }, _options: Record<string, never> = {}): PostRecord {
   const id = deps.idGen.newId();
   return {
     id,
@@ -155,7 +157,7 @@ function newTemplateRow(deps: EmailTemplateDeps, name: string): PostRecord {
     // Forever: `updatePost` refuses this kind, and it is the only path that changes status.
     status: "draft",
     // Not a PostKind on purpose; see EMAIL_TEMPLATE_KIND's own doc.
-    kind: EMAIL_TEMPLATE_KIND as unknown as PostKind,
+    kind: EMAIL_TEMPLATE_KIND,
     bodyFormat: "doc",
     bodyHtml: null,
     updatedAt: nowIso({ clock: deps.clock }),
@@ -174,13 +176,16 @@ export async function createEmailTemplate(
   _optional: Record<string, never> = {},
 ): Promise<EmailTemplateDetail> {
   const name = requireText({ value: input.name, key: "name", max: EMAIL_TEMPLATE_NAME_MAX });
-  const html = optionalString(input.html, "html");
-  const subject = optionalString(input.subject, "subject") ?? name;
-  const seed = html ?? emailTemplateSkeleton({ subject, fields: readFieldsInput(input.fields) });
-  const row = newTemplateRow(deps, name);
-  await deps.postRepo.save(row);
-  await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }).ensureHtmlFormat(seed);
-  return toDetail(await loadTemplate(deps, row.id));
+  const html = optionalString({ value: input.html, key: "html" });
+  const subject = optionalString({ value: input.subject, key: "subject" }) ?? name;
+  const seed = html ?? emailTemplateSkeleton({ subject, fields: readFieldsInput({ value: input.fields }) });
+  const row = newTemplateRow({ deps: deps, name: name });
+  // Both adapters join the same kernel transaction, so conversion failure leaves no hidden doc row.
+  return deps.postRepo.transaction(async () => {
+    await deps.postRepo.save(row);
+    await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }).ensureHtmlFormat(seed);
+    return toDetail(await loadTemplate({ deps: deps, id: row.id }));
+  });
 }
 
 /**
@@ -196,8 +201,8 @@ export async function editEmailTemplate(
 ): Promise<EmailTemplateDetail> {
   const id = requireText({ value: input.id, key: "id", max: EMAIL_TEMPLATE_NAME_MAX });
   const html = requireText({ value: input.html, key: "html", max: Number.MAX_SAFE_INTEGER });
-  const expectedVersion = readExpectedVersion(input.expectedVersion);
-  await loadTemplate(deps, id);
+  const expectedVersion = readExpectedVersion({ value: input.expectedVersion });
+  await loadTemplate({ deps: deps, id: id });
   const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: id, actorId });
   await store.read();
   const basis = store.capturedVersion();
@@ -210,29 +215,50 @@ export async function editEmailTemplate(
     if (err instanceof PageConcurrentEditError) throw new EmailTemplateVersionConflictError(`email template '${id}' was edited elsewhere — re-read it and retry`);
     throw err;
   }
-  return toDetail(await loadTemplate(deps, id));
+  return toDetail(await loadTemplate({ deps: deps, id: id }));
 }
 
 /** Every live template in the workspace, most recently updated first. */
-export async function listEmailTemplates({ deps }: { deps: EmailTemplateDeps }, _optional: Record<string, never> = {}): Promise<{ templates: EmailTemplateSummary[] }> {
-  const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-  const templates = rows.filter(isTemplateRow).map(toSummary);
-  templates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
-  return { templates };
+export async function listEmailTemplates({ deps, input = {} }: { deps: EmailTemplateDeps; input?: { limit?: unknown; cursor?: unknown } }, _optional: Record<string, never> = {}): Promise<{ templates: EmailTemplateSummary[]; nextCursor?: string }> {
+  const limit = templatePageLimit({ value: input.limit });
+  const before = readTemplateCursor({ value: input.cursor });
+  if (!deps.postRepo.listHtmlByKind) throw new Error("Template listing is unavailable.");
+  const rows = await deps.postRepo.listHtmlByKind({ workspaceId: deps.workspaceId, kind: EMAIL_TEMPLATE_KIND, limit: limit + 1, ...(before ? { before } : {}) });
+  const page = rows.slice(0, limit).filter(isTemplateRow);
+  const last = page.at(-1);
+  const nextCursor = rows.length > limit && last ? Buffer.from(JSON.stringify({ updatedAt: last.updatedAt, id: last.id })).toString("base64url") : undefined;
+  return { templates: page.map(row => toSummary(row)), ...(nextCursor ? { nextCursor } : {}) };
+}
+
+/** Bounded list size, shared by the route and tool inputs. */
+function templatePageLimit({ value }: { value: unknown }, _options = {}): number {
+  const limit = value === undefined ? 25 : Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new EmailTemplateInputError("limit must be a whole number from 1 to 100.");
+  return limit;
+}
+
+/** Only a timestamp/id pair from this list is accepted as a continuation. */
+function readTemplateCursor({ value }: { value: unknown }, _options = {}): { updatedAt: string; id: string } | undefined {
+  if (value === undefined) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(String(value), "base64url").toString()) as { updatedAt?: unknown; id?: unknown };
+    if (typeof parsed.updatedAt === "string" && typeof parsed.id === "string") return { updatedAt: parsed.updatedAt, id: parsed.id };
+  } catch { /* The same typed refusal covers malformed and structurally invalid tokens. */ }
+  throw new EmailTemplateInputError("cursor must be a nextCursor returned by email_template_list.");
 }
 
 /** One template with its HTML; `version` is the basis an edit states back as `expectedVersion`. */
 export async function getEmailTemplate({ deps, id }: { deps: EmailTemplateDeps; id: string }, _optional: Record<string, never> = {}): Promise<EmailTemplateDetail> {
-  return toDetail(await loadTemplate(deps, id));
+  return toDetail(await loadTemplate({ deps: deps, id: id }));
 }
 
 /** The HTML a preview renders: a saved template's, or unsaved HTML straight from the editor. */
 async function previewSource(deps: EmailTemplateDeps, input: Record<string, unknown>): Promise<string> {
   if (input.html !== undefined) return requireText({ value: input.html, key: "html", max: Number.MAX_SAFE_INTEGER });
-  return (await loadTemplate(deps, requireText({ value: input.id, key: "id", max: EMAIL_TEMPLATE_NAME_MAX }))).bodyHtml;
+  return (await loadTemplate({ deps: deps, id: requireText({ value: input.id, key: "id", max: EMAIL_TEMPLATE_NAME_MAX }) })).bodyHtml;
 }
 
-function readMode(value: unknown): "admin" | "sent" {
+function readMode({ value }: { value: unknown }, _options: Record<string, never> = {}): "admin" | "sent" {
   if (value === undefined || value === "admin") return "admin";
   if (value === "sent") return "sent";
   throw new EmailTemplateInputError('mode must be "admin" or "sent".');
@@ -248,7 +274,7 @@ export async function previewEmailTemplate(
   { deps, input }: { deps: EmailTemplateDeps; input: Record<string, unknown> },
   _optional: Record<string, never> = {},
 ): Promise<EmailTemplatePreview> {
-  const mode = readMode(input.mode);
+  const mode = readMode({ value: input.mode });
   const values = readFieldValues({ value: input.values });
   const html = await previewSource(deps, input);
   const undeclaredFields = undeclaredFieldsIn({ html, declarations: readTemplateDeclarations({ html }) });
@@ -269,5 +295,5 @@ export async function renderEmailTemplateForSend(
   { deps, id, values }: { deps: EmailTemplateDeps; id: string; values: EmailFieldValues },
   _optional: Record<string, never> = {},
 ): Promise<SendableEmail> {
-  return renderEmailForSend({ html: (await loadTemplate(deps, id)).bodyHtml, values });
+  return renderEmailForSend({ html: (await loadTemplate({ deps: deps, id: id })).bodyHtml, values });
 }

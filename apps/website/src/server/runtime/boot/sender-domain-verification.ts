@@ -42,13 +42,19 @@ async function askProvider(required: { deps: SenderDomainVerificationDeps; provi
 }
 
 /**
+ * The sender domain's state at the transactional provider: `null` = no sender configured
+ * (`sender_unknown`); undefined = the provider cannot verify domains or the check failed.
+ * @complexity At most one provider call.
+ */
+
+/**
  * Build the never-throwing port.
  * @complexity Per call: two settings reads, one catalog load, at most one key lookup and one provider call.
  * @example createSenderDomainVerification(deps)()
  */
-export function createSenderDomainVerification(required: SenderDomainVerificationDeps, _optional: Record<string, never> = {}): SenderDomainVerificationPort {
+export function createSenderDomainVerification(required: SenderDomainVerificationDeps, options: { timeoutMs?: number } = {}): SenderDomainVerificationPort {
   const deps = required;
-  return async () => {
+  const check = async (): Promise<SenderDomainVerification> => {
     const [providerId, domain] = await Promise.all([deps.readProviderId().catch(() => null), senderDomain(deps)]);
     if (!domain) return { state: "no_sender", providerId };
     const provider = providerId === null ? undefined : await deps.findProvider({ id: providerId }).catch(() => undefined);
@@ -56,5 +62,12 @@ export function createSenderDomainVerification(required: SenderDomainVerificatio
     const id = providerId!;
     if (!provider.domainStatus) return { state: "unsupported", domain, providerId: id };
     return askProvider({ deps, provider, providerId: id, domain });
+  };
+  return async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<SenderDomainVerification>(resolve => {
+      timer = setTimeout(() => resolve({ state: "unknown", providerId: null, reason: "provider_domain_check_timed_out" }), options.timeoutMs ?? 5_000);
+    });
+    try { return await Promise.race([check(), timeout]); } finally { clearTimeout(timer); }
   };
 }

@@ -51,12 +51,12 @@ export interface MailFeedbackSetupReport {
 }
 
 /** Mirrors `features/newsletter/confirmation.ts`'s private `composeOriginUrl` (default ports elided). */
-function originUrl(origin: VerifiedOrigin): string {
+function originUrl(origin: VerifiedOrigin, _options: Record<string, never> = {}): string {
   const isDefaultPort = origin.port === undefined || (origin.scheme === "https" && origin.port === 443) || (origin.scheme === "http" && origin.port === 80);
   return `${origin.scheme}://${isDefaultPort ? origin.host : `${origin.host}:${origin.port}`}${origin.basePath ?? ""}`;
 }
 
-async function siteOrigin(deps: MailFeedbackSetupDeps): Promise<string | null> {
+async function siteOrigin(deps: MailFeedbackSetupDeps, _options: Record<string, never> = {}): Promise<string | null> {
   if (!deps.originRegistry) return null;
   try {
     return originUrl(await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }));
@@ -65,11 +65,11 @@ async function siteOrigin(deps: MailFeedbackSetupDeps): Promise<string | null> {
   }
 }
 
-function slot(label: string, saved: Map<string, string>): MailWebhookSecretSlot {
+function slot({ label, saved }: { label: string; saved: Map<string, string> }, _options: Record<string, never> = {}): MailWebhookSecretSlot {
   return { label, configured: saved.has(label), updatedAt: saved.get(label) ?? null };
 }
 
-function stateOf(setup: Pick<MailFeedbackProviderSetup, "supported" | "signingSecret" | "lastVerifiedEvent">): MailFeedbackProviderSetup["state"] {
+function stateOf(setup: Pick<MailFeedbackProviderSetup, "supported" | "signingSecret" | "lastVerifiedEvent">, _options: Record<string, never> = {}): MailFeedbackProviderSetup["state"] {
   if (!setup.supported) return "unsupported";
   if (!setup.signingSecret?.current.configured && !setup.signingSecret?.previous.configured) return "secret_missing";
   return setup.lastVerifiedEvent ? "receiving" : "no_events_yet";
@@ -79,7 +79,7 @@ async function providerSetup(deps: MailFeedbackSetupDeps, provider: MailProvider
   const supported = provider.capabilities.feedback;
   const webhookPath = `/hooks/mail/${encodeURIComponent(provider.id)}`;
   const [current, previous] = mailWebhookSecretLabels({ providerLabel: provider.label });
-  const signingSecret = supported ? { current: slot(current, context.saved), previous: slot(previous, context.saved) } : null;
+  const signingSecret = supported ? { current: slot({ label: current, saved: context.saved }), previous: slot({ label: previous, saved: context.saved }) } : null;
   const lastVerifiedEvent = supported && deps.mailSuppressionAdmin ? await deps.mailSuppressionAdmin.lastFeedbackEvent({ workspaceId: deps.workspaceId, providerId: provider.id }) : null;
   const setup = { providerId: provider.id, label: provider.label, lanes: provider.lanes, supported, webhookPath,
     webhookUrl: supported && context.origin ? `${context.origin}${webhookPath}` : null, signingSecret, lastVerifiedEvent };
@@ -91,7 +91,7 @@ async function providerSetup(deps: MailFeedbackSetupDeps, provider: MailProvider
  * @complexity One provider describe, one credential list, one origin read and one inbox probe per provider.
  * @example await readMailFeedbackSetup(deps)
  */
-export async function readMailFeedbackSetup(deps: MailFeedbackSetupDeps): Promise<MailFeedbackSetupReport> {
+export async function readMailFeedbackSetup(deps: MailFeedbackSetupDeps, _options: Record<string, never> = {}): Promise<MailFeedbackSetupReport> {
   if (!deps.mailProviderControl?.describe) return { available: false, providers: [] };
   const report = await deps.mailProviderControl.describe();
   const active = report.providers.filter((provider) => provider.lanes.length > 0);

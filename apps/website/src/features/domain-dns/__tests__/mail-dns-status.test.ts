@@ -128,8 +128,8 @@ test("no record table: each reason is its own state, and the provider verdict st
 test("no record table: no port, a provider error and a thrown non-error are distinct states", async () => {
   const { mailRequirements: _drop, ...noPort } = portsFor();
   assert.deepEqual([(await readMailDnsStatus({}, noPort)).state, (await readMailDnsStatus({}, noPort)).message], ["requirements_unavailable", "This server cannot report its mail provider's DNS records."]);
-  const failed = await readMailDnsStatus({}, portsFor({ requirement: new Error("the mail provider 'mailer' could not list the DNS records example.com needs (429)") }));
-  assert.deepEqual([failed.state, failed.message], ["requirements_failed", "the mail provider 'mailer' could not list the DNS records example.com needs (429)"]);
+  const failed = await readMailDnsStatus({}, portsFor({ requirement: new Error("The mail provider could not list its required DNS records.") }));
+  assert.deepEqual([failed.state, failed.message], ["requirements_failed", "The mail provider could not list its required DNS records."]);
   assert.equal((await readMailDnsStatus({}, portsFor({ requirement: "throw-value" }))).message, "the mail provider could not list its DNS records");
 });
 

@@ -17,7 +17,7 @@ import { MAIL_CREDENTIAL_CATEGORY, type MailProviderCatalog } from "./mail-provi
 type CatalogEntry = { id: string; provider: MailProviderModule; origin: "core" | "plugin" };
 
 /** Lanes `id` currently sends for. @complexity O(1). */
-function lanesFor(setting: MailProviderSetting, id: string): ("transactional" | "bulk")[] {
+function lanesFor({ setting, id }: { setting: MailProviderSetting; id: string }, _options: Record<string, never> = {}): ("transactional" | "bulk")[] {
   return (["transactional", "bulk"] as const).filter((lane) => setting[lane] === id);
 }
 
@@ -27,7 +27,7 @@ function rowComplete(provider: MailProviderModule, record: CustomCredentialSetRe
 }
 
 /** Credential presence, never its value. @complexity O(c) rows. */
-function credentialFacts(required: { label: string | undefined; provider: MailProviderModule; records: readonly CustomCredentialSetRecord[] }): MailProviderConfiguration["credential"] {
+function credentialFacts(required: { label: string | undefined; provider: MailProviderModule; records: readonly CustomCredentialSetRecord[] }, _options: Record<string, never> = {}): MailProviderConfiguration["credential"] {
   const { label, provider } = required;
   if (label === undefined) return { required: false, saved: false };
   const record = required.records.find((row) => row.label === label);
@@ -42,14 +42,14 @@ function refusalFor(provider: MailProviderModule, credential: MailProviderConfig
   return undefined;
 }
 
-function describeOne(required: { catalog: MailProviderCatalog; entry: CatalogEntry; records: readonly CustomCredentialSetRecord[]; setting: MailProviderSetting }): MailProviderConfiguration {
+function describeOne(required: { catalog: MailProviderCatalog; entry: CatalogEntry; records: readonly CustomCredentialSetRecord[]; setting: MailProviderSetting }, _options: Record<string, never> = {}): MailProviderConfiguration {
   const { catalog, entry, setting } = required;
   const { provider } = entry;
   const credential = credentialFacts({ label: catalog.credentialLabelFor({ id: entry.id }), provider, records: required.records });
   const refusal = refusalFor(provider, credential);
   const { feedback, domainVerification, rateLimit } = provider.capabilities;
   return {
-    id: entry.id, label: provider.label, origin: entry.origin, hosted: provider.capabilities.hosted, lanes: lanesFor(setting, entry.id),
+    id: entry.id, label: provider.label, origin: entry.origin, hosted: provider.capabilities.hosted, lanes: lanesFor({ setting: setting, id: entry.id }),
     capabilities: { feedback, domainVerification, ...(rateLimit ? { rateLimit: { perSecond: rateLimit.perSecond, burst: rateLimit.burst } } : {}) },
     credential, selectable: refusal === undefined, ...(refusal ? { refusal } : {}), setup: catalog.setupFor({ id: entry.id }),
   };

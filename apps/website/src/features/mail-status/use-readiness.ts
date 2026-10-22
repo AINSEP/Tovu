@@ -19,7 +19,7 @@
  */
 import { SenderIdentityNotConfiguredError, type MailSenderIdentityPort } from "@jini-ai/platform/mail";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
-import { isMailDeliveryAvailable, type MailerPort } from "../../platform/mail/index.js";
+import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
 import type { MailPurposeGateProbe } from "../../platform/mail/purpose-gate-probe.js";
 import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/launch-gate.js";
 import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "../mail/activity.repo.js";
@@ -55,6 +55,7 @@ export interface MailUseReadinessDeps {
   workspaceId: string;
   mailer: MailerPort;
   mailSenderIdentity?: MailSenderIdentityPort;
+  mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
   /** The live gate's probe; absent, gated rows report `purpose_gate_unavailable` as unknown. */
   mailPurposeGate?: MailPurposeGateProbe;
   formDefinitionRepo?: Pick<FormDefinitionRepoPort, "list">;
@@ -86,10 +87,10 @@ const LAUNCH_GATE_STATE: Record<LaunchGatePrecondition, Finding["state"]> = {
   mailer_adapter_not_production: "not_configured",
 };
 
-async function senderFinding(deps: MailUseReadinessDeps): Promise<{ sender: string | null; findings: Finding[] }> {
-  if (!deps.mailSenderIdentity) return { sender: null, findings: [] };
+async function senderFinding(deps: MailUseReadinessDeps, _options: Record<string, never> = {}): Promise<{ sender: string | null; findings: Finding[] }> {
+  const identity = mailSenderIdentityFor({ mailer: deps.mailer }, deps.mailSenderIdentity ? { senderIdentity: deps.mailSenderIdentity } : {});
   try {
-    return { sender: (await deps.mailSenderIdentity.resolve({ workspaceId: deps.workspaceId, fallback: SENDER_FALLBACK })).email, findings: [] };
+    return { sender: (await identity.resolve({ workspaceId: deps.workspaceId, fallback: SENDER_FALLBACK })).email, findings: [] };
   } catch (err) {
     if (err instanceof SenderIdentityNotConfiguredError) return { sender: null, findings: [{ state: "blocked", reason: "sender_not_configured" }] };
     throw err;
@@ -103,12 +104,13 @@ async function gateFinding(deps: MailUseReadinessDeps, spec: UseSpec): Promise<F
 
 /** Delivery, sender and gate: what every use shares, in that order. */
 async function sharedFindings(deps: MailUseReadinessDeps, spec: UseSpec): Promise<Check> {
-  const delivery: Finding[] = isMailDeliveryAvailable(deps.mailer) ? [] : [{ state: "not_configured", reason: "mail_delivery_unavailable" }];
+  const available = deps.mailLaneReady ? await deps.mailLaneReady({ lane: spec.mailLane }) : isMailDeliveryAvailable(deps.mailer);
+  const delivery: Finding[] = available ? [] : [{ state: "not_configured", reason: "mail_delivery_unavailable" }];
   const sender = await senderFinding(deps);
   return { findings: [...delivery, ...sender.findings, ...(await gateFinding(deps, spec))], sender: sender.sender };
 }
 
-async function launchGateFindings(gate: LaunchGateDeps, workspaceId: string, isTestSend: boolean): Promise<Finding[]> {
+async function launchGateFindings({ gate, workspaceId, isTestSend }: { gate: LaunchGateDeps; workspaceId: string; isTestSend: boolean }, _options: Record<string, never> = {}): Promise<Finding[]> {
   const result = await evaluateLaunchGate({ deps: gate, workspaceId, isTestSend });
   // The shared delivery check already reports a console/memory mailer.
   return result.unmetPreconditions.filter((code) => code !== "mailer_adapter_not_production").map((code) => ({ state: LAUNCH_GATE_STATE[code], reason: code }));
@@ -117,7 +119,7 @@ async function launchGateFindings(gate: LaunchGateDeps, workspaceId: string, isT
 const CHECKS: Record<MailUseId, (deps: MailUseReadinessDeps) => Promise<Check>> = {
   sign_in: (deps) => sharedFindings(deps, SPECS.sign_in),
   newsletter_confirmation: async (deps) => {
-    const own = await launchGateFindings(deps.newsletterLaunchGate as LaunchGateDeps, deps.workspaceId, true);
+    const own = await launchGateFindings({ gate: deps.newsletterLaunchGate as LaunchGateDeps, workspaceId: deps.workspaceId, isTestSend: true });
     const shared = await sharedFindings(deps, SPECS.newsletter_confirmation);
     return { ...shared, findings: [...own, ...shared.findings] };
   },
@@ -129,13 +131,13 @@ const CHECKS: Record<MailUseId, (deps: MailUseReadinessDeps) => Promise<Check>> 
     return { ...(await sharedFindings(deps, SPECS.form_notifications)), formsConfigured };
   },
   newsletter: async (deps) => {
-    const own = await launchGateFindings(deps.newsletterLaunchGate as LaunchGateDeps, deps.workspaceId, false);
+    const own = await launchGateFindings({ gate: deps.newsletterLaunchGate as LaunchGateDeps, workspaceId: deps.workspaceId, isTestSend: false });
     const shared = await sharedFindings(deps, SPECS.newsletter);
     return { ...shared, findings: [...own, ...shared.findings] };
   },
 };
 
-function stateOf(findings: Finding[]): MailUseState {
+function stateOf({ findings }: { findings: Finding[] }, _options: Record<string, never> = {}): MailUseState {
   return RANK.find((state) => findings.some((finding) => finding.state === state)) ?? "ready";
 }
 
@@ -155,7 +157,7 @@ async function rowFor(deps: MailUseReadinessDeps, use: MailUseId): Promise<MailU
   const evidence = await evidenceFor(deps, spec);
   try {
     const check = await CHECKS[use](deps);
-    return { ...base, state: stateOf(check.findings), reasons: check.findings.map((finding) => finding.reason), sender: check.sender,
+    return { ...base, state: stateOf({ findings: check.findings }), reasons: check.findings.map((finding) => finding.reason), sender: check.sender,
       ...(check.formsConfigured === undefined ? {} : { formsConfigured: check.formsConfigured }), evidence };
   } catch (err) {
     // Only this row is unknown; a known reason code is kept, anything else is a generic check failure.
@@ -169,7 +171,7 @@ async function rowFor(deps: MailUseReadinessDeps, use: MailUseId): Promise<MailU
  * @complexity One owner check and one evidence read per use (at most four).
  * @example await readMailUseReadiness(deps)
  */
-export async function readMailUseReadiness(deps: MailUseReadinessDeps): Promise<MailUseReadinessReport> {
+export async function readMailUseReadiness(deps: MailUseReadinessDeps, _options: Record<string, never> = {}): Promise<MailUseReadinessReport> {
   const uses: MailUseId[] = deps.newsletterLaunchGate ? ["sign_in", "newsletter_confirmation", "form_notifications", "newsletter"] : ["sign_in", "form_notifications"];
   return { checkedAt: (deps.nowIso ?? (() => new Date().toISOString()))(), uses: await Promise.all(uses.map((use) => rowFor(deps, use))) };
 }
@@ -188,7 +190,7 @@ export type MailUseReadinessHostDeps = Omit<MailUseReadinessDeps, "newsletterLau
  * sending setting is the fail-closed `false`), so this reads the same gate the send path evaluates.
  * @complexity O(1).
  */
-export function mailUseReadinessDepsFrom(deps: MailUseReadinessHostDeps): MailUseReadinessDeps {
+export function mailUseReadinessDepsFrom(deps: MailUseReadinessHostDeps, _options: Record<string, never> = {}): MailUseReadinessDeps {
   const { originRegistry, newsletterCampaignRepo, membersConsentCapability, newsletterSendingEnabled, ...rest } = deps;
   if (newsletterCampaignRepo === undefined || originRegistry === undefined) return rest;
   return { ...rest, newsletterLaunchGate: { isSendingEnabled: newsletterSendingEnabled ?? (async () => false), consentCapability: membersConsentCapability ?? null, originRegistry, mailer: deps.mailer } };

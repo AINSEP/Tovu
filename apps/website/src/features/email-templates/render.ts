@@ -86,7 +86,7 @@ export function fillPlaceholders(
 }
 
 /** One `name` or `name=sample` entry; `null` for a malformed name, which is ignored. */
-function parseFieldEntry(entry: string): EmailTemplateField | null {
+function parseFieldEntry({ entry }: { entry: string }, _options: Record<string, never> = {}): EmailTemplateField | null {
   const separator = entry.indexOf("=");
   const name = (separator === -1 ? entry : entry.slice(0, separator)).trim();
   if (!FIELD_NAME.test(name)) return null;
@@ -98,7 +98,7 @@ function parseFieldEntry(entry: string): EmailTemplateField | null {
 export function parseFieldDeclarations({ content }: { content: string }, _optional: Record<string, never> = {}): EmailTemplateField[] {
   const byName = new Map<string, EmailTemplateField>();
   for (const entry of content.split(",")) {
-    const field = parseFieldEntry(entry);
+    const field = parseFieldEntry({ entry: entry });
     if (field && !byName.has(field.name)) byName.set(field.name, field);
   }
   return [...byName.values()];
@@ -113,12 +113,12 @@ function isElement(node: ChildNode | ParentNode): node is Element {
   return "tagName" in node;
 }
 
-function attribute(element: Element, name: string): string | undefined {
+function attribute({ element, name }: { element: Element; name: string }, _options: Record<string, never> = {}): string | undefined {
   return element.attrs.find((attr) => attr.name === name)?.value;
 }
 
 /** Every element under `root`, in document order (so "the first `<title>`" means the first one written). */
-function* elementsIn(root: ParentNode): Generator<Element> {
+function* elementsIn(root: ParentNode, _options: Record<string, never> = {}): Generator<Element> {
   const pending: ParentNode[] = [root];
   while (pending.length > 0) {
     const node = pending.pop() as ParentNode;
@@ -130,12 +130,12 @@ function* elementsIn(root: ParentNode): Generator<Element> {
   }
 }
 
-function textOf(element: Element): string {
+function textOf(element: Element, _options: Record<string, never> = {}): string {
   return element.childNodes.map((child) => ("value" in child && child.nodeName === "#text" ? child.value : "")).join("");
 }
 
-function isFieldsMeta(element: Element): boolean {
-  return element.tagName === "meta" && attribute(element, "name")?.toLowerCase() === EMAIL_FIELDS_META_NAME;
+function isFieldsMeta(element: Element, _options: Record<string, never> = {}): boolean {
+  return element.tagName === "meta" && attribute({ element: element, name: "name" })?.toLowerCase() === EMAIL_FIELDS_META_NAME;
 }
 
 /**
@@ -145,10 +145,14 @@ function isFieldsMeta(element: Element): boolean {
 export function readTemplateDeclarations({ html }: { html: string }, _optional: Record<string, never> = {}): EmailTemplateDeclarations {
   let subject: string | undefined;
   let fields: EmailTemplateField[] = [];
+  let fieldsDeclared = false;
   for (const element of elementsIn(parse(html))) {
     // HTML namespace only: an inline `<svg><title>` is an image's tooltip, not the subject.
     if (element.tagName === "title" && element.namespaceURI === HTML_NAMESPACE && subject === undefined) subject = textOf(element).trim();
-    if (isFieldsMeta(element) && fields.length === 0) fields = parseFieldDeclarations({ content: attribute(element, "content") ?? "" });
+    if (isFieldsMeta(element) && !fieldsDeclared) {
+      fieldsDeclared = true;
+      fields = parseFieldDeclarations({ content: attribute({ element: element, name: "content" }) ?? "" });
+    }
   }
   return { subject: subject ?? "", fields };
 }
@@ -161,7 +165,7 @@ export function undeclaredFieldsIn({ html, declarations }: { html: string; decla
 
 /** True when an attribute value would run script once a browser normalizes it as a URL. Tested on
  * every attribute, not only `href`/`src`, the same breadth `stripActiveHtml` applies. */
-function isActiveUrl(value: string): boolean {
+function isActiveUrl({ value }: { value: string }, _options: Record<string, never> = {}): boolean {
   // Browsers drop ASCII tab/newline anywhere in a URL and leading C0 controls/space, so
   // `java\nscript:` is still script; `stripActiveHtml`'s own test only trims leading whitespace.
   // eslint-disable-next-line no-control-regex
@@ -169,10 +173,10 @@ function isActiveUrl(value: string): boolean {
 }
 
 /** Second, email-specific pass after `stripActiveHtml`: embeds, obfuscated script URLs, the fields meta. */
-function stripForMail(root: ParentNode): void {
+function stripForMail(root: ParentNode, _options: Record<string, never> = {}): void {
   for (const node of elementsIn(root)) {
     node.childNodes = node.childNodes.filter((child) => !(isElement(child) && (SEND_STRIPPED_TAGS.has(child.tagName) || isFieldsMeta(child))));
-    node.attrs = node.attrs.filter((attr) => !isActiveUrl(attr.value));
+    node.attrs = node.attrs.filter((attr) => !isActiveUrl({ value: attr.value }));
   }
 }
 
@@ -192,9 +196,9 @@ export function sanitizeEmailHtml({ html }: { html: string }, _optional: Record<
 }
 
 /** A visible ` (url)` after a link whose text is not already its URL, so the text part keeps links. */
-function annotateLinks(root: ParentNode): void {
+function annotateLinks(root: ParentNode, _options: Record<string, never> = {}): void {
   for (const element of elementsIn(root)) {
-    const href = element.tagName === "a" ? attribute(element, "href")?.trim() : undefined;
+    const href = element.tagName === "a" ? attribute({ element: element, name: "href" })?.trim() : undefined;
     if (!href || !/^(?:https?:|mailto:)/i.test(href) || textOf(element).trim() === href) continue;
     element.childNodes.push({ nodeName: "#text", value: ` (${href.replace(/^mailto:/i, "")})`, parentNode: element } as ChildNode);
   }
@@ -212,7 +216,7 @@ export function emailHtmlToText({ html }: { html: string }, _optional: Record<st
 }
 
 /** A subject is one header line: fill raw (it is not HTML) and fold any line break a value carried. */
-function renderSubject(subject: string, values: EmailFieldValues): FilledText {
+function renderSubject({ subject, values }: { subject: string; values: EmailFieldValues }, _options: Record<string, never> = {}): FilledText {
   const filled = fillPlaceholders({ text: subject, values, escape: (value) => value });
   return { text: filled.text.replace(/[\r\n]+/g, " ").trim(), missingFields: filled.missingFields };
 }
@@ -224,9 +228,9 @@ export interface RenderedEmail {
   missingFields: string[];
 }
 
-function renderWith(html: string, values: EmailFieldValues): RenderedEmail {
+function renderWith({ html, values }: { html: string; values: EmailFieldValues }, _options: Record<string, never> = {}): RenderedEmail {
   const declarations = readTemplateDeclarations({ html });
-  const subject = renderSubject(declarations.subject, values);
+  const subject = renderSubject({ subject: declarations.subject, values: values });
   const body = fillPlaceholders({ text: html, values, escape: (value) => escapeHtml({ value }) });
   return { subject: subject.text, html: body.text, missingFields: [...new Set([...subject.missingFields, ...body.missingFields])] };
 }
@@ -247,7 +251,7 @@ export function previewValues(
  */
 export function renderEmailPreview({ html, values }: { html: string; values: EmailFieldValues }, _optional: Record<string, never> = {}): RenderedEmail {
   const declarations = readTemplateDeclarations({ html });
-  return renderWith(html, previewValues({ declarations, values }));
+  return renderWith({ html: html, values: previewValues({ declarations, values }) });
 }
 
 export interface SendableEmail extends RenderedEmail {
@@ -262,7 +266,7 @@ export interface SendableEmail extends RenderedEmail {
  * @complexity O(n) in the template length.
  */
 export function renderEmailForSend({ html, values }: { html: string; values: EmailFieldValues }, _optional: Record<string, never> = {}): SendableEmail {
-  const rendered = renderWith(html, values);
+  const rendered = renderWith({ html: html, values: values });
   const safeHtml = sanitizeEmailHtml({ html: rendered.html });
   return { subject: rendered.subject, html: safeHtml, text: emailHtmlToText({ html: safeHtml }), missingFields: rendered.missingFields };
 }

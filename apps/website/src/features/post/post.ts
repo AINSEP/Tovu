@@ -22,7 +22,8 @@ export type PostStatus = "draft" | "published";
  * `kind` only changes which admin list surfaces a row and how it's created.
  * Fixed at creation; v1 has no post<->page conversion path.
  */
-export type PostKind = "post" | "page";
+export type PostKind = "post" | "page" | "email-template";
+export type PublicPostKind = Exclude<PostKind, "email-template">;
 
 /**
  * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a
@@ -290,6 +291,8 @@ export interface PostRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<PostRecord | null>;
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<PostRecord | null>;
   list(required: { workspaceId: UUID }): Promise<PostRecord[]>;
+  /** Bounded live HTML rows, filtered before body reads; timestamp/id keyset pagination. */
+  listHtmlByKind?(required: { workspaceId: string; kind: PostKind; limit: number; before?: { updatedAt: string; id: string } }, options?: Record<string, never>): Promise<PostRecord[]>;
   /**
    * Bounded, query-pushed-down listing of published, non-trashed `kind: "post"` rows, newest
    * display date first (`comparePostsByDisplayDate`, `id` tie-break), skipping `offset` rows, capped at `limit` — the post-previews marker's own query
@@ -477,7 +480,7 @@ export interface CreatePostInput {
   id: UUID;
   title: string;
   /** Defaults to `"post"` — the existing posts-create route relies on this default. */
-  kind?: PostKind;
+  kind?: PublicPostKind;
   /**
    * SPEC-002 api.spec.md `POST_CREATE`/`PAGE_CREATE` §4 — optional caller-supplied slug.
    * When present it is validated and checked for uniqueness exactly like `updatePost`
@@ -2202,7 +2205,7 @@ export async function listPublishedPosts(
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
   const nowIso = optional.nowIso ?? currentIso();
-  return { posts: posts.filter((post) => isLiveAt(post, nowIso)) };
+  return { posts: posts.filter((post) => post.kind !== EMAIL_TEMPLATE_KIND && isLiveAt(post, nowIso)) };
 }
 
 export interface ListPublishedPostPreviewsRequired {
@@ -2248,7 +2251,7 @@ export async function getAdminPostById(
   const post = await required.deps.repo.findById({ workspaceId, id });
   // A trashed row 404s identically to a missing one — no existence leak, matching the
   // kind-mismatch rule `pages/get-by-id.ts` already applies.
-  if (!post || isTrashed(post)) throw new PostNotFoundError(`post '${id}' was not found`);
+  if (!post || post.kind === EMAIL_TEMPLATE_KIND || isTrashed(post)) throw new PostNotFoundError(`post '${id}' was not found`);
   return { post };
 }
 
@@ -2260,7 +2263,7 @@ export async function getPublishedPostBySlug(
   const slug = required.input.slug.trim().toLowerCase();
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
   // A scheduled row 404s exactly like a draft until its time passes — no existence leak.
-  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
+  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };
@@ -2291,7 +2294,7 @@ export async function findPublishedPostById(
 ): Promise<PostRecord | null> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
-  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 
@@ -2312,7 +2315,7 @@ export async function findPublishedPostBySlug(
 ): Promise<PostRecord | null> {
   const { workspaceId, slug } = required.input;
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 
@@ -2344,7 +2347,7 @@ export async function getAdminPostByIdOrSlug(
   const { workspaceId, idOrSlug } = required.input;
   const bySlug = await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() });
   const post = bySlug ?? (await required.deps.repo.findById({ workspaceId, id: idOrSlug }));
-  if (!post || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
+  if (!post || post.kind === EMAIL_TEMPLATE_KIND || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
   return { post };
 }
 

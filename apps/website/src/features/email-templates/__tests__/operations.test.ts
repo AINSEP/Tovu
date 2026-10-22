@@ -197,3 +197,46 @@ test("readFieldValues and requireText contracts", () => {
   assert.throws(() => requireText({ value: 3, key: "k", max: 1 }), /k is required/);
   assert.throws(() => requireText({ value: "ab", key: "k", max: 1 }), /at most 1/);
 });
+
+test("a Pages conversion failure rolls back the template and permits a clean retry", async () => {
+  let broken = true;
+  const { deps, repo } = harness({ storeFactory: (repo, clock) => scope => {
+    const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
+    return { read: () => store.read(), capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: async seed => { if (broken) throw new Error("conversion failed"); return store.ensureHtmlFormat(seed); } };
+  } });
+  await assert.rejects(createEmailTemplate({ deps, input: { name: "Atomic", html: HTML }, actorId: "u" }), /conversion failed/);
+  assert.deepEqual(await repo.list({ workspaceId: WS }), []);
+  broken = false; const created = await createEmailTemplate({ deps, input: { name: "Atomic", html: HTML }, actorId: "u" }); assert.equal(created.name, "Atomic");
+  assert.equal((await listEmailTemplates({ deps })).templates.length, 1);
+});
+
+test("object-field samples with unsupported delimiters are refused instead of silently changing declarations", async () => {
+  const { deps, repo } = harness();
+  for (const field of [{ name: "name", sample: "Doe, Jane" }, { name: "first,last" }, { name: "name=alias" }]) {
+    await assert.rejects(createEmailTemplate({ deps, input: { name: "N", fields: [field] }, actorId: "u" }), EmailTemplateInputError);
+  }
+  assert.deepEqual(await repo.list({ workspaceId: WS }), []);
+  const created = await createEmailTemplate({ deps, input: { name: "N", fields: [{ name: "name", sample: "Jane Doe" }] }, actorId: "u" });
+  assert.deepEqual(created.fields, [{ name: "name", sample: "Jane Doe" }]);
+});
+
+test("template listing is bounded and cursor-based, excludes unrelated bodies, and validates pagination", async () => {
+  const { deps, repo } = harness();
+  for (let i = 0; i < 4; i++) await createEmailTemplate({ deps, input: { name: `Template ${i}`, html: HTML }, actorId: "u" });
+  const first = await listEmailTemplates({ deps, input: { limit: 2 } }); assert.equal(first.templates.length, 2); assert.ok(first.nextCursor);
+  const second = await listEmailTemplates({ deps, input: { limit: 2, cursor: first.nextCursor } });
+  assert.equal(second.templates.length, 2); assert.equal(second.nextCursor, undefined);
+  assert.equal(new Set([...first.templates, ...second.templates].map(row => row.id)).size, 4);
+  for (const input of [{ limit: 0 }, { limit: 101 }, { limit: 1.5 }, { cursor: "bad" }, { cursor: Buffer.from("{}").toString("base64url") }]) await assert.rejects(listEmailTemplates({ deps, input }), EmailTemplateInputError);
+  const original = repo.list.bind(repo); repo.list = async () => { throw new Error("unbounded list must not run"); };
+  assert.equal((await listEmailTemplates({ deps })).templates.length, 4); repo.list = original;
+  const missing = Object.assign(Object.create(repo), { listHtmlByKind: undefined });
+  await assert.rejects(listEmailTemplates({ deps: { ...deps, postRepo: missing } }), /listing is unavailable/);
+});
+
+test("generic Trash classifies an email template through the existing Post lifecycle", async () => {
+  const { TRASH_ITEM_DELEGATES } = await import("../../trash/trash-item-tool.js");
+  const { deps, repo } = harness(); const template = await createEmailTemplate({ deps, input: { name: "Trash me", html: HTML }, actorId: "u" });
+  const delegate = TRASH_ITEM_DELEGATES.get("post")!;
+  assert.deepEqual(await delegate.toDelegateInput({ workspaceId: WS, postRepo: repo } as never, template.id), { id: template.id, kind: "post" });
+});

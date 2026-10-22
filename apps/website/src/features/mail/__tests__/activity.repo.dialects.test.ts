@@ -17,20 +17,20 @@ type Seed = { key: string; to?: string; outcome: string; msg?: string | null; co
 async function seed(db: StorageKernel<unknown>, rows: Seed[]) {
   await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('wa', 'A', 'wa', ${T(0)}), ('wb', 'B', 'wb', ${T(0)})`);
   for (const row of rows) {
-    await db.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at)
-      VALUES (${row.ws ?? "wa"}, ${row.key}, ${row.to ?? "a@x.test"}, 'h', ${row.lane ?? "transactional"}, ${row.provider ?? "smtp"}, ${row.outcome}, ${row.msg ?? null}, ${row.code ?? null}, ${T(row.at)}, ${T(row.at + 1)})`);
+    await db.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at, activity_id)
+      VALUES (${row.ws ?? "wa"}, ${row.key}, ${row.to ?? "a@x.test"}, 'h', ${row.lane ?? "transactional"}, ${row.provider ?? "smtp"}, ${row.outcome}, ${row.msg ?? null}, ${row.code ?? null}, ${T(row.at)}, ${T(row.at + 1)}, ${row.key})`);
   }
 }
 
 async function feedback(db: StorageKernel<unknown>, events: { id: string; kind: string; msg: string; at: number; ws?: string; provider?: string; hard?: number }[]) {
   for (const e of events) {
-    await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at)
-      VALUES (${e.provider ?? "smtp"}, ${e.id}, ${e.ws ?? "wa"}, 'a@x.test', ${e.kind}, ${e.hard ?? 0}, ${e.msg}, ${T(e.at)}, ${T(e.at + 5)})`);
+    await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at, processed_at)
+      VALUES (${e.provider ?? "smtp"}, ${e.id}, ${e.ws ?? "wa"}, 'a@x.test', ${e.kind}, ${e.hard ?? 0}, ${e.msg}, ${T(e.at)}, ${T(e.at + 5)}, ${T(e.at + 5)})`);
   }
 }
 
 describeEachDialect("mail activity repo", {
-  tables: ["mail_send_ledger", "mail_feedback_inbox", "workspaces"],
+  tables: ["mail_activity_attempts", "mail_send_ledger", "mail_feedback_inbox", "workspaces"],
   make: (kernel) => {
     const db = kernel as StorageKernel<unknown>;
     return { db, repo: createMailActivityRepo({ db }) };
@@ -70,7 +70,7 @@ describeEachDialect("mail activity repo", {
       ["members:signin:h1", "sign_in", "accepted"],
     ]);
     assert.deepEqual(rows.at(-1), {
-      idempotencyKey: "members:signin:h1", recipient: "a@x.test", lane: "transactional", providerId: "smtp", use: "sign_in",
+      cursorKey: "members:signin:h1", idempotencyKey: "members:signin:h1", recipient: "a@x.test", lane: "transactional", providerId: "smtp", use: "sign_in",
       outcome: "accepted", providerMessageId: "m1", errorCode: null, createdAt: T(1), updatedAt: T(2),
     });
     assert.deepEqual((await repo.list({ workspaceId: "wb", limit: 50 })).map((r) => r.outcome), ["bounced"]);
@@ -87,7 +87,7 @@ describeEachDialect("mail activity repo", {
     assert.deepEqual((await repo.list({ workspaceId: "wa", limit: 9 }, { outcome: "failed" })).map((r) => r.idempotencyKey), ["forms:notify:d"]);
     assert.deepEqual((await repo.list({ workspaceId: "wa", limit: 9 }, { use: "sign_in", recipient: " B@X.test " })).map((r) => r.idempotencyKey), ["members:signin:c", "members:signin:b"]);
     assert.deepEqual((await repo.list({ workspaceId: "wa", limit: 2 })).map((r) => r.idempotencyKey), ["forms:notify:d", "members:signin:c"]);
-    assert.deepEqual((await repo.list({ workspaceId: "wa", limit: 2 }, { before: { createdAt: T(2), skip: 1 } })).map((r) => r.idempotencyKey), ["members:signin:b", "members:signin:a"]);
+    assert.deepEqual((await repo.list({ workspaceId: "wa", limit: 2 }, { before: { createdAt: T(2), key: "members:signin:c" } })).map((r) => r.idempotencyKey), ["members:signin:b", "members:signin:a"]);
   });
 
   test("get returns the record with its feedback timeline, or null; a send without a message id has none", async () => {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
+import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError } from "#src/features/custom-credentials/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
 import {
@@ -150,4 +150,37 @@ test("activate re-checks, writes both lanes once and invalidates; a refused chec
   const bare: MailProviderControl = { check: async () => ({ ok: true, label: "Fake" }), select: async () => {} };
   assert.deepEqual(await activateMailProvider({ control: bare, providerId: "fakemail", principalId: "owner" }), { set: true, providerId: "fakemail", label: "Fake" });
   assert.deepEqual(await checkMailProvider({ control: bare, providerId: "fakemail" }), { label: "Fake" });
+});
+
+test("a required credential without a label refuses planning", async () => {
+  await rejectsWith(() => planMailProviderCredential({ control: control(async () => report([provider({ credential: { required: true, saved: false } })])), providerId: "fakemail" }), "MAIL_PROVIDER_KEYLESS");
+});
+
+test("failed sealing during creation or rotation preserves the stored state and never activates or invalidates", async () => {
+  for (const rotate of [false, true]) {
+    const creds = credentials();
+    if (rotate) await createCustomCredential(creds, { workspaceId: WS, label: LABEL, category: "ops", baseUrl: "https://api.fake.test", connection: { token: "old" } });
+    const before = await creds.repo.listByWorkspace({ workspaceId: WS }); const ctl = liveControl(creds);
+    const broken = { ...creds, sealer: { ...creds.sealer, seal: async () => { throw new Error("seal unavailable"); } } } as CustomCredentialWriteDeps;
+    await assert.rejects(saveMailProviderCredential({ control: ctl, credentials: broken, workspaceId: WS, providerId: "fakemail", input: { token: "secret-new" } }), (err: unknown) => err instanceof CustomCredentialSecretStoreUnconfiguredError);
+    assert.deepEqual(await creds.repo.listByWorkspace({ workspaceId: WS }), before); assert.deepEqual(ctl.calls, { selects: [], invalidations: 0 });
+  }
+});
+
+test("a credential disappearing after planning refuses rotation without activation or invalidation", async () => {
+  const creds = credentials(); const ctl = control(async () => report([provider({ credential: { required: true, saved: true, label: LABEL, credentialId: "gone" } })]));
+  await assert.rejects(saveMailProviderCredential({ control: ctl, credentials: creds, workspaceId: WS, providerId: "fakemail", input: { token: "new" } }), (err: unknown) => err instanceof CustomCredentialNotFoundError);
+  assert.deepEqual(await creds.repo.listByWorkspace({ workspaceId: WS }), []); assert.deepEqual(ctl.calls, { selects: [], invalidations: 0 });
+});
+
+test("creation and rotation repository write failures preserve state and do not invalidate", async (t) => {
+  for (const rotate of [false, true]) {
+    const creds = credentials();
+    if (rotate) await createCustomCredential(creds, { workspaceId: WS, label: LABEL, category: "ops", baseUrl: "https://api.fake.test", connection: { token: "old" } });
+    const before = await creds.repo.listByWorkspace({ workspaceId: WS }); const ctl = liveControl(creds);
+    const method = rotate ? "update" : "insert";
+    const mocked = t.mock.method(creds.repo, method, async () => { throw new Error("store write failed"); });
+    await assert.rejects(saveMailProviderCredential({ control: ctl, credentials: creds, workspaceId: WS, providerId: "fakemail", input: { token: "new" } }), /store write failed/);
+    assert.deepEqual(await creds.repo.listByWorkspace({ workspaceId: WS }), before); assert.deepEqual(ctl.calls, { selects: [], invalidations: 0 }); mocked.mock.restore();
+  }
 });

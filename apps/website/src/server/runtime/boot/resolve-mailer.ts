@@ -1,3 +1,5 @@
+import { createSenderDomainVerification } from "./sender-domain-verification.js";
+import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
@@ -142,6 +144,8 @@ export interface ResolvedMailer {
   describeProviders: () => Promise<MailProviderConfigurationReport>;
   /** Drops cached provider mailers and the cached status; the next send and read resolve fresh. */
   invalidate: () => void;
+  laneReady: (required: { lane: MailDeliveryLane }) => Promise<boolean>;
+  senderDomainVerification: SenderDomainVerificationPort;
   /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
   checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
   /**
@@ -215,9 +219,12 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const warn = deps.warn ?? ((message: string) => console.warn(message));
   const wrap = deps.wrapProviderMailer ?? (({ mailer }) => mailer);
   const resolved = new Map<string, ResolvedEntry>();
+  let generation = 0;
   const nowMs = () => (deps.clock ?? { nowMs: () => Date.now() }).nowMs();
   let lastError: MailProviderError | undefined;
-  const recordError: RecordError = (error) => { lastError = { ...error, at: new Date(nowMs()).toISOString() }; };
+  const recordError: RecordError = ({ providerId, source }) => {
+    lastError = { providerId, source, message: source === "send" ? "The provider did not confirm acceptance. Check provider configuration." : "The provider configuration check could not complete.", at: new Date(nowMs()).toISOString() };
+  };
   const fingerprintFor = async (label: string | undefined): Promise<string> => {
     if (label === undefined) return "";
     const records = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
@@ -240,7 +247,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const setting = initialMailProviderSetting({}, { effectiveProviderId: detected.providerId, registry: catalog.registry });
     if (detected.pending) return setting;
     await deps.providerSetting.write(setting).catch((err: unknown) =>
-      warnOnce("migration", `[mail] the mail provider setting could not be saved (${err instanceof Error ? err.message : String(err)}); retrying on the next send`));
+      warnOnce("migration", "[mail] the mail provider setting could not be saved; retrying on the next send"));
     return setting;
   };
 
@@ -282,7 +289,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     return label === undefined ? Promise.resolve({ credential: { token: "" } }) : credentialOrReason(catalog, id, label);
   };
 
-  const resolveProvider = async (id: string): Promise<MailerPort> => {
+  const resolveProvider = async (id: string, startedIn: number): Promise<MailerPort> => {
     const catalog = await loadMailProviderCatalog(deps);
     const entry = catalog.registry.get({ id });
     const unavailable = (detail: string) => fallback({ catalog, errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `[mail] the selected mail provider '${id}' ${detail}, so outbound mail is NOT being sent` });
@@ -294,9 +301,11 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const found = await providerCredential(catalog, id);
     if (!found.credential) return unavailable(found.reason);
     const credential = found.credential;
+    const latest = await fingerprintFor(label).catch(() => fingerprint);
+    if (latest !== fingerprint) return resolveProvider(id, generation);
     const observed = observeFailures({ mailer: createProviderMailer({ deps, provider: entry.provider, credential }), providerId: id, record: recordError });
     const mailer = wrap({ providerId: id, provider: entry.provider, mailer: observed });
-    resolved.set(id, { mailer, fingerprint, ...(label === undefined ? {} : { label }) });
+    if (startedIn === generation) resolved.set(id, { mailer, fingerprint, ...(label === undefined ? {} : { label }) });
     return mailer;
   };
 
@@ -304,7 +313,9 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const resolveOnce = (id: string): Promise<MailerPort> => {
     const existing = inFlight.get(id);
     if (existing) return existing;
-    const started = resolveProvider(id).finally(() => inFlight.delete(id));
+    const startedIn = generation;
+    const started = resolveProvider(id, startedIn).then((mailer) => startedIn === generation ? mailer : resolveOnce(id))
+      .finally(() => { if (inFlight.get(id) === started) inFlight.delete(id); });
     inFlight.set(id, started);
     return started;
   };
@@ -331,7 +342,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
 
   /** Never rejects: a settings or catalog fault becomes a refusal, not a throw across the port. */
   const forLane = (lane: MailDeliveryLane): Promise<MailerPort> =>
-    mailerForLane(lane).catch((err: unknown) => refusingMailer({ errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `mail provider selection failed (${err instanceof Error ? err.message : String(err)})` }));
+    mailerForLane(lane).catch((err: unknown) => refusingMailer({ errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: "Mail provider selection failed; check configuration." }));
 
   const ready = forLane("transactional").then(() => undefined);
 
@@ -344,8 +355,16 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     sendBatch: async (messages, options) => (await forLane(laneForPurpose({ purpose: options.purpose }))).sendBatch(messages, options),
   };
 
+  // The resolver owns provider selection and credential resolution for both status and DNS.
+  const senderDomainVerification = createSenderDomainVerification({
+    workspaceId: deps.workspaceId, httpClient: deps.httpClient,
+    findProvider: async ({ id }) => (await loadMailProviderCatalog(deps)).registry.get({ id })?.provider,
+    resolveCredential: async ({ id }) => resolveMailCredential({ deps, catalog: await loadMailProviderCatalog(deps), id }),
+    readProviderId: async () => (await currentSetting()).transactional,
+    readSenderEmail: async () => deps.readSenderEmail ? deps.readSenderEmail() : undefined,
+  });
   const statusCache = createTtlCache({
-    load: () => computeStatusReport({ deps, setting: currentSetting, recordError, nowMs }),
+    load: () => computeStatusReport({ deps, setting: currentSetting, recordError, nowMs, senderDomainVerification }),
     ttlMs: deps.statusTtlMs ?? MAIL_STATUS_TTL_MS, nowMs,
   });
   const status = async (optional: { refresh?: boolean } = {}): Promise<MailStatusReport> => {
@@ -357,7 +376,10 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     return describeMailProviders({ catalog, records, setting });
   };
   const invalidate = (): void => {
+    generation += 1;
+    inFlight.clear();
     resolved.clear();
+    lastTransactional = undefined;
     statusCache.invalidate();
   };
   const checkProvider = async ({ id }: { id: string }): Promise<MailProviderCheck> => {
@@ -377,7 +399,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const { credential } = await providerCredential(catalog, id!);
     return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }) : null;
   };
-  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
+  return { senderDomainVerification, laneReady: async ({ lane }) => (await forLane(lane)).capabilities().driver !== "console", mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
 }
 
 /** The configured sender's domain, lower-cased; undefined when unset or unreadable. */
@@ -400,7 +422,7 @@ async function requestDomainRequirements(
   // `domainVerification` is true exactly when the module implements domainRequirements (registry-validated).
   const result = await provider.domainRequirements!(ctx, { domain });
   if (result.status === "ok") return result.value;
-  throw new Error(`the mail provider '${providerId}' could not list the DNS records ${domain} needs (${result.error.message})`);
+  throw new Error("The mail provider could not list its required DNS records.");
 }
 
 /** Lane providers' credentials, looked up in parallel; a failed lookup is recorded and counts as none. @complexity O(lanes) lookups. */
@@ -418,28 +440,8 @@ async function laneCredentials(
   return new Map(found.filter((pair): pair is readonly [string, MailAdapterCredential] => pair[1] !== null));
 }
 
-/**
- * The sender domain's state at the transactional provider: `null` = no sender configured
- * (`sender_unknown`); undefined = the provider cannot verify domains or the check failed.
- * @complexity At most one provider call.
- */
-async function senderDomainState(
-  required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; providerId: string | null; domain: string | undefined; credentials: Map<string, MailAdapterCredential>; recordError: RecordError }
-): Promise<MailDomainState | null | undefined> {
-  const { deps, catalog, providerId, domain } = required;
-  if (!domain) return null;
-  const provider = providerId === null ? undefined : catalog.registry.get({ id: providerId })?.provider;
-  const credential = providerId === null ? undefined : required.credentials.get(providerId);
-  if (!provider?.domainStatus || !credential) return undefined;
-  const result = await provider.domainStatus(callContext(deps, credential), { domain })
-    .catch((err: unknown) => ({ status: "error" as const, error: { message: err instanceof Error ? err.message : String(err) } }));
-  if (result.status === "ok") return result.value.state;
-  required.recordError({ providerId, source: "check", message: `the domain check for ${domain} failed (${result.error.message})` });
-  return undefined;
-}
-
 async function computeStatusReport(
-  required: { deps: ResolveMailerDeps; setting: () => Promise<MailProviderSetting>; recordError: RecordError; nowMs: () => number }
+  required: { deps: ResolveMailerDeps; setting: () => Promise<MailProviderSetting>; recordError: RecordError; nowMs: () => number; senderDomainVerification: SenderDomainVerificationPort }
 ): Promise<MailStatusReport> {
   const { deps, recordError } = required;
   const checkedAt = new Date(required.nowMs()).toISOString();
@@ -450,7 +452,9 @@ async function computeStatusReport(
   // Independent reads run together; only the domain check waits, for the transactional key.
   const [setting, catalog, rows, domain] = await Promise.all([required.setting(), loadMailProviderCatalog(deps), records, readSenderDomain(deps)]);
   const credentials = await laneCredentials({ deps, catalog, setting, recordError });
-  const domainState = await senderDomainState({ deps, catalog, providerId: setting.transactional, domain, credentials, recordError });
+  const verdict = await required.senderDomainVerification();
+  const domainState = verdict.state === "no_sender" ? null : ["verified", "pending", "failed", "not_found"].includes(verdict.state) ? verdict.state as MailDomainState : undefined;
+  if (verdict.state === "unknown") recordError({ providerId: verdict.providerId, source: "check", message: "Provider domain check unavailable." });
   const status = computeMailStatus(
     { setting, registry: catalog.registry, hasCredential: (id) => credentials.has(id) },
     domainState === undefined ? {} : { senderDomainState: domainState },

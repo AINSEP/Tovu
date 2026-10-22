@@ -1,3 +1,6 @@
+import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
+import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
+import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
 import type { AuthorizeFn, SettingsRepoPort, SetValueRequired } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
 
@@ -20,11 +23,17 @@ export interface SiteMailerRequired {
   settings: { repo: SettingsRepoPort; deps: Omit<SetValueRequired["deps"], "authorize" | "repo">; systemPrincipalId: string; authorize: AuthorizeFn };
   /** Resolves once `core.mail.*` definitions are registered; reads wait for it. */
   settingsReady: Promise<unknown>;
-  delivery: { ledger: MailSendLedgerPort; suppression: MailSuppressionRepoPort; capture?: MailCapturePort };
+  delivery: { ledger: MailSendLedgerPort; suppression: MailSuppressionRepoPort; capture?: MailCapturePort; observe?: import("../boot/mail-delivery-policy.js").MailPolicyWrapperDeps["observe"] };
   readSenderEmail: () => Promise<string | undefined>;
+  readConfiguredSender?: import("#src/platform/mail/sender-identity").CreateMailSenderIdentityResolverOptional["readConfiguredSender"];
 }
 
 export interface SiteMailer extends ResolvedMailer {
+  operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity"> & {
+    mailLaneReady: ResolvedMailer["laneReady"];
+    mailSenderDomainVerification: ResolvedMailer["senderDomainVerification"];
+    mailPurposeGate: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+  };
   /** Sets both lanes to `id` as `principalId`, then drops cached mailers and status; the caller already
    *  checked `checkProvider` and got approval. A failed write throws and changes nothing. */
   selectProvider: (required: { id: string; principalId: string }) => Promise<void>;
@@ -34,7 +43,7 @@ export interface SiteMailer extends ResolvedMailer {
  * Builds the lane-routed, policy-wrapped site mailer.
  * @complexity O(1); see `resolve-mailer.ts` for per-send costs.
  */
-export function createSiteMailer(required: SiteMailerRequired, _optional: Record<string, never> = {}): SiteMailer {
+export function createSiteMailer(required: SiteMailerRequired, options: { durableOutboxReady?: (capabilityName: string) => boolean } = {}): SiteMailer {
   const { resolve, settings, delivery } = required;
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
@@ -54,10 +63,20 @@ export function createSiteMailer(required: SiteMailerRequired, _optional: Record
       },
     },
     wrapProviderMailer: createMailPolicyWrapper(
-      { ledger: delivery.ledger, suppression: delivery.suppression, readTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); } },
+      { ledger: delivery.ledger, suppression: delivery.suppression, observe: delivery.observe, readTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); } },
       delivery.capture ? { capture: delivery.capture } : {},
     ),
     readSenderEmail: required.readSenderEmail,
   });
-  return { ...resolved, selectProvider };
+  const operations: SiteMailer["operations"] = {
+    mailTestMode: async () => { await ready(); return readMailTestMode({ settingsRepo: settings.repo, workspaceId }); },
+    mailTestProvider: async () => { await ready(); return (await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }))?.transactional ?? null; },
+    mailTestRequests: new Map(), mailTestSendLimiter: createMailTestSendLimiter(),
+    mailLaneReady: resolved.laneReady, mailSenderDomainVerification: resolved.senderDomainVerification,
+    mailSenderIdentity: createMailSenderIdentityResolver({ mailer: resolved.mailer }, {
+      readConfiguredSender: required.readConfiguredSender ?? (async () => ({ email: await required.readSenderEmail() })), settle: resolved.settle,
+    }),
+    mailPurposeGate: createMailPurposeGateProbe({ mode: resolve.mode, durableOutboxReady: options.durableOutboxReady ?? (() => false) }),
+  };
+  return { ...resolved, selectProvider, operations };
 }

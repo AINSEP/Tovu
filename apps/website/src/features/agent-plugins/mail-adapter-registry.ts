@@ -166,9 +166,13 @@ function parseDescriptorV2(entry: unknown, at: string): MailAdapterDescriptor | 
   if (!Array.isArray(credentialKeys) || !credentialKeys.every((key) => typeof key === "string" && key !== "")) return `${at}.credentialKeys must be an array of field names`;
   if (typeof feedback !== "boolean") return `${at}.feedback must be true or false`;
   const savedUnder = typeof credentialLabel === "string" ? base.credentialLabel : defaultCredentialLabel({ label: base.label });
-  const declared = parseMailProviderSetupProperty({ value: setup, at, credentialKeys });
-  if (typeof declared === "string") return declared;
-  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...declared };
+  return withSetup({ descriptor: { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback }, setup, at });
+}
+
+/** Parse the optional setup extension independently of the descriptor's required contract. */
+function withSetup({ descriptor, setup, at }: { descriptor: MailAdapterDescriptor; setup: unknown; at: string }, _options = {}): MailAdapterDescriptor | string {
+  const declared = parseMailProviderSetupProperty({ value: setup, at, credentialKeys: descriptor.credentialKeys! });
+  return typeof declared === "string" ? declared : { ...descriptor, ...declared };
 }
 
 /** Why a v2 module disagrees with its descriptor, or undefined. @complexity O(1). */

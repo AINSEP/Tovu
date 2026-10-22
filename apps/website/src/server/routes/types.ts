@@ -662,6 +662,9 @@ export interface MembersDeps {
   /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
   mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
+  mailTestProvider?: () => Promise<string | null>;
+  mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
+  mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
   mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
   /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
   mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;

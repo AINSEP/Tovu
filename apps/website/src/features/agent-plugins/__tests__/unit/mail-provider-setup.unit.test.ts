@@ -78,3 +78,11 @@ test("tovu-mail-adapters.json v2 carries setup through, and a bad setup refuses 
   const bad = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...entry, setup: { fields: [{ key: "token", label: "K", type: "text" }] } }] }));
   assert.deepEqual(bad, { ok: false, reason: "adapters[0].setup.fields[0]: the token field must be type secret" });
 });
+
+test("setup rejects null/array boundaries and non-string or oversized field text exactly", () => {
+  const parse = (value: unknown) => parseMailProviderSetup({ at: AT, credentialKeys: ["token"], value });
+  for (const value of [null, []]) assert.equal(parse(value), "adapters[0].setup must be an object");
+  for (const entry of [null, []]) assert.equal(parse({ fields: [entry] }), "adapters[0].setup.fields[0] must be an object");
+  for (const label of [7, null, "x".repeat(501)]) assert.equal(parse({ fields: [{ key: "baseUrl", label }] }), "adapters[0].setup.fields[0].label must be a non-empty string");
+  for (const key of ["defaultValue", "placeholder", "help"]) assert.equal(parse({ fields: [{ key: "baseUrl", label: "Endpoint", [key]: "x".repeat(501) }] }), `adapters[0].setup.fields[0].${key} must be a non-empty string`);
+});

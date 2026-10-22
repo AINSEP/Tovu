@@ -23,7 +23,7 @@ const REMOVE = "/api/admin/v1/workspaces/:workspaceId/system/mail-suppressions/r
 const FEEDBACK = "/api/admin/v1/workspaces/:workspaceId/system/mail-feedback";
 
 function suppressionRepo(removed: unknown[] = []): MailSuppressionAdminRepo {
-  const row = { address: "ann@example.com", scope: "all" as const, reason: "bounced" as const, createdAt: "2026-10-22T12:00:00.000Z" };
+  const row = { revision: "reviewed-v1", address: "ann@example.com", scope: "all" as const, reason: "bounced" as const, createdAt: "2026-10-22T12:00:00.000Z" };
   return {
     list: async () => [row],
     find: async ({ address }) => (address === row.address ? row : null),
@@ -33,16 +33,17 @@ function suppressionRepo(removed: unknown[] = []): MailSuppressionAdminRepo {
 }
 
 const ROW: MailActivityRecord = {
+  cursorKey: "row-1",
   idempotencyKey: "members:signin:h", recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in",
   outcome: "delivered", providerMessageId: "m1", errorCode: null, createdAt: "2026-10-22T12:00:00.000Z", updatedAt: "2026-10-22T12:00:01.000Z",
 };
 
 function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {}): AdminMailActivityDeps {
   return {
-    workspaceId: WS,
+    ownerPrincipalId: Promise.resolve("owner"), workspaceId: WS,
     authorize: async ({ permission }) => ({ allowed: granted.includes(permission), reason: "no_grant" }),
     mailer: { capabilities: () => ({ driver: "smtp" }) } as unknown as MailerPort,
-    mailPurposeGate: async () => true,
+    mailSenderIdentity: { resolve: async () => ({ email: "sender@example.com" }) }, mailPurposeGate: async () => true,
     formDefinitionRepo: { list: async () => [] },
     mailActivity: {
       list: async () => [ROW],
@@ -120,11 +121,25 @@ test("mail-suppressions/remove previews without confirmed: true, removes with it
   const preview = await call(d, REMOVE, { body }, WS, "post");
   assert.deepEqual([preview.statusCode, (preview.jsonBody as { removed: boolean; confirmationRequired: boolean }).removed, (preview.jsonBody as { confirmationRequired: boolean }).confirmationRequired], [200, false, true]);
   assert.equal(removed.length, 0, "a preview changes nothing");
-  const done = await call(d, REMOVE, { body: { ...body, confirmed: true } }, WS, "post");
+  const done = await call(d, REMOVE, { body: { ...body, revision: "reviewed-v1", confirmed: true } }, WS, "post");
   assert.deepEqual([done.statusCode, (done.jsonBody as { removed: boolean }).removed], [200, true]);
-  assert.deepEqual(removed, [{ workspaceId: WS, address: "ann@example.com", scope: "all", removalReason: "mailbox restored", removedBy: "owner" }]);
+  assert.deepEqual(removed, [{ workspaceId: WS, address: "ann@example.com", scope: "all", removalReason: "mailbox restored", removedBy: "owner", revision: "reviewed-v1" }]);
   assert.equal((await call(d, REMOVE, { body: { address: "ann@example.com", scope: "all" } }, WS, "post")).statusCode, 400, "the reason is required");
   assert.equal((await call(d, REMOVE, { body: [] }, WS, "post")).statusCode, 400, "a non-object body has no fields");
   assert.equal((await call(d, REMOVE, {}, WS, "post")).statusCode, 400);
-  assert.equal((await call(deps(["mail.activity.read"], { mailSuppressionAdmin: suppressionRepo() }), REMOVE, { body: { ...body, confirmed: true } }, WS, "post")).statusCode, 403);
+  assert.equal((await call(deps(["mail.activity.read"], { mailSuppressionAdmin: suppressionRepo() }), REMOVE, { body: { ...body, revision: "reviewed-v1", confirmed: true } }, WS, "post")).statusCode, 403);
+});
+
+test("feedback dependency failures are safe HTTP errors without partial receiving rows", async (t) => {
+  const logged: unknown[][] = []; t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  for (const override of [
+    { mailProviderControl: { describe: async () => { throw new Error("secret-describe"); } } },
+    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("secret-credentials"); } } },
+    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("secret-inbox"); } } },
+  ]) {
+    const provider = { id: "fake", label: "Fake", lanes: ["transactional"], capabilities: { feedback: true } };
+    const d = deps(["admin.forms.manage"], { mailProviderControl: { describe: async () => ({ providers: [provider] }) } as never, customCredentialSetRepo: { listByWorkspace: async () => [] } as never, ...override } as never);
+    const response = await call(d, FEEDBACK); assert.deepEqual([response.statusCode, response.jsonBody], [500, { error: "internal error", code: "INTERNAL_ERROR" }]);
+  }
+  assert.doesNotMatch(JSON.stringify(logged), /secret-/);
 });

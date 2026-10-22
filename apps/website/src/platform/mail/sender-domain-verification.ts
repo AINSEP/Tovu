@@ -18,7 +18,7 @@ export type SenderDomainVerification =
   /** The provider has no domain-verification API: "DNS verification unavailable for this provider". */
   | { state: "unsupported"; domain: string; providerId: string }
   /** The provider could not be asked (missing key) or its answer failed; never read as a failure. */
-  | { state: "unknown"; domain: string; providerId: string; reason: string };
+  | { state: "unknown"; domain?: string; providerId: string | null; reason: string };
 
 /** Fresh read of the provider-side sender-domain state; never throws. */
 export type SenderDomainVerificationPort = () => Promise<SenderDomainVerification>;

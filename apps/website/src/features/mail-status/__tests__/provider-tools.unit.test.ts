@@ -90,7 +90,7 @@ test("mail_configure_provider refuses bad input, unknown providers, a missing gr
 
 test("asToolInputError passes other errors through unchanged", async () => {
   const boom = new Error("boom");
-  await assert.rejects(asToolInputError(async () => { throw boom; }), (err) => err === boom);
+  await assert.rejects(asToolInputError({ run: async () => { throw boom; } }), (err) => err === boom);
 });
 
 test("readCurrentLanes and currentLanesDetail: a split setup is named before it is flattened", async () => {

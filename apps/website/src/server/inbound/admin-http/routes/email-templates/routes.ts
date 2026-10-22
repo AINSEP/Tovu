@@ -97,7 +97,7 @@ const templateId = (req: Request) => String(req.params.templateId);
  */
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = (app, deps) => {
   const limit = rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES });
-  app.get(BASE, route(deps, "content.read", (_req, _res, ops) => listEmailTemplates({ deps: ops })));
+  app.get(BASE, route(deps, "content.read", (req, _res, ops) => listEmailTemplates({ deps: ops, input: req.query })));
   app.post(BASE, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, res, ops) => createEmailTemplate({ deps: ops, input: body(req), actorId: actor(res) }), 201));
   // Before `/:templateId` routes only for readability: methods and segment counts already differ.
   app.post(`${BASE}/preview`, limit, route(deps, "content.read", (req, _res, ops) => previewEmailTemplate({ deps: ops, input: body(req) })));

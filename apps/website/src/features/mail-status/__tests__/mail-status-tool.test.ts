@@ -132,7 +132,7 @@ test("mail_send_test sends one transactional, interactive message to the operato
   assert.equal(f.sent.length, 1);
   assert.equal(f.sent[0]!.message.to.email, "owner@example.com");
   assert.equal(f.sent[0]!.message.from.email, "news@example.com");
-  assert.deepEqual(f.sent[0]!.options, { idempotencyKey: "mail:test:e", workspaceId: "ws", sourceContext: { module: "mail", ref: "e" }, purpose: "transactional", lane: "interactive" });
+  assert.deepEqual(f.sent[0]!.options, { mailTestApproval: { providerId: null, driver: "smtp", from: { email: "news@example.com", name: "Site" }, mode: "off", effectiveRecipient: "owner@example.com" }, idempotencyKey: "mail:test:owner:e", workspaceId: "ws", sourceContext: { module: "mail", ref: "e" }, purpose: "transactional", lane: "interactive" });
 });
 
 test("mail_send_test reports a refusal, uses a username address, and refuses an account with no address", async () => {

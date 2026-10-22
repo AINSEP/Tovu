@@ -41,6 +41,8 @@ export interface MailActivityItem {
   /** Opaque; present only with full access. Pass to `mail_get_activity`. */
   id?: string;
   recipient: string;
+  originalRecipient?: string;
+  deliveryMode?: "redirect" | "capture";
   use: MailActivityRecord["use"];
   outcome: MailActivityRecord["outcome"];
   lane: MailActivityRecord["lane"];
@@ -77,7 +79,7 @@ export class MailActivityUnavailableError extends Error {
 }
 
 const encode = (value: unknown): string => Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
-function decode(value: string): unknown {
+function decode({ value }: { value: string }, _options: Record<string, never> = {}): unknown {
   try {
     return JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
   } catch {
@@ -86,20 +88,20 @@ function decode(value: string): unknown {
 }
 
 /** `a***@example.com`: enough to tell two addresses apart at a glance, not to recover one. */
-export function maskRecipient({ address }: { address: string }): string {
+export function maskRecipient({ address }: { address: string }, _options: Record<string, never> = {}): string {
   const at = address.lastIndexOf("@");
   if (at <= 0) return "***";
   return `${address[0]}***${address.slice(at)}`;
 }
 
-function oneOf<T extends string>(required: { value: unknown; allowed: readonly T[]; field: string }): T | undefined {
+function oneOf<T extends string>(required: { value: unknown; allowed: readonly T[]; field: string }, _options: Record<string, never> = {}): T | undefined {
   if (required.value === undefined || required.value === "") return undefined;
   if (typeof required.value === "string" && (required.allowed as readonly string[]).includes(required.value)) return required.value as T;
   throw new ToolInputError({ message: `${required.field} must be one of ${required.allowed.join(", ")}.` });
 }
 
 /** A page size from a tool argument or a query string; shared with the suppression list. */
-export function readMailPageLimit(value: unknown): number {
+export function readMailPageLimit({ value }: { value: unknown }, _options = {}): number {
   if (value === undefined || value === "") return DEFAULT_MAIL_ACTIVITY_LIMIT;
   const limit = typeof value === "string" ? Number(value) : value;
   if (typeof limit === "number" && Number.isInteger(limit) && limit >= 1 && limit <= MAX_MAIL_ACTIVITY_LIMIT) return limit;
@@ -107,14 +109,14 @@ export function readMailPageLimit(value: unknown): number {
 }
 
 /** A keyset position from a `nextCursor` this server returned; shared with the suppression list. */
-export function readMailCursor(value: unknown): MailActivityPosition | undefined {
+export function readMailCursor({ value }: { value: unknown }, _options = {}): MailActivityPosition | undefined {
   if (value === undefined || value === "") return undefined;
-  const decoded = typeof value === "string" ? (decode(value) as { c?: unknown; s?: unknown } | undefined) : undefined;
-  if (decoded && typeof decoded.c === "string" && Number.isInteger(decoded.s) && (decoded.s as number) >= 0) return { createdAt: decoded.c, skip: decoded.s as number };
+  const decoded = typeof value === "string" ? (decode({ value: value }) as { c?: unknown; k?: unknown } | undefined) : undefined;
+  if (decoded && typeof decoded.c === "string" && typeof decoded.k === "string" && decoded.k.length > 0) return { createdAt: decoded.c, key: decoded.k };
   throw new ToolInputError({ message: "cursor is not a nextCursor this server returned." });
 }
 
-function readRecipient(value: unknown): string | undefined {
+function readRecipient({ value }: { value: unknown }, _options: Record<string, never> = {}): string | undefined {
   if (value === undefined || value === "") return undefined;
   if (typeof value === "string" && value.length <= 254 && value.includes("@")) return value.trim().toLowerCase();
   throw new ToolInputError({ message: "recipient must be one email address." });
@@ -124,13 +126,13 @@ function readRecipient(value: unknown): string | undefined {
  * Parses list input from a tool's arguments or a route's query string (same field names).
  * @throws {ToolInputError} For any malformed field; nothing is read.
  */
-export function readMailActivityQuery({ input }: { input: Record<string, unknown> }): MailActivityQuery {
+export function readMailActivityQuery({ input }: { input: Record<string, unknown> }, _options: Record<string, never> = {}): MailActivityQuery {
   const outcome = oneOf({ value: input.outcome, allowed: MAIL_ACTIVITY_OUTCOMES, field: "outcome" });
   const use = oneOf({ value: input.use, allowed: MAIL_ACTIVITY_USES, field: "use" });
-  const recipient = readRecipient(input.recipient);
-  const before = readMailCursor(input.cursor);
+  const recipient = readRecipient({ value: input.recipient });
+  const before = readMailCursor({ value: input.cursor });
   return {
-    limit: readMailPageLimit(input.limit),
+    limit: readMailPageLimit({ value: input.limit }),
     ...(before ? { before } : {}),
     filter: { ...(outcome ? { outcome } : {}), ...(use ? { use } : {}), ...(recipient ? { recipient } : {}) },
   };
@@ -151,21 +153,20 @@ export async function resolveMailActivityAccess(
   throw new MailActivityForbiddenError({ permission, message: `principal '${required.principalId}' is not authorized for '${permission}'` });
 }
 
-function toItem(record: MailActivityRecord, access: MailActivityAccess): MailActivityItem {
+function toItem({ record, access }: { record: MailActivityRecord; access: MailActivityAccess }, _options = {}): MailActivityItem {
   const base = { use: record.use, outcome: record.outcome, lane: record.lane, providerId: record.providerId, errorCode: record.errorCode, createdAt: record.createdAt, updatedAt: record.updatedAt };
   if (access === "masked") return { recipient: maskRecipient({ address: record.recipient }), ...base };
-  return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, providerMessageId: record.providerMessageId, ...base };
+  return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, ...(record.deliveryMode ? { deliveryMode: record.deliveryMode, originalRecipient: record.originalRecipient } : {}), providerMessageId: record.providerMessageId, ...base };
 }
 
 /** The next page's opaque cursor: the page's last timestamp, skipping every row already shown at it.
  *  Shared with the suppression list, whose rows page the same way. */
-export function nextMailCursor(page: readonly { createdAt: string }[], before: MailActivityPosition | undefined): string {
-  const last = (page.at(-1) as { createdAt: string }).createdAt;
-  const shownAtLast = page.filter((row) => row.createdAt === last).length;
-  return encode({ c: last, s: shownAtLast + (before?.createdAt === last ? before.skip : 0) });
+export function nextMailCursor({ page }: { page: readonly { createdAt: string; cursorKey?: string; revision?: string }[] }, _options = {}): string {
+  const last = page.at(-1)!;
+  return encode({ c: last.createdAt, k: last.cursorKey ?? last.revision });
 }
 
-function repo(deps: MailActivityDeps): MailActivityRepo {
+function repo(deps: MailActivityDeps, _options: Record<string, never> = {}): MailActivityRepo {
   if (!deps.mailActivity) throw new MailActivityUnavailableError();
   return deps.mailActivity;
 }
@@ -176,7 +177,8 @@ function repo(deps: MailActivityDeps): MailActivityRepo {
  * @complexity One ledger page read.
  * @example listMailActivity({ principalId, query: readMailActivityQuery({ input: {} }) }, deps)
  */
-export async function listMailActivity(required: { principalId: string; query: MailActivityQuery }, deps: MailActivityDeps): Promise<MailActivityPage> {
+export async function listMailActivity(required: { principalId: string; query: MailActivityQuery ; deps: MailActivityDeps }, _options: Record<string, never> = {}): Promise<MailActivityPage> {
+  const { deps } = required;
   const { query } = required;
   const access = await resolveMailActivityAccess({ deps, principalId: required.principalId }, { requireFull: query.filter.recipient !== undefined });
   const rows = await repo(deps).list({ workspaceId: deps.workspaceId, limit: query.limit + 1 }, { ...query.filter, ...(query.before ? { before: query.before } : {}) });
@@ -184,15 +186,15 @@ export async function listMailActivity(required: { principalId: string; query: M
   const filtered = Object.keys(query.filter).length > 0;
   return {
     access,
-    items: page.map((row) => toItem(row, access)),
-    nextCursor: rows.length > query.limit ? nextMailCursor(page, query.before) : null,
+    items: page.map((row) => toItem({ record: row, access })),
+    nextCursor: rows.length > query.limit ? nextMailCursor({ page }) : null,
     empty: page.length > 0 || query.before ? null : filtered ? "no_matches" : "none_recorded",
   };
 }
 
 /** Parses an activity id from `mail_list_activity`. @throws {ToolInputError} When it is not one. */
-export function readMailActivityId({ value }: { value: unknown }): { idempotencyKey: string; recipient: string } {
-  const decoded = typeof value === "string" && value !== "" ? decode(value) : undefined;
+export function readMailActivityId({ value }: { value: unknown }, _options: Record<string, never> = {}): { idempotencyKey: string; recipient: string } {
+  const decoded = typeof value === "string" && value !== "" ? decode({ value: value }) : undefined;
   if (Array.isArray(decoded) && decoded.length === 2 && decoded.every((part) => typeof part === "string")) return { idempotencyKey: decoded[0], recipient: decoded[1] };
   throw new ToolInputError({ message: "activityId must be an id from mail_list_activity." });
 }
@@ -208,8 +210,9 @@ export interface MailActivityDetail {
  * @returns `null` when no such send exists in this workspace.
  * @complexity One ledger row and one feedback read.
  */
-export async function getMailActivity(required: { principalId: string; activityId: { idempotencyKey: string; recipient: string } }, deps: MailActivityDeps): Promise<MailActivityDetail | null> {
+export async function getMailActivity(required: { principalId: string; activityId: { idempotencyKey: string; recipient: string } ; deps: MailActivityDeps }, _options: Record<string, never> = {}): Promise<MailActivityDetail | null> {
+  const { deps } = required;
   await resolveMailActivityAccess({ deps, principalId: required.principalId }, { requireFull: true });
   const found = await repo(deps).get({ workspaceId: deps.workspaceId, ...required.activityId });
-  return found ? { activity: toItem(found.record, "full"), feedback: found.feedback } : null;
+  return found ? { activity: toItem({ record: found.record, access: "full" }), feedback: found.feedback } : null;
 }

@@ -185,7 +185,7 @@ test("lastError records the provider's own send failures (single and batch); che
   const resolved = createResolvedMailer(deps({ creds, registry }, { clock: { nowMs: () => now } }));
   assert.equal((await resolved.status()).lastError, undefined);
   await resolved.mailer.send(MESSAGE, OPTIONS);
-  assert.deepEqual((await resolved.status()).lastError, { providerId: "fakemail", source: "send", code: "AUTH", message: "the provider rejected the key", at: "2026-10-22T11:00:00.000Z" });
+  assert.deepEqual((await resolved.status()).lastError, { providerId: "fakemail", source: "send", message: "The provider did not confirm acceptance. Check provider configuration.", at: "2026-10-22T11:00:00.000Z" });
   assert.deepEqual(await resolved.mailer.sendBatch([MESSAGE], OPTIONS), [failure]);
 });
 
@@ -197,11 +197,11 @@ test("status runs the domain check with the lane key and records its failure; a 
   const resolved = createResolvedMailer(deps({ creds, registry }, { readSenderEmail: async () => "news@example.com" }));
   const rejected = await resolved.status();
   assert.deepEqual(rejected.warnings, []);
-  assert.deepEqual({ ...rejected.lastError, at: undefined }, { providerId: "fakemail", source: "check", message: "the domain check for example.com failed (rate limited)", at: undefined });
+  assert.deepEqual({ ...rejected.lastError, at: undefined }, { providerId: "fakemail", source: "check", message: "The provider configuration check could not complete.", at: undefined });
   answer = async () => { throw "dns down"; };
-  assert.match((await resolved.status({ refresh: true })).lastError!.message, /\(dns down\)/);
+  assert.match((await resolved.status({ refresh: true })).lastError!.message, /provider configuration check could not complete/);
   answer = async () => { throw new Error("socket hang up"); };
-  assert.match((await resolved.status({ refresh: true })).lastError!.message, /\(socket hang up\)/);
+  assert.match((await resolved.status({ refresh: true })).lastError!.message, /provider configuration check could not complete/);
   answer = async () => ({ status: "ok", value: { domain: "example.com", state: "pending" } });
   assert.deepEqual((await resolved.status({ refresh: true })).warnings, ["sender_unverified"]);
 });
@@ -214,7 +214,7 @@ test("status: an undecryptable lane key and an unlistable store are recorded and
   const undecryptable = await createResolvedMailer(deps({ creds: { ...creds, sealer: otherSealer }, registry })).status();
   assert.equal(undecryptable.lanes[0]!.state, "missing_credential");
   assert.equal(undecryptable.lastError!.source, "check");
-  assert.match(undecryptable.lastError!.message, /Tovu Mail — Fake Mail API/);
+  assert.match(undecryptable.lastError!.message, /provider configuration check could not complete/);
 
   for (const thrown of [new Error("eio"), "eio"]) {
     let fail = false;
@@ -227,7 +227,7 @@ test("status: an undecryptable lane key and an unlistable store are recorded and
     fail = true; // only the status's own row list fails; the lane key still resolves
     const report = await resolved.status();
     assert.equal(report.lastError!.providerId, null);
-    assert.match(report.lastError!.message, /could not be listed \(eio\)/);
+    assert.match(report.lastError!.message, /provider configuration check could not complete/);
     assert.equal(report.providers.find((p) => p.id === "fakemail")!.credential.saved, false);
     assert.equal(report.state, "ready");
   }
@@ -253,4 +253,35 @@ test("without an injected clock, checkedAt comes from the system clock", async (
   const { registry } = fakeProvider();
   const { checkedAt } = await createResolvedMailer(deps({ creds, registry })).status();
   assert.ok(Math.abs(Date.parse(checkedAt) - Date.now()) < 60_000);
+});
+
+test("invalidation during a paused key resolution detaches obsolete work and never sends with the old key", async () => {
+  const creds = credentialDeps(); const id = await saveKey(creds, "key-old");
+  let release!: () => void, entered!: () => void; const paused = new Promise<void>(yes => { release = yes; }); const started = new Promise<void>(yes => { entered = yes; });
+  let pause = true;
+  const sealer = { seal: creds.sealer.seal.bind(creds.sealer), open: async (...args: Parameters<typeof creds.sealer.open>) => {
+    const old = await creds.sealer.open(...args); if (pause) { pause = false; entered(); await paused; } return old;
+  } };
+  const keys: string[] = []; const fake = fakeProvider();
+  const adapter = fake.registry.list()[0]!; const original = adapter.module.create;
+  const registry: MailAdapterRegistry = { refusals: [], list: () => [{ ...adapter, module: { ...adapter.module, create: (ctx: never) => {
+    const token = (ctx as { credential: { token: string } }).credential.token; const inner = original(ctx);
+    return { ...inner, send: async (...args: Parameters<MailerPort["send"]>) => { keys.push(token); return inner.send(...args); } };
+  } } }] };
+  const resolved = createResolvedMailer(deps({ creds: { ...creds, sealer }, registry }));
+  await started;
+  await updateCustomCredential(creds, { workspaceId: WS, id, connection: { token: "key-new" } }); resolved.invalidate();
+  const next = resolved.mailer.send(MESSAGE, OPTIONS); release();
+  assert.equal((await next).ok, true); await resolved.ready;
+  await resolved.mailer.send(MESSAGE, { ...OPTIONS, idempotencyKey: "k2" }); assert.deepEqual(keys, ["key-new", "key-new"]);
+});
+
+test("secret-bearing provider failures never enter status or diagnostic logs", async () => {
+  const secret = "Authorization: Bearer secret-token; private body";
+  const creds = credentialDeps(); await saveKey(creds, "key-one"); const logs: string[] = [];
+  const fake = fakeProvider({ result: () => ({ ok: false, retryable: false, errorCode: secret, message: secret }), domainStatus: async () => { throw new Error(secret); } });
+  const resolved = createResolvedMailer(deps({ creds, registry: fake.registry }, { readSenderEmail: async () => "sender@example.com", warn: m => logs.push(m), log: m => logs.push(m) }));
+  await resolved.mailer.send(MESSAGE, OPTIONS); const report = await resolved.status();
+  assert.doesNotMatch(JSON.stringify({ report, logs }), /secret-token|private body|Authorization/);
+  assert.equal(report.lastError!.message, "The provider configuration check could not complete.");
 });

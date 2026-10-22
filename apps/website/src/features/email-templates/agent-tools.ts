@@ -25,7 +25,7 @@ export const emailTemplatesAgentToolCatalog = [{
   description: "Lists this site's HTML email templates. Returns {templates:[{id,name,subject,fields,version,updatedAt}]}. Requires content.read.",
   sideEffects: "none" as const,
   authorization: { permission: "content.read" },
-  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  inputSchema: { type: "object", additionalProperties: false, properties: { limit: { type: "integer", minimum: 1, maximum: 100 }, cursor: { type: "string" } } },
 }, {
   name: "email_template_get",
   description: `Reads one email template: {id,name,subject,fields,version,updatedAt,html,undeclaredFields}. Pass version back as expectedVersion when editing. ${FIELD_CONTRACT} Requires content.read.`,

@@ -1,4 +1,4 @@
-import { sql } from "kysely";
+import { Kysely, SqliteDialect, type SchemaModule, sql } from "kysely";
 import type { StorageKernel } from "../kernel/port.js";
 import type { MigrationStep } from "./step.js";
 
@@ -21,15 +21,33 @@ import type { MigrationStep } from "./step.js";
  */
 export const MAIL_SUPPRESSION_ADMIN_ID = "0030_mail_suppression_admin";
 
-export const MAIL_SUPPRESSION_ADMIN_STATEMENTS = [
-  "CREATE INDEX idx_mail_suppression_workspace_created ON mail_suppression (workspace_id, created_at)",
-  "CREATE INDEX idx_mail_feedback_inbox_workspace_provider_received ON mail_feedback_inbox (workspace_id, provider_id, received_at)",
-  "CREATE TABLE mail_suppression_removals (id text PRIMARY KEY NOT NULL, workspace_id text NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE, normalized_address text NOT NULL, scope text NOT NULL CHECK (scope IN ('all', 'bulk')), suppression_reason text NOT NULL, suppressed_at text NOT NULL, removal_reason text NOT NULL, removed_by text NOT NULL, removed_at text NOT NULL)",
-  "CREATE INDEX idx_mail_suppression_removals_workspace_removed ON mail_suppression_removals (workspace_id, removed_at)",
-] as const;
+/** Portable common DDL, shared with fresh SQLite bootstrap by compiling these same builders. */
+export function mailSuppressionSchema({ schema }: { schema: SchemaModule }, _options = {}) {
+  return [
+    schema.alterTable("mail_suppression").addColumn("revision", "text", c => c.notNull().defaultTo("")),
+    schema.createIndex("idx_mail_suppression_workspace_created").on("mail_suppression").columns(["workspace_id", "created_at", "revision"]),
+    schema.createIndex("idx_mail_feedback_inbox_workspace_provider_received").on("mail_feedback_inbox").columns(["workspace_id", "provider_id", "received_at"]),
+    schema.createTable("mail_suppression_removals")
+      .addColumn("id", "text", c => c.primaryKey().notNull())
+      .addColumn("workspace_id", "text", c => c.notNull().references("workspaces.id").onDelete("cascade"))
+      .addColumn("normalized_address", "text", c => c.notNull())
+      .addColumn("scope", "text", c => c.notNull().check(sql`scope IN ('all', 'bulk')`))
+      .addColumn("suppression_reason", "text", c => c.notNull())
+      .addColumn("suppressed_at", "text", c => c.notNull())
+      .addColumn("removal_reason", "text", c => c.notNull())
+      .addColumn("removed_by", "text", c => c.notNull())
+      .addColumn("removed_at", "text", c => c.notNull()),
+    schema.createIndex("idx_mail_suppression_removals_workspace_removed").on("mail_suppression_removals").columns(["workspace_id", "removed_at"]),
+  ];
+}
+
+const sqliteSchema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
+export const MAIL_SUPPRESSION_ADMIN_STATEMENTS = mailSuppressionSchema({ schema: sqliteSchema }).map(step => step.compile().sql);
 
 async function up(kernel: StorageKernel<unknown>): Promise<void> {
-  for (const statement of MAIL_SUPPRESSION_ADMIN_STATEMENTS) await kernel.execute(sql.raw(statement));
+  await kernel.run(async db => { for (const step of mailSuppressionSchema({ schema: db.schema })) await step.execute(); });
+  const identity = kernel.dialect === "sqlite" ? sql`lower(hex(randomblob(16)))` : sql`md5(random()::text || clock_timestamp()::text)`;
+  await kernel.execute(sql`UPDATE mail_suppression SET revision = ${identity}`);
 }
 
 /** Build the immutable ADR-066 step. @example mailSuppressionAdmin({ checksum: pinnedChecksum }) */

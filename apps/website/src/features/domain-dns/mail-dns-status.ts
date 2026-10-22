@@ -196,7 +196,7 @@ const NO_RECORDS: Readonly<Record<string, { state: MailDnsState; message: string
 const UNSUPPORTED = { state: "verification_unavailable" as const, message: "DNS verification is unavailable for this provider: it publishes no domain records to check." };
 
 function base(verdict: SenderDomainVerification | null): Pick<MailDnsStatus, "senderDomain" | "providerId" | "providerVerification" | "untrusted"> {
-  const senderDomain = verdict !== null && "domain" in verdict ? verdict.domain : null;
+  const senderDomain = verdict !== null && "domain" in verdict ? verdict.domain ?? null : null;
   return { senderDomain, providerId: verdict?.providerId ?? null, providerVerification: verdict, untrusted: true };
 }
 
@@ -209,14 +209,17 @@ async function resolveRequirement(ports: MailDnsStatusPorts, verdict: SenderDoma
     const why = NO_RECORDS[verdict?.state ?? ""] ?? UNSUPPORTED;
     return { kind: "none", status: { ...base(verdict), ...why } };
   } catch (err) {
-    return { kind: "none", status: { ...base(verdict), state: "requirements_failed", message: err instanceof Error ? err.message : "the mail provider could not list its DNS records" } };
+    return { kind: "none", status: { ...base(verdict), state: "requirements_failed", message: "The mail provider could not list its required DNS records." } };
   }
 }
 
 /** Shared head of both operations: the provider's verdict, then its records, each read once. */
 async function prepare(ports: MailDnsStatusPorts): Promise<{ verdict: SenderDomainVerification | null; resolved: Resolved; cached: MailDnsStatusPorts }> {
+  // Requirements start independently: a slow provider verdict cannot hold their lookup hostage.
+  const requirementRead = resolveRequirement(ports, null);
   const verdict = ports.senderDomainVerification ? await ports.senderDomainVerification() : null;
-  const resolved = await resolveRequirement(ports, verdict);
+  let resolved = await requirementRead;
+  if (resolved.kind === "none" && verdict) resolved = { kind: "none", status: { ...resolved.status, ...base(verdict), ...(NO_RECORDS[verdict.state] ?? {}) } };
   const requirement = resolved.kind === "records" ? resolved.requirement : null;
   return { verdict, resolved, cached: { ...ports, mailRequirements: async () => requirement } };
 }

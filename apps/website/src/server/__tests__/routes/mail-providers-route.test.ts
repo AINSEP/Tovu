@@ -138,3 +138,22 @@ test("mail-status ?refresh=1 (or true) asks for a rebuilt status; otherwise the 
   }
   assert.deepEqual(seen, [{ refresh: false }, { refresh: true }, { refresh: true }, { refresh: false }]);
 });
+
+test("credential races and vault failures keep typed safe envelopes and leave configuration unchanged", async (t) => {
+  const { CustomCredentialDuplicateLabelError, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError } = await import("#src/features/custom-credentials/index");
+  for (const [error, status, code, rotation] of [
+    [new CustomCredentialDuplicateLabelError("secret-race"), 409, "DUPLICATE_LABEL", false],
+    [new CustomCredentialNotFoundError("secret-gone"), 404, "NOT_FOUND", true],
+    [new CustomCredentialSecretStoreUnconfiguredError("secret-vault"), 503, "SECRET_STORE_UNCONFIGURED", false],
+  ] as const) {
+    const r = await rig(t); const before = await r.deps.customCredentialSetRepo.listByWorkspace({ workspaceId: r.deps.workspaceId });
+    if (rotation) {
+      const ctl = r.deps.mailProviderControl!; const describe = ctl.describe!.bind(ctl);
+      ctl.describe = async () => { const report = await describe(); return { ...report, providers: report.providers.map(p => ({ ...p, credential: { ...p.credential, credentialId: "vanished", saved: true } })) }; };
+      t.mock.method(r.deps.customCredentialSetRepo, "findById", async () => { throw error; });
+    } else t.mock.method(r.deps.customCredentialSetRepo, "insert", async () => { throw error; });
+    const response = await r.send("PUT", "mail-providers/fakemail/credential", { token: "secret-input" }); const body = await response.json();
+    assert.equal(response.status, status); assert.deepEqual(body, { error: code, code }); assert.doesNotMatch(JSON.stringify(body), /secret-/);
+    assert.deepEqual(await r.deps.customCredentialSetRepo.listByWorkspace({ workspaceId: r.deps.workspaceId }), before); assert.deepEqual(r.calls, { selects: [], invalidations: 0 });
+  }
+});

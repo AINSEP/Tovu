@@ -7,7 +7,6 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { assertEntityLive } from "@jini-ai/cms/core";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import { registerAdminEmailTemplateRoutes } from "../routes.js";
 
@@ -38,7 +37,7 @@ async function boot(t: TestContext, options: { granted?: ReadonlySet<string>; ov
     const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return { status: res.status, json: (await res.json()) as Record<string, unknown> };
   };
-  return { send, asked };
+  return { send, asked, deps };
 }
 
 test("create -> get -> edit -> list -> preview -> render, each behind its permission", async (t) => {
@@ -89,10 +88,30 @@ test("operation failures map to 400 / 404 / 409, a trashed row to its not-live r
   assert.deepEqual([conflict.status, conflict.json.code], [409, "CONCURRENT_EDIT"]);
 });
 
-test("a store refusing a trashed row answers with the shared not-live shape; an unexpected failure is a bare 500", async (t) => {
-  const trashed = await boot(t, { override: { postRepo: { findById: async () => { assertEntityLive({ entityType: "page", entityId: "x", state: "trashed" }); return null; } } as never } });
-  const notLive = await trashed.send("GET", `${BASE}/x`);
-  assert.equal(notLive.status, 409);
-  const broken = await boot(t, { override: { postRepo: { list: async () => { throw new Error("disk"); } } as never } });
+test("a real already-trashed template is not found by get/edit/preview", async (t) => {
+  const { send, deps } = await boot(t);
+  const created = await send("POST", BASE, { name: "Trashed", html: HTML }); const id = String(created.json.id);
+  const row = await deps.postRepo.findById({ workspaceId: WS, id });
+  await deps.postRepo.save({ ...row!, deletedAt: "2026-10-22T01:00:00Z" });
+  for (const [method, path, body] of [["GET", `${BASE}/${id}`, undefined], ["PUT", `${BASE}/${id}/html`, { html: HTML }], ["POST", `${BASE}/preview`, { id }]] as const) {
+    const response = await send(method, path, body); assert.equal(response.status, 404); assert.equal(response.json.code, "ENTRY_NOT_FOUND");
+  }
+});
+
+test("trash between a successful lookup and real Pages store access returns not-live", async (t) => {
+  const base = createRouteDeps(); let race = false;
+  const r = await boot(t, { override: { ...base, pagesHtmlStore: scope => {
+    const store = base.pagesHtmlStore(scope);
+    return { ...store, read: async () => {
+      if (race) { const row = await base.postRepo.findById({ workspaceId: WS, id: scope.postId }); await base.postRepo.save({ ...row!, deletedAt: "2026-10-22T01:00:00Z" }); }
+      return store.read();
+    }, capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: seed => store.ensureHtmlFormat(seed) };
+  } } });
+  const id = String((await r.send("POST", BASE, { name: "Racy", html: HTML })).json.id); race = true;
+  const response = await r.send("PUT", `${BASE}/${id}/html`, { html: HTML }); assert.equal(response.status, 409);
+});
+
+test("an unexpected listing failure is a bare 500", async (t) => {
+  const broken = await boot(t, { override: { postRepo: { listHtmlByKind: async () => { throw new Error("disk"); } } as never } });
   assert.deepEqual(await broken.send("GET", BASE), { status: 500, json: { error: "internal error" } });
 });

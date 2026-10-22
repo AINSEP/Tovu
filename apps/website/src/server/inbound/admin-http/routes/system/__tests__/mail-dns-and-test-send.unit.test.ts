@@ -94,11 +94,11 @@ test("mail-test-send sends to the chosen recipient with the click's request id a
   assert.equal(reply.statusCode, 200);
   const body = reply.jsonBody as { sent: boolean; result: { outcome: string; to: string; providerMessageId: string } };
   assert.deepEqual([body.sent, body.result.outcome, body.result.to, body.result.providerMessageId], [true, "accepted", "ops@example.com", "pm-9"]);
-  assert.deepEqual(sent, [{ idempotencyKey: "mail:test:admin:owner:click-0001", to: "ops@example.com" }]);
+  assert.deepEqual(sent, [{ idempotencyKey: "mail:test:owner:admin:owner:click-0001", to: "ops@example.com" }]);
   // No body at all: the operator's own address and a generated request id.
   const fallback = await callRoute(app, "post", SEND_PATH, {});
   assert.equal((fallback.jsonBody as { result: { to: string } }).result.to, "owner@example.com");
-  assert.match(sent[1]!.idempotencyKey, /^mail:test:admin:owner:[0-9a-f-]{36}$/);
+  assert.match(sent[1]!.idempotencyKey, /^mail:test:owner:admin:owner:[0-9a-f-]{36}$/);
 });
 
 test("mail-test-send: a provider refusal is a 200 with the failed outcome; the local guard is a 429", async () => {

@@ -31,7 +31,7 @@ describeEachDialect("mail suppression admin repo", {
     const ctx = make();
     await ctx.seeded;
     const add = async (ws: string, address: string, scope: string, reason: string, at: number) =>
-      ctx.db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at) VALUES (${ws}, ${address}, ${scope}, ${reason}, ${T(at)})`);
+      ctx.db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at, revision) VALUES (${ws}, ${address}, ${scope}, ${reason}, ${T(at)}, ${address + ":" + scope})`);
     await add("wa", "ann@example.com", "all", "bounced", 1);
     await add("wa", "bob@example.com", "bulk", "complained", 2);
     await add("wa", "bob@example.com", "all", "manual", 2);
@@ -48,21 +48,21 @@ describeEachDialect("mail suppression admin repo", {
     assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 9 }, { search: "n_" })).length, 0, "an underscore is literal, not a wildcard");
     assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 9 }, { scope: "bulk" })).map((e) => e.reason), ["complained"]);
     assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 9 }, { reason: "manual" })).map((e) => e.scope), ["all", "all"]);
-    assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 2 }, { before: { createdAt: T(2), skip: 1 } })).map((e) => `${e.address}/${e.scope}`), ["bob@example.com/all", "ann@example.com/all"]);
-    assert.deepEqual(await admin.list({ workspaceId: "wa", limit: 1 }), [{ address: "x_y%z@other.test", scope: "all", reason: "manual", createdAt: T(3) }]);
+    assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 2 }, { before: { createdAt: T(2), key: "bob@example.com:bulk" } })).map((e) => `${e.address}/${e.scope}`), ["bob@example.com/all", "ann@example.com/all"]);
+    assert.deepEqual(await admin.list({ workspaceId: "wa", limit: 1 }), [{ address: "x_y%z@other.test", scope: "all", reason: "manual", createdAt: T(3), revision: "x_y%z@other.test:all" }]);
   });
 
   test("remove deletes one scope, records the audit row, and the send-time check then passes", async () => {
     const { admin, sendSide, db } = await ready();
     assert.equal(await sendSide.isSuppressed({ workspaceId: "wa", normalizedAddress: "bob@example.com", lane: "bulk" }), true);
-    const removal = await admin.remove({ workspaceId: "wa", address: " Bob@Example.com ", scope: "bulk", removalReason: "complained by mistake", removedBy: "owner" });
+    const removal = await admin.remove({ workspaceId: "wa", address: " Bob@Example.com ", scope: "bulk", revision: "bob@example.com:bulk", removalReason: "complained by mistake", removedBy: "owner" });
     assert.deepEqual(removal, { id: "r1", address: "bob@example.com", scope: "bulk", suppressionReason: "complained", suppressedAt: T(2), removalReason: "complained by mistake", removedBy: "owner", removedAt: T(100) });
     assert.equal(await admin.find({ workspaceId: "wa", address: "bob@example.com", scope: "bulk" }), null);
     // The `all` row is a separate suppression: it still blocks bulk mail.
     assert.equal(await sendSide.isSuppressed({ workspaceId: "wa", normalizedAddress: "bob@example.com", lane: "bulk" }), true);
-    await admin.remove({ workspaceId: "wa", address: "bob@example.com", scope: "all", removalReason: "fixed", removedBy: "owner" });
+    await admin.remove({ workspaceId: "wa", address: "bob@example.com", scope: "all", revision: "bob@example.com:all", removalReason: "fixed", removedBy: "owner" });
     assert.equal(await sendSide.isSuppressed({ workspaceId: "wa", normalizedAddress: "bob@example.com", lane: "bulk" }), false);
-    assert.equal(await admin.remove({ workspaceId: "wa", address: "bob@example.com", scope: "all", removalReason: "again", removedBy: "owner" }), null);
+    assert.equal(await admin.remove({ workspaceId: "wa", address: "bob@example.com", scope: "all", revision: "bob@example.com:all", removalReason: "again", removedBy: "owner" }), null);
     assert.deepEqual(await db.query(sql`SELECT id, normalized_address, scope, suppression_reason, removal_reason, removed_by FROM mail_suppression_removals ORDER BY id`), [
       { id: "r1", normalized_address: "bob@example.com", scope: "bulk", suppression_reason: "complained", removal_reason: "complained by mistake", removed_by: "owner" },
       { id: "r2", normalized_address: "bob@example.com", scope: "all", suppression_reason: "manual", removal_reason: "fixed", removed_by: "owner" },
@@ -74,11 +74,63 @@ describeEachDialect("mail suppression admin repo", {
     const { admin, db } = await ready();
     assert.equal(await admin.lastFeedbackEvent({ workspaceId: "wa", providerId: "smtp" }), null);
     for (const [id, kind, at, ws, provider] of [["e1", "delivered", 5, "wa", "smtp"], ["e2", "bounced", 9, "wa", "smtp"], ["e3", "complained", 20, "wb", "smtp"], ["e4", "complained", 30, "wa", "other"]] as const) {
-      await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at)
-        VALUES (${provider}, ${id}, ${ws}, 'a@x.test', ${kind}, 0, 'm', ${T(at)}, ${T(at)})`);
+      await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at, processed_at)
+        VALUES (${provider}, ${id}, ${ws}, 'a@x.test', ${kind}, 0, 'm', ${T(at)}, ${T(at)}, ${T(at)})`);
     }
     assert.deepEqual(await admin.lastFeedbackEvent({ workspaceId: "wa", providerId: "smtp" }), { kind: "bounced", receivedAt: T(9) });
   });
+  test("audit insertion or conditional deletion failure rolls back both effects", async () => {
+    for (const failAt of ["audit", "delete"]) {
+      const { db, admin } = await ready();
+      const key = { workspaceId: "wa", address: "ann@example.com", scope: "all" as const };
+      const reviewed = await admin.find(key); let intercepted = false;
+      const wrapped = Object.create(db) as StorageKernel<unknown>;
+      wrapped.query = async statement => {
+        const node = statement.toOperationNode();
+        if (failAt === "delete" && JSON.stringify(node).includes("DELETE FROM mail_suppression")) { intercepted = true; throw new Error("delete failed"); }
+        return db.query(statement);
+      };
+      wrapped.execute = async statement => {
+        if (failAt === "audit" && JSON.stringify(statement.toOperationNode()).includes("INSERT INTO mail_suppression_removals")) { intercepted = true; throw new Error("audit failed"); }
+        return db.execute(statement);
+      };
+      const failing = createMailSuppressionAdminRepo({ db: wrapped });
+      await assert.rejects(failing.remove({ ...key, revision: reviewed!.revision, removalReason: "fixed", removedBy: "owner" }), new RegExp(failAt + " failed"));
+      assert.equal(intercepted, true); assert.deepEqual(await admin.find(key), reviewed);
+      assert.deepEqual(await db.query(sql`SELECT id FROM mail_suppression_removals`), []);
+    }
+  });
+
+  test("concurrent removals produce one audit, and a recreated row cannot inherit approval", async () => {
+    const { db, admin, sendSide } = await ready();
+    const key = { workspaceId: "wa", address: "ann@example.com", scope: "all" as const };
+    const reviewed = (await admin.find(key))!;
+    const request = { ...key, revision: reviewed.revision, removalReason: "fixed", removedBy: "owner" };
+    const results = await Promise.all([admin.remove(request), admin.remove(request)]);
+    assert.equal(results.filter(Boolean).length, 1); assert.equal((await db.query(sql`SELECT id FROM mail_suppression_removals`)).length, 1);
+    await sendSide.suppress({ workspaceId: key.workspaceId, normalizedAddress: key.address, scope: key.scope, reason: "bounced" });
+    const replacement = await admin.find(key); assert.ok(replacement); assert.notEqual(replacement.revision, reviewed.revision);
+    assert.equal(await admin.remove(request), null); assert.deepEqual(await admin.find(key), replacement);
+    assert.equal((await db.query(sql`SELECT id FROM mail_suppression_removals`)).length, 1);
+  });
+
+  test("keyset paging survives removal from a shared timestamp", async () => {
+    const { admin } = await ready();
+    const first = await admin.list({ workspaceId: "wa", limit: 2 });
+    await admin.remove({ workspaceId: "wa", address: first[1]!.address, scope: first[1]!.scope, revision: first[1]!.revision, removalReason: "fixed", removedBy: "owner" });
+    const last = first.at(-1)!;
+    assert.deepEqual((await admin.list({ workspaceId: "wa", limit: 9 }, { before: { createdAt: last.createdAt, key: last.revision } })).map(r => r.address), ["bob@example.com", "ann@example.com"]);
+  });
+
+  test("verified but incomplete feedback cannot report healthy ingestion", async () => {
+    const { db, admin } = await ready();
+    await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id,event_id,workspace_id,recipient,kind,hard_bounce,provider_message_id,occurred_at,received_at,processed_at)
+      VALUES ('smtp','pending','wa','ann@example.com','bounced',1,'m',${T(1)},${T(1)},NULL)`);
+    assert.equal(await admin.lastFeedbackEvent({ workspaceId: "wa", providerId: "smtp" }), null);
+    await db.execute(sql`UPDATE mail_feedback_inbox SET processed_at = ${T(2)} WHERE event_id = 'pending'`);
+    assert.deepEqual(await admin.lastFeedbackEvent({ workspaceId: "wa", providerId: "smtp" }), { kind: "bounced", receivedAt: T(1) });
+  });
+
 });
 
 test("the default clock and id generator stamp a removal", async () => {
@@ -88,7 +140,7 @@ test("the default clock and id generator stamp a removal", async () => {
   try {
     await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('wa', 'A', 'wa', ${T(0)})`);
     await db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at) VALUES ('wa', 'a@x.test', 'all', 'manual', ${T(1)})`);
-    const removal = await createMailSuppressionAdminRepo({ db }).remove({ workspaceId: "wa", address: "a@x.test", scope: "all", removalReason: "r", removedBy: "o" });
+    const removal = await createMailSuppressionAdminRepo({ db }).remove({ workspaceId: "wa", address: "a@x.test", scope: "all", revision: "", removalReason: "r", removedBy: "o" });
     assert.match(removal!.id, /^[0-9a-f-]{36}$/);
     assert.ok(!Number.isNaN(Date.parse(removal!.removedAt)));
   } finally {

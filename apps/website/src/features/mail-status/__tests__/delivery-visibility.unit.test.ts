@@ -26,7 +26,7 @@ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDe
 const AT = (s: number) => new Date(Date.parse("2026-10-22T12:00:00.000Z") + s * 1000).toISOString();
 
 function record(key: string, at: number, overrides: Partial<MailActivityRecord> = {}): MailActivityRecord {
-  return { idempotencyKey: key, recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in", outcome: "accepted", providerMessageId: `m-${key}`, errorCode: null, createdAt: AT(at), updatedAt: AT(at + 1), ...overrides };
+  return { cursorKey: key, idempotencyKey: key, recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in", outcome: "accepted", providerMessageId: `m-${key}`, errorCode: null, createdAt: AT(at), updatedAt: AT(at + 1), ...overrides };
 }
 
 /** Same ordering and keyset semantics as the SQL repo: newest first, `created_at <= c`, OFFSET skip. */
@@ -35,9 +35,9 @@ function memoryActivity(rows: MailActivityRecord[], calls: unknown[] = []): Mail
   return {
     list: async (required, optional = {}) => {
       calls.push({ ...required, ...optional });
-      const matching = sorted.filter((row) => (!optional.before || row.createdAt <= optional.before.createdAt) && (!optional.outcome || row.outcome === optional.outcome)
+      const matching = sorted.filter((row) => (!optional.before || row.createdAt <= optional.before.createdAt && (row.createdAt !== optional.before.createdAt || row.cursorKey < optional.before.key)) && (!optional.outcome || row.outcome === optional.outcome)
         && (!optional.use || row.use === optional.use) && (!optional.recipient || row.recipient === optional.recipient));
-      return matching.slice(optional.before?.skip ?? 0, (optional.before?.skip ?? 0) + required.limit);
+      return matching.slice(0, required.limit);
     },
     get: async ({ idempotencyKey, recipient }) => {
       const found = sorted.find((row) => row.idempotencyKey === idempotencyKey && row.recipient === recipient);
@@ -60,8 +60,8 @@ test("readMailActivityQuery: defaults, string limits from a query string, filter
   assert.deepEqual(all(), { limit: DEFAULT_MAIL_ACTIVITY_LIMIT, filter: {} });
   assert.deepEqual(all({ limit: "10", outcome: "bounced", use: "", recipient: " Ann@Example.com ", cursor: "" }), { limit: 10, filter: { outcome: "bounced", recipient: "ann@example.com" } });
   assert.deepEqual(all({ limit: 5, use: "newsletter" }), { limit: 5, filter: { use: "newsletter" } });
-  const cursor = Buffer.from(JSON.stringify({ c: AT(1), s: 2 })).toString("base64url");
-  assert.deepEqual(all({ cursor }).before, { createdAt: AT(1), skip: 2 });
+  const cursor = Buffer.from(JSON.stringify({ c: AT(1), k: "key-2" })).toString("base64url");
+  assert.deepEqual(all({ cursor }).before, { createdAt: AT(1), key: "key-2" });
   for (const [input, message] of [
     [{ outcome: "sent" }, /outcome must be one of accepted, delivered/], [{ use: 3 }, /use must be one of/],
     [{ limit: 0 }, /limit must be a whole number from 1 to 100/], [{ limit: "1.5" }, /limit/], [{ limit: true }, /limit/],
@@ -91,45 +91,45 @@ test("access: mail.activity.read is full, admin.forms.manage alone is masked, ne
 test("list pages newest first with an opaque cursor that resumes inside a shared timestamp", async () => {
   const rows = [record("a", 1), record("b", 2), record("c", 2), record("d", 2), record("e", 3)];
   const deps = activityDeps(rows);
-  const first = await listMailActivity({ principalId: "p", query: all({ limit: 2 }) }, deps);
+  const first = await listMailActivity({ ...{ principalId: "p", query: all({ limit: 2 }) }, deps: deps });
   assert.deepEqual(first.items.map((item) => item.id && JSON.parse(Buffer.from(item.id, "base64url").toString())[0]), ["e", "d"]);
   assert.deepEqual([first.access, first.empty], ["full", null]);
   assert.deepEqual(first.items[0], { id: first.items[0]!.id, recipient: "ann@example.com", providerMessageId: "m-e", use: "sign_in", outcome: "accepted", lane: "transactional", providerId: "smtp", errorCode: null, createdAt: AT(3), updatedAt: AT(4) });
-  const second = await listMailActivity({ principalId: "p", query: all({ limit: 2, cursor: first.nextCursor }) }, deps);
+  const second = await listMailActivity({ ...{ principalId: "p", query: all({ limit: 2, cursor: first.nextCursor }) }, deps: deps });
   assert.deepEqual(second.items.map((item) => item.providerMessageId), ["m-c", "m-b"]);
   // The second page ended at the same timestamp it started in: the skip accumulates.
-  assert.deepEqual(JSON.parse(Buffer.from(second.nextCursor as string, "base64url").toString()), { c: AT(2), s: 3 });
-  const third = await listMailActivity({ principalId: "p", query: all({ limit: 2, cursor: second.nextCursor }) }, deps);
+  assert.deepEqual(JSON.parse(Buffer.from(second.nextCursor as string, "base64url").toString()), { c: AT(2), k: "b" });
+  const third = await listMailActivity({ ...{ principalId: "p", query: all({ limit: 2, cursor: second.nextCursor }) }, deps: deps });
   assert.deepEqual([third.items.map((item) => item.providerMessageId), third.nextCursor, third.empty], [["m-a"], null, null]);
-  const past = await listMailActivity({ principalId: "p", query: all({ cursor: Buffer.from(JSON.stringify({ c: AT(0), s: 0 })).toString("base64url") }) }, deps);
+  const past = await listMailActivity({ ...{ principalId: "p", query: all({ cursor: Buffer.from(JSON.stringify({ c: AT(0), k: "z" })).toString("base64url") }) }, deps: deps });
   assert.deepEqual([past.items, past.empty], [[], null]);
 });
 
 test("masked access hides addresses, ids and message ids; a recipient filter needs full access", async () => {
   const calls: unknown[] = [];
   const deps = activityDeps([record("a", 1, { outcome: "bounced", errorCode: null })], ["admin.forms.manage"], calls);
-  const page = await listMailActivity({ principalId: "p", query: all() }, deps);
+  const page = await listMailActivity({ ...{ principalId: "p", query: all() }, deps: deps });
   assert.deepEqual(page.items, [{ recipient: "a***@example.com", use: "sign_in", outcome: "bounced", lane: "transactional", providerId: "smtp", errorCode: null, createdAt: AT(1), updatedAt: AT(2) }]);
   assert.equal(page.access, "masked");
   assert.deepEqual(calls, [{ workspaceId: "ws", limit: 26 }]);
-  await assert.rejects(listMailActivity({ principalId: "p", query: all({ recipient: "ann@example.com" }) }, deps), MailActivityForbiddenError);
+  await assert.rejects(listMailActivity({ ...{ principalId: "p", query: all({ recipient: "ann@example.com" }) }, deps: deps }), MailActivityForbiddenError);
 });
 
 test("empty first pages say whether nothing was recorded or nothing matched; no repo is unavailable", async () => {
-  assert.equal((await listMailActivity({ principalId: "p", query: all() }, activityDeps([]))).empty, "none_recorded");
-  assert.equal((await listMailActivity({ principalId: "p", query: all({ outcome: "failed" }) }, activityDeps([record("a", 1)]))).empty, "no_matches");
-  await assert.rejects(listMailActivity({ principalId: "p", query: all() }, { workspaceId: "ws", authorize: grants(["*"]) }), MailActivityUnavailableError);
+  assert.equal((await listMailActivity({ ...{ principalId: "p", query: all() }, deps: activityDeps([]) })).empty, "none_recorded");
+  assert.equal((await listMailActivity({ ...{ principalId: "p", query: all({ outcome: "failed" }) }, deps: activityDeps([record("a", 1)]) })).empty, "no_matches");
+  await assert.rejects(listMailActivity({ ...{ principalId: "p", query: all() }, deps: { workspaceId: "ws", authorize: grants(["*"]) } }), MailActivityUnavailableError);
 });
 
 test("get returns the full item with its feedback, null when absent, and needs mail.activity.read", async () => {
   const deps = activityDeps([record("a", 1)]);
-  const [item] = (await listMailActivity({ principalId: "p", query: all() }, deps)).items;
+  const [item] = (await listMailActivity({ ...{ principalId: "p", query: all() }, deps: deps })).items;
   const id = readMailActivityId({ value: item!.id });
   assert.deepEqual(id, { idempotencyKey: "a", recipient: "ann@example.com" });
-  const found = await getMailActivity({ principalId: "p", activityId: id }, deps);
+  const found = await getMailActivity({ ...{ principalId: "p", activityId: id }, deps: deps });
   assert.deepEqual([found?.activity.id, found?.feedback.length], [item!.id, 1]);
-  assert.equal(await getMailActivity({ principalId: "p", activityId: { idempotencyKey: "zz", recipient: "x@y.z" } }, deps), null);
-  await assert.rejects(getMailActivity({ principalId: "p", activityId: id }, activityDeps([], ["admin.forms.manage"])), MailActivityForbiddenError);
+  assert.equal(await getMailActivity({ ...{ principalId: "p", activityId: { idempotencyKey: "zz", recipient: "x@y.z" } }, deps: deps }), null);
+  await assert.rejects(getMailActivity({ ...{ principalId: "p", activityId: id }, deps: activityDeps([], ["admin.forms.manage"]) }), MailActivityForbiddenError);
   for (const value of [undefined, "", "%%", Buffer.from(JSON.stringify(["only"])).toString("base64url"), Buffer.from(JSON.stringify([1, 2])).toString("base64url")]) {
     assert.throws(() => readMailActivityId({ value }), { name: "ToolInputError", message: /activityId must be an id from mail_list_activity/ });
   }
@@ -213,9 +213,9 @@ test("sender, forms and gate failures: a missing sender blocks, a failed check i
   assert.deepEqual([bare.sign_in!.state, bare.sign_in!.reasons, bare.sign_in!.evidence], ["unknown", ["purpose_gate_unavailable"], null]);
   assert.deepEqual(bare.form_notifications!.reasons, ["forms_unavailable"]);
   const noGateNoSender = await byUse(readinessDeps({ mailSenderIdentity: undefined }));
-  assert.deepEqual([noGateNoSender.sign_in!.state, noGateNoSender.sign_in!.sender], ["ready", null]);
+  assert.deepEqual([noGateNoSender.sign_in!.state, noGateNoSender.sign_in!.sender], ["blocked", null]);
   const evidenceDown = await byUse(readinessDeps({ mailActivity: { list: async () => { throw new Error("db"); } } }));
-  assert.deepEqual([evidenceDown.sign_in!.state, evidenceDown.sign_in!.evidence], ["ready", null]);
+  assert.deepEqual([evidenceDown.sign_in!.state, evidenceDown.sign_in!.evidence], ["blocked", null]);
 });
 
 test("without Newsletter only sign-in and forms are listed; the default clock stamps checkedAt", async () => {
@@ -291,4 +291,33 @@ test("mail_get_readiness needs admin.forms.manage; activity tools page, detail a
   await assert.rejects(tools({}, ["admin.forms.manage"]).call("mail_get_activity", { activityId: page.items[0]!.id }), /MAIL_DELIVERY_FORBIDDEN: .*mail\.activity\.read/);
   await assert.rejects(tools({ mailActivity: undefined }).call("mail_list_activity"), /MAIL_DELIVERY_UNAVAILABLE: Email activity is unavailable/);
   await assert.rejects(tools().call("mail_list_activity", { outcome: "nope" }), { name: "ToolInputError" });
+});
+
+test("activity defaults empty limit/recipient and rejects overlong recipients and fractional cursor skips", () => {
+  assert.deepEqual(all({ limit: "", recipient: "" }), { limit: 25, filter: {} });
+  assert.throws(() => all({ recipient: "a".repeat(250) + "@x.test" }), { name: "ToolInputError", message: "recipient must be one email address." });
+  assert.throws(() => all({ cursor: Buffer.from(JSON.stringify({ c: AT(1), s: 1.5 })).toString("base64url") }), { name: "ToolInputError", message: "cursor is not a nextCursor this server returned." });
+});
+
+test("readiness isolates non-Error, forms, newsletter-setting and supplied-probe failures", async () => {
+  const cases: [Partial<MailUseReadinessDeps>, string[], string][] = [
+    [{ formDefinitionRepo: { list: async () => { throw "opaque"; } } }, ["form_notifications"], "check_failed"],
+    [{ formDefinitionRepo: { list: async () => { throw new Error("forms_offline"); } } }, ["form_notifications"], "forms_offline"],
+    [{ newsletterLaunchGate: launchGate({ isSendingEnabled: async () => { throw new Error("setting_offline"); } }) }, ["newsletter"], "setting_offline"],
+    [{ mailPurposeGate: async q => { if (q.capabilityName === "members") throw new Error("probe_offline"); return true; } }, ["sign_in"], "probe_offline"],
+  ];
+  for (const [overrides, affected, reason] of cases) {
+    const rows = (await readMailUseReadiness(readinessDeps(overrides))).uses;
+    for (const row of rows) {
+      if (affected.includes(row.use)) { assert.equal(row.state, "unknown", row.use); assert.deepEqual(row.reasons, [reason]); }
+      else assert.equal(row.state, "ready", row.use);
+    }
+  }
+});
+
+test("split lanes check bulk independently; absent SMTP sender never reports ready", async () => {
+  const rows = await byUse(readinessDeps({ mailLaneReady: async ({ lane }) => lane === "transactional" }));
+  assert.equal(rows.sign_in!.state, "ready"); assert.equal(rows.newsletter!.state, "not_configured"); assert.deepEqual(rows.newsletter!.reasons, ["mail_delivery_unavailable"]);
+  const absent = await byUse(readinessDeps({ mailSenderIdentity: undefined }));
+  assert.deepEqual([absent.sign_in!.state, absent.sign_in!.reasons, absent.sign_in!.sender], ["blocked", ["sender_not_configured"], null]);
 });

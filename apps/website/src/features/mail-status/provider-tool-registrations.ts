@@ -29,7 +29,7 @@ export const mailProviderDerivedRisk: DerivedRiskByToolId = new Map<string, Agen
 ]);
 
 /** Runs a shared operation; its refusal reaches the model as a plain input error. */
-export async function asToolInputError<T>(run: () => Promise<T>): Promise<T> {
+export async function asToolInputError<T>({ run }: { run: () => Promise<T> }, _options: Record<string, never> = {}): Promise<T> {
   try {
     return await run();
   } catch (err) {
@@ -39,20 +39,20 @@ export async function asToolInputError<T>(run: () => Promise<T>): Promise<T> {
 }
 
 /** The lanes before a switch, when this root can describe them; a describe fault hides only this detail. */
-export async function readCurrentLanes(required: { control: MailProviderControl }): Promise<MailProviderConfigurationReport["setting"] | undefined> {
+export async function readCurrentLanes(required: { control: MailProviderControl }, _options: Record<string, never> = {}): Promise<MailProviderConfigurationReport["setting"] | undefined> {
   if (!required.control.describe) return undefined;
   return (await required.control.describe().catch(() => undefined))?.setting;
 }
 
 /** A split-lane setup is shown before it is flattened, never silently. */
-export function currentLanesDetail(required: { current?: MailProviderConfigurationReport["setting"] }): { label: string; value: string }[] {
+export function currentLanesDetail(required: { current?: MailProviderConfigurationReport["setting"] }, _options: Record<string, never> = {}): { label: string; value: string }[] {
   const current = required.current;
   if (!current || current.transactional === current.bulk) return [];
   return [{ label: "Currently", value: `Transactional: ${current.transactional ?? "none"}; bulk: ${current.bulk ?? "none"}. Both lanes will use the new provider.` }];
 }
 
 /** credential_save's non-secret prefill: create with the exact label/category, or rotate by label. */
-function credentialPrefill(plan: MailProviderCredentialPlan): Record<string, string> {
+function credentialPrefill(plan: MailProviderCredentialPlan, _options: Record<string, never> = {}): Record<string, string> {
   const { action, label, category, baseUrl } = plan.credential;
   if (action === "rotate") return { kind: "api", target: label };
   return { kind: "api", label, category, ...(baseUrl ? { baseUrl } : {}) };
@@ -63,18 +63,18 @@ function credentialPrefill(plan: MailProviderCredentialPlan): Record<string, str
  * only, so a provider whose setup declares a `username` field (an SMTP login, for one) names the
  * non-secret follow-up. Keyed on the field, never on a provider id; a rotation keeps the username.
  */
-function followUps(plan: MailProviderCredentialPlan): { tool: string; args: Record<string, string>; note: string }[] {
+function followUps(plan: MailProviderCredentialPlan, _options: Record<string, never> = {}): { tool: string; args: Record<string, string>; note: string }[] {
   const needsUsername = plan.credential.action === "create" && plan.provider.setup.fields.some((field) => field.key === "username");
   return needsUsername
     ? [{ tool: "custom_credential_set_username", args: { label: plan.credential.label }, note: "This provider signs in with a username plus the secret. After the secure form, ask the person for the username (not a secret) and save it with this tool." }]
     : [];
 }
 
-function permission(deps: MailProviderToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
+function permission({ deps, ctx, name }: { deps: MailProviderToolDeps; ctx: ToolExecutionContext; name: string }, _options: Record<string, never> = {}): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
 }
 
-function readProviderId(input: unknown): string {
+function readProviderId({ input }: { input: unknown }, _options: Record<string, never> = {}): string {
   const record = requireInputRecord({ input });
   const providerId = typeof record.providerId === "string" ? record.providerId.trim() : "";
   if (!providerId) throw new ToolInputError({ message: "providerId must be an installed provider id from mail_list_providers." });
@@ -88,17 +88,17 @@ function readProviderId(input: unknown): string {
  * @throws {ToolInputError} For malformed input, a refusal or a denied permission.
  * @complexity One catalog load and one credential list per call.
  */
-export function buildMailProviderRegistrations(deps: MailProviderToolDeps): ToolRegistration[] {
+export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _options: import("@jini-ai/daemon/surface-exchanges").AssistantSurfaceDeps | Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail-providers", catalogModule: "features/mail-status/provider-agent-tools.ts", catalog: indexCatalogById({ catalog: mailProviderAgentToolCatalog }), derivedRisk: mailProviderDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     mail_list_providers: async (ctx) => {
       requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "admin.forms.manage");
-      return asToolInputError(() => readMailProviderConfigurations({ control: deps.mailProviderControl }));
+      await permission({ deps: deps, ctx: ctx, name: "admin.forms.manage" });
+      return asToolInputError({ run: () => readMailProviderConfigurations({ control: deps.mailProviderControl }) });
     },
     mail_configure_provider: async (ctx) => {
-      const providerId = readProviderId(ctx.input);
-      await permission(deps, ctx, "custom-credentials.write");
-      const plan = await asToolInputError(() => planMailProviderCredential({ control: deps.mailProviderControl, providerId }));
+      const providerId = readProviderId({ input: ctx.input });
+      await permission({ deps: deps, ctx: ctx, name: "custom-credentials.write" });
+      const plan = await asToolInputError({ run: () => planMailProviderCredential({ control: deps.mailProviderControl, providerId }) });
       return { activated: false, ...plan, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: credentialPrefill(plan) }, {}), followUps: followUps(plan) };
     },
   }, rules: [forbiddenRule({ domainPrefix: "MAIL_PROVIDERS", error: ForbiddenError })] }) });

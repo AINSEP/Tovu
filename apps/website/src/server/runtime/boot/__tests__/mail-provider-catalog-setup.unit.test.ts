@@ -39,3 +39,13 @@ test("setupFor: core SMTP form, declared plugin form, defaults from credential k
   assert.equal(catalog.credentialLabelFor({ id: "keyless" }), undefined);
   assert.equal(catalog.credentialLabelFor({ id: "legacy" }), "Legacy key");
 });
+
+test("a saved SMTP row without username is incomplete in the configuration DTO", async () => {
+  const { describeMailProviders } = await import("../mail-provider-configuration.js");
+  const { MAIL_SMTP_CREDENTIAL_LABEL } = await import("../mail-provider-catalog.js");
+  const catalog = await loadMailProviderCatalog({ workspaceId: "ws", customCredentialRepo: new InMemoryCustomCredentialSetRepo(), sealer: {} as SecretSealerPort, httpClient: {} as HttpClientPort, loadMailAdapters: async () => registry() });
+  const report = describeMailProviders({ catalog, records: [{ id: "smtp-key", label: MAIL_SMTP_CREDENTIAL_LABEL, updatedAt: "2026-10-22T00:00:00Z" }] as never, setting: { transactional: "smtp", bulk: "smtp" } });
+  const smtp = report.providers.find(p => p.id === "smtp")!;
+  assert.equal(smtp.credential.saved, false); assert.equal(smtp.selectable, false);
+  assert.equal(smtp.refusal, `has no complete saved credential "${MAIL_SMTP_CREDENTIAL_LABEL}" under Access Tokens (category "ops")`);
+});

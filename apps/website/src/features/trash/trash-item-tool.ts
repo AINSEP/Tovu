@@ -162,7 +162,8 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       // The row's own `kind`, so a page is deleted as a page and the delegate's kind guard applies.
       async toDelegateInput(deps, entityId) {
         const row = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entityId });
-        return row ? { id: entityId, kind: row.kind } : null;
+        // Templates use the Post storage/trash owner; never hand an unsupported editor kind to its tool.
+        return row ? { id: entityId, kind: row.kind === "email-template" ? "post" : row.kind } : null;
       },
     },
   ],

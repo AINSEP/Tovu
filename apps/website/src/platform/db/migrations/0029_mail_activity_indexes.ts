@@ -1,4 +1,4 @@
-import { sql } from "kysely";
+import { Kysely, SqliteDialect, type SchemaModule, sql } from "kysely";
 import type { StorageKernel } from "../kernel/port.js";
 import type { MigrationStep } from "./step.js";
 
@@ -19,13 +19,41 @@ import type { MigrationStep } from "./step.js";
  */
 export const MAIL_ACTIVITY_INDEXES_ID = "0029_mail_activity_indexes";
 
-export const MAIL_ACTIVITY_INDEXES_STATEMENTS = [
-  "CREATE INDEX idx_mail_send_ledger_workspace_created ON mail_send_ledger (workspace_id, created_at)",
-  "CREATE INDEX idx_mail_feedback_inbox_workspace_message ON mail_feedback_inbox (workspace_id, provider_message_id)",
-] as const;
+/** The schema builder is shared with the synchronous fresh-SQLite constructor (compile only). */
+export function mailActivitySchema({ schema }: { schema: SchemaModule }, _options = {}) {
+  return [
+    schema.createIndex("idx_mail_send_ledger_workspace_created").on("mail_send_ledger").columns(["workspace_id", "created_at"]),
+    schema.createIndex("idx_mail_feedback_inbox_workspace_message").on("mail_feedback_inbox").columns(["workspace_id", "provider_message_id"]),
+    schema.alterTable("mail_send_ledger").addColumn("activity_id", "text", c => c.notNull().defaultTo("")),
+    schema.alterTable("mail_send_ledger").addColumn("activity_retained", "integer", c => c.notNull().defaultTo(1)),
+    schema.createTable("mail_activity_attempts")
+      .addColumn("id", "text", c => c.notNull().unique())
+      .addColumn("workspace_id", "text", c => c.notNull().references("workspaces.id").onDelete("cascade"))
+      .addColumn("idempotency_key", "text", c => c.notNull())
+      .addColumn("recipient", "text", c => c.notNull())
+      .addColumn("effective_recipient", "text", c => c.notNull())
+      .addColumn("delivery_mode", "text", c => c.notNull())
+      .addColumn("lane", "text", c => c.notNull())
+      .addColumn("provider_id", "text", c => c.notNull())
+      .addColumn("outcome", "text", c => c.notNull())
+      .addColumn("provider_message_id", "text")
+      .addColumn("error_code", "text")
+      .addColumn("created_at", "text", c => c.notNull())
+      .addColumn("updated_at", "text", c => c.notNull())
+      .addPrimaryKeyConstraint("mail_activity_attempts_pk", ["workspace_id", "idempotency_key", "recipient"]),
+    schema.createIndex("idx_mail_attempts_workspace_created").on("mail_activity_attempts").columns(["workspace_id", "created_at", "id"]),
+  ];
+}
+
+// Compile only: no database is opened. Fresh bootstrap is synchronous by contract.
+const sqliteSchema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
+export const MAIL_ACTIVITY_INDEXES_STATEMENTS = mailActivitySchema({ schema: sqliteSchema }).map(step => step.compile().sql);
 
 async function up(kernel: StorageKernel<unknown>): Promise<void> {
-  for (const statement of MAIL_ACTIVITY_INDEXES_STATEMENTS) await kernel.execute(sql.raw(statement));
+  await kernel.run(async db => { for (const step of mailActivitySchema({ schema: db.schema })) await step.execute(); });
+  // Opaque identities for historical rows: data updates are dialect-specific only for randomness.
+  const identity = kernel.dialect === "sqlite" ? sql`lower(hex(randomblob(16)))` : sql`md5(random()::text || clock_timestamp()::text)`;
+  await kernel.execute(sql`UPDATE mail_send_ledger SET activity_id = ${identity}`);
 }
 
 /** Build the immutable ADR-066 step. @example mailActivityIndexes({ checksum: pinnedChecksum }) */

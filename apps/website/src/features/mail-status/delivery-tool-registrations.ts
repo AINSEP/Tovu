@@ -69,21 +69,21 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
     },
     mail_list_activity: async (ctx) => {
       const query = readMailActivityQuery({ input: requireInputRecord({ input: ctx.input }) });
-      return listMailActivity({ principalId: ctx.principal.id, query }, deps);
+      return listMailActivity({ ...{ principalId: ctx.principal.id, query }, deps: deps });
     },
     mail_get_activity: async (ctx) => {
       const activityId = readMailActivityId({ value: requireInputRecord({ input: ctx.input }).activityId });
-      const found = await getMailActivity({ principalId: ctx.principal.id, activityId }, deps);
+      const found = await getMailActivity({ ...{ principalId: ctx.principal.id, activityId }, deps: deps });
       if (!found) throw new ToolInputError({ message: "No email send with that id exists on this site. List them with mail_list_activity." });
       return found;
     },
-    mail_list_suppressions: async (ctx) => listMailSuppressions({ principalId: ctx.principal.id, query: readMailSuppressionQuery({ input: requireInputRecord({ input: ctx.input }) }) }, deps),
+    mail_list_suppressions: async (ctx) => listMailSuppressions({ ...{ principalId: ctx.principal.id, query: readMailSuppressionQuery({ input: requireInputRecord({ input: ctx.input }) }) }, deps: deps }),
     // No rememberKey: each removal lets mail reach someone who bounced or complained, so it always asks.
     mail_remove_suppression: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => planMailSuppressionRemoval({ principalId: ctx.principal.id, input: readMailSuppressionRemoval({ input: requireInputRecord({ input: ctx.input }) }) }, deps),
+      prepare: async ({ ctx }) => planMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, input: readMailSuppressionRemoval({ input: requireInputRecord({ input: ctx.input }) }) }, deps: deps }),
       describe: removalCard,
       // The card may sit open for minutes: the run re-checks the grant at the moment of the write.
-      run: async ({ ctx, prepared }) => runMailSuppressionRemoval({ principalId: ctx.principal.id, plan: prepared }, deps),
+      run: async ({ ctx, prepared }) => runMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, plan: prepared }, deps: deps }),
     }, { flag: "removed" }),
     mail_get_feedback_setup: async (ctx) => {
       requireInputRecord({ input: ctx.input });
