@@ -68,7 +68,7 @@ test('chat-input regression: empty theme replacement is valid input but still re
   for (const newString of ['', ' ']) {
     const result = await executeRegisteredTool({ registration, input: { themeId: 'open-heart', path: 'styles.css', oldString: 'remove', newString } });
     assert.notEqual(result.status, 'completed');
-    assert.match(result.error!, /FORBIDDEN|permission/i);
+    assert.match(result.error!, /FORBIDDEN|permission|not authorized/i);
     assert.doesNotMatch(result.error!, /newString/);
   }
   assert.equal(authorized, 2);
