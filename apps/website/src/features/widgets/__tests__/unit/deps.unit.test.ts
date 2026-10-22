@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "../../deps.js";
+import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner } from "@jini-ai/cms/content-types";
+import { VersionConflictError } from "@jini-ai/cms/entries";
+import { buildWidgetHostPorts, buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "../../deps.js";
+import { PostNotFoundError, PostVersionConflictError, type PostRepoPort } from "../../../post/index.js";
 
 /**
  * @file `buildWidgetsDeps`/`buildWidgetsRegionDeps` — the shared write-path deps composer
@@ -83,4 +86,62 @@ test("widget composition retains one state per entry store across write, embed, 
   assert.equal(buildWidgetsDeps({ ...routeDeps }).entryLocks, first.entryLocks);
   assert.equal(buildWidgetsRegionDeps(routeDeps).entryLocks, first.entryLocks);
   assert.notEqual(buildWidgetsDeps(makeRouteDeps()).entryLocks, first.entryLocks);
+});
+
+/** A live post row as `findPublishedPost*` reads it, served by whichever repo the host port picks. */
+function postLookupRepo(label: string, seen: string[]): PostRepoPort {
+  const row = { id: `${label}-post`, slug: `${label}-slug`, status: "published", publishedAt: "2026-01-01T00:00:00.000Z", trashedAt: null, deletedAt: null };
+  return {
+    findById: async ({ id }: { id: string }) => { seen.push(`${label}:findById:${id}`); return row; },
+    findBySlug: async ({ slug }: { slug: string }) => { seen.push(`${label}:findBySlug:${slug}`); return row; },
+  } as unknown as PostRepoPort;
+}
+
+test("buildWidgetHostPorts: published-post lookups use the bound postRepo, and fall back to the caller's repo when none is bound", async () => {
+  const seen: string[] = [];
+  const bound = buildWidgetHostPorts({ postRepo: postLookupRepo("bound", seen) });
+  const unbound = buildWidgetHostPorts({});
+  const callerRepo = postLookupRepo("caller", seen);
+  const input = { workspaceId: "ws-1", id: "p-1", slug: "s-1" };
+
+  assert.equal((await bound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input } as never))?.id, "bound-post");
+  assert.equal((await unbound.posts.findPublishedPostById({ deps: { repo: callerRepo }, input } as never))?.id, "caller-post");
+  assert.equal((await bound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input } as never))?.slug, "bound-slug");
+  assert.equal((await unbound.posts.findPublishedPostBySlug({ deps: { repo: callerRepo }, input } as never))?.slug, "caller-slug");
+  assert.deepEqual(seen, ["bound:findById:p-1", "caller:findById:p-1", "bound:findBySlug:s-1", "caller:findBySlug:s-1"]);
+});
+
+test("buildWidgetHostPorts: error classifiers recognise only their own error classes", () => {
+  const host = buildWidgetHostPorts({});
+  assert.equal(host.entries.isVersionConflict(new VersionConflictError({ message: "stale" })), true);
+  assert.equal(host.entries.isVersionConflict(new Error("other")), false);
+  assert.equal(host.posts.isVersionConflict(new PostVersionConflictError("stale", 1, 2)), true);
+  assert.equal(host.posts.isVersionConflict(new Error("other")), false);
+  assert.equal(host.posts.isNotFound(new PostNotFoundError("gone")), true);
+  assert.equal(host.posts.isNotFound(new Error("other")), false);
+  assert.deepEqual(host.contentTypes.alreadyExists(new ContentTypeAlreadyExistsError({ key: "faq", tombstoned: true })), { tombstoned: true });
+  assert.deepEqual(host.contentTypes.alreadyExists(new ContentTypeAlreadyExistsError({ key: "faq", tombstoned: false })), { tombstoned: false });
+  assert.equal(host.contentTypes.alreadyExists(new Error("other")), null);
+});
+
+test("buildWidgetHostPorts: each index provisioner is a fresh no-op provisioner", () => {
+  const host = buildWidgetHostPorts({});
+  const first = host.contentTypes.createIndexProvisioner();
+  assert.ok(first instanceof NoopContentTypeIndexProvisioner);
+  assert.notEqual(host.contentTypes.createIndexProvisioner(), first);
+});
+
+test("buildWidgetHostPorts: updatePost and restorePostForward read through the bound postRepo, else the caller's repo", async () => {
+  const seen: string[] = [];
+  const missingRepo = (label: string) => ({ findById: async ({ id }: { id: string }) => { seen.push(`${label}:${id}`); return null; } }) as unknown as PostRepoPort;
+  const bound = buildWidgetHostPorts({ postRepo: missingRepo("bound") });
+  const unbound = buildWidgetHostPorts({});
+  const caller = { repo: missingRepo("caller") };
+
+  for (const host of [bound, unbound]) {
+    await assert.rejects(host.posts.updatePost({ deps: caller, input: { workspaceId: "ws-1", id: "p-up" } } as never), PostNotFoundError);
+    // A row that no longer exists has nothing to roll forward: the restore is a no-op, not a throw.
+    assert.equal(await host.posts.restorePostForward({ deps: caller, input: { prior: { workspaceId: "ws-1", id: "p-re", version: 1 } } } as never), null);
+  }
+  assert.deepEqual(seen, ["bound:p-up", "bound:p-re", "caller:p-up", "caller:p-re"]);
 });

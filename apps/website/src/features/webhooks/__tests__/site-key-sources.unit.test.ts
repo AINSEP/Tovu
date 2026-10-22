@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_FILENAME, resolveSiteKeyEnv, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir } from "../site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_FILENAME, isSafeSiteKeyId, readSiteKeySourceMaterial, resolveSiteKeyEnv, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeyEnvOnlySources, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir } from "../site-key-sources.js";
 
 /**
  * @file Site-key plan §A.1 slice 1 — `siteKeySources` is a pure ordering function: given a mode,
@@ -255,4 +255,43 @@ test("a BLANK TOVU_SITE_KEY resolves as absent, not as a present-but-invalid key
   for (const blank of ["", "   "]) {
     assert.deepEqual(resolveSiteKeyEnv({ env: { [SITE_KEY_ENV_VAR_NAME]: blank } }), { kind: "absent" });
   }
+});
+
+test("readSiteKeySourceMaterial: env yields the trimmed value with its var name; files yield raw content only when present", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-material-"));
+  try {
+    const keyFile = join(dir, "site-key.hex");
+    writeFileSync(keyFile, "  ab12\n");
+    assert.deepEqual(readSiteKeySourceMaterial({ kind: "env" }, { [SITE_KEY_ENV_VAR_NAME]: " cafe " }), { raw: "cafe", envVarName: SITE_KEY_ENV_VAR_NAME });
+    assert.equal(readSiteKeySourceMaterial({ kind: "env" }, {}), undefined);
+    assert.deepEqual(readSiteKeySourceMaterial({ kind: "volume-file", path: keyFile }, {}), { raw: "  ab12\n" }, "file content is never trimmed");
+    assert.equal(readSiteKeySourceMaterial({ kind: "volume-file", path: join(dir, "absent.hex") }, {}), undefined);
+    assert.equal(readSiteKeySourceMaterial({ kind: "legacy-volume-file" }, {}), undefined, "a file-kind source without a path has no material");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveSiteKeyId/resolveSiteKeyFingerprint: JSON that is not an object (array, null, number) reads as no metadata", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-meta-shape-"));
+  try {
+    for (const body of ["[\"site-1\"]", "null", "42"]) {
+      writeFileSync(join(dir, ".site-meta.json"), body);
+      assert.equal(resolveSiteKeyId({ siteDir: dir }), undefined, body);
+      assert.equal(resolveSiteKeyFingerprint({ siteDir: dir }), undefined, body);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("isSafeSiteKeyId refuses the dot directory names even though the character class allows dots", () => {
+  assert.equal(isSafeSiteKeyId("."), false);
+  assert.equal(isSafeSiteKeyId(".."), false);
+  assert.equal(isSafeSiteKeyId("site.v2"), true);
+  assert.equal(isSafeSiteKeyId("a".repeat(129)), false);
+});
+
+test("siteKeyEnvOnlySources is exactly the env candidate", () => {
+  assert.deepEqual(siteKeyEnvOnlySources(), [{ kind: "env" }]);
 });
