@@ -203,7 +203,7 @@ export function staticPublishFormReadyToPublish(
 }
 
 /** The `projectName` the publish request carries. The server requires a non-blank one on every
- *  publish, but a host that declares no project name (S3-compatible storage) ignores it, so the
+ *  publish, but a host that declares no project name (e.g. object storage) ignores it, so the
  *  admin hides the field and sends the host's id instead. @complexity O(1). */
 export function staticPublishProjectNameToSend(target: AdminPublishTargetDescriptor, projectName: string): string {
   return target.projectName === undefined ? target.id : projectName;
@@ -287,7 +287,7 @@ export function credentialNoun(credential: AdminPublishTargetCredentialSpec): st
  *  server's own fact about whether this WORKSPACE can reach the operator's terminal at all — see
  *  `AdminPublishExecutionMode`'s doc in `lib/api.ts`), not on whether the selected PROVIDER has a
  *  CLI route. Otherwise it names the host's own credential ({@link credentialNoun}), never a
- *  "personal access token" a host like Cloudflare or S3 does not issue. @complexity O(f). */
+ *  "personal access token" a host that issues only API tokens or access key pairs does not have. @complexity O(f). */
 export function credentialStepSubtitle(executionMode: AdminPublishExecutionMode, credential: AdminPublishTargetCredentialSpec, translate: (key: string) => string): string {
   if (executionMode === "hosted-api-only") {
     return translate("This workspace can't use your computer's terminal — connecting here is the only way to publish.");

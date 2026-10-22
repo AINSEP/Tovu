@@ -747,7 +747,7 @@ function PublishCredentialsSection(props: {
 }
 
 /**
- * Step 1's fields — token input, Cloudflare Pages' required Account ID, and the Save action. Shared
+ * Step 1's fields — token input, a host's required companion field (e.g. an account ID), and the Save action. Shared
  * between {@link CredentialStepTodo} (always open) and {@link CredentialStepDone} (one click away,
  * for replacing an already-saved token) rather than duplicated, since the fields and the Save
  * behavior are identical in both — only whether the reader sees them by default differs.
@@ -1301,8 +1301,8 @@ function PublishTriggerAction({
 
 /** The token-based preview+publish mini-form for whichever target is currently selected. Reads
  *  ONLY the fields the current target uses (see `use-static-publish.hooks.ts`'s header for why the
- *  hook still keeps all five target fields in state at once) — a GitHub Pages selection never shows
- *  a `teamId` field, and vice versa; Netlify and Cloudflare Pages show neither. */
+ *  hook still keeps all five target fields in state at once) — a target never shows another
+ *  target's companion field (e.g. an owner/repo pair vs a `teamId`); a target with neither shows neither. */
 /** The saved connection this provider's row is currently showing as the one that publishes — the
  *  id the Publish request must NAME, so the server publishes with that account instead of resolving
  *  whichever row is default when the POST lands (terra review 2026-09-20, finding 1). `undefined`
@@ -1399,7 +1399,7 @@ function StaticPublishForm({
   );
 }
 
-/** A preview result's facts — base path (or "root, no prefix" for Vercel/an invalid config) and
+/** A preview result's facts — base path (or "root, no prefix" for a root-served host/an invalid config) and
  *  whether a credential is configured. Never shows the credential itself — `preview.credentialsConfigured`
  *  is a boolean the server already reduced it to. */
 function PublishPreviewFacts({ preview, t: translate }: { preview: AdminStaticPublishPreview; t: Translate }) {

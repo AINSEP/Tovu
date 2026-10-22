@@ -719,8 +719,8 @@ export type AdminStaticPublishOutcome =
 /** Mirrors `PublishRunStatus` in `src/server/routes/admin/system/publish-site.ts`. */
 export type AdminPublishRunStatus = "idle" | "running" | "completed" | "errored";
 
-/** Mirrors `PublishRunSnapshot` (same file) — the trigger+poll run slot for a publish to GitHub
- *  Pages/Vercel, independent of {@link AdminExportRunSnapshot}'s own run slot (a plain export and a
+/** Mirrors `PublishRunSnapshot` (same file) — the trigger+poll run slot for a publish to a
+ *  static host, independent of {@link AdminExportRunSnapshot}'s own run slot (a plain export and a
  *  publish are different server-side operations with their own process-local state). */
 export interface AdminPublishRunSnapshot {
   status: AdminPublishRunStatus;
@@ -771,7 +771,7 @@ export interface AdminStaticPublishPreview {
   target: AdminStaticPublishTargetId;
   valid: boolean;
   validationError: string | null;
-  /** `/${repo}` for github-pages, `null` for vercel or an invalid config — always SERVER-derived,
+  /** `/${repo}` for a host that serves under a repository subpath, `null` for a root-served host or an invalid config — always SERVER-derived,
    *  never something the caller supplied. */
   basePath: string | null;
   credentialsConfigured: boolean;
@@ -818,7 +818,7 @@ export interface AdminPublishCredentialSummary {
   /** ISO timestamp — see {@link createdAt}'s doc for the naming note. This is the one fact the UI
    *  leans on to tell two saves of the same connection apart, in place of any secret material. */
   updatedAt: string;
-  /** The verified account's public login/username (GitHub `login`, Vercel `username`), healed onto
+  /** The verified account's public login/username (the host's own account field), healed onto
    *  this row server-side (migration `0044`) whenever a verify comes back `"valid"` with one — see
    *  `src/features/deployments/publish-credentials/store.ts`'s `healAccountLabel` doc. `null` until
    *  the first successful verify, and NEVER cleared by a verify that merely fails to reach the
@@ -4117,7 +4117,7 @@ export const api = {
   getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
 
   // Static Site tab "Getting it online" card (`src/server/routes/admin/system/publish-site.ts`) —
-  // publishing the current export straight to GitHub Pages, Vercel, Netlify, or Cloudflare Pages.
+  // publishing the current export straight to an installed static host plugin's target.
   // Same trigger+poll shape as
   // the export pair just above, plus a third pure-read preview route with no run of its own.
   /** Read-only: validates `config`, reports the base path a real publish would use (always

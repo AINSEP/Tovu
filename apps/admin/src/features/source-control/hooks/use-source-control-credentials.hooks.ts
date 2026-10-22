@@ -27,7 +27,7 @@ import type { SourceControlCredentialsPort } from "./source-control-credentials-
  * same optimistic local-state-after-write pattern, same create-vs-update-by-looking-at-what-exists
  * decision — with two differences: no `executionMode` (this page has no CLI-first alternative path
  * to branch on, unlike static publish), and `username` in place of `accountId` as the one provider
- * (Bitbucket, not Cloudflare Pages) that needs a field beyond the universal token.
+ * (a source-control host, not a static host) that needs a field beyond the universal token.
  *
  * ## A stored credential is NEVER read back — this is why every row's inputs start blank
  *
