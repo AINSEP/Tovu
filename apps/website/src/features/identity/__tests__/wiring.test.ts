@@ -26,7 +26,7 @@ test("first-boot seeding uses the injected owner credentials, never the ambient 
   process.env.TOVU_ADMIN_USER = "ambient-owner";
   process.env.TOVU_ADMIN_PASSWORD = "ambient-env-password-fixture";
   try {
-    const injected = { username: "injected-owner", password: "fly-first-boot-password-fixture" };
+    const injected = { username: "injected-owner", password: "first-boot-password-fixture" };
     const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: injected, permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await deps.identityReady;
     const owner = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId: await deps.ownerPrincipalId });

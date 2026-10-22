@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "example-host",
+  "version": "0.1.0",
+  "description": "Test fixture: a neutral host plugin that contributes one self-describing credential scheme (ExampleV1).",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Example Host",
+      "summary": "Test fixture for credential scheme rules.",
+      "id": "tovu/example-host",
+      "provides": [
+        "credential-scheme:example-host"
+      ]
+    }
+  }
+}

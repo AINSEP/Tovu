@@ -91,12 +91,12 @@ export interface PublishCredentialVerificationResult {
   readonly status: "valid" | "invalid" | "unreachable";
   readonly message: string;
   readonly checkedAt: string;
-  /** The verified account's public login/username — GitHub `login`, Vercel `username` — present only
+  /** The verified account's public login/username (the host's own account-name field) — present only
    *  on a `"valid"` result for a provider whose success response carries one (see this file's header
    *  for exactly which, and why). Never an email, plan, or org — the ONE field this module's
    *  otherwise-total "never reads the response body" rule makes a deliberate, scoped exception for.
    *  `publish-agent-tools.ts`'s capabilities handler surfaces this so the agent can default a
-   *  github-pages publish's `owner` to it instead of guessing (2026-08-16, Defect 1). */
+   *  repository-backed publish's `owner` to it instead of guessing (2026-08-16, Defect 1). */
   readonly accountLabel?: string;
 }
 

@@ -18,7 +18,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * 2026-09-18: the desktop shell was launched with `electron .` from `apps/desktop` instead of
  * `npm run desktop` from the repo root, so `.env` was never loaded and every site server it
  * spawned inherited an environment with no key. Listing credentials and editing content worked
- * fine. Hours later a Fly deploy failed with an opaque `500 INTERNAL_ERROR` from
+ * fine. Hours later a hosted deploy failed with an opaque `500 INTERNAL_ERROR` from
  * `custom_credential_make_request`, and an agent spent a long time chasing a network fault that
  * did not exist. The real cause was one line in a daemon log, produced at USE time, that nobody
  * was reading.

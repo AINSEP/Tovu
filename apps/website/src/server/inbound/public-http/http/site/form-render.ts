@@ -63,7 +63,7 @@ export { FORM_CLASS, FORM_SLUG_ATTR };
  *    is scoped with `:not([hidden])`. `.tovu-form-success`/`.tovu-form-error` need no such guard
  *    because neither ever sets `display`; any NEW rule added here that touches `display` on either
  *    must carry the same guard. A THEME's own rule is the other half (2026-10-19, BYHO's
- *    `.oh-form form{display:grid}` kept a sent form on screen after the Cloudflare Worker hid it):
+ *    `.oh-form form{display:grid}` kept a sent form on screen after the forms receiver's script hid it):
  *    the `[hidden]{display:none!important}` rule below forces it on any hidden form, success slot
  *    or error slot — every one carries `data-form-slug`, in both Builder and HTML mode — and
  *    `!important` is what lets a zero-specificity rule beat a theme's non-important one.

@@ -4,7 +4,7 @@
  * The stock theme was renamed `basic` -> `tovu-theme` on 2026-09-26. Nothing else moves with that
  * rename on its own:
  * - `seedSiteThemes()` copies stock themes into a site ONCE, so every site seeded earlier (the live
- *   Fly volume, every desktop site) still has a `themes/static/basic` folder whose manifest says
+ *   hosted data volume, every desktop site) still has a `themes/static/basic` folder whose manifest says
  *   `basic`, while a site seeded later has `tovu-theme` only.
  * - `presentation_settings.active_theme_id` and the settings ledger keep whatever id was stored.
  * - Published content bakes `/theme-assets/basic/...` URLs into stored HTML.

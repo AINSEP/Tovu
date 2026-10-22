@@ -21,7 +21,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *   says nothing about whether the credential itself is good). That function is not imported here:
  *   it lives in a different feature (`features/deployments`) this one has no reason to depend on for
  *   three lines of logic, and reuses `fetch` directly against a small set of HARDCODED, reviewed
- *   provider URLs (`api.github.com`, `api.vercel.com`, ...) — safe because those hosts are fixed
+ *   provider URLs (each host plugin's fixed API origin) — safe because those hosts are fixed
  *   constants, never attacker- or operator-influenced. THIS module's target host is exactly the
  *   opposite: an arbitrary, operator-typed `baseUrl`, which is precisely why it goes through the
  *   guarded `HttpClientPort` (ADR-038) instead, the same reason the hosted mail
@@ -50,7 +50,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * `Basic <username:token>` — an assumption some vendors' tokens break: the token string is
  * self-describing, e.g. `<Scheme>fm2_...` (a macaroon), and the leading scheme word is not incidental
  * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
- * the value. The live verification is recorded with the rule itself, in the `fly` plugin's
+ * the value. The live verification is recorded with the rule itself, in the contributing plugin's
  * `tovu-credential-schemes.json` (`note`).
  *
  * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes

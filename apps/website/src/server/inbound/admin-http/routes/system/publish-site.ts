@@ -27,13 +27,13 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
- * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel backend.
+ * @file Admin Deployment panel → publish-to-a-static-host backend.
  *
  * Registers TWO routes, deliberately mirroring `./export-site.ts`'s own trigger+status shape
  * almost exactly (see that file's header for the full reasoning this route inherits): a publish
  * runs a fresh in-process export (see `static-publish/adapter.ts`'s `publishStaticSite`) and then
- * blocks on an external provider's own build/deploy pipeline — GitHub Pages' build poll or Vercel's
- * deployment poll, each up to roughly a minute — so `POST .../system/publish` starts the run and
+ * blocks on an external provider's own build/deploy pipeline — a host's build or deployment poll,
+ * up to roughly a minute — so `POST .../system/publish` starts the run and
  * returns `202` immediately with a snapshot; `GET .../system/publish` polls the same snapshot. The
  * single process-local mutable slot backing both lives in `static-publish/publish-run.ts` (2026-08-16,
  * Terra audit finding #1 — see that file's header for the full "who shares this slot and why" story),

@@ -24,7 +24,7 @@ export interface EnvSnapshot {
    *
    * Before the 2026-09-09 durability fix, `EnvOrFileKeyring`'s generated-file fallback resolved
    * under `homedir()` — inside the shipped container (`Dockerfile`'s `USER node`) that resolved to
-   * the image rootfs, not the mounted Fly volume, so the file (and the site key it held) did not
+   * the image rootfs, not the mounted data volume, so the file (and the site key it held) did not
    * survive a redeploy, and this check covered only the env var for exactly that reason. The key
    * file now defaults to `<cwd>/sites/.tovu/site-key.hex` in production — ON the
    * mounted volume — so a valid file there is durable and this check now accepts it too. Left

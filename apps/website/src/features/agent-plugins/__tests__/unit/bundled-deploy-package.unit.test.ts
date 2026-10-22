@@ -27,7 +27,6 @@ import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features
  */
 
 const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
-const PACKAGE_ROOT = path.join(CONTENT_ROOT, "fly");
 const WORKSPACE_ID = "workspace-local";
 
 /** Every publish target, the bundled plugin that ships it, and its label. Target ids are the legacy
@@ -42,29 +41,12 @@ const TARGETS: readonly { readonly id: string; readonly pluginId: string; readon
 ];
 const HOST_PLUGINS = TARGETS.filter((target) => target.pluginId !== "deploy");
 
-async function readPackageJson(relativePath: string, packageRoot = PACKAGE_ROOT): Promise<unknown> {
+async function readPackageJson(relativePath: string, packageRoot: string): Promise<unknown> {
   return JSON.parse(await readFile(path.join(packageRoot, relativePath), "utf8"));
 }
 
-test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings", async () => {
-  const parsed = parseAgentPluginManifest({ value: await readPackageJson("plugin.json") });
-  assert.equal(parsed.ok, true);
-  assert.equal(parsed.ok && parsed.manifest.name, "fly");
-  assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
-});
-
-test("mcp.json declares ZERO servers — hosts run in-process through the deploy-target registry", async () => {
-  const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
-  assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
-});
-
-test("the eponymous skill exists, names the server host it deploys to, and points at every hosting plugin", async () => {
-  const skill = await readFile(path.join(PACKAGE_ROOT, "skills", "fly", "SKILL.md"), "utf8");
-  assert.match(skill, /^---\nname: fly\n/);
-  assert.match(skill, /fly\.io/);
-  for (const { pluginId } of HOST_PLUGINS) assert.ok(skill.includes(`\`${pluginId}\``), pluginId);
-});
+// The Fly package's own manifest/mcp/skill/packing tests moved to
+// content/agent-plugins/fly/__tests__/package-manifest.test.mjs (vendor tests live with the vendor).
 
 test("each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them)", async () => {
   for (const pluginId of new Set(TARGETS.map((target) => target.pluginId))) {
@@ -75,16 +57,6 @@ test("each plugin's target ids are the legacy provider ids it owns (sealed crede
       pluginId,
     );
   }
-});
-
-test("the package packs through the real packer, and ships no publish target of its own any more", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  for (const file of ["plugin.json", "mcp.json", "skills/fly/SKILL.md"]) {
-    assert.ok(packed.files.includes(file), `${file} must survive packing`);
-  }
-  // Every host is its own plugin (2026-10-12); a leftover entry here would drop that host for everyone.
-  assert.equal(packed.files.includes(DEPLOY_TARGETS_FILENAME), false);
-  assert.deepEqual(packed.files.filter((file) => file.startsWith("targets/")), []);
 });
 
 /** Capabilities a hosting plugin provides beyond its deploy targets (other contribution categories). */

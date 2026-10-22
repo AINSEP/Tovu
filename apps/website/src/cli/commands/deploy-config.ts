@@ -67,7 +67,7 @@ function writeStderr(message: string): void {
 
 /**
  * The `--target` option's help text, built from the ids the bundled hosting plugins declare
- * (e.g. "deploy platform: fly, railway, or render"). Sync: `cli/program.ts` builds help text before
+ * (e.g. "deploy platform: host-a, host-b, or host-c"). Sync: `cli/program.ts` builds help text before
  * any command runs. Falls back to a generic line when the plugins declare none.
  *
  * @complexity O(g) in the declared generator count.
@@ -99,7 +99,7 @@ async function loadGenerators(env: NodeJS.ProcessEnv, stderr: (message: string) 
  * @throws {ValidationError} an unknown `--target`, a missing/invalid `--region` (raised by the
  *   chosen generator itself, through the kit).
  * @throws {Error} `buildDeploymentDescriptor`'s own derivation-failure error, if a source file
- *   (`Dockerfile`, `fly.toml`, the readyz route) has drifted out of sync with this command's own
+ *   (`Dockerfile`, a generated host config, the readyz route) has drifted out of sync with this command's own
  *   extraction patterns.
  * @complexity O(g) generator imports, plus `buildDeploymentDescriptor`'s and the chosen generator's own bounded costs.
  */

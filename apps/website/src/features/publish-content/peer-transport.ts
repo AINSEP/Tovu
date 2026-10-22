@@ -31,7 +31,7 @@ import type { PublishHistoryStore, PublishTrigger } from "#src/features/deployme
  * no project id, no region, no platform API, and no reference to any single host's CLI or config
  * file. (Stated in the abstract deliberately: plan §0b's own guard is a grep for those literal
  * platform tokens across this directory, and a comment naming them to disclaim them would trip it.)
- * The private-network question is not answered with a Fly-shaped assumption either — it is
+ * The private-network question is not answered with a single-host-shaped assumption either — it is
  * delegated whole to ADR-038's `EgressPolicy.denyPrivateAddresses` + `devHostAllowlist`, which
  * classify the RESOLVED address, so Railway's and Render's internal DNS names and an AWS VPC
  * address are handled by exactly the same code path with no per-platform branch.

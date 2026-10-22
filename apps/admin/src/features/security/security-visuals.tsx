@@ -5,8 +5,8 @@ import { Icon } from "@jini-ai/ui";
  * dependency on `deployment/`/`source-control/` beyond their shared `rules.ts` data tables (see
  * `rules.ts`'s own header), so its icons are redrawn locally rather than imported cross-feature too.
  *
- * No brand marks anywhere in this file — GitHub/GitLab/Bitbucket/Vercel/Netlify/Cloudflare Pages all
- * render as plain `translate="no"` text with a generic connection/checkmark glyph beside them, same
+ * No brand marks anywhere in this file — every provider name (source-control and hosting alike)
+ * renders as plain `translate="no"` text with a generic connection/checkmark glyph beside them, same
  * treatment every provider name in this app gets.
  */
 

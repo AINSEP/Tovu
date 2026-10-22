@@ -16,7 +16,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
  *
  * ## What this tab covers, as of the 2026-09-09 durability fix
  *
- * A generated key file now genuinely protects production too: it lives on the durable Fly volume
+ * A generated key file now genuinely protects production too: it lives on the durable data volume
  * (not the container's ephemeral rootfs), the production boot gate accepts it, and the keyring
  * that seals every real stored credential (BYOK, publish/source-control/custom creds,
  * media-provider secrets) can now read one. {@link SiteKeyScopeNotice} still discloses the one
@@ -41,7 +41,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
  * breaks they have no idea whats going on." {@link SiteKeyRevealAction} is the ONE place this
  * tab ever renders a key VALUE — never on page load, only behind its own explicit click, and
  * usable at any time afterward (not just right after a generate), for exactly the diagnostic
- * reason the owner gave: confirming the value here matches what's set in `fly secrets`, or
+ * reason the owner gave: confirming the value here matches what's set in the host's secrets, or
  * figuring out why credentials stopped decrypting. No audit trail on reveal — this codebase has
  * no general-purpose sensitive-read audit mechanism to hook into (checked, not built here).
  */

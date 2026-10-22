@@ -10,7 +10,7 @@ import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/repo.memory";
-import { loadBundledAuthSchemes } from "#src/features/custom-credentials/__tests__/bundled-auth-schemes.fixture";
+import { loadFixtureAuthSchemes } from "#src/features/custom-credentials/__tests__/fixture-auth-schemes.fixture";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/store";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -112,7 +112,7 @@ async function buildHarness(): Promise<Harness> {
     siteAssistantSecretKeyring: keyring,
     idGen,
     customCredentialsHttpClient: new UnauthorizedHttpClient(),
-    loadAuthSchemes: loadBundledAuthSchemes,
+    loadAuthSchemes: loadFixtureAuthSchemes,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
 

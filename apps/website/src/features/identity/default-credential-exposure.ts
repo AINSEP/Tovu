@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  * `apps/admin/src/features/auth/Login.tsx` rendered
  * `local dev default: admin / <the default password>` unconditionally, so the production sign-in
- * page at tovu.fly.dev published a working username and password to anyone who loaded it.
+ * page on the hosted production site published a working username and password to anyone who loaded it.
  *
  * It had been fixed twice before (once by deleting the hint, once by gating it to dev builds) and
  * came back both times — most recently on 2026-09-02, when a force-push of this branch over the

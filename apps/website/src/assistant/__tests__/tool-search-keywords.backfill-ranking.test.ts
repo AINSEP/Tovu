@@ -41,7 +41,7 @@ interface RankingCase {
 // seo, settings, site-inspection, taxonomy, theme, widgets, content-types, comments, in-chat UI
 // rendering. Phrasings are written the way an operator would ask, never the tool's own id/nouns.
 const CASES: readonly RankingCase[] = [
-  { query: "push my site live to netlify", expect: "deployment_execute_static_publish" },
+  { query: "push my site live to my static host", expect: "deployment_execute_static_publish" },
   { query: "can I publish my site yet", expect: "deployment_get_static_publish_capabilities" },
   { query: "export my site to static files", expect: "deployment_trigger_export" },
   { query: "show me the current dockerfile", expect: "deployment_get_dockerfile" },

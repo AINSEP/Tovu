@@ -5,7 +5,7 @@ import { boundContext, runDeploy, waitForDeployOps, MAX_RESPONSE_CHARS } from ".
 import { runSetSecret, runUnsetSecret, type SecretConfirm } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import type { DeployOpsModule, DeployOpsStatus, DeployOpsDeployResult, DeployOpsSecretRead } from "../types.js";
-import { fixture, execution } from "./ops-fixture.js";
+import { fixture, execution } from "./example-ops-fixture.js";
 
 const entry = { id: "example", label: "Example", module: "ops/main.mjs", hosts: ["api.example.test"] };
 test("L041 manifest guards preserve refusal order and contained-path rules", () => {
@@ -26,34 +26,34 @@ test("L041 manifest guards preserve refusal order and contained-path rules", () 
 
 async function fakePlatform({ module }: { module: Partial<DeployOpsModule> }, _options = {}) {
   const f = await fixture();
-  const platform = { ...f.registry.get("fly")!, module: { ...f.registry.get("fly")!.module, ...module } };
+  const platform = { ...f.registry.get("example-host")!, module: { ...f.registry.get("example-host")!.module, ...module } };
   const registry = { ...f.registry, get: () => platform, list: () => [platform] };
   return { ...f, platform, deps: { ...f.deps, deployOpsRegistry: registry, loadDeployOps: async () => registry } };
 }
-const input = { platform: "fly", target: "shop", name: "KEY", source: { kind: "typed" as const } };
+const input = { platform: "example-host", target: "shop", name: "KEY", source: { kind: "typed" as const } };
 const value = ["private", "fixture", "value"].join(":");
 
 test("L041 bound facade retains URL gates, JSON parsing and transport clipping", async () => {
   const f = await fakePlatform({ module: {} });
   const ctx = await boundContext(f.deps, f.platform, undefined);
-  for (const url of ["bad url", "http://api.machines.dev/", "https://user@api.machines.dev/", "https://user:pass@api.machines.dev/", "https://api.machines.dev:444/", "https://other.test/"]) {
+  for (const url of ["bad url", "http://api.example-host.dev/", "https://user@api.example-host.dev/", "https://user:pass@api.example-host.dev/", "https://api.example-host.dev:444/", "https://other.test/"]) {
     await assert.rejects(ctx.get(url), { name: "ToolInputError" });
   }
   assert.equal(f.calls.length, 0);
   for (const [bodyText, json] of [["null", null], ["false", false], ["{}", {}], ["plain logs", undefined]] as const) {
     f.setResponse({ status: 200, headers: {}, bodyText });
-    assert.deepEqual(await ctx.get("https://api.machines.dev/"), { status: 200, text: bodyText, truncated: false, ...(json !== undefined ? { json } : {}) });
+    assert.deepEqual(await ctx.get("https://api.example-host.dev/"), { status: 200, text: bodyText, truncated: false, ...(json !== undefined ? { json } : {}) });
   }
   f.setResponse({ status: 200, headers: {}, bodyText: " ".repeat(MAX_RESPONSE_CHARS) + "{}" });
-  assert.deepEqual(await ctx.get("https://api.machines.dev/"), { status: 200, text: " ".repeat(MAX_RESPONSE_CHARS), truncated: true });
-  await ctx.send({ method: "PUT", url: "https://api.machines.dev/" });
+  assert.deepEqual(await ctx.get("https://api.example-host.dev/"), { status: 200, text: " ".repeat(MAX_RESPONSE_CHARS), truncated: true });
+  await ctx.send({ method: "PUT", url: "https://api.example-host.dev/" });
   assert.equal(f.calls.at(-1).body, undefined);
 });
 
 test("L041 deploy normalization clips optional fields and drops unsafe URLs", async () => {
   const result: DeployOpsDeployResult = { platform: "spoof", target: "spoof", started: true, summary: "x".repeat(2001), runId: "001", sha: "s".repeat(2001), image: "i".repeat(2001), machineIds: Array(33).fill("m".repeat(2001)), url: "https://example.test/" };
   const f = await fakePlatform({ module: { deploy: async () => result } });
-  const request = { platform: "fly", target: "shop" };
+  const request = { platform: "example-host", target: "shop" };
   assert.deepEqual(await runDeploy({ deps: f.deps, input: request }), { ...request, started: true, summary: "x".repeat(2000), runId: "001", sha: "s".repeat(2000), image: "i".repeat(2000), machineIds: Array(32).fill("m".repeat(2000)), url: result.url });
   delete result.runId; delete result.sha; delete result.image; delete result.machineIds; result.url = "http://example.test/";
   assert.deepEqual(await runDeploy({ deps: f.deps, input: request }), { ...request, started: true, summary: "x".repeat(2000) });
@@ -131,7 +131,7 @@ test("L041 removal needs a version, approval and an unchanged snapshot", async (
 });
 
 test("L041 wait handles zero deadline, late observations and reader errors", async () => {
-  const observation: DeployOpsStatus = { platform: "fly", target: "shop", state: "healthy", summary: "ok", items: [], checkedAt: "" };
+  const observation: DeployOpsStatus = { platform: "example-host", target: "shop", state: "healthy", summary: "ok", items: [], checkedAt: "" };
   let now = 0; let polls = 0;
   const clock = { now: () => now, sleep: async (ms: number) => { now += ms; } };
   const zero = await waitForDeployOps({ clock, status: async () => { assert.fail("zero deadline polled"); } }, { until: "healthy", timeoutSeconds: 0 });
@@ -153,11 +153,11 @@ test("L041 closed tool inputs retain source shapes, selectors and setup diagnost
   for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_list_targets", "deployment_ops_wait", "deployment_ops_deploy"]) {
     // why: list_targets never accepted `target` (its closed keys are platform/credentialLabel/org), so only the others send one.
     const selector = id === "deployment_ops_list_targets" ? {} : { target: "shop" };
-    await assert.rejects(tools.get(id)!.handler(execution({ platform: "fly", ...selector, unexpected: true })), { message: "Unexpected deployment ops input 'unexpected'." });
+    await assert.rejects(tools.get(id)!.handler(execution({ platform: "example-host", ...selector, unexpected: true })), { message: "Unexpected deployment ops input 'unexpected'." });
   }
-  const missing = await fixture([]);
+  const missing = await fixture({ labels: [] });
   const status = buildDeployOpsRegistrations(missing.deps).find(tool => tool.descriptor.id === "deployment_ops_status")!;
-  assert.equal((await status.handler(execution({ platform: "fly", target: "shop" })) as { executed: boolean }).executed, false);
+  assert.equal((await status.handler(execution({ platform: "example-host", target: "shop" })) as { executed: boolean }).executed, false);
   assert.equal(f.calls.length, 0);
 });
 

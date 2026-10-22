@@ -87,7 +87,7 @@ const opsContribution = defineExecutablePluginContribution<DeployOpsDescriptor, 
  * @param plugin - Trusted source directory. The caller owns activation/digest gates; this seam is for tests.
  * @returns Loaded modules and refusal messages; never throws for a malformed package.
  * @complexity Time and space: O(platforms), bounded to 32 entries.
- * @example await loadDeployOpsRegistryFromSource({ pluginId: "fly", packageRoot: bundledRoot });
+ * @example await loadDeployOpsRegistryFromSource({ pluginId: "my-host", packageRoot: bundledRoot });
  */
 export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: opsContribution });

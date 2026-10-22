@@ -810,13 +810,13 @@ describe("customCredentialReadyToSave", () => {
 
   it("is ready with a valid additionalHosts entry", () => {
     expect(
-      customCredentialReadyToSave(blankCustomFields({ name: "fly.io", baseUrl: "https://api.fly.io", token: "tok", additionalHosts: "https://api.machines.dev" }))
+      customCredentialReadyToSave(blankCustomFields({ name: "example-host.io", baseUrl: "https://api.example-host.io", token: "tok", additionalHosts: "https://machines.example-host.dev" }))
     ).toBe(true);
   });
 
   it("is not ready when an additionalHosts entry is not a valid http(s) URL", () => {
     expect(
-      customCredentialReadyToSave(blankCustomFields({ name: "fly.io", baseUrl: "https://api.fly.io", token: "tok", additionalHosts: "not-a-url" }))
+      customCredentialReadyToSave(blankCustomFields({ name: "example-host.io", baseUrl: "https://api.example-host.io", token: "tok", additionalHosts: "not-a-url" }))
     ).toBe(false);
   });
 
@@ -827,11 +827,11 @@ describe("customCredentialReadyToSave", () => {
 
 describe("parseAdditionalHostsInput", () => {
   it("splits on newlines, trims, and drops blank entries", () => {
-    expect(parseAdditionalHostsInput("https://api.fly.io\n\n  https://api.machines.dev  \n")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+    expect(parseAdditionalHostsInput("https://api.example-host.io\n\n  https://machines.example-host.dev  \n")).toEqual(["https://api.example-host.io", "https://machines.example-host.dev"]);
   });
 
   it("also splits on commas, so a pasted comma-separated list works the same way", () => {
-    expect(parseAdditionalHostsInput("https://api.fly.io, https://api.machines.dev")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+    expect(parseAdditionalHostsInput("https://api.example-host.io, https://machines.example-host.dev")).toEqual(["https://api.example-host.io", "https://machines.example-host.dev"]);
   });
 
   it("returns an empty array for a blank or whitespace-only field", () => {
@@ -842,11 +842,11 @@ describe("parseAdditionalHostsInput", () => {
 
 describe("invalidAdditionalHostsEntries", () => {
   it("returns an empty array when every entry is a valid http(s) URL", () => {
-    expect(invalidAdditionalHostsEntries("https://api.fly.io\nhttps://api.machines.dev")).toEqual([]);
+    expect(invalidAdditionalHostsEntries("https://api.example-host.io\nhttps://machines.example-host.dev")).toEqual([]);
   });
 
   it("returns exactly the entries that fail isValidHttpUrl, leaving valid ones out", () => {
-    expect(invalidAdditionalHostsEntries("https://api.fly.io\nnot-a-url\nftp://also-bad.example.com")).toEqual(["not-a-url", "ftp://also-bad.example.com"]);
+    expect(invalidAdditionalHostsEntries("https://api.example-host.io\nnot-a-url\nftp://also-bad.example.com")).toEqual(["not-a-url", "ftp://also-bad.example.com"]);
   });
 
   it("is empty for a blank field — this field is entirely optional", () => {
@@ -856,7 +856,7 @@ describe("invalidAdditionalHostsEntries", () => {
 
 describe("buildAdditionalHostsInput", () => {
   it("returns the parsed array when at least one entry is present", () => {
-    expect(buildAdditionalHostsInput("https://api.fly.io\nhttps://api.machines.dev")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+    expect(buildAdditionalHostsInput("https://api.example-host.io\nhttps://machines.example-host.dev")).toEqual(["https://api.example-host.io", "https://machines.example-host.dev"]);
   });
 
   it("returns undefined for a blank field, so the create/update call omits it entirely", () => {
@@ -994,10 +994,10 @@ describe("accessTokenProvidersWithSavedRows (IRON RULE: a saved credential never
 
   it("appends one bare unlisted entry per unlisted provider that has saved rows, named by its id", () => {
     const listed = accessTokenProviders(undefined);
-    const all = accessTokenProvidersWithSavedRows(listed, [row("publish", "fly"), row("publish", "fly"), row("source-control", "sourcehut")]);
+    const all = accessTokenProvidersWithSavedRows(listed, [row("publish", "example-host"), row("publish", "example-host"), row("source-control", "sourcehut")]);
     const extra = all.slice(listed.length);
     expect(extra.map((p) => [p.kind, p.providerId, p.label, p.unlisted])).toEqual([
-      ["publish", "fly", "fly", true],
+      ["publish", "example-host", "example-host", true],
       ["source-control", "sourcehut", "sourcehut", true],
     ]);
     expect(extra.every((p) => p.tokenPageUrl === "")).toBe(true);

@@ -96,7 +96,7 @@ async function buildHarness(options: HarnessOptions = {}) {
   // Seeded with a working sealer: only the handler under test sees the failing one.
   const seeded = await createCustomCredential(
     { repo, sealer: realSealer, keyring: seedKeyring, clock, idGen },
-    { workspaceId: WORKSPACE_ID, label: "fly.io", category: "ops", baseUrl: "https://api.fly.io", connection: { token: SAVED_TOKEN } }
+    { workspaceId: WORKSPACE_ID, label: "example-host.io", category: "ops", baseUrl: "https://api.example-host.io", connection: { token: SAVED_TOKEN } }
   );
 
   const keyring = options.keyring ?? seedKeyring;
@@ -181,7 +181,7 @@ function assertNowhere(label: string, haystacks: Record<string, string>, needle:
 test("set_token: a seal failure that quotes the submitted token never reaches the model, the outcome resource, or the log", async () => {
   const harness = await buildHarness({ sealer: plaintextEchoingSealer });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "example-host.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
@@ -194,7 +194,7 @@ test("set_token: the SHIPPED keyring's missing-site key text (env var name, abso
     keyring: new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: MISSING_SITE_KEY_PATH }] }, { env: () => ({ TOVU_SITE_KEY: process.env[MISSING_SITE_KEY_ENV] }) }),
   });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "example-host.io" }, { token: SUBMITTED_TOKEN });
 
   const haystacks = { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") };
   assertNowhere("set_token", haystacks, MISSING_SITE_KEY_PATH);
@@ -214,7 +214,7 @@ test("set_token: an UNLISTED failure (a raw repo error) gets the generic message
       }),
   });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "example-host.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: INTERNAL_FAILURE_MESSAGE });
@@ -235,7 +235,7 @@ test("set_token: an ALLOWLISTED failure keeps its real reason — a row deleted 
     return originalFindById(input);
   };
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "example-host.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: `no custom credential '${harness.seeded.id}' in this workspace` });

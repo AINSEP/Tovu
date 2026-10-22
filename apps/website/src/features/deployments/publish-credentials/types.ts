@@ -3,7 +3,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Domain types for named, workspace-scoped provider connections used to publish a static
- * export to GitHub Pages / Vercel / Netlify / Cloudflare Pages (`publish_credential_sets`,
+ * export to a host plugin's deploy target (`publish_credential_sets`,
  * `src/platform/db/schema.sqlite.ts`). Design: `ADS-memory/reports/external-audit/runs/
  * 2026-08-15-terra-xhigh-publish-credentials-design.md`.
  *
@@ -17,20 +17,15 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
  *
  * `PublishConnectionInput` is a CLOSED discriminated union on `providerId` — deliberately not an
  * open bag of optional fields, so a caller can never construct a connection with the wrong provider's
- * companion fields (e.g. `accountId` on a `vercel` connection) and have it silently ignored. Every
- * variant's required/optional split matches this dispatch's own verified requirements table: a bare
- * token is never enough for github-pages (needs `owner`/`repo`) or cloudflare-pages (needs
- * `accountId`, HARD required — see `store.ts`'s `validateConnection`), while vercel/netlify's
- * companion fields are genuinely optional.
+ * companion fields and have it silently ignored. Every host's required/optional split comes from
+ * its plugin's descriptor (some need more than a bare token, e.g. an owner/repo or an account id,
+ * HARD required — see `store.ts`'s `validateConnection`); other hosts' companion fields are
+ * genuinely optional. Per-host notes on which stored companion fields a deploy target actually
+ * reads live with the host plugin (`content/agent-plugins/<host>/NOTES.md`).
  *
- * `siteId` (netlify) and `projectName` (cloudflare-pages) are accepted and stored here even though,
- * as of this pass, NEITHER has anywhere to go once decrypted: Jini's own `NetlifyDeployTarget`
- * constructor (`packages/devops/src/deploy/netlify.ts`) takes only `{token}` and always
- * find-or-creates its site from the publish call's `projectName` label, and
- * `CloudflarePagesDeployTarget` (`cloudflare-pages.ts`) derives its own project name the same way
- * from that same call-time label, not from any constructor config field. Storing them anyway keeps
- * this module's contract stable for whichever side (this store, or a future Jini adapter change)
- * ships second — see `../static-publish/adapter.ts`'s header for where this gap is flagged again at
+ * A companion field is accepted and stored here even when, as of this pass, the host's deploy
+ * target has nowhere to send it once decrypted. Storing it anyway keeps this module's contract
+ * stable for whichever side (this store, or a future deploy-target change) ships second — see `../static-publish/adapter.ts`'s header for where this gap is flagged again at
  * the point it would actually matter (wiring a real publish).
  *
  * Architectural role:

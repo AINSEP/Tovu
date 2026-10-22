@@ -12,7 +12,7 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
  *
  * `publish-peer` vault CRUD — a named remote Tovu this workspace can push content to or pull it
  * from. A peer is a URL plus a sealed API key and nothing else (plan §0b: never a platform
- * identifier, so the same row works against Fly, Railway, Render, AWS or a bare VPS).
+ * identifier, so the same row works against any container host, cloud or a bare VPS).
  *
  * TWO STRICTLY SEPARATED OPERATIONS, the same discipline
  * `features/deployments/publish-credentials/store.ts` documents and for the same reason:

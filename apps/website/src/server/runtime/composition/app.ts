@@ -2069,7 +2069,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerAdminSiteShareRoutes({ app, deps: routeDeps });
   registerAdminSiteImportRoutes({ app, deps: routeDeps });
   registerAdminSiteBackupRoutes({ app, deps: routeDeps });
-  // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
+  // Deployment panel → publish to a static host: trigger + poll a one-shot static publish
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
   registerAdminConsentRoutes({ app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });

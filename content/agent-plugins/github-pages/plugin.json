@@ -10,6 +10,7 @@
       "displayName": "GitHub Pages",
       "summary": "Puts your website online on GitHub Pages. The assistant shows you a preview first.",
       "id": "tovu/github-pages",
+      "seededEnabled": true,
       "provides": [
         "deploy-target:github-pages"
       ]

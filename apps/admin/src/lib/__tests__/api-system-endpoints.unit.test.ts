@@ -317,26 +317,26 @@ test("listCustomCredentials is a bare GET at /system/custom/credentials", async 
 test("createCustomCredential omits additionalHosts from the body when the caller doesn't pass any", async () => {
   const { calls, body } = stubFetchCapturing();
   await api.createCustomCredential({
-    label: "Fly",
+    label: "Example Host",
     category: "hosting",
-    baseUrl: "https://api.fly.io",
+    baseUrl: "https://api.example-host.io",
     connection: { token: "tok" },
   });
   expect(calls[0].url).toBe(`${BASE}/system/custom/credentials`);
   expect(calls[0].init?.method).toBe("POST");
-  expect(body()).toEqual({ label: "Fly", category: "hosting", baseUrl: "https://api.fly.io", connection: { token: "tok" } });
+  expect(body()).toEqual({ label: "Example Host", category: "hosting", baseUrl: "https://api.example-host.io", connection: { token: "tok" } });
 });
 
 test("createCustomCredential includes additionalHosts when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
   await api.createCustomCredential({
-    label: "Fly",
+    label: "Example Host",
     category: "hosting",
-    baseUrl: "https://api.fly.io",
-    additionalHosts: ["api.machines.dev"],
+    baseUrl: "https://api.example-host.io",
+    additionalHosts: ["machines.example-host.dev"],
     connection: { token: "tok" },
   });
-  expect(body()).toMatchObject({ additionalHosts: ["api.machines.dev"] });
+  expect(body()).toMatchObject({ additionalHosts: ["machines.example-host.dev"] });
 });
 
 test("updateCustomCredential PUTs to /system/custom/credentials/:id, omitting username from the body when the caller doesn't pass it", async () => {

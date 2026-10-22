@@ -28,7 +28,7 @@ import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredential
  * Tier 2 is named that way — `media-provider`/`external-mcp` can each hold more
  * than one ITEM (a provider, a server), but never more than one CREDENTIAL per item, so
  * there is nothing to nest. The owner's own mock reflects this directly: "Cloudinary (media)" reads
- * at the SAME indentation as "GitHub"/"Cloudflare", not nested under a "Media provider keys" parent —
+ * at the SAME indentation as the hosting/source-control providers, not nested under a "Media provider keys" parent —
  * each configured item (or, when a store has none configured, the store itself) gets its own
  * top-level entry, heading and all. {@link OtherCredentialEntry} is that entry; it structurally
  * mirrors `ProviderGroup` (one heading, one row) with exactly zero or one row inside, never more.

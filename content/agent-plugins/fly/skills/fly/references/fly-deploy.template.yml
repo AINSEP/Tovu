@@ -1,3 +1,4 @@
+#>> !tovu-host
 # ============================================================================
 # Tovu — fly.io deploy workflow TEMPLATE.
 #
@@ -9,6 +10,12 @@
 #
 # Replace every `<<PLACEHOLDER: ...>>` before committing.
 # ============================================================================
+# ----------------------------------------------------------------------------
+# Template regions (read by scripts/render-deploy-workflow.mjs; ignore them when copying by hand):
+#   `#>> tovu-host` ... `#<< tovu-host`    Tovu's own production deploy only. Lines prefixed `#| `
+#                                         are YAML the renderer un-comments; leave them commented.
+#   `#>> !tovu-host` ... `#<< !tovu-host`  the operator version that the Tovu render drops.
+# ----------------------------------------------------------------------------
 #
 # ---------------------------------------------------------------------------
 # ONE-TIME SETUP THIS WORKFLOW CANNOT DO FOR YOU
@@ -46,40 +53,269 @@
 #    the first boot after a deploy. Do NOT add a migration step to this file.
 # ============================================================================
 
+#<< !tovu-host
+#>> tovu-host
+# ============================================================================
+# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:
+#   node content/agent-plugins/fly/scripts/render-deploy-workflow.mjs
+# from content/agent-plugins/fly/skills/fly/references/fly-deploy.template.yml (its `tovu-host`
+# blocks) and content/agent-plugins/fly/scripts/tovu-production.values.json. Edit those, re-render,
+# and commit both; content/agent-plugins/fly/scripts/__tests__ fails while they disagree.
+# ============================================================================
+# Generated config ownership and production invariants (moved from the former root fly.toml)
+# ============================================================================
+# The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu
+# CLI, so it imports that dependency-free module directly immediately before flyctl deploy.
+# Do not commit the generated root fly.toml. For a local deploy, generate it first with
+# `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific
+# env/build args; content/agent-plugins/fly/scripts/fly-build.sh only pins the build context, not these inputs.
+# @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to
+# Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,
+# including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.
+
+# ============================================================================
+# THIS IS THE DEPLOY WORKFLOW. Corrected 2026-09-02.
+#
+# This checkout deploys from origin -> github.com/AINSEP/Tovu (transferred 2026-09-23 from
+# leonaburime-ucla/Tovu; old URLs redirect). Earlier notes about a separate public mirror/private
+# working repo became stale on 2026-09-09. Plain `gh` now addresses the deploying repo.
+#
+# A previous history replacement silently overwrote mirror-only fixes: the packages/sdk build
+# step, TOVU_BUILD_SHA in Dockerfile, and both build-arg flags below. Two deploys failed before it
+# was spotted. Before another history replacement, diff MODIFIED files as well as added/deleted ones.
+# Historical notes about restructure/apps-website-phased being ahead of main are not current
+# evidence; inspect the selected ref and use the expected_sha gate for manual dispatches below.
+# ============================================================================
+#<< tovu-host
 name: Deploy to Fly.io
 
+#>> !tovu-host
 # Deploy-only, deliberately separate from any test/CI workflow. It builds and
 # deploys whatever is already on the triggering commit; it runs no tests.
 #
 # `push` fires only on the repo's DEFAULT branch. A push to any other branch
 # will not trigger this — use the `workflow_dispatch` "Run workflow" button, or
 # an API dispatch, to deploy from elsewhere.
+#<< !tovu-host
+#>> tovu-host
+# Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this
+# workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever
+# is already on the triggering branch/commit via Fly's remote builder.
+#
+# One exception, added after deploy run 34506663942 (see the `jini-published-typecheck` job
+# below): `deploy` now `needs` that one narrow, ENABLED gate — install + typecheck against the
+# @jini-ai/* versions actually on npm — so a build known to fail on registry drift never reaches
+# `flyctl deploy`. That job is a separate, independently-triggered workflow file
+# (`.github/workflows/jini-published-typecheck.yml`), not `ci.yml`.
+#
+# ============================================================================
+# One-time manual setup — this workflow cannot do any of this for you
+# ============================================================================
+#
+# 1. Repo secret: add `FLY_API_TOKEN` at
+#        Settings -> Secrets and variables -> Actions -> New repository secret
+#    Name it exactly `FLY_API_TOKEN`. Value comes from `flyctl auth token` (or the token you
+#    already have in your shell profile) — paste only the value; never commit it anywhere, and
+#    never add a step to this file that echoes/prints it.
+#
+# 2. Volume: workflow env FLY_VOLUME (generated `[[mounts]].source`) must exist before the first deploy,
+#    or the app boots with no persistent storage for site content, uploads, and themes:
+#        flyctl volumes create tovu_sites --region <region> -a tovu
+#    The name must match FLY_VOLUME exactly.
+#
+# 3. Region: FLY_REGION retains the former config's "iad". That value was originally marked
+#    unverified; confirm against `flyctl config show -a tovu` before changing it or the volume.
+#    Region, volume size and machine sizing were inferred from Dockerfile requirements, not
+#    verified infrastructure. Generation preserves those settings; it does not provision them.
+#
+# 4. App secrets — set with `flyctl secrets set -a tovu KEY=value`, never in this file or
+#    in the generated config's public `[env]` block. Verified directly against this repo's boot-gate
+#    code, not assumed:
+#      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (the renderer sets
+#        TOVU_RUNTIME_MODE=production), `production-readiness-gate.ts`'s
+#        `collectUnsafeDefaultFailures` (server/runtime/boot/production-readiness-gate.ts:77-84)
+#        refuses to boot while this is unset or still equal to the literal default "tovu-dev"
+#        (index.ts:216-232, features/identity/wiring.ts:61).
+#      - ANALYTICS_ROOT_KEY_SEED    — ALSO BOOT-BLOCKING, and NOT listed in .env.example or in
+#        deploy-config.ts's own REQUIRED_SECRETS — found by reading the gate code directly rather
+#        than trusting either of those. `index.ts:229` sets `hasDevSecretPlaceholder:
+#        !process.env.ANALYTICS_ROOT_KEY_SEED`, and `hasDevSecretPlaceholder` is one of the same
+#        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails
+#        boot on. Set it to any random value before the first production deploy, e.g.:
+#        node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+#      - TOVU_SITE_KEY — NOT boot-blocking (absent from the gate entirely — see
+#        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI
+#        assistant provider credentials, the newsletter integration) fails closed with
+#        503 SECRET_STORE_UNCONFIGURED until it's set. Strongly recommended before first real use;
+#        generate the same way as above.
+#
+# ============================================================================
+# Trigger branch
+# ============================================================================
+# Fires on push to `main` — this repo's default branch (confirmed via `gh repo view --json
+# defaultBranchRef`), not the branch this workflow was authored on
+# (`restructure/apps-website-phased`). A push to any other branch does nothing here: no run, no
+# error, no warning. `workflow_dispatch` (the "Run workflow" button on this workflow's Actions tab
+# page) is the manual escape hatch.
+#
+# How far that other branch is from `main` is deliberately NOT recorded here. It was written down
+# as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it
+# in one command and cannot go stale.
+#
+# A manual dispatch requires the full SHA the operator expects the selected branch/tag to resolve
+# to. The deploy job fails before checkout unless it exactly matches GitHub's resolved `github.sha`.
+# On 2026-09-18 an unchecked dispatch resolved `main` to a week-old commit and shipped it —
+# successfully, changing nothing visible. See ADS-memory/reports/2026-09-18-deploy-ref-gap.md.
+
+#<< tovu-host
 on:
   push:
     branches: [<<PLACEHOLDER: default branch, e.g. main>>]
+#>> !tovu-host
   workflow_dispatch: {}
+#<< !tovu-host
+#>> tovu-host
+#|   workflow_dispatch:
+#|     inputs:
+#|       expected_sha:
+#|         description: "Full commit SHA expected from the selected branch/tag; the deploy fails if it differs"
+#|         required: true
+#|         type: string
+#<< tovu-host
 
 permissions:
   contents: read
 
+#>> !tovu-host
 # One deploy at a time. Two `flyctl deploy` runs racing against a single SQLite
 # volume is a real hazard, not just wasted runner minutes.
 #
 # `cancel-in-progress: false` on purpose: a deploy cut off mid-way is worse than
 # a later push waiting its turn. Expect runs to sit in `queued` behind an active
 # deploy — that is correct behaviour, not a stuck job.
+#<< !tovu-host
+#>> tovu-host
+# One deploy at a time: two `flyctl deploy` runs racing each other against a single SQLite volume
+# is a real hazard, not just wasted minutes. Queue rather than cancel — a deploy cut off mid-way
+# is worse than a later push waiting its turn.
+#<< tovu-host
 concurrency:
+#>> !tovu-host
   group: fly-deploy-<<PLACEHOLDER: fly app name>>
+#<< !tovu-host
+#>> tovu-host
+#|   group: fly-deploy-tovu-ai-cms
+#<< tovu-host
   cancel-in-progress: false
 
+#>> tovu-host
+#| env:
+  # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,
+  # TOVU_SITE_KEY — see docker-compose.yml's own comments for
+  # what each does) go through `fly secrets set`, never in this workflow's env block
+  # or the generated [env].
+  # The app name is "tovu": the earlier "tovu-ai-cms" returned HTTP 000, while tovu returned HTTP 200.
+#|   FLY_APP: tovu
+#|   FLY_REGION: iad
+  # Persistent state: every site's content.db + WAL sidecars, uploads/,
+  # themes/, ops state — everything else in the image is disposable. A missing
+  # or misconfigured mount here is silent data loss on next deploy, not a
+  # startup error. PLACEHOLDER volume name/size — create it first with
+  # `fly volumes create tovu_sites --region <region> -a tovu` and match
+  # the name in FLY_VOLUME.
+#|   FLY_VOLUME: tovu_sites
+#|   FLY_VOLUME_MOUNT_PATH: /workspace/Tovu/sites
+#|   FLY_DOCKERFILE: Dockerfile
+  # `/readyz` exists (apps/website/src/server/inbound/public-http/routes/ops/health.ts,
+  # wired via registerReadyzRoute) and is 503 until migrations/seeding finish
+  # — a truer "actually ready" signal than `/health`, which is liveness-only.
+#|   FLY_HEALTH_CHECK_PATH: /readyz
+#|   TOVU_RUNTIME_MODE: production
+#|   PORT: "3000"
+  # The live site's folder on the `tovu_sites` volume configured above. Pinned 2026-09-26 when the repo's own
+  # site folder was renamed `sites/tovu-com` -> `sites/tovu-dev` (which also changed the code default,
+  # `DEFAULT_SITE_NAME`): the volume still holds `tovu-com/`, and without this pin the next deploy
+  # would boot an empty `tovu-dev/` next to it. To rename the live folder too, stop the machine,
+  # `mv /workspace/Tovu/sites/tovu-com /workspace/Tovu/sites/tovu-dev` on the volume, then drop this TOVU_SITE value.
+#|   TOVU_SITE: tovu-com
+  # This deployment's public origin. NOT a secret (it is the URL crawlers already see), so it
+  # belongs in this workflow's env block rather than in `fly secrets set`.
+  #
+  # Load-bearing, added 2026-09-18 — see
+  # `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`. This is the ONLY input by
+  # which a real public origin can enter the ADR-040 origin registry
+  # (`features/origin/configured-origin.ts` reads it at boot;
+  # `platform/db/sqlite/origin-repo.sqlite.ts`'s `registerConfiguredOrigin` writes it). With it
+  # unset, a production boot registers no origin at all and every public URL degrades to a
+  # relative path: `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, `canonical`, `og:url`,
+  # `og:image`, plus newsletter confirm/unsubscribe and member magic links. The sitemap protocol
+  # requires absolute `<loc>` values, so leaving this unset is a real (if safe) SEO regression.
+  #
+  # Setting it also corrects the `http://localhost:3000` row that Fly's FIRST boot durably wrote
+  # into this app's `content.db` (the bug `d21d6e7ac` patched defensively on the read side). That
+  # correction happens on the next boot after this value is in place — no migration needed.
+  #
+  # Must be an `https` URL with a non-loopback host, or it is refused with a warning in the boot
+  # log and no origin is registered. The same variable already drives OAuth callback URLs and
+  # admin deep links, deliberately reused rather than duplicated (ADR-040 names duplicated origin
+  # settings as a fracture it exists to close).
+#|   TOVU_PUBLIC_URL: https://tovu.dev
+  # Headless Chromium is OFF by default (owner decision 2026-10-08; see the Dockerfile's
+  # "Headless Chromium" block for why and what degrades without it). To opt in for browser-backed
+  # tools (page evidence, screenshots), set this TOVU_INSTALL_BROWSER value to "1" — or pass
+  # `flyctl deploy --build-arg TOVU_INSTALL_BROWSER=1` for a single deploy — and size the machine
+  # for ~150–250 MB of extra RAM per capture.
+#|   TOVU_INSTALL_BROWSER: "0"
+
+#<< tovu-host
 jobs:
+#>> tovu-host
+  # Gates the deploy below on `.github/workflows/jini-published-typecheck.yml` (a reusable
+  # workflow -- it also runs standalone on push/PR, see its own file). Added after deploy run
+  # 34506663942 shipped a green `main` past this workflow straight into a Docker build that died
+  # 6.5 minutes in on @jini-ai/* registry drift (see that workflow's header for the full story).
+  # `ci.yml` is `disabled_manually` on GitHub and not a substitute here -- it doesn't gate this
+  # workflow at all (separate trigger, separate job graph), and re-enabling the whole thing would
+  # also block deploys on its many known-red/report-only gates, not just this one narrow check.
+#|   jini-published-typecheck:
+#|     uses: ./.github/workflows/jini-published-typecheck.yml
+
+#<< tovu-host
   deploy:
+#>> tovu-host
+#|     needs: jini-published-typecheck
+#<< tovu-host
     runs-on: ubuntu-latest
     steps:
+#>> tovu-host
+#|       - name: Verify manual dispatch SHA
+#|         if: github.event_name == 'workflow_dispatch'
+#|         env:
+#|           EXPECTED_SHA: ${{ inputs.expected_sha }}
+#|           RESOLVED_SHA: ${{ github.sha }}
+#|         run: |
+#|           if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+#|             echo "::error title=Invalid expected SHA::expected_sha must be a full 40-character lowercase commit SHA"
+#|             exit 1
+#|           fi
+
+#|           if [[ "$EXPECTED_SHA" != "$RESOLVED_SHA" ]]; then
+#|             echo "::error title=Manual deploy SHA mismatch::Selected ref resolved to $RESOLVED_SHA, but the operator expected $EXPECTED_SHA. Nothing was deployed."
+#|             exit 1
+#|           fi
+
+#|           echo "Manual deploy SHA verified: $RESOLVED_SHA"
+
+#<< tovu-host
       - uses: actions/checkout@v4
+#>> tovu-host
+#|         with:
+#|           ref: ${{ github.sha }}
+#<< tovu-host
 
       - uses: superfly/flyctl-actions/setup-flyctl@v1
 
+#>> !tovu-host
       # Fly's REMOTE builder does the image build. This runner only uploads the
       # build context and polls status, so no Docker or BuildKit setup is needed
       # here.
@@ -98,6 +334,90 @@ jobs:
       #                        memory). Set it to 1 to opt in to browser-backed
       #                        tools (page evidence, screenshots); size the
       #                        machine for ~150-250 MB more RAM per capture.
+#<< !tovu-host
+#>> tovu-host
+#|       - name: Snapshot HTML before deploy
+#|         continue-on-error: true
+#|         run: node development/scripts/deploy-html-snapshot.mjs snapshot https://tovu.dev before.json
+
+#|       - uses: actions/setup-node@v4
+#|         with:
+#|           node-version: "24"
+
+#|       - name: Generate Fly config from the plugin
+#|         run: |
+#|           node --input-type=module <<'NODE'
+#|           import { writeFileSync } from "node:fs";
+#|           import fly from "./content/agent-plugins/fly/deploy-configs/fly.mjs";
+
+#|           const env = process.env;
+#|           const result = fly.render({
+#|             appName: env.FLY_APP,
+#|             port: Number(env.PORT),
+#|             dockerfilePath: env.FLY_DOCKERFILE,
+#|             volumeMountPath: env.FLY_VOLUME_MOUNT_PATH,
+#|             volumeName: env.FLY_VOLUME,
+#|             healthCheckPath: env.FLY_HEALTH_CHECK_PATH,
+#|             secrets: [], // No secret values are passed to config generation.
+#|           }, {
+#|             region: env.FLY_REGION,
+#|             env: {
+#|               TOVU_RUNTIME_MODE: env.TOVU_RUNTIME_MODE,
+#|               PORT: env.PORT,
+#|               TOVU_SITE: env.TOVU_SITE,
+#|               TOVU_PUBLIC_URL: env.TOVU_PUBLIC_URL,
+#|             },
+#|             buildArgs: { TOVU_INSTALL_BROWSER: env.TOVU_INSTALL_BROWSER },
+#|           }, {
+#|             // This runner has no host kit installed. Its app/region/volume inputs are identifiers;
+#|             // restrict that port to identifier characters rather than accepting TOML syntax.
+#|             assertNoConfigInjection: (label, value) => {
+#|               if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`Invalid ${label}`);
+#|             },
+#|             validationError: message => new Error(message),
+#|             migrationsNote: "", // Follow-up CLI notes are unused by this deploy job.
+#|           });
+#|           writeFileSync(result.filename, result.contents);
+#|           NODE
+
+      # Fly's remote builder does the actual image build; this runner just uploads the build
+      # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
+      # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
+      #   so `emit-dist-package-json.mjs` cannot read the commit itself. Without this the runtime
+      #   manifest records no provenance.
+      # TOVU_INSTALL_BROWSER in generated [build.args]: the explicit Chromium switch. 0 matches the
+      #   Dockerfile default (owner decision 2026-10-08: off by default — image size, ~150–250 MB RAM
+      #   per capture). Change it to 1 to opt in to browser-backed tools (page evidence, screenshots).
+#<< tovu-host
+#>> !tovu-host
       - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
+#<< !tovu-host
+#>> tovu-host
+#|       - run: flyctl deploy --remote-only --config fly.toml --build-arg TOVU_BUILD_SHA=${{ github.sha }}
+#<< tovu-host
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+#>> tovu-host
+
+#|       - name: Wait for site health
+#|         run: curl --fail --silent --show-error --output /dev/null --max-time 5 --retry 30 --retry-delay 5 --retry-all-errors https://tovu.dev/healthz
+
+      # The deploy has already happened; a content regression fails this job as the alert.
+#|       - name: Snapshot and compare HTML after deploy
+#|         run: |
+#|           node development/scripts/deploy-html-snapshot.mjs snapshot https://tovu.dev after.json
+#|           if [[ -f before.json ]]; then
+#|             node development/scripts/deploy-html-snapshot.mjs compare before.json after.json
+#|           else
+#|             echo "::warning::Pre-deploy snapshot unavailable; HTML comparison skipped"
+#|           fi
+
+#|       - name: Upload deploy HTML snapshots
+#|         if: always()
+#|         uses: actions/upload-artifact@v4
+#|         with:
+#|           name: deploy-html-snapshots
+#|           path: |
+#|             before.json
+#|             after.json
+#<< tovu-host

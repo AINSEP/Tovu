@@ -54,7 +54,7 @@ export const toolMetadata = {
     approval: { class: 'publish', confirmation: 'policy' },
   },
   // The report's strings for these two also had "push"; dropped, because it outranked
-    // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
+    // deployment_execute_static_publish for "push my site live to my static host" (backfill-ranking test).
   "publish_content_status": {
     search: {
       keywords: "push changes live is my site set up to publish publishing setup readiness changes live go live update live site not updating",

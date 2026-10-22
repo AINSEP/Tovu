@@ -49,8 +49,7 @@ import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
  * same kind of thing — a secret this install holds." See `ADS-memory/reports/design/
  * 2026-08-16-access-tokens-visual-spec.md`'s "OWNER RULING" section for the ruling in full.
  *
- * Tier 1 (`ACCESS_TOKEN_PROVIDERS`, `rules.ts`: GitHub Pages, Vercel, Netlify, Cloudflare Pages,
- * GitHub, GitLab, Bitbucket) still gets `[+ Add]` and multiple operator-named rows per provider — the
+ * Tier 1 (`ACCESS_TOKEN_PROVIDERS`, `rules.ts`: the hosting and source-control providers) still gets `[+ Add]` and multiple operator-named rows per provider — the
  * genuinely new capability this page adds (see `Security.tsx`'s own header for why "Create" living
  * here is not a repeat of what Static Site/Source Control already do). Tier 2
  * (`OTHER_CREDENTIAL_STORES`, `rules.ts`, rendered by `OtherCredentialsSection.tsx`) gets Replace/

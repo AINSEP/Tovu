@@ -25,43 +25,44 @@ import {
   loadBundledCredentialSchemeRegistry,
   type CredentialSchemeRule,
 } from "../auth-schemes.js";
-import { BUNDLED_FLY_PLUGIN_ROOT, loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { EXAMPLE_HOST_PLUGIN_ROOT, loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /**
  * @file `auth-schemes.ts` — self-describing token scheme rules shipped as plugin data, and the pure
  * `detectSelfDescribingAuthScheme` that applies them. Replaces the old per-vendor recognizer tests
  * (`custom-credentials/providers/__tests__/`) with the same exact semantics, run against the rules the
- * bundled `fly` plugin actually ships. Every token is SYNTHETIC, never a real credential.
+ * neutral `example-host` fixture plugin ships (shaped like the real Fly.io `FlyV1` rule, which is
+ * tested in `content/agent-plugins/fly/__tests__/credential-schemes.test.mjs`). Every token is SYNTHETIC, never a real credential.
  * End-to-end proof that `credentialed-request.ts` applies the rules lives in
  * `credentialed-request.unit.test.ts` and `auth-failure-diagnostic.unit.test.ts`.
  */
 
 // ---------------------------------------------------------------------------------------------
-// detect, against the bundled fly plugin's shipped rules
+// detect, against the example-host fixture plugin's rules
 // ---------------------------------------------------------------------------------------------
 
-test("detect: a token starting with FlyV1 splits into scheme 'FlyV1' and everything after it as the value", async () => {
-  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "FlyV1fake_test_token_value", rules: await loadBundledAuthSchemes() }), { scheme: "FlyV1", value: "fake_test_token_value" });
+test("detect: a token starting with ExampleV1 splits into scheme 'ExampleV1' and everything after it as the value", async () => {
+  assert.deepEqual(detectSelfDescribingAuthScheme({ token: "ExampleV1fake_test_token_value", rules: await loadFixtureAuthSchemes() }), { scheme: "ExampleV1", value: "fake_test_token_value" });
 });
 
-test("detect: a token that IS exactly 'FlyV1', with nothing following it, does not match — there is no credential value left to send", async () => {
-  assert.equal(detectSelfDescribingAuthScheme({ token: "FlyV1", rules: await loadBundledAuthSchemes() }), null);
+test("detect: a token that IS exactly 'ExampleV1', with nothing following it, does not match — there is no credential value left to send", async () => {
+  assert.equal(detectSelfDescribingAuthScheme({ token: "ExampleV1", rules: await loadFixtureAuthSchemes() }), null);
 });
 
-test("detect: a token that merely CONTAINS 'FlyV1' later in the string, not as a leading prefix, does not match", async () => {
-  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque_FlyV1_in_the_middle", rules: await loadBundledAuthSchemes() }), null);
+test("detect: a token that merely CONTAINS 'ExampleV1' later in the string, not as a leading prefix, does not match", async () => {
+  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque_ExampleV1_in_the_middle", rules: await loadFixtureAuthSchemes() }), null);
 });
 
 test("detect: an ordinary opaque token does not match — the overwhelming majority of tokens", async () => {
-  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque-secret-token", rules: await loadBundledAuthSchemes() }), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "opaque-secret-token", rules: await loadFixtureAuthSchemes() }), null);
 });
 
-test("detect: the match is case-sensitive — a lowercase 'flyv1' prefix does not match", async () => {
-  assert.equal(detectSelfDescribingAuthScheme({ token: "flyv1fake_test_token_value", rules: await loadBundledAuthSchemes() }), null);
+test("detect: the match is case-sensitive — a lowercase 'examplev1' prefix does not match", async () => {
+  assert.equal(detectSelfDescribingAuthScheme({ token: "examplev1fake_test_token_value", rules: await loadFixtureAuthSchemes() }), null);
 });
 
 test("detect: with no rules loaded, nothing matches", () => {
-  assert.equal(detectSelfDescribingAuthScheme({ token: "FlyV1fake_test_token_value", rules: [] }), null);
+  assert.equal(detectSelfDescribingAuthScheme({ token: "ExampleV1fake_test_token_value", rules: [] }), null);
 });
 
 test("detect: first matching rule wins, in declared order", () => {
@@ -78,12 +79,12 @@ test("detect: the scheme sent may differ from the prefix matched", () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// the bundled fly plugin's file
+// the example-host fixture plugin's file
 // ---------------------------------------------------------------------------------------------
 
-test("the bundled fly plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix", async () => {
-  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: BUNDLED_FLY_PLUGIN_ROOT });
-  assert.deepEqual(registry.rules, [{ id: "fly-io", prefix: "FlyV1", scheme: "FlyV1" }]);
+test("the example-host fixture plugin ships exactly one rule, example-host, sending ExampleV1 for an ExampleV1 prefix", async () => {
+  const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "example-host", packageRoot: EXAMPLE_HOST_PLUGIN_ROOT });
+  assert.deepEqual(registry.rules, [{ id: "example-host", prefix: "ExampleV1", scheme: "ExampleV1" }]);
   assert.deepEqual(registry.refusals, []);
 });
 

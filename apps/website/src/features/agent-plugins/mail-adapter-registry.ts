@@ -9,8 +9,8 @@ import { toJiniMailer } from "#src/platform/mail/purpose-scoped-mailer";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
- * @file Loads the mail adapters Agent Plugins contribute — the generic seam that lets a plugin (the
- * bundled `resend` one today) add a hosted mail provider without core naming one. Read by
+ * @file Loads the mail adapters Agent Plugins contribute — the generic seam that lets a plugin (a
+ * bundled mail plugin, for instance) add a hosted mail provider without core naming one. Read by
  * `server/runtime/boot/resolve-mailer.ts`.
  *
  * A plugin opts in by shipping {@link MAIL_ADAPTERS_FILENAME} at its root: a data-only list of
@@ -146,7 +146,7 @@ function parseDescriptor(entry: unknown, at: string): MailAdapterDescriptor | st
   return { id, label, module, credentialLabel };
 }
 
-/** The credential label a v2 descriptor without one uses; matches the v1 Resend label shape. */
+/** The credential label a v2 descriptor without one uses; matches the v1 bundled label shape (`Tovu Mail — <label> API`). */
 export function defaultCredentialLabel({ label }: { label: string }): string {
   return `Tovu Mail — ${label} API`;
 }

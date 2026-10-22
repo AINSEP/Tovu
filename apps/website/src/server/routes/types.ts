@@ -474,7 +474,7 @@ export interface CredentialsDeps {
    * The guarded outbound-HTTP seam (ADR-038) backing `features/custom-credentials`'s two agent
    * tools (`custom_credential_verify`/`custom_credential_make_request`,
    * `features/custom-credentials/tool-registrations.ts`) — an authenticated call through a saved
-   * custom credential (e.g. "name.com", "fly.io") to its own operator-typed `baseUrl`. A genuinely
+   * custom credential (e.g. "name.com", "my-host") to its own operator-typed `baseUrl`. A genuinely
    * separate `HttpClientPort` instance from `server/runtime/composition/deps.ts`'s own local mailer
    * client (that one is a private local, never stored on `RouteDeps`, since only
    * `createResolvedMailer` ever needed it) — this one is stored here because the new registry-style

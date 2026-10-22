@@ -28,12 +28,12 @@ const SITE_COMPLIANCE: AdminAgentPlugin = {
 /** Seeded DISABLED, so the two-row tests assert two different post-toggle values rather than one
  *  value twice — a bug that wrote every row the same way would still pass against two `true`s. */
 const OTHER_PLUGIN: AdminAgentPlugin = {
-  pluginId: "tovu-deploy-fly",
+  pluginId: "tovu-deploy-example",
   version: "1.0.0",
-  description: "Deploys a Tovu instance to fly.io.",
+  description: "Deploys a Tovu instance to example-host.io.",
   keywords: ["deploy"],
   enabled: false,
-  skills: [{ name: "tovu-deploy-fly", summary: "Deploys to fly.io." }],
+  skills: [{ name: "tovu-deploy-example", summary: "Deploys to example-host.io." }],
   mcpServerIds: [],
 };
 
@@ -74,11 +74,11 @@ describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => 
     expect([...result.current.expandedIds]).toEqual([]);
     act(() => result.current.onToggleExpanded("site-compliance"));
     expect([...result.current.expandedIds]).toEqual(["site-compliance"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-fly"));
-    expect(new Set(result.current.expandedIds)).toEqual(new Set(["site-compliance", "tovu-deploy-fly"]));
+    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
+    expect(new Set(result.current.expandedIds)).toEqual(new Set(["site-compliance", "tovu-deploy-example"]));
     act(() => result.current.onToggleExpanded("site-compliance"));
-    expect([...result.current.expandedIds]).toEqual(["tovu-deploy-fly"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-fly"));
+    expect([...result.current.expandedIds]).toEqual(["tovu-deploy-example"]);
+    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
     expect([...result.current.expandedIds]).toEqual([]);
   });
 
@@ -159,7 +159,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     });
 
     await waitFor(() => expect(result.current.togglingIds.has("site-compliance")).toBe(true));
-    expect(result.current.togglingIds.has("tovu-deploy-fly")).toBe(false);
+    expect(result.current.togglingIds.has("tovu-deploy-example")).toBe(false);
 
     await act(async () => {
       port.pendingToggles.forEach((settle) => settle());
@@ -249,7 +249,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
       for (const release of pendingReads.splice(0)) release();
     });
 
-    await waitFor(() => expect(result.current.agentPlugins?.map((plugin) => [plugin.pluginId, plugin.enabled])).toEqual([["site-compliance", true], ["tovu-deploy-fly", true]]));
+    await waitFor(() => expect(result.current.agentPlugins?.map((plugin) => [plugin.pluginId, plugin.enabled])).toEqual([["site-compliance", true], ["tovu-deploy-example", true]]));
     expect(result.current.toggleError).toBeNull();
   });
 
@@ -278,7 +278,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
 
     const byId = new Map(result.current.agentPlugins!.map((plugin) => [plugin.pluginId, plugin.enabled]));
     expect(byId.get("site-compliance")).toBe(false);
-    expect(byId.get("tovu-deploy-fly")).toBe(true);
+    expect(byId.get("tovu-deploy-example")).toBe(true);
   });
 });
 
@@ -290,7 +290,7 @@ describe("useAgentPlugins — onInstalled", () => {
 
     act(() => result.current.onInstalled({ ...SITE_COMPLIANCE, version: "1.1.0" }));
 
-    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => [plugin.pluginId, plugin.version])).toEqual([["site-compliance", "1.1.0"], ["tovu-deploy-fly", "1.0.0"]]));
+    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => [plugin.pluginId, plugin.version])).toEqual([["site-compliance", "1.1.0"], ["tovu-deploy-example", "1.0.0"]]));
   });
 
   it("a fresh install is appended after the existing rows", async () => {
@@ -300,6 +300,6 @@ describe("useAgentPlugins — onInstalled", () => {
 
     act(() => result.current.onInstalled(OTHER_PLUGIN));
 
-    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => plugin.pluginId)).toEqual(["site-compliance", "tovu-deploy-fly"]));
+    await waitFor(() => expect(result.current.agentPlugins!.map((plugin) => plugin.pluginId)).toEqual(["site-compliance", "tovu-deploy-example"]));
   });
 });

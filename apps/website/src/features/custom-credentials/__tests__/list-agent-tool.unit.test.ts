@@ -159,12 +159,12 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
   const { deps, writeDeps } = fakeRouteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     worksFor: ["vercel"],
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    additionalHosts: ["https://api.machines.dev"],
-    connection: { token: "flyio-secret-token", username: "leona" },
+    baseUrl: "https://api.example-host.io",
+    additionalHosts: ["https://machines.example-host.dev"],
+    connection: { token: "example-host-secret-token", username: "leona" },
   });
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
@@ -185,10 +185,10 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
         id: "cred-1",
         credentialType: "custom",
         worksFor: ["vercel"],
-        label: "fly.io",
+        label: "example-host.io",
         category: "ops",
-        baseUrl: "https://api.fly.io",
-        additionalHosts: ["https://api.machines.dev"],
+        baseUrl: "https://api.example-host.io",
+        additionalHosts: ["https://machines.example-host.dev"],
         username: "leona",
         configured: true,
         createdAt: NOW,
@@ -238,18 +238,18 @@ test("never exposes the secret value: neither field name nor its plaintext value
   const { deps, sealer, writeDeps } = fakeRouteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     worksFor: ["vercel"],
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "super-secret-flyio-token-do-not-leak", username: "leona" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "super-secret-example-host-token-do-not-leak", username: "leona" },
   });
   sealer.sealCalls = 0; // ignore the seed's own seal call — only the LIST call is under test below
 
   const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID));
   const serialized = JSON.stringify(result);
 
-  assert.ok(!serialized.includes("super-secret-flyio-token-do-not-leak"), "the raw token must never appear in the output");
+  assert.ok(!serialized.includes("super-secret-example-host-token-do-not-leak"), "the raw token must never appear in the output");
   assert.ok(!/token|sealed|connection/i.test(serialized), "no field even NAMED like a secret carrier should appear in the output");
   assert.equal(sealer.openCalls, 0, "listing must never decrypt a single row");
   assert.equal(sealer.sealCalls, 0, "listing must never seal anything either");
@@ -265,11 +265,11 @@ test("reports a saved username without ever opening the sealer", async () => {
   const { deps, sealer, writeDeps } = fakeRouteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     worksFor: ["vercel"],
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "flyio-secret-token", username: "leona@example.com" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "example-host-secret-token", username: "leona@example.com" },
   });
 
   // Any decrypt attempt from here on is a hard failure, not a slow path.
@@ -306,11 +306,11 @@ test("a denied principal is refused and the repo is never read", async (t) => {
   const { deps, repo, sealer, writeDeps, authorizeCalls } = fakeRouteDeps({ allow: false });
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     worksFor: ["vercel"],
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    connection: { token: "flyio-secret-token" },
+    baseUrl: "https://api.example-host.io",
+    connection: { token: "example-host-secret-token" },
   });
 
   const list = t.mock.method(repo, "listByWorkspace", () => { throw new Error("denied call read the repo"); });
@@ -346,12 +346,12 @@ async function listOneFullRow(): Promise<Record<string, unknown>> {
   const { deps, writeDeps } = fakeRouteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
-    label: "fly.io",
+    label: "example-host.io",
     worksFor: ["vercel"],
     category: "ops",
-    baseUrl: "https://api.fly.io",
-    additionalHosts: ["https://api.machines.dev"],
-    connection: { token: "flyio-secret-token", username: "leona" },
+    baseUrl: "https://api.example-host.io",
+    additionalHosts: ["https://machines.example-host.dev"],
+    connection: { token: "example-host-secret-token", username: "leona" },
   });
   const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: Record<string, unknown>[] };
   assert.equal(result.credentials.length, 1);
@@ -387,8 +387,8 @@ test("the description never denies returning a field a listed row actually carri
 
 test("make_request's url description points the model at this tool for a credential's hosts, and this tool really returns them", async () => {
   const row = await listOneFullRow();
-  assert.equal(row.baseUrl, "https://api.fly.io");
-  assert.deepEqual(row.additionalHosts, ["https://api.machines.dev"]);
+  assert.equal(row.baseUrl, "https://api.example-host.io");
+  assert.deepEqual(row.additionalHosts, ["https://machines.example-host.dev"]);
 
   const schema = catalogEntry("custom_credential_make_request").inputSchema as { properties: { url: { description: string } } };
   const urlDescription = schema.properties.url.description;
@@ -400,7 +400,7 @@ test("make_request's url description points the model at this tool for a credent
 
 test("discovery exposes explicit worksFor independently of the label", async () => {
   const row = await listOneFullRow();
-  assert.equal(row.label, "fly.io");
+  assert.equal(row.label, "example-host.io");
   assert.equal(row.credentialType, "custom");
   assert.deepEqual(row.worksFor, ["vercel"]);
 });

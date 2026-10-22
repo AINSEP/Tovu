@@ -41,7 +41,7 @@ function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
   };
 }
 
-/** The per-target provider fields (github-pages' repo location, a provider's own deploy id), each
+/** The per-target provider fields (a git-backed target's repo location, a provider's own deploy id), each
  * present only when its column is non-NULL — absent keys, never present-but-`undefined` ones.
  * @complexity O(1). */
 function providerFields(

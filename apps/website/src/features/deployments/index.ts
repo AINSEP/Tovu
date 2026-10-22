@@ -58,7 +58,7 @@ export {
 
 // `buildDeploymentDescriptor` + the generator port back `tovu deploy config --target <id>`
 // (`cli/commands/deploy-config.ts`). The platform generators themselves are plugin modules (the
-// bundled `fly`, `render` and `railway` plugins' `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see
+// bundled hosting plugins' `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see
 // `deploy-config.ts`'s own header for why this is one descriptor and thin generators.
 export {
   buildDeploymentDescriptor,

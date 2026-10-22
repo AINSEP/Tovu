@@ -18,7 +18,7 @@ import type { BlobStorePort } from "@jini-ai/cms/media";
  * shipped the BYTES those rows' `storage_key`s point at: the Dockerfile's build stage previously
  * extracted only `content.seed.db` before `RUN rm -rf sites` wiped the whole `sites/` tree (which
  * is where `uploads/` — and therefore every blob's bytes — actually lives). Confirmed live on
- * `tovu.fly.dev/admin/media`: real `media`/`asset_blobs` rows, zero corresponding files, every
+ * the hosted production site's `/admin/media`: real `media`/`asset_blobs` rows, zero corresponding files, every
  * preview 500s and falls back to the placeholder icon. This function is the missing other half —
  * same "read-only stock source shipped in the image, copied into the site's own mutable copy"
  * shape `seedSiteThemes()` and `hydrateContentDbFromSeed()` already use for `themes/` and

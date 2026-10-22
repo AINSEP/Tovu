@@ -44,10 +44,10 @@ function refusalMessage(reason: string, value: string): string {
 }
 
 test("resolveConfiguredOrigin: a valid public https URL yields a workspace-setting VerifiedOrigin", () => {
-  const { origin, warnings } = resolve("https://tovu.fly.dev");
+  const { origin, warnings } = resolve("https://tovu.example-host.dev");
   const expected: VerifiedOrigin = {
     scheme: "https",
-    host: "tovu.fly.dev",
+    host: "tovu.example-host.dev",
     verifiedAt: NOW,
     source: "workspace-setting",
   };
@@ -60,7 +60,7 @@ test("resolveConfiguredOrigin: a valid public https URL yields a workspace-setti
 // `origin-repo.sqlite.ts`'s `toVerifiedOrigin` is built around. Pinned so a later refactor to
 // `port: url.port ? Number(url.port) : undefined` cannot slip through.
 test("resolveConfiguredOrigin: omits the port and basePath keys entirely when the URL has neither", () => {
-  const { origin } = resolve("https://tovu.fly.dev/");
+  const { origin } = resolve("https://tovu.example-host.dev/");
   assert.deepStrictEqual(Object.keys(origin ?? {}).sort(), ["host", "scheme", "source", "verifiedAt"]);
 });
 
@@ -75,7 +75,7 @@ test("resolveConfiguredOrigin: keeps a basePath and strips its trailing slash", 
 });
 
 test("resolveConfiguredOrigin: lower-cases the host and strips a single trailing dot", () => {
-  assert.equal(resolve("https://Tovu.Fly.Dev./").origin?.host, "tovu.fly.dev");
+  assert.equal(resolve("https://Tovu.Example-Host.Dev./").origin?.host, "tovu.example-host.dev");
 });
 
 test("resolveConfiguredOrigin: an unset TOVU_PUBLIC_URL yields undefined and warns nothing", () => {
@@ -100,47 +100,47 @@ test("resolveConfiguredOrigin: an unparseable value is refused with the exact wa
 // (`hasForbiddenRawUrlCharacter`), applied before the WHATWG parser can silently normalize a
 // backslash into a slash.
 test("resolveConfiguredOrigin: a backslash in the raw value is refused with the exact warning", () => {
-  const { origin, warnings } = resolve("https:/\\tovu.fly.dev");
+  const { origin, warnings } = resolve("https:/\\tovu.example-host.dev");
   assert.equal(origin, undefined);
-  assert.deepEqual(warnings, [refusalMessage("it is not a parseable URL", "https:/\\tovu.fly.dev")]);
+  assert.deepEqual(warnings, [refusalMessage("it is not a parseable URL", "https:/\\tovu.example-host.dev")]);
 });
 
 // ADR-040 Round-3 fold amendment 1: `scheme: "http"` is legal ONLY for `source: "dev-capability"`,
 // and `createVerifiedOrigin` THROWS on the combination. Refusing here is what keeps that throw off
 // the boot path.
 test("resolveConfiguredOrigin: an http URL is refused with the exact warning (ADR-040 https-only)", () => {
-  const { origin, warnings } = resolve("http://tovu.fly.dev");
+  const { origin, warnings } = resolve("http://tovu.example-host.dev");
   assert.equal(origin, undefined);
-  assert.deepEqual(warnings, [refusalMessage("its scheme must be https", "http://tovu.fly.dev")]);
+  assert.deepEqual(warnings, [refusalMessage("its scheme must be https", "http://tovu.example-host.dev")]);
 });
 
 test("resolveConfiguredOrigin: a non-http(s) scheme is refused with the exact warning", () => {
-  const { origin, warnings } = resolve("ftp://tovu.fly.dev");
+  const { origin, warnings } = resolve("ftp://tovu.example-host.dev");
   assert.equal(origin, undefined);
-  assert.deepEqual(warnings, [refusalMessage("its scheme must be https", "ftp://tovu.fly.dev")]);
+  assert.deepEqual(warnings, [refusalMessage("its scheme must be https", "ftp://tovu.example-host.dev")]);
 });
 
 test("resolveConfiguredOrigin: a userinfo component is refused with the exact warning", () => {
-  const { origin, warnings } = resolve("https://user:pw@tovu.fly.dev");
+  const { origin, warnings } = resolve("https://user:pw@tovu.example-host.dev");
   assert.equal(origin, undefined);
   assert.deepEqual(warnings, [
-    refusalMessage("it carries a userinfo component", "https://user:pw@tovu.fly.dev"),
+    refusalMessage("it carries a userinfo component", "https://user:pw@tovu.example-host.dev"),
   ]);
 });
 
 test("resolveConfiguredOrigin: a query string is refused with the exact warning", () => {
-  const { origin, warnings } = resolve("https://tovu.fly.dev/?a=1");
+  const { origin, warnings } = resolve("https://tovu.example-host.dev/?a=1");
   assert.equal(origin, undefined);
   assert.deepEqual(warnings, [
-    refusalMessage("it carries a query string or fragment", "https://tovu.fly.dev/?a=1"),
+    refusalMessage("it carries a query string or fragment", "https://tovu.example-host.dev/?a=1"),
   ]);
 });
 
 test("resolveConfiguredOrigin: a fragment is refused with the exact warning", () => {
-  const { origin, warnings } = resolve("https://tovu.fly.dev/#x");
+  const { origin, warnings } = resolve("https://tovu.example-host.dev/#x");
   assert.equal(origin, undefined);
   assert.deepEqual(warnings, [
-    refusalMessage("it carries a query string or fragment", "https://tovu.fly.dev/#x"),
+    refusalMessage("it carries a query string or fragment", "https://tovu.example-host.dev/#x"),
   ]);
 });
 
@@ -169,7 +169,7 @@ test("resolveConfiguredOrigin: every loopback identity is refused", () => {
 });
 
 test("resolveConfiguredOrigin: never throws, whatever the configured value is", () => {
-  for (const value of ["", "://", "https://", "https:", "\u0000", "javascript:alert(1)", "//tovu.fly.dev", "https://tovu.fly.dev\n"]) {
+  for (const value of ["", "://", "https://", "https:", "\u0000", "javascript:alert(1)", "//tovu.example-host.dev", "https://tovu.example-host.dev\n"]) {
     assert.doesNotThrow(() => resolveConfiguredOrigin({ now: NOW }, { env: { TOVU_PUBLIC_URL: value }, warn: () => {} }), `threw on ${JSON.stringify(value)}`);
   }
 });
@@ -193,14 +193,14 @@ function plan(value: string | undefined, mode: "production" | "local") {
 }
 
 test("planOriginBoot: a configured public origin is registered, in production", () => {
-  const { result, warnings } = plan("https://tovu.fly.dev", "production");
+  const { result, warnings } = plan("https://tovu.example-host.dev", "production");
   assert.equal(result.kind, "configured");
-  assert.equal(result.kind === "configured" ? result.origin.host : undefined, "tovu.fly.dev");
+  assert.equal(result.kind === "configured" ? result.origin.host : undefined, "tovu.example-host.dev");
   assert.deepEqual(warnings, []);
 });
 
 test("planOriginBoot: a configured public origin is registered in local mode too -- how an operator tests prod-shaped absolute URLs locally", () => {
-  assert.equal(plan("https://tovu.fly.dev", "local").result.kind, "configured");
+  assert.equal(plan("https://tovu.example-host.dev", "local").result.kind, "configured");
 });
 
 test("planOriginBoot: no configured origin in local mode falls through to the dev-capability seed (unchanged dev behavior)", () => {

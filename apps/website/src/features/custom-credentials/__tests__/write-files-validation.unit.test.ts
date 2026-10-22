@@ -15,12 +15,12 @@ import { normalizeWriteFilePath, validateRepositoryTarget, validateWriteFilesInp
  * check moved to the github plugin's declared `workflowPaths` (`provider-registry.unit.test.ts`).
  */
 
-const VALID = { branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
+const VALID = { branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] };
 const github = await githubValidateTarget();
 
 test("a well-formed call validates and normalizes cleanly", () => {
   const result = validateWriteFilesInput(VALID);
-  assert.deepEqual(result, { branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] });
+  assert.deepEqual(result, { branch: "main", commitMessage: "deploy", files: [{ path: "example-host.toml", content: "app = 'demo'" }] });
   assert.deepEqual(validateRepositoryTarget({ owner: "octo", repo: "demo" }, github), { owner: "octo", repo: "demo" });
 });
 
@@ -75,8 +75,8 @@ test("rejects an invalid branch", () => {
 });
 
 test("accepts a branch name containing slashes", () => {
-  const result = validateWriteFilesInput({ ...VALID, branch: "feature/deploy-fly" });
-  assert.equal(result.branch, "feature/deploy-fly");
+  const result = validateWriteFilesInput({ ...VALID, branch: "feature/deploy-example-host" });
+  assert.equal(result.branch, "feature/deploy-example-host");
 });
 
 test("rejects an empty or oversized commitMessage", () => {
@@ -100,7 +100,7 @@ test("rejects a '..' traversal segment", () => {
 });
 
 test("rejects a NUL byte", () => {
-  assert.throws(() => normalizeWriteFilePath("fly.toml\0.png"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath("example-host.toml\0.png"), CustomCredentialValidationError);
 });
 
 test("rejects a path over the length cap", () => {
@@ -122,12 +122,12 @@ test("rejects a path naming or nesting under the reserved '.git' directory, case
 });
 
 test("normalizes backslashes and a leading './' the same way package-paths.ts's lexical rules do", () => {
-  assert.equal(normalizeWriteFilePath("./fly.toml"), "fly.toml");
+  assert.equal(normalizeWriteFilePath("./example-host.toml"), "example-host.toml");
   assert.equal(normalizeWriteFilePath("sub\\dir\\file.txt"), "sub/dir/file.txt");
 });
 
 test("a normal nested path is accepted unchanged", () => {
-  assert.equal(normalizeWriteFilePath(".github/workflows/fly-deploy.yml"), ".github/workflows/fly-deploy.yml");
+  assert.equal(normalizeWriteFilePath(".github/workflows/example-host-deploy.yml"), ".github/workflows/example-host-deploy.yml");
 });
 
 // ---------------------------------------------------------------------------
@@ -162,8 +162,8 @@ test("rejects files that individually pass the per-file cap but exceed the aggre
 
 test("rejects a duplicate path within the same call, even when spelled differently before normalization", () => {
   const files = [
-    { path: "./fly.toml", content: "a" },
-    { path: "fly.toml", content: "b" },
+    { path: "./example-host.toml", content: "a" },
+    { path: "example-host.toml", content: "b" },
   ];
   assert.throws(() => validateWriteFilesInput({ ...VALID, files }), CustomCredentialValidationError);
 });

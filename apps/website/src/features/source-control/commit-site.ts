@@ -26,8 +26,8 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  * `{path, data}` shape {@link SourceControlCommitAdapter.commit} takes, and hands that off. It does no GitHub
  * HTTP itself — that lives in the plugin's provider module, injected here as {@link CommitSiteDeps.gitAdapter}.
  *
- * No base path: unlike `static-publish/adapter.ts`'s `computeBasePath` (needed because a GitHub Pages
- * PROJECT site serves from `/<repo>`), a source-control commit is not a hosted site at all — nothing
+ * No base path: unlike `static-publish/adapter.ts`'s `computeBasePath` (needed because a host
+ * may serve a project site from `/<repo>`), a source-control commit is not a hosted site at all — nothing
  * here ever calls `exportSite` with a `basePath`, regardless of provider.
  *
  * Repo root only: this pass commits at the target repository's root, matching every static-publish

@@ -68,7 +68,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (provider unreachable at save time), or one saved before this wiring existed at all, stayed
  * `account_label: null` forever unless a human found and clicked the per-row `POST .../:id/verify`
  * action — the reported bug: the assistant's `deployment_get_static_publish_capabilities` tool had no
- * account to default a github-pages publish's `owner` to, and correctly refused to guess one, but a
+ * account to default a repository-backed publish's `owner` to, and correctly refused to guess one, but a
  * non-technical owner had no reason to know a "Verify" button existed to fix it. `GET` below now also
  * calls {@link accountLabelHealScheduler}`.triggerFor` after every list read, for any row this list
  * call itself found still `null` on a provider that can ever yield a label
@@ -183,7 +183,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *
    *  Also heals `account_label` (`store.ts`'s `healAccountLabel`) whenever the result carries one —
    *  see this file's own header. Deliberately checked via `result.accountLabel !== undefined` rather
-   *  than truthiness: an empty string is not a real GitHub login/Vercel username (`verify.ts`'s own
+   *  than truthiness: an empty string is not a real account login/username (`verify.ts`'s own
    *  extractors never produce one — see their doc comments), but the distinction is cheap to keep
    *  exact rather than relying on that invariant holding forever. The heal is fire-and-forget from
    *  this function's own caller's point of view (awaited here, but its failure must not turn a
