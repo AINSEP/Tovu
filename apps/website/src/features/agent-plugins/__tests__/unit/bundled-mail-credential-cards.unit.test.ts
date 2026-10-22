@@ -61,8 +61,9 @@ for (const { pluginId, packageRoot } of packages) {
     if (existsSync(path.join(packageRoot, 'tovu-search-providers.json'))) {
       const providers = await loadSearchProviderContributionsFromSource({ pluginId, packageRoot });
       assert.deepEqual(providers.refusals, []);
-      for (const provider of providers.items) if (provider.module.credentialKeys.length > 0) {
-        assert.ok(parsed.descriptors.some(card => card.providerId === provider.descriptor.id && card.saveKind === 'api'), `${pluginId}: keyed search provider needs a card`);
+      // Published Jini shape: each item carries its definition ({ id, provider }), not module/descriptor.
+      for (const { definition } of providers.items) if ((definition.provider.credentialKeys ?? []).length > 0) {
+        assert.ok(parsed.descriptors.some(card => card.providerId === definition.id && card.saveKind === 'api'), `${pluginId}: keyed search provider needs a card`);
       }
     }
     for (const filename of ['tovu-deploy-ops.json', 'tovu-credential-schemes.json']) {
