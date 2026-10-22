@@ -12,7 +12,7 @@ import {
   readFieldValues,
   renderEmailTemplateForSend,
   type EmailTemplateDeps,
-} from "#src/features/email-templates/operations";
+} from "#src/features/email-templates/index";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
