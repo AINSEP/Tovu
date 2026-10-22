@@ -15,3 +15,5 @@ behaviours generically; the vendor detail lives here.
   say (core `withSecurityMeta`). Its 404 convention is `404.html` at the output root.
 - **Deploy poll.** A publish blocks on the Pages build poll (up to about a minute), which is why the
   admin publish route is trigger+status.
+- **Default branch.** An omitted `config.branch` publishes to `gh-pages`; core's `publish_history.branch`
+  column records the branch actually used.

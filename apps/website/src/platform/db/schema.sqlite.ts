@@ -1726,15 +1726,14 @@ export const agentToolAttempts = sqliteTable(
  * `redirectRevisions.seq` needs one per `redirect_id`, since nothing else in this feature ever
  * references a specific publish-history row by number).
  *
- * `owner`/`repo`/`branch`/`commit_sha` are populated for `github-pages` only — every other target
- * leaves them NULL, the same per-target-optional shape `publishCredentialSets`' sibling
+ * `owner`/`repo`/`branch`/`commit_sha` are populated only for a git-backed target — every other
+ * target leaves them NULL, the same per-target-optional shape `publishCredentialSets`' sibling
  * `StaticPublishConfig` already uses for `owner`/`repo`. `commit_sha` specifically: NOT a
  * caller-supplied value — `static-publish/publish-run.ts`'s `toHistoryEntry` reads it off
- * `StaticPublishOutcome.deploymentId`, which is genuinely a commit SHA ONLY for `github-pages`
- * (verified directly against `@jini-ai/devops`'s `github-pages.ts`: `deploymentId: commitSha` on
- * its `publish()` return — the ONLY target whose `deploymentId` means "a git commit"; Vercel's is a
- * Vercel deployment id, Netlify's a deploy id, Cloudflare Pages' a deployment id, and s3-compatible
- * has no `deploymentId` at all). Never populated for any other target, so this column is honestly
+ * `StaticPublishOutcome.deploymentId`, which is genuinely a commit SHA ONLY for a git-backed
+ * target (its deploy target returns `deploymentId: commitSha`; other hosts return their own deploy
+ * id, and an object-store upload has no `deploymentId` at all — per-host detail in each host
+ * plugin's `NOTES.md`). Never populated for any other target, so this column is honestly
  * NULL rather than a field that quietly always reads null everywhere.
  *
  * `triggered_by` records WHICH of this feature's two entry points produced the row —
@@ -1752,7 +1751,7 @@ export const publishHistory = sqliteTable(
     /** `StaticPublishTargetId` — a deploy target id contributed by a host plugin. */
     target: text("target").notNull(),
     url: text("url").notNull(),
-    /** `false` only for the s3-compatible "uploaded, not yet confirmed reachable" partial outcome
+    /** `false` only for an object-store "uploaded, not yet confirmed reachable" partial outcome
      *  — see this table's own doc and `PublishHistoryEntry`'s doc in `publish-history.ts` for why a
      *  fully failed (`ok: false`) publish is never a row here at all, so this is never "the publish
      *  failed". */
@@ -1766,16 +1765,15 @@ export const publishHistory = sqliteTable(
     owner: text("owner"),
     repo: text("repo"),
     basePath: text("base_path"),
-    /** The provider's own opaque identifier for this publish (a Vercel/Netlify/Cloudflare deploy
-     *  id, or — for github-pages — the commit sha, same value as `commit_sha` below for that one
+    /** The provider's own opaque identifier for this publish (a host's deploy
+     *  id, or — for a git-backed target — the commit sha, same value as `commit_sha` below for that
      *  target). `StaticPublishOutcome.deploymentId`, verbatim. */
     deploymentId: text("deployment_id"),
-    /** github-pages only — see this table's own doc for why this is a genuine, verified value and
+    /** Git-backed targets only — see this table's own doc for why this is a genuine, verified value and
      *  not a column that is always null. */
     commitSha: text("commit_sha"),
-    /** github-pages only — the branch actually published to, defaulted to `'gh-pages'` the same
-     *  way `GitHubPagesDeployTarget` itself defaults an omitted `config.branch` (`types.ts`'s
-     *  `GitHubPagesPublishConfig` doc). */
+    /** Git-backed targets only — the branch actually published to, defaulted the same way the
+     *  target itself defaults an omitted `config.branch` (see the host plugin's `NOTES.md`). */
     branch: text("branch"),
     /** `'admin_ui' | 'agent_tool'` — see this table's own doc. */
     triggeredBy: text("triggered_by").notNull(),
