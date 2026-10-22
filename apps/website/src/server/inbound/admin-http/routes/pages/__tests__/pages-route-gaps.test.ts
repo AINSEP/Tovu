@@ -198,6 +198,71 @@ test("pages create: a change-set persistence failure is reported as an opaque 50
   assert.deepEqual(await res.json(), { error: "internal error" });
 });
 
+test("pages create: a denied content.write is 403 FORBIDDEN carrying the permission and reason, and no page is stored", async (t) => {
+  const { app, deps } = buildApp();
+  deps.authorize = async () => ({ allowed: false, reason: "no-grant" });
+  const baseUrl = await startTestServer(app, t);
+  const ids: string[] = [];
+  const newId = deps.idGen.newId.bind(deps.idGen);
+  deps.idGen.newId = () => {
+    const id = newId();
+    ids.push(id);
+    return id;
+  };
+  const res = await fetch(`${baseUrl}${PAGES}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Denied Page" }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "content.write", reason: "no-grant" });
+  assert.equal(await deps.postRepo.findById({ workspaceId: WS, id: ids[0] }), null);
+});
+
+test("pages create: an unknown status is 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${PAGES}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Bad Status", status: "not-a-status" }),
+  });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("pages create: reusing an existing page's slug is 409 SLUG_CONFLICT", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const post = (body: unknown) =>
+    fetch(`${baseUrl}${PAGES}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const first = await post({ title: "Slug Owner", slug: "taken-page-slug" });
+  assert.equal(first.status, 201, await first.clone().text());
+  const second = await post({ title: "Slug Thief", slug: "taken-page-slug" });
+  assert.equal(second.status, 409);
+  assert.equal(((await second.json()) as { code: string }).code, "SLUG_CONFLICT");
+});
+
+test("pages create: replaying an Idempotency-Key is 409 DUPLICATE_COMMAND naming the first change set", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const request = {
+    method: "POST" as const,
+    headers: { "content-type": "application/json", "Idempotency-Key": "page-create-replay" },
+    body: JSON.stringify({ title: "Created Once" }),
+  };
+  const first = await fetch(`${baseUrl}${PAGES}`, request);
+  assert.equal(first.status, 201, await first.clone().text());
+  const second = await fetch(`${baseUrl}${PAGES}`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.equal(typeof body.changeSetId, "string");
+  assert.ok(body.changeSetId.length > 0);
+});
+
 test("pages update: a hand-built request with no body falls back to blank title/slug and is a 400 VALIDATION_ERROR that changes nothing", async (t) => {
   const { app, deps } = buildApp();
   const baseUrl = await startTestServer(app, t);
