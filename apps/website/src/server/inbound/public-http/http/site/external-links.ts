@@ -32,7 +32,9 @@ const ABSOLUTE_HTTP_HREF = /^https?:\/\//i;
 function readAttrValue(tag: string, attrName: string): string | undefined {
   const match = new RegExp(`[\\s"']${attrName}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(` ${tag}`);
   if (!match) return undefined;
-  return match[2] ?? match[3] ?? "";
+  // The pattern's `"…"|'…'` alternation guarantees exactly one of groups 2/3 participated in the
+  // match (an empty value is "" , never undefined), so there is no third, neither-quoted case.
+  return match[2] ?? (match[3] as string);
 }
 
 /** `true` when the tag already carries a `target` attribute at all — the author's own explicit

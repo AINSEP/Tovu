@@ -83,3 +83,13 @@ test("a rejected reload() is reported as a real failure — never a silent 200 �
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { ok: false, error: "federation reload failed" });
 });
+
+test("a reload() that rejects with a non-Error value is still a visible 500 and logs the stringified reason", async (t) => {
+  const logged: string[] = [];
+  t.mock.method(console, "error", (line: string) => { logged.push(line); });
+  const baseUrl = await startTestServer(buildApp(async () => { throw "roster lock busy"; }), t);
+  const res = await postReload(baseUrl, { authorization: `Bearer ${TOKEN}` });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { ok: false, error: "federation reload failed" });
+  assert.deepEqual(logged, ["[agent-daemon] mcp-federation: reload failed — roster lock busy"]);
+});
