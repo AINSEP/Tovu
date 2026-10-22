@@ -9,7 +9,7 @@ import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/rep
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { MAX_MODULE_SLEEP_MS, runDeploy, runDeployOps, waitForDeployOps } from "../run-ops.js";
 import type { DeployOpsContext, DeployOpsStatus } from "../types.js";
-import { fixture } from "./ops-fixture.js";
+import { fixture } from "./example-ops-fixture.js";
 
 /**
  * The bound context a module receives (fail, sleep, get/send failure mapping, cancellation at each
@@ -24,7 +24,7 @@ const healthy = (summary = "ok"): DeployOpsStatus => ({ platform: "scripted", ta
 async function scripted(script: Script, run: (deps: ReturnType<typeof withRegistry>) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-run-ops-contract-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.machines.dev"] }] }));
+    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
     await writeFile(path.join(root, "ops.mjs"), MODULE);
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "scripted", packageRoot: root });
     assert.deepEqual(registry.refusals, []);
@@ -71,15 +71,15 @@ test("ctx.sleep on the system clock resolves, and rejects when its signal aborts
 
 test("transport failures are named per method; a credential removed after binding is reported as changed", async () => {
   await scripted(async ctx => {
-    await assert.rejects(ctx.get("https://api.machines.dev/v1/apps"), (error: Error) => error.name === "ToolInputError" && error.message.startsWith("Could not reach deployment ops host 'api.machines.dev' using credential 'ops'."));
-    await assert.rejects(ctx.send({ method: "POST", url: "https://api.machines.dev/v1/apps", body: { a: 1 } }), (error: Error) => error.name === "ToolInputError" && error.message.startsWith("Lost the connection to deployment ops host 'api.machines.dev' during a POST"));
+    await assert.rejects(ctx.get("https://api.example-host.dev/v1/targets"), (error: Error) => error.name === "ToolInputError" && error.message.startsWith("Could not reach deployment ops host 'api.example-host.dev' using credential 'ops'."));
+    await assert.rejects(ctx.send({ method: "POST", url: "https://api.example-host.dev/v1/targets", body: { a: 1 } }), (error: Error) => error.name === "ToolInputError" && error.message.startsWith("Lost the connection to deployment ops host 'api.example-host.dev' during a POST"));
     return healthy();
   }, async deps => {
     const broken = { ...deps, deployOpsHttpClient: { send: async (): Promise<never> => { throw new Error("socket hang up"); } } };
     assert.deepEqual(await runDeployOps(broken as never, input, "status"), healthy());
   });
   let removed = false;
-  await scripted(async ctx => { removed = true; return ctx.get("https://api.machines.dev/v1/apps"); }, async deps => {
+  await scripted(async ctx => { removed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     const empty = new InMemoryCustomCredentialSetRepo();
     // The URL binding still sees the row; it is gone by the time the request itself opens it.
     let readsAfterArming = 0;
@@ -88,15 +88,15 @@ test("transport failures are named per method; a credential removed after bindin
       const value = Reflect.get(source, key);
       return typeof value === "function" ? value.bind(source) : value;
     } }) };
-    await assert.rejects(runDeployOps(changing as never, { ...input, credentialLabel: "ops" }, "status"), (error: Error) => error.name === "ToolInputError" && /^Credential 'ops' changed or no longer allows host 'api.machines.dev'\./.test(error.message));
+    await assert.rejects(runDeployOps(changing as never, { ...input, credentialLabel: "ops" }, "status"), (error: Error) => error.name === "ToolInputError" && /^Credential 'ops' changed or no longer allows host 'api.example-host.dev'\./.test(error.message));
   });
 });
 
 test("a request fault the host does not classify (a row this site's sealer cannot open) passes through unchanged and sends nothing", async () => {
   // Another fixture's repo holds a same-labeled row sealed under a different key.
-  const moved = (await fixture(["ops"], "https://elsewhere.example", [])).deps.customCredentialSetRepo;
+  const moved = (await fixture({ labels: ["ops"], host: "https://elsewhere.example", additionalHosts: [] })).deps.customCredentialSetRepo;
   let armed = false;
-  await scripted(async ctx => { armed = true; return ctx.get("https://api.machines.dev/v1/apps"); }, async deps => {
+  await scripted(async ctx => { armed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     let readsAfterArming = 0;
     const sent: unknown[] = [];
     const changing = { ...deps,
@@ -113,7 +113,7 @@ test("a request fault the host does not classify (a row this site's sealer canno
 
 test("cancellation is checked before each request and again after the response; no audit port is required", async () => {
   const controller = new AbortController();
-  await scripted(async ctx => { controller.abort(); return ctx.get("https://api.machines.dev/v1/apps"); }, async deps => {
+  await scripted(async ctx => { controller.abort(); return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     const sent: string[] = [];
     const counted = { ...deps, deployOpsHttpClient: { send: async (request: { url: string }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "[]" }; } } };
     await assert.rejects(runDeployOps(counted as never, input, "status", controller.signal), { message: "Deployment ops wait was aborted." });
@@ -121,7 +121,7 @@ test("cancellation is checked before each request and again after the response; 
   });
   const binding = new AbortController();
   let armed = false;
-  await scripted(async ctx => { armed = true; return ctx.get("https://api.machines.dev/v1/apps"); }, async deps => {
+  await scripted(async ctx => { armed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     const sent: string[] = [];
     const aborting = { ...deps, customCredentialSetRepo: switchingRepo(deps.customCredentialSetRepo, () => { if (armed) binding.abort(); return undefined; }),
       deployOpsHttpClient: { send: async (request: { url: string }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "[]" }; } } };
@@ -133,14 +133,14 @@ test("cancellation is checked before each request and again after the response; 
     await assert.rejects(runDeployOps(deps as never, input, "status", pre.signal), { message: "Deployment ops wait was aborted." });
   });
   const late = new AbortController();
-  await scripted(async ctx => ctx.get("https://api.machines.dev/v1/apps"), async deps => {
+  await scripted(async ctx => ctx.get("https://api.example-host.dev/v1/targets"), async deps => {
     const { customCredentialsAudit: _audit, ...unaudited } = deps;
     const aborting = { ...unaudited, deployOpsHttpClient: { send: async () => { late.abort(); return { status: 200, headers: {}, bodyText: "[]" }; } } };
     await assert.rejects(runDeployOps(aborting as never, input, "status", late.signal), { message: "Deployment ops wait was aborted." });
   });
   const ok = await (async () => {
     let result: unknown;
-    await scripted(async ctx => (await ctx.get("https://api.machines.dev/v1/apps")).json, async deps => {
+    await scripted(async ctx => (await ctx.get("https://api.example-host.dev/v1/targets")).json, async deps => {
       const { customCredentialsAudit: _audit, ...unaudited } = deps;
       result = await runDeployOps({ ...unaudited, deployOpsHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "[1]" }) } } as never, input, "status");
     });
