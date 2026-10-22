@@ -128,7 +128,8 @@ async function postChatWithBody(baseUrl: string, body: unknown): Promise<Respons
 for (const policyFlag of [undefined, "off"] as const) {
   test(`T1 policy ${policyFlag ?? "on"}: HTTP path honors Off or restores literal tools without deleting choices`, async (t) => {
     const deps = createRouteDeps();
-    await deps.assistantSettingsReady;
+    // MOVE: Later settings registrations share this repo; finish boot before writing overrides.
+    await deps.siteTitleReady;
     await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
       clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
@@ -157,7 +158,8 @@ for (const policyFlag of [undefined, "off"] as const) {
 
 test("T1 HTTP turn has a four-call cap across parallel calls and emits no raw audit/tool events", async (t) => {
   const deps = createRouteDeps();
-  await deps.assistantSettingsReady;
+  // MOVE: Later settings registrations share this repo; finish boot before writing overrides.
+  await deps.siteTitleReady;
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
   { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });

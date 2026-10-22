@@ -94,8 +94,9 @@ for (const toolId of ["settings_set_value", "settings_clear_value"]) {
     assert.ok(registration);
     const before = await f.repo.maxRevisionSeq();
     for (const coordinates of [VISITOR_TOOLS_SETTING, { namespace: "site.legacy", key: "tools" }]) {
+      // MOVE: Clear rejects a value field before policy checks, so give each tool valid input.
       await assert.rejects(registration.handler({ executionId: "e", principal: { id: "settings-admin" }, run: { id: "r" }, signal: new AbortController().signal,
-        input: { ...coordinates, value: off } }), /visitor-tools management service/);
+        input: { ...coordinates, ...(toolId === "settings_set_value" ? { value: off } : {}) } }), /visitor-tools management service/);
     }
     assert.equal(surfaces.size(), 0);
     assert.equal(await f.repo.maxRevisionSeq(), before);
