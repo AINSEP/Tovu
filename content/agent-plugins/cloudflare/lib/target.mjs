@@ -120,23 +120,27 @@ export async function verifyCredential({ credential, kit }, _options = {}) {
   const paths = credential.accountId
     ? [`/accounts/${segment({ value: credential.accountId })}/tokens/verify`, '/user/tokens/verify']
     : ['/user/tokens/verify'];
-  for (const [index, path] of paths.entries()) {
-    let resp;
-    try {
-      resp = await kit.fetch(`${API_ROOT}${path}`, { method: 'GET', headers: { Authorization: `Bearer ${credential.token}` }, redirect: 'error' }, { timeoutMs: kit.timeouts.QUICK });
-    } catch { return { ok: false, reason: 'unreachable' }; }
-    if (!resp.ok) {
-      if (index + 1 < paths.length && [400, 401, 403, 404].includes(resp.status)) continue;
-      return { ok: false, reason: resp.status === 401 || resp.status === 403 ? 'rejected' : 'unreachable', statusCode: resp.status };
-    }
-    let json;
-    try { json = await resp.json(); }
-    catch { return { ok: false, reason: 'unreachable', statusCode: resp.status }; }
-    if (json?.success === true && json.result?.status === 'active') return { ok: true };
-    if (json?.success === true && ['disabled', 'expired'].includes(json.result?.status)) return { ok: false, reason: 'rejected', statusCode: resp.status };
-    return { ok: false, reason: 'unreachable', statusCode: resp.status };
+  return verifyAt({ credential, kit, paths, index: 0 });
+}
+
+/** One verify endpoint; a scope-shaped refusal falls through to the next endpoint when there is one.
+ * A bounded recursion (at most `paths.length` requests) rather than a loop, so every path ends in a
+ * return and there is no unreachable loop exit. */
+async function verifyAt({ credential, kit, paths, index }) {
+  let resp;
+  try {
+    resp = await kit.fetch(`${API_ROOT}${paths[index]}`, { method: 'GET', headers: { Authorization: `Bearer ${credential.token}` }, redirect: 'error' }, { timeoutMs: kit.timeouts.QUICK });
+  } catch { return { ok: false, reason: 'unreachable' }; }
+  if (!resp.ok) {
+    if (index + 1 < paths.length && [400, 401, 403, 404].includes(resp.status)) return verifyAt({ credential, kit, paths, index: index + 1 });
+    return { ok: false, reason: resp.status === 401 || resp.status === 403 ? 'rejected' : 'unreachable', statusCode: resp.status };
   }
-  return { ok: false, reason: 'unreachable' };
+  let json;
+  try { json = await resp.json(); }
+  catch { return { ok: false, reason: 'unreachable', statusCode: resp.status }; }
+  if (json?.success === true && json.result?.status === 'active') return { ok: true };
+  if (json?.success === true && ['disabled', 'expired'].includes(json.result?.status)) return { ok: false, reason: 'rejected', statusCode: resp.status };
+  return { ok: false, reason: 'unreachable', statusCode: resp.status };
 }
 
 export function validateConfig(config, _options = {}) {
