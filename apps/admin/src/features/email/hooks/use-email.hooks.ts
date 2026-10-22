@@ -43,8 +43,11 @@ export function emailSummary({ status }: { status: AdminMailStatus }): EmailSumm
   if (status.state === "unconfigured") return "not_set_up";
   if (status.lanes?.some((lane) => lane.state === "local_only")) return "no_external_delivery";
   if (status.state === undefined) return status.mailDeliveryAvailable ? "configured" : "no_external_delivery";
-  if (status.state === "degraded" || (status.warnings?.length ?? 0) > 0) return "needs_attention";
-  return "configured";
+  return status.state === "degraded" || hasWarnings(status) ? "needs_attention" : "configured";
+}
+
+function hasWarnings(status: AdminMailStatus): boolean {
+  return (status.warnings?.length ?? 0) > 0;
 }
 
 /**

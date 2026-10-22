@@ -30,7 +30,7 @@ import { FormsList, FormEditor } from "./features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
 import { Taxonomy } from "./features/taxonomy";
 import { Trash } from "./features/trash";
-import { Email } from "./features/email";
+import { Email, EmailTemplateEditor } from "./features/email";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
@@ -1098,7 +1098,11 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // convention as `admin-ui`'s and `consent`'s.
     id: "email",
     anyOfPermissions: ["admin.forms.manage"],
-    render: (ctx) => <Email tabId={ctx.query.get("tab")} />,
+    // A template's editor is a full page like a Page's (owner, 2026-10-22): `/email/templates/:id`.
+    render: (ctx) => (ctx.view === "email-template-editor"
+      ? <EmailTemplateEditor key={ctx.params.templateId} id={ctx.params.templateId} />
+      : <Email tabId={ctx.query.get("tab")} />),
+    routes: [{ pattern: "/templates/:templateId", view: "email-template-editor" }],
     nav: {
       label: "Email",
       group: "Administration",
