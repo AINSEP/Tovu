@@ -72,7 +72,8 @@ describe("popup", () => {
   it("places a measured popup below the gear", () => {
     renderMenu({ open: true, position: { top: 10, left: 20, placement: "below" } });
     expect(popup().className).toBe("row-menu-popup dock-settings-menu");
-    expect(popup().style.cssText).toBe("position: fixed; top: 10px; left: 20px; visibility: visible;");
+    // Capped to the room below the gear (top + 8px margin) so a short viewport scrolls the menu.
+    expect(popup().style.cssText).toBe("position: fixed; top: 10px; left: 20px; visibility: visible; max-height: calc(100dvh - 18px);");
   });
 
   it("lifts a popup that opens above the gear", () => {
@@ -199,8 +200,9 @@ describe("runtime switches", () => {
     expect(group.querySelectorAll(".jini-chat-settings-segment input")).toHaveLength(3);
     fireEvent.click(within(group).getByRole("menuitemradio", { name: "Short" }));
     fireEvent.click(within(group).getByRole("menuitemradio", { name: "Detailed" }));
+    // The stored value stays Normal (update is a mock), so re-clicking the checked Normal radio is a no-op.
     fireEvent.click(within(group).getByRole("menuitemradio", { name: "Normal" }));
-    expect(update.mock.calls).toEqual([[{ replyLength: "short" }], [{ replyLength: "detailed" }], [{ replyLength: "normal" }]]);
+    expect(update.mock.calls).toEqual([[{ replyLength: "short" }], [{ replyLength: "detailed" }]]);
     expect(popup()).toBeInTheDocument();
   });
 });
