@@ -324,3 +324,49 @@ test('security: everything the panel posts is a declared form-destinations actio
   assert.equal(frame.posted.every((entry) => entry.message.kind === 'action-request' && declared.includes(entry.message.action)), true);
   assert.equal(frame.posted.every((entry) => entry.targetOrigin === HOST_ORIGIN && entry.message.mountId === MOUNT_ID), true);
 });
+
+test('a step the host calls retryable offers Try again, which re-runs that step', async () => {
+  await openPanel(SYSTEM, { destinations: [], picked: [LEADS] });
+  let asked = 0;
+  frame.respond.set('list-tabs', () => {
+    asked += 1;
+    if (asked === 1) throw refusal('Google did not answer. Try again.', { retryable: true });
+    return { spreadsheet: LEADS, tabs: TABS };
+  });
+  await change(selects()[0], FILE_ID);
+  assert.equal(statusLine().textContent, 'Google did not answer. Try again.');
+  button(frame, 'Try again').click();
+  await flush();
+  assert.equal(asked, 2);
+  assert.deepEqual([...selects()[1].options].map((o) => o.textContent), ['Sheet1', 'Contact']);
+});
+
+test('a save with a form list but no form chosen asks for a form; with a typed name but no spreadsheet asks for one', async () => {
+  await openPanel(SYSTEM, { destinations: [], picked: [], forms: [{ slug: 'contact', title: 'Contact us' }] });
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.equal(statusLine().textContent, 'Choose a form.');
+  frame.close();
+
+  await openPanel(SYSTEM);
+  await change(frame.document.querySelector('input[type="text"]'), 'contact', 'input');
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.equal(statusLine().textContent, 'Choose a spreadsheet.');
+  assert.equal(frame.requests().some((request) => request.action === 'save-destination'), false);
+});
+
+test('a save without the rows confirmation asks for it; a spreadsheet with no tabs saves to sheet 0', async () => {
+  await openPanel(SYSTEM, { destinations: [], picked: [LEADS] });
+  await choosePicked(LEADS, []);
+  await change(frame.document.querySelector('input[type="text"]'), 'contact', 'input');
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.equal(statusLine().textContent, 'Tick the box to confirm rows stay in the spreadsheet.');
+  assert.equal(frame.requests().some((request) => request.action === 'save-destination'), false);
+  frame.document.querySelector('input[type="checkbox"]').click();
+  frame.respond.set('save-destination', () => ({ destinations: [saved({ sheetId: 0, tabTitle: 'Sheet1' })], picked: [LEADS] }));
+  button(frame, 'Save destination').click();
+  await flush();
+  assert.deepEqual(frame.requests().at(-1), { action: 'save-destination', payload: { formSlug: 'contact', spreadsheetId: FILE_ID, sheetId: 0, confirmExternalRows: true } });
+});

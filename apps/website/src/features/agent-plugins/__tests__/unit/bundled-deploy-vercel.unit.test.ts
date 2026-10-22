@@ -865,3 +865,80 @@ describe('VercelDeployTarget.publish', () => {
     await target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: '!!!' });
   });
 });
+
+describe("VercelDeployTarget — edge answers (bodies that cannot be read, missing headers, unreadable polls)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const { VercelDeployTarget: NoWaitTarget } = loaded.bindVercel({ ...createDeployHostKit(), sleep: async () => undefined });
+  /** A response whose body stream fails mid-read, as a dropped connection does. */
+  const brokenBody = (status: number) => new Response(new ReadableStream({ start(controller) { controller.error(new Error("socket reset")); } }), { status });
+
+  it("verifyCredential reads no account label from a non-JSON body, a null body, or a non-object user", async () => {
+    for (const make of [() => new Response("not json", { status: 200 }), () => jsonResponse(200, null), () => jsonResponse(200, { user: "public-name" })]) {
+      vi.stubGlobal("fetch", vi.fn(async () => make()));
+      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel: undefined });
+    }
+  });
+
+  it("an upload ack, a retried upload answer and the login-check HEAD whose bodies cannot be drained do not fail the publish", async () => {
+    const uploads = [brokenBody(503), brokenBody(200)];
+    let uploadCalls = 0;
+    const heads: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST" && url.includes("/v2/files")) { uploadCalls += 1; return uploads.shift() ?? jsonResponse(200, {}); }
+      if (init?.method === "POST" && url.includes("/v13/deployments")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+      if (url.includes("/v13/deployments/dpl_1")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+      if (init?.method === "HEAD") { heads.push(url); return brokenBody(200); }
+      return new Response("", { status: 200 });
+    }));
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" });
+    expect(uploadCalls).toBe(2);
+    // The kit's reachability probe HEADs first; the last HEAD is the login-wall check.
+    expect(heads).toEqual(["https://demo.vercel.app/", "https://demo.vercel.app"]);
+    expect(result.status).toBe("ready");
+    expect(result.url).toBe("https://demo.vercel.app");
+  });
+
+  it("a redirect with no Location header is not Vercel's login wall", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => (init?.method === "POST"
+      ? jsonResponse(200, { readyState: "READY", url: "demo-abc123.vercel.app" })
+      : new Response("", { status: 302 }))));
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [], projectName: "demo" });
+    expect(result.status).toBe("ready");
+    expect(result.url).toBe("https://demo-abc123.vercel.app");
+  });
+
+  it("a login-check HEAD that throws leaves the reachability result as it was", async () => {
+    const heads: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST") return jsonResponse(200, { readyState: "READY", url: "demo.vercel.app" });
+      if (init?.method === "HEAD") {
+        heads.push(url);
+        // The kit's own probe asks for the root path ("/"); the login check asks for the bare URL.
+        if (!url.endsWith("/")) throw new TypeError("fetch failed");
+      }
+      return new Response("", { status: 200 });
+    }));
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [], projectName: "demo" });
+    expect(heads).toEqual(["https://demo.vercel.app/", "https://demo.vercel.app"]);
+    expect(result.status).toBe("ready");
+  });
+
+  it("when no status poll is ever readable, the URL candidates come from the create answer alone", async () => {
+    let polls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST") return jsonResponse(200, { id: "dpl_q", readyState: "QUEUED", url: "demo-q.vercel.app" });
+      if (url.includes("/v13/deployments/dpl_q")) { polls += 1; return new Response("not json", { status: 200 }); }
+      return new Response("", { status: 200 });
+    }));
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [], projectName: "demo" });
+    expect(polls).toBe(30);
+    expect(result.deploymentId).toBe("dpl_q");
+    expect(result.url).toBe("https://demo-q.vercel.app");
+  });
+});
