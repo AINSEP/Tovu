@@ -73,6 +73,14 @@ test("disconnecting when not connected and nothing changed suggests the candidat
   assert.deepEqual(result, { connected: false, site: null, candidateUrl: "https://candidate.example", message: "This computer was not publishing anywhere.", nextStep: null });
 });
 
+test("a changed grant whose target names no next step reports a null nextStep", async () => {
+  const repo = new InMemoryPublishContentPeerRepo();
+  await repo.insert(row());
+  const port = provisioning({ ok: true, grants: [], changed: true, target: { kind: "test", path: "deploy.json" } } as unknown as ProvisioningWrite);
+  const result = await call(deps({ publishContentPeerRepo: repo, publishTrustProvisioning: port }));
+  assert.deepEqual(result, { connected: false, site: null, candidateUrl: "https://live.example", message: "This computer no longer publishes to live.example.", nextStep: null });
+});
+
 test("a settings write failure is refused with recovery guidance, and the connected peer is put back", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
   await repo.insert(row());
