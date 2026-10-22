@@ -1163,6 +1163,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
    measure instead of running the full width of a 1440px card. */
 .card-lead { margin: 0; font-size: var(--text-md); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+/* Cookie Consent, Import & Export and Analytics sit beside Settings and Authentication, whose
+   sections use Jini's settings scale: 14px/600 titles over 13px copy. The larger `.card-title`/
+   `.card-lead` tier above, plus bare text inheriting 16px, made these three read as another app
+   (owner, 2026-10-22: "it should all be the same text"). Scoped so other card screens keep theirs. */
+:is(.consent-page, .import-export-page, .analytics-page) .card-title {
+  font-size: var(--text-base); font-weight: 600; letter-spacing: 0; margin-bottom: var(--space-2);
+}
+:is(.consent-page, .import-export-page, .analytics-page) :is(.card-lead, .card li, .notice) { font-size: var(--text-sm); }
 /* Danger-zone card modifier (2026-08-31: the left-accent-border idiom this used to share with
    `.notice.error`/`.notice.warning` is retired everywhere in this app — owner's explicit call,
    "I don't like that idiom at all" — see the `.notice` rules below for the fuller reasoning).

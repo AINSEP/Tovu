@@ -34,7 +34,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
   if (!hits) return <div className="notice">{t("Loading recent hits…")}</div>;
 
   return (
-    <div className="page">
+    <div className="page analytics-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Marketing")}</p>
@@ -56,8 +56,8 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No hits recorded yet.")}</p>
-              <p className="page-description">{t("Once the site beacon starts sending traffic, recent hits will appear here.")}</p>
+              <p className="empty-state-title">{t("No hits recorded yet.")}</p>
+              <p className="empty-state-hint">{t("Once the site beacon starts sending traffic, recent hits will appear here.")}</p>
             </div>
           </div>
         }
