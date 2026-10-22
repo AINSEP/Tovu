@@ -563,6 +563,9 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
     reason: "1d96267e3: legacy vendor rows retain their provider compatibility", apply: publishCompatibility },
   { transcript: "write", keys: /^vendor\.(1\.create-default|2\.list|3\.rotate|5\.set-default-other|6\.list|11\.list)$/, before: "publish summary", after: "explicit compatibility and per-host defaults",
     reason: "1d96267e3: the same summary contract applies to writes", apply: publishCompatibility },
+  { transcript: "write", keys: /^media\.3\.get-unchanged$/, before: "whole-map save tombstoned the omitted legacy 'media-test' row", after: "'media-test' kept",
+    reason: "7bb4f6c3/7a1447ab: an admin save tombstones only omitted BUILT-IN ids; any other row (a plugin vendor's key) is kept",
+    apply: mapOk((map: Row) => ({ ...map, "media-test": { model: "media-model", apiKeyConfigured: true, apiKeyHint: { length: 5, last4: null } } })) },
 ];
 
 /** Real behaviour differences these transcripts found (2026-10-11). Each is pinned by a `todo`

@@ -226,7 +226,8 @@ test("the shipped hosting plugins declare the credential fields and vendors core
   assert.deepEqual(credential("s3-compatible"), {
     vendorId: "s3-compatible",
     tokenField: "secretAccessKey",
-    fields: ["endpoint", "region*", "bucket*", "accessKeyId*", "secretAccessKey*!", "publicUrl*"],
+    // 4a675744 added the optional private media bucket/prefix to the shared S3 connection.
+    fields: ["endpoint", "region*", "bucket*", "accessKeyId*", "secretAccessKey*!", "publicUrl*", "mediaBucket", "mediaKeyPrefix"],
   });
 });
 

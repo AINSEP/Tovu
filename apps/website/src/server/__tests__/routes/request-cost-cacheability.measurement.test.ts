@@ -56,6 +56,19 @@ const CACHE_HEADER_NAMES = ["cache-control", "etag", "last-modified", "expires",
  *  sent no `Cache-Control` at all (deliverable A's own finding); now they must send exactly this. */
 const EXPECTED_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
 
+/** What a page carrying a live comments surface (`data-comments-surface`) sends INSTEAD of
+ *  {@link EXPECTED_CACHE_CONTROL}: `pages.ts`'s `sendPublicPage` keeps live comments out of browser
+ *  and CDN caches so approval, provider selection and disable take effect on the next request (same
+ *  owner decision `site-exporter.test.ts` pins). The seeded Starter post template places the marker
+ *  and comments default on, so `/about` and `/the-weight-of-type` both carry it; `/` does not. */
+const EXPECTED_CACHE_CONTROL_LIVE_COMMENTS = "private, no-store";
+/** The anonymous directive each seeded page must send — public unless it carries live comments. */
+const EXPECTED_ANONYMOUS_CACHE_CONTROL: Record<string, string> = {
+  "/": EXPECTED_CACHE_CONTROL,
+  "/about": EXPECTED_CACHE_CONTROL_LIVE_COMMENTS,
+  "/the-weight-of-type": EXPECTED_CACHE_CONTROL_LIVE_COMMENTS,
+};
+
 function summarizeCacheHeaders(res: Response): Record<string, string | null> {
   const out: Record<string, string | null> = {};
   for (const name of CACHE_HEADER_NAMES) out[name] = res.headers.get(name);
@@ -95,9 +108,11 @@ test("A: GET /:slug (a real post, dynamic render path) — headers + cacheabilit
   const plain = await fetch(`${baseUrl}/the-weight-of-type`);
   assert.equal(plain.status, 200);
   logRow("GET /:slug (post)", summarizeCacheHeaders(plain), "seeded post, not a static-theme page id");
-  assert.equal(plain.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: the dynamic post render path must send the owner-decided Cache-Control");
+  // Stale since live comments shipped: the seeded post carries a comments surface, which is never stored.
+  assert.equal(plain.headers.get("cache-control"), EXPECTED_CACHE_CONTROL_LIVE_COMMENTS, "the dynamic post render path carries live comments, so it must never be stored");
 
   const bodyA = await plain.text();
+  assert.ok(bodyA.includes("data-comments-surface"), "precondition: the seeded post must render its live comments surface");
   const flavored = await fetch(`${baseUrl}/the-weight-of-type`, {
     headers: { cookie: "some_random_visitor_cookie=abc123" },
   });
@@ -112,7 +127,9 @@ test("A: GET /:slug (a static-theme marketing page) — headers + cacheability",
   const res = await fetch(`${baseUrl}/about`);
   assert.equal(res.status, 200);
   logRow("GET /:slug (static theme page)", summarizeCacheHeaders(res), "matches basic theme's own page id");
-  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: the static-theme-page short-circuit must send the owner-decided Cache-Control too — same cacheability property, not just the dynamic path");
+  // Stale since live comments shipped: /about renders through the Starter post template's comments marker.
+  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL_LIVE_COMMENTS, "the static-theme-page short-circuit carries live comments too, so it must never be stored — same property as the dynamic path");
+  assert.ok((await res.text()).includes("data-comments-surface"), "precondition: /about must render its live comments surface");
 });
 
 test("A: GET /products (grid) and /products/:id (detail) — headers + cacheability", async (t) => {
@@ -356,10 +373,11 @@ test("B: the ordinary no-form path must STAY publicly cacheable — the fix is s
   for (const path of ["/", "/about", "/the-weight-of-type"]) {
     const res = await fetch(`${baseUrl}${path}`);
     assert.equal(res.status, 200);
+    // Pages with live comments are private for that reason alone; the form fix must not change either kind.
     assert.equal(
       res.headers.get("cache-control"),
-      EXPECTED_CACHE_CONTROL,
-      `${path} carries no form state, so it must keep the owner-decided public directive — making every page private would forfeit Phase 2 entirely`
+      EXPECTED_ANONYMOUS_CACHE_CONTROL[path],
+      `${path} carries no form state, so it must keep its anonymous directive — making every page private would forfeit Phase 2 entirely`
     );
   }
 });
@@ -417,10 +435,11 @@ test("B: a member-session response must not be publicly cacheable — anonymous 
     // not simply make every public page private, forfeiting the Phase 2 CDN decision.
     const anonRes = await fetch(`${baseUrl}${path}`);
     assert.equal(anonRes.status, 200);
+    // Pages with live comments are private for that reason alone; see EXPECTED_ANONYMOUS_CACHE_CONTROL.
     assert.equal(
       anonRes.headers.get("cache-control"),
-      EXPECTED_CACHE_CONTROL,
-      `${path} carries no member session, so it must keep the owner-decided public directive byte-for-byte`
+      EXPECTED_ANONYMOUS_CACHE_CONTROL[path],
+      `${path} carries no member session, so it must keep its anonymous directive byte-for-byte`
     );
   }
 

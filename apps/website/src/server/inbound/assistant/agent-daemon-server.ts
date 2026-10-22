@@ -84,8 +84,9 @@ import express from "express";
 
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
-import { buildMcpJsonServerEntry, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
+import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
+import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
@@ -805,7 +806,8 @@ const agentExecutor = createAgentExecutor({
 });
 
 // Initialize needs no callback credential; probe the real launch without minting a run token.
-void probeMcpBridge({ entry: buildMcpJsonServerEntry({ runId: "bridge-preflight", options: bridgeInjection }, {}) }, {}).then((result) => {
+// The run-scoped startup tool fetch is left out of it — see bridge-preflight-entry.ts.
+void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }) }, {}).then((result) => {
   const line = formatBridgePreflightLogLine({ result });
   if (result.ok) console.log(line);
   else console.error(line);

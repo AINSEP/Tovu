@@ -202,14 +202,14 @@ function bootPathAst(...parts: string[]): ts.SourceFile {
   return ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
-function isBareCallStatement(node: ts.Node, callee: string, { awaited }: { awaited: boolean }): boolean {
+function isBareCallStatement(node: ts.Node, callee: string, { awaited, anyArgs = false }: { awaited: boolean; anyArgs?: boolean }): boolean {
   if (!ts.isExpressionStatement(node)) return false;
   let expression = node.expression;
   if (awaited) {
     if (!ts.isAwaitExpression(expression)) return false;
     expression = expression.expression;
   }
-  return ts.isCallExpression(expression) && ts.isIdentifier(expression.expression) && expression.expression.text === callee && expression.arguments.length === 0;
+  return ts.isCallExpression(expression) && ts.isIdentifier(expression.expression) && expression.expression.text === callee && (anyArgs || expression.arguments.length === 0);
 }
 
 function findAll(root: ts.Node, match: (node: ts.Node) => boolean): ts.Node[] {
@@ -222,11 +222,13 @@ function findAll(root: ts.Node, match: (node: ts.Node) => boolean): ts.Node[] {
   return found;
 }
 
-for (const [label, parts, bootFunction] of [
+for (const [label, parts, bootFunction, ensureFunction] of [
   // why: 50579f4f (complexity <=10) moved main()'s pre-listener boot steps into prepareSiteBoot();
   // that main() still runs it unconditionally first is pinned by the test after this loop.
-  ["index.ts", ["index.ts"], "prepareSiteBoot"],
-  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand"],
+  // The third entry is the function that runs the site-key ensure (and so the warning after it);
+  // serve.ts's ensure lives in serveBootedSite(), which runServeCommand() reaches only past its gate.
+  ["index.ts", ["index.ts"], "prepareSiteBoot", "prepareSiteBoot"],
+  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand", "serveBootedSite"],
 ] as const) {
   test(`${label} imports warnIfNoSiteKeyAtBoot from site-key-boot-notice`, () => {
     const source = bootPathAst(...parts);
@@ -238,9 +240,12 @@ for (const [label, parts, bootFunction] of [
     assert.deepEqual(bindings.elements.map((element) => element.name.text), ["warnIfNoSiteKeyAtBoot"]);
   });
 
-  test(`${label} calls warnIfNoSiteKeyAtBoot unconditionally in ${bootFunction}(), as the statement right after the production gate`, () => {
+  // 2026-10-22: moved from "right after the production gate" to "right after the site-key ensure",
+  // and handed the site directory — before the ensure, a fresh `tovu init` site's per-site key did
+  // not exist yet / was never looked at, and every first boot warned "no key file at .".
+  test(`${label} calls warnIfNoSiteKeyAtBoot unconditionally in ${ensureFunction}(), as the statement right after the site-key ensure`, () => {
     const source = bootPathAst(...parts);
-    const warnCalls = findAll(source, (node) => isBareCallStatement(node, "warnIfNoSiteKeyAtBoot", { awaited: false }));
+    const warnCalls = findAll(source, (node) => isBareCallStatement(node, "warnIfNoSiteKeyAtBoot", { awaited: false, anyArgs: true }));
     assert.equal(warnCalls.length, 1, "exactly one call statement, and nowhere else");
     const gates = findAll(source, (node) => isBareCallStatement(node, "runProductionReadinessGateOrExit", { awaited: true }));
     assert.equal(gates.length, 1);
@@ -249,11 +254,16 @@ for (const [label, parts, bootFunction] of [
     const body = warn.parent;
     // A Block directly owned by the boot function: not an if/try/loop body, not a nested callback.
     assert.ok(ts.isBlock(body), `the call must sit in a plain block, not under ${ts.SyntaxKind[body.kind]}`);
-    assert.ok(ts.isFunctionDeclaration(body.parent) && body.parent.name?.text === bootFunction,
-      `the call must be a top-level statement of ${bootFunction}()`);
-    assert.equal(gates[0].parent, body, "the gate and the warning share one block");
+    assert.ok(ts.isFunctionDeclaration(body.parent) && body.parent.name?.text === ensureFunction,
+      `the call must be a top-level statement of ${ensureFunction}()`);
+    const gateBody = gates[0].parent;
+    assert.ok(ts.isBlock(gateBody) && ts.isFunctionDeclaration(gateBody.parent) && gateBody.parent.name?.text === bootFunction,
+      `the production gate stays a top-level statement of ${bootFunction}()`);
     const index = body.statements.indexOf(warn as ts.Statement);
-    assert.equal(body.statements[index - 1], gates[0], "the warning is the statement right after the production gate");
+    if (gateBody === body) assert.ok(body.statements.indexOf(gates[0] as ts.Statement) < index, "the warning still follows the production gate");
+    const previous = body.statements[index - 1];
+    const ensures = findAll(previous, (node) => ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "ensureSiteKeyForBoot");
+    assert.equal(ensures.length, 1, "the warning is the statement right after the site-key ensure");
   });
 }
 
@@ -343,5 +353,25 @@ test("F3588: a real no-key local boot call prints the notice on stderr, from the
     assert.deepEqual(fs.readdirSync(home), [], "warning about a missing key must never create one");
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+// 2026-10-22 (main-verify PART 2): a fresh `tovu init` site keeps its key in the per-site file its
+// `.site-meta.json` names. The notice used to inspect without the site, so it never looked there and
+// warned "no key file at ." on a site that had a perfectly usable key.
+test("a local boot given its site directory counts that site's per-site key file", () => {
+  const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), "site-key-notice-"));
+  const siteKeyId = `notice-${path.basename(siteDir)}`;
+  const keyDir = path.join(os.homedir(), ".tovu", "site-keys");
+  try {
+    fs.writeFileSync(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteKeyId }));
+    fs.mkdirSync(keyDir, { recursive: true });
+    fs.writeFileSync(path.join(keyDir, `${siteKeyId}.hex`), `${"ab".repeat(32)}\n`, { mode: 0o600 });
+    const lines: string[] = [];
+    warnIfNoSiteKeyAtBoot({ mode: () => "local", log: (line) => lines.push(line), env: {}, siteDir });
+    assert.deepEqual(lines, []);
+  } finally {
+    fs.rmSync(siteDir, { recursive: true, force: true });
+    fs.rmSync(path.join(keyDir, `${siteKeyId}.hex`), { force: true });
   }
 });
