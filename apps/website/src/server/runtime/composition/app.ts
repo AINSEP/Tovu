@@ -84,6 +84,8 @@ import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
@@ -1619,6 +1621,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
       loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "github") }),
+    // And the bundled plugins' own key cards — see `routes/types.ts`'s `loadPluginCredentialCards` doc.
+    loadPluginCredentialCards: () =>
+      loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }) }),
     // And the bundled plugins' credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
     loadAuthSchemes: async () =>
       (await loadBundledCredentialSchemeRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") })).rules,

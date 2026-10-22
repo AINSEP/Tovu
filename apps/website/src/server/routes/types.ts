@@ -67,6 +67,7 @@ import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPub
 import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
 import type { DeployTargetRegistry } from "../../features/deployments/deploy-targets/types.js";
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
+import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "../../features/custom-credentials/auth-schemes.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
@@ -1578,6 +1579,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
    */
   loadSourceControlProviders: LoadSourceControlProviders;
+  /**
+   * The key cards installed plugins declare for their own providers (`plugin-credential-card.ts`),
+   * opened by `credential_save` `{kind:"plugin-provider"}`. Mail plugins only today
+   * (`mail-provider-catalog.ts`'s `loadMailCredentialCards`). `server/deps.ts` reads the installed,
+   * activated plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
+   */
+  loadPluginCredentialCards: LoadPluginCredentialCards;
   /**
    * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
    * by `custom_credential_make_request`/`_verify`. `server/deps.ts` injects its boot-bound lifecycle to read the

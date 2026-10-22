@@ -108,3 +108,35 @@ test("parseMailAdaptersFile v1 still refuses a non-array list, a non-object entr
   assert.deepEqual(v1([{ ...entry, id: "Bad Id" }]), { ok: false, reason: "adapters[0].id must be a lowercase hyphenated id" });
   assert.deepEqual(v1([{ ...entry, label: " " }]), { ok: false, reason: "adapters[0].label must be a non-empty string" });
 });
+
+const CARD = { title: "Connect Postal", intro: "Connect Postal to send mail.", helpUrl: "https://postal.example/keys", helpLabel: "Get a key", keyHint: "Sending access", baseUrl: "https://api.postal.example" };
+
+test("parseMailAdaptersFile keeps a v2 credentialCard, and a descriptor without one has none", () => {
+  const withCard = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: CARD }] }));
+  assert.deepEqual(withCard.ok && withCard.descriptors[0]!.credentialCard, CARD);
+  const minimal = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { title: "Connect Postal", baseUrl: "https://api.postal.example" } }] }));
+  assert.deepEqual(minimal.ok && minimal.descriptors[0]!.credentialCard, { title: "Connect Postal", baseUrl: "https://api.postal.example" });
+  const without = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [V2] }));
+  assert.ok(without.ok && !("credentialCard" in without.descriptors[0]!) && !("credentialCardRefusal" in without.descriptors[0]!));
+});
+
+test("an invalid credentialCard is ignored with a note, and the adapter still loads", () => {
+  const parse = (credentialCard: unknown) => {
+    const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard }] }));
+    assert.ok(result.ok, "a bad card never drops the adapter");
+    assert.ok(!("credentialCard" in result.descriptors[0]!));
+    return result.descriptors[0]!.credentialCardRefusal;
+  };
+  assert.equal(parse("x"), "adapters[0].credentialCard must be an object");
+  assert.equal(parse({ ...CARD, title: " " }), "adapters[0].credentialCard.title must be a non-empty string");
+  assert.equal(parse({ ...CARD, baseUrl: "http://api.postal.example" }), "adapters[0].credentialCard.baseUrl must be an https URL");
+  assert.equal(parse({ ...CARD, helpUrl: "javascript:alert(1)" }), "adapters[0].credentialCard.helpUrl must be an https URL");
+  assert.equal(parse({ ...CARD, helpUrl: `https://x.example/${"a".repeat(600)}` }), "adapters[0].credentialCard.helpUrl must be an https URL");
+  assert.equal(parse({ ...CARD, intro: "x".repeat(501) }), "adapters[0].credentialCard.intro must be a non-empty string");
+  assert.equal(parse({ ...CARD, keyHint: 3 }), "adapters[0].credentialCard.keyHint must be a non-empty string");
+});
+
+test("a v1 descriptor's credentialCard is not read", () => {
+  const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: [{ id: "a", label: "A", module: "a.mjs", credentialLabel: "A key", credentialCard: CARD }] }));
+  assert.ok(result.ok && !("credentialCard" in result.descriptors[0]!));
+});

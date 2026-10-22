@@ -94,7 +94,7 @@ test("SKILL.md saves both keys through the secure form, each with the permission
   const skill = await readSkill();
   assert.ok(skill.includes('credential_save { kind: "agent-plugin-token", target: "resend" }'));
   assert.match(skill, /\*\*Full access\*\*/);
-  assert.ok(skill.includes('credential_save { kind: "api", label: "Tovu Mail — Resend API"'));
+  assert.ok(skill.includes('credential_save { kind: "plugin-provider", target: "resend" }'), "the site-mail key goes through the plugin's own key card");
   assert.match(skill, /\*\*Sending access\*\*/);
   assert.match(skill, /Never ask for the key in chat/);
 });

@@ -71,9 +71,9 @@ Never ask for the key in chat, and never put it in any tool argument.
 1. **Get a sending key.** The person signs in at [resend.com/api-keys](https://resend.com/api-keys)
    and creates a key with **Sending access** (only sending; the site needs nothing more). This is a
    different key from the Full access one above.
-2. **Save it through the secure form:**
-   `credential_save { kind: "api", label: "Tovu Mail — Resend API", baseUrl: "https://api.resend.com", category: "ops" }`.
-   The label must be exactly that; it is how Tovu finds the key. Never ask for the key in chat.
+2. **Save it through the Connect Resend card:** `credential_save { kind: "plugin-provider", target: "resend" }`.
+   The card asks only for the key and saves it where Tovu looks for it ("Tovu Mail — Resend API").
+   Never ask for the key in chat. If the card says a key is already saved, replace it as below.
 3. **Verify the sending domain.** Until it is verified, Resend only sends to the account's own
    address. Check with `system_get_mail_status`; add records with `dns_*` (or, when the account is
    connected, `mcp__resend__create-domain` then `mcp__resend__verify-domain`).

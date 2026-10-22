@@ -14,6 +14,7 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
+import type { PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -83,7 +84,7 @@ function builtins(deps: MailProviderCatalogDeps): MailProviderModule[] {
 }
 
 /** Plugin registry, or an empty one plus the reason it could not be read. */
-async function loadAdapters(deps: MailProviderCatalogDeps): Promise<MailAdapterRegistry> {
+async function loadAdapters(deps: Pick<MailProviderCatalogDeps, "loadMailAdapters">): Promise<MailAdapterRegistry> {
   try {
     return await deps.loadMailAdapters();
   } catch (err) {
@@ -106,6 +107,21 @@ export async function loadMailProviderCatalog(deps: MailProviderCatalogDeps, _op
     if (accepted.includes(adapter.descriptor.id) && needsKey) labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
   }
   return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id) };
+}
+
+/**
+ * The key cards mail plugins declare (`credentialCard` in their descriptor), each filed under the
+ * adapter's own credential label and the mail category, so `credential_save` `{kind:"plugin-provider"}`
+ * saves the key exactly where the adapter reads it. Never throws: an unreadable list has no cards.
+ * @complexity O(a) plugin adapters.
+ */
+export async function loadMailCredentialCards(
+  required: Pick<MailProviderCatalogDeps, "loadMailAdapters">,
+  _optional: Record<string, never> = {}
+): Promise<readonly PluginCredentialCard[]> {
+  return (await loadAdapters(required)).list().flatMap(({ descriptor }) => descriptor.credentialCard
+    ? [{ providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
+    : []);
 }
 
 /**

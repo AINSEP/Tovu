@@ -6,6 +6,7 @@ import type { MailAdapterCreateContext as JiniCreateContext, MailProviderModule,
 import type { MailAdapterCreateContext, MailAdapterModule } from "#src/platform/mail/index";
 import { toJiniMailer } from "#src/platform/mail/purpose-scoped-mailer";
 
+import { bundledContributionSources } from "./bundled-contribution-sources.js";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
@@ -24,6 +25,10 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
  * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged.
  * {@link contributeMailProviders} offers every loaded adapter to Jini's keyed mail-provider registry
  * so its refusals (bad id, duplicate, capability claims without code) surface with the loader's.
+ *
+ * A v2 entry may also declare `credentialCard` (2026-10-22): the copy for the plugin's own key card
+ * (`custom-credentials/plugin-credential-card.ts`). It is data only, never required: an invalid card
+ * is dropped with a note in `refusals` and the adapter still loads.
  *
  * TRUST RULE (fail closed), the shared gate in `./trusted-plugin-files.ts`: a module runs in this
  * process, so it loads only when the plugin is ACTIVE by the fail-closed reader, its installed digest
@@ -52,6 +57,20 @@ export interface MailAdapterDescriptor {
   readonly credentialKeys?: readonly string[];
   /** v2: whether the module ships a delivery-feedback parser. */
   readonly feedback?: boolean;
+  /** v2: the plugin's own key card copy; core fills in the saved label and category. */
+  readonly credentialCard?: MailCredentialCard;
+  /** Why a declared `credentialCard` was ignored; surfaced in the registry's `refusals`. */
+  readonly credentialCardRefusal?: string;
+}
+
+/** Plugin-declared key card copy (https URLs only; the base URL is where the saved key is used). */
+export interface MailCredentialCard {
+  readonly title: string;
+  readonly intro?: string;
+  readonly helpUrl?: string;
+  readonly helpLabel?: string;
+  readonly keyHint?: string;
+  readonly baseUrl: string;
 }
 
 export interface LoadedMailAdapter {
@@ -89,7 +108,7 @@ type AdapterPackage = TrustedPluginPackage;
  */
 export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<MailAdapterRegistry> {
   const load = await required.loadContributions({ ...ctx, definition: adapterContribution }, { orderByPluginId: true });
-  return { list: () => load.items, refusals: load.refusals };
+  return { list: () => load.items, refusals: [...load.refusals, ...cardNotes(load.items)] };
 }
 
 /**
@@ -100,7 +119,30 @@ export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: strin
  */
 export async function loadMailAdapterRegistryFromSource(plugin: AdapterPackage, _optional: Record<string, never> = {}): Promise<MailAdapterRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: adapterContribution });
-  return { list: () => load.items, refusals: load.refusals };
+  return { list: () => load.items, refusals: [...load.refusals, ...cardNotes(load.items)] };
+}
+
+/**
+ * Every bundled plugin's mail adapters, read from the product's own `content/agent-plugins/` source
+ * (no install or digest gate). For the hermetic composition root only, like the other `loadBundled*`.
+ *
+ * @complexity O(p) plugin directories, one import per declared adapter.
+ */
+export async function loadBundledMailAdapterRegistry(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<MailAdapterRegistry> {
+  const items: LoadedMailAdapter[] = [];
+  const refusals: string[] = [];
+  for (const plugin of bundledContributionSources({ ...required, filename: MAIL_ADAPTERS_FILENAME })) {
+    const load = await loadMailAdapterRegistryFromSource(plugin);
+    items.push(...load.list());
+    refusals.push(...load.refusals);
+  }
+  return { list: () => items, refusals };
+}
+
+/** One note per loaded adapter whose declared key card was ignored. @complexity O(a). */
+function cardNotes(items: readonly LoadedMailAdapter[]): string[] {
+  return items.flatMap(({ descriptor, pluginId }) =>
+    descriptor.credentialCardRefusal ? [`mail adapter '${descriptor.id}' from '${pluginId}' key card was ignored: ${descriptor.credentialCardRefusal}`] : []);
 }
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */
@@ -161,7 +203,40 @@ function parseDescriptorV2(entry: unknown, at: string): MailAdapterDescriptor | 
   if (!Array.isArray(credentialKeys) || !credentialKeys.every((key) => typeof key === "string" && key !== "")) return `${at}.credentialKeys must be an array of field names`;
   if (typeof feedback !== "boolean") return `${at}.feedback must be true or false`;
   const savedUnder = typeof credentialLabel === "string" ? base.credentialLabel : defaultCredentialLabel({ label: base.label });
-  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback };
+  const card = entry.credentialCard === undefined ? {} : parseCredentialCard(entry.credentialCard, `${at}.credentialCard`);
+  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...card };
+}
+
+const MAX_CARD_TEXT_LENGTH = 500;
+const MAX_URL_LENGTH = 500;
+
+/** A declared key card, or the note saying why it is ignored. Unknown keys are ignored. @complexity O(1). */
+function parseCredentialCard(value: unknown, at: string): { credentialCard: MailCredentialCard } | { credentialCardRefusal: string } {
+  if (!isPlainObject(value)) return { credentialCardRefusal: `${at} must be an object` };
+  const card: Record<string, string> = {};
+  for (const [key, required, valid, rule] of [
+    ["title", true, isLabel, "a non-empty string"],
+    ["intro", false, isCardText, "a non-empty string"],
+    ["helpUrl", false, isHttpsUrl, "an https URL"],
+    ["helpLabel", false, isLabel, "a non-empty string"],
+    ["keyHint", false, isCardText, "a non-empty string"],
+    ["baseUrl", true, isHttpsUrl, "an https URL"],
+  ] as const) {
+    const field = value[key];
+    if (field === undefined && !required) continue;
+    if (!valid(field)) return { credentialCardRefusal: `${at}.${key} must be ${rule}` };
+    card[key] = field;
+  }
+  return { credentialCard: card as unknown as MailCredentialCard };
+}
+
+function isCardText(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && value.length <= MAX_CARD_TEXT_LENGTH;
+}
+
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > MAX_URL_LENGTH || !URL.canParse(value)) return false;
+  return new URL(value).protocol === "https:";
 }
 
 /** Why a v2 module disagrees with its descriptor, or undefined. @complexity O(1). */

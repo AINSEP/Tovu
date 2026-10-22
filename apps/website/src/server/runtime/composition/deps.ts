@@ -103,6 +103,7 @@ import {
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
 import { createSiteMailer } from "./site-mailer.js";
+import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { createDomainBindingSweep } from "./dns-change-deps.js";
 import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
@@ -2673,6 +2674,7 @@ async function composeSiteRouteDeps(
     loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions })).rules,
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
