@@ -401,6 +401,23 @@ test("a failed live call with an empty error body names only the failure kind, w
   }
 });
 
+test("a failed listing that carries a detail names both the failure kind and the detail, then falls back", async () => {
+  const { result, warnings } = await captureWarnings(() => fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+    listModels: async () => ({ ok: false, kind: "auth_failed", detail: "invalid x-api-key", latencyMs: 1 }),
+  }));
+  assert.equal(result, null);
+  assert.equal(warnings.length, 1);
+  assert.equal(String(warnings[0]![0]), "[assistant] live Claude model discovery failed (auth_failed: invalid x-api-key) — falling back to the static model list");
+});
+
+test("a successful listing returns its models unchanged", async () => {
+  const listed = [{ id: "claude-live-1", label: "Claude Live 1" }];
+  const models = await fetchLiveClaudeModels({ apiKey: "listing-key", baseUrl: "http://127.0.0.1:9" }, {
+    listModels: async () => ({ ok: true, kind: "success", latencyMs: 1, models: listed }),
+  });
+  assert.deepEqual(models, listed);
+});
+
 test("a successful listing that carries no models array resolves to null rather than an empty catalog", async () => {
   const calls: unknown[] = [];
   const models = await fetchLiveClaudeModels({ apiKey: "sk-ant-test-key", baseUrl: "http://127.0.0.1:9" }, {
