@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
-import { listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
+import { assistantAgentDiscoveryPending, listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
 import { createLiveModelDiscovery } from "../live-model-cache.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import type { SecretSealerPort } from "../../features/webhooks/index.js";
@@ -159,6 +159,24 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
     assert.deepEqual((await rescanned).find((agent) => agent.id === "claude")?.models, models);
     assert.deepEqual((await listAssistantAgents()).find((agent) => agent.id === "claude")?.models, models);
   } finally {
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
+});
+
+test("assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await listAssistantAgents({}, { waitForProbe: true });
+  assert.equal(assistantAgentDiscoveryPending(), false, "a settled probe is not pending");
+  setAgentModelProberForTesting(async ({ def }) => { await gate; return { models: def.fallbackModels, source: "fallback" }; });
+  try {
+    const rescanned = rescanAssistantAgents({}, { waitForProbe: true });
+    assert.equal(assistantAgentDiscoveryPending({}, {}), true, "the forced scan is still in flight");
+    release();
+    await rescanned;
+    assert.equal(assistantAgentDiscoveryPending(), false);
+  } finally {
+    release();
     setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
   }
 });
