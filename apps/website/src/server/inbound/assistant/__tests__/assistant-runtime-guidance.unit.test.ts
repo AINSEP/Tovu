@@ -71,8 +71,15 @@ function deps(values: Record<string, unknown>) {
 
 const base = { principalId: "p", agentId: "claude", subagentsEnabled: true, isOwner: true };
 
-test("launch: defaults on Claude Code — delegation guidance on, Chrome explicitly off", async () => {
+test("launch: defaults on Claude Code for the owner — delegation guidance on, Chrome on (owner default 2026-10-22)", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}) }),
+    { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
+});
+
+test("launch: the Chrome default still yields --no-chrome for a non-owner, and an explicit OFF wins for the owner", async () => {
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), isOwner: false }),
+    { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: false }) }),
     { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
 });
 

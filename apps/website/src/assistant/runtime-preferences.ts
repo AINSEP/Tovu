@@ -20,11 +20,11 @@ export interface AssistantRuntimePreferences {
 /** The registered definition defaults; also what a failed or absent read falls back to. */
 export const DEFAULT_ASSISTANT_RUNTIME_PREFERENCES: Readonly<AssistantRuntimePreferences> = Object.freeze({
   preferSubagents: true,
-  useClaudeInChrome: false,
+  useClaudeInChrome: true,
 });
 
 /** One boolean preference for one person. A non-boolean value, a missing definition or any read
- * failure yields `fallback` (the registered default, so Claude in Chrome stays OFF): a preference
+ * failure yields `fallback` (the registered default; Claude in Chrome stays owner-only and probe-gated either way): a preference
  * read never blocks a launch.
  * @complexity O(1), one effective-setting resolution. */
 async function readBooleanPreference(

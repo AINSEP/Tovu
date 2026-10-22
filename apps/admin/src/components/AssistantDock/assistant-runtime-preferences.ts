@@ -9,13 +9,13 @@ export const USE_CLAUDE_IN_CHROME_KEY = 'useClaudeInChrome';
 export interface AssistantRuntimePreferences {
   /** Delegate multi-step or output-heavy work to a subagent when the runtime supports one. */
   preferSubagents: boolean;
-  /** Let Claude Code use Claude in Chrome (the person's real, logged-in Chrome). Default off. */
+  /** Let Claude Code use Claude in Chrome (the person's real, logged-in Chrome). Default on (owner-only, probe-gated server-side). */
   useClaudeInChrome: boolean;
 }
 
 export const DEFAULT_ASSISTANT_RUNTIME_PREFERENCES: Readonly<AssistantRuntimePreferences> = Object.freeze({
   preferSubagents: true,
-  useClaudeInChrome: false,
+  useClaudeInChrome: true,
 });
 
 const KEYS: Readonly<Record<keyof AssistantRuntimePreferences, string>> = {

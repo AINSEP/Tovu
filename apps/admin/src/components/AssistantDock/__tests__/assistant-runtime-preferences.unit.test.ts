@@ -8,16 +8,16 @@ describe('person-scoped assistant runtime preferences', () => {
   it('mirrors the server keys and defaults', () => {
     expect(PREFER_SUBAGENTS_KEY).toBe('preferSubagents');
     expect(USE_CLAUDE_IN_CHROME_KEY).toBe('useClaudeInChrome');
-    expect(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES).toEqual({ preferSubagents: true, useClaudeInChrome: false });
+    expect(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES).toEqual({ preferSubagents: true, useClaudeInChrome: true });
   });
   it('reads booleans and falls back to the default for missing or invalid values', () => {
-    expect(readAssistantRuntimePreferences({ values: new Map() })).toEqual({ preferSubagents: true, useClaudeInChrome: false });
-    expect(readAssistantRuntimePreferences({ values: new Map<string, unknown>([['preferSubagents', 'no'], ['useClaudeInChrome', 'yes']]) })).toEqual({ preferSubagents: true, useClaudeInChrome: false });
+    expect(readAssistantRuntimePreferences({ values: new Map() })).toEqual({ preferSubagents: true, useClaudeInChrome: true });
+    expect(readAssistantRuntimePreferences({ values: new Map<string, unknown>([['preferSubagents', 'no'], ['useClaudeInChrome', 'yes']]) })).toEqual({ preferSubagents: true, useClaudeInChrome: true });
     expect(readAssistantRuntimePreferences({ values: new Map([['preferSubagents', false], ['useClaudeInChrome', true]]) })).toEqual({ preferSubagents: false, useClaudeInChrome: true });
   });
   it('loads through the shared ledger namespace', async () => {
     const port = { load: vi.fn(async () => new Map<string, unknown>([['preferSubagents', false]])), save: vi.fn(async () => {}) };
-    expect(await loadAssistantRuntimePreferences({ port }, {})).toEqual({ preferSubagents: false, useClaudeInChrome: false });
+    expect(await loadAssistantRuntimePreferences({ port }, {})).toEqual({ preferSubagents: false, useClaudeInChrome: true });
     expect(port.load).toHaveBeenCalledWith({ namespace: 'core.interface' }, {});
   });
   it('saves at user scope, marking only the changed keys', async () => {

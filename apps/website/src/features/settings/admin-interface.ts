@@ -38,8 +38,9 @@ export const CHAT_AGENT_PLUGINS_KEY = "chatAgentPlugins";
  *  `components/AssistantDock/assistant-runtime-preferences.ts`. */
 export const PREFER_SUBAGENTS_KEY = "preferSubagents";
 /** Per-person (2026-10-21): let this person's Claude Code runs use Claude in Chrome (`--chrome`) —
- *  the operator's real, logged-in Chrome. Default `false`; the assistant may change it only through
- *  an always-ask card (`features/settings/tool-registrations.ts`). Same reader and mirror as above. */
+ *  the operator's real, logged-in Chrome. Default `true` (owner, 2026-10-22: it should just work); it
+ *  still applies only to the owner on a runtime whose CLI passes the `--chrome` probe, and Bash stays
+ *  disabled. The assistant may change it only through an always-ask card (`features/settings/tool-registrations.ts`). Same reader and mirror as above. */
 export const USE_CLAUDE_IN_CHROME_KEY = "useClaudeInChrome";
 export const ADMIN_THEME_KEY = "adminTheme";
 /** Per-admin-theme colours; Classic retains core.appearance.accentColor's scalar contract. */
@@ -71,7 +72,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: CHAT_AGENT_PLUGINS_KEY, schema: { type: "enum", values: ["auto", "ask", "off"] }, defaultValue: "auto", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
       { key: PREFER_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
-      { key: USE_CLAUDE_IN_CHROME_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
+      { key: USE_CLAUDE_IN_CHROME_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
