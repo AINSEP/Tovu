@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { abortGuardedCredentialRepo } from "../publish-agent-tools.js";
+import { abortGuardedCredentialRepo, buildStaticPublishRegistrations, contributeStaticPublishTools, staticPublishDerivedRisk } from "../publish-agent-tools.js";
 import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 
 /** abortGuardedCredentialRepo: writes refuse an aborted signal before reaching the store; reads,
@@ -66,4 +66,11 @@ test("the vault proxy forwards writes while not aborted and exposes non-function
   assert.equal(await vaultCall(repo, "put", { record: 1 }), "vault.put-result");
   assert.equal(await vaultCall(repo, "applyBatch", { ops: [] }), "vault.applyBatch-result");
   assert.deepEqual(calls, [["vault.put", { record: 1 }], ["vault.applyBatch", { ops: [] }]]);
+});
+
+test("contributeStaticPublishTools contributes the static-publish builder with its derived risk", () => {
+  const contributor = contributeStaticPublishTools();
+  assert.equal(contributor.domain, "static-publish");
+  assert.equal(contributor.build, buildStaticPublishRegistrations);
+  assert.equal(contributor.risk, staticPublishDerivedRisk);
 });
