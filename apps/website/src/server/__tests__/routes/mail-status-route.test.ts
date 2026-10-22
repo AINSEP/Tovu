@@ -85,8 +85,12 @@ test("mail-status: with a status source, the body also carries state, lanes, war
     state: "unconfigured" as const,
     lanes: [{ lane: "transactional" as const, providerId: null, state: "unconfigured" as const }, { lane: "bulk" as const, providerId: null, state: "unconfigured" as const }],
     warnings: ["sender_unknown" as const],
-    providers: [{ id: "smtp", label: "SMTP server", hosted: true, origin: "core" as const }],
+    providers: [{
+      id: "smtp", label: "SMTP server", hosted: true, origin: "core" as const, lanes: [], capabilities: { feedback: false, domainVerification: false },
+      credential: { required: true, saved: false, label: "Tovu Mail — SMTP Server" }, selectable: false, refusal: "has no complete saved credential", setup: { fields: [] },
+    }],
     refusals: [],
+    checkedAt: "2026-10-22T00:00:00.000Z",
   };
   const res = await getMailStatus({ ...createRouteDeps(), mailStatus: async () => report }, t);
   assert.equal(res.status, 200);

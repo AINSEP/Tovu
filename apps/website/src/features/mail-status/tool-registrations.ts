@@ -12,11 +12,13 @@ import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPor
 import type { MailProviderControl, MailStatusReport } from "../../platform/mail/mail-status.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
 import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
+import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
+import { asToolInputError, currentLanesDetail, readCurrentLanes } from "./provider-tool-registrations.js";
 
 export interface MailStatusToolDeps {
   authorize: AuthorizeFn; workspaceId: string; mailer: MailerPort;
   /** Lanes, providers and warnings (`server/runtime/boot/resolve-mailer.ts`); absent in hermetic roots. */
-  mailStatus?: () => Promise<MailStatusReport>;
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<MailStatusReport>;
   /** Provider selection for `mail_set_provider`; absent, that tool refuses and changes nothing. */
   mailProviderControl?: MailProviderControl;
   /** The operator's account, for `mail_send_test`'s default recipient. */
@@ -72,10 +74,10 @@ function testModeDetails(plan: MailTestSendPlan): { label: string; value: string
 export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     system_get_mail_status: async ctx => {
-      requireInputRecord({ input: ctx.input });
+      const refresh = requireInputRecord({ input: ctx.input }).refresh === true;
       await permission(deps, ctx, "admin.forms.manage");
       const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
-      const status = deps.mailStatus ? await deps.mailStatus() : {};
+      const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
       return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
     },
     // No rememberKey: a provider switch redirects every email the site sends, so it always asks.
@@ -83,17 +85,18 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
       prepare: async ({ ctx }) => {
         const providerId = readProviderId(ctx.input);
         await permission(deps, ctx, "settings.workspace.write");
-        const check = await providerControl(deps).check({ id: providerId });
-        if (!check.ok) throw new ToolInputError({ message: `Cannot switch to ${check.reason}. Nothing was changed.` });
-        return { providerId, label: check.label };
+        const control = providerControl(deps);
+        const { label } = await asToolInputError(() => checkMailProvider({ control, providerId }));
+        return { providerId, label, current: await readCurrentLanes({ control }) };
       },
       describe: ({ prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
-        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }],
+        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }, ...currentLanesDetail(prepared)],
         warning: "From the next message on, every email this site sends (sign-in links, confirmations, form notifications, newsletters) goes through this provider.", confirmLabel: "Switch provider" }),
       run: async ({ ctx, prepared }) => {
         // The card may sit open for minutes: recheck the grant at the moment of the write.
         await permission(deps, ctx, "settings.workspace.write");
-        await providerControl(deps).select({ id: prepared.providerId, principalId: ctx.principal.id });
+        // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
+        await asToolInputError(() => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id }));
         return { set: true, providerId: prepared.providerId };
       },
     }, { flag: "set" }),

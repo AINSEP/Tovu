@@ -324,6 +324,8 @@
     "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings",
     "mail_set_provider": "email mail provider switch change choose smtp hosted api sending service configure set up",
     "mail_send_test": "send test email mail check delivery works inbox try verify",
+    "mail_list_providers": "email mail providers installed list configured key saved setup fields smtp hosted api",
+    "mail_configure_provider": "email mail provider configure set up save key api key replace rotate smtp password without switching",
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
     "search_reindex": "search reindex rebuild refresh index full backfill",
@@ -1908,6 +1910,16 @@
       "Send me a test email.",
       "Check that my site can actually send email."
     ],
+    "mail_list_providers": [
+      "Which email providers can this site use?",
+      "Is my mail provider's key saved?",
+      "What do I need to set up SMTP?"
+    ],
+    "mail_configure_provider": [
+      "Set up a mail provider without switching to it yet.",
+      "Replace my email provider's API key.",
+      "Save the SMTP password for my site's email."
+    ],
     "search_query": [
       "Search my site for posts about pricing.",
       "Which pages mention our refund policy?",
@@ -3405,6 +3417,14 @@
     "mail_send_test": {
       "class": "publish",
       "confirmation": "plan"
+    },
+    "mail_list_providers": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_configure_provider": {
+      "class": "read",
+      "confirmation": "direct"
     },
     "search_query": {
       "class": "read",

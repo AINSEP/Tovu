@@ -168,7 +168,7 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
     "pages", "permanent-delete", "plugin-source", "plugins", "plugins-install", "post", "post-preview", "publish-content",
     "publish-content-disconnect", "recovery", "redirects", "search", "seo", "settings", "settings-ui-locales",
     "site-backup", "site-evidence", "site-guide", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
-    "static-publish", "system-mail", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-preview-switcher", "theme-set-active", "theme-set-page-published", "theme-trash",
+    "static-publish", "system-mail", "system-mail-providers", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-preview-switcher", "theme-set-active", "theme-set-page-published", "theme-trash",
     "themes", "trash", "web", "web-screenshot", "widgets", "workspace",
   ].sort());
   assert.deepEqual(contributions.derivedContributors.list({}).map(({ domain }) => domain), ["trash-item"]);

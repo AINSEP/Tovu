@@ -47,7 +47,7 @@ test("mail status descriptor is readOnly with derived none risk", () => {
 });
 
 test("with a status source the tool adds state, lanes, warnings and providers", async () => {
-  const report = { state: "ready" as const, lanes: [], warnings: ["sender_unverified" as const], providers: [], refusals: ["plugin 'x' was not loaded"] };
+  const report = { state: "ready" as const, lanes: [], warnings: ["sender_unverified" as const], providers: [], refusals: ["plugin 'x' was not loaded"], checkedAt: "2026-10-22T00:00:00.000Z" };
   const registration = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailStatus: async () => report }, { surfaceExchanges: exchanges().store })[0]!;
   assert.deepEqual(await registration.handler(ctx), { mailDeliveryAvailable: false, driver: "console", note: NOTE, ...report });
 });

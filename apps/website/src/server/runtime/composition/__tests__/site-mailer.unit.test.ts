@@ -91,3 +91,15 @@ test("selectProvider writes both lanes as the calling principal, through its own
   await assert.rejects(mailer.selectProvider({ id: "console", principalId: "intruder" }));
   assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), { transactional: "smtp", bulk: "smtp" });
 });
+
+test("a successful switch drops the cached status at once; a refused one leaves it cached", async () => {
+  const { required, release } = await rig();
+  release();
+  const mailer = createSiteMailer(required);
+  const before = await mailer.status();
+  assert.equal(before.lanes[0]!.providerId, null);
+  await assert.rejects(mailer.selectProvider({ id: "console", principalId: "intruder" }));
+  assert.equal(await mailer.status(), before, "a failed write keeps the cached report");
+  await mailer.selectProvider({ id: "smtp", principalId: "owner" });
+  assert.equal((await mailer.status()).lanes[0]!.providerId, "smtp", "no TTL wait after a switch");
+});

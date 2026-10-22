@@ -32,4 +32,18 @@ export const toolMetadata = {
     },
     approval: { class: 'publish', confirmation: 'plan' },
   },
+  "mail_list_providers": {
+    search: {
+      keywords: "email mail providers installed list configured key saved setup fields smtp hosted api",
+      queries: ["Which email providers can this site use?", "Is my mail provider's key saved?", "What do I need to set up SMTP?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_configure_provider": {
+    search: {
+      keywords: "email mail provider configure set up save key api key replace rotate smtp password without switching",
+      queries: ["Set up a mail provider without switching to it yet.", "Replace my email provider's API key.", "Save the SMTP password for my site's email."],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

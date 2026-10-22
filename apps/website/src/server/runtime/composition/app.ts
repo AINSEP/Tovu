@@ -324,6 +324,7 @@ import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
+import { registerAdminMailProviderRoutes } from "../../inbound/admin-http/routes/system/mail-providers.js";
 import { registerAdminMailDnsRoutes } from "../../inbound/admin-http/routes/system/mail-dns.js";
 import { registerAdminMailTestSendRoute } from "../../inbound/admin-http/routes/system/mail-test-send.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
@@ -2045,6 +2046,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
   registerAdminMailStatusRoute(app, routeDeps);
+  registerAdminMailProviderRoutes(app, routeDeps);
   // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
   // Send test email (same operation as `mail_send_test`).
   registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability: routeDeps.observability }) })(routeDeps) });

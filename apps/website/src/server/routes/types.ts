@@ -646,8 +646,9 @@ export interface MembersDeps {
   settleMailer?: () => Promise<void>;
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
-  mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
-  /** Provider selection for `mail_set_provider` (`server/runtime/composition/site-mailer.ts`). Absent: the tool refuses. */
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
+   *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
   mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
   /** The active transactional provider's DNS records for the configured sender domain
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.

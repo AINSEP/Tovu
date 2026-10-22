@@ -5,7 +5,9 @@ import { contributeProviders, type LoadedProviderContribution } from "@jini-ai/a
 import type { MailAdapterCreateContext as JiniCreateContext, MailProviderModule, MailProviderRegistry } from "@jini-ai/platform/mail";
 import type { MailAdapterCreateContext, MailAdapterModule } from "#src/platform/mail/index";
 import { toJiniMailer } from "#src/platform/mail/purpose-scoped-mailer";
+import type { MailProviderSetup } from "#src/platform/mail/mail-status";
 
+import { parseMailProviderSetupProperty } from "./mail-provider-setup.js";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
@@ -21,7 +23,8 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
  * schemaVersion 2 (email provider contract v1, 2026-10-21) adds `credentialKeys` and `feedback`, and
  * its module is a provider module (`id`, `capabilities`, optional `feedback` parser and domain
  * methods) whose `module.id` must equal the descriptor's `id`. `credentialLabel` stays optional
- * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged.
+ * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged. 2026-10-22: v2
+ * may also carry `setup` (field labels/types/defaults/help links, `./mail-provider-setup.ts`).
  * {@link contributeMailProviders} offers every loaded adapter to Jini's keyed mail-provider registry
  * so its refusals (bad id, duplicate, capability claims without code) surface with the loader's.
  *
@@ -52,6 +55,8 @@ export interface MailAdapterDescriptor {
   readonly credentialKeys?: readonly string[];
   /** v2: whether the module ships a delivery-feedback parser. */
   readonly feedback?: boolean;
+  /** v2, optional: declarative setup-form metadata (`./mail-provider-setup.ts`). */
+  readonly setup?: MailProviderSetup;
 }
 
 export interface LoadedMailAdapter {
@@ -154,14 +159,16 @@ export function defaultCredentialLabel({ label }: { label: string }): string {
 /** One v2 descriptor entry, or the reason it is invalid. @complexity O(k) credential keys. */
 function parseDescriptorV2(entry: unknown, at: string): MailAdapterDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, module, credentialLabel, credentialKeys, feedback } = entry;
+  const { id, label, module, credentialLabel, credentialKeys, feedback, setup } = entry;
   if (typeof id !== "string" || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must match ${PROVIDER_ID_PATTERN.source}`;
   const base = parseDescriptor({ id: "v2", label, module, credentialLabel: credentialLabel ?? "v2" }, at);
   if (typeof base === "string") return base;
   if (!Array.isArray(credentialKeys) || !credentialKeys.every((key) => typeof key === "string" && key !== "")) return `${at}.credentialKeys must be an array of field names`;
   if (typeof feedback !== "boolean") return `${at}.feedback must be true or false`;
   const savedUnder = typeof credentialLabel === "string" ? base.credentialLabel : defaultCredentialLabel({ label: base.label });
-  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback };
+  const declared = parseMailProviderSetupProperty({ value: setup, at, credentialKeys });
+  if (typeof declared === "string") return declared;
+  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...declared };
 }
 
 /** Why a v2 module disagrees with its descriptor, or undefined. @complexity O(1). */

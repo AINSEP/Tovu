@@ -25,7 +25,8 @@ export interface SiteMailerRequired {
 }
 
 export interface SiteMailer extends ResolvedMailer {
-  /** Sets both lanes to `id` as `principalId`; the caller already checked `checkProvider` and got approval. */
+  /** Sets both lanes to `id` as `principalId`, then drops cached mailers and status; the caller already
+   *  checked `checkProvider` and got approval. A failed write throws and changes nothing. */
   selectProvider: (required: { id: string; principalId: string }) => Promise<void>;
 }
 
@@ -40,6 +41,8 @@ export function createSiteMailer(required: SiteMailerRequired, _optional: Record
   const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId }) => {
     await ready();
     await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } });
+    // Only after the write succeeded: a switch must reach the very next send and status read.
+    resolved.invalidate();
   };
   const resolved = createResolvedMailer({
     ...resolve,
