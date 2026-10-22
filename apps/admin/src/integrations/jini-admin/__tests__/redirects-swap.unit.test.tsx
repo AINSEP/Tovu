@@ -89,6 +89,20 @@ describe('Jini redirects host switch', () => {
     expect(view.container.querySelector('script')).toBeNull();
   }, 15000);
 
+  it('Bug B: deleting a switched-off rule moves it to the Trash, so it leaves the list', async () => {
+    const user = userEvent.setup();
+    const { api, row, node } = await fixture();
+    await api.updateRedirect({ id: row.id }, { status: 'disabled' });
+    render(node());
+    const tableRow = (await screen.findByText('/old/<script>', {}, { timeout: 10000 })).closest('tr')!;
+    await user.click(within(tableRow).getByRole('button', { name: 'Actions for redirect rule from "/old/<script>"' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByText('/old/<script>')).toBeNull());
+    expect(await api.listRedirects({})).toEqual([]);
+    expect((await api.getRedirect({ id: row.id })).status).toBe('disabled');
+  }, 15000);
+
   it('renders partial import results through the original helper copy', async () => {
     const { node } = await fixture({ useLocale: () => 'es' });
     const view = render(node());

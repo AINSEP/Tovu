@@ -81,7 +81,7 @@
     "redirects_get": "url link redirect read view details one specific existing",
     "redirects_get_hits": "url link redirect hits traffic clicks visits how many people broken followed",
     "redirects_update": "url link redirect change edit update destination target",
-    "redirects_tombstone": "url link redirect delete remove disable",
+    "redirects_tombstone": "url link redirect delete remove trash retire",
     "redirects_import": "url urls link links redirect redirects import bulk upload csv batch add many rules all at once migrate old urls",
     "identity_role_assign": "admin administrator access permission permissions grant give role promote make elevate someone user remove role unassign role take away role revoke",
     "identity_role_create": "role roles permission group admin editor create new access level",
@@ -1424,11 +1424,11 @@
       "Can I change a redirect's destination while keeping its source URL and status code unchanged?"
     ],
     "redirects_tombstone": [
-      "Can you disable this redirect rule?",
-      "How do I turn off a redirect without deleting its history?",
-      "I want to soft-delete a redirect we don't need anymore.",
-      "What happens if I try to disable a redirect that's already disabled?",
-      "Can you retire an old redirect rule for audit purposes?"
+      "Can you delete this redirect rule?",
+      "Move this redirect to the Trash.",
+      "I want to remove a redirect we don't need anymore.",
+      "What happens if I remove a redirect that's already in the Trash?",
+      "Can you retire an old redirect rule but keep it restorable?"
     ],
     "seo_get_entry_meta": [
       "What SEO title and description is actually showing for this page?",

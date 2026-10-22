@@ -1,9 +1,11 @@
+import { listRedirects } from "@jini-ai/cms/redirects";
 import { toAdminRedirectListResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /**
  * GET the workspace's redirect rules (admin list view, api.spec.md
- * `LIST_REDIRECTS`), optionally filtered by `status`/`source`/`matchType`.
+ * `LIST_REDIRECTS`), optionally filtered by `status`/`source`/`matchType`. Rules in the
+ * Trash are not listed.
  * Gated by `admin.redirects.manage` (REQ-12).
  */
 export const registerAdminRedirectListRoute: RedirectRouteRegistrar = (app, deps) => {
@@ -34,11 +36,16 @@ export const registerAdminRedirectListRoute: RedirectRouteRegistrar = (app, deps
       const source = typeof req.query.source === "string" ? req.query.source : undefined;
       const matchType = typeof req.query.matchType === "string" ? req.query.matchType : undefined;
 
-      const rules = await deps.redirectRepo.list({
-        workspaceId: deps.workspaceId,
-        status: status as "active" | "disabled" | undefined,
-        source: source as "manual" | "auto_slug_change" | "import" | undefined,
-        matchType: matchType as "exact" | "prefix" | "wildcard" | "regex" | undefined,
+      // Rules in the Trash are left out (Bug B): removal moves a rule to the Trash, which is the
+      // only screen that shows it until it is restored.
+      const rules = await listRedirects({
+        deps: { repo: deps.redirectRepo, isInTrash: deps.redirectsWriteDeps.isInTrash },
+        filter: {
+          workspaceId: deps.workspaceId,
+          status: status as "active" | "disabled" | undefined,
+          source: source as "manual" | "auto_slug_change" | "import" | undefined,
+          matchType: matchType as "exact" | "prefix" | "wildcard" | "regex" | undefined,
+        },
       });
       res.json(toAdminRedirectListResponse(rules));
     } catch {

@@ -181,7 +181,7 @@ export function getRedirectsAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
       name: "redirects_list",
-      description: "Lists the workspace's redirect rules, optionally filtered by status/source/matchType. Read-only.",
+      description: "Lists the workspace's redirect rules, optionally filtered by status/source/matchType. Rules in the Trash (removed with redirects_tombstone) are not listed; 'disabled' rules here are ones switched off, not removed. Read-only.",
       sideEffects: "none",
       authorization: { permission: "admin.redirects.manage" },
       inputSchema: LIST_SCHEMA,
@@ -217,7 +217,7 @@ export function getRedirectsAgentToolCatalog(): AgentToolDefinition[] {
     },
     {
       name: "redirects_tombstone",
-      description: "Soft-deletes (disables) a redirect rule. Retained for audit, never matched again once disabled. Idempotent: tombstoning an already-disabled rule is a no-op.",
+      description: "Removes a redirect rule by moving it to the Trash: it stops matching and leaves the redirect rule list (only the Trash shows it). Works on an active or a switched-off rule. Restore it from the Trash, or with redirects_update status 'active'. Idempotent: removing a rule already in the Trash is a no-op.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "admin.redirects.manage" },
       inputSchema: REDIRECT_ID_SCHEMA,

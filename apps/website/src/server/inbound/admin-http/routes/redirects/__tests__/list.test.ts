@@ -5,6 +5,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
+import { createRedirect, tombstoneRedirect, updateRedirect } from "@jini-ai/cms/redirects";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -129,4 +130,43 @@ test("LIST_REDIRECTS route: 500 on unexpected repository error", async (t) => {
   const body = (await res.json()) as { error: string; code: string };
   assert.equal(body.error, "internal error");
   assert.equal(body.code, "INTERNAL_ERROR");
+});
+
+test("LIST_REDIRECTS route (Bug B): a rule in the Trash is not listed; a rule merely toggled off still is", async (t) => {
+  const trashCalls: unknown[] = [];
+  const base = createRouteDeps();
+  const { app } = buildApp({
+    redirectRepo: { list: async () => rules } as unknown as RedirectRouteDeps["redirectRepo"],
+    redirectsWriteDeps: {
+      ...base.redirectsWriteDeps,
+      isInTrash: async (required: { workspaceId: string; id: string }) => {
+        trashCalls.push(required);
+        return true;
+      },
+    },
+  });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${URL_BASE}`);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { data: Array<{ id: string }> };
+  assert.deepEqual(body.data.map((rule) => rule.id), ["redirect-one"]);
+  // Only the `disabled` row can be in the Trash, so only it is looked up.
+  assert.deepEqual(trashCalls, [{ workspaceId: WORKSPACE_ID, id: "redirect-two" }]);
+});
+
+test("LIST_REDIRECTS route (Bug B): remove -> gone from the list; restore (status active) -> back", async (t) => {
+  const { app, deps } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  const write = deps.redirectsWriteDeps;
+  const { record: kept } = await createRedirect({ deps: write, input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/bug-b-kept", toTarget: "/bug-b-target", statusCode: 301, actorId: "test-principal" } });
+  const { record: removed } = await createRedirect({ deps: write, input: { workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/bug-b-removed", toTarget: "/bug-b-target", statusCode: 301, actorId: "test-principal" } });
+  const listedIds = async () => ((await (await fetch(`${baseUrl}${URL_BASE}`)).json()) as { data: Array<{ id: string }> }).data.map((rule) => rule.id);
+
+  await tombstoneRedirect({ deps: write, input: { workspaceId: WORKSPACE_ID, id: removed.id, actorId: "test-principal" } });
+  assert.ok((await listedIds()).includes(kept.id));
+  assert.ok(!(await listedIds()).includes(removed.id), "a removed rule must leave the normal list");
+
+  await updateRedirect({ deps: write, input: { workspaceId: WORKSPACE_ID, id: removed.id, status: "active", actorId: "test-principal" } });
+  assert.ok((await listedIds()).includes(removed.id), "restoring the rule brings it back to the list");
 });
