@@ -99,16 +99,31 @@ test("a real already-trashed template is not found by get/edit/preview", async (
 });
 
 test("trash between a successful lookup and real Pages store access returns not-live", async (t) => {
-  const base = createRouteDeps(); let race = false;
-  const r = await boot(t, { override: { ...base, pagesHtmlStore: scope => {
+  const base = createRouteDeps();
+  let race = false;
+  let trashedId: string | undefined;
+  // Override only the shared storage so boot's authorized principal reaches the liveness guard.
+  const r = await boot(t, { override: { postRepo: base.postRepo, pagesHtmlStore: (scope, _options = {}) => {
     const store = base.pagesHtmlStore(scope);
     return { ...store, read: async () => {
-      if (race) { const row = await base.postRepo.findById({ workspaceId: WS, id: scope.postId }); await base.postRepo.save({ ...row!, deletedAt: "2026-10-22T01:00:00Z" }); }
+      if (race) {
+        const row = await base.postRepo.findById({ workspaceId: WS, id: scope.postId });
+        assert.ok(row);
+        await base.postRepo.save({ ...row, deletedAt: "2026-10-22T01:00:00Z" });
+        trashedId = row.id;
+      }
       return store.read();
     }, capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: seed => store.ensureHtmlFormat(seed) };
   } } });
-  const id = String((await r.send("POST", BASE, { name: "Racy", html: HTML })).json.id); race = true;
-  const response = await r.send("PUT", `${BASE}/${id}/html`, { html: HTML }); assert.equal(response.status, 409);
+  const created = await r.send("POST", BASE, { name: "Racy", html: HTML });
+  assert.equal(created.status, 201);
+  const id = String(created.json.id);
+  race = true;
+  const response = await r.send("PUT", `${BASE}/${id}/html`, { html: HTML });
+  assert.equal(trashedId, id);
+  assert.equal(response.status, 409);
+  assert.equal(response.json.code, "ENTITY_IN_TRASH");
+  assert.deepEqual(r.asked, ["pages.edit_html", "pages.edit_html"]);
 });
 
 test("an unexpected listing failure is a bare 500", async (t) => {

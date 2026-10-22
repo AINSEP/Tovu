@@ -275,16 +275,17 @@ test("an unknown provider id reports the plugin refusals; a settings fault becom
   assert.equal(!refused.ok && refused.message, "Mail provider selection failed; check configuration.");
 });
 
-test("a failed migration write warns and still serves this send from the computed setting", async () => {
+test("a failed migration write warns without leaking error detail and still serves this send from the computed setting", async () => {
   const warnings: string[] = [];
   const credentialDeps = makeCredentialWriteDeps();
   await saveResendKey(credentialDeps);
   const { mailer } = createResolvedMailer(makeResolveDeps({
     customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer,
-    providerSetting: { read: async () => null, write: async () => { throw new Error("locked"); } },
+    providerSetting: { read: async () => null, write: async () => { throw new Error("locked (password=migration-secret)"); } },
   }, warnings));
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
-  assert.match(warnings[0]!, /could not be saved \(locked\)/);
+  assert.equal(warnings[0], "[mail] the mail provider setting could not be saved; retrying on the next send");
+  assert.doesNotMatch(warnings.join("\n"), /locked|migration-secret/);
 });
 
 test("wrapProviderMailer decorates each resolved provider once", async () => {
