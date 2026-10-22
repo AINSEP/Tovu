@@ -113,6 +113,14 @@ test("permission denied, malformed overwrite selections and forged confirm input
   await assert.rejects(() => r.handler(context({ bundleId: f.bundleId })), { message: "principal 'human-owner' is not authorized for 'publish_content.apply' (insufficient_permission)" });
   assert.equal(f.applied.length, 0);
 });
+test("a missing, blank or non-string bundleId is refused before any plan lookup", async () => {
+  const f = await planned();
+  const r = await tool(f.deps, ID);
+  for (const bundleId of [undefined, "", "   ", 42]) {
+    await assert.rejects(() => r.handler(context(bundleId === undefined ? {} : { bundleId })), { message: "'bundleId' must be a non-empty string." });
+  }
+  assert.equal(f.applied.length, 0);
+});
 test("missing/expired bundles, wrong caller and unknown overwrite keys require a fresh plan", async () => {
   const f = await planned();
   const r = await tool(f.deps, ID);
