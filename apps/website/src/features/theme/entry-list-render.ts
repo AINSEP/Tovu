@@ -272,8 +272,11 @@ function fillAttributeValue(lowerName: string, inner: string, item: EntryListIte
 function renderTemplateTag(tag: string, item: EntryListItem): string {
   return tag.replace(
     TAG_ATTRIBUTE_OR_PLACEHOLDER,
-    (_match, name: string | undefined, equals: string, value: string, key: string | undefined) =>
-      key === undefined ? renderTemplateAttribute({ name: name ?? "", equals, value }, item) : escapeForUnquotedAttribute(resolvePlaceholderRawValue(key, item))
+    // `name` is typed `string` with no `?? ""` fallback: TAG_ATTRIBUTE_OR_PLACEHOLDER's two
+    // alternatives are exclusive, and the attribute alternative (the only one leaving `key`
+    // undefined) always captures group 1, so `name` is defined whenever it is read.
+    (_match, name: string, equals: string, value: string, key: string | undefined) =>
+      key === undefined ? renderTemplateAttribute({ name, equals, value }, item) : escapeForUnquotedAttribute(resolvePlaceholderRawValue(key, item))
   );
 }
 
