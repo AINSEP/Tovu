@@ -267,3 +267,16 @@ test("a region placement pointing at a real but trashed (status \"trash\") widge
     { placementId: "p-old", widgetEntryId: widgetId, enabled: true, widgetTitle: "Retired notice", widgetType: "text", broken: true },
   ]);
 });
+
+test("a region whose area entry carries a corrupted payload answers the generic 500, never a crash", async (t) => {
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const h = harness();
+  await h.invoke("post", `${B}/widgets/regions`, { params: { workspaceId: "ws-1" }, body: { regionKey: "corrupt" } });
+  const binding = await h.widgetBindingRepo.findByRegion({ workspaceId: "ws-1", regionKey: "corrupt" });
+  const area = await h.entryRepo.findById({ workspaceId: "ws-1", id: binding!.areaEntryId });
+  await h.entryRepo.save({ ...area!, fieldsJson: { notExt: true } });
+  const result = await h.invoke("get", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "corrupt" } });
+  assert.deepEqual({ statusCode: result.statusCode, jsonBody: result.jsonBody }, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assert.equal(logged.length, 1);
+});
