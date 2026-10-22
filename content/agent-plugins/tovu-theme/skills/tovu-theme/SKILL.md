@@ -580,6 +580,16 @@ Create no CMS Page rows in this branch.
    (Rule 5's fetch-path check, and the Assets section). Import local theme images/fonts/icons
    with `theme_import_local_file` in `items` batches; rewrite their references only after checking
    each result. Video uses `media_import_local_file` and its returned `publicUrl`.
+   **kUInetic** (and any library the theme vendors) loads from the theme's OWN local vendor file,
+   exactly once, from the shared partial every page already includes — the stock themes put a
+   single `<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.js"></script>` at the
+   end of `render/partials/footer.html` (and each footer variant). Partials expand after the page's
+   `../scripts/` rewrite, so a partial uses the absolute `/theme-assets/<theme-id>/` form, the same
+   form its logo `<img>` uses (`theme_duplicate` rewrites the id). Never a CDN tag
+   (`cdn.jsdelivr.net/npm/kuinetic…`, an `@0`/`latest` range, a CDN `preload`), never a
+   `window.kuinetic||document.write(...)` fallback, and never a per-page copy of the tag. Keep it a
+   plain synchronous tag (no `defer`/`async`): kUInetic defers its own boot to `DOMContentLoaded`,
+   so it still arms after the page's own end-of-body scripts. Ship the library's LICENSE beside it.
 7. **`publishedPages`** (Rule 4): list every converted page id except `index`. Do this as its
    own explicit step, not a thing you remember while writing `theme.json` in step 2 — it's easy
    to write the manifest before the page inventory is final and forget to come back to it.
