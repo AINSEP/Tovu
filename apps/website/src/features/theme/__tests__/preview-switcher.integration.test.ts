@@ -72,6 +72,16 @@ test("workspace setting defaults disabled; generic writes validate installed ros
   assert.equal((await readPreviewSwitcher({ ...f.deps, activeThemeId: "preview-three" })).enabled, false);
 });
 
+test("the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it", async t => {
+  const f = await fixture(t);
+  const { set } = await import("#src/features/settings/site-title-write");
+  const before = await f.deps.settingsRepo.maxRevisionSeq();
+  const { ValueValidationFailedError } = await import("@jini-ai/core/settings");
+  await assert.rejects(set({ deps: f.writeDeps, input: f.input }), (error: unknown) =>
+    error instanceof ValueValidationFailedError && error.message === "Theme preview write policy is unavailable.");
+  assert.equal(await f.deps.settingsRepo.maxRevisionSeq(), before);
+});
+
 test("assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged", async t => {
   const f = await fixture(t);
   const fault = new Error("ledger offline");
