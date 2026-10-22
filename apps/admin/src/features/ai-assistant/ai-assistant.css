@@ -173,11 +173,7 @@
 .visitor-tool-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; min-width: 0; }
 .visitor-tool-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 .visitor-tool-title { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--jini-text-strong); overflow-wrap: anywhere; }
-/* Server titles are snake_case ids spelled out ("list categories"); capitalise like a label. */
-.visitor-tool-title::first-letter { text-transform: uppercase; }
-/* Descriptions are the model-facing text and can run a paragraph; two lines here, full text on hover. */
 .visitor-tool-description {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
   font-size: 12px; line-height: 1.5; color: var(--jini-text-muted); overflow-wrap: anywhere;
 }
 .visitor-tool-unavailable { font-size: 12px; color: var(--jini-warning); }

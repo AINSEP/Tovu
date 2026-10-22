@@ -53,6 +53,11 @@ test("site_guide receives only effective capability names, and empty/invalid pol
   assert.equal(names.length, 5);
   assert.ok(!names.includes("list_categories"));
   assert.ok(!names.includes("navigate_to_entry"));
+  for (const schema of registry.schemas) {
+    assert.deepEqual(Object.keys(schema).sort(), ["description", "name", "parameters"]);
+  }
+  assert.equal(registry.schemas.find(schema => schema.name === "site_guide")?.description,
+    "Read-only overview or explain(topic) of the capabilities granted to this visitor. Administrator topics and private site facts are unavailable.");
   assert.deepEqual(await registry.invoke({ name: "site_guide", input: { operation: "overview" }, caller: "anonymous-visitor" }),
     { kind: "ok", result: { availableTools: names }, directive: undefined });
   const invalid = createSiteCapabilityRegistry(f.deps, { visitorExecution: { ...f.ports, initialPolicy: null, readPolicy: async () => null } });

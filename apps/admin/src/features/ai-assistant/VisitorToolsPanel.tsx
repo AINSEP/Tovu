@@ -92,6 +92,8 @@ function Notices({ controller, t }: { controller: VisitorToolsController; t: (ke
 
 function VisitorToolRow({ tool, controller, t }: { tool: VisitorToolView; controller: VisitorToolsController; t: (key: string) => string }) {
   const nameId = useId();
+  const title = t(tool.displayTitle ?? tool.title);
+  const description = t(tool.displayDescription ?? tool.description);
   const busy = controller.busyToolId !== null;
   // An unreadable policy is enforced as all-Off server side; show exactly that, not the stale choice.
   const mode = controller.invalid ? "off" : tool.mode;
@@ -99,8 +101,8 @@ function VisitorToolRow({ tool, controller, t }: { tool: VisitorToolView; contro
     <li className="visitor-tool" aria-labelledby={nameId} aria-busy={controller.busyToolId === tool.id || undefined}>
       <div className="visitor-tool-head">
         <div className="visitor-tool-text">
-          <span id={nameId} className="visitor-tool-title">{tool.title}</span>
-          <span className="visitor-tool-description" title={tool.description}>{tool.description}</span>
+          <span id={nameId} className="visitor-tool-title">{title}</span>
+          <span className="visitor-tool-description">{description}</span>
           {!tool.availability.available ? (
             <span className="visitor-tool-unavailable">{tool.availability.reason ?? t("Not available right now.")}</span>
           ) : null}
@@ -114,12 +116,12 @@ function VisitorToolRow({ tool, controller, t }: { tool: VisitorToolView; contro
             }))} />
         </div>
       </div>
-      <VisitorToolLimits tool={tool} controller={controller} t={t} />
+      <VisitorToolLimits tool={tool} title={title} controller={controller} t={t} />
     </li>
   );
 }
 
-function VisitorToolLimits({ tool, controller, t }: { tool: VisitorToolView; controller: VisitorToolsController; t: (key: string) => string }) {
+function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolView; title: string; controller: VisitorToolsController; t: (key: string) => string }) {
   const limits = useVisitorToolLimitsDraft({ tool, configure: controller.configure });
   const ipId = useId();
   const siteId = useId();
@@ -141,22 +143,24 @@ function VisitorToolLimits({ tool, controller, t }: { tool: VisitorToolView; con
               value={limits.draft[field.key]} disabled={locked}
               aria-invalid={limits.invalid || undefined} aria-describedby={limits.invalid ? errorId : undefined}
               onChange={(event) => limits.edit(field.key, event.target.value)}
-              {...agentHandle({ handle: toolHandle(tool.id, field.key === "perIpPerHour" ? "per-visitor-limit" : "per-site-limit") }, { role: "field", label: `${tool.title}: ${field.label}` })} />
+              {...agentHandle({ handle: toolHandle(tool.id, field.key === "perIpPerHour" ? "per-visitor-limit" : "per-site-limit") }, { role: "field", label: `${title}: ${field.label}` })} />
           </label>
         ))}
         <button type="button" className="btn-primary" disabled={locked || !limits.dirty || controller.busyToolId !== null}
           onClick={() => void limits.save()}
-          {...agentHandle({ handle: toolHandle(tool.id, "limits-save") }, { role: "button", label: `Save ${tool.title} limits` })}>
+          {...agentHandle({ handle: toolHandle(tool.id, "limits-save") }, { role: "button", label: `Save ${title} limits` })}>
           {controller.busyToolId === tool.id ? t("Saving…") : t("Save")}
         </button>
         {limits.invalid ? <span id={errorId} className="visitor-tool-limit-error" role="alert">{t("Use a whole number, 1 or more.")}</span> : null}
-        {!limits.invalid ? (
-          <span className="visitor-tool-limit-hint">
-            {t("Default: {ip} per visitor/hour, {site} per site/day.")
-              .replace("{ip}", String(controller.view?.defaults.perIpPerHour ?? "")).replace("{site}", String(controller.view?.defaults.perSitePerDay ?? ""))}
-          </span>
-        ) : null}
+        {!limits.invalid ? <VisitorToolLimitsHint controller={controller} t={t} /> : null}
       </div>
     </details>
   );
+}
+
+function VisitorToolLimitsHint({ controller, t }: { controller: VisitorToolsController; t: (key: string) => string }) {
+  return <span className="visitor-tool-limit-hint">
+    {t("Default: {ip} per visitor/hour, {site} per site/day.")
+      .replace("{ip}", String(controller.view?.defaults.perIpPerHour ?? "")).replace("{site}", String(controller.view?.defaults.perSitePerDay ?? ""))}
+  </span>;
 }

@@ -12,6 +12,8 @@ export interface VisitorToolView {
   sourceRevision: string;
   title: string;
   description: string;
+  displayTitle?: string;
+  displayDescription?: string;
   effect: "read" | "write";
   availability: { available: boolean; reason?: string };
   publication?: { endpoint: string; credentialId: string; returnedFields: string[] };

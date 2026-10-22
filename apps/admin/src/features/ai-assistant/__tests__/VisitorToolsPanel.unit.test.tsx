@@ -12,6 +12,7 @@ import {
 } from "@/lib/visitor-tools";
 import { VisitorToolsPanel } from "../VisitorToolsPanel";
 import { useVisitorTools } from "../hooks/use-visitor-tools.hooks";
+import { t as translate } from "../ai-assistant-i18n";
 
 const t = (key: string) => key;
 const DEFAULTS = { perIpPerHour: 30, perSitePerDay: 1000 };
@@ -52,6 +53,36 @@ function mount(port: VisitorToolsPort) {
 const row = (title: string) => screen.getByText(title).closest("li") as HTMLElement;
 
 describe("VisitorToolsPanel", () => {
+  it("announces loading until the tool catalog arrives", async () => {
+    let deliver!: (next: VisitorToolsView) => void;
+    const pending = new Promise<VisitorToolsView>(resolve => { deliver = resolve; });
+    mount({ list: async () => pending, configure: async () => view() });
+    expect(screen.getByRole("status").textContent).toBe("Loading visitor tools…");
+    await act(async () => { deliver(view()); });
+    expect(await screen.findByText("Tool list_posts")).toBeTruthy();
+    expect(screen.queryByText("Loading visitor tools…")).toBeNull();
+  });
+
+  it("shows translated display copy instead of the model text, including the accessible tool name", async () => {
+    const fake = fakePort(view({ tools: [tool("list_categories", {
+      title: "list categories", description: "Model-only instructions: list public content types.",
+      displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",
+    })] }));
+    const { rerender } = render(<VisitorToolsPanel
+      t={(key) => translate({ locale: "de", key })}
+      useVisitorToolsHook={(input) => useVisitorTools({ ...input, port: fake.port })} />);
+    expect(await screen.findByText("Kategorien auflisten")).toBeTruthy();
+    expect(screen.getByText("Zeigt Besuchern deine Beitragskategorien.")).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: "Kategorien auflisten" })).toBeTruthy();
+    expect(screen.queryByText("list categories")).toBeNull();
+    expect(screen.queryByText(/Model-only instructions/)).toBeNull();
+    rerender(<VisitorToolsPanel t={t}
+      useVisitorToolsHook={(input) => useVisitorTools({ ...input, port: fake.port })} />);
+    expect(await screen.findByText("List categories")).toBeTruthy();
+    expect(screen.getByText("Lets visitors see your post categories.")).toBeTruthy();
+    expect(fake.writes).toEqual([]);
+  });
+
   it("lists each tool with its description and current mode, and uses no <select>", async () => {
     const { container } = mount(fakePort().port);
     expect(await screen.findByText("Tool list_posts")).toBeTruthy();
@@ -74,6 +105,22 @@ describe("VisitorToolsPanel", () => {
     // The next write uses the returned revision.
     await userEvent.click(within(row("Tool site_guide")).getByRole("radio", { name: "Auto" }));
     await waitFor(() => expect(fake.writes[1]).toEqual({ toolId: "site_guide", mode: "auto", expectedRevisionSeq: 8 }));
+  });
+
+  it("shows the saving tool and locks mode controls until the write returns", async () => {
+    const fake = fakePort();
+    let finish!: () => Promise<void>;
+    mount({ ...fake.port, configure: input => new Promise(resolve => {
+      finish = async () => { resolve(await fake.port.configure(input)); };
+    }) });
+    await screen.findByText("Tool list_posts");
+    await userEvent.click(within(row("Tool list_posts")).getByRole("radio", { name: "Off" }));
+    expect(row("Tool list_posts").getAttribute("aria-busy")).toBe("true");
+    expect(within(row("Tool list_posts")).getByRole("button", { name: "Saving…" })).toBeTruthy();
+    for (const radio of screen.getAllByRole("radio")) expect((radio as HTMLInputElement).disabled).toBe(true);
+    await act(async () => { await finish(); });
+    await waitFor(() => expect(row("Tool list_posts").hasAttribute("aria-busy")).toBe(false));
+    expect((within(row("Tool list_posts")).getByRole("radio", { name: "Off" }) as HTMLInputElement).checked).toBe(true);
   });
 
   it("limits: typing, change and blur send nothing; only the Save click does (F2)", async () => {
@@ -151,6 +198,20 @@ describe("VisitorToolsPanel", () => {
     expect((scope.getByRole("radio", { name: "Off" }) as HTMLInputElement).disabled).toBe(false);
     expect(screen.getByRole("heading", { name: "Built-in" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Unavailable" })).toBeTruthy();
+  });
+
+  it("keeps custom copy readable, with an availability fallback and distinct plugin/created groups", async () => {
+    const customTitle = "Customer lookup";
+    mount(fakePort(view({ tools: [
+      tool("plugin_lookup", { source: "plugin", title: customTitle, description: "Looks up a public customer profile." }),
+      tool("_", { source: "created", availability: { available: false } }),
+    ] })).port);
+    expect(await screen.findByText(customTitle)).toBeTruthy();
+    expect(screen.getByText("Looks up a public customer profile.")).toBeTruthy();
+    expect(screen.getByText("Not available right now.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "From plugins" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Created" })).toBeTruthy();
+    expect((within(row("Tool _")).getByLabelText("Per visitor, per hour") as HTMLInputElement).disabled).toBe(true);
   });
 
   it("shows an empty line for an empty catalog and a retry on load failure", async () => {

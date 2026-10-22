@@ -57,6 +57,7 @@
 import type { ClientDirective } from "./client-directives.js";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
 import { createVisitorExecutor, type VisitorCapabilityContract, type VisitorExecutionPorts } from "./visitor-executor.js";
+import { VISITOR_TOOL_PRESENTATION } from "./visitor-tool-presentation.js";
 
 /** Owner's site-guide brief adds one explicitly named read-only seam. This does not accept a
  * plugin catalog or arbitrary capability names; the host supplies an anonymous-safe guide only.
@@ -116,6 +117,7 @@ function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssis
     {
       name: "search_published_entries",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.search_published_entries,
       // Wrapped in `{ result }` — these three read-only tools return the model-facing value
       // directly, unlike the three page-action tools below, which already return `{ result,
       // directive? }` themselves (they have a directive to carry; these never do).
@@ -124,26 +126,31 @@ function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssis
     {
       name: "get_published_entry",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.get_published_entry,
       execute: async ({ input }, _options = {}) => ({ result: await tools.get_published_entry(input as { slug?: unknown }) }),
     },
     {
       name: "list_categories",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.list_categories,
       execute: async (_required, _options = {}) => ({ result: await tools.list_categories() }),
     },
     {
       name: "navigate_to_entry",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.navigate_to_entry,
       execute: ({ input }, _options = {}) => tools.navigate_to_entry(input as { slug?: unknown }),
     },
     {
       name: "scroll_to_entry",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.scroll_to_entry,
       execute: ({ input }, _options = {}) => tools.scroll_to_entry(input as { slug?: unknown }),
     },
     {
       name: "highlight_entry",
       visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.highlight_entry,
       execute: ({ input }, _options = {}) => tools.highlight_entry(input as { slug?: unknown }),
     },
   ];
@@ -175,6 +182,7 @@ export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, option
   if (options.siteGuide) {
     const guide = options.siteGuide;
     capabilities.set("site_guide", { name: "site_guide", visitorOfferable: true,
+      ...VISITOR_TOOL_PRESENTATION.site_guide,
       execute: async ({ input }, _options = {}) => ({ result: await guide.run({ input, availableTools: await executor.availableToolNames({}) }) }) });
     schemas = [...schemas, { name: "site_guide", description: "Read-only overview or explain(topic) of the capabilities granted to this visitor. Administrator topics and private site facts are unavailable.", parameters: guide.inputSchema }];
   }

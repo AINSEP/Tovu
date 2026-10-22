@@ -6,6 +6,7 @@ import { VisitorAssistantTabs } from "../VisitorAssistantTabs";
 import { parseLimitsDraft } from "../hooks/use-visitor-tools.hooks";
 import { VISITOR_TOOLS_DICT, VISITOR_TOOLS_KEYS } from "../visitor-tools-i18n";
 import { AI_ASSISTANT_DICT, t as translate } from "../ai-assistant-i18n";
+import { VISITOR_TOOL_PRESENTATION } from "../../../../../website/src/assistant/site/visitor-tool-presentation";
 
 const t = (key: string) => key;
 
@@ -48,5 +49,13 @@ describe("visitor tools strings", () => {
     expect(translate({ locale: "ja", key: "Default: {ip} per visitor/hour, {site} per site/day." })).toContain("{ip}");
     // "Off" already belongs to the status pill; the pill's translation wins.
     expect(translate({ locale: "id", key: "Off" })).toBe("Nonaktif");
+  });
+  it("translates every built-in title and plain description in every admin locale", () => {
+    const copy = Object.values(VISITOR_TOOL_PRESENTATION).flatMap(tool => [tool.displayTitle, tool.displayDescription]);
+    for (const locale of Object.keys(AI_ASSISTANT_DICT)) for (const key of copy) {
+      expect(VISITOR_TOOLS_DICT[locale][key]?.length, `${locale}: ${key}`).toBeGreaterThan(0);
+      expect(translate({ locale, key }), `${locale}: ${key}`).not.toBe(key);
+    }
+    for (const key of copy) expect(translate({ locale: "en", key })).toBe(key);
   });
 });

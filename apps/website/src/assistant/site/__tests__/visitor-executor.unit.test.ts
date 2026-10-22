@@ -19,6 +19,7 @@ function fixture(options: { policy?: VisitorToolPolicy | null; failBudget?: bool
     reportError: error => { errors.push(error); },
   };
   const capabilities: VisitorCapabilityContract[] = [{ name: "list_categories", visitorOfferable: true,
+    displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",
     execute: async ({ input }) => { calls++; if (options.failHandler) throw new Error("private provider failure"); return { result: input }; } }];
   const executor = createVisitorExecutor({ capabilities }, { ports });
   return { executor, ports, capabilities, events, errors, abort, setPolicy: (next: VisitorToolPolicy | null) => { policy = next; }, calls: () => calls, charges: () => charges };

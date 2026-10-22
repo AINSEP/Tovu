@@ -1,7 +1,14 @@
 /** Admin-only visitor catalog/read model. Source owners supply eligibility; policy cannot invent it. */
 import type { VisitorToolChoice, VisitorToolLimits, VisitorToolMode, VisitorToolPolicy } from "./visitor-tools.js";
 
-export interface VisitorToolDescriptor {
+/** Human-facing English dictionary keys, independent of model-facing descriptions. */
+export interface VisitorToolPresentation {
+  readonly displayTitle: string;
+  readonly displayDescription: string;
+}
+
+/** Display copy is additive: older catalogs and unavailable sources can retain their existing copy. */
+export interface VisitorToolDescriptor extends Partial<VisitorToolPresentation> {
   readonly id: string;
   /** Assigned by the host source adapter; plugins cannot claim builtin to bypass publication approval. */
   readonly source: "builtin" | "plugin" | "created" | "unavailable";

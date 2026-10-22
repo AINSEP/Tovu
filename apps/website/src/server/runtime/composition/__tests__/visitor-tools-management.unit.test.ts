@@ -13,6 +13,15 @@ test("the production catalog is exactly the seven reviewed CMS reads, independen
   assert.deepEqual(catalog.map(t => t.id), ["search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry", "site_guide"]);
   assert.ok(catalog.every(t => t.source === "builtin" && t.effect === "read" && t.availability.available));
   assert.ok(catalog.every(t => t.title && t.description && t.sourceRevision));
+  assert.deepEqual(catalog.map(({ id, displayTitle, displayDescription }) => [id, displayTitle, displayDescription]), [
+    ["search_published_entries", "Search posts and pages", "Lets visitors find your posts and pages."],
+    ["get_published_entry", "Read a post or page", "Lets visitors read a post or page."],
+    ["list_categories", "List categories", "Lets visitors see your post categories."],
+    ["navigate_to_entry", "Open a post or page", "Lets visitors open a post or page."],
+    ["scroll_to_entry", "Scroll to a post or page", "Lets visitors scroll to a post or page."],
+    ["highlight_entry", "Highlight a post or page", "Lets visitors highlight a post or page."],
+    ["site_guide", "Site guide", "Shows visitors what the assistant can do."],
+  ]);
   const f = await visitorSettingsFixture();
   const service = composeVisitorToolsManagement({ workspaceId: ws, settings: f.deps, ready: Promise.resolve() });
   const view = await service.list({ callerPrincipalId: "owner" });
@@ -35,6 +44,15 @@ test("the existing assistant-settings module mounts both visitor routes over the
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "get", ADMIN_VISITOR_TOOLS_PATH)({ params: { workspaceId: ws } } as unknown as Request, res);
   assert.deepEqual(capture.jsonBody, { data: await service.list({ callerPrincipalId: "owner" }) });
+  const tools = (capture.jsonBody as { data: Awaited<ReturnType<typeof service.list>> }).data.tools;
+  assert.equal(tools.length, 7);
+  assert.deepEqual(tools.find(tool => tool.id === "list_categories"), {
+    id: "list_categories", title: "list categories",
+    description: "List the content types that have published entries on this site.",
+    displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",
+    source: "builtin", sourceRevision: "builtin-v1", effect: "read", availability: { available: true },
+    mode: "auto", limits: { perIpPerHour: 30, perSitePerDay: 1000 },
+  });
   assert.equal(typeof extractRouteHandler(app, "put", ADMIN_VISITOR_TOOLS_PATH), "function");
 });
 
