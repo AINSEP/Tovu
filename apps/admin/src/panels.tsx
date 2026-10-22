@@ -30,6 +30,7 @@ import { FormsList, FormEditor } from "./features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
 import { Taxonomy } from "./features/taxonomy";
 import { Trash } from "./features/trash";
+import { Email } from "./features/email";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
@@ -1090,21 +1091,25 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     render: () => <WorkspaceRedirect />,
   },
   {
-    id: "notifications",
-    // Owner placed this "under settings" — read as the Administration group beside Settings, not as
-    // a tab inside `SettingsUi`, because it ships as a `soon` NAV entry and a tab would have no nav
-    // row to label. This used to record the same open placement question Workspace's own note
-    // carried (standalone entry vs Settings tab) as one question that would "probably resolve
-    // both" — it didn't: Workspace's resolved 2026-09-10 to "tab" (see that panel's own comment),
-    // but this entry's own `soon`-NAV-with-no-screen-yet reasoning above is unaffected by that
-    // answer and still applies on its own terms. Revisit when this stops being `soon`.
-    render: () => <Placeholder sectionId="notifications" agentHandle="notifications" />,
+    // Email (2026-10-22) replaces the `soon` Notifications placeholder in the same nav slot, so the
+    // Administration group keeps its row count. Phase 1 of
+    // `ADS-memory/reports/2026-10-22-email-page-design-codex.md`: configuration diagnostics from
+    // `GET …/system/mail-status`, which checks `admin.forms.manage`.
+    id: "email",
+    anyOfPermissions: ["admin.forms.manage"],
+    render: () => <Email />,
     nav: {
-      label: "Notifications",
+      label: "Email",
       group: "Administration",
-      soon: true,
-      icon: '<path d="M9 2.5a4.5 4.5 0 00-4.5 4.5c0 3.5-1.5 4.5-1.5 4.5h12s-1.5-1-1.5-4.5A4.5 4.5 0 009 2.5z"/><path d="M7.5 14a1.5 1.5 0 003 0"/>',
+      icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M3 5l6 4.5L15 5"/>',
     },
+  },
+  {
+    // Retired 2026-10-22: the Notifications placeholder became Email. The id stays so an old
+    // `/admin/notifications` bookmark or agent-remembered link lands on Email instead of a dead URL.
+    id: "notifications",
+    agentReachable: false,
+    render: () => <IntegrationsRedirect routePath="/email" />,
   },
   {
     id: "trash",

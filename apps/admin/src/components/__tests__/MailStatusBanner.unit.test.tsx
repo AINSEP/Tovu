@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MailStatusBanner } from "../MailStatusBanner/MailStatusBanner";
 import {
   MAIL_BANNER_DISMISSED_KEY,
+  MAIL_SET_UP_LABEL,
   MAIL_UNCONFIGURED_TEXT,
-  mailStatusBannerText,
+  mailStatusBannerVisible,
   readMailBannerDismissed,
   writeMailBannerDismissed,
   type MailBannerStorage,
@@ -29,17 +30,22 @@ const throwingStorage: MailBannerStorage = {
   setItem: () => { throw new Error("QuotaExceededError"); },
 };
 
+/** The caller-translated copy; English here. */
+function labels(dismiss: string) {
+  return { text: MAIL_UNCONFIGURED_TEXT, setUp: MAIL_SET_UP_LABEL, dismiss };
+}
+
 const unconfigured = async () => ({ mailDeliveryAvailable: false, state: "unconfigured" as const });
 
 beforeEach(() => localStorage.clear());
 
-describe("mailStatusBannerText", () => {
-  it("names the missing provider only when unconfigured", () => {
-    expect(mailStatusBannerText({ status: { mailDeliveryAvailable: false, state: "unconfigured" } })).toBe(MAIL_UNCONFIGURED_TEXT);
-    expect(mailStatusBannerText({ status: { mailDeliveryAvailable: true, state: "ready" } })).toBeNull();
-    expect(mailStatusBannerText({ status: { mailDeliveryAvailable: true, state: "degraded" } })).toBeNull();
-    expect(mailStatusBannerText({ status: { mailDeliveryAvailable: false } })).toBeNull();
-    expect(mailStatusBannerText({ status: null })).toBeNull();
+describe("mailStatusBannerVisible", () => {
+  it("shows only when unconfigured", () => {
+    expect(mailStatusBannerVisible({ status: { mailDeliveryAvailable: false, state: "unconfigured" } })).toBe(true);
+    expect(mailStatusBannerVisible({ status: { mailDeliveryAvailable: true, state: "ready" } })).toBe(false);
+    expect(mailStatusBannerVisible({ status: { mailDeliveryAvailable: true, state: "degraded" } })).toBe(false);
+    expect(mailStatusBannerVisible({ status: { mailDeliveryAvailable: false } })).toBe(false);
+    expect(mailStatusBannerVisible({ status: null })).toBe(false);
   });
 });
 
@@ -65,21 +71,28 @@ describe("readMailBannerDismissed / writeMailBannerDismissed", () => {
 describe("MailStatusBanner", () => {
   it("renders a blocking alert once the status says unconfigured", async () => {
     const fetchStatus = vi.fn(async () => ({ mailDeliveryAvailable: false, state: "unconfigured" as const }));
-    render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" />);
+    render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(MAIL_UNCONFIGURED_TEXT);
     expect(fetchStatus).toHaveBeenCalledTimes(1);
   });
 
+  it("links Set up email to the Email screen instead of naming Access Tokens", async () => {
+    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} />);
+    const link = await screen.findByRole("link", { name: "Set up email" });
+    expect(link).toHaveAttribute("href", "/admin/email");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Access Tokens");
+  });
+
   it("renders nothing when mail is ready", async () => {
     const fetchStatus = vi.fn(async () => ({ mailDeliveryAvailable: true, state: "ready" as const }));
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" />);
+    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing when the status read fails", async () => {
     const fetchStatus = vi.fn(async () => { throw new Error("403"); });
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" />);
+    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
@@ -87,7 +100,7 @@ describe("MailStatusBanner", () => {
   it("ignores a status that arrives after unmount", async () => {
     let resolve: (value: { mailDeliveryAvailable: boolean; state: "unconfigured" }) => void = () => {};
     const fetchStatus = vi.fn(() => new Promise<{ mailDeliveryAvailable: boolean; state: "unconfigured" }>((done) => { resolve = done; }));
-    const { unmount } = render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" />);
+    const { unmount } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     unmount();
     resolve({ mailDeliveryAvailable: false, state: "unconfigured" });
     await Promise.resolve();
@@ -96,7 +109,7 @@ describe("MailStatusBanner", () => {
 
   it("× hides the banner and remembers it in the injected storage", async () => {
     const storage = memoryStorage();
-    render(<MailStatusBanner fetchStatus={unconfigured} dismissLabel="Descartar" storage={storage} />);
+    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Descartar")} storage={storage} />);
     fireEvent.click(await screen.findByRole("button", { name: "Descartar" }));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(storage.data[MAIL_BANNER_DISMISSED_KEY]).toBe("1");
@@ -105,24 +118,24 @@ describe("MailStatusBanner", () => {
   it("stays hidden on the next mount once dismissed", async () => {
     const fetchStatus = vi.fn(unconfigured);
     const storage = memoryStorage({ [MAIL_BANNER_DISMISSED_KEY]: "1" });
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" storage={storage} />);
+    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} storage={storage} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
   it("still hides for the session when storage throws", async () => {
-    render(<MailStatusBanner fetchStatus={unconfigured} dismissLabel="Dismiss" storage={throwingStorage} />);
+    render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} storage={throwingStorage} />);
     fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("defaults to the browser's localStorage", async () => {
-    const first = render(<MailStatusBanner fetchStatus={unconfigured} dismissLabel="Dismiss" />);
+    const first = render(<MailStatusBanner fetchStatus={unconfigured} labels={labels("Dismiss")} />);
     fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
     expect(localStorage.getItem(MAIL_BANNER_DISMISSED_KEY)).toBe("1");
     first.unmount();
     const fetchStatus = vi.fn(unconfigured);
-    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} dismissLabel="Dismiss" />);
+    const { container } = render(<MailStatusBanner fetchStatus={fetchStatus} labels={labels("Dismiss")} />);
     await vi.waitFor(() => expect(fetchStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });

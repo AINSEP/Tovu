@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { AdminMailStatus } from "@/lib/api";
 
-/** The banner line, or `null` when mail is configured, unknown, or the viewer may not read it. */
+/** The banner line (English; also the `app-i18n.ts` key). */
 export const MAIL_UNCONFIGURED_TEXT =
-  "Email is not set up: no mail provider is selected, so sign-in links, confirmations and form notifications are not sent. Choose a provider and save its key under Access Tokens.";
+  "Email is not set up: sign-in links, confirmations and form notifications are not sent.";
+/** The link to the Email screen (English; also the `app-i18n.ts` key). */
+export const MAIL_SET_UP_LABEL = "Set up email";
 
 /** Namespaced under `tovu.admin.` like the dashboard's default-password dismiss key, so it can never
  *  collide with an unrelated app key. Per browser, not per user: the mail state is site-wide. */
@@ -23,9 +25,9 @@ const browserStorage: MailBannerStorage = {
   setItem: (key, value) => localStorage.setItem(key, value),
 };
 
-/** Pure: which line a status shows. */
-export function mailStatusBannerText({ status }: { status: AdminMailStatus | null }): string | null {
-  return status?.state === "unconfigured" ? MAIL_UNCONFIGURED_TEXT : null;
+/** Pure: whether a status shows the banner — only when no provider is chosen, never when unknown. */
+export function mailStatusBannerVisible({ status }: { status: AdminMailStatus | null }): boolean {
+  return status?.state === "unconfigured";
 }
 
 /** Best-effort read — a failing storage just shows the banner again, which is harmless.
@@ -58,7 +60,7 @@ export function writeMailBannerDismissed({ storage }: { storage: MailBannerStora
 export function useMailStatusBanner(
   required: { fetchStatus: () => Promise<AdminMailStatus> },
   optional: { storage?: MailBannerStorage } = {},
-): { text: string | null; dismiss: () => void } {
+): { visible: boolean; dismiss: () => void } {
   const [status, setStatus] = useState<AdminMailStatus | null>(null);
   const { fetchStatus } = required;
   const storage = optional.storage ?? browserStorage;
@@ -72,5 +74,5 @@ export function useMailStatusBanner(
     writeMailBannerDismissed({ storage });
     setDismissed(true);
   }, [storage]);
-  return { text: dismissed ? null : mailStatusBannerText({ status }), dismiss };
+  return { visible: !dismissed && mailStatusBannerVisible({ status }), dismiss };
 }

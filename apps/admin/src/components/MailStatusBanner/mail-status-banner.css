@@ -26,3 +26,5 @@
 @media (pointer: coarse), (max-width: 640px) {
   .mail-status-banner-dismiss { width: 44px; height: 44px; margin: -12px -4px; }
 }
+/* Inherits the warning colour so the link reads as part of the banner, underlined to stay findable. */
+.mail-status-banner-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }

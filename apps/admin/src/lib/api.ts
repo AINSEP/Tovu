@@ -508,6 +508,10 @@ export interface AdminMailStatus {
   state?: "ready" | "unconfigured" | "degraded";
   lanes?: readonly { lane: "transactional" | "bulk"; providerId: string | null; state: string }[];
   warnings?: readonly ("sender_unverified" | "sender_unknown")[];
+  /** Installed mail providers (`MailStatusReport.providers`); `hosted: false` never leaves the machine. */
+  providers?: readonly { id: string; label: string; hosted: boolean; origin: "core" | "plugin" }[];
+  /** Plugin providers that were not loaded, and why (log-safe, English). */
+  refusals?: readonly string[];
 }
 
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in

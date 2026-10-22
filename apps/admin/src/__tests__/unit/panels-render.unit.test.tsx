@@ -30,6 +30,7 @@ import { FormsList, FormEditor } from "../../features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "../../features/collections";
 import { Taxonomy } from "../../features/taxonomy";
 import { Trash } from "../../features/trash";
+import { Email } from "../../features/email";
 import { Database } from "../../features/database";
 import { Recovery } from "../../features/recovery";
 import { ImportExport } from "../../features/import-export";
@@ -80,9 +81,10 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // Design System has no placeholder or tab; its retained route redirects to Appearance.
   // 49 as of 2026-10-18: Library (private documents) sits beside Media.
   // 50 as of 2026-10-21: Cookie Consent sits beside Settings.
-  it("has 50 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(50);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(50);
+  // 51 as of 2026-10-22: Email takes Notifications' nav row; `notifications` stays as a redirect.
+  it("has 51 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(51);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(51);
   });
 });
 
@@ -116,7 +118,9 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   // on this panel), so its render is now the redirect, not the real `Workspace` screen. `Workspace`
   // itself is exercised where it actually mounts now: `SettingsUi.unit.test.tsx`'s "Workspace tab".
   { id: "workspace", component: WorkspaceRedirect },
-  { id: "notifications", component: Placeholder, extraProps: { sectionId: "notifications" } },
+  // 2026-10-22: the Notifications placeholder became Email; old links redirect.
+  { id: "email", component: Email },
+  { id: "notifications", component: IntegrationsRedirect, extraProps: { routePath: "/email" } },
   // Real screen since 2026-09-20 — the `soon` Placeholder is gone.
   { id: "trash", component: Trash },
   { id: "seo", component: Seo },

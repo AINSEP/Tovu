@@ -1,0 +1,18 @@
+/* Email screen (phase 1). Cards, chips and hints are the shared `.card`/`.status`/`.jini-field-hint`;
+   these rules only lay out rows inside them, at the shared form measure. */
+.email-page { max-width: var(--form-measure); }
+.email-sections { display: flex; flex-direction: column; gap: var(--space-4); }
+/* `.jini-settings-section` brings its own 14px top margin; the column gap above already spaces cards. */
+.email-section.jini-settings-section { margin-top: 0; gap: var(--space-3); }
+.email-section .card-title { margin: 0; }
+.email-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.email-coming-next { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+.email-subhead { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.email-list { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.email-facts { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+.email-fact { display: grid; grid-template-columns: 11rem 1fr; align-items: center; gap: var(--space-3); }
+.email-fact dt { color: var(--muted); }
+.email-fact dd { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: 0; min-width: 0; }
+@media (max-width: 480px) {
+  .email-fact { grid-template-columns: 1fr; gap: var(--space-1); }
+}

@@ -24,6 +24,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   es: {
     "Scroll to top": "Ir al principio", "Scroll to bottom": "Ir al final",
     Dismiss: "Descartar",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "El correo no está configurado: no se envían enlaces de inicio de sesión, confirmaciones ni avisos de formularios.",
+    "Set up email": "Configurar correo",
     Assistant: "Asistente", "Loading Tovu…": "Cargando Tovu…", "Skip to content": "Saltar al contenido", "Close navigation": "Cerrar navegación", "Open navigation": "Abrir navegación",
     "Log out?": "¿Cerrar sesión?",
     "Are you sure you want to log out?": "¿Seguro que quieres cerrar sesión?",
@@ -33,6 +35,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   id: {
     "Scroll to top": "Gulir ke atas", "Scroll to bottom": "Gulir ke bawah",
     Dismiss: "Tutup",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Email belum diatur: tautan masuk, konfirmasi, dan notifikasi formulir tidak dikirim.",
+    "Set up email": "Atur email",
     Assistant: "Asisten", "Loading Tovu…": "Memuat Tovu…", "Skip to content": "Lewati ke konten", "Close navigation": "Tutup navigasi", "Open navigation": "Buka navigasi",
     "Log out?": "Keluar?",
     "Are you sure you want to log out?": "Yakin ingin keluar?",
@@ -42,6 +46,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   de: {
     "Scroll to top": "Nach oben scrollen", "Scroll to bottom": "Nach unten scrollen",
     Dismiss: "Verwerfen",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-Mail ist nicht eingerichtet: Anmeldelinks, Bestätigungen und Formularbenachrichtigungen werden nicht gesendet.",
+    "Set up email": "E-Mail einrichten",
     Assistant: "Assistent", "Loading Tovu…": "Tovu wird geladen…", "Skip to content": "Zum Inhalt springen", "Close navigation": "Navigation schließen", "Open navigation": "Navigation öffnen",
     "Log out?": "Abmelden?",
     "Are you sure you want to log out?": "Möchten Sie sich wirklich abmelden?",
@@ -51,6 +57,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   "zh-CN": {
     "Scroll to top": "滚动到顶部", "Scroll to bottom": "滚动到底部",
     Dismiss: "关闭",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "电子邮件尚未设置：不会发送登录链接、确认邮件和表单通知。",
+    "Set up email": "设置电子邮件",
     Assistant: "助手", "Loading Tovu…": "正在加载 Tovu…", "Skip to content": "跳到内容", "Close navigation": "关闭导航", "Open navigation": "打开导航",
     "Log out?": "退出登录?",
     "Are you sure you want to log out?": "确定要退出登录吗?",
@@ -60,6 +68,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   "zh-TW": {
     "Scroll to top": "捲動至頂端", "Scroll to bottom": "捲動至底部",
     Dismiss: "關閉",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "電子郵件尚未設定：不會傳送登入連結、確認信和表單通知。",
+    "Set up email": "設定電子郵件",
     Assistant: "助理", "Loading Tovu…": "正在載入 Tovu…", "Skip to content": "跳至內容", "Close navigation": "關閉導覽", "Open navigation": "開啟導覽",
     "Log out?": "登出?",
     "Are you sure you want to log out?": "確定要登出嗎?",
@@ -69,6 +79,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   "pt-BR": {
     "Scroll to top": "Ir para o topo", "Scroll to bottom": "Ir para o final",
     Dismiss: "Dispensar",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "O e-mail não está configurado: links de login, confirmações e notificações de formulários não são enviados.",
+    "Set up email": "Configurar e-mail",
     Assistant: "Assistente", "Loading Tovu…": "Carregando Tovu…", "Skip to content": "Ir para o conteúdo", "Close navigation": "Fechar navegação", "Open navigation": "Abrir navegação",
     "Log out?": "Sair?",
     "Are you sure you want to log out?": "Tem certeza de que deseja sair?",
@@ -78,6 +90,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   ru: {
     "Scroll to top": "Прокрутить вверх", "Scroll to bottom": "Прокрутить вниз",
     Dismiss: "Скрыть",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Почта не настроена: ссылки для входа, подтверждения и уведомления форм не отправляются.",
+    "Set up email": "Настроить почту",
     Assistant: "Помощник", "Loading Tovu…": "Загрузка Tovu…", "Skip to content": "Перейти к содержимому", "Close navigation": "Закрыть навигацию", "Open navigation": "Открыть навигацию",
     "Log out?": "Выйти?",
     "Are you sure you want to log out?": "Вы уверены, что хотите выйти?",
@@ -87,6 +101,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   fa: {
     "Scroll to top": "رفتن به بالا", "Scroll to bottom": "رفتن به پایین",
     Dismiss: "نادیده گرفتن",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ایمیل راه‌اندازی نشده است: پیوندهای ورود، تأییدیه‌ها و اعلان‌های فرم ارسال نمی‌شوند.",
+    "Set up email": "راه‌اندازی ایمیل",
     Assistant: "دستیار", "Loading Tovu…": "در حال بارگیری Tovu…", "Skip to content": "پرش به محتوا", "Close navigation": "بستن ناوبری", "Open navigation": "باز کردن ناوبری",
     "Log out?": "خروج؟",
     "Are you sure you want to log out?": "آیا مطمئن هستید که می‌خواهید خارج شوید؟",
@@ -96,6 +112,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   ar: {
     "Scroll to top": "التمرير إلى الأعلى", "Scroll to bottom": "التمرير إلى الأسفل",
     Dismiss: "تجاهل",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "البريد الإلكتروني غير مُعدّ: لا تُرسل روابط تسجيل الدخول والتأكيدات وإشعارات النماذج.",
+    "Set up email": "إعداد البريد الإلكتروني",
     Assistant: "المساعد", "Loading Tovu…": "جارٍ تحميل Tovu…", "Skip to content": "انتقل إلى المحتوى", "Close navigation": "إغلاق التنقل", "Open navigation": "فتح التنقل",
     "Log out?": "تسجيل الخروج؟",
     "Are you sure you want to log out?": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
@@ -105,6 +123,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   ja: {
     "Scroll to top": "一番上へ", "Scroll to bottom": "一番下へ",
     Dismiss: "閉じる",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "メールが未設定です：サインインリンク、確認メール、フォーム通知は送信されません。",
+    "Set up email": "メールを設定",
     Assistant: "アシスタント", "Loading Tovu…": "Tovu を読み込んでいます…", "Skip to content": "コンテンツに移動", "Close navigation": "ナビゲーションを閉じる", "Open navigation": "ナビゲーションを開く",
     "Log out?": "ログアウトしますか?",
     "Are you sure you want to log out?": "本当にログアウトしますか?",
@@ -114,6 +134,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   ko: {
     "Scroll to top": "맨 위로", "Scroll to bottom": "맨 아래로",
     Dismiss: "닫기",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "이메일이 설정되지 않았습니다: 로그인 링크, 확인 메일, 양식 알림이 발송되지 않습니다.",
+    "Set up email": "이메일 설정",
     Assistant: "도우미", "Loading Tovu…": "Tovu를 불러오는 중…", "Skip to content": "콘텐츠로 건너뛰기", "Close navigation": "탐색 닫기", "Open navigation": "탐색 열기",
     "Log out?": "로그아웃하시겠습니까?",
     "Are you sure you want to log out?": "정말로 로그아웃하시겠습니까?",
@@ -123,6 +145,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   pl: {
     "Scroll to top": "Przewiń na górę", "Scroll to bottom": "Przewiń na dół",
     Dismiss: "Odrzuć",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Poczta nie jest skonfigurowana: linki logowania, potwierdzenia i powiadomienia z formularzy nie są wysyłane.",
+    "Set up email": "Skonfiguruj pocztę",
     Assistant: "Asystent", "Loading Tovu…": "Ładowanie Tovu…", "Skip to content": "Przejdź do treści", "Close navigation": "Zamknij nawigację", "Open navigation": "Otwórz nawigację",
     "Log out?": "Wylogować się?",
     "Are you sure you want to log out?": "Czy na pewno chcesz się wylogować?",
@@ -132,6 +156,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   hu: {
     "Scroll to top": "Ugrás a tetejére", "Scroll to bottom": "Ugrás az aljára",
     Dismiss: "Elvetés",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Az e-mail nincs beállítva: a bejelentkezési linkek, megerősítések és űrlapértesítések nem kerülnek elküldésre.",
+    "Set up email": "E-mail beállítása",
     Assistant: "Asszisztens", "Loading Tovu…": "Tovu betöltése…", "Skip to content": "Ugrás a tartalomhoz", "Close navigation": "Navigáció bezárása", "Open navigation": "Navigáció megnyitása",
     "Log out?": "Kijelentkezés?",
     "Are you sure you want to log out?": "Biztosan ki szeretne jelentkezni?",
@@ -141,6 +167,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   fr: {
     "Scroll to top": "Aller en haut", "Scroll to bottom": "Aller en bas",
     Dismiss: "Ignorer",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’e-mail n’est pas configuré : les liens de connexion, les confirmations et les notifications de formulaires ne sont pas envoyés.",
+    "Set up email": "Configurer l’e-mail",
     Assistant: "Assistant IA", "Loading Tovu…": "Chargement de Tovu…", "Skip to content": "Aller au contenu", "Close navigation": "Fermer la navigation", "Open navigation": "Ouvrir la navigation",
     "Log out?": "Se déconnecter ?",
     "Are you sure you want to log out?": "Voulez-vous vraiment vous déconnecter ?",
@@ -150,6 +178,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   uk: {
     "Scroll to top": "Прокрутити вгору", "Scroll to bottom": "Прокрутити вниз",
     Dismiss: "Приховати",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Пошту не налаштовано: посилання для входу, підтвердження та сповіщення форм не надсилаються.",
+    "Set up email": "Налаштувати пошту",
     Assistant: "Помічник", "Loading Tovu…": "Завантаження Tovu…", "Skip to content": "Перейти до вмісту", "Close navigation": "Закрити навігацію", "Open navigation": "Відкрити навігацію",
     "Log out?": "Вийти?",
     "Are you sure you want to log out?": "Ви впевнені, що хочете вийти?",
@@ -159,6 +189,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   tr: {
     "Scroll to top": "Başa git", "Scroll to bottom": "Sona git",
     Dismiss: "Kapat",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-posta kurulmadı: giriş bağlantıları, onaylar ve form bildirimleri gönderilmiyor.",
+    "Set up email": "E-postayı kur",
     Assistant: "Asistan", "Loading Tovu…": "Tovu yükleniyor…", "Skip to content": "İçeriğe geç", "Close navigation": "Gezinmeyi kapat", "Open navigation": "Gezinmeyi aç",
     "Log out?": "Çıkış yapılsın mı?",
     "Are you sure you want to log out?": "Çıkış yapmak istediğinizden emin misiniz?",
@@ -168,6 +200,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   th: {
     "Scroll to top": "เลื่อนไปด้านบนสุด", "Scroll to bottom": "เลื่อนไปด้านล่างสุด",
     Dismiss: "ปิด",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ยังไม่ได้ตั้งค่าอีเมล: ไม่มีการส่งลิงก์ลงชื่อเข้าใช้ การยืนยัน และการแจ้งเตือนจากแบบฟอร์ม",
+    "Set up email": "ตั้งค่าอีเมล",
     Assistant: "ผู้ช่วย", "Loading Tovu…": "กำลังโหลด Tovu…", "Skip to content": "ข้ามไปยังเนื้อหา", "Close navigation": "ปิดการนำทาง", "Open navigation": "เปิดการนำทาง",
     "Log out?": "ออกจากระบบ?",
     "Are you sure you want to log out?": "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?",
@@ -177,6 +211,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   it: {
     "Scroll to top": "Torna su", "Scroll to bottom": "Vai in fondo",
     Dismiss: "Ignora",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’email non è configurata: link di accesso, conferme e notifiche dei moduli non vengono inviati.",
+    "Set up email": "Configura email",
     Assistant: "Assistente", "Loading Tovu…": "Caricamento di Tovu…", "Skip to content": "Vai al contenuto", "Close navigation": "Chiudi navigazione", "Open navigation": "Apri navigazione",
     "Log out?": "Uscire?",
     "Are you sure you want to log out?": "Sei sicuro di voler uscire?",
@@ -186,6 +222,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   hi: {
     "Scroll to top": "ऊपर जाएँ", "Scroll to bottom": "नीचे जाएँ",
     Dismiss: "खारिज करें",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ईमेल सेट अप नहीं है: साइन-इन लिंक, पुष्टिकरण और फ़ॉर्म सूचनाएं नहीं भेजी जातीं।",
+    "Set up email": "ईमेल सेट अप करें",
     Assistant: "सहायक", "Loading Tovu…": "Tovu लोड हो रहा है…", "Skip to content": "सामग्री पर जाएँ", "Close navigation": "नेविगेशन बंद करें", "Open navigation": "नेविगेशन खोलें",
     "Log out?": "लॉग आउट करें?",
     "Are you sure you want to log out?": "क्या आप वाकई लॉग आउट करना चाहते हैं?",
@@ -195,6 +233,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   ur: {
     "Scroll to top": "اوپر جائیں", "Scroll to bottom": "نیچے جائیں",
     Dismiss: "مسترد کریں",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ای میل سیٹ اپ نہیں ہے: سائن ان لنکس، تصدیقات اور فارم اطلاعات نہیں بھیجی جاتیں۔",
+    "Set up email": "ای میل سیٹ اپ کریں",
     Assistant: "معاون", "Loading Tovu…": "Tovu لوڈ ہو رہا ہے…", "Skip to content": "مواد پر جائیں", "Close navigation": "نیویگیشن بند کریں", "Open navigation": "نیویگیشن کھولیں",
     "Log out?": "لاگ آؤٹ کریں؟",
     "Are you sure you want to log out?": "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟",
@@ -204,6 +244,8 @@ const APP_DICT: Record<string, Record<string, string>> = {
   bn: {
     "Scroll to top": "উপরে যান", "Scroll to bottom": "নিচে যান",
     Dismiss: "খারিজ করুন",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ইমেইল সেট আপ করা হয়নি: সাইন-ইন লিংক, নিশ্চিতকরণ এবং ফর্ম বিজ্ঞপ্তি পাঠানো হয় না।",
+    "Set up email": "ইমেইল সেট আপ করুন",
     Assistant: "সহকারী", "Loading Tovu…": "Tovu লোড হচ্ছে…", "Skip to content": "বিষয়বস্তুতে যান", "Close navigation": "নেভিগেশন বন্ধ করুন", "Open navigation": "নেভিগেশন খুলুন",
     "Log out?": "লগ আউট করবেন?",
     "Are you sure you want to log out?": "আপনি কি নিশ্চিতভাবে লগ আউট করতে চান?",

@@ -140,6 +140,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   recovery: `${ROUTES}/recovery/status.ts`,
   deployment: `${ROUTES}/system/deployment-overview.ts`,
   observability: `${ROUTES}/system/observability-status.ts`,
+  email: `${ROUTES}/system/mail-status.ts`,
   settings: `${ROUTES}/settings/get-effective.ts`,
   consent: `${ROUTES}/consent/routes.ts`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
