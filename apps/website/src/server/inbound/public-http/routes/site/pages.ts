@@ -84,7 +84,6 @@ import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-list";
 import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
-import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
 import { checkSiteRelativeTarget } from "#src/platform/routing/reserved-paths";
 import { type RouteTarget } from '@jini-ai/cms/routing';
@@ -450,7 +449,6 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
     },
     // The same unmodified body `render.ts`'s `renderPostBody` renders (trusted page HTML, see there).
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
@@ -848,7 +846,6 @@ export async function finishStaticTierDocument(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
   });
@@ -931,13 +928,13 @@ function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
  * @complexity O(f) over `fields`' length — one `collectionEntryFieldValue` lookup per displayed
  * field, f being the content type's own declared/authored field count, never user-collection-sized.
  */
-function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[], timeZone: string): EntryListItem {
+function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[]): EntryListItem {
   const dateIso = row.publishedAt ?? row.updatedAt;
   return {
     title: row.title,
     href: entryPublicHref(row.type, row.slug),
     dateIso,
-    dateLabel: formatPostPreviewDate(dateIso, timeZone),
+    dateLabel: formatPostPreviewDate(dateIso),
     fields: fields.map(
       (field): EntryListFieldValue => ({
         name: field.name,
@@ -1026,7 +1023,7 @@ async function readCollectionBatch(
  * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
  */
 async function resolveOneCollectionMarker(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch" | "siteTimeZone">,
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">,
   marker: EmbedMarker,
   pagePath: string
 ): Promise<string | undefined> {
@@ -1036,8 +1033,7 @@ async function resolveOneCollectionMarker(
 
   const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
   const batch = await readCollectionBatch(deps, parsed.query, listingKey);
-  const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
-  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields, timeZone));
+  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
   const { template } = splitCollectionMarkerInner(marker.inner);
   const { columns, layout, structuredData } = parsed.display;
   const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
@@ -1178,12 +1174,7 @@ export const MAX_CONTENT_EMBED_FETCHES = 50;
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
-
-/** Bug D: the site-zone port for a `resolveHtmlPageEmbeds` deps object, when the host wired one. */
-function siteTimeZoneDep(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Pick<RouteDeps, "siteTimeZone"> {
-  return deps.siteTimeZone ? { siteTimeZone: deps.siteTimeZone } : {};
-}
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 /** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
  * actually need — same "`Pick` of `RouteDeps`, not the whole composition-root shape" reasoning as
@@ -1201,8 +1192,6 @@ function siteTimeZoneDep(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<Rou
 export type TemplateRenderDeps = Pick<
   RouteDeps,
   | "workspaceId"
-  // Bug D: the site's zone for post dates (optional on `RouteDeps`, so optional here too).
-  | "siteTimeZone"
   | "postRepo"
   | "entryRepo"
   | "mediaRepo"
@@ -1236,7 +1225,7 @@ export type TemplateRenderDeps = Pick<
 export type RenderContextResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 /** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
  * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
@@ -1393,7 +1382,6 @@ export async function resolveHtmlFormatContentMarkers(
           mediaContentTypeStore: deps.mediaContentTypeStore,
           taxonomyRepo: deps.taxonomyRepo,
           termRepo: deps.termRepo,
-          ...siteTimeZoneDep(deps),
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
@@ -1597,7 +1585,6 @@ export async function renderViaTemplate(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
-      ...siteTimeZoneDep(deps),
       ...(pendingBodyJson !== undefined
         ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, publishAt: post.publishAt ?? null, bodyJson: pendingBodyJson } }
         : {}),
@@ -2342,10 +2329,11 @@ function filterVisiblePosts(
  *  the short label a card shows (e.g. "Sep 3, 2026"). `PostRecord` has no `publishedAt` (see
  *  `static-render.ts`'s `StaticPostPreview.dateIso` doc for why). A malformed timestamp —
  *  should not occur for a real stored row — degrades to the raw ISO string rather than
- *  "Invalid Date", a legible if ugly output over a broken one. Bug D: the day is the site's
- *  (`timeZone`, from `core.site.timezone`), not the server's UTC. */
-function formatPostPreviewDate(iso: string, timeZone: string): string {
-  return formatDateLabel({ iso }, { timeZone });
+ *  "Invalid Date", a legible if ugly output over a broken one. */
+function formatPostPreviewDate(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /**
@@ -2397,12 +2385,9 @@ async function resolvePostPreviewsForRender(
     resolveMediaAssetMetadataForRender(deps, undefined, { listed }),
     resolveMediaTransformVersionsForRender(deps),
   ]);
-  // Bug D: card dates are the site's calendar day. `deps` is the full route deps at runtime; its
-  // narrowed type simply does not name the optional `siteTimeZone`.
-  const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
   const toPreview = (post: PostRecord): StaticPostPreview => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso, timeZone), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
