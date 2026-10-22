@@ -12,18 +12,18 @@ import { SITE_KEY_MANAGE_PERMISSION } from "../../../identity/site-key-permissio
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { runListSecrets, runSetSecret, runUnsetSecret, secretFingerprint, type SecretConfirmRequest } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import { fixture, execution } from "./ops-fixture.js";
+import { fixture, execution } from "./example-ops-fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * The generic secrets verbs against the real bundled Fly adapter, with a scripted HTTP fake in place of
+ * The generic secrets verbs against the neutral example-host fixture adapter, with a scripted HTTP fake in place of
  * the network. Every case also proves no secret value reaches the result.
  */
 const SITE_KEY = "ab".repeat(32);
 const OTHER_KEY = "cd".repeat(32);
-const API = "https://api.machines.dev/v1/apps/shop/secrets";
+const API = "https://api.example-host.dev/v1/targets/shop/secrets";
 type Route = { status: number; body: unknown };
 
 async function harness(table: Record<string, Route>, extra: { siteKey?: string } = {}) {
@@ -48,22 +48,22 @@ const confirmer = (confirmed: boolean) => {
 
 test("list returns names, vendor digests and times, never values, with when writes apply", async () => {
   const h = await harness({ [`GET ${API}`]: listed("ANALYTICS_ROOT_KEY_SEED", "OLD_KEY") });
-  const result = await runListSecrets({ deps: h.deps, input: { platform: "fly", target: "shop" } });
-  assert.deepEqual(result, { platform: "fly", target: "shop", truncated: false, appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, secrets: [
+  const result = await runListSecrets({ deps: h.deps, input: { platform: "example-host", target: "shop" } });
+  assert.deepEqual(result, { platform: "example-host", target: "shop", truncated: false, appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, secrets: [
     { name: "ANALYTICS_ROOT_KEY_SEED", digest: "d-ANALYTICS_ROOT_KEY_SEED", updatedAt: "2026-10-05T00:00:00Z" },
     { name: "OLD_KEY", digest: "d-OLD_KEY", updatedAt: "2026-10-05T00:00:00Z" },
   ] });
   noSecretIn(result, "never-forwarded");
   assert.deepEqual(h.calls.map(c => `${c.method} ${c.url}`), [`GET ${API}`]);
-  assert.deepEqual(h.f.audit.entries.map(e => ({ method: e.method, host: e.host, status: e.status })), [{ method: "GET", host: "api.machines.dev", status: 200 }]);
+  assert.deepEqual(h.f.audit.entries.map(e => ({ method: e.method, host: e.host, status: e.status })), [{ method: "GET", host: "api.example-host.dev", status: 200 }]);
 });
 
 test("set from the site key creates an absent secret without a card and stages it for the next deploy", async () => {
   const h = await harness({ [`GET ${API}`]: listed("OLD_KEY"), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: { name: "TOVU_SITE_KEY", version: 7, value: SITE_KEY } } });
   const c = confirmer(true);
-  const result = await runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: c.confirm });
+  const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: c.confirm });
   assert.deepEqual(result, {
-    platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, comparison: "absent", fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key",
+    platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, comparison: "absent", fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key",
     appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, changed: true, version: "7",
     summary: "Set 'TOVU_SITE_KEY' on 'shop' from this site's key. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy).",
   });
@@ -74,8 +74,8 @@ test("set from the site key creates an absent secret without a card and stages i
 });
 
 test("an identical stored value is not rewritten", async () => {
-  const h = await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?show_secrets=true`]: shown("TOVU_SITE_KEY", SITE_KEY) });
-  const result = await runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } });
+  const h = await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?reveal=true`]: shown("TOVU_SITE_KEY", SITE_KEY) });
+  const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } });
   assert.equal(result.changed, false); assert.equal(result.comparison, "same"); assert.equal(result.deployNeeded, false);
   assert.equal(result.summary, "'TOVU_SITE_KEY' on 'shop' already holds this site's key; nothing was written.");
   assert.equal(h.calls.some(call => call.method === "POST"), false);
@@ -83,44 +83,44 @@ test("an identical stored value is not rewritten", async () => {
 });
 
 test("replacing a different value asks first; a declined card writes nothing, a confirmed one writes", async () => {
-  const table = { [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?show_secrets=true`]: shown("TOVU_SITE_KEY", OTHER_KEY), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: { version: 8 } } };
+  const table = { [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?reveal=true`]: shown("TOVU_SITE_KEY", OTHER_KEY), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: { version: 8 } } };
   const declined = await harness(table); const no = confirmer(false);
-  const refused = await runSetSecret({ deps: declined.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: no.confirm });
+  const refused = await runSetSecret({ deps: declined.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: no.confirm });
   assert.equal(refused.changed, false); assert.equal(refused.cancelled, true); assert.equal(refused.comparison, "different");
-  assert.deepEqual(no.asked, [{ action: "overwrite", platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: "this site's key", comparison: "different", appliesOn: "next-deploy" }]);
+  assert.deepEqual(no.asked, [{ action: "overwrite", platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: "this site's key", comparison: "different", appliesOn: "next-deploy" }]);
   assert.equal(declined.calls.some(call => call.method === "POST"), false);
   noSecretIn(refused, SITE_KEY, OTHER_KEY);
   const accepted = await harness(table); const yes = confirmer(true);
-  const written = await runSetSecret({ deps: accepted.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: yes.confirm });
+  const written = await runSetSecret({ deps: accepted.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: yes.confirm });
   assert.equal(written.changed, true); assert.equal(written.version, "8");
   assert.equal(yes.asked.length, 1);
 });
 
 test("an existing secret the adapter cannot read compares as unknown and fails closed without a confirm channel", async () => {
-  const h = await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?show_secrets=true`]: { status: 403, body: { error: "forbidden" } } });
-  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }), { name: "ToolInputError", message: "Changing existing secret 'TOVU_SITE_KEY' needs a human confirmation, and this call has no way to ask. Nothing was changed." });
+  const h = await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?reveal=true`]: { status: 403, body: { error: "forbidden" } } });
+  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }), { name: "ToolInputError", message: "Changing existing secret 'TOVU_SITE_KEY' needs a human confirmation, and this call has no way to ask. Nothing was changed." });
   assert.equal(h.calls.some(call => call.method === "POST"), false);
   const asked = confirmer(false);
-  const result = await runSetSecret({ deps: (await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?show_secrets=true`]: { status: 403, body: {} } })).deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: asked.confirm });
+  const result = await runSetSecret({ deps: (await harness({ [`GET ${API}`]: listed("TOVU_SITE_KEY"), [`GET ${API}/TOVU_SITE_KEY?reveal=true`]: { status: 403, body: {} } })).deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: asked.confirm });
   assert.equal(result.comparison, "unknown"); assert.equal(asked.asked[0]!.comparison, "unknown");
 });
 
 test("copying another secret on the same target reads it server side and never returns it", async () => {
-  const h = await harness({ [`GET ${API}`]: listed("OLD_KEY"), [`GET ${API}/OLD_KEY?show_secrets=true`]: shown("OLD_KEY", OTHER_KEY), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: {} } });
-  const result = await runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "secret", name: "OLD_KEY" } } });
+  const h = await harness({ [`GET ${API}`]: listed("OLD_KEY"), [`GET ${API}/OLD_KEY?reveal=true`]: shown("OLD_KEY", OTHER_KEY), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: {} } });
+  const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "secret", name: "OLD_KEY" } } });
   assert.equal(result.changed, true); assert.equal(result.comparison, "absent");
   assert.deepEqual({ fingerprint: result.fingerprint, kind: result.fingerprintKind }, { fingerprint: fingerprintSiteKeyHex(OTHER_KEY), kind: "site-key" });
   assert.deepEqual(JSON.parse(h.calls.find(call => call.method === "POST")!.body!), { value: OTHER_KEY });
   assert.equal(result.summary, "Set 'TOVU_SITE_KEY' on 'shop' from secret OLD_KEY. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy).");
   noSecretIn(result, OTHER_KEY);
   const missing = await harness({ [`GET ${API}`]: listed() });
-  await assert.rejects(runSetSecret({ deps: missing.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "secret", name: "OLD_KEY" } } }), { name: "ToolInputError", message: "Secret 'OLD_KEY' is not set on 'shop', so there is nothing to copy. List the secrets with deployment_ops_list_secrets." });
-  await assert.rejects(runSetSecret({ deps: missing.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY", source: { kind: "secret", name: "OLD_KEY" } } }), { message: "source.name must differ from name; a secret cannot be copied onto itself." });
+  await assert.rejects(runSetSecret({ deps: missing.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "secret", name: "OLD_KEY" } } }), { name: "ToolInputError", message: "Secret 'OLD_KEY' is not set on 'shop', so there is nothing to copy. List the secrets with deployment_ops_list_secrets." });
+  await assert.rejects(runSetSecret({ deps: missing.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY", source: { kind: "secret", name: "OLD_KEY" } } }), { message: "source.name must differ from name; a secret cannot be copied onto itself." });
 });
 
 test("dryRun compares and writes nothing", async () => {
   const h = await harness({ [`GET ${API}`]: listed() });
-  const result = await runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } });
+  const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } });
   assert.equal(result.changed, false); assert.equal(result.dryRun, true); assert.equal(result.deployNeeded, false);
   assert.equal(result.summary, "Dry run: 'TOVU_SITE_KEY' would be created from this site's key. Nothing was written.");
   assert.deepEqual(h.calls.map(c => c.method), ["GET"]);
@@ -128,26 +128,26 @@ test("dryRun compares and writes nothing", async () => {
 
 test("refusals happen before any HTTP: no site key, bad names, platforms without a secrets adapter", async () => {
   const h = await harness({}, { siteKey: undefined });
-  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }), { message: "This site has no usable site key to copy. Check Security > Site key in the admin first." });
-  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "1BAD", source: { kind: "site-key" } } }), { message: "name must be an environment variable name (letters, digits and underscores, not starting with a digit, at most 128 characters)." });
-  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "A-B" } }), { message: "name must be an environment variable name (letters, digits and underscores, not starting with a digit, at most 128 characters)." });
-  await assert.rejects(runListSecrets({ deps: h.deps, input: { platform: "github-actions", target: "o/r" } }), { name: "ToolInputError", message: "Deployment ops platform 'github-actions' has no secrets adapter. Platforms with one: fly." });
+  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }), { message: "This site has no usable site key to copy. Check Security > Site key in the admin first." });
+  await assert.rejects(runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "1BAD", source: { kind: "site-key" } } }), { message: "name must be an environment variable name (letters, digits and underscores, not starting with a digit, at most 128 characters)." });
+  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "A-B" } }), { message: "name must be an environment variable name (letters, digits and underscores, not starting with a digit, at most 128 characters)." });
+  await assert.rejects(runListSecrets({ deps: h.deps, input: { platform: "example-observer", target: "o/r" } }), { name: "ToolInputError", message: "Deployment ops platform 'example-observer' has no secrets adapter. Platforms with one: example-host." });
   assert.deepEqual(h.calls, []);
 });
 
 test("unset reports an absent name, asks before deleting, and a declined card deletes nothing", async () => {
   const absent = await harness({ [`GET ${API}`]: listed("OTHER") });
-  const none = await runUnsetSecret({ deps: absent.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } });
+  const none = await runUnsetSecret({ deps: absent.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } });
   assert.deepEqual({ removed: none.removed, summary: none.summary }, { removed: false, summary: "'OLD_KEY' is not set on 'shop'; nothing was removed." });
   const table = { [`GET ${API}`]: listed("OLD_KEY"), [`DELETE ${API}/OLD_KEY`]: { status: 200, body: { version: 9 } } };
   const declined = await harness(table); const no = confirmer(false);
-  assert.equal((await runUnsetSecret({ deps: declined.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, { confirm: no.confirm })).removed, false);
-  assert.deepEqual(no.asked, [{ action: "remove", platform: "fly", target: "shop", name: "OLD_KEY", appliesOn: "next-deploy" }]);
+  assert.equal((await runUnsetSecret({ deps: declined.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } }, { confirm: no.confirm })).removed, false);
+  assert.deepEqual(no.asked, [{ action: "remove", platform: "example-host", target: "shop", name: "OLD_KEY", appliesOn: "next-deploy" }]);
   assert.equal(declined.calls.some(call => call.method === "DELETE"), false);
-  await assert.rejects(runUnsetSecret({ deps: (await harness(table)).deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }), { message: "Changing existing secret 'OLD_KEY' needs a human confirmation, and this call has no way to ask. Nothing was changed." });
+  await assert.rejects(runUnsetSecret({ deps: (await harness(table)).deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } }), { message: "Changing existing secret 'OLD_KEY' needs a human confirmation, and this call has no way to ask. Nothing was changed." });
   const accepted = await harness(table);
-  const removed = await runUnsetSecret({ deps: accepted.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, { confirm: confirmer(true).confirm });
-  assert.deepEqual(removed, { platform: "fly", target: "shop", name: "OLD_KEY", appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, removed: true, version: "9", summary: "Removed 'OLD_KEY' from 'shop'. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy)." });
+  const removed = await runUnsetSecret({ deps: accepted.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } }, { confirm: confirmer(true).confirm });
+  assert.deepEqual(removed, { platform: "example-host", target: "shop", name: "OLD_KEY", appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, removed: true, version: "9", summary: "Removed 'OLD_KEY' from 'shop'. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy)." });
   assert.deepEqual(accepted.calls.map(c => `${c.method} ${c.url}`), [`GET ${API}`, `GET ${API}`, `DELETE ${API}/OLD_KEY`]);
 });
 
@@ -155,12 +155,12 @@ test("tools: the site-key source needs the site-key permission; a value can neve
   const h = await harness({ [`GET ${API}`]: listed() });
   const denied = { ...h.deps, authorize: async ({ permission }: { permission: string }) => ({ allowed: permission !== SITE_KEY_MANAGE_PERMISSION, reason: "denied" }) };
   const set = buildDeployOpsRegistrations(denied as typeof h.deps).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
-  await assert.rejects(set.handler(execution({ platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } })), { message: `principal 'principal' is not authorized for '${SITE_KEY_MANAGE_PERMISSION}' (denied)` });
+  await assert.rejects(set.handler(execution({ platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } })), { message: `principal 'principal' is not authorized for '${SITE_KEY_MANAGE_PERMISSION}' (denied)` });
   for (const [input, message] of [
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key", value: "leak" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "literal" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key" }, value: "leak" }, "Unexpected deployment ops input 'value'."],
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key" }, dryRun: "yes" }, "dryRun must be a boolean."],
+    [{ platform: "example-host", target: "shop", name: "X", source: { kind: "site-key", value: "leak" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
+    [{ platform: "example-host", target: "shop", name: "X", source: { kind: "literal" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
+    [{ platform: "example-host", target: "shop", name: "X", source: { kind: "site-key" }, value: "leak" }, "Unexpected deployment ops input 'value'."],
+    [{ platform: "example-host", target: "shop", name: "X", source: { kind: "site-key" }, dryRun: "yes" }, "dryRun must be a boolean."],
   ] as const) await assert.rejects(set.handler(execution(input)), { name: "ToolInputError", message });
   assert.deepEqual(h.calls, []);
   const schema = set.descriptor.inputSchema as any;
@@ -184,12 +184,12 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
     const exchangeId = store.findTypedAnswerTarget({ principalId: "principal", toolId: "deployment_ops_unset_secret" })!;
     assert.deepEqual(store.deliver({ exchangeId, principalId: "principal", params: { decision: "confirm" } }, { toolId: "deployment_ops_unset_secret" }), { ok: true });
   };
-  const result = await unset.handler(execution({ platform: "fly", target: "shop", name: "OLD_KEY" }), { emitSurface }) as Record<string, unknown>;
+  const result = await unset.handler(execution({ platform: "example-host", target: "shop", name: "OLD_KEY" }), { emitSurface }) as Record<string, unknown>;
   assert.equal(emitted, 1); assert.equal(result.removed, true);
   assert.deepEqual(h.calls.map(c => c.method), ["GET", "GET", "DELETE"]);
   assert.deepEqual(checks, ["custom-credentials.write", "custom-credentials.write"]);
   const headless = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
-  await assert.rejects(headless.handler(execution({ platform: "fly", target: "shop", name: "OLD_KEY" })), { message: /^DEPLOY_OPS_NO_CONFIRMATION_CHANNEL: deployment_ops_unset_secret/ });
+  await assert.rejects(headless.handler(execution({ platform: "example-host", target: "shop", name: "OLD_KEY" })), { message: /^DEPLOY_OPS_NO_CONFIRMATION_CHANNEL: deployment_ops_unset_secret/ });
 });
 
 test("fingerprints: site-key-shaped values match the Security page; others are a short sha256", () => {
@@ -218,12 +218,12 @@ test("registry refuses a half secrets adapter and missing capabilities", async (
 test("the default site-key reader resolves this site's sources; no bound site means no key to copy", async () => {
   const h = await harness({ [`GET ${API}`]: listed() });
   const { readSiteKey: _ignored, ...deps } = h.deps;
-  await assert.rejects(runSetSecret({ deps, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } }), { message: "This site has no usable site key to copy. Check Security > Site key in the admin first." });
+  await assert.rejects(runSetSecret({ deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } }), { message: "This site has no usable site key to copy. Check Security > Site key in the admin first." });
   const siteDir = await mkdtemp(path.join(tmpdir(), "deploy-ops-site-"));
   const previous = { key: process.env.TOVU_SITE_KEY, mode: process.env.TOVU_RUNTIME_MODE };
   process.env.TOVU_SITE_KEY = OTHER_KEY; delete process.env.TOVU_RUNTIME_MODE;
   try {
-    const result = await runSetSecret({ deps: { ...deps, siteBinding: { dir: siteDir } }, input: { platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } });
+    const result = await runSetSecret({ deps: { ...deps, siteBinding: { dir: siteDir } }, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } });
     assert.equal(result.fingerprint, fingerprintSiteKeyHex(OTHER_KEY));
   } finally {
     if (previous.key === undefined) delete process.env.TOVU_SITE_KEY; else process.env.TOVU_SITE_KEY = previous.key;
@@ -233,10 +233,10 @@ test("the default site-key reader resolves this site's sources; no bound site me
 });
 
 test('typed secret enters only the masked card and reaches the platform with exact bytes', async () => {
-  const h = await harness({ [`GET ${API}`]: listed(), [`GET ${API}/STRIPE_KEY?show_secrets=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 201, body: { version: 1 } } });
+  const h = await harness({ [`GET ${API}`]: listed(), [`GET ${API}/STRIPE_KEY?reveal=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 201, body: { version: 1 } } });
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: unknown[] = [];
   const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
-  const pending = registration.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } }), { emitSurface: async surface => { emitted.push(surface); } });
+  const pending = registration.handler(execution({ platform: 'example-host', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } }), { emitSurface: async surface => { emitted.push(surface); } });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(emitted.length, 1);
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
@@ -257,8 +257,8 @@ test('typed secret enters only the masked card and reaches the platform with exa
 
 test('typed secret refuses model-supplied values and headless execution', async () => {
   const h = await harness({}); const set = buildDeployOpsRegistrations(h.deps).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
-  await assert.rejects(set.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed', value: 'smuggled' } })), { message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
-  await assert.rejects(set.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } })), { message: 'A typed deployment secret requires an interactive secure card. Nothing was changed.' });
+  await assert.rejects(set.handler(execution({ platform: 'example-host', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed', value: 'smuggled' } })), { message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
+  await assert.rejects(set.handler(execution({ platform: 'example-host', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } })), { message: 'A typed deployment secret requires an interactive secure card. Nothing was changed.' });
   assert.deepEqual(h.calls, []);
 });
 
@@ -270,7 +270,7 @@ for (const mode of ["dismiss", "blank", "buffered-abort", "preaborted"] as const
     const controller = new AbortController();
     if (mode === "preaborted") controller.abort();
     let emissions = 0;
-    const result = await registration.handler({ ...execution({ platform: "fly", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }), signal: controller.signal }, { emitSurface: async surface => {
+    const result = await registration.handler({ ...execution({ platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }), signal: controller.signal }, { emitSurface: async surface => {
       emissions++;
       if (emissions > 1) return;
       const resource = (surface.payload as { resource: { resource: { uri: string; text: string } } }).resource.resource;
@@ -292,7 +292,7 @@ for (const mode of ["dismiss", "blank", "buffered-abort", "preaborted"] as const
 test("secret removal refuses a rotated target after the card without revealing a value", async () => {
   const table = { [`GET ${API}`]: listed("OLD_KEY"), [`DELETE ${API}/OLD_KEY`]: { status: 200, body: {} } };
   const h = await harness(table);
-  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, { confirm: async () => {
+  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } }, { confirm: async () => {
     table[`GET ${API}`] = { status: 200, body: [{ name: "OLD_KEY", digest: "rotated" }] };
     return { confirmed: true };
   } }), { message: "deployment_ops_unset_secret: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
@@ -302,7 +302,7 @@ test("secret removal refuses a rotated target after the card without revealing a
 
 test("secret removal refuses providers without a safe version before opening a card", async () => {
   const h = await harness({ [`GET ${API}`]: { status: 200, body: { secrets: [{ name: "OLD_KEY", value: "never-forwarded" }] } } });
-  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, {
+  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "OLD_KEY" } }, {
     confirm: async () => { assert.fail("an unidentifiable target must not open a confirmation"); },
   }), { message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
   assert.deepEqual(h.calls.map(call => call.method), ["GET"]);

@@ -35,9 +35,9 @@ async function listTargets(ctx) {
 const secretsUrl = (ctx, t) => `${API}/${target(ctx, t)}/secrets`;
 async function listSecrets(ctx, { target: t }) {
   const response = await ctx.get(secretsUrl(ctx, t));
-  const secrets = response.json?.secrets;
+  const secrets = Array.isArray(response.json) ? response.json : response.json?.secrets;
   if (!Array.isArray(secrets) || secrets.some(s => !s || typeof s.name !== "string" || !s.name)) ctx.fail("Secret list response must contain a secrets array.");
-  return { secrets: secrets.map(s => ({ name: text(s.name), ...(typeof s.digest === "string" ? { digest: text(s.digest) } : {}) })), truncated: false };
+  return { secrets: secrets.slice(0, 500).map(s => ({ name: text(s.name), ...(typeof s.digest === "string" ? { digest: text(s.digest) } : {}), ...(typeof s.updated_at === "string" ? { updatedAt: text(s.updated_at) } : {}) })), truncated: secrets.length > 500 };
 }
 async function readSecret(ctx, { target: t, name }) {
   const encoded = secretName(ctx, name);
