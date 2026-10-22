@@ -1,6 +1,7 @@
 import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
+import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone } from "@jini-ai/cms/widgets/date-label";
 import { lintLiquidTemplate } from "#src/features/theme/liquid-allowlist";
 import {
   buildTemplateRenderData,
@@ -50,26 +51,8 @@ export const NO_ACCESS_FS: FS = {
   sep: "/",
 };
 
-const liquid = new Liquid({
-  outputEscape: "escape",
-  strictVariables: false,
-  strictFilters: false,
-  jsTruthy: true,
-  cache: false,
-  fs: NO_ACCESS_FS,
-  // AW-5a C6 hardening follow-up (2026-07-16 audit finding, Fable): LiquidJS's own DoS knobs
-  // (`memoryLimit`/`renderLimit`/`parseLimit`) had no defaults set, so an unbounded numeric range
-  // (e.g. `(1..999999999)`) could allocate a large array *within* the worker's V8 heap
-  // (`resourceLimits.maxOldGenerationSizeMb: 64`) before that ceiling ever triggers — a low-severity
-  // sandbox bypass the process-crash fix's `worker_threads` isolation already contained (a runaway
-  // render only OOM-kills its own disposable worker), but this closes it at the LiquidJS layer too,
-  // as defense-in-depth ahead of ever reaching the V8-level ceiling.
-  memoryLimit: 5_000_000,
-  renderLimit: 5_000,
-  parseLimit: 1_000_000,
-});
-
-liquid.registerTag("render_block", {
+/** `{% render_block %}` — the seam back into Tovu's trusted component registry, registered on every engine. */
+const RENDER_BLOCK_TAG = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parse(this: any, token: TagToken) {
     this.hash = new Hash(token.args);
@@ -87,7 +70,53 @@ liquid.registerTag("render_block", {
     // Handlebars tier's own `render_block` helper.
     return renderBlockSeam(siteCtx, props);
   },
-});
+};
+
+/**
+ * One engine for the site zone `timeZone` (an already-normalized IANA name). LiquidJS reads the
+ * `| date:` filter's zone from the ENGINE's `timezoneOffset` option, never from a per-render option,
+ * so the zone is fixed at construction (Bug D follow-up, 2026-10-22). Without it the filter formatted
+ * in the process's own zone (UTC in every deployment), so a post a Los Angeles site published at
+ * 11pm showed the next day.
+ */
+function createLiquidEngine({ timeZone }: { timeZone: string }, _optional: Record<string, never> = {}): Liquid {
+  const engine = new Liquid({
+    outputEscape: "escape",
+    strictVariables: false,
+    strictFilters: false,
+    jsTruthy: true,
+    cache: false,
+    fs: NO_ACCESS_FS,
+    // AW-5a C6 hardening follow-up (2026-07-16 audit finding, Fable): LiquidJS's own DoS knobs
+    // (`memoryLimit`/`renderLimit`/`parseLimit`) had no defaults set, so an unbounded numeric range
+    // (e.g. `(1..999999999)`) could allocate a large array *within* the worker's V8 heap
+    // (`resourceLimits.maxOldGenerationSizeMb: 64`) before that ceiling ever triggers — a low-severity
+    // sandbox bypass the process-crash fix's `worker_threads` isolation already contained (a runaway
+    // render only OOM-kills its own disposable worker), but this closes it at the LiquidJS layer too,
+    // as defense-in-depth ahead of ever reaching the V8-level ceiling.
+    memoryLimit: 5_000_000,
+    renderLimit: 5_000,
+    parseLimit: 1_000_000,
+    timezoneOffset: timeZone,
+  });
+  engine.registerTag("render_block", RENDER_BLOCK_TAG);
+  return engine;
+}
+
+/** Engines by normalized zone. A render's zone is its own engine's construction option, so one
+ * site's zone can never leak into another site's render. Bounded by the valid IANA names
+ * `normalizeTimeZone` lets through; in production each spawn-per-render worker builds just one. */
+const enginesByZone = new Map<string, Liquid>();
+
+/** The engine for `ctx`'s site zone (UTC when absent or invalid), built on first use. */
+function liquidEngineFor({ ctx }: { ctx: SiteRenderContext }, _optional: Record<string, never> = {}): Liquid {
+  const timeZone = normalizeTimeZone({ timeZone: ctx.timeZone ?? DEFAULT_SITE_TIME_ZONE });
+  const cached = enginesByZone.get(timeZone);
+  if (cached) return cached;
+  const engine = createLiquidEngine({ timeZone });
+  enginesByZone.set(timeZone, engine);
+  return engine;
+}
 
 /** The shared cross-tier data contract (`render.ts`'s `buildTemplateRenderData`) plus the private
  * context handle the `render_block` tag reads back out of the render scope. */
@@ -127,7 +156,7 @@ export function runLiquidRender({ workerData }: { workerData: unknown }): Liquid
   }
 
   try {
-    const html = liquid.parseAndRenderSync(source, buildLiquidData(ctx));
+    const html = liquidEngineFor({ ctx }).parseAndRenderSync(source, buildLiquidData(ctx));
     return { ok: true, html };
   } catch (err) {
     return { ok: false, error: (err as Error).message };

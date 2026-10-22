@@ -71,3 +71,32 @@ test("the composed app reads core.site.timezone: unset renders UTC, an owner val
   const html = await blogHtml(t, { settingsRepo: deps.settingsRepo, siteTimeZone: deps.siteTimeZone! }, PREVIEWS);
   assert.ok(html.includes(LA_TIME), html);
 });
+
+/** A templated (Liquid) theme whose home and post templates print `dateShort` and the `| date:` filter. */
+function liquidTheme(): DiscoveredTheme {
+  const dates = "@@{{ p.dateShort }}|{{ p.date | date: '%Y-%m-%d' }}|{{ p.date }}@@";
+  return {
+    manifest: { id: "tz-liquid", name: "TZ Liquid", version: "1.0.0", tier: "templated", engine: 1, templates: [] },
+    dir: "/nonexistent/tz-liquid", tokens: {}, tokensLight: {}, templates: {}, handlebarsTemplates: {}, pages: {}, partials: {}, css: "",
+    liquidTemplates: { home: `{% for p in posts %}${dates}{% endfor %}`, post: `{% assign p = post %}${dates}` },
+    source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+async function liquidPageText(t: TestContext, overrides: Partial<ReturnType<typeof createRouteDeps>>, path: string): Promise<string> {
+  const deps = { ...createRouteDeps(), themes: [liquidTheme()], postRepo: new InMemoryPostRepo([post]), ...overrides };
+  await deps.siteTitleReady;
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const html = await (await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}${path}`)).text();
+  return html.slice(html.indexOf("@@") + 2, html.lastIndexOf("@@"));
+}
+
+test("a Liquid theme's home list and post page show dateShort and | date: in the site's zone; post.date stays the instant", async (t) => {
+  for (const path of ["/", "/late-post"]) {
+    assert.equal(await liquidPageText(t, losAngeles, path), `2026-03-03|2026-03-03|${LATE_EVENING_LA}`, path);
+    assert.equal(await liquidPageText(t, {}, path), `2026-03-04|2026-03-04|${LATE_EVENING_LA}`, `${path} without a zone`);
+  }
+});

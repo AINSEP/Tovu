@@ -12,6 +12,7 @@ import {
   resolveMediaAssetMetadataForRender,
   resolveHtmlEmbedsForRender,
   resolveSiteTitleForRender,
+  resolveSiteTimeZoneForRender,
 } from "../routes/site/pages.js";
 
 /**
@@ -229,6 +230,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
           theme,
           route,
           siteTitle: await resolveSiteTitleForRender(deps),
+          timeZone: await resolveSiteTimeZoneForRender(deps),
           posts,
           post,
           products,

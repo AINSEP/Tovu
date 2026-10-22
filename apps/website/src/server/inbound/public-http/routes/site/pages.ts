@@ -1185,6 +1185,12 @@ function siteTimeZoneDep(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<Rou
   return deps.siteTimeZone ? { siteTimeZone: deps.siteTimeZone } : {};
 }
 
+/** Bug D follow-up: the site's zone for `renderSite` (`dateShort`, `.entry-meta`, Liquid's `| date:`);
+ *  UTC when no zone is wired or set. */
+export function resolveSiteTimeZoneForRender(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Promise<string> {
+  return resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
+}
+
 /** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
  * actually need — same "`Pick` of `RouteDeps`, not the whole composition-root shape" reasoning as
  * {@link ContentMarkerResolutionDeps} immediately above (a superset of it: adds `menuRepo`, for
@@ -2168,6 +2174,7 @@ export async function renderGenericPostPage(
     theme,
     route: "post",
     siteTitle,
+    timeZone: await resolveSiteTimeZoneForRender(deps),
     posts,
     post,
     widgets,
@@ -2802,6 +2809,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
     theme,
     route: "home",
     siteTitle,
+    timeZone: await resolveSiteTimeZoneForRender(deps),
     posts: visiblePosts,
     listing: { pagePath: "/", after: deps.listingBatch?.key === 1 ? deps.listingBatch.after : 0 },
     widgets,
