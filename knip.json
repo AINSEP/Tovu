@@ -65,6 +65,7 @@
         "development/playwright*.config.ts",
         "content/agent-plugins/**/__tests__/*.test.mjs",
         "content/agent-plugins/*/scripts/*.mjs",
+        "apps/website/src/cli/__tests__/fixtures/**/*.mjs",
         "content/agent-plugins/cloudflare/form-destinations/cloudflare-d1.mjs",
         "content/agent-plugins/cloudflare/targets/cloudflare-pages.mjs",
         "content/agent-plugins/cloudflare/targets/cloudflare-workers.mjs",
