@@ -5634,9 +5634,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .deployment-route-quiet { border-color: var(--border-strong); background: var(--surface); }
 /* The "we can't actually check this" line. It needs a rule above it: without one it sits at the
    same indent and nearly the same size as a tool row's own description, so it reads as a third
-   sentence about the Vercel CLI rather than as a statement about the whole list. */
+   sentence about the last tool's CLI rather than as a statement about the whole list. */
 .deployment-route-note { margin: 0; padding-top: var(--space-3); border-top: 1px solid var(--border); }
-/* The tool's binary name, shown beside its human name — `gh`, `vercel`. Sized down from the row
+/* The tool's binary name, shown beside its human name — e.g. `gh`. Sized down from the row
    name so the pair reads as one label with a parenthetical, not two competing titles. */
 .deployment-tool-command { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 400; color: var(--muted); }
 
@@ -5760,8 +5760,8 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 
 /* A row's own fields, stacked — deliberately NOT `.field-row` (the shared two-up `auto-fit` grid
    every target-config field set on this tab otherwise uses). `.field-row` puts both columns of a
-   grid ROW at the SAME height, which broke the one row that ever had two fields (Cloudflare Pages:
-   Access token carries two hint lines and a link, Account ID carries one short hint) — Account ID's
+   grid ROW at the SAME height, which broke the one row that ever had two fields (a host's
+   access token carries two hint lines and a link, its account ID one short hint) — the account ID's
    cell matched the row's full height and floated near the top of it, with the shared Save button
    below reading disconnected from a field it visually had nothing to do with. A single column can't
    have this problem regardless of field count or hint length, which is also why this is the layout

@@ -122,8 +122,8 @@ export function ProvidersTab(props: ProvidersTabProps) {
  * SECOND named token for GitHub/GitLab/Bitbucket, rename one, or manage every credential this install
  * holds (including the four publish providers) in one place.
  *
- * Deliberately NOT a 7-`VendorId` picker — a picker built from `VendorId` would list Netlify/Vercel/
- * Cloudflare/S3 as places to keep SOURCE CODE, which they are not; this page's own three rows
+ * Deliberately NOT a 7-`VendorId` picker — a picker built from `VendorId` would list static
+ * hosts and object stores as places to keep SOURCE CODE, which they are not; this page's own three rows
  * (the source-control hosts plugins declare, `rules.ts`'s `sourceControlProviders`) are the correct,
  * narrower provider set for what this page actually does.
  * @complexity O(1) — no branches.
