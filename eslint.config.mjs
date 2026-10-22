@@ -34,6 +34,11 @@ export default [
       '**/dist/**',
       '**/build/**',
       '**/coverage/**',
+      // Desktop packaging output: `stage-website-shared.ts` writes bundled `.ts` into staging/ and the
+      // packaged app carries them under release/, which the repo-wide TypeScript blocks would
+      // otherwise lint without the desktop block's plugins (`npm run complexity` then exits 2).
+      'apps/desktop/staging/**',
+      'apps/desktop/release/**',
       'AI-Dev-Shop/**',
       'ADS-memory/**',
       // apps/admin/dist-debug/ was deleted 2026-10-03: unused debug build; see development/DELETED-CODE.md.

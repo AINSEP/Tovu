@@ -94,6 +94,12 @@ extraResources:
   # is what keeps that function free of any packaged-mode branch.
   - from: staging/tovu-payload/package.json
     to: tovu/package.json
+  # Website modules the shell imports by relative path (`../../website/src/...` from app.asar/src),
+  # bundled by `scripts/stage-website-shared.ts`; see its header for why they land here.
+  - from: staging/website-shared
+    to: website
+    filter:
+      - "**/*"
 
   # The bundled npm package (plan-desktop-bundled-npx-2026-09-24.md §5, §6 S5), staged by
   # `stageBundledNpm` (`src/stage-payload-lib.ts`) into `staging/npm`. This is what lets the
