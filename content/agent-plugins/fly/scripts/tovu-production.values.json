@@ -1,0 +1,7 @@
+{
+  "output": ".github/workflows/fly-deploy.yml",
+  "blocks": ["tovu-host"],
+  "placeholders": {
+    "<<PLACEHOLDER: default branch, e.g. main>>": "main"
+  }
+}

@@ -1,11 +1,17 @@
 # ============================================================================
+# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:
+#   node content/agent-plugins/fly/scripts/render-deploy-workflow.mjs
+# from content/agent-plugins/fly/skills/fly/references/fly-deploy.template.yml (its `tovu-host`
+# blocks) and content/agent-plugins/fly/scripts/tovu-production.values.json. Edit those, re-render,
+# and commit both; content/agent-plugins/fly/scripts/__tests__ fails while they disagree.
+# ============================================================================
 # Generated config ownership and production invariants (moved from the former root fly.toml)
 # ============================================================================
 # The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu
 # CLI, so it imports that dependency-free module directly immediately before flyctl deploy.
 # Do not commit the generated root fly.toml. For a local deploy, generate it first with
 # `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific
-# env/build args; development/scripts/fly-build.sh only pins the build context, not these inputs.
+# env/build args; content/agent-plugins/fly/scripts/fly-build.sh only pins the build context, not these inputs.
 # @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to
 # Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,
 # including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.
