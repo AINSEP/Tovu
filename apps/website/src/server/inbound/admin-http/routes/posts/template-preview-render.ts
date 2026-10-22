@@ -5,6 +5,7 @@ import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/adapter";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import {
+  createMemberAccessResolver,
   renderViaTemplate,
   resolveActiveTheme,
   resolveHtmlEmbedsForRender,
@@ -197,7 +198,14 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
 
   const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath({ slug: post.slug }));
-  const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml);
+  // Preview the anonymous visitor's listing, never the admin's privileges. Passing access enables
+  // the live pipeline's assembled-document resolution (plain, paged and keyed See more batches),
+  // after pending content has been applied; no second listing fetch/render implementation.
+  const postPreviewsAccess = {
+    resolver: createMemberAccessResolver({ deps }),
+    context: { isAuthenticated: false, activeTierIds: [], isPaid: false },
+  };
+  const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml, undefined, false, postPreviewsAccess);
 
   return { html, templateChoice: renderedPost.templateChoice ?? null };
 }

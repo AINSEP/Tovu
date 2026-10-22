@@ -1546,11 +1546,10 @@ export async function renderViaTemplate(
   siteAssistantEnabled: SiteChatSelection = false,
   // Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request,
   // ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the
-  // home/related-posts listing gate). Omitted by both pre-existing callers of this function
-  // (`routes/admin/posts/template-preview.ts`'s admin-only preview, and this file's own direct unit
-  // test) — a template rendered without it simply leaves any `{"type":"post-previews"}` marker's
-  // authored fallback untouched, byte-identical to before this marker existed, rather than querying
-  // with no way to gate the result correctly.
+  // home/related-posts listing gate; the admin preview supplies anonymous visitor access). A direct
+  // caller that omits it leaves any `{"type":"post-previews"}` marker's authored fallback untouched,
+  // byte-identical to before this marker existed, rather than querying with no way to gate the
+  // result correctly. Preview used to omit it too, which hid real lists and their See more button.
   postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
@@ -2264,13 +2263,19 @@ async function handlePostNotFoundInSlugCatch(input: {
  * matching dev-auth without an unguarded decodeURIComponent copy. */
 
 /**
- * This route family's `MemberAccessResolver` (ADR-030 §4), built per request from the three member
- * repo ports already on `RouteDeps`. Deliberately NOT a module-level singleton: `deps` is
+ * The public routes' and admin preview's `MemberAccessResolver` (ADR-030 §4), built per render from
+ * the three member repo ports already on `RouteDeps`. Deliberately NOT a module-level singleton: `deps` is
  * per-composition (every test in `__tests__/` injects its own in-memory repos through
  * `createRouteDeps` overrides), so a singleton would capture whichever composition happened to
  * construct first and then answer every later request from the wrong workspace's data.
+ * Construction performs no reads; only `resolveContext` with a session token reads the repo ports.
+ * @complexity O(1) time and space.
+ * @example createMemberAccessResolver({ deps });
  */
-function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
+export function createMemberAccessResolver(
+  { deps }: { deps: Pick<RouteDeps, "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> },
+  _options: Record<string, never> = {}
+): MemberAccessResolver {
   return new DefaultMemberAccessResolver({
     sessions: deps.memberSessionRepo,
     subscriptions: deps.memberSubscriptionRepo,
@@ -2762,7 +2767,7 @@ async function sendPublicPage({ req, res, deps, html, perVisitor }: {
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
   if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
 
-  const memberAccessResolver = createMemberAccessResolver(deps);
+  const memberAccessResolver = createMemberAccessResolver({ deps });
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
     listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
     resolveRenderThemeId(res, deps),
@@ -2962,7 +2967,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     try {
       if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
 
-      const memberAccessResolver = createMemberAccessResolver(deps);
+      const memberAccessResolver = createMemberAccessResolver({ deps });
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveRenderThemeId(res, deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
