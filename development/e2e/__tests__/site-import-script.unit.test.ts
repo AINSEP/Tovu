@@ -7,7 +7,7 @@ import path from "node:path";
 import { createSiteImportDriver, parseRobots, parseSitemap, normalizeUrl, classifyUrl, readPageFacts, htmlToTiptap, paletteToTokens } from "../support/site-import-script.js";
 import { renderFixture } from "../support/site-import-fixture-server.js";
 import type { CapturedModelRequest, FakeTurn, ScriptedTurn } from "../harness/fake-model-server.js";
-import { BATCHABLE_TOOLS } from "../../../apps/website/src/assistant/batch-tool-inputs.js";
+import { BATCH_OPT_OUT } from "../../../apps/website/src/assistant/batch-tool-inputs.js";
 import { loadTheme } from "../../../apps/website/src/features/theme/theme.js";
 import { renderStaticPage } from "../../../apps/website/src/features/theme/static-render.js";
 
@@ -55,8 +55,9 @@ async function simulateReferenceImport(
   const fetched: string[] = [];
   const driver = createSiteImportDriver({ origin, queue: { enqueue: (...next) => turns.push(...next) } });
   const execute = async ({ toolId, input }: { toolId: string; input: Record<string, unknown> }): Promise<unknown> => {
-    // Only registered batch tools use this envelope; a menu's items are its navigation tree.
-    if (BATCHABLE_TOOLS.some((tool) => tool.toolId === toolId) && Array.isArray(input.items)) {
+    // Batching is default-on minus BATCH_OPT_OUT; a tool with its own `items` (a menu's
+    // navigation tree) is never a batch envelope.
+    if (!toolId.startsWith("menus_") && !BATCH_OPT_OUT.some((tool) => tool.toolId === toolId) && Array.isArray(input.items)) {
       const results = [];
       for (const [index, item] of (input.items as Record<string, unknown>[]).entries()) {
         try { results.push({ index, ok: true, result: await execute({ toolId, input: item }) }); }

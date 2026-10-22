@@ -849,10 +849,12 @@ describe("useLocalCliSelection", () => {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const { result } = renderHook(() => useLocalCliSelection({ executionConfig: config, setExecutionConfig: stubSetExecutionConfig(config), configLoaded: true }));
       act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
-      expect(result.current.readLocalCliSelectionForSend(config)).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+      const readForSend = result.current.readLocalCliSelectionForSend;
+      if (!readForSend) throw new Error("useLocalCliSelection must expose readLocalCliSelectionForSend");
+      expect(readForSend(config)).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
       const elsewhere = localCliConfig({ agentId: "codex", modelByAgentId: {} });
-      expect(result.current.readLocalCliSelectionForSend(elsewhere)).toEqual(localCliSelectionFromConfig({ config: elsewhere }));
-      expect(result.current.readLocalCliSelectionForSend(elsewhere).agentId).toBe("codex");
+      expect(readForSend(elsewhere)).toEqual(localCliSelectionFromConfig({ config: elsewhere }));
+      expect(readForSend(elsewhere).agentId).toBe("codex");
     } finally {
       localStorage.clear();
     }

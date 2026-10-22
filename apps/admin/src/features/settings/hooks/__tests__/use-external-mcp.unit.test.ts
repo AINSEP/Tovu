@@ -841,7 +841,7 @@ describe("useExternalMcp — hosted token validation characterization (L294)", (
     return { ...hook, typedPort };
   }
 
-  it.each([
+  it.each<{ fields: Record<string, string>; message: string }>([
     { fields: {}, message: "Enter a token. Spaces alone are not a token." },
     { fields: { accessToken: "" }, message: "Enter a token. Spaces alone are not a token." },
     { fields: { accessToken: "   " }, message: "Enter a token. Spaces alone are not a token." },
