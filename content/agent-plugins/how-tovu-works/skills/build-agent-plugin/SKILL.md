@@ -24,19 +24,40 @@ creating a parallel implementation. The working example is `resend/`.
   Inspect `mail-adapter-registry.ts` and Resend's adapter/default export for the
   actual ABI; inject the guarded HTTP client through `kit`, never construct a
   credentialed network client. New public functions take `(required, optional = {})`.
-- [ ] Declare the plugin's **own credential card for every user key where the
-  contribution supports cards**. Mail adapters with `credentialLabel` must have
-  `credentialCard`: title, intro, help URL/label, key-type hint and HTTPS base URL.
-  Core prefills the saved label and category. Open it with
-  `credential_save {kind:"plugin-provider",target:"resend"}` (substitute adapter id).
-  The generic **Save an API credential** card is a fallback only. Never give a mail
-  key a generic card offering “Works for” deploy hosts. For contributions without
-  a card mechanism, report the gap; do not invent an ignored descriptor field.
+- [ ] Declare every user-key card in `plugin.json` under
+  `extensions.tovu.credentialCards[]`. `target` is a unique card id passed to
+  `credential_save {kind:"plugin-provider",target:"<card target>"}`. Supply
+  `label`, `title`, `intro`, `keyHint` (required token permissions), `category`
+  (`hosting`, `source-control`, `media`, `ai`, `ops`, or `general`) and an HTTPS
+  `baseUrl`. Optional `helpUrl`/`helpLabel` link to the actual key-creation page;
+  omit the URL when it is unknown or specific to the person's instance. Never
+  invent one. Optional `fields` declare NON-secret inputs using
+  `{name,label,hint?,required?}`; no values, tokens, passwords or secret fields.
+  An instance-specific API can omit `baseUrl` and declare a required `baseUrl`
+  field. API saves support `username` and `baseUrl` public inputs. Additional
+  API origins use `additionalHosts`, a list of HTTPS origins fixed server-side.
+- [ ] Choose the existing save owner with `saveKind`: `api` (default),
+  `publish-host`, `source-control`, or `agent-plugin-token`. `saveTarget` names
+  that owner's provider/plugin id when different from the card target. Hosting
+  and source-control contributions retain their existing `credential.fields`,
+  `tokenField`, validation, verification and stores; mirror their public fields
+  in the card declaration. The card changes copy, never grants permissions or
+  replaces the domain's save lifecycle. Mail's existing v2 descriptor
+  `credentialCard` is still supported unchanged and merged into the same loader;
+  do not redeclare the same target in the manifest.
+- [ ] Hosted sign-in uses a declaration with `saveKind:"oauth"`, a title, intro
+  and `permissions` describing what connects and what access is requested.
+  Invoke it through `agent_plugin_connect {pluginId}`. Declare a separate
+  `agent-plugin-token` card only when `mcp.json` already supports `tovuTokenAuth`.
+  An OAuth-only service must never be given an invented API-key fallback.
+  The generic **Save an API credential** card is only a fallback when no plugin
+  declares a suitable card.
 - [ ] For hosted MCP, put transport/URL and `tovuTokenAuth` help/probe URLs in
   `mcp.json`; put OAuth and tool grants in
   `plugin.json`'s `extensions.tovu.mcpServers[serverId]`. Resend and Supabase show
   OAuth plus token fallback. Start with `agent_plugin_connect {pluginId}`. Only
-  when needed, use `credential_save {kind:"agent-plugin-token",target:pluginId}`.
+  when needed, open the plugin’s declared token card with
+  `credential_save {kind:"plugin-provider",target:"<token card target>"}`.
   The human enters the key in the secure form; the host probes and seals it, then
   supplies bearer auth to that connection server-side. The assistant never sees
   the key. The site's mail sending key is separate from the MCP account key.
@@ -57,6 +78,55 @@ creating a parallel implementation. The working example is `resend/`.
   installed bytes even for content-only changes. Never edit installed digest
   directories or hand-write that ledger. Respect saved activation decisions;
   new seed-enabled policy is a coordinator decision, not vendor logic in core.
+
+## Generic example from the bundled Cloudflare plugin
+
+This is its Pages card (the plugin also declares a Workers card). The existing
+hosting descriptor owns the masked token, required Account ID and optional Zone
+ID; the same generic renderer applies this card's copy and key hint to that form.
+
+```json
+{
+  "extensions": {
+    "tovu": {
+      "credentialCards": [
+        {
+          "target": "cloudflare-pages",
+          "title": "Connect Cloudflare Pages",
+          "label": "Cloudflare Pages connection",
+          "category": "hosting",
+          "intro": "Connect Cloudflare Pages to publish this site, with optional approved custom-domain changes.",
+          "keyHint": "Scope to the selected account: Account → Cloudflare Pages → Edit. Custom domains need Zone, DNS, Workers Routes and Workers Scripts reads; attaching a domain needs DNS → Edit. Grant Workers Scripts or Workers Routes edit only for corresponding approved transfers.",
+          "saveKind": "publish-host",
+          "fields": [
+            {
+              "name": "accountId",
+              "label": "Account ID",
+              "hint": "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.",
+              "required": true
+            },
+            {
+              "name": "zoneId",
+              "label": "Default Zone ID",
+              "hint": "Optional default zone; per-publish Zone ID takes precedence.",
+              "required": false
+            }
+          ],
+          "helpUrl": "https://dash.cloudflare.com/profile/api-tokens",
+          "helpLabel": "Create a token",
+          "baseUrl": "https://api.cloudflare.com"
+        }
+      ]
+    }
+  }
+}
+```
+
+Open it with `credential_save {kind:"plugin-provider",target:"cloudflare-pages"}`.
+For the full, current permissions copy, read `cloudflare/plugin.json` and its
+`skills/cloudflare/references/permissions.md`. New declarations are checked by
+`bundled-mail-credential-cards.unit.test.ts` across contribution types, despite
+that test's historical filename.
 
 ## Minimal example from Resend
 

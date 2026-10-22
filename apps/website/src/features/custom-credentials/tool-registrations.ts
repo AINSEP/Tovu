@@ -51,7 +51,7 @@ import {
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { cleanCardToken } from "./card-token.js";
-import { buildPluginCredentialForm, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { applyPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
@@ -690,6 +690,7 @@ function readRawCreateCredentialFields(params: Record<string, unknown>): RawCrea
 /** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
  *  {@link saveCreateCard} actually acts on. */
 interface CreateCredentialSubmission {
+  readonly additionalHosts?: readonly string[];
   readonly worksFor: unknown;
   readonly label: string;
   readonly baseUrl: string;
@@ -821,6 +822,7 @@ async function saveCreateCard(
       worksFor: submission.worksFor,
       category: submission.category,
       baseUrl: submission.baseUrl,
+      ...(submission.additionalHosts === undefined ? {} : { additionalHosts: submission.additionalHosts }),
       connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) },
     }
   );
@@ -944,11 +946,12 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       // The run ended during the pre-dialog reads: the engine opens no dialog for an aborted run.
       // `askThenReport`, not `askOnce` — the engine waits for save and replaces the same card URI.
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      const pluginCard = (await routeDeps.loadPluginCredentialCards?.(routeDeps.workspaceId))?.find(card => card.saveKind === 'api' && card.label === label);
       let errorSummary = "";
       const card = defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ label }),
-        form: ({ prep }) => setTokenForm(prep),
+        form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: setTokenForm(prep) }),
         save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing }),
         result: ({ run }) => {
           // Token hints belong on the human's card, never in the model-facing result or audit output.
@@ -1002,8 +1005,8 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
         submissionOf: values => deriveCreateCredentialSubmission(readRawCreateCredentialFields(values)) });
     },
 
-    // A plugin's own key card (credential_save kind plugin-provider): the plugin's copy, one token
-    // field, and the row's label/baseUrl/category fixed on the server from its descriptor. Same
+    // A plugin's own key card (credential_save kind plugin-provider): plugin copy, a masked token
+    // and declared public fields, with fixed row metadata resolved on the server. Same
     // permission, save port and outcome as the generic create card. See plugin-credential-card.ts.
     pluginProvider: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
       const input = requireInputRecord({ input: ctx.input });
@@ -1014,8 +1017,11 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: card.label,
         form: () => buildPluginCredentialForm({ card }),
-        submissionOf: values => ({ worksFor: [], label: card.label, baseUrl: card.baseUrl, category: card.category, username: undefined,
-          token: typeof values.token === "string" ? values.token : "", displayLabel: card.label }) });
+        submissionOf: values => {
+          const fields = readPluginCredentialValues({ card, values });
+          return { ...deriveCreateCredentialSubmission(readRawCreateCredentialFields({ ...fields, worksFor: [] })),
+            ...(fields.additionalHosts === undefined ? {} : { additionalHosts: fields.additionalHosts }) };
+        } });
     },
   };
   return withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }) as { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler };

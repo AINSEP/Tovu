@@ -1,3 +1,5 @@
+import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
+import { parsePluginCredentialCards } from "./credential-cards.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
 import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
@@ -20,7 +22,7 @@ import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from ".
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./lifecycle.js";
+import { readTrustedPluginFile, listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
@@ -109,6 +111,7 @@ function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string
  *  narrower than `InstalledAgentPlugin` (no version/keywords/skills: this tool cares only about
  *  what it can connect). */
 export interface ResolvedAgentPluginForConnect {
+  readonly credentialCards?: readonly PluginCredentialCard[];
   readonly servers: Readonly<Record<string, McpServerConfig>>;
 }
 
@@ -125,7 +128,8 @@ export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: s
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  return { servers: await readInstalledMcpServers(plugin.packageRoot) };
+  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile(plugin, "plugin.json") });
+  return { servers: await readInstalledMcpServers(plugin.packageRoot), credentialCards: cards.ok ? cards.descriptors : [] };
 }
 
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
@@ -338,7 +342,7 @@ export async function runAgentPluginConnect(
   }
   const [server] = pending;
 
-  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth }, optional);
+  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard: plugin.credentialCards?.find(card => card.saveKind === "oauth") }, optional);
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
@@ -350,10 +354,11 @@ async function waitAtMcpSignInCard(
     readonly pluginId: string;
     readonly server: PendingOAuthServer;
     readonly externalMcpOAuth: ExternalMcpOAuthService;
+    readonly credentialCard?: PluginCredentialCard;
   },
   optional: ToolExecutionOptions = {},
 ): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
-  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth } = input;
+  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard } = input;
   const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
@@ -369,7 +374,7 @@ async function waitAtMcpSignInCard(
   try {
     await exchange.send({ emission: {
       channel: "mcp-ui",
-      payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) },
+      payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) },
     } });
 
     const connected = await waitForMcpConnection({ routeDeps, ctx, server });

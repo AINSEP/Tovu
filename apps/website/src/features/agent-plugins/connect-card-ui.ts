@@ -1,3 +1,4 @@
+import { buildPluginCredentialForm, type PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
 import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
@@ -12,12 +13,9 @@ import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
  * `outcome.ts`'s own header explains why that needs to be a real third state, not a boolean folded
  * into success or failure.
  *
- * Plain words only, deliberately NOT pulled from the plugin's own `plugin.json` description: today's
- * bundled descriptions predate the v2 plan's plain-language rule (they say "OAuth", "token", etc.),
- * and C1 is the slice that rewrites them. Baking the raw description into this card now would leak
- * that jargon into every plugin's connect card before C1 ever runs. The only plugin-specific text
- * here is its display name, derived from its id — `uninstall-confirmation-ui.ts`'s own dialog makes
- * the identical choice, since `plugin.json` has no separate display-name field at all.
+ * Plain words only: copy comes from the plugin's explicit credential-card declaration, never its
+ * raw plugin.json description, which can contain transport jargon. Older plugins retain the
+ * display-name fallback so an absent declaration never blocks a real sign-in.
  */
 
 function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
@@ -25,7 +23,7 @@ function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
 }
 
 export type AgentPluginConnectCardSpec =
-  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string }
+  | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "waiting"; readonly signInUrl: string; readonly credentialCard?: PluginCredentialCard }
   | { readonly pluginId: string; readonly pluginDisplayName: string; readonly state: "connected" };
 
 /**
@@ -51,8 +49,8 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
 
   return buildOutcomeSurface({
     uri,
-    title: `Let's connect ${spec.pluginDisplayName}`,
-    description: "It's free and takes about two minutes.",
+    title: spec.credentialCard?.title ?? `Let's connect ${spec.pluginDisplayName}`,
+    description: spec.credentialCard ? `${spec.credentialCard.intro ?? ""} ${spec.credentialCard.permissions ?? spec.credentialCard.keyHint ?? ""}`.trim() : "It's free and takes about two minutes.",
     state: "partial",
     message: "Waiting for you to sign in...",
     openLinkUrl: spec.signInUrl,
@@ -78,7 +76,9 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
 export function buildAgentPluginAccessTokenForm(spec: {
   readonly pluginDisplayName: string;
   readonly helpUrl: string;
+  readonly credentialCard?: PluginCredentialCard;
 }, _optional = {}): SecretCardForm {
+  if (spec.credentialCard) return buildPluginCredentialForm({ card: spec.credentialCard });
   const { pluginDisplayName, helpUrl } = spec;
   return {
     title: `Connect ${pluginDisplayName} with an access token`,

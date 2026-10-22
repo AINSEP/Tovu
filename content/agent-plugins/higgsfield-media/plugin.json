@@ -63,6 +63,19 @@
       "provides": [
         "media:image",
         "media:video"
+      ],
+      "credentialCards": [
+        {
+          "target": "higgsfield-media",
+          "title": "Connect Higgsfield",
+          "label": "Higgsfield account",
+          "category": "media",
+          "intro": "Connect Higgsfield to generate images or video and save the finished files in this site’s Media library.",
+          "keyHint": "Browser sign-in only; this connection does not accept a pasted API key.",
+          "saveKind": "oauth",
+          "permissions": "Model discovery and job status can be read. Generation tools require a separate write grant and use the models and credits available on your account. Review the permissions on the sign-in page.",
+          "baseUrl": "https://mcp.higgsfield.ai"
+        }
       ]
     }
   }

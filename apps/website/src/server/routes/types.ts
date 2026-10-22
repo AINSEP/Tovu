@@ -1581,9 +1581,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   loadSourceControlProviders: LoadSourceControlProviders;
   /**
    * The key cards installed plugins declare for their own providers (`plugin-credential-card.ts`),
-   * opened by `credential_save` `{kind:"plugin-provider"}`. Mail plugins only today
-   * (`mail-provider-catalog.ts`'s `loadMailCredentialCards`). `server/deps.ts` reads the installed,
-   * activated plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
+   * opened by `credential_save` `{kind:"plugin-provider"}`. The boot binding supplies mail cards;
+   * credential-save composition merges active trusted manifest cards through
+   * `composition/plugin-credential-cards.ts`, keeping each domain’s existing save owner.
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**

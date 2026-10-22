@@ -1,3 +1,4 @@
+import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
@@ -492,9 +493,11 @@ export function installFirstPartyToolContributors(
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,
-    build: (routeDeps, surfaces) => {
+    build: (originalDeps, surfaces) => {
+      const loadPluginCredentialCards = createPluginCredentialCardsLoader({ agentPluginLayout: originalDeps.agentPluginLayout, loadMailCards: originalDeps.loadPluginCredentialCards ?? (async () => []) });
+      const routeDeps = { ...originalDeps, loadPluginCredentialCards };
       const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
-      return buildCredentialSaveRegistrations({ adapters: {
+      return buildCredentialSaveRegistrations({ loadPluginCredentialCards: () => loadPluginCredentialCards(routeDeps.workspaceId), adapters: {
         apiCreate: api.create, apiRotate: api.rotate,
         mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
         sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),

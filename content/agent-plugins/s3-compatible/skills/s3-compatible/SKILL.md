@@ -5,6 +5,10 @@ description: Publish the site's static export to S3-compatible storage (AWS S3, 
 
 # S3-compatible storage
 
+## Connection card
+
+Open the plugin’s **Connect S3-compatible storage** card with `credential_save {kind:"plugin-provider",target:"s3-compatible"}`. It collects the bucket, region, endpoint, access key ID, public URL and masked secret access key, plus optional private-media settings. Scope the key to the selected bucket. Key creation belongs to your storage provider’s console; no single key-creation URL covers all compatible services.
+
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
 credential is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
 publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
@@ -14,7 +18,7 @@ This file is what is particular to S3-compatible storage.
   it, and an access key limited to that bucket. Tovu creates none of these. Offer the exact steps and
   bucket policy for their provider; they apply them in the provider's console.
 - **Credential:** access key ID and secret access key, plus bucket, region and public URL, all saved
-  together in Admin, Deployment, Static site. Endpoint is only for non-AWS providers (R2, B2, Spaces,
+  together through the plugin card above. Endpoint is only for non-AWS providers (R2, B2, Spaces,
   Wasabi, MinIO); plain AWS S3 leaves it blank.
 - **Public URL:** the address people visit. Tovu checks it after every publish and reports it plainly
   if it does not answer.

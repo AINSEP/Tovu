@@ -5,6 +5,10 @@ description: Publish the site's static export to Netlify with the workspace's ow
 
 # Netlify
 
+## Connection card
+
+Open the plugin’s **Connect Netlify** card with `credential_save {kind:"plugin-provider",target:"netlify"}`. It links to token creation and explains team SSO access. The hosting save flow verifies and seals the token.
+
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
 token is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
 publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
@@ -23,7 +27,7 @@ This file is what is particular to Netlify.
 
 | Message | Meaning | Next step |
 |---|---|---|
-| `Netlify token is required.` | No token in the saved credential. | Save a token in Admin, Deployment, Static site. |
+| `Netlify token is required.` | No token in the saved credential. | Open the plugin card above. |
 | `Invalid token` / `Access Denied` (401/403) | The token is wrong, expired, or revoked. | Make a new token and save it again. |
 | `Name has already been taken` | Another Netlify account owns that site name. | Publish under a different project name. |
 | `Netlify deployment error.` / `rejected.` | Netlify refused the deploy after upload. | Retry once; if it repeats, check the Netlify dashboard's deploy log. |

@@ -107,20 +107,20 @@ function harness(cards: readonly PluginCredentialCard[]) {
   return { save, surfaceExchanges, repo, sealer, writeDeps };
 }
 
-async function submitKey(h: ReturnType<typeof harness>, token: string): Promise<unknown> {
+async function submitKey({ h, token, fields = {} }: { h: ReturnType<typeof harness>; token: string; fields?: Record<string, unknown> }, _options = {}): Promise<unknown> {
   const emitted: unknown[] = [];
   const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input: { kind: "plugin-provider", target: "resend" }, signal: new AbortController().signal };
   const pending = h.save.handler(ctx, { emitSurface: async (surface) => void emitted.push(surface) });
   await new Promise((resolve) => setImmediate(resolve));
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
-  assert.deepEqual(h.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token } }, { toolId: "credential_save" }), { ok: true });
+  assert.deepEqual(h.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { ...fields, token } }, { toolId: "credential_save" }), { ok: true });
   return pending;
 }
 
 test("credential_save plugin-provider saves the key under the plugin's label, base URL and category", async () => {
   const h = harness(await bundledCards());
-  const result = (await submitKey(h, "re_brand_new_key")) as { created: boolean; credential: { label: string } };
+  const result = (await submitKey({ h, token: "re_brand_new_key" })) as { created: boolean; credential: { label: string } };
   assert.equal(result.created, true);
   assert.equal(result.credential.label, RESEND_LABEL);
   const saved = await resolveCustomCredentialByLabel({ repo: h.repo, sealer: h.sealer }, { workspaceId: WORKSPACE_ID, label: RESEND_LABEL });
@@ -130,11 +130,23 @@ test("credential_save plugin-provider saves the key under the plugin's label, ba
 test("credential_save plugin-provider refuses a second key under the same label with the rotate message", async () => {
   const h = harness(await bundledCards());
   await createCustomCredential(h.writeDeps, { workspaceId: WORKSPACE_ID, label: RESEND_LABEL, category: MAIL_CREDENTIAL_CATEGORY, baseUrl: "https://api.resend.com", connection: { token: "re_original" } });
-  assert.deepEqual(await submitKey(h, "re_attempted_overwrite"), {
+  assert.deepEqual(await submitKey({ h, token: "re_attempted_overwrite" }), {
     created: false,
     reason: "duplicate-label",
     message: `A custom credential labeled '${RESEND_LABEL}' already exists in this workspace. To rotate its token, use credential_save with kind api and target set to this label — this tool only creates NEW credentials and never overwrites an existing one.`,
   });
   const saved = await resolveCustomCredentialByLabel({ repo: h.repo, sealer: h.sealer }, { workspaceId: WORKSPACE_ID, label: RESEND_LABEL });
   assert.equal(saved?.connection.token, "re_original");
+});
+
+test("a generic plugin card saves its dynamic server and username while preserving fixed row metadata", async () => {
+  const card: PluginCredentialCard = { providerId: (await bundledCards())[0]!.providerId, label: "Instance key", category: "general", baseUrl: "", title: "Connect instance", fields: [
+    { name: "baseUrl", label: "Server URL", required: true }, { name: "username", label: "Account", required: true },
+  ], additionalHosts: ["https://secondary.example.com"] };
+  const h = harness([card]);
+  const result = await submitKey({ h, token: "instance_private_key", fields: { baseUrl: "https://instance.example.com", username: "account", label: "wrong-row", category: "hosting", additionalHosts: ["https://wrong.example.com"] } });
+  assert.equal((result as { created: boolean }).created, true);
+  const saved = await resolveCustomCredentialByLabel({ repo: h.repo, sealer: h.sealer }, { workspaceId: WORKSPACE_ID, label: "Instance key" });
+  assert.deepEqual([saved?.baseUrl, saved?.category, saved?.connection.username, saved?.connection.token, saved?.additionalHosts], ["https://instance.example.com", "general", "account", "instance_private_key", ["https://secondary.example.com"]]);
+  assert.ok(!JSON.stringify(result).includes("instance_private_key"));
 });

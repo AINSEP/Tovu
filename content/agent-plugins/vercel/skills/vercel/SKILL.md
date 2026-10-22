@@ -5,12 +5,16 @@ description: Publish the site's static export to Vercel with the workspace's own
 
 # Vercel
 
+## Connection card
+
+Open the plugin’s **Connect Vercel** card with `credential_save {kind:"plugin-provider",target:"vercel"}`. It links to token creation and explains account/team access. The hosting save flow verifies and seals the token.
+
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
 token is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
 publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
 This file is what is particular to Vercel.
 
-- **Token:** an access token from https://vercel.com/account/tokens. Saved in Admin, Deployment, Static site.
+- **Token:** an access token from https://vercel.com/account/tokens. Save it with the plugin card above.
 - **Team (optional):** the publish config's `teamId` puts the project under a Vercel team instead of the
   personal account. Leave it out for a personal account; a blank one is refused.
 - **Project name:** the project name, lowercased with hyphens (up to 80 characters). Publishing again
@@ -28,7 +32,7 @@ This file is what is particular to Vercel.
 
 | Message | Meaning | Next step |
 |---|---|---|
-| `Vercel token is required.` | No token in the saved credential. | Save a token in Admin, Deployment, Static site. |
+| `Vercel token is required.` | No token in the saved credential. | Open the plugin card above. |
 | `You don't have permission to create a project.` | The token cannot create projects (often the wrong team). | Check the token's scope or the `teamId`. |
 | `Deployment is protected by Vercel. ...` | The site is up but behind Vercel's login. | In Vercel, turn off Deployment Protection for the project, or add a custom domain. |
 | `Vercel deployment failed.` | Vercel refused the build after upload. | Retry once; if it repeats, check the deployment log in the Vercel dashboard. |

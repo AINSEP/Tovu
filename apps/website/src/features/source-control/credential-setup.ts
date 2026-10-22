@@ -1,3 +1,4 @@
+import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
@@ -16,6 +17,7 @@ import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
  * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the
  * installed-plugins default, so this module never reads a workspace it was not handed. */
 export interface SourceControlCredentialSetupDeps extends OperatorLocaleDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   workspaceId: string;
   authorize: AuthorizeFn;
   sourceControlCredentialSetRepo: SourceControlCredentialWriteDeps['repo'];
@@ -59,12 +61,13 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
   }
   const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
+  const pluginCard = ctx.signal.aborted ? undefined : await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'source-control', target: provider });
   const card = defineSecretCardTool<{
     descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => ({
+    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
       title: `Connect ${prep.descriptor!.label}`,
       description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential',
@@ -74,7 +77,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
           return field.secret || field.name === prep.descriptor!.credential!.tokenField
             ? { ...base, secret: true, allowBlank: !field.required } : base;
         })],
-    }),
+    } }),
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
     save: ({ values, prep, signal }) => {

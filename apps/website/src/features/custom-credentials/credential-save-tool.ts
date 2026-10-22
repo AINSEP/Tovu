@@ -1,3 +1,4 @@
+import type { LoadPluginCredentialCards, PluginCredentialCard } from "./plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/secret-form-cards.js';
@@ -27,7 +28,7 @@ type CredentialKind = typeof KINDS[number];
 export const credentialSaveCatalog: AgentToolDefinition[] = [{
   name: CREDENTIAL_SAVE_TOOL_ID,
   description: 'Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. ' +
-    'Choose kind: api for any third-party API, Stripe, Mailchimp, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for GitHub/GitLab repository commit and backup tokens; publish-host for static site hosting or S3 storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; plugin-provider for a provider whose installed plugin ships its own key card (a plugin skill names it), which asks only for the key and saves it where that plugin reads it. ' +
+    'Choose kind: api for any third-party API, Stripe, Mailchimp, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for GitHub/GitLab repository commit and backup tokens; publish-host for static site hosting or S3 storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; plugin-provider for a provider whose installed plugin ships its own key card (a plugin skill names it), which asks for the key and required public connection fields and saves through that domain’s existing owner. Prefer a plugin-declared card whenever its skill supplies a target. ' +
     'Examples: create an API credential with {kind:"api",label:"Stripe",baseUrl:"https://api.stripe.com",category:"general"}; rotate a saved API token with {kind:"api",target:"github"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"openai"}; connect repository backups with {kind:"source-control",target:"github",label:"default"}; save a hosting connection with {kind:"publish-host",target:"s3",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"supabase"}; open a plugin’s own key card with {kind:"plugin-provider",target:"<provider id>"}. ' +
     'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
     'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. After success retry the original request once.',
@@ -119,13 +120,28 @@ function selectPublishSave({ metadata, adapters }: { metadata: Record<string, un
  * @example buildCredentialSaveRegistrations({ adapters });
  * @complexity Registration O(1); each invocation performs O(k + f) routing before one domain save.
  */
-export function buildCredentialSaveRegistrations({ adapters }: { adapters: CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
+export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards }: { adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]> }, _optional = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: 'credential-save', catalogModule: 'features/custom-credentials/credential-save-tool.ts',
     catalog: indexCatalogById({ catalog: credentialSaveCatalog }), derivedRisk: credentialSaveDerivedRisk,
     handlers: { [CREDENTIAL_SAVE_TOOL_ID]: async (ctx, optional = {}) => {
       const selected = selectSave({ input: requireInputRecord({ input: ctx.input }), adapters });
-      return selected.handler({ ...ctx, input: selected.input }, optional);
+      const card = selected.handler === adapters.pluginProvider && loadPluginCredentialCards
+        ? (await loadPluginCredentialCards()).find(entry => entry.providerId === selected.input.provider) : undefined;
+      const routed = routePluginCard({ card, selected, adapters });
+      return routed.handler({ ...ctx, input: routed.input }, optional);
     } },
   });
+}
+
+/** A declared destination reuses the existing permission, validation, probe and sealed-store owner. */
+function routePluginCard({ card, selected, adapters }: { card?: PluginCredentialCard; selected: { handler: ToolHandler; input: Record<string, unknown> }; adapters: CredentialSaveAdapters }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
+  const target = card?.saveTarget ?? card?.providerId;
+  switch (card?.saveKind) {
+    case 'publish-host': return { handler: adapters.publishHost, input: { target } };
+    case 'source-control': return { handler: adapters.sourceControl, input: { provider: target } };
+    case 'agent-plugin-token': return { handler: adapters.agentPluginToken, input: { pluginId: target } };
+    case 'oauth': throw new ToolInputError({ message: 'This plugin connects by browser sign-in. Use agent_plugin_connect with its pluginId.' });
+    default: return selected;
+  }
 }

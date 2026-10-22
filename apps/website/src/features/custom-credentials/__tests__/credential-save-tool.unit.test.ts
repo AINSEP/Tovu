@@ -150,3 +150,26 @@ for (const prefill of [null, 42, 'fields']) test(`publish routing rejects malfor
   await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'publish-host', target: 's3', prefill } }), ToolInputError);
   assert.deepEqual(f.calls, []);
 });
+
+test('plugin-provider cards dispatch to their existing save owner and preserve its options', async () => {
+  for (const [saveKind, adapter, forwarded] of [
+    ['publish-host', 'publishHost', { target: 'host' }],
+    ['source-control', 'sourceControl', { provider: 'host' }],
+    ['agent-plugin-token', 'agentPluginToken', { pluginId: 'host' }],
+  ] as const) {
+    const f = fixture();
+    const registrations = buildCredentialSaveRegistrations({ adapters: f.adapters, loadPluginCredentialCards: async () => [{ providerId: 'card', label: 'Key', category: 'general', baseUrl: 'https://example.com', title: 'Connect', saveKind, saveTarget: 'host' }] });
+    const options = { emitSurface: async () => undefined };
+    await registrations[0]!.handler({ ...f.context, input: { kind: 'plugin-provider', target: 'card' } }, options);
+    assert.equal(f.calls[0]!.adapter, adapter);
+    assert.deepEqual(f.calls[0]!.ctx.input, forwarded);
+    assert.equal(f.calls[0]!.options, options);
+  }
+});
+
+test('OAuth-only cards direct callers to sign-in without saving to the API store', async () => {
+  const f = fixture();
+  const registrations = buildCredentialSaveRegistrations({ adapters: f.adapters, loadPluginCredentialCards: async () => [{ providerId: 'sign-in', label: 'Account', category: 'general', baseUrl: 'https://example.com', title: 'Connect', saveKind: 'oauth' }] });
+  await assert.rejects(registrations[0]!.handler({ ...f.context, input: { kind: 'plugin-provider', target: 'sign-in' } }), /agent_plugin_connect/);
+  assert.deepEqual(f.calls, []);
+});

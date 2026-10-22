@@ -5,6 +5,10 @@ description: Work against a GitHub repository through this workspace's own saved
 
 # GitHub, through Tovu
 
+## Connection card
+
+For repository files, Actions and site backups, open **Connect GitHub** with `credential_save {kind:"plugin-provider",target:"github"}`; it saves the API credential labelled `github`. For the rendered-export source-control flow, use `credential_save {kind:"plugin-provider",target:"github-source-control"}`; it saves through the source-control owner. For Pages hosting use the `github-pages` plugin’s card. These remain distinct save contracts. Each card names the repository permissions and links to fine-grained token creation. Never collect a token in chat.
+
 ## Scope
 
 This plugin owns **GitHub**: repositories, commits, branches, Actions, and the token and permission

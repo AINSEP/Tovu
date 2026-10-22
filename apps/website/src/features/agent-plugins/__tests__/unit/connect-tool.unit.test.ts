@@ -644,3 +644,20 @@ test("defaultResolveInstalledAgentPlugin returns null for a plugin this workspac
     await forceRemove(dir);
   }
 });
+
+test('agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card', async () => {
+  const store = makeStoreDeps();
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
+    workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: 'test' }), clock: CLOCK,
+    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    externalMcpOAuth: fakeOAuth(store.repo, 'https://mcp.example.com/authorize'), waitTimeoutMs: 0,
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER }, credentialCards: [{
+      providerId: 'widget-store', label: 'Account', category: 'general', baseUrl: 'https://mcp.example.com', title: 'Connect your workspace apps', intro: 'Connect the apps you choose.', permissions: 'Each app asks for permission separately.', saveKind: 'oauth',
+    }] }),
+  });
+  const emissions: SurfaceEmission[] = [];
+  await runAgentPluginConnect(deps, freshSurfaces(), fakeCtx(emissions), 'widget-store');
+  assert.equal(emissions.length, 1);
+  assert.match(htmlOf(emissions[0]!), /Connect your workspace apps/);
+  assert.match(htmlOf(emissions[0]!), /Each app asks for permission separately/);
+});

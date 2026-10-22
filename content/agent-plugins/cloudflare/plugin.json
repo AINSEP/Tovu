@@ -16,11 +16,74 @@
         "form-destination:cloudflare-d1"
       ],
       "supersedes": {
-        "packages": ["cloudflare-pages"],
+        "packages": [
+          "cloudflare-pages"
+        ],
         "contributions": [
-          { "fromPlugins": ["deploy", "cloudflare-pages"], "descriptorId": "cloudflare-pages", "label": "deploy target" }
+          {
+            "fromPlugins": [
+              "deploy",
+              "cloudflare-pages"
+            ],
+            "descriptorId": "cloudflare-pages",
+            "label": "deploy target"
+          }
         ]
-      }
+      },
+      "credentialCards": [
+        {
+          "target": "cloudflare-workers",
+          "title": "Connect Cloudflare Workers",
+          "label": "Cloudflare Workers connection",
+          "category": "hosting",
+          "intro": "Connect Cloudflare Workers to publish this site, with optional forms and approved custom-domain changes.",
+          "keyHint": "Scope to the selected account: Account → Workers Scripts → Edit. Forms also need D1 → Edit. Custom domains need Zone, DNS, Workers Routes, Workers Scripts and Cloudflare Pages reads; certificate polling needs SSL and Certificates → Read. Grant DNS or Workers Routes edit only for the corresponding approved changes.",
+          "saveKind": "publish-host",
+          "fields": [
+            {
+              "name": "accountId",
+              "label": "Account ID",
+              "hint": "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.",
+              "required": true
+            },
+            {
+              "name": "zoneId",
+              "label": "Default Zone ID",
+              "hint": "Optional default zone; per-publish Zone ID takes precedence.",
+              "required": false
+            }
+          ],
+          "helpUrl": "https://dash.cloudflare.com/profile/api-tokens",
+          "helpLabel": "Create a token",
+          "baseUrl": "https://api.cloudflare.com"
+        },
+        {
+          "target": "cloudflare-pages",
+          "title": "Connect Cloudflare Pages",
+          "label": "Cloudflare Pages connection",
+          "category": "hosting",
+          "intro": "Connect Cloudflare Pages to publish this site, with optional approved custom-domain changes.",
+          "keyHint": "Scope to the selected account: Account → Cloudflare Pages → Edit. Custom domains need Zone, DNS, Workers Routes and Workers Scripts reads; attaching a domain needs DNS → Edit. Grant Workers Scripts or Workers Routes edit only for corresponding approved transfers.",
+          "saveKind": "publish-host",
+          "fields": [
+            {
+              "name": "accountId",
+              "label": "Account ID",
+              "hint": "Cloudflare dashboard: the long ID in the address bar, right after dash.cloudflare.com/.",
+              "required": true
+            },
+            {
+              "name": "zoneId",
+              "label": "Default Zone ID",
+              "hint": "Optional default zone; per-publish Zone ID takes precedence.",
+              "required": false
+            }
+          ],
+          "helpUrl": "https://dash.cloudflare.com/profile/api-tokens",
+          "helpLabel": "Create a token",
+          "baseUrl": "https://api.cloudflare.com"
+        }
+      ]
     }
   },
   "keywords": [

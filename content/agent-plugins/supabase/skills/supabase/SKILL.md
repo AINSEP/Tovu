@@ -5,6 +5,10 @@ description: Set up a hosted database (Supabase) for this site from chat. Start 
 
 # Supabase database
 
+## Connection card
+
+`agent_plugin_connect {pluginId:"supabase"}` shows the plugin’s own **Connect Supabase** sign-in card, including what it connects and the permissions involved. Only if browser sign-in cannot start, open `credential_save {kind:"plugin-provider",target:"supabase"}` for the plugin’s access-token fallback. It links to personal access token creation, explains Management API permissions, probes the token and saves it on the MCP connection; it never saves a project anon or service-role key.
+
 The person wants somewhere to keep data (sign-ups, form entries, app data). Get them a working
 database with as few words and choices as possible. They should never need to learn a new idea.
 

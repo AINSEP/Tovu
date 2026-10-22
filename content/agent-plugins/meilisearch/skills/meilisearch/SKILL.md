@@ -5,6 +5,10 @@ description: Run the site's visitor search on a Meilisearch server. Covers what 
 
 # Run the site's search on Meilisearch
 
+## Connection card
+
+Open **Connect Meilisearch** with `credential_save {kind:"plugin-provider",target:"meilisearch"}`. It collects your server’s HTTPS URL and a masked scoped key, and saves the exact label `Tovu Search — Meilisearch`. The card lists index, document, search, settings and task permissions. Create the key in your own instance/Cloud console; there is no universal instance-specific key-creation URL.
+
 ## Scope
 
 This plugin owns **sending the site's PUBLIC content to a Meilisearch server and asking it for
@@ -21,13 +25,10 @@ it. Every result Meilisearch returns is checked again against the site before a 
 
 1. **Get a server.** Either Meilisearch Cloud or a self-hosted Meilisearch v1.x reachable from Tovu
    over HTTPS.
-2. **Create a key.** Use a key that may manage indexes, add and delete documents, search and read
-   tasks (an admin key, or a scoped key with those actions). Never ask the person to paste the key
-   into chat; it is saved through Tovu's credential screen.
-3. **Save the key in Tovu.** Admin, **Access Tokens**, "Add custom provider":
-   - Label: exactly `Tovu Search — Meilisearch`
-   - Base URL: the server's base URL, e.g. `https://ms-1234.meilisearch.io` (Tovu passes it as `host`)
-   - Token: the Meilisearch API key (Tovu passes it as `apiKey`)
+2. **Create a key.** Use a key that may create/delete the site index, add/replace and retrieve documents, update index settings, search and read
+   tasks (a scoped key with the actions listed on the card). Never ask the person to paste the key
+   into chat; use the plugin card above.
+3. **Save the key in Tovu.** Open the plugin card above. Enter this server’s HTTPS URL and the key directly into the card. Tovu saves the fixed label and passes the URL as `host` and the token as `apiKey`.
 4. **Switch the site to Meilisearch** in the site's search settings. Tovu builds a fresh index in the
    background and switches over only when it is complete, so search keeps working meanwhile.
 

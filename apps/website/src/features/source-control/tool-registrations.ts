@@ -1,3 +1,4 @@
+import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -214,6 +215,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  * composition root's wide RouteDeps type; route callers satisfy the narrower shape structurally.
  */
 export interface SourceControlToolDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;

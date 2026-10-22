@@ -1,3 +1,4 @@
+import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { inspectStaticPublish } from './static-publish/inspection.js';
@@ -280,6 +281,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
  * Every other field is a direct port type, never indexed from the composition root's wide bag.
  */
 export interface StaticPublishToolDeps extends OperatorLocaleDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly siteConsent?: Pick<SiteConsentService, "deploymentCheck">;
   /** Existing shared gateway; required when publishing with infrastructure changes. */
   readonly gatedMutations?: { readonly gatewayDeps: GatewayDeps };
@@ -920,6 +922,7 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       const stored = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deployTargetsLoader(deps) }, { workspaceId: deps.workspaceId });
       const updating = stored.some(row => row.providerId === descriptor.id && row.isDefault);
       const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
+      const pluginCard = await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'publish-host', target: descriptor.id });
       const card = defineSecretCardTool<{
         descriptor: DeployTargetDescriptor; credential: DeployTargetCredentialSpec; prefill: Record<string, string>; updating: boolean; locale: string;
       }, Awaited<ReturnType<typeof saveProposeCredential>>, Awaited<ReturnType<typeof saveProposeCredential>> | {
@@ -927,7 +930,7 @@ export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: St
       }>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ descriptor, credential, prefill, updating, locale }),
-        form: ({ prep }) => buildProposeCredentialForm(prep),
+        form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: buildProposeCredentialForm(prep) }),
         save: ({ values, prep, signal }) => saveProposeCredential({ deps, targetId: prep.descriptor.id, credential: prep.credential, values, signal, locale: prep.locale }),
         result: ({ prep, run }) => {
           if (run.status === 'saved') return run.saved;

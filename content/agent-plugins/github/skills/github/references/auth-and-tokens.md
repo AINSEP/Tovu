@@ -2,9 +2,7 @@
 
 ## Where the token lives, and why you never see it
 
-A GitHub credential is saved by a human in the admin's **Access Tokens** page, under *Add custom
-provider*, with a label (`github` is the conventional one) and a base URL
-(`https://api.github.com`). It is sealed server-side.
+Open `credential_save {kind:"plugin-provider",target:"github"}` for the plugin’s own GitHub card. It saves label `github` and base URL `https://api.github.com`, with the token sealed server-side. Existing rows can still be rotated by their exact saved label.
 
 You name the **label**. The server resolves the credential and injects the real `Authorization`
 header itself. The token never appears in a tool's input, in a tool's output, or anywhere in your
