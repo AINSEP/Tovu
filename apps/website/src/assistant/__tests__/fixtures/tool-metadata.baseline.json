@@ -47,6 +47,8 @@
     "dns_plan": "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
     "dns_instructions": "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
     "dns_verify": "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
+    "mail_dns_status": "email mail dns sender domain records spf dkim dmarc mx verified verification status missing mismatch check provider sending domain",
+    "mail_dns_verify": "email mail dns sender domain records verify recheck check again track propagation entered spf dkim dmarc",
     "media_list_assets": "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
     "media_upload_asset": "image images photo upload uploads uploading add attach file files picture logo library uplaod",
     "media_trash_asset": "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
@@ -655,6 +657,15 @@
       "I added the DNS records, are they live yet?",
       "Verify the required DNS records on the authoritative nameservers.",
       "Track whether my domain's records have propagated."
+    ],
+    "mail_dns_status": [
+      "Are my email DNS records set up correctly?",
+      "Which SPF, DKIM or DMARC records are missing for my sender domain?",
+      "Has my mail provider verified my sending domain?"
+    ],
+    "mail_dns_verify": [
+      "I added the email DNS records, check them again.",
+      "Start tracking my sender domain's mail records until they propagate."
     ],
     "external_mcp_list": [
       "Which external MCP servers are configured and enabled?",
@@ -2493,6 +2504,14 @@
       "confirmation": "direct"
     },
     "dns_verify": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "mail_dns_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_dns_verify": {
       "class": "edit",
       "confirmation": "direct"
     },

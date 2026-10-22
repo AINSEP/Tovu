@@ -324,6 +324,10 @@ import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
+import { registerAdminMailDnsRoutes } from "../../inbound/admin-http/routes/system/mail-dns.js";
+import { registerAdminMailTestSendRoute } from "../../inbound/admin-http/routes/system/mail-test-send.js";
+import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
+import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
 import { registerAdminAssistantSubagentsRoutes } from "../../inbound/admin-http/routes/system/assistant-subagents.js";
@@ -2041,6 +2045,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
   registerAdminMailStatusRoute(app, routeDeps);
+  // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
+  // Send test email (same operation as `mail_send_test`).
+  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability: routeDeps.observability }) })(routeDeps) });
+  registerAdminMailTestSendRoute(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's

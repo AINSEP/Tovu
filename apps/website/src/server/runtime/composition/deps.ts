@@ -111,7 +111,10 @@ import { loadSourceControlProviderRegistry } from "#src/features/source-control/
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
-import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
+import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
+import { ensureMailProviderSettings, readMailProviderSetting, readMailTestMode } from "#src/features/settings/mail-provider";
+import { createSenderDomainVerification } from "../boot/sender-domain-verification.js";
+import { loadMailProviderCatalog, resolveMailCredential } from "../boot/mail-provider-catalog.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -1979,20 +1982,30 @@ async function composeSiteRouteDeps(
   // Email provider contract v1 (2026-10-21): lanes read `core.mail.provider` (first boot writes the
   // provider the old implicit chain picked), and every provider sits behind Jini's delivery policy
   // over the mail ledgers (`features/mail`). See `site-mailer.ts` and `resolve-mailer.ts`.
+  const mailResolveDeps = {
+    workspaceId,
+    customCredentialRepo: customCredentialSetRepo,
+    sealer: siteAssistantSecretSealer,
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    mode: runtimeMode,
+  };
   const resolvedMailer = createSiteMailer({
-    resolve: {
-      workspaceId,
-      customCredentialRepo: customCredentialSetRepo,
-      sealer: siteAssistantSecretSealer,
-      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
-      loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-      mode: runtimeMode,
-    },
+    resolve: mailResolveDeps,
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
     delivery: { ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
   });
+  // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
+  const mailSenderDomainVerification = createSenderDomainVerification({
+    workspaceId, httpClient: mailResolveDeps.httpClient,
+    findProvider: async ({ id }) => (await loadMailProviderCatalog(mailResolveDeps)).registry.get({ id })?.provider,
+    resolveCredential: async ({ id }) => resolveMailCredential({ deps: mailResolveDeps, catalog: await loadMailProviderCatalog(mailResolveDeps), id }),
+    readProviderId: async () => { await siteTitleReady; return (await readMailProviderSetting({ settingsRepo, workspaceId }))?.transactional ?? null; },
+    readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
+  });
+  const mailTestMode = async () => { await siteTitleReady; return readMailTestMode({ settingsRepo, workspaceId }); };
   // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
   // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
   const mailSenderIdentity = createMailSenderIdentityResolver({ mailer: resolvedMailer.mailer }, {
@@ -2443,6 +2456,10 @@ async function composeSiteRouteDeps(
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
     mailSenderIdentity,
+    mailSenderDomainVerification,
+    mailTestMode,
+    // One bucket per site, so the Email page's button and the assistant's tool share it.
+    mailTestSendLimiter: createMailTestSendLimiter(),
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

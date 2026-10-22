@@ -14,8 +14,8 @@ export const mailStatusAgentToolCatalog = [{
   inputSchema: { type: "object", additionalProperties: false, required: ["providerId"], properties: { providerId: { type: "string", description: "An installed provider id, e.g. smtp or resend." } } },
 }, {
   name: "mail_send_test",
-  description: "Sends one test email to the signed-in operator's own account address through the active provider and the site's delivery rules (suppression, test mode, rate limits), after a confirmation card. Use after mail_set_provider or when checking delivery end to end. Returns {sent, to} and the provider's message id or the refusal code. Never sends to any other address. Requires admin.forms.manage.",
+  description: "Sends one test email through the active provider and the site's delivery rules (suppression, test mode, rate limits), after a confirmation card that shows the actual destination. Sends to the signed-in operator's own account address unless to names one other address. Use after mail_set_provider or when checking delivery end to end. Returns {sent, outcome, to, from, driver, at} where outcome is accepted (the provider took it; providerMessageId), captured (kept locally by test mode or the console driver; nothing left the server), redirected (test mode sent it to redirectedTo instead) or failed (errorCode, message, retryable, retryAfterMs). accepted is not delivered: inbox delivery is only known from later provider feedback. Repeated sends are throttled (MAIL_TEST_DUPLICATE, MAIL_TEST_RATE_LIMITED). Requires admin.forms.manage.",
   sideEffects: "mutates-durable-state" as const,
   authorization: { permission: "admin.forms.manage" },
-  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  inputSchema: { type: "object", additionalProperties: false, properties: { to: { type: "string", maxLength: 254, description: "One recipient address; omit to use your own account address." } } },
 }];

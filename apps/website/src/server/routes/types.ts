@@ -656,6 +656,12 @@ export interface MembersDeps {
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
+  /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
+  mailSenderDomainVerification?: import("#src/platform/mail/sender-domain-verification").SenderDomainVerificationPort;
+  /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
+  mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
+  /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
+  mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
 }
 
 /**

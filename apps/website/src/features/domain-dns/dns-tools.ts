@@ -17,6 +17,9 @@ import type { DomainBindingStore } from "./binding.repo.js";
 import { domainDnsInstructions, planDomainDns, verifyDomainDns, type DnsChangeRequest, type DomainDnsPlan } from "./dns-changes.js";
 import type { DnsRequirementInclude, MailRequirementsPort } from "./mail-requirements.js";
 import { buildDomainDnsRegistrations, domainDnsDerivedRisk, readPublicDnsName, readPublicDomain, type DomainDnsToolDeps } from "./tools.js";
+import { mailDnsRecordStatus } from "./mail-dns-status.js";
+import { buildMailDnsRegistrations, mailDnsDerivedRisk } from "./mail-dns-tools.js";
+import type { SenderDomainVerificationPort } from "../../platform/mail/sender-domain-verification.js";
 
 /** Workspace authorization plus the DNS kernel ports built in the composition root. */
 export interface DnsChangeToolDeps {
@@ -29,6 +32,8 @@ export interface DnsChangeToolDeps {
   bindings?: DomainBindingStore;
   /** The resolved mailer's `domainRequirements` (`include: ["mail"]`). Absent: that include refuses. */
   mailRequirements?: MailRequirementsPort;
+  /** The mail provider's own sender-domain verdict, for `mail_dns_status`. Absent: reported as `null`. */
+  senderDomainVerification?: SenderDomainVerificationPort;
   now: () => number;
 }
 
@@ -214,7 +219,8 @@ export function buildDnsChangeRegistrations(deps: DnsChangeToolDeps): ToolRegist
         hostname: binding.hostname, zone: binding.zone, status: binding.status, attempt: binding.attempt, startedAt: binding.startedAt, nextCheckAt: binding.nextCheckAt,
         delegation: { state: delegation.state, reason: delegation.reason }, nameservers: verification.nameservers,
         ...(verification.reason === undefined ? {} : { reason: verification.reason }),
-        records: verification.records.map(({ record, state, byNameserver }) => ({ type: record.type, name: record.name, value: record.value, state, byNameserver })),
+        // `status` is the Email page's vocabulary (Matches/Missing/Pending/Mismatch/Unknown/TimedOut).
+        records: verification.records.map(({ record, state, byNameserver }) => ({ type: record.type, name: record.name, value: record.value, state, status: mailDnsRecordStatus({ record: { state, byNameserver }, timedOut: binding.status === "timeout" }), byNameserver })),
         untrusted: true,
       };
     },
@@ -222,7 +228,8 @@ export function buildDnsChangeRegistrations(deps: DnsChangeToolDeps): ToolRegist
 }
 
 /**
- * One `domain-dns` contributor for the read-only diagnostics and the DNS change tools.
+ * One `domain-dns` contributor for the read-only diagnostics, the DNS change tools and the two
+ * mail DNS status tools (`mail-dns-tools.ts`).
  * @param required Host dependency factories; invoked only during tool catalog assembly.
  * @complexity O(1).
  * @example contributeDomainDnsAndChangeTools({ createDeps, createDnsDeps })
@@ -233,7 +240,10 @@ export function contributeDomainDnsAndChangeTools({ createDeps, createDnsDeps }:
 }): ToolContributor {
   return {
     domain: "domain-dns",
-    build: routeDeps => [...buildDomainDnsRegistrations(createDeps(routeDeps)), ...buildDnsChangeRegistrations(createDnsDeps(routeDeps))],
-    risk: new Map([...domainDnsDerivedRisk, ...dnsChangeDerivedRisk]),
+    build: routeDeps => {
+      const dnsDeps = createDnsDeps(routeDeps);
+      return [...buildDomainDnsRegistrations(createDeps(routeDeps)), ...buildDnsChangeRegistrations(dnsDeps), ...buildMailDnsRegistrations(dnsDeps)];
+    },
+    risk: new Map([...domainDnsDerivedRisk, ...dnsChangeDerivedRisk, ...mailDnsDerivedRisk]),
   };
 }

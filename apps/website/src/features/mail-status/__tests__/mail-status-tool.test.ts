@@ -126,7 +126,9 @@ test("mail_send_test sends one transactional, interactive message to the operato
   await assert.rejects(f.call("mail_send_test"), /NO_CONFIRMATION_CHANNEL/);
   // `.length`, not deepEqual([]): an assertion signature would narrow `sent` to never[] below.
   assert.equal(f.sent.length, 0);
-  assert.deepEqual(await f.call("mail_send_test", {}, f.answer("mail_send_test")), { sent: true, to: "owner@example.com", providerMessageId: "pm-1" });
+  const { at, ...result } = await f.call("mail_send_test", {}, f.answer("mail_send_test")) as { at: string };
+  assert.match(at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(result, { sent: true, outcome: "accepted", to: "owner@example.com", from: "news@example.com", driver: "smtp", providerMessageId: "pm-1" });
   assert.equal(f.sent.length, 1);
   assert.equal(f.sent[0]!.message.to.email, "owner@example.com");
   assert.equal(f.sent[0]!.message.from.email, "news@example.com");
@@ -136,7 +138,8 @@ test("mail_send_test sends one transactional, interactive message to the operato
 test("mail_send_test reports a refusal, uses a username address, and refuses an account with no address", async () => {
   const refusing = controls();
   refusing.deps.mailer.send = async () => ({ ok: false, retryable: false, errorCode: "MAIL_UNCONFIGURED", message: "no provider" });
-  assert.deepEqual(await refusing.call("mail_send_test", {}, refusing.answer("mail_send_test")), { sent: false, to: "owner@example.com", errorCode: "MAIL_UNCONFIGURED", message: "no provider" });
+  const { at: _at, ...refused } = await refusing.call("mail_send_test", {}, refusing.answer("mail_send_test")) as { at: string };
+  assert.deepEqual(refused, { sent: false, outcome: "failed", to: "owner@example.com", from: "news@example.com", driver: "smtp", errorCode: "MAIL_UNCONFIGURED", message: "no provider", retryable: false });
   const byUsername = controls({ userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "ops@example.com", passwordHash: "x" }) } });
   assert.equal((await byUsername.call("mail_send_test", {}, byUsername.answer("mail_send_test")) as { to: string }).to, "ops@example.com");
   const none = controls({ userRepo: { findByPrincipalId: async () => null } });
