@@ -37,6 +37,7 @@ import {
   resolveTemplateBranchChoice,
   scanMenuEmbedIds,
   postPreviewsBatchSize,
+  isPagedPostPreviewsMarker,
   NO_THEME_ID,
   resolveActiveTheme,
   tokenStylesheetSentinel,
@@ -50,6 +51,7 @@ import {
   type StaticMenuContent,
   type StaticPostPreview,
   type StaticListingBatch,
+  type StaticPostPreviewsPage,
   type StaticFeaturedImage,
   type EntryListItem,
   type EntryListFieldValue,
@@ -63,10 +65,14 @@ import {
   listingBatchPath,
   listingKeyOfAttributes,
   parseListingBatchPath,
+  parseListingPagePath,
   readListingBatch,
+  readListingPage,
+  renderListingPageNav,
   renderListingBatchDocument,
   renderListingMore,
   type ListingBatchRequest,
+  type ListingPageRequest,
   type ListingJsonPage,
   type ListingSource,
 } from "@jini-ai/cms/listing";
@@ -78,6 +84,7 @@ import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-list";
 import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
+import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
 import { checkSiteRelativeTarget } from "#src/platform/routing/reserved-paths";
 import { type RouteTarget } from '@jini-ai/cms/routing';
@@ -443,6 +450,7 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
+      ...siteTimeZoneDep(deps),
     },
     // The same unmodified body `render.ts`'s `renderPostBody` renders (trusted page HTML, see there).
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
@@ -840,6 +848,7 @@ export async function finishStaticTierDocument(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
+      ...siteTimeZoneDep(deps),
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
   });
@@ -877,6 +886,7 @@ export async function finishStaticTierDocument(
       menus,
       postPreviews: postPreviews?.previews,
       postPreviewBatches: postPreviews?.batches,
+      postPreviewsPage: postPreviews?.page,
       collectionLists,
       featuredImage,
       postAuthor,
@@ -921,13 +931,13 @@ function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
  * @complexity O(f) over `fields`' length — one `collectionEntryFieldValue` lookup per displayed
  * field, f being the content type's own declared/authored field count, never user-collection-sized.
  */
-function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[]): EntryListItem {
+function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[], timeZone: string): EntryListItem {
   const dateIso = row.publishedAt ?? row.updatedAt;
   return {
     title: row.title,
     href: entryPublicHref(row.type, row.slug),
     dateIso,
-    dateLabel: formatPostPreviewDate(dateIso),
+    dateLabel: formatPostPreviewDate(dateIso, timeZone),
     fields: fields.map(
       (field): EntryListFieldValue => ({
         name: field.name,
@@ -1016,7 +1026,7 @@ async function readCollectionBatch(
  * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
  */
 async function resolveOneCollectionMarker(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">,
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch" | "siteTimeZone">,
   marker: EmbedMarker,
   pagePath: string
 ): Promise<string | undefined> {
@@ -1026,7 +1036,8 @@ async function resolveOneCollectionMarker(
 
   const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
   const batch = await readCollectionBatch(deps, parsed.query, listingKey);
-  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
+  const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
+  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields, timeZone));
   const { template } = splitCollectionMarkerInner(marker.inner);
   const { columns, layout, structuredData } = parsed.display;
   const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
@@ -1167,7 +1178,18 @@ export const MAX_CONTENT_EMBED_FETCHES = 50;
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
+
+/** Bug D: the site-zone port for a `resolveHtmlPageEmbeds` deps object, when the host wired one. */
+function siteTimeZoneDep(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Pick<RouteDeps, "siteTimeZone"> {
+  return deps.siteTimeZone ? { siteTimeZone: deps.siteTimeZone } : {};
+}
+
+/** Bug D follow-up: the site's zone for `renderSite` (`dateShort`, `.entry-meta`, Liquid's `| date:`);
+ *  UTC when no zone is wired or set. */
+export function resolveSiteTimeZoneForRender(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Promise<string> {
+  return resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
+}
 
 /** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
  * actually need — same "`Pick` of `RouteDeps`, not the whole composition-root shape" reasoning as
@@ -1185,6 +1207,8 @@ export type ContentMarkerResolutionDeps = Pick<
 export type TemplateRenderDeps = Pick<
   RouteDeps,
   | "workspaceId"
+  // Bug D: the site's zone for post dates (optional on `RouteDeps`, so optional here too).
+  | "siteTimeZone"
   | "postRepo"
   | "entryRepo"
   | "mediaRepo"
@@ -1199,6 +1223,8 @@ export type TemplateRenderDeps = Pick<
 > & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "commentsProviders" | "commentsCursor">> & {
   /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
   readonly listingBatch?: ListingBatchRequest;
+  /** A numbered listing page request (`<page>/page/<n>`, Bug C): `paged` post-previews render page `n`. */
+  readonly listingPage?: number;
 };
 
 /**
@@ -1216,7 +1242,7 @@ export type TemplateRenderDeps = Pick<
 export type RenderContextResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo" | "siteTimeZone">>;
 
 /** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
  * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
@@ -1373,6 +1399,7 @@ export async function resolveHtmlFormatContentMarkers(
           mediaContentTypeStore: deps.mediaContentTypeStore,
           taxonomyRepo: deps.taxonomyRepo,
           termRepo: deps.termRepo,
+          ...siteTimeZoneDep(deps),
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
@@ -1576,6 +1603,7 @@ export async function renderViaTemplate(
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
+      ...siteTimeZoneDep(deps),
       ...(pendingBodyJson !== undefined
         ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, publishAt: post.publishAt ?? null, bodyJson: pendingBodyJson } }
         : {}),
@@ -2146,6 +2174,7 @@ export async function renderGenericPostPage(
     theme,
     route: "post",
     siteTitle,
+    timeZone: await resolveSiteTimeZoneForRender(deps),
     posts,
     post,
     widgets,
@@ -2320,11 +2349,10 @@ function filterVisiblePosts(
  *  the short label a card shows (e.g. "Sep 3, 2026"). `PostRecord` has no `publishedAt` (see
  *  `static-render.ts`'s `StaticPostPreview.dateIso` doc for why). A malformed timestamp —
  *  should not occur for a real stored row — degrades to the raw ISO string rather than
- *  "Invalid Date", a legible if ugly output over a broken one. */
-function formatPostPreviewDate(iso: string): string {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) return iso;
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+ *  "Invalid Date", a legible if ugly output over a broken one. Bug D: the day is the site's
+ *  (`timeZone`, from `core.site.timezone`), not the server's UTC. */
+function formatPostPreviewDate(iso: string, timeZone: string): string {
+  return formatDateLabel({ iso }, { timeZone });
 }
 
 /**
@@ -2350,12 +2378,12 @@ function formatPostPreviewDate(iso: string): string {
  * it never adds an unbounded post query or resolves hidden posts' cover metadata.
  */
 async function resolvePostPreviewsForRender(
-  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch">,
+  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch" | "listingPage">,
   memberAccessResolver: MemberAccessResolver,
   memberContext: MemberContext,
   pageHtml: string,
   pagePath: string
-): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>> } | undefined> {
+): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>; page?: StaticPostPreviewsPage } | undefined> {
   const markers = markersOfType({ html: pageHtml, type: POST_PREVIEWS_MARKER_TYPE });
   if (markers.length === 0) return undefined;
 
@@ -2369,30 +2397,61 @@ async function resolvePostPreviewsForRender(
   const plainLimit = widestPlainPostPreviewsLimit(markers);
   const plain = plainLimit > 0 ? (await readListingBatch({ source, after: 0, size: plainLimit }, { isVisible })).items : [];
   const keyed = await readKeyedPostPreviewBatches({ deps, markers, source, isVisible, pagePath });
+  const paged = await readPagedPostPreviews({ deps, markers, source, isVisible, pagePath });
 
-  const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts)];
+  const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts), ...(paged?.posts ?? [])];
   const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
     resolveMediaAssetMetadataForRender(deps, undefined, { listed }),
     resolveMediaTransformVersionsForRender(deps),
   ]);
+  // Bug D: card dates are the site's calendar day. `deps` is the full route deps at runtime; its
+  // narrowed type simply does not name the optional `siteTimeZone`.
+  const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
   const toPreview = (post: PostRecord): StaticPostPreview => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso, timeZone), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
   await storeListingJsonPage({ deps, keyed, toPreview });
-  return { previews: plain.map(toPreview), batches };
+  const page = paged && { items: paged.posts.map(toPreview), nav: paged.nav };
+  return { previews: plain.map(toPreview), batches, ...(page ? { page } : {}) };
+}
+
+/**
+ * Bug C (2026-10-22) — the requested page (`deps.listingPage`, else 1) of a page's `paged`
+ * post-previews listing, sized by the first paged marker, with its rendered prev/next nav; every
+ * paged marker on the page shows this one page. `undefined` when the page carries no paged marker.
+ * A page past the last throws {@link ListingBatchNotFoundError}, answered as the ordinary 404.
+ * @complexity One visible-count scan of the published posts (`readListingPage`).
+ */
+async function readPagedPostPreviews({ deps, markers, source, isVisible, pagePath }: {
+  deps: Pick<TemplateRenderDeps, "listingPage">;
+  markers: readonly EmbedMarker[];
+  source: ListingSource<PostRecord>;
+  isVisible: (post: PostRecord) => boolean;
+  pagePath: string;
+}): Promise<{ posts: readonly PostRecord[]; nav: string } | undefined> {
+  const marker = markers.find(isPagedPostPreviewsMarker);
+  if (marker === undefined) return undefined;
+  const page = await readListingPage({ source, page: deps.listingPage ?? 1, pageSize: postPreviewsBatchSize(marker) }, { isVisible, pagePath });
+  if (page === undefined) throw new ListingBatchNotFoundError();
+  return { posts: page.items, nav: renderListingPageNav({ page }) };
 }
 
 /** One see-more listing's visible posts, the cursor of its next batch (`null` when none), and that
  *  batch's URL. */
 interface KeyedPostPreviewBatch { posts: readonly PostRecord[]; next: number | null; nextHref?: string }
 
-/** The widest batch size among plain (non-see-more) post-previews markers; `0` when every marker is
- *  a see-more listing. @complexity O(m) over markers. */
+/** The widest batch size among plain (non-see-more, non-paged) post-previews markers; `0` when every
+ *  marker is a see-more or paged listing. @complexity O(m) over markers. */
 function widestPlainPostPreviewsLimit(markers: readonly EmbedMarker[]): number {
-  return markers.reduce((widest, marker) => (listingKeyOfAttributes({ attrs: marker.attrs }) === undefined ? Math.max(widest, postPreviewsBatchSize(marker)) : widest), 0);
+  return markers.reduce((widest, marker) => (isPlainPostPreviewsMarker(marker) ? Math.max(widest, postPreviewsBatchSize(marker)) : widest), 0);
+}
+
+/** Neither a see-more listing nor a paged one: renders a slice of the shared plain batch. @complexity O(attrs). */
+function isPlainPostPreviewsMarker(marker: EmbedMarker): boolean {
+  return listingKeyOfAttributes({ attrs: marker.attrs }) === undefined && !isPagedPostPreviewsMarker(marker);
 }
 
 /** Reads each distinct see-more listing's batch (first marker per key wins), in marker order.
@@ -2579,6 +2638,7 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
     if (batch === undefined) throw new ListingBatchNotFoundError();
     return renderListingBatchDocument({ key: listingBatch.key, ...batch });
   }
+  assertListingPageServed({ req, html });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
   const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
@@ -2625,18 +2685,36 @@ const listingBatchRequests = new WeakMap<Request, ListingBatchRequest>();
 /** A `.json` batch request's page, recorded by the post-previews resolver for that request's key. */
 const listingJsonPages = new WeakMap<ListingBatchRequest, ListingJsonPage<ListingJsonItem>>();
 
-/** The page behind a batch URL has no see-more listing with that key: answered as a 404. */
+/** Numbered listing page requests by request, set by the `/page/<n>` rewrite in {@link registerSiteRoutes}. */
+const listingPageRequests = new WeakMap<Request, ListingPageRequest>();
+
+/** The page behind a batch URL has no see-more listing with that key, or the page behind a
+ *  `/page/<n>` URL has no paged listing reaching page `n`: answered as a 404. */
 class ListingBatchNotFoundError extends Error {}
 
+/** A `/page/<n>` request whose page rendered no paged listing nav (n ≥ 2 always has one) would
+ *  otherwise answer as a duplicate of the page itself: it is a 404 instead. @complexity O(html). */
+function assertListingPageServed({ req, html }: { req: Request; html: string }, _optional: Record<string, never> = {}): void {
+  if (listingPageRequests.has(req) && !html.includes('class="jini-pagination"')) throw new ListingBatchNotFoundError();
+}
+
+/** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers
+ *  render it through every one of their branches unchanged (Express 4 re-matches the rewritten `req.url`). */
+function rewriteToListingPage({ req, pagePath }: { req: Request; pagePath: string }, _optional: Record<string, never> = {}): void {
+  const queryStart = req.url.indexOf("?");
+  req.url = pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
+}
+
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
-function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch"> {
+function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
   const listingBatch = listingBatchRequests.get(req);
+  const listingPage = listingPageRequests.get(req)?.page;
   const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
   // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
   // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
   // (`req.header` is absent only on the route tests' direct handler calls.)
-  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, listingBatch, commentsCursor, commentsProviders: undefined };
-  return { ...deps, listingBatch, commentsCursor };
+  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, listingBatch, listingPage, commentsCursor, commentsProviders: undefined };
+  return { ...deps, listingBatch, listingPage, commentsCursor };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404. */
@@ -2646,7 +2724,7 @@ function listingBatchNotFound(req: Request, next: NextFunction): void {
 }
 
 /** `deps` for one public page request: the route's deps plus its see-more batch request, if any. */
-type SiteRequestDeps = RouteDeps & Pick<TemplateRenderDeps, "listingBatch">;
+type SiteRequestDeps = RouteDeps & Pick<TemplateRenderDeps, "listingBatch" | "listingPage">;
 /** Who is asking, for member-gated post-previews and template renders. */
 type PostPreviewsAccess = { resolver: MemberAccessResolver; context: MemberContext };
 
@@ -2731,6 +2809,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
     theme,
     route: "home",
     siteTitle,
+    timeZone: await resolveSiteTimeZoneForRender(deps),
     posts: visiblePosts,
     listing: { pagePath: "/", after: deps.listingBatch?.key === 1 ? deps.listingBatch.after : 0 },
     widgets,
@@ -2816,8 +2895,17 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     const listingBatch = parseListingBatchPath({ path: req.path });
     if (listingBatch === undefined) return next();
     listingBatchRequests.set(req, listingBatch);
-    const queryStart = req.url.indexOf("?");
-    req.url = listingBatch.pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
+    rewriteToListingPage({ req, pagePath: listingBatch.pagePath });
+    next();
+  });
+
+  // Numbered listing pages (`<page>/page/<n>`, Bug C): the same rewrite to the page itself; a
+  // `paged` post-previews listing then renders page `n`, and a page without one answers 404.
+  app.get(/\/page\/[^/]+\/?$/, (req, _res, next) => {
+    const listingPage = parseListingPagePath({ path: req.path });
+    if (listingPage === undefined) return next();
+    listingPageRequests.set(req, listingPage);
+    rewriteToListingPage({ req, pagePath: listingPage.pagePath });
     next();
   });
 

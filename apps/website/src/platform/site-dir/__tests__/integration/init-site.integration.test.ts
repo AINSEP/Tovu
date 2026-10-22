@@ -125,6 +125,19 @@ test("R1h: a new SQLite site is built through the migration runner, so its first
   }
 });
 
+test("Bug D: config.json records the time zone detected where the site was created", async () => {
+  const parent = mkTempParent();
+  try {
+    await initSite({ dir: path.join(parent, "zoned") }, { detectTimeZone: () => "America/Los_Angeles" });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(parent, "zoned", "config.json"), "utf8")).timezone, "America/Los_Angeles");
+    // The default detector is the creating process's own zone.
+    await initSite({ dir: path.join(parent, "local") });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(parent, "local", "config.json"), "utf8")).timezone, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test("BR-03: omitting --name defaults the site name to the directory basename", async () => {
   const parent = mkTempParent();
   const target = path.join(parent, "my-cool-site");

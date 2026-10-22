@@ -246,6 +246,7 @@ import {
   preserveLegacySiteTitles,
 } from "#src/features/settings/site-title";
 import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
+import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { CommentRecord } from "@jini-ai/cms/comments";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
@@ -557,6 +558,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
     .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
+    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
         { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
@@ -953,7 +956,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
+  // Bug D: no site directory, so no creation zone — an unset `core.site.timezone` renders UTC.
+  const siteTimeZone = createSiteTimeZonePort({ settingsRepo });
   wireCoreResolvers({
+    siteTimeZone,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
@@ -1324,6 +1330,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
     siteDisplayName: { read: () => undefined },
+    siteTimeZone,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     // Hoisted above (not constructed inline) — see the comment there for why.

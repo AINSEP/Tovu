@@ -23,7 +23,7 @@ import { forbiddenRule, type ModelFacingErrorRule } from "@jini-ai/core/model-fa
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
 import type { RedirectHitSink, RedirectRepoPort } from "@jini-ai/cms/redirects";
-import { createRedirect, importRedirects, tombstoneRedirect, updateRedirect, MAX_IMPORT_BATCH_SIZE, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { createRedirect, importRedirects, listRedirects, tombstoneRedirect, updateRedirect, MAX_IMPORT_BATCH_SIZE, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES, RedirectConflictError, RedirectLoopError, RedirectNotFoundError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 import type { CreateRedirectInput, RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -81,7 +81,7 @@ const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
  * `sideEffects` declaration.
  */
 export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> redirectRepo.list(): read only.
+  // -> listRedirects (redirectRepo.list() minus rules in the Trash): read only.
   ["redirects_list", "none"],
   // -> redirectRepo.findById(): read only.
   ["redirects_get", "none"],
@@ -91,7 +91,8 @@ export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   ["redirects_create", "mutates-durable-state"],
   // -> updateRedirect (redirects.ts): same write shape as create.
   ["redirects_update", "mutates-durable-state"],
-  // -> tombstoneRedirect (redirects.ts): status flip + revision write (no-op if already disabled).
+  // -> tombstoneRedirect (redirects.ts): moves the rule to the Trash — status flip + Trash row +
+  //    revision write (no-op if already in the Trash).
   ["redirects_tombstone", "mutates-durable-state"],
   // -> importRedirects (redirects.ts): createRedirect in a loop, one call each — same write shape
   //    as redirects_create, N times, with a per-item try/catch (EC-08).
@@ -130,11 +131,15 @@ export function buildRedirectsRegistrations(
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect" });
 
-      const rules = await routeDeps.redirectRepo.list({
-        workspaceId: routeDeps.workspaceId,
-        status: optionalOneOf({ input, key: "status", values: REDIRECT_STATUSES }),
-        source: optionalOneOf({ input, key: "source", values: REDIRECT_SOURCES }),
-        matchType: optionalOneOf({ input, key: "matchType", values: REDIRECT_MATCH_TYPES }),
+      // Rules in the Trash are left out (Bug B) — the same list the admin Redirects screen shows.
+      const rules = await listRedirects({
+        deps: { repo: routeDeps.redirectRepo, isInTrash: routeDeps.redirectsWriteDeps.isInTrash },
+        filter: {
+          workspaceId: routeDeps.workspaceId,
+          status: optionalOneOf({ input, key: "status", values: REDIRECT_STATUSES }),
+          source: optionalOneOf({ input, key: "source", values: REDIRECT_SOURCES }),
+          matchType: optionalOneOf({ input, key: "matchType", values: REDIRECT_MATCH_TYPES }),
+        },
       });
       return { rules: rules.map(toRedirectToolView) };
     },
@@ -202,7 +207,7 @@ export function buildRedirectsRegistrations(
       return { rule: toRedirectToolView(record) };
     },
 
-    /** Reversibly tombstones the redirect after authorization; repeated tombstoning is a no-op. */
+    /** Moves the redirect to the Trash after authorization; removing one already there is a no-op. */
     redirects_tombstone: async (ctx) => {
       const id = requireString({ input: requireInputRecord({ input: ctx.input }), key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.redirects.manage" }, { entityType: "redirect", entityId: id });

@@ -476,6 +476,20 @@ export function postPreviewsBatchSize(marker: Pick<EmbedMarker, "config">): numb
   return parseListingBatchSize({ config: marker.config }, { fallback: LEGACY_POST_PREVIEWS_LIMIT });
 }
 
+/** `{"type":"post-previews","paged":true}` — a numbered-pages listing (Bug C, 2026-10-22): the route
+ *  resolves the requested page (`/page/<n>`, `/blog/page/<n>`) and its nav, so no list stops at one
+ *  batch with older posts unreachable from any link. */
+export function isPagedPostPreviewsMarker(marker: Pick<EmbedMarker, "config">): boolean {
+  return marker.config.paged === true;
+}
+
+/** A paged post-previews listing's current page, resolved by the route: its posts and its
+ *  already-rendered nav (`''` when there is only one page). */
+export interface StaticPostPreviewsPage {
+  readonly items: readonly StaticPostPreview[];
+  readonly nav: string;
+}
+
 /** One see-more listing's rendered batch (`data-jini-see-more`, keyed by `data-jini-listing`): the
  *  items at the requested cursor, plus the next batch URL when more exist. */
 export interface StaticListingBatch<T> {
@@ -506,28 +520,49 @@ function renderPostPreviewCard(preview: StaticPostPreview): string {
  * {@link StaticPostPreview}'s own doc. This function only decides how many of it one marker shows
  * and how each one renders; it performs no I/O and applies no visibility rule of its own.
  *
+ * A `paged` marker ({@link isPagedPostPreviewsMarker}) renders `page` (the route's requested page and
+ * its nav) instead, when the route resolved one; a see-more key on it is then ignored.
+ *
  * @complexity O(n) over `html`'s length for the marker scan/splice, plus O(m) over the small, fixed
  * number of post-previews markers a real page carries.
  */
 function injectPostPreviewsEmbeds(
   html: string,
   previews: readonly StaticPostPreview[],
-  batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>
+  batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>,
+  page?: StaticPostPreviewsPage
 ): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== POST_PREVIEWS_MARKER_TYPE) return undefined;
+    if (page !== undefined && isPagedPostPreviewsMarker(marker)) return renderPagedPostPreviews({ marker, page });
     const key = listingKeyOfAttributes({ attrs: marker.attrs });
     const batch = key === undefined ? undefined : batches.get(key);
-    if (key !== undefined && batch !== undefined) {
-      if (batch.items.length === 0) return undefined;
-      // A theme's client-side card stays in the listing for the see-more script to fill.
-      const card = extractListingCardTemplate({ html: marker.inner }) ?? "";
-      const inner = card + wrapListingItems({ key, items: batch.items.map(renderPostPreviewCard).join("") });
-      return withInnerContent({ marker, inner }) + (batch.nextHref === undefined ? "" : renderListingMore({ key, href: batch.nextHref }));
-    }
+    if (key !== undefined && batch !== undefined) return renderKeyedPostPreviews({ marker, key, batch });
     const slice = previews.slice(0, postPreviewsBatchSize(marker));
     return slice.length === 0 ? undefined : withInnerContent({ marker: marker, inner: slice.map(renderPostPreviewCard).join("") });
   } });
+}
+
+/** A see-more listing's batch, or `undefined` (authored fallback) when it is empty. */
+function renderKeyedPostPreviews(
+  { marker, key, batch }: { marker: EmbedMarker; key: number; batch: StaticListingBatch<StaticPostPreview> },
+  _optional: Record<string, never> = {}
+): string | undefined {
+  if (batch.items.length === 0) return undefined;
+  // A theme's client-side card stays in the listing for the see-more script to fill.
+  const card = extractListingCardTemplate({ html: marker.inner }) ?? "";
+  const inner = card + wrapListingItems({ key, items: batch.items.map(renderPostPreviewCard).join("") });
+  return withInnerContent({ marker, inner }) + (batch.nextHref === undefined ? "" : renderListingMore({ key, href: batch.nextHref }));
+}
+
+/** A paged listing's current page followed by its nav, or `undefined` (authored fallback, no nav)
+ *  when there are no posts at all. */
+function renderPagedPostPreviews(
+  { marker, page }: { marker: EmbedMarker; page: StaticPostPreviewsPage },
+  _optional: Record<string, never> = {}
+): string | undefined {
+  if (page.items.length === 0) return undefined;
+  return withInnerContent({ marker, inner: page.items.map(renderPostPreviewCard).join("") }) + page.nav;
 }
 
 /**
@@ -924,6 +959,8 @@ export function renderStaticPage(
     postPreviews?: readonly StaticPostPreview[];
     /** See-more post-previews listings by listing key; a keyed marker absent here renders from `postPreviews`. */
     postPreviewBatches?: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>;
+    /** The requested page of every `paged` post-previews marker; absent ⇒ those markers render as plain ones. */
+    postPreviewsPage?: StaticPostPreviewsPage;
     collectionLists?: ReadonlyMap<string, string | undefined>;
     /** The current post's featured image ({@link injectFeaturedImage}); omitted ⇒ no image. */
     featuredImage?: StaticFeaturedImage | null;
@@ -932,7 +969,7 @@ export function renderStaticPage(
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews, postPreviewBatches, collectionLists, featuredImage, postAuthor } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, postPreviewBatches, postPreviewsPage, collectionLists, featuredImage, postAuthor } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -942,7 +979,7 @@ export function renderStaticPage(
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});
-  html = injectPostPreviewsEmbeds(html, postPreviews ?? [], postPreviewBatches ?? new Map());
+  html = injectPostPreviewsEmbeds(html, postPreviews ?? [], postPreviewBatches ?? new Map(), postPreviewsPage);
   html = injectCollectionEmbeds(html, collectionLists ?? new Map());
   html = injectFeaturedImage(html, featuredImage);
   html = injectPostAuthor({ html, post: postAuthor });

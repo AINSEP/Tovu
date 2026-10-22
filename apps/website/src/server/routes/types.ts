@@ -143,7 +143,7 @@ import type {
   TermTrashReadPort,
   TaxonomyTrashReadPort,
 } from "../../features/taxonomy/trash-term.js";
-import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "@jini-ai/cms/widgets";
+import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
@@ -995,6 +995,11 @@ export interface AnalyticsDeps {
    * while that workspace's pin is pending (REQ-07).
    */
   siteTitleReady: Promise<void>;
+  /**
+   * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
+   * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.
+   */
+  siteTimeZone?: SiteTimeZonePort;
   /** SPEC-050 (NC-3 = A): which workspaces existed before `core.site.title` and still wait for their pin. */
   siteTitlePreservationStore: SiteTitlePreservationStorePort;
   /**

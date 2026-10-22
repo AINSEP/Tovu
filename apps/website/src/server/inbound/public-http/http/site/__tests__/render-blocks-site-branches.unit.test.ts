@@ -236,6 +236,17 @@ test("post-content widget: a publishAt date is shown instead of updatedAt", () =
   assert.ok(html.includes('<time datetime="2026-10-05T12:00:00.000Z">Oct 5, 2026</time>'), html);
 });
 
+// Bug D (2026-10-22): the label is the site's calendar day; `datetime` keeps the stored instant.
+test("post-content widget: the date label is the calendar day in the IR's site time zone, UTC without one", () => {
+  const at = (iso: string, timeZone?: string) =>
+    renderWidgetIr({ componentId: "post-content", props: { title: "T", bodyJson: doc(), publishAt: iso, updatedAt: iso, ...(timeZone ? { timeZone } : {}) } });
+  // 07:30 UTC Mar 4 is 23:30 Mar 3 in Los Angeles; 16:30 UTC Mar 3 is 01:30 Mar 4 in Tokyo.
+  assert.ok(at("2026-03-04T07:30:00.000Z", "America/Los_Angeles").includes('<time datetime="2026-03-04T07:30:00.000Z">Mar 3, 2026</time>'));
+  assert.ok(at("2026-03-03T16:30:00.000Z", "Asia/Tokyo").includes('<time datetime="2026-03-03T16:30:00.000Z">Mar 4, 2026</time>'));
+  assert.ok(at("2026-03-03T16:30:00.000Z").includes('<time datetime="2026-03-03T16:30:00.000Z">Mar 3, 2026</time>'));
+  assert.ok(at("2026-03-03T16:30:00.000Z", "Not/A_Zone").includes('<time datetime="2026-03-03T16:30:00.000Z">Mar 3, 2026</time>'));
+});
+
 test("post-content widget: a non-object body falls back to the plain title heading", () => {
   assert.equal(renderWidgetIr({ componentId: "post-content", props: { title: "T", header: true, bodyJson: "raw" } }), '<div class="post-detail-header"><h1>T</h1></div><div class="post-detail-body"></div>');
 });

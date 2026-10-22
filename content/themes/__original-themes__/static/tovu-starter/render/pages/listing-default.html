@@ -72,8 +72,9 @@
   <section class="wrap latest-posts" style="max-width: 720px; padding-bottom: 96px;">
     <!-- No "Live example" frame (2026-09-27): that docs-page device read as a debugging box on a
          site's real Blog page. -->
-    <!-- Marker: your 6 latest posts, as cards. What is inside shows only when there are no posts. -->
-    <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6}'>
+    <!-- Marker: your posts, 6 per page, as cards, with Newer/Older posts links when there are more
+         (`"paged":true`; page 2 is <this page>/page/2). What is inside shows only when there are no posts. -->
+    <section class="blog-grid" data-embed-config='{"type":"post-previews","limit":6,"paged":true}'>
       <p style="color: var(--muted);">No posts yet.</p>
     </section>
   </section>

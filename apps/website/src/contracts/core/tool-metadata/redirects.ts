@@ -66,13 +66,13 @@ export const toolMetadata = {
   },
   "redirects_tombstone": {
     search: {
-      keywords: "url link redirect delete remove disable",
+      keywords: "url link redirect delete remove trash retire",
       queries: [
-        "Can you disable this redirect rule?",
-        "How do I turn off a redirect without deleting its history?",
-        "I want to soft-delete a redirect we don't need anymore.",
-        "What happens if I try to disable a redirect that's already disabled?",
-        "Can you retire an old redirect rule for audit purposes?",
+        "Can you delete this redirect rule?",
+        "Move this redirect to the Trash.",
+        "I want to remove a redirect we don't need anymore.",
+        "What happens if I remove a redirect that's already in the Trash?",
+        "Can you retire an old redirect rule but keep it restorable?",
       ],
     },
     approval: { class: 'trash', confirmation: 'policy' },

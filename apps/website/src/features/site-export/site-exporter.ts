@@ -2,7 +2,7 @@ import type { RequestListener } from "node:http";
 import path from "node:path";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
 import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource } from "@jini-ai/devops/static-export/node";
-import { extractListingMoreHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
+import { extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
 import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
 import { type RouteManifestDeps } from "./route-manifest.js";
@@ -510,6 +510,11 @@ export function redirectOutcomeFor(status: number, locationHeader: string | null
   return redirectDecision({ status, locationHeader }, { ...(manifestTarget !== undefined ? { manifestTarget } : {}) });
 }
 
+/** Site-relative listing hrefs as discovered export routes of `kind`; protocol-relative/absolute ones are dropped. */
+function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string }, _optional: Record<string, never> = {}) {
+  return hrefs.filter((href) => href.startsWith("/") && !href.startsWith("//")).map((href) => ({ path: href, kind, label: href }));
+}
+
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
 export async function exportSite({ routeDeps, outputDir, clean, basePath }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
@@ -535,9 +540,12 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
     // See-more batches (`<page>/_more/<key>/<after>`): each exported page's next-batch link is
     // exported too, and that batch's own link after it, so the button works on a static host.
     // A JSON batch's next batch comes from its `nextCursor`; a page or HTML batch names it in its button.
-    discoverRoutes: ({ path, html }) => [...extractListingMoreHrefs({ html }), ...[listingJsonNextPath({ path, body: html })].filter((next) => next !== undefined)]
-      .filter((href) => href.startsWith("/") && !href.startsWith("//"))
-      .map((href) => ({ path: href, kind: "listing-batch", label: href })),
+    // Numbered listing pages (`<page>/page/<n>`, Bug C): each page's prev/next links are followed
+    // the same way, so every page is written as `.../page/<n>/index.html`.
+    discoverRoutes: ({ path, html }) => [
+      ...listingRoutes({ hrefs: [...extractListingMoreHrefs({ html }), ...[listingJsonNextPath({ path, body: html })].filter((next) => next !== undefined)], kind: "listing-batch" }),
+      ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
+    ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
   if (themeCount === 1) return { ...report, outputDir };
   const themePreview = themePreviewExportSize({ report, themeCount });

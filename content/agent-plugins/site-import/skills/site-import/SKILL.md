@@ -100,6 +100,7 @@ anything behind a login. Say so in the plan when the source has any of them.
 | Navigation | `menus_create_menu`, `menus_update_menu_tree`, `menus_assign_location` |
 | Old URLs | `redirects_import` |
 | SEO | `seo_set_entry_overrides`, `seo_get_settings`, `seo_set_settings` |
+| Site time zone | `settings_set_value` (`namespace` `core.site`, `key` `timezone`, `scope` `workspace`): the source's IANA zone, e.g. a WordPress site's `timezone_string` (`/wp-json/` root). Set it before posts so their dates show the source's calendar day; leave it unset when the source does not say (a WordPress `gmt_offset` alone is not a zone). Post `publishAt` stays the original instant |
 | Theme | `agent_plugin_tovu_theme` (Part C: match a reference site); without it, `fs_read_file` root `repo`, path `content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md`. Part C runs `content_read.theme`, `theme_duplicate`, `theme_read_file`, `theme_write_file`, `theme_edit_file`, and `theme_set_active` only with the owner's approval |
 | See how pages look | `web_screenshot_page` (`{url, viewport}` for the source, `{sitePath, viewport}` for this site, plus `themeId` to see an inactive theme copy; `desktop` and `mobile`) to compare and fix. Each capture is saved; `savedFiles` gives the paths |
 | References in this plugin | `fs_read_file` with root `repo` and path `content/agent-plugins/site-import/skills/site-import/references/<file>` |

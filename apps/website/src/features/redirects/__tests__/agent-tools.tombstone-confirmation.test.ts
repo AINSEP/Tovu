@@ -13,6 +13,8 @@ import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
+import { getRedirectsAgentToolCatalog } from "../agent-tools.js";
+import { toolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -211,4 +213,56 @@ for (const toolId of ["redirects_list", "redirects_get", "redirects_get_hits", "
   assert.equal(result.rule.status, "disabled");
   assert.equal((await deps.redirectRepo.findById({workspaceId: WORKSPACE_ID, id: rule.id}))?.status, "disabled");
   assert.equal(store.size(), 0);
+});
+
+/** Bug B: a `remove`/`isInTrash`/`restore` trio sharing ONE Trash index (a set of ids), so the
+ *  tools see the same "is it in the Trash" answer the real composition root gives. */
+function withTrashIndex(deps: RedirectsToolDeps): RedirectsToolDeps {
+  const trashed = new Set<string>();
+  const write = deps.redirectsWriteDeps;
+  const remove = write.remove;
+  const restore = write.restore;
+  deps.redirectsWriteDeps = {
+    ...write,
+    remove: async (required) => {
+      const removed = await remove(required);
+      trashed.add(required.id);
+      return removed;
+    },
+    isInTrash: async ({ id }) => trashed.has(id),
+    restore: async (required) => {
+      trashed.delete(required.id);
+      return restore(required);
+    },
+  };
+  return deps;
+}
+
+test("Bug B: redirects_tombstone moves a rule to the Trash — redirects_list drops it, redirects_update status 'active' brings it back", async () => {
+  const deps = withTrashIndex(makeDeps());
+  const removed = await seedRule(deps, { fromPattern: "/removed" });
+  const switchedOff = await seedRule(deps, { fromPattern: "/switched-off" });
+  await updateRedirect({ deps: deps.redirectsWriteDeps, input: { workspaceId: WORKSPACE_ID, id: switchedOff.id, status: "disabled", actorId: PRINCIPAL_ID } });
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
+  const listedIds = async () => ((await call(tool(registrations, "redirects_list"))) as { rules: Array<{ id: string }> }).rules.map((rule) => rule.id).sort();
+
+  await call(tool(registrations, TOMBSTONE_TOOL_ID), { input: { id: removed.id } });
+  assert.deepEqual(await listedIds(), [switchedOff.id], "the removed rule leaves the list; the toggled-off one stays");
+
+  await call(tool(registrations, TOMBSTONE_TOOL_ID), { input: { id: switchedOff.id } });
+  assert.deepEqual(await listedIds(), [], "removing a toggled-off rule moves it to the Trash too");
+
+  await call(tool(registrations, "redirects_update"), { input: { id: removed.id, status: "active" } });
+  assert.deepEqual(await listedIds(), [removed.id], "restoring brings it back to the list");
+});
+
+test("Bug B: the tool text says what removal does — Trash, off the list, restorable — and no longer calls it a disable", async () => {
+  const catalog = new Map(getRedirectsAgentToolCatalog().map((definition) => [definition.name, definition.description]));
+  const tombstone = catalog.get(TOMBSTONE_TOOL_ID) ?? "";
+  assert.match(tombstone, /Trash/);
+  assert.match(tombstone, /leaves the redirect rule list/);
+  assert.match(tombstone, /status 'active'/);
+  assert.doesNotMatch(tombstone, /already-disabled rule is a no-op/);
+  assert.match(catalog.get("redirects_list") ?? "", /Trash/);
+  for (const query of toolMetadata.redirects_tombstone.search.queries) assert.doesNotMatch(query, /disable|turn off/i, query);
 });

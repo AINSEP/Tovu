@@ -358,7 +358,9 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   //   +1  2026-09-27: the seed gained a `kind: "page"` Blog row at /blog (seed.ts's `page-blog`),
   //       the target of the default theme's "Read the blog"/"All posts" links.
   //   +1  2026-09-28: /feed.xml (RSS), another always-mounted well-known route.
-  // 19 - 7 + 1 + 1 + 1 = 15. Asserting the actual path LIST, not a bare count, so the next drift is legible
+  //   +1  2026-10-22 (Bug C): the default theme's Blog list is paged (6 per page) and the seed has
+  //       more than 6 posts, so its "Older posts" link's /blog/page/2 is discovered and written.
+  // 19 - 7 + 1 + 1 + 1 + 1 = 16. Asserting the actual path LIST, not a bare count, so the next drift is legible
   // instead of a mystery integer.
   assert.deepEqual(
     report.routes.succeeded.map((r) => r.path).sort(),
@@ -366,6 +368,7 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
       "/",
       "/about",
       "/blog",
+      "/blog/page/2",
       "/feed.xml",
       "/how-plugins-work",
       "/how-themes-work",
@@ -882,6 +885,40 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /<meta http-equiv="refresh" content="0; url=\/welcome\?ref=export&amp;utm_source=redirect-test">/, "the redirect target must be HTML-escaped (& -> &amp;) into the meta refresh");
   assert.match(stub, /<link rel="canonical" href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
+});
+
+// Bug A (2026-10-22): a WordPress port carried 51 date-permalink rules stored WITH a trailing slash.
+// The exporter re-requests each source; before the fix every one 404'd ("Cannot GET") and the
+// export refused to publish, so all 51 had to be switched off.
+test("exportSite: 51 WordPress date-permalink rules with trailing slashes all export as stubs, with zero redirect failures", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const sources: string[] = [];
+  for (let i = 0; i < 51; i += 1) {
+    const from = `/2022/${String((i % 12) + 1).padStart(2, "0")}/${String((i % 28) + 1).padStart(2, "0")}/post-${i}/`;
+    sources.push(from);
+    const rule: RedirectRecord = {
+      id: `redir-wp-${i}`, workspaceId: base.workspaceId, matchType: "exact",
+      fromPattern: from, toTarget: `/blog/post-${i}`, statusCode: 301, status: "active", override: false,
+      priority: 0, source: "import", createdByPrincipal: "system", createdAt: now, updatedAt: now, version: 1,
+    };
+    await base.redirectRepo.save({
+      record: rule,
+      revision: { redirectId: rule.id, workspaceId: rule.workspaceId, seq: 1, state: rule, tombstoned: false, actorId: "system", recordedAt: now },
+    });
+  }
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  assert.deepEqual(report.routes.failed.filter((r) => sources.includes(r.path)), []);
+  for (const [i, from] of sources.entries()) {
+    const succeeded = report.routes.succeeded.find((r) => r.path === from);
+    assert.equal(succeeded?.kind, "redirect", from);
+    const stub = readFileSync(path.join(outputDir, ...from.split("/").filter(Boolean), "index.html"), "utf8");
+    assert.match(stub, new RegExp(`<meta http-equiv="refresh" content="0; url=/blog/post-${i}">`));
+  }
 });
 
 test("exportSite: multi-segment exact active redirect rules are exported as static meta-refresh stubs", async (t) => {
@@ -1415,4 +1452,33 @@ test("exportSite: a see-more listing with a card <template> exports its JSON bat
   assert.equal(last.nextCursor, null);
   assert.equal(existsSync(batch(36)), false);
   assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/_more/")), []);
+});
+
+test("exportSite: a paged post listing exports every page as <page>/page/<n>/index.html (Bug C)", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const themeDir = makeTmpOutputDir();
+  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const paged = `<div data-embed-config='{"type":"post-previews","limit":10,"paged":true}'>none</div>`;
+  base.themes = [{
+    manifest: { id: "paged-listing-export-theme", name: "Paged listing", version: "1.0.0", tier: "static", engine: 1, templates: [], publishedPages: ["blog"] },
+    dir: themeDir,
+    tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { index: `<html><body>${paged}</body></html>`, blog: `<html><body>${paged}</body></html>` },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme];
+  base.postRepo = new InMemoryPostRepo(Array.from({ length: 25 }, (_, i) => ({
+    id: `paged-export-${i}`, workspaceId: base.workspaceId, title: `Paged export ${i}`, slug: `paged-export-${i}`, bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
+  }) as PostRecord));
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  for (const dir of ["page/2", "page/3", "blog/page/2", "blog/page/3"]) assert.equal(existsSync(path.join(outputDir, dir, "index.html")), true, dir);
+  assert.equal(existsSync(path.join(outputDir, "page", "4")), false);
+  const third = readFileSync(path.join(outputDir, "blog", "page", "3", "index.html"), "utf8");
+  assert.match(third, /href="\/paged-export-24"/);
+  assert.match(third, /rel="prev" href="\/blog\/page\/2"/);
+  assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/page/")), []);
 });

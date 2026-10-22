@@ -29,6 +29,7 @@ import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
+import { formatDateLabel, formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html/html-embeds";
 import { renderGallery, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html/gallery-render";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
@@ -215,6 +216,12 @@ export interface SiteRenderContext {
    * {@link renderAssignedTermsBlock}'s own doc.
    */
   assignedTerms: readonly AssignedTermView[];
+  /**
+   * Bug D follow-up (2026-10-22) — the site's IANA zone (`core.site.timezone`, resolved by the route
+   * caller). The calendar day `dateShort`/`.entry-meta` show and the zone Liquid's `| date:` filter
+   * formats in. Absent (every caller/test that never threads it) renders UTC, the pre-fix behavior.
+   */
+  timeZone?: string;
 }
 
 /** One resolved asset's public-render sizing override — see `SiteRenderContext.mediaAssetMetadata`'s
@@ -267,8 +274,10 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function shortDate(iso: string): string {
-  return iso.slice(0, 10);
+/** `YYYY-MM-DD` — the calendar day of `iso` in the site's `timeZone` (UTC when absent), so a post
+ *  published at 11pm in Los Angeles is not shown as the next day. Bug D follow-up. */
+function shortDate(iso: string, timeZone: string | undefined): string {
+  return formatIsoDate({ iso }, timeZone === undefined ? {} : { timeZone });
 }
 
 // ---------------------------------------------------------------------------
@@ -1774,7 +1783,7 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
       const folio = String(after + i + 1).padStart(2, "0");
       const cover = featuredImageView(ctx, post);
       const image = cover ? renderCoverImageTag({ image: cover }, { loading: "lazy" }) : "";
-      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post)))}</p></a></li>`;
+      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post), ctx.timeZone))}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No published posts yet.</p></li>`;
@@ -2108,7 +2117,7 @@ function entryContent(ctx: SiteRenderContext): string {
   // The byline is the date line's next item, a `span` inside `.entry-meta` (2026-10-11): as its own
   // `<p>` after that line it took the theme's body-text size instead of the date's small muted type.
   // `.entry-meta` is a plain text line (no flex gap), so the items need a written separator.
-  const date = shortDate(postDisplayDateIso(ctx.post));
+  const date = shortDate(postDisplayDateIso(ctx.post), ctx.timeZone);
   const byline = author ? `${date ? " · " : ""}<span class="post-author">By ${escapeHtml(author)}</span>` : "";
   return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
 }
@@ -2869,7 +2878,10 @@ function renderWidgetPostContent(props: JsonObject): string {
     publishAt: typeof props.publishAt === "string" ? props.publishAt : null,
     updatedAt: typeof props.updatedAt === "string" ? props.updatedAt : "",
   });
-  const dateLabel = dateIso ? new Date(dateIso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  // Bug D: the label is the calendar day in the site's zone (`props.timeZone`, set by the resolver
+  // from `core.site.timezone`), not the server's UTC; `datetime` keeps the stored instant.
+  const timeZone = typeof props.timeZone === "string" ? { timeZone: props.timeZone } : {};
+  const dateLabel = dateIso ? formatDateLabel({ iso: dateIso }, timeZone) : "";
   // Back-compat fork (post-title-in-document feature, 2026-08-11): a migrated body's OWN title node
   // drives the `<h1>` (text AND alignment) so centering it in the editor actually centers it here;
   // a pre-migration body (no title node yet — every row saved before this feature landed) falls back
@@ -3008,7 +3020,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     theme: { name: ctx.themeName },
     route: ctx.route,
     // `date` is the full ISO timestamp (Liquid themes format it with `| date: "%b %e, %Y"`);
-    // `dateShort` is the same value pre-truncated to `YYYY-MM-DD`, added for the same reason
+    // `dateShort` is the same instant as a `YYYY-MM-DD` day in the site's zone (Bug D), added for the same reason
     // `priceFormatted` exists below — the Handlebars tier's allowlist carries no date filter or
     // helper (and deliberately exposes no way for a theme to register one), so any formatting a
     // theme cannot express must be precomputed server-side. Purely additive: every existing Liquid
@@ -3017,13 +3029,13 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // 2026-10-05), else `updatedAt`.
     // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
     // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p)), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p), ctx.timeZone), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
     post: ctx.post
       ? {
           title: ctx.post.title,
           slug: ctx.post.slug,
           date: postDisplayDateIso(ctx.post),
-          dateShort: shortDate(postDisplayDateIso(ctx.post)),
+          dateShort: shortDate(postDisplayDateIso(ctx.post), ctx.timeZone),
           content: renderPostBody({ ctx, post: ctx.post }),
           featuredImage: featuredImageView(ctx, ctx.post),
           author: postAuthorForDisplay({ post: ctx.post }),
@@ -3558,6 +3570,9 @@ export interface RenderSiteRequired {
    * always has) — this is purely additive.
    */
   liquidTemplateIdOverride?: string;
+  /** Bug D follow-up — the site's IANA zone, threaded straight into {@link SiteRenderContext.timeZone}
+   *  (see that field's doc). Omitted renders UTC. */
+  timeZone?: string;
 }
 
 /** {@link buildSiteRenderContext}'s widget fields: no regions and no inline widgets when the caller
@@ -3588,6 +3603,7 @@ function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext
     mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
     assignedTerms: required.assignedTerms ?? EMPTY_ASSIGNED_TERMS,
     pageHtmlEmbeds: required.pageHtmlEmbeds,
+    ...(required.timeZone !== undefined ? { timeZone: required.timeZone } : {}),
   };
 }
 
