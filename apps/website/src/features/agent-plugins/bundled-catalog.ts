@@ -1,3 +1,54 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { resolveProductRoot } from "../../platform/site-dir/index.js";
+
+/** `TOVU_BUNDLED_AGENT_PLUGINS_DIR`, else `<product>/content/agent-plugins` — the same resolution as
+ *  `new-site-agent-plugin-tokens.ts`'s `bundledAgentPluginsSourceRoot` (not imported: that module
+ *  imports `lifecycle.ts`, which imports this one). Unresolvable -> null, read as "no manifests". */
+function bundledAgentPluginsDir(): string | null {
+  try {
+    return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  } catch {
+    return null;
+  }
+}
+
+/** One bundled `plugin.json`'s id when it declares `extensions.tovu.seededEnabled: true`, else null. */
+function seededEnabledIdFrom(manifest: unknown): string | null {
+  const value = manifest as { name?: unknown; extensions?: { tovu?: { seededEnabled?: unknown } } } | null;
+  return value?.extensions?.tovu?.seededEnabled === true && typeof value.name === "string" ? value.name : null;
+}
+
+/**
+ * The bundled plugins whose own manifest opts them into seeding enabled
+ * (`plugin.json` -> `extensions.tovu.seededEnabled: true`). Owner rule: core holds no vendor names,
+ * so a vendor plugin declares this itself rather than being listed below; core discovers it.
+ * A directory without a readable manifest contributes nothing (it cannot be seeded either).
+ * @complexity O(plugins) synchronous reads, once at module load.
+ */
+export function readManifestSeededEnabledPluginIds(
+  { sourceRoot }: { readonly sourceRoot: string | null },
+  { readDir = (dir: string) => readdirSync(dir), readFile = (file: string) => readFileSync(file, "utf8") }: {
+    readonly readDir?: (dir: string) => readonly string[]; readonly readFile?: (file: string) => string;
+  } = {},
+): readonly string[] {
+  if (sourceRoot === null) return [];
+  const read = (dirName: string): string | null => {
+    try {
+      return seededEnabledIdFrom(JSON.parse(readFile(path.join(sourceRoot, dirName, "plugin.json"))));
+    } catch {
+      return null;
+    }
+  };
+  let dirNames: readonly string[];
+  try {
+    dirNames = readDir(sourceRoot);
+  } catch {
+    return [];
+  }
+  return dirNames.map(read).filter((id): id is string => id !== null);
+}
+
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
  * Each hosting plugin split out of `deploy` (2026-10-12: `vercel`, `netlify`,
@@ -7,7 +58,7 @@
  * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
  * `recordBundledAgentPluginIfAbsent`). An operator can still turn one off, and that decision survives
  * every later boot; an operator who had turned `deploy` off keeps the split-out hosts off too
- * (`deploy-split-activation.ts`). Phase B extends that carry to Fly, Render and Railway; GitHub
+ * (`deploy-split-activation.ts`). Phase B extends that carry to the server-host plugins; GitHub
  * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12). `deploy` itself is
  * retired (Phase B7, `RETIRED_BUNDLED_AGENT_PLUGINS` below) and no longer seeded.
  * `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
@@ -24,8 +75,12 @@
  * `ui-ux-design` (owner, 2026-10-14): theme/page/import work must load the design skill first, so it
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
+ * A vendor plugin is not named here: it opts in from its own manifest
+ * ({@link readManifestSeededEnabledPluginIds}); the literal ids are the ones not yet migrated.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set([
+  ...readManifestSeededEnabledPluginIds({ sourceRoot: bundledAgentPluginsDir() }),
+  "render", "railway", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
