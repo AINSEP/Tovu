@@ -88,3 +88,17 @@ test("under tsx, importPluginModule unwraps a default export that carries __esMo
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+for (const imported of [null, "a string module"] as const) {
+  test(`main() treats an imported module that is ${imported === null ? "null" : "not an object"} as having no default export, and posts runTier2Call's refusal for it`, async () => {
+    const withObject = port();
+    const request: Tier2Request = { kind: "probe", plugin: { ...plugin, entryPath: "/x.js" } };
+    await main({ workerData: request, parentPort: withObject.parentPort }, { importModule: async () => ({}) });
+    const { posted, parentPort } = port();
+    await main({ workerData: request, parentPort }, { importModule: async () => imported });
+    // Same reply as a module object with no `default`: a non-object import never reaches `.default`.
+    assert.equal(posted.length, 1);
+    assert.deepEqual(posted, withObject.posted);
+    assert.equal((posted[0] as { ok: boolean }).ok, false);
+  });
+}

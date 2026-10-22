@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildDaemonSpawnArgs, isDaemonProcessForWorkspace } from "../daemon-supervisor.js";
+import { buildDaemonSpawnArgs, isDaemonProcessForWorkspace, restartAssistantDaemon } from "../daemon-supervisor.js";
 
 /**
  * @file Regression coverage for the identity-before-kill gap the 2026-09-05 desktop multi-site
@@ -34,4 +34,8 @@ test("isDaemonProcessForWorkspace refuses a different workspace's argv, even wit
 
 test("isDaemonProcessForWorkspace refuses argv with no --workspace token at all", () => {
   assert.equal(isDaemonProcessForWorkspace("node /repo/dist/agent-daemon-server.js", "workspace-7"), false);
+});
+
+test("restartAssistantDaemon() refuses with a named reason when no daemon was started this process boot", () => {
+  assert.deepEqual(restartAssistantDaemon(), { ok: false, reason: "the assistant daemon was never started this process boot" });
 });

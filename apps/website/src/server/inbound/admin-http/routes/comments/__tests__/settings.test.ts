@@ -163,3 +163,38 @@ for (const method of ["get", "put"] as const) {
     assert.equal(authorizeCalls.length, 0);
   });
 }
+
+test("comments settings: a principal without comments.configure is a coded 403 on GET and PUT, and PUT writes nothing", async (t) => {
+  const { app } = buildApp({ authorize: async () => ({ allowed: false, reason: "no_grant" }) });
+  const baseUrl = await startTestServer(app, t);
+  const expected = {
+    error: "principal 'test-principal' is not authorized for 'comments.configure' (no_grant)",
+    code: "FORBIDDEN",
+    details: { permission: "comments.configure", reason: "no_grant" },
+  };
+
+  const getRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`);
+  assert.equal(getRes.status, 403);
+  assert.deepEqual(await getRes.json(), expected);
+
+  const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ requireModeration: false }),
+  });
+  assert.equal(putRes.status, 403);
+  assert.deepEqual(await putRes.json(), expected);
+});
+
+test("comments settings: a PUT whose patch fails validation is a coded 400 carrying the validator's message, not a 500", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ requireModeration: "yes" }),
+  });
+  assert.equal(putRes.status, 400);
+  assert.deepEqual(await putRes.json(), { error: "requireModeration must be a boolean", code: "COMMENTS_SETTINGS_VALIDATION_ERROR" });
+});

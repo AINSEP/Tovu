@@ -554,3 +554,19 @@ test("production daemon wiring redacts stdout and native fatal stderr before for
   assert.equal(stdout.writableEnded, false);
   assert.equal(stderr.writableEnded, false);
 });
+
+test("shutdown() on win32 falls back to a direct SIGTERM on the child when killTree itself fails (taskkill missing or refused)", () => {
+  const children = [createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+    platform: "win32",
+    killTree: () => { throw new Error("taskkill: access denied"); },
+  });
+
+  supervisor.start();
+  supervisor.shutdown();
+
+  assert.deepEqual(children[0].killedSignals, ["SIGTERM"]);
+});

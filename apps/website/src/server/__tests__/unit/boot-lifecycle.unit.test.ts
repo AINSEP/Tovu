@@ -219,3 +219,14 @@ test("rollback continues after a stop rejects and preserves the original critica
   }]);
   assert.deepEqual(failing.calls, []);
 });
+
+test("a non-Error rejection from prepare() is recorded failed with its string form as the reason code", async () => {
+  const result = await runBootLifecycle([
+    fakeModule({ name: "plain", criticality: "optional", prepare: async () => { throw "disk not mounted"; } }),
+  ]);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.modules.map((m) => [m.name, m.lifecycle]), [[
+    "plain",
+    { status: "failed", reasonCode: "disk not mounted", remediationHint: "check the boot log for the underlying error and retry after fixing it" },
+  ]]);
+});
