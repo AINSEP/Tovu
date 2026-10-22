@@ -83,3 +83,42 @@ test("unbound legacy clients retain end-session persistence without weakening du
   assert.deepEqual(calls, [{ conversationId: "chat", agentId: "claude", sessionId: "legacy-session" }]);
   assert.deepEqual(processReads, []);
 });
+
+test("an unreadable child process identity still keeps the committed session locator, and records no child", async () => {
+  const calls: unknown[] = [];
+  const sessions: AgentSessionStore = { getSessionId: async () => null, clearSessionId: async () => {}, setSessionId: async () => {} };
+  const durable = { captureSession: async (value: unknown) => { calls.push(value); return true; } } as unknown as DurableRunStore;
+  const capture = createEarlySessionCapture({ sessions, durable, readStart: async () => { throw new Error("ps unavailable"); } }, {});
+  await capture({ runId: "run-1", conversationId: "chat", agentId: "codex", event: { kind: "agent", payload: { type: "status", sessionId: "thread-9", childPid: 77 } } });
+  assert.deepEqual(calls, [{ runId: "run-1", sessionId: "thread-9" }]);
+});
+
+test("an empty child start identity is not recorded as the child", async () => {
+  const calls: unknown[] = [];
+  const sessions: AgentSessionStore = { getSessionId: async () => null, clearSessionId: async () => {}, setSessionId: async () => {} };
+  const durable = { captureSession: async (value: unknown) => { calls.push(value); return true; } } as unknown as DurableRunStore;
+  await createEarlySessionCapture({ sessions, durable, readStart: async () => null })({
+    runId: "run-2", conversationId: "chat", agentId: "codex", event: { kind: "agent", payload: { type: "status", sessionId: "thread-10", childPid: 78 } },
+  });
+  assert.deepEqual(calls, [{ runId: "run-2", sessionId: "thread-10" }]);
+});
+
+test("only a string end sessionRef and a non-empty string status sessionId count as a session locator", () => {
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "end", payload: { sessionRef: 7 } } }), undefined);
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "end", payload: {} } }), undefined);
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "agent", payload: { type: "status", sessionId: "" } } }), undefined);
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "agent", payload: { type: "status", sessionId: 12 } } }), undefined);
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "agent", payload: { type: "status", sessionId: "thread-1" } } }), "thread-1");
+  assert.equal(sessionIdFromRunEvent({ event: { kind: "tool", payload: { type: "status", sessionId: "thread-1" } } }), undefined);
+});
+
+test("a host with no durable run store persists the locator through the session store and never reads the child identity", async () => {
+  const calls: unknown[] = [];
+  const sessions: AgentSessionStore = { getSessionId: async () => null, clearSessionId: async () => {}, setSessionId: async (value) => { calls.push(value); } };
+  const reads: unknown[] = [];
+  await createEarlySessionCapture({ sessions, readStart: async (value) => { reads.push(value); return "start"; } })({
+    runId: "run-3", conversationId: "chat-3", agentId: "codex", event: { kind: "agent", payload: { type: "status", sessionId: "thread-3", childPid: 79 } },
+  });
+  assert.deepEqual(calls, [{ conversationId: "chat-3", agentId: "codex", sessionId: "thread-3" }]);
+  assert.deepEqual(reads, []);
+});

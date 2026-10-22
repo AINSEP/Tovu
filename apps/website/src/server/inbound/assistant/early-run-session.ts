@@ -33,7 +33,7 @@ export function createEarlySessionCapture(
     const sessionId = sessionIdFromRunEvent({ event }, {});
     if (!sessionId) return;
     // The session locator is committed immediately, even if querying child identity later fails.
-    const accepted = await saveSessionLocator({ sessions, attemptStore, runId, conversationId, agentId, sessionId }, {});
+    const accepted = await saveSessionLocator({ sessions, attemptStore, runId, conversationId, agentId, sessionId });
     if (!accepted) return;
     const childPid = (event.payload as { childPid?: unknown }).childPid;
     if (typeof childPid !== "number" || !attemptStore) return;
