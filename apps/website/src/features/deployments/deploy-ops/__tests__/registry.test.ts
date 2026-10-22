@@ -6,12 +6,19 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
+import { bundledContributionSources } from "../../../agent-plugins/bundled-contribution-sources.js";
+import { fileURLToPath } from "node:url";
 import { loadDeployOpsRegistryFromSource, loadBundledDeployOpsRegistry, readBundledDeployOpsDescriptors, parseDeployOpsFile, requirePlatform } from "../registry.js";
-test("real bundled ops manifest loads both contained modules and refuses unknown ids", async () => {
-  const registry = await loadBundledDeployOpsRegistry({ sourceRoot: path.resolve("content/agent-plugins") });
-  assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "fly", hosts: ["api.machines.dev", "api.fly.io"] }, { id: "github-actions", hosts: ["api.github.com"] }]);
+const FIXTURE_SOURCE_ROOT = fileURLToPath(new URL("./fixtures/", import.meta.url));
+test("a bundled ops manifest loads every contained module and refuses unknown ids", async () => {
+  const registry = await loadBundledDeployOpsRegistry({ sourceRoot: FIXTURE_SOURCE_ROOT });
+  assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "example-host", hosts: ["api.example-host.dev", "logs.example-host.dev"] }, { id: "example-observer", hosts: ["api.example-host.dev"] }, { id: "example-pipeline", hosts: ["api.example-host.dev"] }]);
   assert.deepEqual(registry.refusals, []);
-  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: fly, github-actions." });
+  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: example-host, example-observer, example-pipeline." });
+  // Which vendors ship is each plugin's own test; core only proves the shipped tree loads without refusals.
+  const shipped = await loadBundledDeployOpsRegistry({ sourceRoot: path.resolve("content/agent-plugins") });
+  assert.deepEqual(shipped.refusals, []);
+  assert.deepEqual(shipped.list().map(p => p.descriptor.id), readBundledDeployOpsDescriptors({ sourceRoot: path.resolve("content/agent-plugins") }).map(d => d.id));
 });
 test("malformed manifests and missing modules are reported refusals, never thrown", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "t01-ops-"));
@@ -72,7 +79,9 @@ test("invalid module and secrets-adapter shapes return exact refusals and are no
   }
 });
 
-for (const [pluginId, moduleName] of [["fly", "fly"], ["github", "github-actions"]] as const) {
+// The owner gate needs a package this build really ships, so the case runs once per shipped ops package
+// rather than naming vendors; each package's files and platform ids come from its own manifest.
+for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot: path.resolve("content/agent-plugins"), filename: "tovu-deploy-ops.json" })) {
   test(`installed ${pluginId} package must be active and match the bundled digest`, async () => {
     const { createHash } = await import("node:crypto");
     const { readFile } = await import("node:fs/promises");
@@ -83,7 +92,10 @@ for (const [pluginId, moduleName] of [["fly", "fly"], ["github", "github-actions
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout });
     try {
-      const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", `deploy-ops/${moduleName}.mjs`].map(async name => [name, await readFile(path.resolve("content/agent-plugins", pluginId, name), "utf8")])));
+      const parsed = parseDeployOpsFile(await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8"));
+      assert.equal(parsed.ok, true);
+      const descriptors = parsed.ok ? parsed.descriptors : [];
+      const files = Object.fromEntries(await Promise.all(["plugin.json", "tovu-deploy-ops.json", ...descriptors.map(d => d.module)].map(async name => [name, await readFile(path.join(packageRoot, name), "utf8")])));
       const archive = new Uint8Array(Buffer.from(JSON.stringify(files)));
       const installed = await installAgentPlugin({ archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: { async *entries() { for (const [entryPath, content] of Object.entries(files)) { const bytes = Buffer.from(content as string); yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } }; } } }, layout, workspaceId: "ws" });
       const workspaceRoot = layout.forWorkspace("ws").root;
@@ -92,7 +104,7 @@ for (const [pluginId, moduleName] of [["fly", "fly"], ["github", "github-actions
       assert.deepEqual(untrusted.list(), []);
       assert.deepEqual(untrusted.refusals, [`deploy ops from '${pluginId}' were not loaded: only plugins shipped with Tovu may add deploy ops (installed digest ${installed.archiveDigest.slice(0, 12)} is not the one this build shipped)`]);
       await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: installed.archiveDigest }] });
-      assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions })).list().map(p => p.descriptor.id), [moduleName]);
+      assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions })).list().map(p => p.descriptor.id), descriptors.map(d => d.id));
       await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: "test" });
       assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions })).list(), []);
     } finally { await forceRemove(root); }
@@ -123,20 +135,20 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
   try {
     const source = path.join(root, "source");
     await mkdir(source);
-    await writeFile(path.join(source, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"github-pages","version":"1.0.0"}');
-    await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "github-actions", label: "GitHub Actions", module: "ops.mjs", hosts: ["api.github.com"] }] }));
+    await writeFile(path.join(source, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example-pages","version":"1.0.0"}');
+    await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example-actions", label: "Example Actions", module: "ops.mjs", hosts: ["api.example.com"] }] }));
     await writeFile(path.join(source, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout });
     const packed = await lifecycle.packAgentPluginDirectory(source);
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: "ws", archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
     const workspaceRoot = layout.forWorkspace("ws").root;
-    await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "github-pages", enabled: true, actor: "test" }, { origin: "bundled" });
-    await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "github-pages", archiveDigest: installed.archiveDigest }] });
+    await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "example-pages", enabled: true, actor: "test" }, { origin: "bundled" });
+    await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "example-pages", archiveDigest: installed.archiveDigest }] });
     const { loadDeployOpsRegistry } = await import("../registry.js");
     const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions });
     assert.deepEqual(registry.list(), []);
-    assert.deepEqual(registry.refusals, ["deploy ops from 'github-pages' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"]);
+    assert.deepEqual(registry.refusals, ["deploy ops from 'example-pages' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"]);
   } finally { await forceRemove(root); }
 });
 
@@ -193,5 +205,5 @@ test("a loader fault becomes one refusal, and requirePlatform names no platforms
   const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: async () => { throw new Error("EIO"); } });
   assert.deepEqual(registry.list(), []);
   assert.deepEqual(registry.refusals, ["deploy ops were not loaded: installed plugin packages could not be read"]);
-  assert.throws(() => requirePlatform(registry, "fly"), { message: "Unknown deployment ops platform 'fly'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
+  assert.throws(() => requirePlatform(registry, "example-host"), { message: "Unknown deployment ops platform 'example-host'. Choose: (none). deploy ops were not loaded: installed plugin packages could not be read" });
 });
