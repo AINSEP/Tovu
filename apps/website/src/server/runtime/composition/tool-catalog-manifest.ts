@@ -1,3 +1,5 @@
+import path from "node:path";
+import { resolveProductRoot } from "#src/platform/site-dir/index";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
@@ -47,7 +49,7 @@ import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-p
 import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { DOMAIN_DNS_EGRESS_POLICY, readBundledPublicDnsResolverUrl, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -383,11 +385,15 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
   const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
+  const bundledPluginsRoot = path.join(resolveProductRoot(), "content", "agent-plugins");
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
-    resolver: createPublicDnsResolver(domainDnsHttpClient, domainDnsDiagnostics),
+    // The resolver URL is plain plugin data read at lookup time, never at boot: a missing or malformed
+    // declaration fails that one lookup with the usual "could not answer" error instead of stopping
+    // the tool catalog from installing.
+    resolver: { query: async input => createPublicDnsResolver({ client: domainDnsHttpClient, url: readBundledPublicDnsResolverUrl({ sourceRoot: bundledPluginsRoot }) }, domainDnsDiagnostics).query(input) },
     probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
   }) }) });

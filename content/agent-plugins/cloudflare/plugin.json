@@ -83,7 +83,11 @@
           "helpLabel": "Create a token",
           "baseUrl": "https://api.cloudflare.com"
         }
-      ]
+      ],
+      "publicDnsResolver": {
+        "url": "https://cloudflare-dns.com/dns-query",
+        "format": "dns-json"
+      }
     }
   },
   "keywords": [

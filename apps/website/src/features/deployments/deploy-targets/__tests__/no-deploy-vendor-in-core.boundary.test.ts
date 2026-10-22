@@ -85,5 +85,6 @@ test("tool search metadata scan covers the deployments tools, which carry no hos
 
 test("the extracted declaration consumers remain inside the vendor boundary", () => {
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/publish-trust/"));
+  assert.ok(SCAN_ROOTS.includes("apps/website/src/server/runtime/composition/domain-dns-adapters.ts"));
   assert.deepEqual(countDeployVendors('const provider = createGitHubDeploymentProvider();'), { "github-deployment": 1 });
 });

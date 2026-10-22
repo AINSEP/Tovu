@@ -1,3 +1,6 @@
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
@@ -9,7 +12,10 @@ let resolvedAddress = "8.8.8.8";
 let dnsLookups = 0;
 const dns = { resolve: async () => { dnsLookups++; return [resolvedAddress]; } };
 const { createHttpClient } = await import("#src/platform/http/client");
-const { createPublicDnsResolver, createTlsProbe, listSavedHostingHosts, DOMAIN_DNS_EGRESS_POLICY } = await import("../domain-dns-adapters.js");
+const { readBundledPublicDnsResolverUrl, createPublicDnsResolver: resolverFromDeclaration, createTlsProbe, listSavedHostingHosts, DOMAIN_DNS_EGRESS_POLICY } = await import("../domain-dns-adapters.js");
+
+const createPublicDnsResolver = (client: Parameters<typeof resolverFromDeclaration>[0]["client"], options: Parameters<typeof resolverFromDeclaration>[1] = {}) =>
+  resolverFromDeclaration({ client, url: "https://resolver.example.test/dns-query" }, options);
 
 function clientReturning(body: unknown, status = 200, truncated = false) {
   const requests: HttpRequest[] = [];
@@ -19,7 +25,7 @@ test("public resolver sends only a bounded GET to its fixed DoH endpoint and kee
   const h = clientReturning({ Status: 0, Answer: [{ name: "example.com.", type: 1, TTL: 120, data: "8.8.8.8" }, { name: "example.com.", type: 5, TTL: 30, data: "alias.example.com." }] });
   const signal = new AbortController().signal;
   assert.deepEqual(await createPublicDnsResolver(h.client, { createDeadline: () => signal }).query({ domain: "example.com", type: "A" }), { type: "A", status: "ok", records: [{ value: "8.8.8.8", ttl: 120 }] });
-  assert.deepEqual(h.requests, [{ method: "GET", url: "https://cloudflare-dns.com/dns-query?name=example.com&type=A", headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal, maxResponseBytes: 65536 }]);
+  assert.deepEqual(h.requests, [{ method: "GET", url: "https://resolver.example.test/dns-query?name=example.com&type=A", headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal, maxResponseBytes: 65536 }]);
 });
 test("ACME DNS owner names reach only the fixed public resolver, never an HTTPS target", async () => {
   const h = clientReturning({ Status: 0, Answer: [{ name: "_acme-challenge.example.com.", type: 5, TTL: 60, data: "validation.host.com." }] });
@@ -27,7 +33,7 @@ test("ACME DNS owner names reach only the fixed public resolver, never an HTTPS 
     type: "CNAME", status: "ok", records: [{ value: "validation.host.com.", ttl: 60 }],
   });
   assert.equal(h.requests.length, 1);
-  assert.equal(h.requests[0]!.url, "https://cloudflare-dns.com/dns-query?name=_acme-challenge.example.com&type=CNAME");
+  assert.equal(h.requests[0]!.url, "https://resolver.example.test/dns-query?name=_acme-challenge.example.com&type=CNAME");
   await assert.rejects(createTlsProbe(h.client)({ domain: "_acme-challenge.example.com" }), {
     name: "ToolInputError", message: "domain_tls_status: pass a public DNS hostname such as 'example.com', without a URL, IP address, path, or port.",
   });
@@ -107,18 +113,18 @@ test("known hosting addresses are workspace scoped, credential-free HTTPS URLs f
   const calls: unknown[] = [];
   const deps = {
     workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async (input: unknown) => { calls.push(input); return [savedPeer("https://app.example-host.dev"), savedPeer("http://private.local"), savedPeer("https://user:secret@leak.com")]; } },
-    publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("netlify", "https://new.netlify.app", true), publishRow("netlify", "https://old.netlify.app", true), publishRow("s3", "https://unverified.com", false)]; } },
+    publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("example-host", "https://new.example.test", true), publishRow("example-host", "https://old.example.test", true), publishRow("example-store", "https://unverified.com", false)]; } },
   };
-  assert.deepEqual(await listSavedHostingHosts(deps), ["app.example-host.dev", "new.netlify.app"]);
+  assert.deepEqual(await listSavedHostingHosts(deps), ["app.example-host.dev", "new.example.test"]);
   assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws", limit: 100 }]);
 });
 test("an unconfirmed upload cannot erase the last confirmed hosting address", async () => {
   const deps = {
     workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async () => [] },
     publishHistoryStore: { list: async () => [
-      publishRow("s3", "https://unconfirmed.host.com", false),
-      publishRow("s3", "https://confirmed.host.com", true),
-      publishRow("s3", "https://older.host.com", true),
+      publishRow("example-store", "https://unconfirmed.host.com", false),
+      publishRow("example-store", "https://confirmed.host.com", true),
+      publishRow("example-store", "https://older.host.com", true),
     ] },
   };
   assert.deepEqual(await listSavedHostingHosts(deps), ["confirmed.host.com"]);
@@ -170,3 +176,43 @@ for (const body of [null, 3, { Status: 0, Answer: null }, { Status: 3, TC: true 
     } else await assert.rejects(query, { name: 'ToolInputError' });
   });
 }
+
+function resolverSources(t: import("node:test").TestContext, declarations: unknown[]): string {
+  const sourceRoot = mkdtempSync(path.join(tmpdir(), "dns-declarations-"));
+  t.after(() => rmSync(sourceRoot, { recursive: true, force: true }));
+  for (const [index, publicDnsResolver] of declarations.entries()) {
+    const dir = path.join(sourceRoot, `example-${index}`); mkdirSync(dir);
+    writeFileSync(path.join(dir, "plugin.json"), JSON.stringify({ extensions: { tovu: { publicDnsResolver } } }));
+  }
+  return sourceRoot;
+}
+
+test("public resolver data is read without activation and only one dns-json endpoint is accepted", t => {
+  const endpoint = { format: "dns-json", url: "https://resolver.example.test/dns-query" };
+  const sourceRoot = resolverSources(t, [undefined, endpoint]);
+  assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot }), endpoint.url);
+  for (const declarations of [[], [undefined], [endpoint, endpoint], [null], [{ ...endpoint, format: "other" }], [{ ...endpoint, url: 7 }]]) {
+    assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot: resolverSources(t, declarations) }), { name: "ToolInputError" });
+  }
+  for (const url of ["not a url", "http://resolver.example.test", "https://user@resolver.example.test", "https://:pw@resolver.example.test", "https://resolver.example.test?q=1", "https://resolver.example.test/#x"]) {
+    assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot: resolverSources(t, [{ ...endpoint, url }]) }), { name: "ToolInputError" });
+  }
+});
+test("unreadable or malformed resolver manifests refuse without leaking their contents", t => {
+  for (const unreadable of [false, true]) {
+    const sourceRoot = resolverSources(t, [undefined]);
+    const file = path.join(sourceRoot, "example-0", "plugin.json");
+    if (unreadable) { rmSync(file); mkdirSync(file); }
+    else writeFileSync(file, "{secret malformed data");
+    assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot }), { message: "domain_lookup_dns: the public DNS resolver could not answer. Try again later; no DNS conclusion was reached." });
+  }
+});
+
+test("plugins with no public resolver extension are inert data", t => {
+  const sourceRoot = resolverSources(t, [{ format: "dns-json", url: "https://resolver.example.test/query" }, undefined]);
+  const file = path.join(sourceRoot, "example-1", "plugin.json");
+  for (const manifest of [null, {}, { extensions: null }, { extensions: {} }, { extensions: { tovu: null } }]) {
+    writeFileSync(file, JSON.stringify(manifest));
+    assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot }), "https://resolver.example.test/query");
+  }
+});

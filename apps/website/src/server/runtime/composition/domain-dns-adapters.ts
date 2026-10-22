@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
 import { isIP } from "node:net";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort, type EgressPolicy } from "#src/platform/http/index";
@@ -60,12 +63,12 @@ interface DiagnosticOptions {
   observe?: (event: { operation: "dns" | "tls"; outcome: DiagnosticOutcome }) => void;
 }
 /** Creates a replaceable public-DNS resolver using only an injected guarded HTTP client. */
-export function createPublicDnsResolver(client: HttpClientPort, options: DiagnosticOptions = {}): PublicDnsResolver {
+export function createPublicDnsResolver({ client, url }: { readonly client: HttpClientPort; readonly url: string }, options: DiagnosticOptions = {}): PublicDnsResolver {
   return { query: async ({ domain, type }) => {
     const hostname = readPublicDnsName({ value: domain, errorPrefix: "domain_lookup_dns" });
     let outcome: DiagnosticOutcome = "unavailable";
     try {
-      const response = await client.send({ method: "GET", url: `https://cloudflare-dns.com/dns-query?${new URLSearchParams({ name: hostname, type })}`, headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal: options.createDeadline?.() ?? AbortSignal.timeout(15000), maxResponseBytes: 65536 });
+      const response = await client.send({ method: "GET", url: `${url}?${new URLSearchParams({ name: hostname, type })}`, headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal: options.createDeadline?.() ?? AbortSignal.timeout(15000), maxResponseBytes: 65536 });
       if (response.status !== 200 || response.bodyTruncated || Buffer.byteLength(response.bodyText) > 65536) throw dnsUnavailable();
       const result = readDnsResponse(response.bodyText, type);
       outcome = result.status;
@@ -136,4 +139,36 @@ export async function listSavedHostingHosts(deps: SavedHostingDeps): Promise<str
     urls.push(row.url);
   }
   return [...new Set(urls.map(hostingHostname).filter((host): host is string => host !== null))].sort();
+}
+
+/** Reads the shipped public resolver declaration without activating or executing plugin code.
+ * @param required Product-owned bundled root. @returns The single dns-json HTTPS endpoint.
+ * @throws {ToolInputError} Missing, ambiguous or malformed resolver data; no fallback resolver. */
+export function readBundledPublicDnsResolverUrl(required: { readonly sourceRoot: string }, _optional = {}): string {
+  const urls: string[] = [];
+  for (const plugin of bundledContributionSources({ ...required, filename: "plugin.json" })) {
+    let manifest: unknown;
+    try { manifest = JSON.parse(readFileSync(path.join(plugin.packageRoot, "plugin.json"), "utf8")); }
+    catch { throw dnsUnavailable(); }
+    const url = publicDnsDeclarationUrl({ manifest });
+    if (url !== undefined) urls.push(url);
+  }
+  if (urls.length !== 1) throw dnsUnavailable();
+  return urls[0]!;
+}
+
+/** Validate endpoint data while leaving request bounds, parsing and egress in the resolver. */
+function publicDnsDeclarationUrl({ manifest }: { readonly manifest: unknown }, _optional = {}): string | undefined {
+  const declaration = (manifest as { extensions?: { tovu?: { publicDnsResolver?: { format?: unknown; url?: unknown } } } } | null)?.extensions?.tovu?.publicDnsResolver;
+  if (declaration === undefined) return undefined;
+  return dnsJsonEndpointUrl({ declaration });
+}
+
+/** A shipped resolver must be an HTTPS dns-json endpoint without credentials or URL state. */
+function dnsJsonEndpointUrl({ declaration }: { readonly declaration: { format?: unknown; url?: unknown } | null }, _optional = {}): string {
+  if (declaration?.format !== "dns-json" || typeof declaration.url !== "string") throw dnsUnavailable();
+  let url: URL;
+  try { url = new URL(declaration.url); } catch { throw dnsUnavailable(); }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw dnsUnavailable();
+  return declaration.url;
 }
