@@ -66,6 +66,18 @@ test("mail_configure_provider hands creation to credential_save with only non-se
   const rotation = await providerTools({ mailProviderControl: { check: async () => ({ ok: true, label: "Fake" }), select: async () => {}, describe: async () => report([saved]) } }).call("mail_configure_provider", { providerId: "fakemail" }) as Record<string, unknown>;
   assert.deepEqual(rotation.credential, { action: "rotate", label: "Tovu Mail — Fake API", category: "ops", credentialId: "cred-1" });
   assert.match(JSON.stringify(rotation.credentialSetup), /"target":"Tovu Mail — Fake API"/);
+  assert.deepEqual(result.followUps, []);
+  assert.deepEqual(rotation.followUps, []);
+});
+
+test("mail_configure_provider names the username follow-up for a provider whose form declares one, on creation only", async () => {
+  const login = { ...PROVIDER, setup: { fields: [...PROVIDER.setup.fields, { key: "username", label: "Username", type: "text" as const, required: true }] } };
+  const describe = async () => report([login]);
+  const result = await providerTools({ mailProviderControl: { check: async () => ({ ok: true, label: "Fake" }), select: async () => {}, describe } }).call("mail_configure_provider", { providerId: "fakemail" }) as { followUps: { tool: string; args: unknown }[] };
+  assert.deepEqual(result.followUps.map((f) => [f.tool, f.args]), [["custom_credential_set_username", { label: "Tovu Mail — Fake API" }]]);
+  const rotating = { ...login, credential: { required: true, saved: true, label: "Tovu Mail — Fake API", credentialId: "cred-1" } };
+  const rotation = await providerTools({ mailProviderControl: { check: async () => ({ ok: true, label: "Fake" }), select: async () => {}, describe: async () => report([rotating]) } }).call("mail_configure_provider", { providerId: "fakemail" }) as { followUps: unknown[] };
+  assert.deepEqual(rotation.followUps, []);
 });
 
 test("mail_configure_provider refuses bad input, unknown providers, a missing grant", async () => {

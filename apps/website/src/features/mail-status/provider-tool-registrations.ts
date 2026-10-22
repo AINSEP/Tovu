@@ -58,6 +58,18 @@ function credentialPrefill(plan: MailProviderCredentialPlan): Record<string, str
   return { kind: "api", label, category, ...(baseUrl ? { baseUrl } : {}) };
 }
 
+/**
+ * What the secure form cannot collect: credential_save's API form takes the secret and the origin
+ * only, so a provider whose setup declares a `username` field (an SMTP login, for one) names the
+ * non-secret follow-up. Keyed on the field, never on a provider id; a rotation keeps the username.
+ */
+function followUps(plan: MailProviderCredentialPlan): { tool: string; args: Record<string, string>; note: string }[] {
+  const needsUsername = plan.credential.action === "create" && plan.provider.setup.fields.some((field) => field.key === "username");
+  return needsUsername
+    ? [{ tool: "custom_credential_set_username", args: { label: plan.credential.label }, note: "This provider signs in with a username plus the secret. After the secure form, ask the person for the username (not a secret) and save it with this tool." }]
+    : [];
+}
+
 function permission(deps: MailProviderToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
 }
@@ -87,7 +99,7 @@ export function buildMailProviderRegistrations(deps: MailProviderToolDeps): Tool
       const providerId = readProviderId(ctx.input);
       await permission(deps, ctx, "custom-credentials.write");
       const plan = await asToolInputError(() => planMailProviderCredential({ control: deps.mailProviderControl, providerId }));
-      return { activated: false, ...plan, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: credentialPrefill(plan) }, {}) };
+      return { activated: false, ...plan, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: credentialPrefill(plan) }, {}), followUps: followUps(plan) };
     },
   }, rules: [forbiddenRule({ domainPrefix: "MAIL_PROVIDERS", error: ForbiddenError })] }) });
 }
