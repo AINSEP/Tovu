@@ -9,13 +9,15 @@ import { AT } from "./module-fixture.js";
 
 /**
  * Core's deploy-ops harness over the neutral `fixtures/example-host` plugin, so generic runner tests
- * never depend on a real vendor's adapter. Credentials are saved for `host`; HTTP is a scripted fake.
+ * never depend on a real vendor's adapter. Credentials are saved for `host` (plus `additionalHosts`); HTTP is a scripted fake.
  */
 export const EXAMPLE_API = "https://api.example-host.dev";
+/** A second declared platform host, saved on the default credential, for secondary-host coverage. */
+export const EXAMPLE_LOGS = "https://logs.example-host.dev";
 const EXAMPLE_ROOT = fileURLToPath(new URL("./fixtures/example-host/", import.meta.url));
 type Options = { labels?: string[]; host?: string; additionalHosts?: string[] };
 export async function fixture(optional: Options = {}) {
-  const { labels = ["ops"], host = EXAMPLE_API, additionalHosts = [] } = optional;
+  const { labels = ["ops"], host = EXAMPLE_API, additionalHosts = [EXAMPLE_LOGS] } = optional;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
