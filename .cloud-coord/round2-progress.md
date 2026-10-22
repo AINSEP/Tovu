@@ -2,7 +2,7 @@
 
 | item | owner | status |
 |---|---|---|
-| A Email Phase 2 | agent-A | started |
+| A Email Phase 2 | agent-A | done d89a6cc9, 5a425349 |
 | B Email Phase 3 | agent-B | done 8d1c288e |
 | C Assistant tool failures | agent-CE | done c8af6882 |
 | E Jini trust.ts | agent-CE | done Jini a3fb7570 |
