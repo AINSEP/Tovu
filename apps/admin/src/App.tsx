@@ -785,8 +785,8 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
               while missing the actual point (the next Tab press would resume from wherever focus
               really was, not from main content). Not in the normal Tab order either way, since -1
               only allows *programmatic* focus (the skip link's own `href` jump). */}
-          {/* Blocking while no mail provider is chosen (email provider contract v1). */}
-          <MailStatusBanner fetchStatus={api.getMailStatus} />
+          {/* Shown while no mail provider is chosen (email provider contract v1); × hides it per browser. */}
+          <MailStatusBanner fetchStatus={api.getMailStatus} dismissLabel={tApp({ locale: navLocale, key: "Dismiss" })} />
           <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
             {content}
           </main>
