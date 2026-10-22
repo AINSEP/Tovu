@@ -31,6 +31,13 @@ import { contributeMenusPublish } from "../publish-content.js";
 
 const WORKSPACE_ID = "workspace-1";
 
+/** Distinct event ids: `InMemoryOutbox.enqueue` now drops a repeated `event.id` (like the SQL outbox),
+ *  so a constant id silently swallowed every event after the first. */
+function sequentialIds(prefix = "evt"): { newId(): string } {
+  let next = 0;
+  return { newId: () => `${prefix}-${++next}` };
+}
+
 function makePublishDeps(input: {
   menuRepo?: MenuRepoPort;
   navLocationBindingRepo?: NavLocationBindingRepoPort;
@@ -41,7 +48,7 @@ function makePublishDeps(input: {
   return {
     workspaceId: WORKSPACE_ID,
     clock: input.clock ?? createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
-    idGen: input.idGen ?? { newId: () => "unused-in-these-tests" },
+    idGen: input.idGen ?? sequentialIds(),
     outbox: input.outbox ?? new InMemoryOutbox(),
     ports: {
       menu:
@@ -183,7 +190,7 @@ test("apply() rebinds a location away from whatever destination menu previously 
   ] });
   const outbox = new InMemoryOutbox();
   const handler = contributeMenusPublish().build(
-    makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox, idGen: { newId: () => "evt-1" } })
+    makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo, outbox, idGen: sequentialIds() })
   );
 
   await handler.apply({

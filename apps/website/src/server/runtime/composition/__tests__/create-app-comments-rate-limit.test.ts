@@ -2,7 +2,6 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { CommentSubmission } from "@jini-ai/cms/comments";
 import { COMMENTS_SUBMIT_PROFILE } from "#src/features/comments/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
@@ -13,6 +12,25 @@ import { createApp, createRouteDeps } from "../app.js";
  * every app builder. Rejected submissions still consume the HTTP budget, independently of
  * ingress; changing an untrusted forwarded header must never reset that budget.
  */
+
+/** Records each submission's IP hash and rejects it, injected at the door the route dispatches
+ *  through. Stale-test fix: since 65882a7e a composed provider registry routes public submissions to
+ *  the ACTIVE stored provider, so a fake on `deps.commentIngressPolicy` alone is never called. */
+function rejectAtActiveProvider(
+  { deps, authorIpHashes }: { deps: ReturnType<typeof createRouteDeps>; authorIpHashes: string[] },
+  _options: Record<string, never> = {},
+): void {
+  const registry = deps.commentsProviders!;
+  deps.commentsProviders = { ...registry, active: async (input) => {
+    const current = await registry.active(input);
+    assert.equal(current.adapter?.kind, "stored", "precondition: the built-in stored provider is active");
+    const submission = { submit: async ({ authorIpHash }: { authorIpHash: string }) => {
+      authorIpHashes.push(authorIpHash);
+      return { ok: false as const, reason: "entry-not-found" as const };
+    } };
+    return { ...current, adapter: { ...current.adapter!, submission } as typeof current.adapter };
+  } };
+}
 
 /** Posts through the real HTTP boundary and returns the exact public rejection contract. */
 async function submitComment(
@@ -33,14 +51,9 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
     const deps = createRouteDeps();
     let nowMs = Date.parse("2026-10-08T00:00:00.000Z");
     deps.clock = { nowMs: () => nowMs, nowIso: () => new Date(nowMs).toISOString() };
-    const calls: CommentSubmission[] = [];
+    const calls: string[] = [];
     // A rejected ingress fake proves the HTTP budget counts requests before any accepted write.
-    deps.commentIngressPolicy = {
-      submit: async (submission) => {
-        calls.push(submission);
-        return { ok: false, reason: "entry-not-found" };
-      },
-    };
+    rejectAtActiveProvider({ deps, authorIpHashes: calls });
     const app = builder === "createApp" ? createApp(deps) : deps.createSiteApp();
     app.set("trust proxy", false);
     const baseUrl = await startTestServer(app, t);
@@ -51,8 +64,8 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
       assert.deepEqual(await submitComment({ baseUrl, forwardedFor: `203.0.113.${attempt + 1}` }), rejected);
     }
     assert.equal(calls.length, COMMENTS_SUBMIT_PROFILE.max);
-    assert.equal(new Set(calls.map(call => call.ingressContext.authorIpHash)).size, 1);
-    assert.match(String(calls[0].ingressContext.authorIpHash), /^[a-f0-9]{64}$/);
+    assert.equal(new Set(calls).size, 1);
+    assert.match(String(calls[0]), /^[a-f0-9]{64}$/);
     assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "198.51.100.1" }), limited);
     assert.equal(calls.length, COMMENTS_SUBMIT_PROFILE.max, "exhausted HTTP budget must not call ingress");
 
@@ -69,9 +82,9 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
     // With an explicitly trusted edge hop, different visitor addresses must get different keys.
     app.set("trust proxy", 1);
     assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "203.0.113.100" }), rejected);
-    const firstVisitorHash = calls.at(-1)?.ingressContext.authorIpHash;
+    const firstVisitorHash = calls.at(-1);
     assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "203.0.113.101" }), rejected);
-    assert.notEqual(calls.at(-1)?.ingressContext.authorIpHash, firstVisitorHash);
+    assert.notEqual(calls.at(-1), firstVisitorHash);
   });
 }
 
@@ -96,13 +109,13 @@ test("createApp salts comment IP hashes from its site-key keyring when COMMENTS_
   const hashWithSiteKey = async (siteKeyHex: string) => {
     const deps = createRouteDeps();
     deps.siteAssistantSecretKeyring = new FixedSiteKeyKeyring(siteKeyHex);
-    const calls: CommentSubmission[] = [];
-    deps.commentIngressPolicy = { submit: async (submission) => { calls.push(submission); return { ok: false, reason: "entry-not-found" }; } };
+    const calls: string[] = [];
+    rejectAtActiveProvider({ deps, authorIpHashes: calls });
     const app = createApp(deps);
     app.set("trust proxy", false);
     await submitComment({ baseUrl: await startTestServer(app, t), forwardedFor: "203.0.113.9" });
     assert.equal(calls.length, 1);
-    return String(calls[0].ingressContext.authorIpHash);
+    return String(calls[0]);
   };
   const first = await hashWithSiteKey("11".repeat(32));
   assert.match(first, /^[a-f0-9]{64}$/);
