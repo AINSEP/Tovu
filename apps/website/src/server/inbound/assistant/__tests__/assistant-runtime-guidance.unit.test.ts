@@ -7,6 +7,9 @@ import {
   CLAUDE_IN_CHROME_ALLOWED_TOOLS,
   CLAUDE_IN_CHROME_GUIDANCE,
   PREFER_SUBAGENTS_GUIDANCE,
+  SHORT_REPLY_GUIDANCE,
+  DETAILED_REPLY_GUIDANCE,
+  buildReplyLengthGuidance,
   buildClaudeInChromeRunOptions,
   resolveClaudeInChromeEffective,
   buildAssistantRuntimeGuidance,
@@ -35,10 +38,10 @@ test("guidance text: the exact sentence when effective, empty otherwise", () => 
 });
 
 test("the overlay block appends a trailing space per sentence and is empty when nothing applies", () => {
-  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: true, claudeInChrome: false } }), `${PREFER_SUBAGENTS_GUIDANCE} `);
-  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: true } }), `${CLAUDE_IN_CHROME_GUIDANCE} `);
-  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: true, claudeInChrome: true } }), `${PREFER_SUBAGENTS_GUIDANCE} ${CLAUDE_IN_CHROME_GUIDANCE} `);
-  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: false } }), "");
+  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" } }), `${PREFER_SUBAGENTS_GUIDANCE} `);
+  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: true, replyLength: "normal" } }), `${CLAUDE_IN_CHROME_GUIDANCE} `);
+  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: true, claudeInChrome: true, replyLength: "normal" } }), `${PREFER_SUBAGENTS_GUIDANCE} ${CLAUDE_IN_CHROME_GUIDANCE} `);
+  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: false, replyLength: "normal" } }), "");
   assert.equal(buildAssistantRuntimeGuidance({ input: undefined }), "");
 });
 
@@ -76,31 +79,31 @@ const probed = { probeChrome: async () => true };
 
 test("launch: defaults on Claude Code for the owner — delegation guidance on, Chrome on (owner default 2026-10-22)", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}) }, probed),
-    { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
+    { guidance: { preferSubagents: true, claudeInChrome: true, replyLength: "normal" }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
 });
 
 test("launch: the Chrome default still yields --no-chrome for a non-owner, and an explicit OFF wins for the owner", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), isOwner: false }, probed),
-    { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
+    { guidance: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" }, runOptions: { chromeIntegration: false } });
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: false }) }, probed),
-    { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
+    { guidance: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" }, runOptions: { chromeIntegration: false } });
 });
 
 test("launch: a runtime without native subagents, a denied Task/Agent or an OFF setting disables delegation", async () => {
   assert.deepEqual((await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), agentId: "codex" })),
-    { guidance: { preferSubagents: false, claudeInChrome: false }, runOptions: {} });
+    { guidance: { preferSubagents: false, claudeInChrome: false, replyLength: "normal" }, runOptions: {} });
   assert.equal((await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), subagentsEnabled: false })).guidance.preferSubagents, false);
   assert.equal((await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ preferSubagents: false }) })).guidance.preferSubagents, false);
 });
 
 test("launch: Chrome ON for the owner on Claude Code passes --chrome and allows the server", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, probed),
-    { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
+    { guidance: { preferSubagents: true, claudeInChrome: true, replyLength: "normal" }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
 });
 
 test("launch: Chrome ON stays off for a non-owner and is omitted for a runtime without support", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), isOwner: false }, probed),
-    { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
+    { guidance: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" }, runOptions: { chromeIntegration: false } });
   assert.deepEqual((await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "codex" })).runOptions, {});
 });
 
@@ -108,7 +111,7 @@ test("launch: the host's own def lookup decides runtime support", async () => {
   const seen: string[] = [];
   const getDef = ({ id }: { id: string }) => { seen.push(id); return id === "host-cli" ? { supportsSubagents: true, supportsChromeIntegration: true } : null; };
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "host-cli" }, { getDef, ...probed }),
-    { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
+    { guidance: { preferSubagents: true, claudeInChrome: true, replyLength: "normal" }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
   assert.deepEqual(seen, ["host-cli", "host-cli"]);
 });
 
@@ -117,7 +120,7 @@ test("launch: a declared-but-unprobed or probe-rejected CLI gets no Chrome guida
   const rejected = { probeChrome: async ({ agentId }: { agentId: string }) => { asked.push(agentId); return false; } };
   for (const optional of [{}, rejected]) {
     assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, optional),
-      { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: {} });
+      { guidance: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" }, runOptions: {} });
   }
   assert.deepEqual(asked, ["claude"]);
 });
@@ -176,4 +179,30 @@ test("chrome probe: a throwing launch resolver or probe fails closed", async () 
   assert.equal(await createAssistantChromeProbe(resolver.deps)({ agentId: "claude" }), false);
   const probe = probeDeps({ ensureAgentCapabilities: async () => { throw new Error("spawn failed"); } });
   assert.equal(await createAssistantChromeProbe(probe.deps)({ agentId: "claude" }), false);
+});
+
+test("reply length contributes the exact instruction, or nothing for Normal and absent input", () => {
+  assert.equal(SHORT_REPLY_GUIDANCE, "Lead with the result in 1–3 lines, then only decisions, approvals, failures or unverified items needing the person; retain the Tool gap line and anything flagged as needing the person, and omit step narration, recaps and change lists unless asked.");
+  assert.equal(DETAILED_REPLY_GUIDANCE, "Explain the cause, what changed and where, what was checked and what was not.");
+  assert.equal(buildReplyLengthGuidance({ replyLength: "short" }), SHORT_REPLY_GUIDANCE);
+  assert.equal(buildReplyLengthGuidance({ replyLength: "detailed" }), DETAILED_REPLY_GUIDANCE);
+  assert.equal(buildReplyLengthGuidance({ replyLength: "normal" }), "");
+  assert.equal(buildReplyLengthGuidance({ replyLength: undefined }), "");
+});
+
+test("reply guidance appends once alongside the existing guidance without changing Normal's bytes", () => {
+  for (const preferSubagents of [true, false]) for (const claudeInChrome of [true, false]) {
+    const existing = [preferSubagents ? PREFER_SUBAGENTS_GUIDANCE : "", claudeInChrome ? CLAUDE_IN_CHROME_GUIDANCE : ""]
+      .filter(Boolean).map(text => `${text} `).join("");
+    assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents, claudeInChrome, replyLength: "normal" } }), existing);
+    assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents, claudeInChrome, replyLength: "short" } }), `${existing}${SHORT_REPLY_GUIDANCE} `);
+    assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents, claudeInChrome, replyLength: "detailed" } }), `${existing}${DETAILED_REPLY_GUIDANCE} `);
+  }
+});
+
+test("launch: reply length applies independently of runtime capabilities, with invalid values defaulting to Normal", async () => {
+  for (const agentId of ["claude", "codex"]) for (const replyLength of ["short", "normal", "detailed", "invalid"]) {
+    const launch = await resolveAssistantRuntimeLaunch({ ...base, agentId, subagentsEnabled: false, deps: deps({ replyLength }) });
+    assert.equal(launch.guidance.replyLength, replyLength === "invalid" ? "normal" : replyLength);
+  }
 });

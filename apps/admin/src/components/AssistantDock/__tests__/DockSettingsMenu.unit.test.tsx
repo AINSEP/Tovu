@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -162,7 +162,7 @@ describe("runtime switches", () => {
     const update = vi.fn();
     const sections = dockSettingsMenuSections({ t: (key) => key }, {
       display: { preferences: DEFAULT_CHAT_DISPLAY, update: () => {} },
-      runtime: { preferences: { useClaudeInChrome: true, preferSubagents: false }, update, visible: visibleAssistantRuntimePreferences({ agent }) },
+      runtime: { preferences: { useClaudeInChrome: true, preferSubagents: false, replyLength: "normal" }, update, visible: visibleAssistantRuntimePreferences({ agent }) },
     });
     render(<DockSettingsMenu label="Chat settings" sections={sections} useMenu={fakeMenu(PLACED).useMenu} />);
     return update;
@@ -187,5 +187,20 @@ describe("runtime switches", () => {
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Use Claude in Chrome" }));
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Prefer subagents" }));
     expect(update.mock.calls).toEqual([[{ useClaudeInChrome: false }], [{ preferSubagents: true }]]);
+  });
+
+  it("uses the existing segmented control for Reply length even without runtime support flags", () => {
+    const update = renderRuntime(undefined);
+    const group = screen.getByRole("group", { name: "Reply length" });
+    const radios = within(group).getAllByRole("menuitemradio");
+    expect(radios.map(radio => [(radio as HTMLInputElement).labels?.[0]?.textContent, (radio as HTMLInputElement).checked])).toEqual([
+      ["Short", false], ["Normal", true], ["Detailed", false],
+    ]);
+    expect(group.querySelectorAll(".jini-chat-settings-segment input")).toHaveLength(3);
+    fireEvent.click(within(group).getByRole("menuitemradio", { name: "Short" }));
+    fireEvent.click(within(group).getByRole("menuitemradio", { name: "Detailed" }));
+    fireEvent.click(within(group).getByRole("menuitemradio", { name: "Normal" }));
+    expect(update.mock.calls).toEqual([[{ replyLength: "short" }], [{ replyLength: "detailed" }], [{ replyLength: "normal" }]]);
+    expect(popup()).toBeInTheDocument();
   });
 });

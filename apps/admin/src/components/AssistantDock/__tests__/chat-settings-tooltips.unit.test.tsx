@@ -7,6 +7,7 @@ import { DockSettingsMenu } from "../DockSettingsMenu";
 import { dockSettingsMenuSections, groupOptionTooltips, type DockSettingsMenuItem } from "../dock-header-rules";
 import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
 import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
+import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 afterEach(cleanup);
 
@@ -26,6 +27,7 @@ const options = [...toolCallOptions, ...switches];
 /** The one Tool calls tip: a "• Label: help" line per option (owner, 2026-10-18). */
 const toolCallsTip = toolCallOptions.map(({ label, tooltip }) => `• ${label}: ${tooltip}`).join("\n");
 const bubble = () => document.querySelector(".info-tip-bubble");
+const replyLengthTip = "How much the assistant writes back. Short: just the result and what needs you.";
 
 async function openSurface(surface: "gear" | "dialog") {
   const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
@@ -106,6 +108,19 @@ describe.each(["gear", "dialog"] as const)("%s setting help", (surface) => {
 });
 
 describe("chat setting tooltip translations", () => {
+  it.each(Object.keys(ASSISTANT_DOCK_DICT))("%s translates Reply length, every option and its tooltip", locale => {
+    for (const key of ["Reply length", "Short", "Normal", "Detailed", replyLengthTip]) {
+      expect(ASSISTANT_DOCK_DICT[locale][key]?.trim()).toBeTruthy();
+      expect(t(locale, key)).toBe(ASSISTANT_DOCK_DICT[locale][key]);
+    }
+    expect(t(locale, replyLengthTip)).not.toBe(replyLengthTip);
+    const sections = dockSettingsMenuSections({ t: key => t(locale, key) }, {
+      display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
+      runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update: vi.fn(), visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
+    });
+    expect(sections.find(section => section.key === "reply-length")?.tooltip).toBe(t(locale, replyLengthTip));
+  });
+
   it.each(["ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it", "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW"])("%s provides all five translated tooltips through the shared builder, Tool calls as one grouped tip", locale => {
     const sections = dockSettingsMenuSections({ t: key => t(locale, key) }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() } });
     expect(Object.keys(ASSISTANT_DOCK_DICT)).toHaveLength(21);
@@ -128,6 +143,24 @@ describe("chat setting tooltip translations", () => {
     expect(items.slice(0, 3).map(item => item.tooltip)).toEqual([undefined, undefined, undefined]);
     expect(items.slice(3, 5).map(item => item.tooltip)).toEqual(translated.slice(3));
   });
+});
+
+it("Reply length has one info tooltip beside its heading; tapping it leaves the selection and menu unchanged", async () => {
+  const user = userEvent.setup(), update = vi.fn(), onClose = vi.fn();
+  const sections = dockSettingsMenuSections({ t: key => key }, {
+    display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
+    runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update, visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
+  });
+  render(<DockSettingsMenu label="Settings" sections={sections} />);
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  const panel = screen.getByRole("menu");
+  const group = within(panel).getByRole("group", { name: "Reply length" });
+  expect(group.querySelectorAll(".info-tip-icon")).toHaveLength(1);
+  const help = within(group).getByRole("button", { name: replyLengthTip });
+  expect(help.closest(".info-tip")?.previousElementSibling).toHaveTextContent(/^Reply length$/);
+  expect(group).toHaveAccessibleDescription(replyLengthTip);
+  await expectTapShowsOnly({ surface: "gear", user, panel, help, controls: within(group).getAllByRole("menuitemradio"), update, onClose });
+  expect(bubble()).toHaveTextContent(replyLengthTip);
 });
 
 describe("groupOptionTooltips", () => {
