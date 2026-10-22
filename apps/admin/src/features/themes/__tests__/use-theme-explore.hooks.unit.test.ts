@@ -10,6 +10,7 @@ import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.
 import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
 import {
   canResetThemeFile,
+  dispatchPublishToggle,
   isThemeFileModified,
   loadedFileAfterRename,
   lockedPublishReason,
@@ -4396,5 +4397,21 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     unmount();
     act(() => publishThemePreviewRefresh({ revision: "after-explore-unmount" }));
     expect(reads).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatchPublishToggle", () => {
+  it("a live toggle asks for the opposite of its published state", () => {
+    const setPagePublished = vi.fn(async () => {});
+    dispatchPublishToggle({ kind: "toggle", published: true }, setPagePublished);
+    dispatchPublishToggle({ kind: "toggle", published: false }, setPagePublished);
+    expect(setPagePublished.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it("a locked switch dispatches nothing, whatever position it shows", () => {
+    const setPagePublished = vi.fn(async () => {});
+    dispatchPublishToggle({ kind: "locked", on: true, reason: "index is always live" }, setPagePublished);
+    dispatchPublishToggle({ kind: "locked", on: false, reason: "a template shell has no route" }, setPagePublished);
+    expect(setPagePublished).not.toHaveBeenCalled();
   });
 });

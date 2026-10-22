@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { KeyboardEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { usePackageFileTree } from "../hooks/use-package-file-tree.hooks";
+import { applyPackageFileTreeKeyAction, usePackageFileTree } from "../hooks/use-package-file-tree.hooks";
 
 /**
  * @file `usePackageFileTree`'s keyboard handling as a hook (no rendered tree): an empty tree ignores
@@ -56,5 +56,35 @@ describe("usePackageFileTree keyboard", () => {
     expect(result.current.isExpanded("docs")).toBe(false);
     act(() => result.current.onKeyDown(key("ArrowRight").event));
     expect(result.current.isExpanded("docs")).toBe(true);
+  });
+});
+
+describe("applyPackageFileTreeKeyAction", () => {
+  function effects() {
+    return { setExpanded: vi.fn(), openFile: vi.fn(), focus: vi.fn() };
+  }
+
+  it("a key that is not the tree's does nothing and leaves the browser default alone", () => {
+    const port = effects();
+    expect(applyPackageFileTreeKeyAction({}, port)).toBe(false);
+    expect(port.setExpanded).not.toHaveBeenCalled();
+    expect(port.openFile).not.toHaveBeenCalled();
+    expect(port.focus).not.toHaveBeenCalled();
+  });
+
+  it("an action that only opens a file opens it without moving focus", () => {
+    const port = effects();
+    expect(applyPackageFileTreeKeyAction({ open: "skills/a.md" }, port)).toBe(true);
+    expect(port.openFile).toHaveBeenCalledWith("skills/a.md");
+    expect(port.focus).not.toHaveBeenCalled();
+    expect(port.setExpanded).not.toHaveBeenCalled();
+  });
+
+  it("an action that only toggles a folder toggles it without moving focus", () => {
+    const port = effects();
+    expect(applyPackageFileTreeKeyAction({ setExpanded: { path: "skills", expanded: false } }, port)).toBe(true);
+    expect(port.setExpanded).toHaveBeenCalledWith("skills", false);
+    expect(port.focus).not.toHaveBeenCalled();
+    expect(port.openFile).not.toHaveBeenCalled();
   });
 });

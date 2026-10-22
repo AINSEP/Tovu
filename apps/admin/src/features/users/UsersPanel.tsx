@@ -30,6 +30,6 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
       onSaveEmail: ({ principalId }) => controller.onSaveEmail(principalId),
     };
   }
-  return <JiniUsers port={port} queryScope={WORKSPACE_ID} translate={key => key}
+  return <JiniUsers port={port} queryScope={WORKSPACE_ID}
     useUsersHook={useController} renderServerLabel={({ value }) => <ServerLabel value={value} />} />;
 }

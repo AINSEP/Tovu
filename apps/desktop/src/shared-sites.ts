@@ -57,12 +57,20 @@ function nestedSitesCompat({ workspace }: { workspace: ReturnType<typeof createN
   } };
 }
 
+/** The sites settings file bound to Tovu's own notices; `nestedRoot` only reads it, but a lock taken
+ * on it through this handle times out with Tovu wording rather than the platform default.
+ * @complexity O(1).
+ */
+export function sitesSettingsFile({ filePath }: { filePath: string }, { ports = createNodeDurableJsonPorts({}) }: { ports?: DurableJsonPorts } = {}) {
+  return createDurableJsonFile({ ...ports, filePath,
+    notices: { prefix: "Tovu sites", lockTimeout: () => "Tovu sites settings are locked." },
+  });
+}
+
 function nestedRoot({ workspace }: { workspace: ReturnType<typeof createNodeDirectoryWorkspace> }, { ports }: { ports: DurableJsonPorts }): string | undefined {
   const config = workspace.config({});
   if (config.overrides.sitesHome) return undefined;
-  const saved = createDurableJsonFile({ ...ports, filePath: config.configPath,
-    notices: { prefix: "Tovu sites", lockTimeout: () => "Tovu sites settings are locked." },
-  }).read({});
+  const saved = sitesSettingsFile({ filePath: config.configPath }, { ports }).read({});
   // An unreadable setting may contain a custom pointer: discovery must not authorize a move.
   if (saved.state === "unreadable") return undefined;
   if (saved.state === "ok" && (saved.value as { sitesHome?: unknown } | null)?.sitesHome !== undefined) return undefined;

@@ -16,8 +16,9 @@ import { spawn, execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import type { ChildProcess } from "node:child_process";
+import type { TestContext } from "node:test";
 
-import { registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.ts";
+import { registryDirPath, legacyRegistryFilePath, instanceFilePath, readRegistryFile, readRegistry, writeRegistry, recordSiteOpened, recordSiteClosed, isLiveServeRow, isProcessAlive, readProcessCommand, readProcessParentPid, isOrphanedProcess, isServeProcessForSite, terminateOrphan, reconcileOrphans } from "./site-process-registry.ts";
 import { tempPathFor } from "./durable-json-file.ts";
 
 /** A fresh registry DIRECTORY, not yet created — exactly as a first launch finds `userData`. */
@@ -848,4 +849,105 @@ test("recordSiteClosed over an unreadable own file that cannot be moved aside wr
   assert.equal(asked, 1);
   assert.equal(fs.readFileSync(filePath, "utf8"), torn, "the torn bytes are left exactly as they were");
   assert.deepEqual(fs.readdirSync(registryDir), [path.basename(filePath)]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The OS-boundary races below cannot be staged with real processes: they need a pid that is alive
+// to `kill(pid, 0)` yet unreadable to `ps` a moment later, or one whose parent is pid 1 on a host
+// where a subreaper (not launchd) adopts orphans. So the two OS calls this module makes —
+// `process.kill` and `ps` via `execFileSync` — are replaced by a scripted process table, the same
+// technique as "terminateOrphan waits for exit after SIGKILL is accepted" above.
+// ---------------------------------------------------------------------------------------------
+
+interface FakeProcess {
+  /** argv `ps -o command=` reports, or `null` for a `ps` that fails (the pid vanished mid-read). */
+  command: string | null;
+  /** what `ps -o ppid=` reports. */
+  ppid: number;
+  alive: boolean;
+  /** What SIGTERM / SIGKILL do: exit, be ignored, or throw (the pid vanished before the signal). */
+  onTerm?: "exit" | "ignore";
+  onKill?: "exit" | "throw";
+}
+
+/** Install a scripted process table; returns the signals delivered, in order. */
+function installFakeProcessTable(t: TestContext, table: Record<number, FakeProcess>): NodeJS.Signals[] {
+  const signals: NodeJS.Signals[] = [];
+  const gone = () => Object.assign(new Error("gone"), { code: "ESRCH" });
+  t.mock.method(process, "kill", (pid: number, signal: NodeJS.Signals | number = "SIGTERM") => {
+    const entry = table[pid];
+    if (signal === 0) {
+      if (!entry?.alive) throw gone();
+      return true;
+    }
+    signals.push(signal as NodeJS.Signals);
+    if (!entry?.alive) throw gone();
+    if (signal === "SIGKILL" && entry.onKill === "throw") throw gone();
+    if (signal === "SIGKILL" || entry.onTerm !== "ignore") entry.alive = false;
+    return true;
+  });
+  t.mock.method(childProcess, "execFileSync", (_file: string, args: string[]) => {
+    const entry = table[Number(args[args.length - 1])];
+    const column = args[1];
+    if (!entry?.alive || entry.command === null) throw gone();
+    return column === "ppid=" ? `${entry.ppid}\n` : `${entry.command}\n`;
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  return signals;
+}
+
+test("reconcileOrphans reaps a row whose live, identity-confirmed process the OS reports as reparented to pid 1", async (t) => {
+  const registryDir = tempRegistryDir();
+  const row = { siteDir: "/fake/site/orphan-linux", port: 4101, workspaceId: "w", pid: 999_801, updatedAt: 1 };
+  writeRegistry(legacyRegistryFilePath(registryDir), { sites: [row] });
+  const table = { [row.pid]: { command: `node cli.js serve ${row.siteDir} --port ${row.port}`, ppid: 1, alive: true } };
+  const signals = installFakeProcessTable(t, table);
+
+  const reconciled = await reconcileOrphans(registryDir);
+
+  assert.deepEqual(reconciled, [row]);
+  assert.deepEqual(signals, ["SIGTERM"], "a cooperative orphan exits on SIGTERM and is never escalated");
+  assert.equal(table[row.pid]!.alive, false);
+});
+
+test("a pid alive to kill(0) but gone by the time ps reads its argv cannot be identified, so nothing acts on it", async (t) => {
+  const registryDir = tempRegistryDir();
+  const row = { siteDir: "/fake/site/vanishing", port: 4102, workspaceId: "w", pid: 999_802, updatedAt: 1 };
+  writeRegistry(legacyRegistryFilePath(registryDir), { sites: [row] });
+  const signals = installFakeProcessTable(t, { [row.pid]: { command: null, ppid: 1, alive: true } });
+
+  assert.equal(isLiveServeRow(row), false, "an unreadable argv is not proof this is still the row's own serve");
+  assert.deepEqual(await reconcileOrphans(registryDir), [], "and boot reconciliation does not reap it");
+  assert.deepEqual(signals, []);
+});
+
+test("terminateOrphan does not escalate to SIGKILL when the process's argv can no longer be read after the grace window", async (t) => {
+  const row = { siteDir: "/fake/site/unreadable-after-term", port: 4103, pid: 999_803 };
+  const table: Record<number, FakeProcess> = {
+    [row.pid]: { command: `node cli.js serve ${row.siteDir} --port ${row.port}`, ppid: 1, alive: true, onTerm: "ignore" },
+  };
+  const signals = installFakeProcessTable(t, table);
+  table[row.pid]!.command = null; // the SIGTERM is ignored, and then `ps` can no longer read it
+
+  await terminateOrphan(row, 0);
+
+  assert.deepEqual(signals, ["SIGTERM"], "identity is unconfirmed, so no SIGKILL on this row's authority");
+});
+
+test("terminateOrphan returns at once when the SIGKILL itself finds the pid already gone", async (t) => {
+  const row = { siteDir: "/fake/site/gone-before-kill", port: 4104, pid: 999_804 };
+  const table: Record<number, FakeProcess> = {
+    [row.pid]: { command: `node cli.js serve ${row.siteDir} --port ${row.port}`, ppid: 1, alive: true, onTerm: "ignore", onKill: "throw" },
+  };
+  const signals = installFakeProcessTable(t, table);
+  const started = Date.now();
+
+  await terminateOrphan(row, 0);
+
+  assert.deepEqual(signals, ["SIGTERM", "SIGKILL"]);
+  assert.ok(Date.now() - started < 1000, "no post-SIGKILL exit poll is run for a kill that failed");
 });

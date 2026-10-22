@@ -105,6 +105,15 @@ function withRow(required: { rows: readonly AdminAgentPlugin[] | null; plugin: A
     : [...current, plugin];
 }
 
+/** `plugin` in place of the row with its id, or `null` when no list is cached yet. A toggle never
+ *  appends, and with nothing cached there is nothing on screen to update: writing `[]` there would
+ *  win over the list read the toggle's own invalidation just started (`replace` beats an older
+ *  in-flight read) and leave the screen on an empty list. @complexity O(n) in row count. */
+function withToggledRow(required: { rows: readonly AdminAgentPlugin[] | null; plugin: AdminAgentPlugin }, _optional: Record<string, never> = {}): AdminAgentPlugin[] | null {
+  const { rows, plugin } = required;
+  return rows ? rows.map((entry) => (entry.pluginId === plugin.pluginId ? plugin : entry)) : null;
+}
+
 /** Set-enabled refusals the switch explains in its own words: a plugin this Tovu cannot run, and one
  *  whose interrupted update waits for boot recovery. */
 const TOGGLE_REFUSAL_KEYS: Readonly<Record<string, string>> = {
@@ -137,7 +146,10 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
   const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
   const agentPlugins = query.data ?? null;
-  const setAgentPlugins = (update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[]) => loader.replace({ value: update(loader.peek() ?? null) });
+  const setAgentPlugins = (update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[] | null) => {
+    const next = update(loader.peek() ?? null);
+    if (next) loader.replace({ value: next });
+  };
   const invalidate = useInvalidate();
   const toggle = useFetchMutation({ run: ({ input }: { input: AdminAgentPlugin }) => port.setAgentPluginEnabled(input.pluginId, { enabled: !input.enabled }) }, { invalidates: [["agent-plugins"]] });
   const error = query.error?.message ?? null;
@@ -160,9 +172,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     setToggleError(null);
     try {
       const { agentPlugin } = await toggle.mutate({ input: plugin });
-      setAgentPlugins((current) =>
-        (current ?? []).map((entry) => (entry.pluginId === agentPlugin.pluginId ? agentPlugin : entry)),
-      );
+      setAgentPlugins((current) => withToggledRow({ rows: current, plugin: agentPlugin }));
     } catch (e) {
       // Lifecycle refusals by name (409), in the operator's language rather than the server's English.
       const known = e instanceof ApiError && e.code ? TOGGLE_REFUSAL_KEYS[e.code] : undefined;

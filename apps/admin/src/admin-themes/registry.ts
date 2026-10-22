@@ -33,6 +33,13 @@ export interface AdminThemeManifest {
   preview: Partial<Record<AdminThemeScheme, AdminThemeSwatch>>;
 }
 
+/** A theme's default accent for its swatch, and for the native colour input — which takes only a
+ *  six-digit hex, so a theme whose accent is written another way supplies `accentHex`. Without one
+ *  the input gets the accent as written. @complexity O(1). */
+export function adminThemeAccentDefaults(swatch: AdminThemeSwatch): { defaultAccent: string; defaultPickerAccent: string } {
+  return { defaultAccent: swatch.accent, defaultPickerAccent: swatch.accentHex ?? swatch.accent };
+}
+
 /** Classic is Tovu's default: what renders with no `data-admin-theme` on <html>. */
 export const DEFAULT_ADMIN_THEME_ID = "classic";
 

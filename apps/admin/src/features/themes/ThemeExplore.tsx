@@ -19,6 +19,7 @@ import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   canResetThemeFile,
+  dispatchPublishToggle,
   isThemeFileModified,
   publishToggleTipLabel,
   readOnlyReason,
@@ -991,11 +992,11 @@ function ThemeExplorePublishToggle({
   const disabled = state.kind === "locked" || publishing;
   const reasonId = state.kind === "locked" ? "theme-explore-publish-reason" : undefined;
 
-  // Guarded on `state.kind` rather than relying solely on the DOM's own "disabled buttons don't fire
-  // click" behavior — explicit here so a locked switch can never dispatch a publish call no matter
-  // what wraps or simulates the click.
+  // Guarded on `state.kind` (inside `dispatchPublishToggle`) rather than relying solely on the DOM's
+  // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
+  // publish call no matter what wraps or simulates the click.
   function handleClick() {
-    if (state.kind === "toggle") void setPagePublished(!state.published);
+    dispatchPublishToggle(state, setPagePublished);
   }
 
   return (

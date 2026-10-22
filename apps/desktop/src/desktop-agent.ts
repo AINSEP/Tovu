@@ -96,6 +96,16 @@ interface DesktopAgentRuntimeOptions {
 }
 
 /**
+ * `tool_gaps_list`'s policy: the tool-gap audit is the operator's own record, so only the desktop
+ * operator may read it. Every call this runtime routes today resolves to that operator, so the deny
+ * arm is defense in depth for any future caller that resolves a different principal.
+ * @complexity O(1).
+ */
+function authorizeOperatorOnly({ principal }: { principal: { id: string } }): "allow" | "deny" {
+  return principal.id === DESKTOP_OPERATOR.id ? "allow" : "deny";
+}
+
+/**
  * The system overlay every desktop turn carries: who the agent is and how it reaches its tools.
  * Static on purpose — per-turn site context travels in the prompt itself ({@link turnPrompt}).
  */
@@ -311,7 +321,7 @@ async function createDesktopAgentRuntime(
     descriptor: { id: 'tool_gaps_list', readOnly: true,
       description: 'List recent owner tool gaps and native tool use (type tool_gap or native_tool_used): Bash, file edits, agents, workflows and external MCP, with time, site, chat id, provider, tool, redacted command/path summary and Tool gap line if present. Read-only.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
-    policy: { authorize: ({ principal }) => principal.id === DESKTOP_OPERATOR.id ? 'allow' : 'deny' },
+    policy: { authorize: authorizeOperatorOnly },
     handler: async () => ({ entries: gapStore.listToolGaps({}, {}) }),
   });
   const toolExecutor = createToolExecutor({ registry });
@@ -396,5 +406,5 @@ async function createDesktopAgentRuntime(
   };
 }
 
-export { createDesktopAgentRuntime, resolveDesktopTurnAccess, authorizeBridgeRequest, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
+export { createDesktopAgentRuntime, resolveDesktopTurnAccess, authorizeBridgeRequest, authorizeOperatorOnly, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
 export type { DesktopAgentRuntime, DesktopAgentRuntimeOptions, DesktopAgentRuntimeRequired, DesktopTurnInput, DesktopTurnOptions };

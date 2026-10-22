@@ -165,7 +165,6 @@ function ExternalMcpAddFormSection(props: {
       submitting={addForm.submitting}
       {...(addForm.submitError ? { submitError: addForm.submitError } : {})}
       onFieldChange={addForm.setField}
-      onTrustChange={() => {}}
       onSubmit={() => void addForm.submit()}
       canTest={canTest}
       testing={testing}
@@ -220,7 +219,6 @@ function ExternalMcpConnectionCard(props: {
       updating={list.isPending(source.id, "update")}
       onRefresh={() => void list.refresh(source.id)}
       onRemove={() => onRequestRemove(source.id)}
-      onTrustChange={() => {}}
       onTest={() => void list.test(source.id)}
       onUpdate={(patch) => void list.update(source.id, patch)}
       {...(testResult ? { testResult } : {})}

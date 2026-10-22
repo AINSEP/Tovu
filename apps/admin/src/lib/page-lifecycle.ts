@@ -13,16 +13,31 @@
  * first request, so a `pagehide` that lands before this module's first caller is never missed.
  */
 
-let unloading = false;
+/** The two page events this module listens to — `window` in a browser, a plain `EventTarget` in a test. */
+export interface PageLifecycleEvents {
+  addEventListener(type: "pagehide" | "pageshow", listener: () => void): void;
+}
 
-if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", () => {
+/**
+ * Tracks one document's unloading fact from `target`'s `pagehide`/`pageshow`. With no `target` (a
+ * non-browser host, where `window` does not exist) nothing ever unloads, so it always reports `false`.
+ *
+ * @complexity O(1) per event and per read.
+ */
+export function createPageLifecycle(target: PageLifecycleEvents | undefined): { isPageUnloading: () => boolean } {
+  let unloading = false;
+  target?.addEventListener("pagehide", () => {
     unloading = true;
   });
-  window.addEventListener("pageshow", () => {
+  target?.addEventListener("pageshow", () => {
     unloading = false;
   });
+  return { isPageUnloading: () => unloading };
 }
+
+// `globalThis.window` (not a bare `window`) so a non-browser import reads `undefined` instead of
+// throwing a ReferenceError.
+const pageLifecycle = createPageLifecycle(globalThis.window);
 
 /**
  * True between `pagehide` and the next `pageshow` — i.e. while the document is being unloaded or sits
@@ -31,5 +46,5 @@ if (typeof window !== "undefined") {
  * @complexity O(1).
  */
 export function isPageUnloading(): boolean {
-  return unloading;
+  return pageLifecycle.isPageUnloading();
 }

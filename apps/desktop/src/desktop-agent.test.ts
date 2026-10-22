@@ -16,6 +16,7 @@ import type { createAgentExecutor } from "@jini-ai/daemon";
 import {
   resolveDesktopTurnAccess,
   authorizeBridgeRequest,
+  authorizeOperatorOnly,
   bearerToken,
   createDesktopAgentRuntime,
   DELEGATED_TOOL_CALLS_PATH,
@@ -322,4 +323,36 @@ test("a run another path terminalizes while the failed start is being handled ke
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(terminal.state, "succeeded", "the concurrent outcome stands");
   assert.equal((await h.chat.lifecycle.get({ runId }))?.state, "succeeded");
+});
+
+test("the tool-gap audit is readable by the desktop operator only", () => {
+  assert.equal(authorizeOperatorOnly({ principal: { id: "desktop-operator" } }), "allow");
+  assert.equal(authorizeOperatorOnly({ principal: { id: "some-site-agent" } }), "deny");
+});
+
+test("a failed start whose own fallback finish also fails is swallowed, after reporting the error to the run", async (t) => {
+  const failure = new Error("spawn EACCES");
+  const h = await harness(t, { readFullCliAccess: async () => false, run: async () => { throw failure; } });
+  // The store refuses to terminalize (a write failure); the fallback must not turn that into an
+  // unhandled rejection on top of the start failure it is already handling.
+  const finish = t.mock.method(h.chat.lifecycle, "finish", async () => { throw new Error("event log is read-only"); });
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on("unhandledRejection", onUnhandled);
+  t.after(() => process.off("unhandledRejection", onUnhandled));
+
+  const { runId } = await h.chat.startTurn({ prompt: "go", agentId: "codex" });
+  for (let i = 0; i < 5 && finish.mock.callCount() === 0; i++) await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(finish.mock.callCount(), 1);
+  assert.deepEqual(finish.mock.calls[0]!.arguments[0], { runId, status: "failed", code: null, signal: null, resumable: false });
+  assert.deepEqual(h.errors, [[`[desktop-agent] run ${runId} failed to start`, failure]]);
+  assert.deepEqual(unhandled, []);
+  const events: unknown[] = [];
+  await h.chat.lifecycle.stream({ runId, onEvent: (event) => { events.push(event); } });
+  assert.match(JSON.stringify(events), /The desktop assistant could not start this turn\./, "the readable error still reached the run");
+  // Let the harness close a run that never terminalized.
+  finish.mock.restore();
+  await h.chat.lifecycle.finish({ runId, status: "failed", code: null, signal: null, resumable: false });
 });

@@ -9,7 +9,7 @@ import {
   resolveAdminThemeBoundary,
   resolveAdminThemeDocument,
 } from "../apply";
-import { ADMIN_THEMES, DEFAULT_ADMIN_THEME_ID, findAdminTheme, resolveAdminThemeScheme, type AdminThemeManifest } from "../registry";
+import { ADMIN_THEMES, adminThemeAccentDefaults, DEFAULT_ADMIN_THEME_ID, findAdminTheme, resolveAdminThemeScheme, type AdminThemeManifest } from "../registry";
 import { CLASSIC_DARK, CLASSIC_ROOT } from "../../__tests__/unit/css-declarations.test-helper";
 
 /**
@@ -283,5 +283,17 @@ describe("index.html pre-paint bootstrap", () => {
       const { root } = runBootstrap(stored);
       expect(root.getAttributeNames()).toEqual([]);
     }
+  });
+});
+
+describe("adminThemeAccentDefaults", () => {
+  const swatch = { bg: "#fff", surface: "#fff", text: "#111", accent: "oklch(55% 0.11 43)", border: "#ddd" };
+
+  it("gives the native colour input the theme's hex equivalent when it has one", () => {
+    expect(adminThemeAccentDefaults({ ...swatch, accentHex: "#a85a38" })).toEqual({ defaultAccent: "oklch(55% 0.11 43)", defaultPickerAccent: "#a85a38" });
+  });
+
+  it("falls back to the accent as written when the theme declares no hex", () => {
+    expect(adminThemeAccentDefaults(swatch)).toEqual({ defaultAccent: "oklch(55% 0.11 43)", defaultPickerAccent: "oklch(55% 0.11 43)" });
   });
 });

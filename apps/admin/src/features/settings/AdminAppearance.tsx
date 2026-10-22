@@ -3,7 +3,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandleProps, agentSubHandle, buildAgentListHandles } from "@jini-ai/agentic";
 import type { AdminThemeDocumentEnv, AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { useAdminThemeBoundary, useAdminThemeState } from "../../admin-themes/use-admin-theme.hooks";
-import { findAdminTheme } from "../../admin-themes/registry";
+import { adminThemeAccentDefaults, findAdminTheme } from "../../admin-themes/registry";
 import { adminThemeAccent, withAdminThemeAccent } from "../../lib/settings-tabs";
 import { AdminThemeSchemeControl } from "../admin-themes";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -36,7 +36,7 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
           {/* The admin shell owns the document scheme. The compact picker persists the same
               core.appearance.theme value; accent preview stays in the existing settings slice. */}
           <AdminThemeSchemeControl port={port} env={env} />
-          <AdminAccentFields accentColor={adminThemeAccent({ appearance: value, themeId }, {})} defaultAccent={preview.accent} defaultPickerAccent={preview.accentHex ?? preview.accent} onChange={(accentColor) => appearance.onChange(withAdminThemeAccent({ appearance: value, themeId, accentColor }, {}))} />
+          <AdminAccentFields accentColor={adminThemeAccent({ appearance: value, themeId }, {})} {...adminThemeAccentDefaults(preview)} onChange={(accentColor) => appearance.onChange(withAdminThemeAccent({ appearance: value, themeId, accentColor }, {}))} />
         </section>
         <p className={`settings-ui-save is-${appearance.saveState.status}`} role={appearance.saveState.status === "error" ? "alert" : "status"}>
           {describeSaveStatus(appearance.saveState)}

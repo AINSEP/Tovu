@@ -230,6 +230,29 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     });
   });
 
+  // Regression (found 2026-10-21 by a coverage pass): a toggle that settled while no list was cached
+  // yet wrote `[]` as the list. Because `replace` wins over an older in-flight read, that `[]` also
+  // superseded the list read the toggle's own invalidation had started, so the screen settled on
+  // "no plugins installed" although the server had answered with every installed plugin.
+  it("a toggle that settles before the list has loaded does not replace the list with an empty one", async () => {
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE, OTHER_PLUGIN] });
+    const pendingReads: Array<() => void> = [];
+    const realList = port.listAgentPlugins.bind(port);
+    port.listAgentPlugins = () => new Promise((resolve) => { pendingReads.push(() => { void realList().then(resolve); }); });
+    const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
+    expect(result.current.agentPlugins).toBeNull();
+
+    await act(async () => {
+      await result.current.onToggleEnabled(OTHER_PLUGIN);
+    });
+    await act(async () => {
+      for (const release of pendingReads.splice(0)) release();
+    });
+
+    await waitFor(() => expect(result.current.agentPlugins?.map((plugin) => [plugin.pluginId, plugin.enabled])).toEqual([["site-compliance", true], ["tovu-deploy-fly", true]]));
+    expect(result.current.toggleError).toBeNull();
+  });
+
   it("two rows settling out of order each keep their own answer", async () => {
     // The stale-settlement case a `reload()`-after-PATCH shape gets wrong: the SECOND toggle
     // settles FIRST, so the first row's later settlement is holding a list snapshot that predates

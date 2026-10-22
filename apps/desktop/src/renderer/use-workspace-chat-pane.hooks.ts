@@ -1,5 +1,5 @@
 /**
- * @file `WorkspaceChatPane`'s hook (`App.tsx`): everything the fleet chat pane holds and every
+ * @file `WorkspaceChatPane`'s hook (`WorkspaceChatPane.tsx`): everything the fleet chat pane holds and every
  * handler it hands to its markup, so the component itself is markup only — this repo keeps functions
  * and raw React primitives out of `.tsx` component bodies.
  *
