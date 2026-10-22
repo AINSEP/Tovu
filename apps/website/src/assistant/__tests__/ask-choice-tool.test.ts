@@ -5,7 +5,7 @@ import Ajv from "ajv";
 import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { ASK_CHOICE_ANSWER_TICKET_PARAM, ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
+import { ASK_CHOICE_ANSWER_TICKET_PARAM, ASK_CHOICE_TOOL_ID, askChoiceAgentToolCatalog, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
 import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
@@ -388,7 +388,7 @@ test("registers unconditionally, publishing its own catalog schema", () => {
   assert.equal(schema.type, "object");
   assert.equal(schema.required, undefined);
   assert.equal(schema.properties.title.type, "string");
-  assert.deepEqual(schema.anyOf, [{ required: ["question", "options"] }, { required: ["title", "singleSelect"] }, { required: ["title", "multiSelect"] }]);
+  assert.deepEqual(schema.anyOf, [{ required: ["question", "options"] }, { required: ["title", "singleSelect"] }, { required: ["title", "multiSelect"] }, { required: ["title", "options"] }]);
   for (const field of ["singleSelect", "multiSelect"]) {
     const select = schema.properties[field]!;
     assert.equal(select.type, "object");
@@ -398,8 +398,9 @@ test("registers unconditionally, publishing its own catalog schema", () => {
     assert.equal(select.properties.options.minItems, 1);
     const option = select.properties.options.items;
     assert.equal(option.type, "object");
-    assert.deepEqual(option.required, ["value", "label"]);
+    assert.deepEqual(option.required, ["label"]);
     assert.equal(option.properties.value.type, "string");
+    assert.equal(option.properties.id.type, "string");
     assert.equal(option.properties.label.type, "string");
   }
   const validate = new Ajv().compile(schema);
@@ -407,12 +408,12 @@ test("registers unconditionally, publishing its own catalog schema", () => {
     MOBILE_CSS_CALL,
     { title: "Extras", multiSelect: MOBILE_CSS_CALL.singleSelect },
     { ...MOBILE_CSS_CALL, multiSelect: MOBILE_CSS_CALL.singleSelect },
+    { title: "Default value", multiSelect: { label: "Pick", options: [{ label: "Use label as value" }] } },
   ]) assert.equal(validate(valid), true, JSON.stringify(validate.errors));
   for (const invalid of [
     { singleSelect: MOBILE_CSS_CALL.singleSelect },
     { title: "No fields" },
     { title: "No options", singleSelect: { label: "Pick", options: [] } },
-    { title: "No value", multiSelect: { label: "Pick", options: [{ label: "Missing value" }] } },
     { title: "Wrong value type", singleSelect: { label: "Pick", options: [{ value: 1, label: "One" }] } },
   ]) assert.equal(validate(invalid), false, JSON.stringify(invalid));
 });
@@ -468,7 +469,7 @@ test('chat-input regression: conflicting option ids fail before showing a form a
   }
   const unknown = await executeRegisteredTool({ registration, input: { question: 'Next?', options: [{ label: 'Publish', invented: 'private-value' }] } });
   assert.equal(unknown.errorKind, 'validation');
-  assert.match(unknown.error!, /Unknown input 'options\[0\].invented'.*Declared inputs:.*label.*value.*description/);
+  assert.match(unknown.error!, /Unknown input 'singleSelect.options\[0\].invented'.*Declared inputs:.*label.*value.*description/);
   assert.doesNotMatch(unknown.error!, /private-value/);
 });
 
@@ -542,13 +543,14 @@ test('delegated normalization: flat choice travels through the bridge, waits for
   assert.equal(emitted.length, 1);
 });
 
-test('canonical flat questions use the shared model schema and keep authenticated answers unchanged', async () => {
+test('canonical flat questions use the catalog compatibility schema and keep authenticated answers unchanged', async () => {
   const { ASK_CHOICE_INPUT_SCHEMA } = await import('@jini-ai/mcp/tools/ask-choice');
   const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
-  assert.deepEqual(registration.descriptor.inputSchema, ASK_CHOICE_INPUT_SCHEMA);
+  assert.deepEqual(registration.descriptor.inputSchema, askChoiceAgentToolCatalog[0]!.inputSchema);
   const schema = registration.descriptor.inputSchema as { properties: Record<string, unknown> };
+  assert.deepEqual(schema.properties.question, ASK_CHOICE_INPUT_SCHEMA.properties.question);
   for (const field of ['choice', 'selections', ASK_CHOICE_ANSWER_TICKET_PARAM]) assert.equal(field in schema.properties, false);
   const pending = await executeRegisteredTool({ registration, input: { question: 'Start now?', options: [{ label: 'Now', description: 'Start immediately' }, { label: 'Later', value: 'wait' }] } });
   assert.equal(pending.status, 'completed');

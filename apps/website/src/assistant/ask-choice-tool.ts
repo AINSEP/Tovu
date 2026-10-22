@@ -101,6 +101,36 @@ interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
+// Typed MCP validates the published descriptor before the domain normalizer can run. Extend the
+// shared schema at this adapter boundary; the gate still owns aliases and refuses mixed shapes.
+const askChoiceOptionSchema = {
+  ...ASK_CHOICE_INPUT_SCHEMA.properties.options.items,
+  properties: {
+    ...ASK_CHOICE_INPUT_SCHEMA.properties.options.items.properties,
+    id: ASK_CHOICE_INPUT_SCHEMA.properties.options.items.properties.value,
+  },
+};
+const askChoiceOptionsSchema = { ...ASK_CHOICE_INPUT_SCHEMA.properties.options, items: askChoiceOptionSchema };
+const askChoiceFlatTitleSchema = { required: ["title", "options"] };
+const askChoiceInputSchema = {
+  ...ASK_CHOICE_INPUT_SCHEMA,
+  anyOf: [...ASK_CHOICE_INPUT_SCHEMA.anyOf, askChoiceFlatTitleSchema],
+  properties: {
+    ...ASK_CHOICE_INPUT_SCHEMA.properties,
+    title: { type: "string", minLength: 1, description: "Card title; also the question when question is omitted." },
+    label: { type: "string", minLength: 1, description: "Flat options label; defaults to title, then question." },
+    options: askChoiceOptionsSchema,
+    singleSelect: {
+      ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect,
+      properties: { ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect.properties, options: askChoiceOptionsSchema },
+    },
+    multiSelect: {
+      ...ASK_CHOICE_INPUT_SCHEMA.properties.multiSelect,
+      properties: { ...ASK_CHOICE_INPUT_SCHEMA.properties.multiSelect.properties, options: askChoiceOptionsSchema },
+    },
+  },
+};
+
 export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: ASK_CHOICE_TOOL_ID,
@@ -113,11 +143,11 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +
       "Do not add a second confirmation question before those cards. " +
       "Do not describe the options in prose and wait for a reply instead: the " +
-      "administrator has no reliable way to notice a question was asked that way. Supply {question, options: [{label, value?, description?}], multiple?: boolean}; value defaults to label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
+      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are ignored. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
       "and every option yourself — nothing here is pre-filled.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
-    inputSchema: ASK_CHOICE_INPUT_SCHEMA,
+    inputSchema: askChoiceInputSchema,
   },
 ];
 
@@ -226,17 +256,33 @@ function normalizeAskChoiceSelect({ select }: { select: unknown }, _options = {}
   return { ...record, options };
 }
 
-/** Keep the existing title/options alias separate from option spelling normalization.
- * @throws ToolInputError for ambiguous flat/nested questions.
+/** Preserve the shared flat parser's checks before consuming question/multiple into nested fields.
+ * @throws ToolInputError for malformed question text or a non-boolean multiple flag.
+ * @complexity O(q) time/space for trimming q question characters; no effects.
+ */
+function validateFlatAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  if (input.question !== undefined && (typeof input.question !== "string" || !input.question.trim())) {
+    throw new ToolInputError({ message: "assistant_ask_choice: 'question' must be a non-empty string." });
+  }
+  if (input.multiple !== undefined && typeof input.multiple !== "boolean") {
+    throw new ToolInputError({ message: "assistant_ask_choice: 'multiple' must be a boolean." });
+  }
+}
+
+/** Map flat options to the shared parser's nested contract, keeping a distinct card title.
+ * @throws ToolInputError for malformed flat fields or ambiguous flat/nested questions.
  * @complexity O(k) time/space in the top-level keys; no effects.
  */
 function normalizeLegacyAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
-  if (Object.hasOwn(input, "question") || !Object.hasOwn(input, "options")) return { input, notes: [] };
+  if (!Object.hasOwn(input, "options")) return { input, notes: [] };
   if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
     throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
   }
-  const { options, label, ...rest } = input;
-  return { input: { ...rest, singleSelect: { label: label ?? input.title, options } }, notes: ["options→singleSelect.options", "label/title→singleSelect.label"] };
+  validateFlatAskChoiceInput({ input });
+  const { options, label, question, multiple, ...rest } = input;
+  const field = multiple === true ? "multiSelect" : "singleSelect";
+  return { input: { ...rest, title: input.title ?? question, [field]: { label: label ?? input.title ?? question, options } },
+    notes: [`options→${field}.options`, `label/title/question→${field}.label`] };
 }
 
 /** Extend the existing domain hook, keeping question parsing and answer security in Jini.
@@ -343,7 +389,11 @@ export function buildAskChoiceRegistrations(
       [ASK_CHOICE_TOOL_ID]: normalizeAskChoiceInput,
     },
     derivedRisk: askChoiceDerivedRisk,
-  }).map(registration => ({ ...registration, invocationSchema: tool.invocationSchema }));
+  }).map(registration => ({ ...registration, invocationSchema: {
+    ...tool.invocationSchema,
+    anyOf: [...tool.invocationSchema.anyOf, askChoiceFlatTitleSchema],
+    properties: { ...tool.invocationSchema.properties, ...askChoiceInputSchema.properties },
+  } }));
 }
 
 /** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions
