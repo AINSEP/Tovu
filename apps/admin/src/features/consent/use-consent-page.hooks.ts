@@ -4,7 +4,7 @@ import type { Translate } from '@jini-ai/ui/panel-kit';
 import { describeApiError } from '@/lib/api';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';
 import { canPublishConsent, isConsentConflict, type ConsentSaveState } from './rules';
-import { defaultConsentRevisionsPort, type ConsentEditorLimits, type ConsentReadiness, type ConsentRevisionsPort, type ConsentSettingsSnapshot } from './settings.hooks';
+import type { ConsentEditorLimits, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from './settings.hooks';
 
 /**
  * @file State for the Cookie Consent page. The page edits one draft revision (autosaved, see
@@ -92,23 +92,24 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
     setValue(valueRef.current);
     setSettled(false);
     setPublishError(null);
-    autosave.current?.change({ config: valueRef.current });
+    autosave.current!.change({ config: valueRef.current });
   }
 
   const canPublish = canPublishConsent({ saveState, settled, hasUnpublished, problems, publishing });
 
   async function publish() {
-    if (!canPublish || heads.draftId === null) return;
-    const draftId = heads.draftId;
+    if (!canPublish) return;
+    // canPublish implies a saved, loaded draft: draftId, the value and autosave all exist.
+    const draftId = heads.draftId!;
     setPublishing(true);
     setPublishError(null);
     try {
       await port.publish({ draftId, expectedPublishedId: heads.publishedId });
       setHeads({ draftId, publishedId: draftId });
-      setLiveEnabled(valueRef.current?.enabled ?? false);
+      setLiveEnabled(valueRef.current!.enabled);
       setPublishedCount(count => count + 1);
     } catch (error) {
-      if (isConsentConflict({ error })) { autosave.current?.stop(); setSaveState('conflict'); }
+      if (isConsentConflict({ error })) { autosave.current!.stop(); setSaveState('conflict'); }
       else setPublishError(describeApiError(error, t("Couldn't publish.")));
     } finally {
       setPublishing(false);
@@ -161,5 +162,3 @@ export function useConsentReadiness({ port, refresh, t }: { port: ConsentRevisio
   }, [port, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount
   return state;
 }
-
-export const useWiredConsentPage = ({ t }: { t: Translate }) => useConsentPage({ port: defaultConsentRevisionsPort, t });
