@@ -681,6 +681,17 @@ test("precheck() fails, not refuses, when a blob becomes a library document betw
   await assert.rejects(handlerFor(fixture.deps).precheck(entity), blockedWith("Library documents cannot be published"));
 });
 
+test("precheck() refuses before staging when an incoming blob is already a library document", async (t) => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const blobRepo = fixture.deps.ports.media!.assetBlobRepo as InMemoryAssetBlobRepo;
+  t.mock.method(blobRepo, "findByHash", async (required: { workspaceId: string; sha256: string }): Promise<AssetBlobRecord | null> =>
+    ({ id: "blob-1", workspaceId: required.workspaceId, sha256: required.sha256, storageKey: "k", createdByPrincipal: "owner", createdAt: "2026-09-24T12:00:00.000Z", status: "active", documentOwned: true }));
+  assert.equal(await handlerFor(fixture.deps).precheck(entity), "Library documents cannot be published");
+  assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
+  assert.equal(await exists(path.join(fixture.destThemes, ".publish-staging")), false);
+});
+
 test("apply() without its gateway wiring fails with what to wire", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
