@@ -170,6 +170,22 @@ test("returns rendered: false with the real reason when the browser relays a cat
   });
 });
 
+test("with the production grace period, a relayed non-refusal answer settles the call at once as rendered", async () => {
+  // No `rejectionGraceMs` option: the real 4 s grace applies, but a relayed message ends the wait
+  // as soon as it arrives. A message that is not an `error` shape (here `null`) is not a refusal.
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registration = buildRenderUiRegistrations(undefined, { surfaceExchanges }).find((r) => r.descriptor.id === RENDER_UI_TOOL_ID);
+  assert.ok(registration);
+  const emitted: unknown[] = [];
+  const started = Date.now();
+  const pending = call(registration.handler, { emitSurface: async (surface) => void emitted.push(surface) });
+  await new Promise((resolve) => setImmediate(resolve));
+  const surfaceId = surfaceIdFromEmitted(emitted);
+  assert.deepEqual(surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: null } }, { channel: "a2ui" }), { ok: true });
+  assert.deepEqual(await pending, { rendered: true, note: RENDERED_NOTE });
+  assert.ok(Date.now() - started < 3_000, "the call did not wait out the full grace period");
+});
+
 test("falls back to a generic detail string when the relayed refusal carries no string error.message", async () => {
   // `rejectionMessageOf`'s fallback branch — a relayed refusal is still trusted as a refusal even
   // if its `message` field is missing or not a string, rather than silently reporting success.
