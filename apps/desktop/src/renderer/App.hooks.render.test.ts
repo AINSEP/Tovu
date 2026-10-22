@@ -446,6 +446,29 @@ test('useMenuKeyboard: closing with focus inside (or nowhere) returns it to the 
   assert.equal(menu.focused(), 'elsewhere');
 });
 
+// A menu kept mounted while closed (hidden, not unrendered) still holds focus when it closes, so
+// the hook must recognise focus inside it — not only the unmount case, where focus falls to <body>.
+test('useMenuKeyboard: a menu that stays mounted while closed returns focus from inside it, and not from outside', (t) => {
+  let open = false;
+  const hook = renderHook(t, () => useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open }), (value) => createElement('div', null,
+    createElement('button', { id: 'kept-trigger', ref: value.triggerRef }),
+    createElement('button', { id: 'kept-elsewhere' }),
+    createElement('div', { role: 'menu', ref: value.menuRef, hidden: !open },
+      createElement('button', { role: 'menuitem', id: 'kept-one' }),
+      createElement('button', { role: 'menuitem', id: 'kept-two' }))));
+  const setOpen = (next: boolean) => { open = next; hook.rerender(); };
+
+  setOpen(true);
+  (document.getElementById('kept-two') as HTMLElement).focus();
+  setOpen(false);
+  assert.equal(document.activeElement?.id, 'kept-trigger', 'focus left inside a still-mounted menu goes back to the trigger');
+
+  setOpen(true);
+  (document.getElementById('kept-elsewhere') as HTMLElement).focus();
+  setOpen(false);
+  assert.equal(document.activeElement?.id, 'kept-elsewhere', 'focus already moved outside the menu is left alone');
+});
+
 // ── useDeleteConfirmation ───────────────────────────────────────────────────────────────────────
 
 test('useDeleteConfirmation: request, Escape cancels unless a delete is in flight, success clears, failure explains', async (t) => {
@@ -781,6 +804,17 @@ test('useRunnerConversations: rename is optimistic, logs a failed write, and re-
   await settle();
   assert.equal(failing.current().conversations[0]!.title, 'Old', 'the re-read restores what the store kept');
   assert.equal(errors.length, 1);
+});
+
+test('useRunnerConversations: an optimistic rename changes only the renamed thread', async (t) => {
+  const { bridge } = conversationStore([convo('a', 'Alpha'), convo('b', 'Beta')]);
+  const hook = renderConversations(t, bridge);
+  await settle();
+  let renaming!: Promise<void>;
+  act(() => { renaming = hook.current().rename('b', 'Bravo'); });
+  assert.deepEqual(hook.current().conversations.map((c) => [c.id, c.title]), [['a', 'Alpha'], ['b', 'Bravo']]);
+  await act(() => renaming);
+  await settle();
 });
 
 test('useRunnerConversations: an open thread saves each settled message once, and a failed save is retried later', async (t) => {

@@ -158,16 +158,18 @@ function withoutComments(source: string) {
 }
 
 test('WorkspaceChatPane takes everything from useWorkspaceChatPane, and the hook routes drops through captureFolderDrop', () => {
-  // Source text, because neither the component nor the hook can run in this package. Without it the
-  // functions above could be correct and simply not called.
-  const app = withoutComments(fs.readFileSync(path.join(import.meta.dirname, 'App.tsx'), 'utf8'));
+  // Source text, written when neither the component nor the hook could run in this package. Without it
+  // the functions above could be correct and simply not called. The component now lives in its own
+  // module and is also rendered (`WorkspaceChatPane.render.test.ts`); this keeps the no-raw-primitives
+  // rule and the drop wiring, which that render does not observe.
+  const app = withoutComments(fs.readFileSync(path.join(import.meta.dirname, 'WorkspaceChatPane.tsx'), 'utf8'));
   const start = app.indexOf('function WorkspaceChatPane(');
-  assert.notEqual(start, -1, 'WorkspaceChatPane is gone from App.tsx');
+  assert.notEqual(start, -1, 'WorkspaceChatPane is gone from WorkspaceChatPane.tsx');
   const rest = app.slice(start + 1);
   const end = rest.indexOf('\nfunction ');
   const body = end === -1 ? rest : rest.slice(0, end);
 
-  assert.match(body, /\} = useWorkspaceChatPane\(\);/);
+  assert.match(body, /\} = useWorkspaceChatPane\(\{\}, ports\);/);
   assert.doesNotMatch(body, /\buse(State|Ref|Callback|Effect|Memo)\b/, 'raw React primitives are back in the component');
   assert.match(body, /onDropCapture=\{onDropCapture\}/);
   assert.match(body, /composerHandle=\{composerHandle\}/);

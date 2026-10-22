@@ -1314,8 +1314,12 @@ export function useRunnerConversations(
   const flush = useCallback(
     (conversationId: string, messages: ChatMessage[]) => {
       if (bridge === undefined || deletedRef.current.has(conversationId)) return;
-      const written = writtenRef.current.get(conversationId) ?? new Set<string>();
-      writtenRef.current.set(conversationId, written);
+      // Always registered by now: every id that can reach here got its set when it became flushable
+      // — `select`'s commit, `create` and lazy adoption each register one before `activeId` (or the
+      // adoption's own flush) can name it — and `remove` drops a set only after marking the id
+      // deleted, which the guard above returns on first. (This used to fall back to a fresh set,
+      // which no path could reach.)
+      const written = writtenRef.current.get(conversationId) as Set<string>;
       const pending = persistableMessages(messages).filter((m) => !written.has(m.id));
       if (pending.length === 0) return;
       // Marked before the request resolves so a second `onMessagesChange` arriving mid-flight —
