@@ -424,3 +424,35 @@ test("theme folder location: a parked folder with a live theme of the same id re
     liveParent: path.resolve(themesDir), liveNames: [], parkedDir: path.join(`${themesDir}-trash`, "absent"),
   });
 });
+
+test("theme_trash: a second theme with an id already in the Trash is refused by name; the mover returns that outcome", async (t) => {
+  const { handler, themesDir, deps } = harness(t);
+  await handler(ctxFor({ themeId: "aurora" }));
+  writeTheme(path.join(themesDir, "aurora"), "aurora");
+  deps.themes.splice(0, deps.themes.length, ...discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }));
+  await assert.rejects(handler(ctxFor({ themeId: "aurora" })), {
+    name: "ToolInputError",
+    message: "theme_trash: a theme with id 'aurora' is already in the Trash. Restore or permanently delete that one first (trash_list_items). Nothing was changed.",
+  });
+  const moved = await createThemeTrashMover(deps).move({ entityId: "aurora", actor: { principalId: PRINCIPAL_ID } } as Parameters<ReturnType<typeof createThemeTrashMover>["move"]>[0]);
+  assert.equal(moved.ok, false);
+  assert.equal(!moved.ok && moved.reason, "blocked");
+  assert.equal(fs.existsSync(path.join(themesDir, "aurora", "theme.json")), true, "the live theme stays put");
+});
+
+test("theme_trash: a listed theme whose folder vanished is refused with the removal's reason", async (t) => {
+  const { handler, themesDir } = harness(t);
+  fs.rmSync(path.join(themesDir, "aurora"), { recursive: true });
+  await assert.rejects(handler(ctxFor({ themeId: "aurora" })), {
+    name: "ToolInputError",
+    message: "theme_trash: could not move 'aurora' to the Trash (not-found). Nothing was changed.",
+  });
+});
+
+test("theme_trash: the contributor names its own domain, builder and risk map", async () => {
+  const { contributeTrashThemeTools } = await import("#src/features/theme/trash-theme-tool");
+  const contributor = contributeTrashThemeTools();
+  assert.equal(contributor.domain, "theme-trash");
+  assert.equal(contributor.build, buildTrashThemeRegistrations);
+  assert.equal(contributor.risk, trashThemeDerivedRisk);
+});
