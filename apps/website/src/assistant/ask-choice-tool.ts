@@ -118,7 +118,7 @@ const askChoiceInputSchema = {
   properties: {
     ...ASK_CHOICE_INPUT_SCHEMA.properties,
     title: { type: "string", minLength: 1, description: "Card title; also the question when question is omitted." },
-    label: { type: "string", minLength: 1, description: "Flat options label; defaults to title, then question." },
+    label: { type: "string", minLength: 1, description: "Flat options label; defaults to question, then title." },
     options: askChoiceOptionsSchema,
     singleSelect: {
       ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect,
@@ -143,7 +143,7 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +
       "Do not add a second confirmation question before those cards. " +
       "Do not describe the options in prose and wait for a reply instead: the " +
-      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are ignored. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
+      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are included in the visible option label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
       "and every option yourself — nothing here is pre-filled.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
@@ -226,7 +226,7 @@ const askChoiceMessages: AskChoiceMessages = {
 };
 
 /** Normalize Tovu chat option spellings before Jini's closed-schema gate. The installed choice
- * renderer shows labels only, so option descriptions are accepted and dropped silently.
+ * renderer shows labels only, so option descriptions are folded into visible labels.
  * Dual id/value spellings are refused even when equal, as with region ids.
  * @returns A copied option, leaving malformed values for the shared parser to reject.
  * @throws ToolInputError when id and value coexist.
@@ -238,10 +238,20 @@ function normalizeAskChoiceOption({ option }: { option: unknown }, _options = {}
   if (Object.hasOwn(record, "id") && Object.hasOwn(record, "value")) {
     throw new ToolInputError({ message: "Conflicting option inputs 'id' and 'value'. Send only 'value'." });
   }
-  const { id, description: _description, ...rest } = record;
-  if (Object.hasOwn(record, "id")) return { ...rest, value: id };
-  if (Object.hasOwn(record, "value")) return Object.hasOwn(record, "description") ? rest : option;
-  return { ...rest, value: record.label };
+  const { id, description, ...rest } = record;
+  const label = visibleOptionLabel({ label: record.label, description });
+  // Keep the original label as the default submitted value; display copy is never an answer id.
+  const value = Object.hasOwn(record, "id") ? id : Object.hasOwn(record, "value") ? record.value : record.label;
+  return { ...rest, label, value };
+}
+
+
+/** Render option consequences through the installed label-only choice contract. O(text length). */
+function visibleOptionLabel({ label, description }: { label: unknown; description: unknown }, _options = {}): unknown {
+  if (description === undefined) return label;
+  if (typeof description !== "string") throw new ToolInputError({ message: "Option description must be text. Fold the consequence into the label." });
+  if (typeof label !== "string" || !description.trim()) return label;
+  return `${label} — ${description.trim()}`;
 }
 
 /** Apply the option alias to one select, retaining malformed shapes for ordinary validation.
@@ -281,7 +291,7 @@ function normalizeLegacyAskChoiceInput({ input }: { input: Record<string, unknow
   validateFlatAskChoiceInput({ input });
   const { options, label, question, multiple, ...rest } = input;
   const field = multiple === true ? "multiSelect" : "singleSelect";
-  return { input: { ...rest, title: input.title ?? question, [field]: { label: label ?? input.title ?? question, options } },
+  return { input: { ...rest, title: input.title ?? question, [field]: { label: label ?? question ?? input.title, options } },
     notes: [`options→${field}.options`, `label/title/question→${field}.label`] };
 }
 

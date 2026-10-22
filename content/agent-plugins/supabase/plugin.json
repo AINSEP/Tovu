@@ -21,6 +21,7 @@
           "intro": "Connect Supabase to set up and work with this site’s database.",
           "keyHint": "Review the account and project access requested on the Supabase sign-in page.",
           "saveKind": "oauth",
+          "saveTarget": "supabase",
           "permissions": "Allows the connected tools to discover your organizations and projects and work with the selected database. Creating, pausing or restoring a project and running database changes require the applicable tool permissions.",
           "baseUrl": "https://mcp.supabase.com"
         },

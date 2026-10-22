@@ -101,4 +101,4 @@ test("through the real registry: runDeploy sends one JSON dispatch and deploymen
   assert.equal(waited.last.state, "healthy");
 });
 
-const deploy = (ctx, input) => github.deploy(ctx, { workflowFile: "example-deploy.yml", ...input });
+const deploy = (ctx, input) => github.deploy(ctx, { workflowFiles: ["example-deploy.yml"], workflowFile: "example-deploy.yml", ...input });

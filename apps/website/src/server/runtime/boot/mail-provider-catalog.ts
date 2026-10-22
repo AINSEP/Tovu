@@ -137,8 +137,8 @@ export async function loadMailCredentialCards(
   required: Pick<MailProviderCatalogDeps, "loadMailAdapters">,
   _optional: Record<string, never> = {}
 ): Promise<readonly PluginCredentialCard[]> {
-  return (await loadAdapters(required)).list().flatMap(({ descriptor }) => descriptor.credentialCard
-    ? [{ providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
+  return (await loadAdapters(required)).list().flatMap(({ descriptor, pluginId }) => descriptor.credentialCard
+    ? [{ pluginId, providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
     : []);
 }
 

@@ -499,7 +499,7 @@ export interface CredentialsDeps {
   /** Deploy observation requests must not follow vendor redirects, even to another public host. */
   deployOpsHttpClient?: HttpClientPort;
   /** Deploy-config owner supplies this workflow; ops plugins never import each other. */
-  deployWorkflowFile?: string;
+  loadDeployWorkflowFiles?: (input: { workspaceId: string }) => Promise<readonly string[]>;
   /**
    * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
    * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink
@@ -1588,7 +1588,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
-  /** Fresh installed-plugin trust gates in production; bundled source in the hermetic root. */
+  /** Fresh installed-plugin trust gates in production; server/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/deploy-ops/types").DeployOpsRegistry>;
   /**
    * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),

@@ -1,4 +1,4 @@
-import { readBundledDeployWorkflowFile } from "#src/features/deployments/index";
+import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
@@ -1623,7 +1623,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
       loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
-    deployWorkflowFile: readBundledDeployWorkflowFile({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
+    loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.

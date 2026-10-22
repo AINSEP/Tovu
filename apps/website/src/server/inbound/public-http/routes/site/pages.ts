@@ -21,7 +21,7 @@ import {
 } from "#src/features/post/index";
 import { getPublicAssistantSettings, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import {
-  DefaultMemberAccessResolver,
+  createMemberAccessResolver,
   resolvePostMemberAccess,
   type MemberAccessDecision,
   type MemberAccessResolver,
@@ -2263,26 +2263,6 @@ async function handlePostNotFoundInSlugCatch(input: {
 /** No cookie-parser middleware is mounted. All request cookies use the shared reader,
  * matching dev-auth without an unguarded decodeURIComponent copy. */
 
-/**
- * The public routes' and admin preview's `MemberAccessResolver` (ADR-030 §4), built per render from
- * the three member repo ports already on `RouteDeps`. Deliberately NOT a module-level singleton: `deps` is
- * per-composition (every test in `__tests__/` injects its own in-memory repos through
- * `createRouteDeps` overrides), so a singleton would capture whichever composition happened to
- * construct first and then answer every later request from the wrong workspace's data.
- * Construction performs no reads; only `resolveContext` with a session token reads the repo ports.
- * @complexity O(1) time and space.
- * @example createMemberAccessResolver({ deps });
- */
-export function createMemberAccessResolver(
-  { deps }: { deps: Pick<RouteDeps, "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> },
-  _options: Record<string, never> = {}
-): MemberAccessResolver {
-  return new DefaultMemberAccessResolver({
-    sessions: deps.memberSessionRepo,
-    subscriptions: deps.memberSubscriptionRepo,
-    tiers: deps.memberTierRepo,
-  });
-}
 
 /**
  * Turns this request's member-session cookie into a validated {@link MemberContext}. Reads the

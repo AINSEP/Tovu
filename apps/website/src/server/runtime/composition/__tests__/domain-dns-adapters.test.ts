@@ -216,3 +216,17 @@ test("plugins with no public resolver extension are inert data", t => {
     assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot }), "https://resolver.example.test/query");
   }
 });
+
+test('broken unrelated manifests are skipped and the composed DNS resolver reads shipped data once', async t => {
+  const endpoint = { format: 'dns-json', url: 'https://resolver.example.test/dns-query' };
+  const sourceRoot = resolverSources(t, [undefined, endpoint]);
+  writeFileSync(path.join(sourceRoot, 'example-0/plugin.json'), '{');
+  assert.equal(readBundledPublicDnsResolverUrl({ sourceRoot }), endpoint.url);
+  const { createBundledPublicDnsResolver } = await import('../domain-dns-adapters.js');
+  const resolver = createBundledPublicDnsResolver({ client: clientReturning({ Status: 0 }).client, sourceRoot });
+  rmSync(sourceRoot, { recursive: true });
+  assert.deepEqual(await resolver.query({ domain: 'example.com', type: 'A' }), { type: 'A', status: 'no-data', records: [] });
+  assert.throws(() => readBundledPublicDnsResolverUrl({ sourceRoot }), { name: 'ToolInputError' });
+  const unavailable = createBundledPublicDnsResolver({ client: clientReturning({ Status: 0 }).client, sourceRoot });
+  await assert.rejects(unavailable.query({ domain: 'example.com', type: 'A' }), { name: 'ToolInputError' });
+});

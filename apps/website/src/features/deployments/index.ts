@@ -71,6 +71,8 @@ export {
   readBundledDeployConfigDescriptors,
   readBundledDeployConfigCandidatePaths,
   readBundledDeployWorkflowFile,
+  readBundledDeployWorkflowFiles,
+  loadDeployWorkflowFiles,
   loadDeployConfigGeneratorsFromSource,
   loadBundledDeployConfigGenerators,
   readBundledDeployConfigTargetIds,

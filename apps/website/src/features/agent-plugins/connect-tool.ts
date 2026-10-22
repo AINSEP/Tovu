@@ -1,5 +1,5 @@
 import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
-import { parsePluginCredentialCards } from "./credential-cards.js";
+import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
 import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
@@ -22,7 +22,7 @@ import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from ".
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
-import { readTrustedPluginFile, listInstalledPlugins } from "./lifecycle.js";
+import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
@@ -128,8 +128,7 @@ export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: s
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile(plugin, "plugin.json") });
-  return { servers: await readInstalledMcpServers(plugin.packageRoot), credentialCards: cards.ok ? cards.descriptors : [] };
+  return { servers: await readInstalledMcpServers(plugin.packageRoot) };
 }
 
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
@@ -190,6 +189,7 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
  *  wiring anywhere a `RouteDeps`-shaped bag is already assembled. `externalMcpOAuth` is optional for
  *  the identical reason that file gives — checked at the top of the handler, fail-closed. */
 export interface AgentPluginConnectToolDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
@@ -342,7 +342,9 @@ export async function runAgentPluginConnect(
   }
   const [server] = pending;
 
-  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard: plugin.credentialCards?.find(card => card.saveKind === "oauth") }, optional);
+  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+  const credentialCard = cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */

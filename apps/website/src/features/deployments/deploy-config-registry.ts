@@ -2,7 +2,7 @@ import { bundledContributionSources } from "../agent-plugins/bundled-contributio
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type LoadPluginContributions, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { DeployConfigGeneratorModule } from "./deploy-config.js";
 
@@ -148,13 +148,13 @@ export function parseDeployConfigsFile(raw: string): { readonly ok: true; readon
 function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional = {}): DeployConfigGeneratorDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module } = entry;
-  if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !GENERATOR_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (!validGeneratorId({ id })) return `${at}.id must be a lowercase hyphenated id`;
   const label = readGeneratorLabel({ label: entry.label });
   if (label === undefined) return `${at}.label must be a non-empty string`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  if (!validGeneratorModulePath({ module })) return `${at}.module must be a relative path ending in .mjs`;
   const metadata = readPublishMetadata({ entry });
   if (typeof metadata === "string") return `${at}.${metadata}`;
-  return { id, label, module, ...metadata };
+  return { id: id as string, label, module: module as string, ...metadata };
 }
 
 /** Keep label bounds and blank detection together without normalizing the stored label. */
@@ -229,4 +229,32 @@ export function readBundledDeployConfigCandidatePaths(required: { readonly sourc
 export function readBundledDeployWorkflowFile(required: { readonly sourceRoot: string }, _optional = {}): string | undefined {
   const files = [...new Set(readBundledDeployConfigDescriptors(required).flatMap(entry => entry.workflowFile === undefined ? [] : [entry.workflowFile]))];
   return files.length === 1 ? files[0] : undefined;
+}
+
+/** Keep identity and module path clauses separate from descriptor assembly. O(length). */
+function validGeneratorId({ id }: { id: unknown }, _options = {}): boolean {
+  return typeof id === "string" && id.length <= MAX_ID_LENGTH && GENERATOR_ID_PATTERN.test(id);
+}
+function validGeneratorModulePath({ module }: { module: unknown }, _options = {}): boolean {
+  return typeof module === "string" && module.endsWith(".mjs") && !path.posix.isAbsolute(module);
+}
+
+/** Installed workflow hints use the same active, trusted lifecycle as deploy ops, without imports. */
+export async function loadDeployWorkflowFiles(required: { workspaceId: string; loadContributions: LoadPluginContributions }, _options = {}): Promise<readonly string[]> {
+  const definition: PluginContributionDefinition<DeployConfigGeneratorDescriptor, DeployConfigGeneratorDescriptor> = {
+    filename: DEPLOY_CONFIGS_FILENAME, contribution: 'deploy workflow declarations', kind: 'data',
+    parse: ({ raw }) => parseDeployConfigsFile(raw), load: ({ descriptor }) => descriptor,
+    onReadError: () => [],
+  };
+  const result = await required.loadContributions({ workspaceId: required.workspaceId, definition }, { requireActive: true, orderByPluginId: true });
+  for (const refusal of result.refusals) console.warn(refusal);
+  return workflowFilesOf({ descriptors: result.items });
+}
+
+/** Hermetic roots use shipped sources; production uses loadDeployWorkflowFiles. O(descriptors). */
+export function readBundledDeployWorkflowFiles(required: { sourceRoot: string }, _options = {}): readonly string[] {
+  return workflowFilesOf({ descriptors: readBundledDeployConfigDescriptors(required) });
+}
+function workflowFilesOf({ descriptors }: { descriptors: readonly DeployConfigGeneratorDescriptor[] }, _options = {}): readonly string[] {
+  return [...new Set(descriptors.flatMap(entry => entry.workflowFile === undefined ? [] : [entry.workflowFile]))];
 }

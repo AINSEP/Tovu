@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { DEPLOY_CONFIGS_FILENAME, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
+import { DEPLOY_CONFIGS_FILENAME, loadDeployWorkflowFiles, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
 
 /**
  * @file `deploy-config-registry.ts` — the generators behind `tovu deploy config --target <id>`, read
@@ -161,4 +161,24 @@ test("L210 descriptor validation preserves boundaries, error precedence and orig
   assert.deepEqual(parseDeployConfigsFile(manifest([{ ...base, label: "", module: null }])), {
     ok: false, reason: "generators[0].label must be a non-empty string",
   });
+});
+
+test('workflow declarations use the installed active contribution gate and preserve all choices', async () => {
+  let calls = 0;
+  const files = await loadDeployWorkflowFiles({ workspaceId: 'ws', loadContributions: async (input, options) => {
+    calls++;
+    assert.equal(input.workspaceId, 'ws');
+    assert.equal(input.definition.filename, DEPLOY_CONFIGS_FILENAME);
+    assert.equal(input.definition.kind, 'data');
+    assert.deepEqual(options, { requireActive: true, orderByPluginId: true });
+    const parsed = input.definition.parse({ raw: JSON.stringify({ schemaVersion: 1, generators: [
+      { id: 'one', label: 'One', module: 'one.mjs', workflowFile: 'one.yml' },
+      { id: 'two', label: 'Two', module: 'two.mjs', workflowFile: 'two.yml' },
+    ] }) });
+    assert.ok(parsed.ok);
+    return { items: parsed.descriptors as never, refusals: [] };
+  } });
+  assert.deepEqual(files, ['one.yml', 'two.yml']);
+  assert.equal(calls, 1);
+  assert.deepEqual(await loadDeployWorkflowFiles({ workspaceId: 'ws', loadContributions: async () => ({ items: [], refusals: [] }) }), []);
 });

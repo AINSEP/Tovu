@@ -212,3 +212,19 @@ test("content_post_list reads an html-format page's bodyHtml for its excerpt and
   assert.equal(row.excerpt, "Upload files & images.");
   assert.equal(row.bodyChars, "Upload files & images.".length);
 });
+
+test('typed MCP accepts comma-separated fields and reaches the real post listing', async () => {
+  const { buildToolIndex, handleToolCall } = await import('@jini-ai/mcp');
+  const { deps, postRepo } = fakeRouteDeps();
+  await seed(postRepo, 1, richDoc(1));
+  const registration = listTool(deps);
+  let handlerCalls = 0;
+  const tool = { name: 'content_post_list', description: registration.descriptor.description!, inputSchema: registration.descriptor.inputSchema as import('@jini-ai/mcp').McpToolDef['inputSchema'],
+    handler: async ({ args }: { args: unknown }) => { handlerCalls++; return call(registration, args); } };
+  const tools = buildToolIndex({ tools: [tool] });
+  const reply = await handleToolCall({ name: tool.name, tools, ctx: { baseUrl: 'http://unused.test', fetchImpl: async () => assert.fail('no network expected') } }, { rawArgs: { kind: 'post', fields: 'title,slug' } });
+  assert.equal(reply.isError, undefined, JSON.stringify(reply.content));
+  assert.equal(handlerCalls, 1);
+  const listed = await call(registration, { kind: 'post', fields: 'title,slug' }) as { posts: Record<string, unknown>[] };
+  assert.deepEqual(Object.keys(listed.posts[0]!).sort(), ['id', 'slug', 'title']);
+});

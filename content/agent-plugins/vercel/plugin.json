@@ -22,7 +22,6 @@
           "intro": "Connect Vercel to publish this site as a production deployment.",
           "keyHint": "Create an access token for the personal account or team that owns the project, with permission to create projects and production deployments. Select that team as the token scope when publishing to a team.",
           "saveKind": "publish-host",
-          "fields": [],
           "helpUrl": "https://vercel.com/account/tokens",
           "helpLabel": "Create a token",
           "baseUrl": "https://api.vercel.com"

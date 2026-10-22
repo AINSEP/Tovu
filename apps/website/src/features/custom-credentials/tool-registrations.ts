@@ -51,7 +51,7 @@ import {
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { cleanCardToken } from "./card-token.js";
-import { applyPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { applyPluginCredentialCard, loadPluginCredentialCardsSafely, findPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
@@ -946,7 +946,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       // The run ended during the pre-dialog reads: the engine opens no dialog for an aborted run.
       // `askThenReport`, not `askOnce` — the engine waits for save and replaces the same card URI.
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      const pluginCard = (await routeDeps.loadPluginCredentialCards?.(routeDeps.workspaceId))?.find(card => card.saveKind === 'api' && card.label === label);
+      const pluginCard = await findPluginCredentialCard({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId, saveKind: 'api', target: label });
       let errorSummary = "";
       const card = defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
@@ -1012,7 +1012,7 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       const input = requireInputRecord({ input: ctx.input });
       const providerId = requireString({ input, key: "provider" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
-      const card = (await routeDeps.loadPluginCredentialCards?.(routeDeps.workspaceId))?.find(entry => entry.providerId === providerId);
+      const card = (await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId })).find(entry => entry.providerId === providerId);
       if (!card) throw new ToolInputError({ message: `No installed plugin declares a key card for '${providerId}'. Use credential_save with kind api instead.` });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: card.label,

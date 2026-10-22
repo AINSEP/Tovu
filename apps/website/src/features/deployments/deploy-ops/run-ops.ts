@@ -31,7 +31,7 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<DeployOpsRegistry>;
   deployOpsRegistry?: DeployOpsRegistry;
   /** Workflow declared by the deployment config owner, passed by the host. */
-  deployWorkflowFile?: string;
+  loadDeployWorkflowFiles?: (input: { workspaceId: string }) => Promise<readonly string[]>;
   waitClock?: WaitClock;
   /** This boot's site folder; the default site-key reader resolves the same sources the Security page does. */
   siteBinding?: { dir?: string };
@@ -188,10 +188,10 @@ export async function runDeployOps(deps: DeployOpsToolDeps, input: DeployOpsInpu
   return platform.module.status(ctx, input);
 }
 
-export interface DeployRequest { platform: string; target: string; ref?: string; credentialLabel?: string }
+export interface DeployRequest { platform: string; target: string; ref?: string; credentialLabel?: string; workflowFile?: string }
 const clip = (value: unknown) => String(value).slice(0, 2000);
 function validateDeployResult({ input, result }: { input: DeployRequest; result: DeployOpsDeployResult }, _optional = {}): void {
-  if (result?.started !== true || typeof result.summary !== "string") throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid deploy result.` });
+  if (typeof result?.started !== "boolean" || typeof result.summary !== "string") throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid deploy result.` });
   if (result.runId !== undefined && !/^[0-9]+$/.test(String(result.runId))) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid run id.` });
 }
 
@@ -199,7 +199,7 @@ function validateDeployResult({ input, result }: { input: DeployRequest; result:
 function normalizeDeployResult(input: DeployRequest, result: DeployOpsDeployResult): DeployOpsDeployResult {
   validateDeployResult({ input, result }, {});
   return {
-    platform: input.platform, target: input.target, started: true, summary: clip(result.summary),
+    platform: input.platform, target: input.target, started: result.started, summary: clip(result.summary),
     ...(result.runId !== undefined ? { runId: String(result.runId) } : {}),
     ...(typeof result.sha === "string" ? { sha: clip(result.sha) } : {}),
     ...(Array.isArray(result.machineIds) ? { machineIds: result.machineIds.slice(0, 32).map(clip) } : {}),
@@ -228,9 +228,10 @@ export async function runDeploy(required: { deps: DeployOpsToolDeps; input: Depl
   }
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
   if (signal?.aborted) throw aborted();
-  const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}), ...(deps.deployWorkflowFile === undefined ? {} : { workflowFile: deps.deployWorkflowFile }) });
+  const adapterInput = await deployAdapterInput({ deps, input });
+  const result = await platform.module.deploy(ctx, adapterInput);
   const normalized = normalizeDeployResult(input, result);
-  await recordAcceptedDeploy({ deps, platform, normalized }, {});
+  if (normalized.started) await recordAcceptedDeploy({ deps, platform, normalized }, {});
   return normalized;
 }
 
@@ -318,4 +319,12 @@ export async function waitForDeployOps(deps: { status(signal: AbortSignal): Prom
   }
   if (input.signal?.aborted) throw aborted();
   return result(false);
+}
+
+/** Pass active workflow choices per invocation without changing ordinary adapter input shapes. */
+async function deployAdapterInput({ deps, input }: { deps: DeployOpsToolDeps; input: DeployRequest }, _options = {}): Promise<import('./types.js').DeployOpsDeployInput> {
+  const workflowFiles = await deps.loadDeployWorkflowFiles?.({ workspaceId: deps.workspaceId });
+  return { target: input.target, ...(input.ref === undefined ? {} : { ref: input.ref }),
+    ...(input.workflowFile === undefined ? {} : { workflowFile: input.workflowFile }),
+    ...(workflowFiles === undefined ? {} : { workflowFiles }) };
 }

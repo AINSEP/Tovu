@@ -140,8 +140,8 @@ async function launch({ t, host, principalId, policy = disabledPolicy }: {
   const { run } = await host.lifecycle.start({ contextRef: principalId });
   host.principals.set(run.id, principalId);
   host.policies.set(principalId, policy);
-  const entry = await host.deleteScope.fresh({ principalId, run: () => buildMcpJsonServerEntry({ runId: run.id, options: host.bridgeInjection },
-    { credential: host.bridgeInjection.credential!({ runId: run.id }) }) });
+  const entry = await host.deleteScope.fresh({ principalId, run: async () => buildMcpJsonServerEntry({ runId: run.id, options: host.bridgeInjection },
+    { credential: await host.bridgeInjection.credential!({ runId: run.id }) }) });
   const pair = stdioPair();
   const client = new Client({ name: "tovu-host-test", version: "1" });
   const errors: string[] = [];
@@ -182,7 +182,7 @@ test("host startup IDs reach a typed MCP call and the existing Tovu executor", {
   assert.equal(host.invocations.length, 1);
 });
 
-test("late theme file tools are exposed directly before unrelated tools exhaust the startup budget", { timeout: 5000 }, async t => {
+test("startup publication preserves catalog admission order when late theme tools exceed the budget", { timeout: 5000 }, async t => {
   const host = hostFixture();
   for (let i = 0; i < 64; i++) host.registry.register(host.registration(`unrelated_${i}`));
   const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
@@ -190,12 +190,12 @@ test("late theme file tools are exposed directly before unrelated tools exhaust 
 
   const bridge = await launch({ t, host, principalId: "editor" });
   const startupIds: string[] = JSON.parse(bridge.entry.env.JINI_STARTUP_TOOL_IDS!);
-  assert.deepEqual(startupIds.slice(0, 4), themeFileTools);
+  assert.deepEqual(startupIds, host.registry.list({}).map(tool => tool.id));
   assert.equal(new Set(startupIds).size, startupIds.length);
-  for (const id of themeFileTools) assert.equal(bridge.typed(id).name, id);
+  for (const id of themeFileTools) assert.equal(bridge.tools.some(tool => tool.annotations?.title === id), false);
   assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_63"), false);
 
-  const result = await bridge.client.callTool({ name: bridge.typed("theme_edit_file").name, arguments: { id: "stylesheet" } });
+  const result = await bridge.client.callTool({ name: bridge.typed("unrelated_0").name, arguments: { id: "stylesheet" } });
   assert.equal(result.isError, undefined);
   assert.deepEqual(host.invocations, [{ principalId: "editor", runId: bridge.run.id, input: { id: "stylesheet" } }]);
 });

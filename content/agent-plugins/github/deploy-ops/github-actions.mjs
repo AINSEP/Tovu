@@ -122,8 +122,9 @@ async function findRun(ctx, workflow, sha, since) {
  *  import each other). Its dispatch input `expected_sha` makes it refuse to deploy a ref that moved. */
 async function deploy(ctx, input) {
   const repo = base(ctx, input.target);
-  const workflowFile = input.workflowFile;
-  if (typeof workflowFile !== "string" || !/^[a-zA-Z0-9_-]+\.ya?ml$/.test(workflowFile)) ctx.fail("A declared deployment workflow filename is required.");
+  const selection = selectWorkflow({ input });
+  if (selection.reason) return { platform: "github-actions", target: input.target, started: false, summary: selection.reason };
+  const workflowFile = selection.file;
   const ref = refName(ctx, input.ref);
   const commit = (await ctx.get(`${repo}/commits/${ref.split("/").map(encodeURIComponent).join("/")}`)).json;
   if (typeof commit?.sha !== "string" || !FULL_SHA.test(commit.sha)) ctx.fail(`Could not resolve '${ref}' to a full commit SHA.`);
@@ -132,10 +133,25 @@ async function deploy(ctx, input) {
   const since = Date.parse(ctx.nowIso()) - CLOCK_SKEW_MS;
   const dispatched = await ctx.send({ method: "POST", url: `${workflow}/dispatches`, body: { ref, inputs: { expected_sha: sha } } });
   // Newer API versions may answer with the run directly; otherwise (204) look it up by SHA.
-  const directId = dispatched.json?.workflow_run_id;
-  const run = directId !== undefined && /^\d+$/.test(String(directId)) ? { id: directId, html_url: dispatched.json.html_url } : await findRun(ctx, workflow, sha, since);
+  const run = await dispatchedRun({ ctx, dispatched, workflow, sha, since });
   const pinned = `The workflow refuses to deploy if '${ref}' no longer resolves to ${sha} when it starts.`;
   if (!run) return { platform: "github-actions", target: input.target, started: true, sha, summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
   return { platform: "github-actions", target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
 }
 export default { status, logs, deploy };
+
+/** Select only a host-declared active workflow; ambiguity is an actionable no-dispatch result. O(files). */
+function selectWorkflow({ input }, _options = {}) {
+  const files = (input.workflowFiles ?? []).filter(file => typeof file === "string" && /^[a-zA-Z0-9_-]+\.ya?ml$/.test(file));
+  if (input.workflowFile !== undefined) return files.includes(input.workflowFile) ? { file: input.workflowFile }
+    : { reason: `Nothing dispatched: workflowFile must match an installed, active declaration. Available: ${files.join(", ") || "none"}.` };
+  if (files.length === 1) return { file: files[0] };
+  return { reason: files.length ? `Nothing dispatched: choose workflowFile from ${files.join(", ")}.`
+    : "Nothing dispatched: no active plugin declares a deployment workflow. Install or enable the hosting plugin first." };
+}
+
+/** New API versions return a run id directly; older ones require the existing bounded lookup. */
+async function dispatchedRun({ ctx, dispatched, workflow, sha, since }, _options = {}) {
+  const directId = dispatched.json?.workflow_run_id;
+  return directId !== undefined && /^\d+$/.test(String(directId)) ? { id: directId, html_url: dispatched.json.html_url } : findRun(ctx, workflow, sha, since);
+}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "../access-resolver.js";
+import { createMemberAccessResolver, DefaultMemberAccessResolver, resolvePostMemberAccess } from "../access-resolver.js";
 import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
@@ -407,3 +407,12 @@ for (const activeTierIds of [[], ["tier-free", "tier-paid"]]) {
     assert.deepEqual(context, authenticatedContext(activeTierIds, activeTierIds.length > 0));
   });
 }
+
+test('shared route resolver factory creates independent resolvers using the injected member ports', async () => {
+  const deps = { memberSessionRepo: new InMemoryMemberSessionRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberTierRepo: new InMemoryMemberTierRepo() };
+  const first = createMemberAccessResolver({ deps });
+  const second = createMemberAccessResolver({ deps });
+  assert.notEqual(first, second);
+  assert.ok(first instanceof DefaultMemberAccessResolver);
+  assert.deepEqual(await first.resolveContext({ workspaceId: WORKSPACE_ID, nowIso: NOW }), { isAuthenticated: false, activeTierIds: [], isPaid: false });
+});

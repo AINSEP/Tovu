@@ -201,3 +201,24 @@ function decideUnknownVisibilityAccess(visibility: MemberContentVisibility): Mem
     teaser: false,
   };
 }
+
+/**
+ * The public routes' and admin preview's `MemberAccessResolver` (ADR-030 §4), built per render from
+ * the three member repo ports already on `RouteDeps`. Deliberately NOT a module-level singleton: `deps` is
+ * per-composition (every test in `__tests__/` injects its own in-memory repos through
+ * `createRouteDeps` overrides), so a singleton would capture whichever composition happened to
+ * construct first and then answer every later request from the wrong workspace's data.
+ * Construction performs no reads; only `resolveContext` with a session token reads the repo ports.
+ * @complexity O(1) time and space.
+ * @example createMemberAccessResolver({ deps });
+ */
+export function createMemberAccessResolver(
+  { deps }: { deps: { memberSessionRepo: MemberSessionRepoPort; memberSubscriptionRepo: MemberSubscriptionRepoPort; memberTierRepo: MemberTierRepoPort } },
+  _options: Record<string, never> = {}
+): MemberAccessResolver {
+  return new DefaultMemberAccessResolver({
+    sessions: deps.memberSessionRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    tiers: deps.memberTierRepo,
+  });
+}

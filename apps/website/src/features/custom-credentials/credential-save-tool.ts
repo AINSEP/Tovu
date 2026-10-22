@@ -1,6 +1,6 @@
-import type { LoadPluginCredentialCards, PluginCredentialCard } from "./plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, type PluginCredentialCard } from "./plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/secret-form-cards.js';
 import { CUSTOM_CREDENTIAL_CATEGORIES } from './types.js';
 
@@ -120,15 +120,21 @@ function selectPublishSave({ metadata, adapters }: { metadata: Record<string, un
  * @example buildCredentialSaveRegistrations({ adapters });
  * @complexity Registration O(1); each invocation performs O(k + f) routing before one domain save.
  */
-export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards }: { adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]> }, _optional = {}): ToolRegistration[] {
+export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentialCards, authorizePluginProvider, adaptersForCards }: { adapters: CredentialSaveAdapters; loadPluginCredentialCards?: () => Promise<readonly PluginCredentialCard[]>; authorizePluginProvider?: (ctx: ToolExecutionContext) => Promise<void>; adaptersForCards?: (required: { cards: readonly PluginCredentialCard[] }) => CredentialSaveAdapters }, _optional = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: 'credential-save', catalogModule: 'features/custom-credentials/credential-save-tool.ts',
     catalog: indexCatalogById({ catalog: credentialSaveCatalog }), derivedRisk: credentialSaveDerivedRisk,
     handlers: { [CREDENTIAL_SAVE_TOOL_ID]: async (ctx, optional = {}) => {
       const selected = selectSave({ input: requireInputRecord({ input: ctx.input }), adapters });
-      const card = selected.handler === adapters.pluginProvider && loadPluginCredentialCards
-        ? (await loadPluginCredentialCards()).find(entry => entry.providerId === selected.input.provider) : undefined;
-      const routed = routePluginCard({ card, selected, adapters });
+      if (selected.handler !== adapters.pluginProvider || !loadPluginCredentialCards) return selected.handler({ ...ctx, input: selected.input }, optional);
+      // A card can choose a domain, so require the entry permission before reading plugin data.
+      if (!authorizePluginProvider) throw new ToolInputError({ message: 'Plugin credential card authorization is unavailable. Use the credential kind directly.' });
+      await authorizePluginProvider(ctx);
+      const cards = await loadPluginCredentialCardsSafely({ loadCards: loadPluginCredentialCards, workspaceId: '' });
+      const resolvedAdapters = adaptersForCards?.({ cards }) ?? adapters;
+      const card = cards.find(entry => entry.providerId === selected.input.provider);
+      const resolved = { ...selected, handler: resolvedAdapters.pluginProvider };
+      const routed = routePluginCard({ card, selected: resolved, adapters: resolvedAdapters });
       return routed.handler({ ...ctx, input: routed.input }, optional);
     } },
   });

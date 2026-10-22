@@ -22,7 +22,6 @@
           "intro": "Connect Netlify to publish and update this site.",
           "keyHint": "Use a personal access token for an account allowed to create sites and deployments. If the team requires SSO, grant the token access to that team when creating it.",
           "saveKind": "publish-host",
-          "fields": [],
           "helpUrl": "https://app.netlify.com/user/applications#personal-access-tokens",
           "helpLabel": "Create a token",
           "baseUrl": "https://api.netlify.com"

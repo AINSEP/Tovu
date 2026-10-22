@@ -146,10 +146,12 @@ export async function listSavedHostingHosts(deps: SavedHostingDeps): Promise<str
  * @throws {ToolInputError} Missing, ambiguous or malformed resolver data; no fallback resolver. */
 export function readBundledPublicDnsResolverUrl(required: { readonly sourceRoot: string }, _optional = {}): string {
   const urls: string[] = [];
-  for (const plugin of bundledContributionSources({ ...required, filename: "plugin.json" })) {
+  let sources;
+  try { sources = bundledContributionSources({ ...required, filename: "plugin.json" }); } catch { throw dnsUnavailable(); }
+  for (const plugin of sources) {
     let manifest: unknown;
     try { manifest = JSON.parse(readFileSync(path.join(plugin.packageRoot, "plugin.json"), "utf8")); }
-    catch { throw dnsUnavailable(); }
+    catch { continue; }
     const url = publicDnsDeclarationUrl({ manifest });
     if (url !== undefined) urls.push(url);
   }
@@ -169,6 +171,17 @@ function dnsJsonEndpointUrl({ declaration }: { readonly declaration: { format?: 
   if (declaration?.format !== "dns-json" || typeof declaration.url !== "string") throw dnsUnavailable();
   let url: URL;
   try { url = new URL(declaration.url); } catch { throw dnsUnavailable(); }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw dnsUnavailable();
+  if (!isBareHttpsEndpoint({ url })) throw dnsUnavailable();
   return declaration.url;
+}
+
+/** URL shape policy, independent of declaration shape and URL parsing. O(1). */
+function isBareHttpsEndpoint({ url }: { url: URL }, _options = {}): boolean {
+  return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash;
+}
+
+/** Resolve immutable shipped metadata once. A failure refuses DNS queries without breaking catalog boot. */
+export function createBundledPublicDnsResolver(required: { client: HttpClientPort; sourceRoot: string }, options: DiagnosticOptions = {}): PublicDnsResolver {
+  try { return createPublicDnsResolver({ client: required.client, url: readBundledPublicDnsResolverUrl({ sourceRoot: required.sourceRoot }) }, options); }
+  catch { return { query: async () => { throw dnsUnavailable(); } }; }
 }

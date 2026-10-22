@@ -1,3 +1,5 @@
+import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
+import { resolveProductRoot } from "#src/platform/site-dir/index";
 import path from "node:path";
 
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
@@ -63,8 +65,9 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
     codec: COMMITTED_JSON_CODEC,
     path: path.join(repoRoot, PUBLISH_TRUST_CONFIG_PATH),
   });
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
   const findCandidate = () =>
-    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
+    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) }, { candidatePaths });
 
   return {
     name: "publish-content",

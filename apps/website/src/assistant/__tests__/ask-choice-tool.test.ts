@@ -447,7 +447,8 @@ test('chat-input regression: option id aliases accept descriptions and remain th
     const pending = await executeRegisteredTool({ registration, input });
     assert.equal(pending.status, 'completed');
     assert.match(JSON.stringify(pending.output), /Publish now/);
-    assert.doesNotMatch(JSON.stringify(pending.output), /Make the site available|Keep working locally/);
+    assert.match(JSON.stringify(pending.output), /Make the site available/);
+    assert.match(JSON.stringify(pending.output), /Keep working locally/);
     const ticket = answerTicketFromResult(pending.output);
     const params = shape === 'multiSelect' ? { selections: ['publish', 'Later'] } : { choice: 'publish' };
     const answer = await executeRegisteredTool({ registration, input: { ...params, [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });

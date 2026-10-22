@@ -1,6 +1,4 @@
-import path from "node:path";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
-import { isContainedDeployConfigPath, readBundledDeployConfigCandidatePaths } from "../deployments/index.js";
+import { isContainedDeployConfigPath } from "../deployments/index.js";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
@@ -78,7 +76,7 @@ export async function findCandidateDestination(deps: {
   readonly io: ProvisioningFileIo;
   /** Absolute path for a repo-relative config file. */
   readonly resolvePath: (relative: string) => string;
-}, { candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }) }: { readonly candidatePaths?: readonly string[] } = {}): Promise<string | null> {
+}, { candidatePaths = ["app.json"] }: { readonly candidatePaths?: readonly string[] } = {}): Promise<string | null> {
   for (const relative of candidatePaths) {
     if (!isContainedDeployConfigPath({ value: relative })) continue;
     const contents = await deps.io.read(deps.resolvePath(relative));

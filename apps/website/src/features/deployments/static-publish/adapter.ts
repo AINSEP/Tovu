@@ -66,7 +66,7 @@ import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic. Depends on `deploy-targets/` for the target
- * registry and host kit. No dependency on `../ports.ts`/`../providers/github.ts` (the sibling
+ * registry and host kit. No dependency on `../ports.ts`/`content/agent-plugins/github/deployments/github.mjs` (the sibling
  * continuous-deployment feature) — see `./types.ts`'s header for why these stay separate.
  */
 

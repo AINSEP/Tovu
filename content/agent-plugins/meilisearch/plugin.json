@@ -17,6 +17,7 @@
           "target": "meilisearch",
           "title": "Connect Meilisearch",
           "label": "Tovu Search — Meilisearch",
+          "ownedApiLabel": "Tovu Search — Meilisearch",
           "category": "general",
           "intro": "Connect your Meilisearch server to index and search this site’s public content only.",
           "keyHint": "Scope the key to the site index: indexes.create, indexes.delete, documents.add, documents.get, search, settings.update and tasks.get. Use a scoped key rather than the master key.",

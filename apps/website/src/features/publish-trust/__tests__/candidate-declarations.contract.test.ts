@@ -76,3 +76,13 @@ test("a missing bundled root yields no hints instead of failing the composition 
   assert.equal(readBundledDeployWorkflowFile({ sourceRoot }), undefined);
   assert.deepEqual(readBundledDeployConfigCandidatePaths({ sourceRoot }), ["app.json"]);
 });
+
+test('candidate discovery reads only supplied paths, with no implicit bundled manifest scan', async () => {
+  const reads: string[] = [];
+  const io = { read: async (file: string) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
+  await findCandidateDestination({ io, resolvePath: file => file });
+  assert.deepEqual(reads, ['app.json']);
+  reads.length = 0;
+  await findCandidateDestination({ io, resolvePath: file => file }, { candidatePaths: [] });
+  assert.deepEqual(reads, []);
+});

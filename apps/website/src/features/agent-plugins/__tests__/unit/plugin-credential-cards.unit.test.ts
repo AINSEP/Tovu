@@ -6,6 +6,21 @@ import { applyPluginCredentialCard, buildPluginCredentialForm, readPluginCredent
 const declaration = { target: 'example', label: 'Example key', category: 'hosting', baseUrl: 'https://api.example.com', title: 'Connect Example', intro: 'Publish this site.', keyHint: 'Grant deployment write access.' };
 const manifest = (cards: unknown) => JSON.stringify({ extensions: { tovu: { credentialCards: cards } } });
 
+test('an owned API label is explicit, preserved and limited to that card destination', () => {
+  for (const saveKind of [undefined, 'api']) {
+    const parsed = parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind, ownedApiLabel: 'Example key' }]) });
+    assert.ok(parsed.ok);
+    assert.equal(parsed.descriptors[0]!.ownedApiLabel, 'Example key');
+    assert.equal(readPluginCredentialValues({ card: parsed.descriptors[0]!, values: { token: 'key', label: 'injected' } }).label, 'Example key');
+  }
+  for (const ownedApiLabel of ['', 42, 'Another key', 'x'.repeat(2001)]) {
+    assert.equal(parsePluginCredentialCards({ raw: manifest([{ ...declaration, ownedApiLabel }]) }).ok, false);
+  }
+  for (const saveKind of ['publish-host', 'source-control', 'agent-plugin-token', 'oauth']) {
+    assert.equal(parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind, ownedApiLabel: 'Example key' }]) }).ok, false);
+  }
+});
+
 test('manifest cards normalize target identity and preserve declared fields without changing mail cards', () => {
   const parsed = parsePluginCredentialCards({ raw: manifest([{ ...declaration, fields: [{ name: 'username', label: 'Account name', required: true }] }]) });
   assert.ok(parsed.ok);
@@ -31,7 +46,9 @@ test('dynamic host and OAuth cards have explicit contracts; duplicate merged ids
   const oauth = parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind: 'oauth', permissions: 'Discover models; generation needs a separate write grant.' }]) });
   assert.ok(oauth.ok);
   assert.equal(oauth.descriptors[0]!.permissions, 'Discover models; generation needs a separate write grant.');
-  assert.throws(() => mergePluginCredentialCards({ mailCards: dynamic.descriptors, manifestCards: dynamic.descriptors }), /duplicate/i);
+  const refusals: string[] = [];
+  assert.deepEqual(mergePluginCredentialCards({ mailCards: dynamic.descriptors, manifestCards: dynamic.descriptors }, { onRefusal: message => refusals.push(message) }), dynamic.descriptors);
+  assert.match(refusals[0]!, /duplicate/i);
   assert.equal(credentialCardsContribution.kind, 'data');
   assert.equal(credentialCardsContribution.filename, 'plugin.json');
 });
@@ -49,7 +66,7 @@ test('domain forms keep required fields and update rules while plugin copy repla
   assert.match(rendered.description!, /Publish this site/);
   assert.match(rendered.description!, /Repository rules/);
   assert.deepEqual(rendered.fields[0], form.fields[0]);
-  assert.deepEqual(rendered.fields[1], { ...form.fields[1], hint: declaration.keyHint });
+  assert.deepEqual(rendered.fields[1], form.fields[1], 'unrelated secret fields keep their own hint');
   assert.equal(applyPluginCredentialCard({ form }), form);
 });
 
@@ -89,4 +106,56 @@ test('domain card lookup matches both the save owner and its provider id', async
   assert.equal(await findPluginCredentialCard({ loadCards, workspaceId: 'workspace', saveKind: 'publish-host', target: 'host' }), card);
   assert.equal(await findPluginCredentialCard({ loadCards, workspaceId: 'workspace', saveKind: 'source-control', target: 'host' }), undefined);
   assert.equal(await findPluginCredentialCard({ workspaceId: 'workspace', saveKind: 'publish-host', target: 'host' }), undefined);
+});
+
+test('optional card failures preserve the default form for every domain', async () => {
+  for (const saveKind of ['publish-host', 'source-control', 'agent-plugin-token', 'api'] as const) {
+    const card = await findPluginCredentialCard({ workspaceId: 'workspace', saveKind, target: 'host', loadCards: async () => { throw new Error('broken layout'); } });
+    const form = { title: 'Domain default', submitLabel: 'Save', fields: [] };
+    assert.equal(applyPluginCredentialCard({ card, form }), form);
+  }
+});
+
+test('all colliding manifest cards are dropped regardless of order, and mail wins', () => {
+  const card = { ...declaration, providerId: 'same' };
+  const other = { ...card, title: 'Other' };
+  for (const manifestCards of [[card, other], [other, card]]) {
+    const refusals: string[] = [];
+    assert.deepEqual(mergePluginCredentialCards({ mailCards: [], manifestCards }, { onRefusal: message => refusals.push(message) }), []);
+    assert.equal(refusals.length, 2);
+    assert.deepEqual(mergePluginCredentialCards({ mailCards: [card], manifestCards }, { onRefusal: () => undefined }), [card]);
+  }
+});
+
+test('domain copy keeps credential details, one sealing description and unrelated secret hints', () => {
+  const card = { ...declaration, providerId: 'example', helpUrl: 'https://example.com/keys' };
+  const form = { title: 'Rotate', submitLabel: 'Rotate', description: 'Sealed by the domain.', details: [{ label: 'Credential', value: 'existing' }], fields: [
+    { kind: 'string' as const, name: 'token', label: 'Token', secret: true, hint: 'Old token hint' },
+    { kind: 'string' as const, name: 'password', label: 'Password', secret: true, hint: 'Password hint' },
+  ] };
+  const rendered = applyPluginCredentialCard({ card, form });
+  assert.deepEqual(rendered.details?.[0], form.details[0]);
+  assert.ok(rendered.details?.some(detail => detail.value === card.helpUrl));
+  assert.equal(rendered.fields[0]!.hint, card.keyHint);
+  assert.equal(rendered.fields[1]!.hint, 'Password hint');
+  assert.equal(rendered.description, 'Publish this site. Sealed by the domain.');
+});
+
+test('only API forms may declare public input fields', () => {
+  for (const saveKind of ['publish-host', 'source-control', 'agent-plugin-token', 'oauth']) {
+    assert.equal(parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind, fields: [{ name: 'username', label: 'Account' }] }]) }).ok, false);
+  }
+});
+
+test('every bundled plugin credential declaration passes the real parser', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const root = new URL('../../../../../../../content/agent-plugins/', import.meta.url);
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    let raw: string;
+    try { raw = await readFile(new URL(`${entry.name}/plugin.json`, root), 'utf8'); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+    const parsed = parsePluginCredentialCards({ raw });
+    assert.ok(parsed.ok, `${entry.name}: ${parsed.ok ? '' : parsed.reason}`);
+  }
 });

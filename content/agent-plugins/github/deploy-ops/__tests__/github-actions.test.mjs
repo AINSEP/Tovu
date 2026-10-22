@@ -198,4 +198,4 @@ test("deploy: refuses bad refs, bare SHAs, unresolvable refs and malformed run l
   await assert.rejects(deploy(ctxWith([[/commits\/main$/, { json: { sha: SHA } }], [/runs\?event/, { json: {} }]]).ctx, { target: "acme/site" }), { message: "Workflow runs response must contain workflow_runs." });
 });
 
-const deploy = (ctx, input) => actions.deploy(ctx, { workflowFile: "example-deploy.yml", ...input });
+const deploy = (ctx, input) => actions.deploy(ctx, { workflowFiles: ["example-deploy.yml"], workflowFile: "example-deploy.yml", ...input });

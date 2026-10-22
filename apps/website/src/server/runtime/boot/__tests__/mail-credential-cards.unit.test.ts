@@ -39,6 +39,7 @@ const bundledCards = () => loadMailCredentialCards({ loadMailAdapters: () => loa
 test("the bundled resend descriptor declares its key card, filed under its credential label", async () => {
   const cards = await bundledCards();
   assert.deepEqual(cards.find(card => card.providerId === "resend"), {
+    pluginId: "resend",
     providerId: "resend",
     label: RESEND_LABEL,
     category: MAIL_CREDENTIAL_CATEGORY,

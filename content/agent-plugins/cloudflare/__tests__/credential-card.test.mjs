@@ -16,6 +16,6 @@ for (const [target, kind, title, permissions, helpUrl] of [
   assert.ok(value.intro);
 });
 
-test('non-secret connection fields are declared explicitly for both destinations', () => {
-  for (const target of ['cloudflare-workers', 'cloudflare-pages']) assert.deepEqual(card(target).fields.map(f => f.name), ['accountId', 'zoneId']);
+test('domain-owned forms supply the connection fields', () => {
+  for (const target of ['cloudflare-workers', 'cloudflare-pages']) assert.deepEqual(card(target).fields, undefined);
 });

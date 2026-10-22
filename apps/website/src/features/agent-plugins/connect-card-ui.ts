@@ -1,4 +1,4 @@
-import { buildPluginCredentialForm, type PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
+import { applyPluginCredentialCard, type PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
 import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
@@ -16,6 +16,7 @@ import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
  * Plain words only: copy comes from the plugin's explicit credential-card declaration, never its
  * raw plugin.json description, which can contain transport jargon. Older plugins retain the
  * display-name fallback so an absent declaration never blocks a real sign-in.
+ * plugin.json has no display-name field; uninstall-confirmation-ui.ts makes the identical choice.
  */
 
 function agentPluginConnectSurfaceUri(pluginId: string): UIResourceUri {
@@ -78,9 +79,8 @@ export function buildAgentPluginAccessTokenForm(spec: {
   readonly helpUrl: string;
   readonly credentialCard?: PluginCredentialCard;
 }, _optional = {}): SecretCardForm {
-  if (spec.credentialCard) return buildPluginCredentialForm({ card: spec.credentialCard });
   const { pluginDisplayName, helpUrl } = spec;
-  return {
+  return applyPluginCredentialCard({ card: spec.credentialCard, form: {
     title: `Connect ${pluginDisplayName} with an access token`,
     description:
       `Create a personal access token at ${helpUrl}, then paste it below. Tovu checks it with ` +
@@ -98,7 +98,7 @@ export function buildAgentPluginAccessTokenForm(spec: {
     ],
     cancelLabel: "Cancel",
     app: { appName: "tovu-agent-plugins-access-token", appVersion: "1" },
-  };
+  } });
 }
 
 /**

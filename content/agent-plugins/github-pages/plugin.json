@@ -22,7 +22,6 @@
           "intro": "Connect GitHub Pages to commit this site’s static export and enable Pages for the selected repository.",
           "keyHint": "Select only the destination repository. Fine-grained token: Contents and Pages → Read and write. A classic token needs repo scope.",
           "saveKind": "publish-host",
-          "fields": [],
           "helpUrl": "https://github.com/settings/personal-access-tokens/new",
           "helpLabel": "Create a token",
           "baseUrl": "https://api.github.com"

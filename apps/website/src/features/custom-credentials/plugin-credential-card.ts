@@ -21,10 +21,14 @@ export interface PluginCredentialField {
 
 /** One plugin-declared key card, already resolved to the saved row it fills. */
 export interface PluginCredentialCard {
+  /** Declaring installed plugin, supplied by the trusted contribution loader. */
+  readonly pluginId?: string;
   /** Provider id the assistant passes as `target` (e.g. a mail provider's id). */
   readonly providerId: string;
   /** API credential label, or the connection name for a domain-owned save. */
   readonly label: string;
+  /** Explicit ownership of this API card's exact label; conflicting plugins are refused at merge. */
+  readonly ownedApiLabel?: string;
   readonly category: string;
   readonly baseUrl: string;
   readonly title: string;
@@ -77,8 +81,8 @@ export function buildPluginCredentialForm({ card }: { card: PluginCredentialCard
 export function applyPluginCredentialCard({ card, form }: { card?: PluginCredentialCard; form: SecretCardForm }, _options = {}): SecretCardForm {
   if (!card) return form;
   const pluginForm = buildPluginCredentialForm({ card });
-  return { ...form, title: pluginForm.title, description: `${pluginForm.description} ${form.description ?? ""}`.trim(), details: pluginForm.details,
-    fields: form.fields.map(field => field.kind === "string" && field.secret ? { ...field, hint: card.keyHint ?? field.hint } : field) };
+  return { ...form, title: pluginForm.title, description: form.description ? `${card.intro ?? ""} ${form.description}`.trim() : pluginForm.description, details: [...(form.details ?? []), ...(pluginForm.details ?? [])],
+    fields: form.fields.map(field => field.kind === "string" && field.name === "token" && field.secret ? { ...field, hint: card.keyHint ?? field.hint } : field) };
 }
 
 /** Extract API inputs from the human card. Fixed destinations cannot be changed by form params.
@@ -116,11 +120,19 @@ function assertHttpsInput({ value }: { value: string }, _options = {}): void {
 export async function findPluginCredentialCard({ loadCards, workspaceId, saveKind, target }: {
   loadCards?: LoadPluginCredentialCards; workspaceId: string; saveKind: PluginCredentialCard['saveKind']; target: string;
 }, _options = {}): Promise<PluginCredentialCard | undefined> {
-  return (await loadCards?.(workspaceId))?.find(card => card.saveKind === saveKind && (card.saveTarget ?? card.providerId) === target);
+  return (await loadPluginCredentialCardsSafely({ loadCards, workspaceId })).find(card => card.saveKind === saveKind && (saveKind === "api" ? card.label === target : (card.saveTarget ?? card.providerId) === target));
 }
 
 /** API rows have a fixed label; domain owners choose their own connection identity. */
 function pluginCardDetails({ card }: { card: PluginCredentialCard }, _options = {}): SecretCardForm['details'] {
   const help = card.helpUrl ? [{ label: card.helpLabel ?? 'Get a key', value: card.helpUrl }] : [];
   return card.saveKind && card.saveKind !== 'api' ? help : [...help, { label: 'Saved as', value: card.label }];
+}
+
+/** Optional display data cannot prevent a domain's authorized credential operation. O(cards).
+ * Failures report a fixed warning, without reflecting filesystem paths or credential metadata.
+ */
+export async function loadPluginCredentialCardsSafely({ loadCards, workspaceId }: { loadCards?: LoadPluginCredentialCards; workspaceId: string }, options: { warn?: (message: string) => void } = {}): Promise<readonly PluginCredentialCard[]> {
+  try { return await loadCards?.(workspaceId) ?? []; }
+  catch { (options.warn ?? console.warn)("[plugin-credential-cards] Optional card lookup failed; using the default credential form."); return []; }
 }

@@ -34,7 +34,7 @@ function createTypedChoiceFixture(_required: Record<string, never>, _options = {
   const tools = buildToolIndex({ tools: [tool] });
   return {
     registration, gateInputs,
-    invoke: ({ input }: { input: unknown }, _options = {}) => handleToolCall({
+    invoke: ({ input }: { input: Record<string, unknown> }, _options = {}) => handleToolCall({
       name: tool.name, tools,
       ctx: { baseUrl: 'http://unused.test', fetchImpl: async () => assert.fail('no network expected') },
     }, { rawArgs: input }),
@@ -65,14 +65,14 @@ const realInputs = [
   {
     name: 'question, a distinct title and flat option IDs',
     input: { question: 'Publish the mobile scroll fix …?', title: 'Publish to Vercel?', options: publishOptions },
-    title: 'Publish to Vercel?', label: 'Publish to Vercel?',
+    title: 'Publish to Vercel?', label: 'Publish the mobile scroll fix …?',
     labels: publishOptions.map(option => option.label), values: ['publish', 'hold'], answer: { choice: 'hold' },
   },
   {
     name: 'question and label-only options with descriptions',
     input: { question: 'Which headline …?', options: headlineOptions },
     title: 'Which headline …?', label: 'Which headline …?',
-    labels: headlineOptions.map(option => option.label), values: headlineOptions.map(option => option.label),
+    labels: headlineOptions.map(option => `${option.label} — ${option.description}`), values: headlineOptions.map(option => option.label),
     answer: { choice: headlineOptions[0]!.label },
   },
 ];

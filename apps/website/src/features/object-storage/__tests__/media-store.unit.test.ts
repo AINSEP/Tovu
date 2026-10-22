@@ -450,3 +450,8 @@ test("a missing env declaration refuses an opt-in rather than selecting local st
     message: "Unknown TOVU_MEDIA_BLOB_STORE 'example' — expected 'local'.",
   });
 });
+
+test('without injected declarations an unknown env selector is refused without reading product sources', () => {
+  assert.throws(() => readMediaStoreEnvFromDeclarations({ env: FULL_ENV }), /expected 'local'/);
+  assert.equal(readMediaStoreEnvFromDeclarations({ env: { TOVU_MEDIA_BLOB_STORE: 'local' } }).kind, 'local');
+});

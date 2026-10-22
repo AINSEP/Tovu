@@ -20,6 +20,7 @@
           "target": "fly",
           "title": "Connect Fly.io",
           "label": "fly.io",
+          "ownedApiLabel": "fly.io",
           "category": "hosting",
           "intro": "Connect Fly.io to inspect and deploy the Tovu server and manage its Machines.",
           "keyHint": "Use a deploy token scoped to this app. Use an org-scoped token only when creating or managing apps across that organization. In the Fly dashboard, select the app or organization, then Tokens. Avoid the short-lived login auth token.",

@@ -1,3 +1,4 @@
+import { createMemberAccessResolver } from "#src/features/members/index";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
@@ -5,7 +6,6 @@ import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/adapter";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import {
-  createMemberAccessResolver,
   renderViaTemplate,
   resolveActiveTheme,
   resolveHtmlEmbedsForRender,

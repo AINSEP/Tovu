@@ -21,12 +21,13 @@ export interface DeployOpsResponse { status: number; json?: unknown; text: strin
 /** A JSON write. The host serializes `body`; a module never sets headers or chooses the credential.
  *  DELETE is only bound for the secret-removal verb; every other verb's facade refuses it. */
 export interface DeployOpsSendRequest { method: "POST" | "PATCH" | "PUT" | "DELETE"; url: string; body?: unknown }
-export interface DeployOpsDeployInput { target: string; ref?: string; workflowFile?: string }
+export interface DeployOpsDeployInput { target: string; ref?: string; workflowFile?: string; workflowFiles?: readonly string[] }
 /** `started` means the platform accepted the request; landing is observed with status/wait afterwards. */
 export interface DeployOpsDeployResult {
   platform: string;
   target: string;
-  started: true;
+  /** False is a safe refusal: no deployment was dispatched. */
+  started: boolean;
   summary: string;
   runId?: string;
   sha?: string;

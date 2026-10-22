@@ -69,10 +69,10 @@ test("the rest of the base overlay is identical whether the flag is on or off", 
   );
 });
 
-test("every overlay applies the single search-first procedure to site files and third-party APIs", () => {
+test("search-first applies when no visible tool fits or before a native fallback", () => {
   for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
     const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
-    assert.match(overlay, /For every action, including reading or editing site files \(themes, content, config\) and third-party API calls: call search_tools FIRST/);
+    assert.match(overlay, /Before any native Bash\/file fallback, or when no visible tool fits: call search_tools FIRST/);
     assert.equal(overlay.match(/phrasing the query as a description of what the tool DOES/g)?.length, 1);
     assert.equal(overlay.includes("What to do instead when you believe no tool fits"), !nativeToolAccess);
     assert.equal(overlay.includes("assistant_ask_choice"), true);

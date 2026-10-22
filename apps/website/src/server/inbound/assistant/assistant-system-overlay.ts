@@ -193,8 +193,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "deployment providers, and every other third-party API reachable with a stored token. Those " +
     "are NOT infrastructure work outside this catalog's scope; content_read.custom_credential, " +
     "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
-    "is made with the site's own audited credential rather than a shell. For every action, including " +
-    "reading or editing site files (themes, content, config) and third-party API calls: call " +
+    "is made with the site's own audited credential rather than a shell. Before any native Bash/file fallback, or when no visible tool fits: call " +
     "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
     "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
     "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +

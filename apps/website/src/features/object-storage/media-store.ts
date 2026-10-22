@@ -1,6 +1,4 @@
-import path from "node:path";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
-import { readBundledObjectStoreEnvDeclarations, type ObjectStoreEnvDeclaration } from "./registry.js";
+import { type ObjectStoreEnvDeclaration } from "./registry.js";
 import { blobStoreFromObjectStore, type BlobStorePort } from "@jini-ai/cms/media";
 import { deferObjectStore, type ObjectStore, type ObjectStoreCreateInput } from "@jini-ai/core/object-store";
 import { createLocalFsObjectStore } from "@jini-ai/platform/object-store";
@@ -61,7 +59,7 @@ export function readMediaStoreEnv(required: { readonly env: Readonly<Record<stri
   const backend = env[MEDIA_OBJECT_STORE_ENV];
   if (backend === undefined) return { kind: "unset" };
   if (backend === "local") return { kind: "local" };
-  const declarations = optional.envDeclarations ?? readBundledObjectStoreEnvDeclarations({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
+  const declarations = optional.envDeclarations ?? [];
   const declaration = declarations.find(entry => entry.selector === backend);
   if (!declaration) {
     const expected = ["local", ...declarations.map(entry => entry.selector)].map(selector => `'${selector}'`).join(" or ");
