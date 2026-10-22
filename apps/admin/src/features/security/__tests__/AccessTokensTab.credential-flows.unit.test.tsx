@@ -331,7 +331,7 @@ describe("AccessTokensTab — ProviderGroup: not-connected vs connected vs add-f
   });
 
   it("never renders '[+ Add another]' for a custom credential group, connected or not", () => {
-    const target = rowState({ row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy" }) });
+    const target = rowState({ row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "example-host.io deploy" }) });
     renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
     expect(screen.queryByRole("button", { name: /Add another/ })).not.toBeInTheDocument();
   });
@@ -431,13 +431,13 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
   it("enables Save for a custom credential when ONLY its username changed, and Save calls replaceToken", () => {
     const replaceToken = vi.fn().mockResolvedValue(undefined);
     const target = rowState({
-      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
-      name: "fly.io deploy",
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "example-host.io deploy", username: "old-user" }),
+      name: "example-host.io deploy",
       username: "new-user",
     });
     renderTab({ groups: [groupFor("custom", "custom-1", [target])], replaceToken });
 
-    const saveButton = screen.getByRole("button", { name: "Save — fly.io deploy" });
+    const saveButton = screen.getByRole("button", { name: "Save — example-host.io deploy" });
     expect(saveButton).not.toBeDisabled();
     fireEvent.click(saveButton);
     expect(replaceToken).toHaveBeenCalledWith(target.row);
@@ -445,22 +445,22 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
 
   it("enables Save for a custom credential whose saved username was CLEARED (blank draft, no token)", () => {
     const target = rowState({
-      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
-      name: "fly.io deploy",
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "example-host.io deploy", username: "old-user" }),
+      name: "example-host.io deploy",
       username: "",
     });
     renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
-    expect(screen.getByRole("button", { name: "Save — fly.io deploy" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save — example-host.io deploy" })).not.toBeDisabled();
   });
 
   it("keeps Save disabled for a custom credential when nothing changed (same name, same username, no token)", () => {
     const target = rowState({
-      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy", username: "old-user" }),
-      name: "fly.io deploy",
+      row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "example-host.io deploy", username: "old-user" }),
+      name: "example-host.io deploy",
       username: "old-user",
     });
     renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
-    expect(screen.getByRole("button", { name: "Save — fly.io deploy" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save — example-host.io deploy" })).toBeDisabled();
   });
 
   // The catalog rule must stay as it was: its own doc forbids a bare-username Save for a catalog
@@ -647,7 +647,7 @@ describe("AccessTokensTab — TokenInputFields: provider-specific extra fields",
   });
 
   it("shows Username with generic optional-field hint copy for a custom credential's Replace form (optionalFields, not required)", () => {
-    const target = rowState({ row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "fly.io deploy" }) });
+    const target = rowState({ row: row({ kind: "custom", providerId: "custom-1", id: "custom-1", name: "example-host.io deploy" }) });
     const { container } = renderTab({ groups: [groupFor("custom", "custom-1", [target])] });
     const group = container.querySelector('[data-agent-element="security-access-tokens-group-custom-custom-1"]') as HTMLElement;
     expect(within(group).getByLabelText("Username")).toBeInTheDocument();
@@ -726,14 +726,14 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const setCustomAddField = vi.fn();
     openDialog({ setCustomAddField });
 
-    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: "fly.io" } });
-    expect(setCustomAddField).toHaveBeenCalledWith({ name: "fly.io" });
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: "example-host.io" } });
+    expect(setCustomAddField).toHaveBeenCalledWith({ name: "example-host.io" });
 
-    fireEvent.change(screen.getByLabelText(/^API base URL/), { target: { value: "https://api.fly.io" } });
-    expect(setCustomAddField).toHaveBeenCalledWith({ baseUrl: "https://api.fly.io" });
+    fireEvent.change(screen.getByLabelText(/^API base URL/), { target: { value: "https://api.example-host.io" } });
+    expect(setCustomAddField).toHaveBeenCalledWith({ baseUrl: "https://api.example-host.io" });
 
-    fireEvent.change(screen.getByLabelText("Additional hosts"), { target: { value: "https://api.machines.dev" } });
-    expect(setCustomAddField).toHaveBeenCalledWith({ additionalHosts: "https://api.machines.dev" });
+    fireEvent.change(screen.getByLabelText("Additional hosts"), { target: { value: "https://machines.example-host.dev" } });
+    expect(setCustomAddField).toHaveBeenCalledWith({ additionalHosts: "https://machines.example-host.dev" });
 
     fireEvent.change(screen.getByLabelText(/^Access token/), { target: { value: "tok" } });
     expect(setCustomAddField).toHaveBeenCalledWith({ token: "tok" });
@@ -756,7 +756,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 
   it("shows no base-URL error for a valid, non-blank URL", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null } });
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: null } });
     expect(screen.queryByText("Enter a valid http:// or https:// URL.")).not.toBeInTheDocument();
   });
 
@@ -781,7 +781,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const createCustomCredential = vi.fn().mockResolvedValue(true);
     openDialog({
       createCustomCredential,
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
+      customAddForm: { name: "example-host.io", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
 
     const saveButton = screen.getByRole("button", { name: "Save" });
@@ -799,7 +799,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   it("closes the dialog on a successful save", async () => {
     const { container } = openDialog({
       createCustomCredential: vi.fn().mockResolvedValue(true),
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
+      customAddForm: { name: "example-host.io", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
     const dialog = container.querySelector<HTMLDialogElement>("dialog.access-tokens-add-custom-dialog")!;
 
@@ -812,7 +812,7 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
     const createCustomCredential = vi.fn().mockResolvedValue(false);
     const { container } = openDialog({
       createCustomCredential,
-      customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
+      customAddForm: { name: "example-host.io", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: false, error: null },
     });
     const dialog = container.querySelector<HTMLDialogElement>("dialog.access-tokens-add-custom-dialog")!;
 
@@ -834,12 +834,12 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 
   it("shows the dialog's own save-error alert when present", () => {
-    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: 'A token named "fly.io" already exists for this workspace.' } });
-    expect(screen.getByRole("alert")).toHaveTextContent('A token named "fly.io" already exists for this workspace.');
+    openDialog({ customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [], saving: false, error: 'A token named "example-host.io" already exists for this workspace.' } });
+    expect(screen.getByRole("alert")).toHaveTextContent('A token named "example-host.io" already exists for this workspace.');
   });
 
   it("shows 'Saving…' and disables Save while a save is in flight", () => {
-    openDialog({ customAddForm: { name: "fly.io", category: "general", baseUrl: "https://api.fly.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: true, error: null } });
+    openDialog({ customAddForm: { name: "example-host.io", category: "general", baseUrl: "https://api.example-host.io", additionalHosts: "", token: "tok", username: "", worksFor: [], saving: true, error: null } });
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 });

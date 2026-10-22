@@ -13,11 +13,11 @@ import { durableSubscriptionFixture } from "./durable-subscription.fixture";
 // and cursor guarantees while removing the old browser terminalization fallback.
 test("a closed stream reopens at its cursor only after the saved message confirms its attempt", async () => {
   const h = durableSubscriptionFixture();
-  h.opened[0]!.frame("agent", JSON.stringify({ payload: { type: "text_delta", delta: "Your Fly app has 3 secrets." } }), "cur-7");
+  h.opened[0]!.frame("agent", JSON.stringify({ payload: { type: "text_delta", delta: "Your app has 3 secrets." } }), "cur-7");
   h.opened[0]!.dropped(); await h.flush();
   expect(h.done).toEqual([]);
   expect(h.opened).toHaveLength(1);
-  h.save({ id: "answer", role: "assistant", content: "Your Fly app has 3 secrets.", runId: "old", runStatus: "running" });
+  h.save({ id: "answer", role: "assistant", content: "Your app has 3 secrets.", runId: "old", runStatus: "running" });
   await h.tick();
   expect(h.opened.map(({ runId, cursor }) => ({ runId, cursor }))).toEqual([{ runId: "old", cursor: "" }, { runId: "old", cursor: "cur-7" }]);
   h.abort.abort(); expect(h.timers.size).toBe(0);

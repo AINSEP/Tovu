@@ -81,9 +81,9 @@ function customCredential(overrides: Partial<AdminCustomCredentialSummary> = {})
     credentialType: "custom",
     worksFor: [],
     id: "custom-1",
-    label: "fly.io deploy",
+    label: "example-host.io deploy",
     category: "hosting",
-    baseUrl: "https://api.fly.io",
+    baseUrl: "https://api.example-host.io",
     additionalHosts: [],
     configured: true,
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -241,7 +241,7 @@ describe("useAccessTokens: setExistingField", () => {
     });
     expect(findRow(result.current.controller.groups, "cred-1")?.name).toBe("Production");
     expect(findRow(result.current.controller.groups, "sc-1")?.name).toBe("Main");
-    expect(findRow(result.current.controller.groups, "custom-1")?.name).toBe("fly.io deploy");
+    expect(findRow(result.current.controller.groups, "custom-1")?.name).toBe("example-host.io deploy");
   });
 
   it.each(["publish", "custom"] as const)("sends nothing for a %s replacement that was never edited, keeping the saved row's prefill", async (kind) => {
@@ -437,13 +437,13 @@ describe("useAccessTokens: makeDefault", () => {
 describe("useAccessTokens: existing-row username prefill", () => {
   it("a saved custom credential's edit draft prefills its saved username", async () => {
     const port = fakePort({
-      custom: { list: () => Promise.resolve({ credentials: [customCredential({ username: "fly-deploy-bot" })] }) },
+      custom: { list: () => Promise.resolve({ credentials: [customCredential({ username: "example-host-deploy-bot" })] }) },
     });
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
     const row = findRow(result.current.groups, "custom-1");
-    expect(row?.username).toBe("fly-deploy-bot");
+    expect(row?.username).toBe("example-host-deploy-bot");
   });
 
   it("a saved custom credential with no username still prefills empty, not stale or blank-by-accident", async () => {
@@ -1089,17 +1089,17 @@ describe("useAccessTokens: replaceCustomCredential — duplicate name and reject
   it("rejects with a visible duplicate-name error, with no API call, when renaming to another saved custom credential's name", async () => {
     const update = vi.fn();
     const port = fakePort({
-      custom: { list: () => Promise.resolve({ credentials: [customCredential({ id: "custom-1", label: "fly.io deploy" }), customCredential({ id: "custom-2", label: "Other" })] }), update },
+      custom: { list: () => Promise.resolve({ credentials: [customCredential({ id: "custom-1", label: "example-host.io deploy" }), customCredential({ id: "custom-2", label: "Other" })] }), update },
     });
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const target = findRow(result.current.groups, "custom-2")!.row;
 
-    act(() => result.current.setExistingField("custom-2", { name: "fly.io deploy" }));
+    act(() => result.current.setExistingField("custom-2", { name: "example-host.io deploy" }));
     await act(() => result.current.replaceToken(target));
 
     expect(update).not.toHaveBeenCalled();
-    expect(findRow(result.current.groups, "custom-2")?.error).toBe('A token named "fly.io deploy" already exists for this workspace.');
+    expect(findRow(result.current.groups, "custom-2")?.error).toBe('A token named "example-host.io deploy" already exists for this workspace.');
   });
 
   it("a rejected custom update surfaces the save-error message on that row", async () => {
@@ -1302,11 +1302,11 @@ describe("useAccessTokens: custom add-form draft + reset", () => {
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: "fly.io" }));
-    act(() => result.current.setCustomAddField({ baseUrl: "https://api.fly.io" }));
+    act(() => result.current.setCustomAddField({ name: "example-host.io" }));
+    act(() => result.current.setCustomAddField({ baseUrl: "https://api.example-host.io" }));
 
-    expect(result.current.customAddForm.name).toBe("fly.io");
-    expect(result.current.customAddForm.baseUrl).toBe("https://api.fly.io");
+    expect(result.current.customAddForm.name).toBe("example-host.io");
+    expect(result.current.customAddForm.baseUrl).toBe("https://api.example-host.io");
   });
 
   it("resetCustomAddForm clears every field back to blank and clears busy/error state", async () => {
@@ -1314,7 +1314,7 @@ describe("useAccessTokens: custom add-form draft + reset", () => {
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: "fly.io", token: "tok", baseUrl: "https://api.example.com" }));
+    act(() => result.current.setCustomAddField({ name: "example-host.io", token: "tok", baseUrl: "https://api.example.com" }));
     await act(() => result.current.createCustomCredential());
     expect(result.current.customAddForm.error).not.toBeNull();
 
@@ -1331,7 +1331,7 @@ describe("useAccessTokens: createCustomCredential", () => {
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: "fly.io", token: "tok", baseUrl: "not-a-url" }));
+    act(() => result.current.setCustomAddField({ name: "example-host.io", token: "tok", baseUrl: "not-a-url" }));
     let ok: boolean | undefined;
     await act(async () => {
       ok = await result.current.createCustomCredential();
@@ -1344,12 +1344,12 @@ describe("useAccessTokens: createCustomCredential", () => {
   it("rejects with a visible workspace-wide duplicate-name error, with no API call", async () => {
     const create = vi.fn();
     const port = fakePort({
-      custom: { list: () => Promise.resolve({ credentials: [customCredential({ label: "fly.io deploy" })] }), create },
+      custom: { list: () => Promise.resolve({ credentials: [customCredential({ label: "example-host.io deploy" })] }), create },
     });
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: "fly.io deploy", token: "tok", baseUrl: "https://api.example.com" }));
+    act(() => result.current.setCustomAddField({ name: "example-host.io deploy", token: "tok", baseUrl: "https://api.example.com" }));
     let ok: boolean | undefined;
     await act(async () => {
       ok = await result.current.createCustomCredential();
@@ -1357,7 +1357,7 @@ describe("useAccessTokens: createCustomCredential", () => {
 
     expect(ok).toBe(false);
     expect(create).not.toHaveBeenCalled();
-    expect(result.current.customAddForm.error).toBe('A token named "fly.io deploy" already exists for this workspace.');
+    expect(result.current.customAddForm.error).toBe('A token named "example-host.io deploy" already exists for this workspace.');
   });
 
   it("creates a new custom credential, appends it, resets the form, and returns true", async () => {
@@ -1366,7 +1366,7 @@ describe("useAccessTokens: createCustomCredential", () => {
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setCustomAddField({ name: " New host ", category: "hosting", token: "tok", baseUrl: " https://api.example.com ", username: " fly-user ", additionalHosts: " https://api.machines.dev, https://uploads.example.com\nhttps://status.example.com " }));
+    act(() => result.current.setCustomAddField({ name: " New host ", category: "hosting", token: "tok", baseUrl: " https://api.example.com ", username: " example-host-user ", additionalHosts: " https://machines.example-host.dev, https://uploads.example.com\nhttps://status.example.com " }));
     let ok: boolean | undefined;
     await act(async () => {
       ok = await result.current.createCustomCredential();
@@ -1377,8 +1377,8 @@ describe("useAccessTokens: createCustomCredential", () => {
       worksFor: [],
       category: "hosting",
       baseUrl: "https://api.example.com",
-      additionalHosts: ["https://api.machines.dev", "https://uploads.example.com", "https://status.example.com"],
-      connection: { token: "tok", username: "fly-user" },
+      additionalHosts: ["https://machines.example-host.dev", "https://uploads.example.com", "https://status.example.com"],
+      connection: { token: "tok", username: "example-host-user" },
     });
     expect(ok).toBe(true);
     expect(findRow(result.current.groups, "custom-new")).toBeDefined();
@@ -1706,18 +1706,18 @@ describe("useAccessTokens: a saved credential whose provider is not listed (IRON
   it("keeps a saved publish row for a switched-off host visible, under a fallback group marked unlisted, and it can still be removed", async () => {
     const remove = vi.fn(() => Promise.resolve());
     const lists = [
-      { credentials: [publishCredential({ id: "fly-1", providerId: "fly", label: "Fly prod" })], executionMode: "self-hosted-cli" as const },
+      { credentials: [publishCredential({ id: "example-host-1", providerId: "example-host", label: "Example prod" })], executionMode: "self-hosted-cli" as const },
       { credentials: [], executionMode: "self-hosted-cli" as const },
     ];
     const port = fakePort({ publish: { list: () => Promise.resolve(lists.shift() ?? lists[0]!), remove } });
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
-    const group = findGroup(result.current.groups, "publish", "fly");
+    const group = findGroup(result.current.groups, "publish", "example-host");
     expect(group?.info.unlisted).toBe(true);
-    expect(group?.info.label).toBe("fly");
-    expect(group?.rows.map((r) => r.row.id)).toEqual(["fly-1"]);
+    expect(group?.info.label).toBe("example-host");
+    expect(group?.rows.map((r) => r.row.id)).toEqual(["example-host-1"]);
     await act(() => result.current.removeToken(group!.rows[0]!.row));
-    expect(remove).toHaveBeenCalledWith("fly-1");
+    expect(remove).toHaveBeenCalledWith("example-host-1");
   });
 
   it("keeps a saved source-control row whose provider is not listed visible, marked unlisted", async () => {

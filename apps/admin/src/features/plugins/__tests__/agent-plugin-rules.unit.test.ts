@@ -25,7 +25,7 @@ describe("agentPluginGlyphKind", () => {
     // would satisfy three separate equality assertions.
     const kinds = [
       agentPluginGlyphKind(pkg("site-compliance", ["compliance", "privacy", "gdpr", "accessibility", "wcag"], ["site-compliance"])),
-      agentPluginGlyphKind(pkg("tovu-deploy-fly", ["deploy", "fly.io", "hosting"], ["tovu-deploy-fly"])),
+      agentPluginGlyphKind(pkg("tovu-deploy-example", ["deploy", "example-host.io", "hosting"], ["tovu-deploy-example"])),
       agentPluginGlyphKind(pkg("ui-ux-design", [], ["frontend-accessibility", "interface-design", "shadcn-ui", "ui-ux-design"])),
     ];
 
@@ -74,7 +74,7 @@ describe("humanizeAgentPluginId", () => {
   });
 
   it("names no plugin by hand: every id takes the generic transform", () => {
-    expect(humanizeAgentPluginId("tovu-deploy-fly")).toBe("Tovu Deploy Fly");
+    expect(humanizeAgentPluginId("tovu-deploy-example")).toBe("Tovu Deploy Example");
   });
 });
 
@@ -93,7 +93,7 @@ describe("agentPluginDisplayName", () => {
 describe("agentPluginToggleAriaLabel", () => {
   it("names the target action and the plugin, so two rows' switches are distinguishable", () => {
     expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "en")).toBe("Disable Site Compliance");
-    expect(agentPluginToggleAriaLabel({ pluginId: "tovu-deploy-fly", enabled: false }, "en")).toBe("Enable Tovu Deploy Fly");
+    expect(agentPluginToggleAriaLabel({ pluginId: "tovu-deploy-example", enabled: false }, "en")).toBe("Enable Tovu Deploy Example");
   });
 
   it("uses the locale's own verb", () => {
