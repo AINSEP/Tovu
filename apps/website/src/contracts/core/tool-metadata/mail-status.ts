@@ -19,7 +19,7 @@ export const toolMetadata = {
   "mail_set_provider": {
     search: {
       keywords: "email mail provider switch change choose smtp resend sending service configure set up",
-      queries: ["Switch my site's email to SMTP.", "Use Resend to send this site's email.", "Set up which provider sends my email."],
+      queries: ["Switch my site's email to SMTP.", "Use my hosted email provider to send this site's email.", "Set up which provider sends my email."],
     },
     approval: { class: 'escalation', confirmation: 'plan' },
   },

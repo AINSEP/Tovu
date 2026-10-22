@@ -1890,7 +1890,7 @@
     ],
     "mail_set_provider": [
       "Switch my site's email to SMTP.",
-      "Use Resend to send this site's email.",
+      "Use my hosted email provider to send this site's email.",
       "Set up which provider sends my email."
     ],
     "mail_send_test": [

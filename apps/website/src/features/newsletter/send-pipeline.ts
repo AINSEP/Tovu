@@ -73,7 +73,7 @@ export interface SendPipelineDeps {
 
 /**
  * Quota waits (2026-10-21, review email#4). A rate limit is back-pressure, not a failure, so it must never spend the
- * outbox's failure budget: a batch of 20 against Resend's 2/s burst-2 bucket defers on almost every other row, which
+ * outbox's failure budget: a batch of 20 against a provider's small (e.g. 2/s, burst-2) bucket defers on almost every other row, which
  * used to fail the batch each time and exhaust `MAX_OUTBOX_ATTEMPTS` with recipients still pending. A short hint is
  * waited out inline (each wait at most 2s, at most 20s per run: far inside the 60s outbox delivery timeout and the 2
  * minute row lease); a longer one reschedules the deferred row and the rest as a fresh event, due no earlier than the

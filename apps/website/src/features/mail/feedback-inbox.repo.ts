@@ -9,7 +9,7 @@ import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
  * Only a row whose `processed_at` is set (by `complete`, after suppression succeeded) counts as
  * delivered: a replay of an unprocessed row is reported `inserted` so the ingest re-applies it.
  * @complexity O(1) per event.
- * @example createMailFeedbackInboxRepo({ db: kernel }).record({ providerId: "resend", event })
+ * @example createMailFeedbackInboxRepo({ db: kernel }).record({ providerId: "<mail-provider-id>", event })
  */
 export function createMailFeedbackInboxRepo<DB>({ db }: MailRepoDeps<DB>, optional: MailRepoOptions = {}): MailFeedbackInboxPort {
   const nowIso = optional.nowIso ?? (() => new Date().toISOString());

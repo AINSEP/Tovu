@@ -93,7 +93,7 @@ export function createMailPolicyWrapper(required: MailPolicyWrapperDeps, optiona
       send: deliverOne,
       async sendBatch(messages, options) {
         // Per-recipient ledger rows need per-recipient dispatch. One key per message (`:index`, as the
-        // Resend adapter always did): a shared key would make messages 2..n look like retries of 1.
+        // bundled hosted adapter always did): a shared key would make messages 2..n look like retries of 1.
         const results: MailerSendResult[] = [];
         for (const [index, message] of messages.entries()) results.push(await deliverOne(message, { ...options, idempotencyKey: `${options.idempotencyKey}:${index}` }));
         return results;
