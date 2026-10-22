@@ -1,5 +1,6 @@
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import assert from "node:assert/strict";
@@ -76,7 +77,7 @@ export async function captureDaemonRun(
     resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     // A CLI whose `--help` lists `--chrome`; fixtures override it to model an older CLI.
     probeAssistantChrome: async () => true,
-    resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    resolveFullCliAccess, resolveAssistantCliPermissions, resolveBundledHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",

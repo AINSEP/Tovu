@@ -4,6 +4,7 @@ import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createAutomaticPluginRuns } from "../../../assistant/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
@@ -417,7 +418,7 @@ const bashProhibitionEnabled = resolveBashProhibitionEnabled();
  * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
  */
 function resolvePermissionMode(): "bypass" | "restricted" {
-  return resolveAgentPermissionMode({ env: process.env });
+  return resolveAgentPermissionMode({ env: process.env }, { hostSignals: resolveBundledHostSignals({ env: process.env }) });
 }
 
 // Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why
@@ -1292,13 +1293,14 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
   ): Promise<void> {
     const isOwner = principal.id === await routeDeps.ownerPrincipalId;
+    const hostSignals = resolveBundledHostSignals({ env: process.env });
     // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
-    const settings = resolveFullCliAccess({ isOwner, env: process.env }, {})
+    const settings = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals })
       ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
         settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
       : assistantCliPermissions({ enabled: false });
     const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
-      settings });
+      settings }, { hostSignals });
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
     // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
     if (isOwner) {

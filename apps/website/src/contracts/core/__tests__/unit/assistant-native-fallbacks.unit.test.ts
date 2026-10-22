@@ -15,7 +15,7 @@ test('local owner defaults ON; other principals and the off switch stay locked',
 
 for (const hosted of [
   { TOVU_RUNTIME_MODE: 'production' }, { TOVU_HOSTED: '1' }, { TOVU_HOSTED: 'true' },
-  { FLY_APP_NAME: 'tovu' }, { FLY_MACHINE_ID: 'machine' }, { TOVU_PUBLIC_URL: 'https://tovu.dev' },
+  { TOVU_PUBLIC_URL: 'https://tovu.dev' },
   { TOVU_PUBLIC_URL: 'https://owner.tovu.dev/' },
 ]) test(`hosted signal ${JSON.stringify(hosted)} overrides owner opt-ins and permission bypass`, () => {
   const env = { ...hosted, TOVU_AGENT_NATIVE_FALLBACKS: '1', TOVU_AGENT_PERMISSION_MODE: 'bypass' };
@@ -29,4 +29,12 @@ test('Full CLI access is a single owner setting, with a reversible legacy enviro
   assert.equal(resolveAssistantNativeFallbacks({ isOwner: true, env: { TOVU_AGENT_FULL_CLI_ACCESS: '1', TOVU_AGENT_NATIVE_FALLBACKS: '0' }, setting: true }), false);
   assert.equal(resolveAssistantNativeFallbacks({ isOwner: true, env: { TOVU_AGENT_FULL_CLI_ACCESS: '1' }, setting: true }), true);
   assert.equal(resolveAssistantNativeFallbacks({ isOwner: true, env: { TOVU_AGENT_PERMISSION_MODE: 'restricted' }, setting: true }), false);
+});
+
+test('injected native restrictions override owner grants and granular capability choices', () => {
+  const hostSignals = { hosted: false, nativeToolsRestricted: true, labels: [] };
+  const env = { TOVU_AGENT_PERMISSION_MODE: 'bypass', TOVU_AGENT_FULL_CLI_ACCESS: '1' };
+  assert.equal(isHostedAssistantRuntime({ env }, { hostSignals }), true);
+  assert.equal(resolveAssistantNativeFallbacks({ isOwner: true, env }, { hostSignals }), false);
+  assert.equal(resolveAgentPermissionMode({ env }, { hostSignals }), 'restricted');
 });

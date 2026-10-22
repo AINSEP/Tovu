@@ -1,4 +1,5 @@
 import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON,
   ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliCapability } from "#src/contracts/headless/assistant-subagents-policy";
@@ -18,13 +19,14 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     validationError: "enabled and capability values must be booleans.",
     read: async () => readAssistantCliPermissions({ ...required.deps, principalId: await required.deps.ownerPrincipalId,
       settingsReady: required.deps.settingsUiTabsReady }, { readFailure: "throw" }),
-    canEdit: ({ isOwner }) => isOwner && !isHostedAssistantRuntime({ env: process.env }),
+    canEdit: ({ isOwner }) => isOwner && !isHostedAssistantRuntime({ env: process.env }, { hostSignals: resolveBundledHostSignals({ env: process.env }) }),
     // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
     // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
     projectRead: ({ settings, isOwner }) => {
       const envLock = fullCliEnvLock({ env: process.env });
-      return { ...resolveAssistantCliPermissions({ isOwner, env: process.env, settings }),
-        ...(isHostedAssistantRuntime({ env: process.env }) ? { unavailableReason: "Not available on hosted sites" }
+      const hostSignals = resolveBundledHostSignals({ env: process.env });
+      return { ...resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }),
+        ...(isHostedAssistantRuntime({ env: process.env }, { hostSignals }) ? { unavailableReason: "Not available on hosted sites" }
           : !isOwner ? { unavailableReason: "Only the owner can change agent permissions." }
           : envLock ? { unavailableReason: `Turned off on this computer by ${envLock}.` } : {}) };
     },

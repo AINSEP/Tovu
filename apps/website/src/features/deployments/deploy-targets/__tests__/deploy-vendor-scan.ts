@@ -22,6 +22,18 @@ export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-basel
 /** The core surfaces the plan's T7 and T10 boundaries name. Directory entries end in `/`. */
 export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/deployments/",
+  // Vendor extraction phase 4: platform env names and labels belong in shipped declarations.
+  "apps/website/src/contracts/core/host-signals.ts",
+  "apps/website/src/contracts/core/assistant-native-fallbacks.ts",
+  "apps/website/src/contracts/core/agent-permission-mode.ts",
+  "apps/website/src/features/agent-plugins/host-signals.ts",
+  "apps/website/src/features/plugin-runtime/install.ts",
+  "apps/website/src/server/inbound/shared/trust-proxy.ts",
+  "apps/website/src/server/runtime/boot/boot-readiness-warnings.ts",
+  "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+  "apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts",
+  "apps/desktop/src/desktop-agent.ts",
+  "apps/desktop/src/desktop-host-signals.ts",
   // Vendor extraction phases 5/6: diagnostic resolver URLs and object-store env mappings.
   "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
   "apps/website/src/features/object-storage/",
@@ -54,7 +66,7 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
   { id: "cloudflare", pattern: /cloudflare|pages\.dev|workers\.dev/gi },
   { id: "github-pages", pattern: /github[-_ ]?pages|github\.io/gi },
   { id: "s3-compatible", pattern: /s3[-_ ]?compatible|amazonaws|backblaze|wasabi|digitaloceanspaces/gi },
-  { id: "fly", pattern: /fly\.io|flyctl|fly\.toml|machines\.dev|flyv1|\bfly\b/gi },
+  { id: "fly", pattern: /FLY_[A-Z0-9_]+|fly\.io|flyctl|fly\.toml|machines\.dev|flyv1|\bfly\b/gi },
   { id: "railway", pattern: /railway/gi },
   // "render" is an ordinary word (and a React verb), so only vendor-specific forms count.
   { id: "render", pattern: /render\.com|render\.yaml|onrender/gi },
@@ -65,7 +77,12 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
  * per (file, vendor) out of its result; any hit above it still counts, and the boundary test fails
  * when an entry no longer matches the file (so a stale entry cannot hide a later addition).
  */
-export const DEPLOY_VENDOR_ALLOWLIST: ReadonlyArray<{ file: string; rule: string; count: number; reason: string }> = [];
+export const DEPLOY_VENDOR_ALLOWLIST: ReadonlyArray<{ file: string; rule: string; count: number; reason: string }> = [
+  {
+    file: "apps/website/src/contracts/core/host-signals.ts", rule: "fly", count: 6,
+    reason: "Phase 4 security CHECK: immutable HEAD fallback and full legacy warning advice must survive absent, unreadable, malformed or ambiguous plugin declarations. Core owns baseline protections.",
+  },
+];
 
 /** Cheap pre-filter: a file with no raw match cannot have one after comments are removed. */
 const ANY_RULE = new RegExp(RULES.map((rule) => rule.pattern.source).join("|"), "i");

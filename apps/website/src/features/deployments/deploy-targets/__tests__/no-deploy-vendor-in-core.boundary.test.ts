@@ -84,6 +84,20 @@ test("tool search metadata scan covers the deployments tools, which carry no hos
 });
 
 test("the extracted declaration consumers remain inside the vendor boundary", () => {
+  for (const file of [
+    "apps/website/src/contracts/core/host-signals.ts",
+    "apps/website/src/contracts/core/assistant-native-fallbacks.ts",
+    "apps/website/src/contracts/core/agent-permission-mode.ts",
+    "apps/website/src/features/agent-plugins/host-signals.ts",
+    "apps/website/src/features/plugin-runtime/install.ts",
+    "apps/website/src/server/inbound/shared/trust-proxy.ts",
+    "apps/website/src/server/runtime/boot/boot-readiness-warnings.ts",
+    "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+    "apps/website/src/server/inbound/admin-http/routes/system/assistant-subagents.ts",
+    "apps/desktop/src/desktop-agent.ts",
+    "apps/desktop/src/desktop-host-signals.ts",
+  ]) assert.ok(SCAN_ROOTS.includes(file), file);
+  assert.deepEqual(countDeployVendors('env.FLY_APP_NAME || env.FLY_MACHINE_ID || env.FLY_ALLOC_ID'), { fly: 3 });
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/publish-trust/"));
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/object-storage/"));
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/site-backup/share-hosting.ts"));

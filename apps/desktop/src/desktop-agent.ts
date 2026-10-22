@@ -38,6 +38,8 @@ import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-
 import { redactSecretShapes } from "../../website/src/contracts/core/secret-redaction.ts";
 import { assistantCliPermissions, type AssistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
+import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
+import type { HostSignals } from "../../website/src/contracts/core/host-signals.ts";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
 
 /** The one identity every desktop-agent tool call acts as: the local operator. */
@@ -268,21 +270,22 @@ function defaultAgentExecutor(
  * @param required The captured site addressee and the app-owned runtime's host environment.
  * @param optional Fresh settings and login-shell readers; failures reject the turn unchanged.
  * @returns Native capabilities, their aggregate grant, and the optional login environment.
- * @complexity O(1) policy work plus the login reader's bounded process and environment copy.
+ * @complexity O(1) with facts, otherwise a bundled manifest scan, plus the bounded login reader.
  * @example await resolveDesktopTurnAccess({ addressee: null, hostEnv: runtime.hostEnv }, readers);
  */
 async function resolveDesktopTurnAccess(
-  required: { addressee: TurnAddressee | null; hostEnv: NativeAgentRuntime["hostEnv"] },
+  required: { addressee: TurnAddressee | null; hostEnv: NativeAgentRuntime["hostEnv"]; hostSignals?: HostSignals },
   optional: Pick<DesktopAgentRuntimeOptions, "readFullCliAccess" | "readLoginShellEnvironment"> = {},
 ): Promise<{
   nativeCapabilities: AssistantCliPermissions["capabilities"];
   nativeToolAccess: boolean;
   parityEnv: Record<string, string> | undefined;
 }> {
-  const setting = resolveFullCliAccess({ isOwner: true, env: required.hostEnv }, {})
+  const hostSignals = required.hostSignals ?? resolveDesktopHostSignals({ env: required.hostEnv });
+  const setting = resolveFullCliAccess({ isOwner: true, env: required.hostEnv }, { hostSignals })
     ? await optional.readFullCliAccess?.({ addressee: required.addressee }, {}) : false;
   const settings = typeof setting === "object" ? setting : assistantCliPermissions({ enabled: setting ?? true });
-  const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.hostEnv, settings });
+  const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.hostEnv, settings }, { hostSignals });
   const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
   const parityEnv = nativeCapabilities.loginEnvironment ? await (optional.readLoginShellEnvironment ?? readLoginShellEnvironment)({ baseEnv: required.hostEnv,
     excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
@@ -348,7 +351,8 @@ async function createDesktopAgentRuntime(
 
   async function startTurn(input: DesktopTurnInput, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
     const addressee = options.addressee ?? null;
-    const { nativeCapabilities, nativeToolAccess, parityEnv } = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv }, optional);
+    const hostSignals = resolveDesktopHostSignals({ env: required.agentRuntime.hostEnv });
+    const { nativeCapabilities, nativeToolAccess, parityEnv } = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv, hostSignals }, optional);
     const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
     liveRuns.set(run.id, { addressee });
     void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
@@ -370,7 +374,7 @@ async function createDesktopAgentRuntime(
     void fullCliContext.run(nativeToolAccess, () => executor.run(
       { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
       {
-        permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, {}) ? 'restricted' : 'bypass',
+        permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, { hostSignals }) ? 'restricted' : 'bypass',
         nativeToolAccess,
         nativeCapabilities,
         cliParity: nativeToolAccess,
