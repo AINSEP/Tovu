@@ -1,0 +1,293 @@
+import { parse, serialize, type DefaultTreeAdapterMap } from "parse5";
+import { htmlToText, stripActiveHtml } from "@jini-ai/platform/web";
+
+/**
+ * @file The pure half of email templates: `{{field}}` fill-ins, the template's own declarations
+ * (subject and fields, read out of its HTML), and the two renders — the admin PREVIEW, which keeps
+ * the template's scripts because it is shown in the Pages preview iframe's sandbox, and the SEND
+ * render, which is static HTML because mail clients strip script anyway and a message that relied
+ * on it would arrive broken.
+ *
+ * Everything a template declares lives in its HTML, not in extra columns: a template is an
+ * `"html"`-format row in the Pages store (see `operations.ts`), and that store's single body is the
+ * one source of truth an agent edits with the same full-document writes it uses for a Page.
+ *
+ * - Subject: the document's `<title>` (it may itself contain `{{field}}`s).
+ * - Fields: `<meta name="email-fields" content="name=Ada, orderId">` — comma-separated names, each
+ *   optionally `=sample` (the value a preview shows when the caller gives none).
+ */
+
+type ParentNode = DefaultTreeAdapterMap["parentNode"];
+type ChildNode = DefaultTreeAdapterMap["childNode"];
+type Element = DefaultTreeAdapterMap["element"];
+
+/** The `<meta name>` a template declares its fill-in fields with. */
+export const EMAIL_FIELDS_META_NAME = "email-fields";
+
+/** `{{ name }}` — a field name is an identifier, optionally dotted or dashed. */
+const PLACEHOLDER = /\{\{\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*\}\}/g;
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
+
+/** Tags a sent email never carries: embedded documents and plugins, on top of `stripActiveHtml`'s. */
+const SEND_STRIPPED_TAGS = new Set(["iframe", "object", "embed", "frame", "frameset", "applet"]);
+/** Script-bearing URL schemes; tested after removing the whitespace/control characters a browser ignores. */
+const ACTIVE_URL = /^(?:javascript|vbscript):/i;
+
+export interface EmailTemplateField {
+  name: string;
+  /** Shown by the preview when the caller gives no value for this field. */
+  sample?: string;
+}
+
+export interface EmailTemplateDeclarations {
+  /** The raw `<title>` text, placeholders unfilled; `""` when the template has none. */
+  subject: string;
+  fields: EmailTemplateField[];
+}
+
+export type EmailFieldValues = Readonly<Record<string, string>>;
+
+export interface FilledText {
+  text: string;
+  /** Placeholders the values did not cover, in first-use order; each was rendered empty. */
+  missingFields: string[];
+}
+
+/** The `{{field}}` names a string uses, de-duplicated in first-use order. */
+export function placeholdersIn({ text }: { text: string }, _optional: Record<string, never> = {}): string[] {
+  return [...new Set([...text.matchAll(PLACEHOLDER)].map((match) => match[1]))];
+}
+
+/** Escapes a value for HTML text AND quoted-attribute context. */
+export function escapeHtml({ value }: { value: string }, _optional: Record<string, never> = {}): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/**
+ * Replaces every `{{field}}` with its value. An unknown field renders empty — never the literal
+ * braces a recipient would see — and is reported so the caller can refuse or warn.
+ * @param required.escape - Applied to every value: {@link escapeHtml} for HTML, identity for a subject.
+ * @complexity O(n) in the text length.
+ */
+export function fillPlaceholders(
+  { text, values, escape }: { text: string; values: EmailFieldValues; escape: (value: string) => string },
+  _optional: Record<string, never> = {},
+): FilledText {
+  const missing = new Set<string>();
+  const filled = text.replace(PLACEHOLDER, (_match, name: string) => {
+    if (!Object.hasOwn(values, name)) {
+      missing.add(name);
+      return "";
+    }
+    return escape(values[name]);
+  });
+  return { text: filled, missingFields: [...missing] };
+}
+
+/** One `name` or `name=sample` entry; `null` for a malformed name, which is ignored. */
+function parseFieldEntry(entry: string): EmailTemplateField | null {
+  const separator = entry.indexOf("=");
+  const name = (separator === -1 ? entry : entry.slice(0, separator)).trim();
+  if (!FIELD_NAME.test(name)) return null;
+  if (separator === -1) return { name };
+  return { name, sample: entry.slice(separator + 1).trim() };
+}
+
+/** The declared fields from a `content` attribute, first declaration of a name winning. */
+export function parseFieldDeclarations({ content }: { content: string }, _optional: Record<string, never> = {}): EmailTemplateField[] {
+  const byName = new Map<string, EmailTemplateField>();
+  for (const entry of content.split(",")) {
+    const field = parseFieldEntry(entry);
+    if (field && !byName.has(field.name)) byName.set(field.name, field);
+  }
+  return [...byName.values()];
+}
+
+/** Writes a field list back into the `content` form {@link parseFieldDeclarations} reads. */
+export function formatFieldDeclarations({ fields }: { fields: readonly EmailTemplateField[] }, _optional: Record<string, never> = {}): string {
+  return fields.map((field) => (field.sample === undefined ? field.name : `${field.name}=${field.sample}`)).join(", ");
+}
+
+function isElement(node: ChildNode | ParentNode): node is Element {
+  return "tagName" in node;
+}
+
+function attribute(element: Element, name: string): string | undefined {
+  return element.attrs.find((attr) => attr.name === name)?.value;
+}
+
+/** Every element under `root`, depth first. */
+function* elementsIn(root: ParentNode): Generator<Element> {
+  const pending: ParentNode[] = [root];
+  while (pending.length > 0) {
+    const node = pending.pop() as ParentNode;
+    if (isElement(node)) yield node;
+    for (const child of node.childNodes) if ("childNodes" in child) pending.push(child);
+  }
+}
+
+function textOf(element: Element): string {
+  return element.childNodes.map((child) => ("value" in child && child.nodeName === "#text" ? child.value : "")).join("");
+}
+
+function isFieldsMeta(element: Element): boolean {
+  return element.tagName === "meta" && attribute(element, "name")?.toLowerCase() === EMAIL_FIELDS_META_NAME;
+}
+
+/**
+ * Reads a template's subject (`<title>`) and declared fields (`<meta name="email-fields">`).
+ * @complexity O(nodes).
+ */
+export function readTemplateDeclarations({ html }: { html: string }, _optional: Record<string, never> = {}): EmailTemplateDeclarations {
+  let subject: string | undefined;
+  let fields: EmailTemplateField[] = [];
+  for (const element of elementsIn(parse(html))) {
+    if (element.tagName === "title" && subject === undefined) subject = textOf(element).trim();
+    if (isFieldsMeta(element) && fields.length === 0) fields = parseFieldDeclarations({ content: attribute(element, "content") ?? "" });
+  }
+  return { subject: subject ?? "", fields };
+}
+
+/** Placeholders used in the HTML (subject included) that the template never declared. */
+export function undeclaredFieldsIn({ html, declarations }: { html: string; declarations: EmailTemplateDeclarations }, _optional: Record<string, never> = {}): string[] {
+  const declared = new Set(declarations.fields.map((field) => field.name));
+  return placeholdersIn({ text: html }).filter((name) => !declared.has(name));
+}
+
+/** True when an attribute value would run script once a browser normalizes it as a URL. Tested on
+ * every attribute, not only `href`/`src`, the same breadth `stripActiveHtml` applies. */
+function isActiveUrl(value: string): boolean {
+  // Browsers drop ASCII tab/newline anywhere in a URL and leading C0 controls/space, so
+  // `java\nscript:` is still script; `stripActiveHtml`'s own test only trims leading whitespace.
+  // eslint-disable-next-line no-control-regex
+  return ACTIVE_URL.test(value.replace(/[\u0000- ]/g, ""));
+}
+
+/** Second, email-specific pass after `stripActiveHtml`: embeds, obfuscated script URLs, the fields meta. */
+function stripForMail(root: ParentNode): void {
+  for (const node of elementsIn(root)) {
+    node.childNodes = node.childNodes.filter((child) => !(isElement(child) && (SEND_STRIPPED_TAGS.has(child.tagName) || isFieldsMeta(child))));
+    node.attrs = node.attrs.filter((attr) => !isActiveUrl(attr.value));
+  }
+}
+
+/**
+ * The static HTML a mail client receives: `<script>`/`<noscript>`/`<template>`, comments, inline
+ * `on*` handlers and `javascript:` URLs removed (the shared `stripActiveHtml` policy), then
+ * `<iframe>`/`<object>`/`<embed>` (and their legacy kin), obfuscated script URLs and the template's
+ * own field declarations. Styles and classes survive: email layout depends on them.
+ *
+ * Known cost: comments are removed, so Outlook `<!--[if mso]>` conditional blocks do not survive.
+ * @complexity O(nodes), two parses.
+ */
+export function sanitizeEmailHtml({ html }: { html: string }, _optional: Record<string, never> = {}): string {
+  const document = parse(stripActiveHtml({ html }));
+  stripForMail(document);
+  return serialize(document);
+}
+
+/** A visible ` (url)` after a link whose text is not already its URL, so the text part keeps links. */
+function annotateLinks(root: ParentNode): void {
+  for (const element of elementsIn(root)) {
+    const href = element.tagName === "a" ? attribute(element, "href")?.trim() : undefined;
+    if (!href || !/^(?:https?:|mailto:)/i.test(href) || textOf(element).trim() === href) continue;
+    element.childNodes.push({ nodeName: "#text", value: ` (${href.replace(/^mailto:/i, "")})`, parentNode: element } as ChildNode);
+  }
+}
+
+/**
+ * The plain-text alternative: the shared `htmlToText` (one line per block; head, scripts and styles
+ * omitted), with each link's URL written after its text so a text-only reader can still follow it.
+ * @complexity O(nodes).
+ */
+export function emailHtmlToText({ html }: { html: string }, _optional: Record<string, never> = {}): string {
+  const document = parse(html);
+  annotateLinks(document);
+  return htmlToText({ html: serialize(document) });
+}
+
+/** A subject is one header line: fill raw (it is not HTML) and fold any line break a value carried. */
+function renderSubject(subject: string, values: EmailFieldValues): FilledText {
+  const filled = fillPlaceholders({ text: subject, values, escape: (value) => value });
+  return { text: filled.text.replace(/[\r\n]+/g, " ").trim(), missingFields: filled.missingFields };
+}
+
+export interface RenderedEmail {
+  subject: string;
+  html: string;
+  /** Placeholders no value covered, subject and body together; each rendered empty. */
+  missingFields: string[];
+}
+
+function renderWith(html: string, values: EmailFieldValues): RenderedEmail {
+  const declarations = readTemplateDeclarations({ html });
+  const subject = renderSubject(declarations.subject, values);
+  const body = fillPlaceholders({ text: html, values, escape: (value) => escapeHtml({ value }) });
+  return { subject: subject.text, html: body.text, missingFields: [...new Set([...subject.missingFields, ...body.missingFields])] };
+}
+
+/** The values a preview renders with: declared samples, overridden by whatever the caller gave. */
+export function previewValues(
+  { declarations, values }: { declarations: EmailTemplateDeclarations; values: EmailFieldValues },
+  _optional: Record<string, never> = {},
+): Record<string, string> {
+  const samples = declarations.fields.flatMap((field) => (field.sample === undefined ? [] : [[field.name, field.sample] as const]));
+  return { ...Object.fromEntries(samples), ...values };
+}
+
+/**
+ * The admin preview. Scripts are KEPT — the preview is the Pages preview iframe, sandboxed without
+ * `allow-same-origin`, so they run in an opaque origin — and `scriptsStripped: false` says so.
+ * @complexity O(n) in the template length.
+ */
+export function renderEmailPreview({ html, values }: { html: string; values: EmailFieldValues }, _optional: Record<string, never> = {}): RenderedEmail {
+  const declarations = readTemplateDeclarations({ html });
+  return renderWith(html, previewValues({ declarations, values }));
+}
+
+export interface SendableEmail extends RenderedEmail {
+  /** The plain-text alternative, derived from the sanitized HTML. */
+  text: string;
+}
+
+/**
+ * Template + values -> the `subject`/`html`/`text` an `OutboundEmail` carries. Values are filled
+ * BEFORE sanitizing, so a value that smuggles a `javascript:` URL into an `href="{{url}}"` is
+ * removed with everything else. Samples are never used: a sent email shows only real values.
+ * @complexity O(n) in the template length.
+ */
+export function renderEmailForSend({ html, values }: { html: string; values: EmailFieldValues }, _optional: Record<string, never> = {}): SendableEmail {
+  const rendered = renderWith(html, values);
+  const safeHtml = sanitizeEmailHtml({ html: rendered.html });
+  return { subject: rendered.subject, html: safeHtml, text: emailHtmlToText({ html: safeHtml }), missingFields: rendered.missingFields };
+}
+
+/** The starter body a template is born with when its creator gives no HTML. */
+export function emailTemplateSkeleton(
+  { subject, fields }: { subject: string; fields: readonly EmailTemplateField[] },
+  _optional: Record<string, never> = {},
+): string {
+  const meta = fields.length > 0 ? `\n<meta name="${EMAIL_FIELDS_META_NAME}" content="${escapeHtml({ value: formatFieldDeclarations({ fields }) })}">` : "";
+  const greeting = fields.length > 0 ? `Hello {{${fields[0].name}}},` : "Hello,";
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">${meta}
+<title>${escapeHtml({ value: subject })}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;">
+<tr><td align="center" style="padding:24px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;">
+<tr><td style="padding:32px;font-size:16px;line-height:1.5;">
+<p>${greeting}</p>
+<p></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+`;
+}

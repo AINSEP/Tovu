@@ -59,6 +59,7 @@ import { probeExternalMcpServer } from "#src/server/runtime/services/external-mc
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -410,6 +411,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });

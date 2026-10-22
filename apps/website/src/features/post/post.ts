@@ -25,6 +25,20 @@ export type PostStatus = "draft" | "published";
 export type PostKind = "post" | "page";
 
 /**
+ * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a
+ * {@link PostKind}: a template is stored as an `"html"`-format row through the Pages HTML store, the
+ * same storage a bespoke Page uses, but it is never a post or a page — no admin list, no public URL.
+ * Every reader that filters on `kind === "post"`/`"page"` therefore never sees one, and
+ * {@link updatePost} refuses one as not-found, which is what keeps a template a `"draft"` forever:
+ * `updatePost` is the only path that changes `status`, so a template can never be published onto
+ * the public site through the kind-blind post tools.
+ */
+export const EMAIL_TEMPLATE_KIND = "email-template";
+
+/** The kinds the Pages HTML store may birth as `"html"`-format rows. */
+export const HTML_DOCUMENT_KINDS: ReadonlySet<string> = new Set(["page", EMAIL_TEMPLATE_KIND]);
+
+/**
  * SPEC-047/ADR-056 Decision 3 — discriminates which body column a record actually carries.
  * `"doc"` (the only value this chokepoint ever writes in v1, see {@link resolveBodyFields}) is a
  * TipTap/ProseMirror document in `bodyJson`; `"html"` is a bespoke-HTML Page written only through
@@ -1870,7 +1884,9 @@ export async function updatePost(
   // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
   // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
   // editing it; there is no edit-through-the-trash path.
-  if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  // An email template shares this table but is not a post (EMAIL_TEMPLATE_KIND's own doc): not-found
+  // here is what keeps one from ever being published.
+  if (!existing || isTrashed(existing) || (existing.kind as string) === EMAIL_TEMPLATE_KIND) throw new PostNotFoundError(`post '${input.id}' was not found`);
   assertExpectedVersion(existing, input.expectedVersion);
 
   const fields = validateUpdatePostInput(input, existing);

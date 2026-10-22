@@ -4,7 +4,7 @@ import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
-import { SYSTEM_ACTOR_ID } from "../post/post.js";
+import { HTML_DOCUMENT_KINDS, SYSTEM_ACTOR_ID } from "../post/post.js";
 import { announcePendingGoLive } from "../post/go-live.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
@@ -100,7 +100,8 @@ export class InMemoryPagesHtmlDocumentStore {
     const row = await this.load();
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: isTrashed(row) ? "trashed" : "live" });
-    if (row.kind !== "page") {
+    // An email template is born through this same store (`post.ts`'s HTML_DOCUMENT_KINDS).
+    if (!HTML_DOCUMENT_KINDS.has(row.kind)) {
       throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
     }
 
