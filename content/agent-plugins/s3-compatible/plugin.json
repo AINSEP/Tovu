@@ -10,7 +10,6 @@
       "displayName": "S3",
       "summary": "Puts your website online in your own storage bucket, like Amazon S3 or Cloudflare R2. The assistant shows you a preview first.",
       "id": "tovu/s3-compatible",
-      "seededEnabled": true,
       "provides": [
         "deploy-target:s3-compatible"
       ]

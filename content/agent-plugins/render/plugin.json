@@ -10,7 +10,6 @@
       "displayName": "Render",
       "summary": "Writes the settings file for running the Tovu server on Render. You follow its notes to finish the deploy.",
       "id": "tovu/render",
-      "seededEnabled": true,
       "provides": [
         "deploy-config:render"
       ]

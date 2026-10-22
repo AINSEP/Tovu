@@ -10,7 +10,6 @@
       "displayName": "GitHub",
       "summary": "Lets the assistant save your site's files to GitHub, run builds there, and back up your whole site.",
       "id": "tovu/github",
-      "seededEnabled": true,
       "provides": [
         "source-control",
         "site-backup",

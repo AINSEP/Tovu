@@ -10,7 +10,6 @@
       "displayName": "Netlify",
       "summary": "Puts your website online on Netlify. The assistant shows you a preview first.",
       "id": "tovu/netlify",
-      "seededEnabled": true,
       "provides": [
         "deploy-target:netlify"
       ]

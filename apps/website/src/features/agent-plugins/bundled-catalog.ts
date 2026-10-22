@@ -61,8 +61,11 @@ export function readManifestSeededEnabledPluginIds(
  * (`deploy-split-activation.ts`). Phase B extends that carry to the server-host plugins; GitHub
  * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12). `deploy` itself is
  * retired (Phase B7, `RETIRED_BUNDLED_AGENT_PLUGINS` below) and no longer seeded.
- * Vendor plugins that host a core-relied-on adapter (a mail adapter, the git-host provider) say why
- * they are seeded on in their own NOTES.md. `site-import` (owner
+ * `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
+ * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
+ * stop sending mail. `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
+ * moved out of core 2026-09-29: with it off, committing the site, `custom_credential_write_files`, site
+ * backups and the Source Control form's account-name check would all stop. `site-import` (owner
  * decision 2026-10-08): bringing an existing website into Tovu is a first-run job, so the skill is
  * available without a trip to the Agent Plugins screen; it writes nothing until the owner approves
  * its plan, and imported entries are drafts. `tovu-theme` (owner auto-mode decision 2026-10-08):
@@ -77,7 +80,7 @@ export function readManifestSeededEnabledPluginIds(
  */
 export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set([
   ...readManifestSeededEnabledPluginIds({ sourceRoot: bundledAgentPluginsDir() }),
-  "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+  "render", "railway", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
