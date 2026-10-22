@@ -35,6 +35,9 @@ test("an unresolvable or unreadable bundled root contributes nothing instead of 
   assert.deepEqual(readManifestSeededEnabledPluginIds({ sourceRoot: ROOT }, { readDir: () => { throw new Error("ENOENT"); } }), []);
 });
 
-test("the real bundled tree still seeds every vendor plugin that opted in from its manifest", () => {
-  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("fly"), true);
+test("the real bundled tree's opted-in plugins are all in the seeded-enabled set", () => {
+  const bundled = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+  const optedIn = readManifestSeededEnabledPluginIds({ sourceRoot: bundled });
+  assert.ok(optedIn.length > 0, "at least one bundled plugin opts in from its manifest");
+  for (const id of optedIn) assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(id), true, id);
 });
