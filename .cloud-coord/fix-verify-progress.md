@@ -19,3 +19,5 @@ Setup: npm ci OK (root, admin, desktop), sdk build OK, link:jini OK.
 | sites-move-home (partial copy, ENOENT) | 1 fail | real |
 | publish-agent-tools propose-credential ('owner' not s3 field) | 1 fail | real |
 | desktop renderer websites-width x2 | Chromium executable missing | LOCAL-RUN NEEDED |
+
+## STEP 2 — done 05:55 UTC: all real findings fixed or stale tests updated; see fix-verify-REPORT.md.
