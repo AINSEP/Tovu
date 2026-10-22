@@ -400,3 +400,16 @@ the CDN script did not run (offline desktop app, self-hosted site without intern
 `document.write` fallback is synchronous, so load order and self-init timing match the old single
 tag. The vendored copy is now the offline fallback, not the primary source. No SRI hash: a range
 URL cannot carry one.
+
+## kUInetic loads once, locally, from the footer partial (2026-10-22)
+
+Supersedes the 2026-09-27 section above. The per-page jsDelivr `@0` tag, its
+`window.kuinetic||document.write(...)` fallback and (tovu-theme) the per-page CDN `preload` are
+gone: no third-party CDN, no `document.write`, no unreviewed `@0` updates. The vendored
+`scripts/vendor/kuinetic.all.js` (unminified — no minified build is vendored in the repo; MIT,
+`scripts/vendor/kuinetic-LICENSE.md`) is the only source, loaded by ONE plain `<script>` at the end
+of `render/partials/footer.html` and `footer-minimal.html`, which every page includes. Absolute
+`/theme-assets/<id>/` path because partials expand after the page's `../scripts/` rewrite. Kept
+synchronous: kUInetic defers its own boot to `DOMContentLoaded` while the page is parsing, so it
+still arms after `main.js`/`docs-toc.js`, and `window.kuinetic` still exists before `lightbox.js`.
+Updating kUInetic means re-vendoring the file by hand.

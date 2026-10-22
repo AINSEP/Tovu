@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
-import { renderStaticPage } from "../static-render.js";
+import { expandPartials, renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 
 /**
@@ -61,7 +61,8 @@ for (const themeId of MIGRATED_STATIC_THEME_IDS) {
         assert.notEqual(html, null, `${themeId}/${pageId}: must render`);
         const rendered = html as string;
 
-        const sourceAssets = assetReferences(theme.pages[pageId]);
+        // Scripts a shared partial carries (the stock footer's one kUInetic tag) are part of the page too.
+        const sourceAssets = assetReferences(expandPartials(theme.pages[pageId], theme));
         const renderedAssets = assetReferences(rendered);
         const expectedUrl = (url: string) => url.replace(/^\.\.\/(css|scripts)\//, `/theme-assets/${themeId}/$1/`);
         assert.deepEqual(renderedAssets.stylesheets, sourceAssets.stylesheets.map(expectedUrl), `${themeId}/${pageId}: preserve every stylesheet with its exact URL`);

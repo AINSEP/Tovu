@@ -38,6 +38,11 @@ Everything else below is convention or optional.
   NOTICE.md                  # provenance/decisions doc — convention, see basic's own
 ```
 
+A vendored runtime such as kUInetic is loaded ONCE, from the shared footer partial every page
+includes (`<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.js"></script>` — the
+absolute form, because partials expand after the page's `../scripts/` rewrite). Never from a CDN
+tag or a `document.write` fallback, and never repeated per page.
+
 v1 (legacy, still fully supported — `apiVersion` absent or not `2`): `pages/` at theme root
 (not `render/pages/`), `nav.html`/`footer*.html` at theme root (not `render/partials/`),
 `css/styles.css` (not `css/theme.css`), `js/` (not `scripts/`). Do not mix the two — a theme
