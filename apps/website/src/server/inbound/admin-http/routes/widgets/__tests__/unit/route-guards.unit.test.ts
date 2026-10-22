@@ -32,7 +32,7 @@ import { registerAdminWidgetAgentToolsRoutes } from "../../agent-tools.js";
 const B = "/api/admin/v1/workspaces/:workspaceId";
 type Method = "get" | "post" | "put" | "delete";
 
-function harness() {
+function harness({ allowed = true }: { allowed?: boolean } = {}) {
   const app = express();
   let authorizeCalls = 0;
   let counter = 0;
@@ -40,7 +40,7 @@ function harness() {
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
   const deps = {
     workspaceId: "ws-1",
-    authorize: async () => { authorizeCalls++; return { allowed: true, reason: "matched" }; },
+    authorize: async () => { authorizeCalls++; return { allowed, reason: allowed ? "matched" : "denied" }; },
     entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
@@ -200,4 +200,70 @@ test("domain refusals inside embed remove, embed reorder, get, trash and the cre
     [400, "WIDGETS_TYPE_UNREGISTERED"],
   ]);
   assert.equal((await h.entryRepo.findById({ workspaceId: "ws-1", id: "host-1" }))?.version, 4, "a refused embed mutation leaves the host untouched");
+});
+
+test("widgets.diagnose refuses a caller without widgets.read 403, and an index failure reaches the error mapping as 500", async (t) => {
+  const denied = harness({ allowed: false });
+  const params = { workspaceId: "ws-1", widgetInstanceId: "w-1" };
+  const refused = await denied.invoke("get", `${B}/widgets/tools/diagnose/:widgetInstanceId`, { params });
+  assert.deepEqual({ statusCode: refused.statusCode, jsonBody: refused.jsonBody }, { statusCode: 403, jsonBody: {
+    error: "principal 'principal-1' is not authorized for 'widgets.read' (denied)", code: "FORBIDDEN", details: { permission: "widgets.read", reason: "denied" },
+  } });
+
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const h = harness();
+  t.mock.method(h.entryRepo, "findById", async () => { throw new Error("entries table unavailable"); });
+  const failed = await h.invoke("get", `${B}/widgets/tools/diagnose/:widgetInstanceId`, { params });
+  assert.deepEqual({ statusCode: failed.statusCode, jsonBody: failed.jsonBody }, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assert.equal(logged.length, 1);
+});
+
+test("region reads and mutations: a binding whose area entry is not a widget area is not found; an unbound region refuses the mutation", async () => {
+  const h = harness();
+  await h.invoke("post", `${B}/widgets/regions`, { params: { workspaceId: "ws-1" }, body: { regionKey: "footer" } });
+  const binding = await h.widgetBindingRepo.findByRegion({ workspaceId: "ws-1", regionKey: "footer" });
+  assert.ok(binding);
+  const area = await h.entryRepo.findById({ workspaceId: "ws-1", id: binding.areaEntryId });
+  await h.entryRepo.save({ ...area!, type: "page" });
+  const read = await h.invoke("get", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "footer" } });
+  assert.deepEqual({ statusCode: read.statusCode, jsonBody: read.jsonBody }, { statusCode: 404, jsonBody: { error: "region area entry was not found", code: "WIDGETS_AREA_NOT_FOUND" } });
+
+  const unbound = await h.invoke("put", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "nowhere" }, body: { baseVersion: 1, placements: [] } });
+  assert.deepEqual({ statusCode: unbound.statusCode, jsonBody: unbound.jsonBody }, { statusCode: 404, jsonBody: { error: "region 'nowhere' is not bound", code: "WIDGETS_AREA_NOT_FOUND" } });
+  const malformed = await h.invoke("put", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "footer" }, body: { baseVersion: 1, placements: [{ placementId: "p" }] } });
+  assert.equal(malformed.statusCode, 400);
+  assert.equal((malformed.jsonBody as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("a region placement pointing at a real but trashed (status \"trash\") widget keeps its title and type yet reports broken", async () => {
+  const h = harness();
+  const created = await h.invoke("post", `${B}/widgets`, { params: { workspaceId: "ws-1" }, body: { widgetType: "text", title: "Retired notice", config: { body: "old" } } });
+  assert.equal(created.statusCode, 201, JSON.stringify(created.jsonBody));
+  const widgetId = (created.jsonBody as { widget: { id: string } }).widget.id;
+  // The trash route's removal port is out of scope here; the stored payload status is what
+  // region-get reads, so mark the instance "trash" directly in storage.
+  const widget = await h.entryRepo.findById({ workspaceId: "ws-1", id: widgetId });
+  const widgetFields = structuredClone(widget!.fieldsJson) as { ext: Record<string, { payload: string }> };
+  const widgetOwner = Object.keys(widgetFields.ext)[0]!;
+  const widgetPayload = JSON.parse(widgetFields.ext[widgetOwner]!.payload);
+  assert.equal(widgetPayload.status, "active");
+  widgetPayload.status = "trash";
+  widgetFields.ext[widgetOwner]!.payload = JSON.stringify(widgetPayload);
+  await h.entryRepo.save({ ...widget!, fieldsJson: widgetFields });
+
+  await h.invoke("post", `${B}/widgets/regions`, { params: { workspaceId: "ws-1" }, body: { regionKey: "aside" } });
+  const binding = await h.widgetBindingRepo.findByRegion({ workspaceId: "ws-1", regionKey: "aside" });
+  const area = await h.entryRepo.findById({ workspaceId: "ws-1", id: binding!.areaEntryId });
+  const fieldsJson = structuredClone(area!.fieldsJson) as { ext: Record<string, { payload: string }> };
+  const owner = Object.keys(fieldsJson.ext)[0]!;
+  const payload = JSON.parse(fieldsJson.ext[owner]!.payload);
+  payload.doc.placements = [{ placementId: "p-old", widgetEntryId: widgetId, enabled: true }];
+  fieldsJson.ext[owner]!.payload = JSON.stringify(payload);
+  await h.entryRepo.save({ ...area!, fieldsJson });
+
+  const result = await h.invoke("get", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "aside" } });
+  assert.deepEqual((result.jsonBody as { placements: unknown[] }).placements, [
+    { placementId: "p-old", widgetEntryId: widgetId, enabled: true, widgetTitle: "Retired notice", widgetType: "text", broken: true },
+  ]);
 });

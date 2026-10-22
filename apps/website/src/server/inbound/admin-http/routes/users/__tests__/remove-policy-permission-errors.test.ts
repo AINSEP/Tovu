@@ -46,9 +46,10 @@ async function grant(deps: ReturnType<typeof createRouteDeps>, suffix: string, p
   return principalId;
 }
 
-async function targetPolicy(deps: ReturnType<typeof createRouteDeps>, permission: string, isBuiltin = false) {
-  const policy = { id: `rpp-target-${permission === "*" ? "wild" : permission}-${isBuiltin}`, workspaceId: deps.workspaceId, name: `target ${permission} ${isBuiltin}`, isBuiltin, isFrozen: false };
-  const row = { id: `${policy.id}-row`, workspaceId: deps.workspaceId, policyId: policy.id, permission, resourceType: null, constraintJson: null };
+async function targetPolicy(deps: ReturnType<typeof createRouteDeps>, permission: string, isBuiltin = false,
+  scope: { resourceType: string | null; constraintJson: unknown } = { resourceType: null, constraintJson: null }) {
+  const policy = { id: `rpp-target-${permission === "*" ? "wild" : permission}-${isBuiltin}-${scope.resourceType}-${scope.constraintJson === null}`, workspaceId: deps.workspaceId, name: `target ${permission} ${isBuiltin}`, isBuiltin, isFrozen: false };
+  const row = { id: `${policy.id}-row`, workspaceId: deps.workspaceId, policyId: policy.id, permission, ...scope };
   await deps.policyRepo.save(policy);
   await deps.policyPermissionRepo.save(row);
   const read = () => deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId: policy.id });
@@ -110,5 +111,28 @@ test("absent policyId / policyPermissionId params resolve to 404 RESOURCE_NOT_FO
     assert.equal(result.statusCode, 404, JSON.stringify(params));
     assert.equal((result.jsonBody as { code: string }).code, "RESOURCE_NOT_FOUND");
   }
+  assert.deepEqual(await read(), [row]);
+});
+
+test("a SCOPED '*' row (resource type or constraint set) is not the owner wildcard: a non-owner with role.manage may remove it", async () => {
+  const { deps, invoke } = await harness();
+  const callerId = await grant(deps, "manager3", ["role.manage"]);
+  for (const scope of [{ resourceType: "post", constraintJson: null }, { resourceType: null, constraintJson: { slug: "news" } }]) {
+    const { policy, row, read } = await targetPolicy(deps, "*", false, scope as { resourceType: string | null; constraintJson: unknown });
+    assert.deepEqual(await read(), [row]);
+    assert.deepEqual(await invoke(callerId, { policyId: policy.id, policyPermissionId: row.id }), { statusCode: 204, jsonBody: undefined }, JSON.stringify(scope));
+    assert.deepEqual(await read(), []);
+  }
+});
+
+test("a hand-built request with no workspaceId param is refused 404 before any lookup", async () => {
+  const { deps, ownerId } = await harness();
+  const { policy, row, read } = await targetPolicy(deps, "content.read");
+  const app = express();
+  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: ownerId };
+  await extractRouteHandler(app, "delete", PATH)({ params: { policyId: policy.id, policyPermissionId: row.id } }, res);
+  assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
   assert.deepEqual(await read(), [row]);
 });
