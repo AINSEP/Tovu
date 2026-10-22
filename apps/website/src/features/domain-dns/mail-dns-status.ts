@@ -269,6 +269,7 @@ export async function verifyMailDnsStatus(_required: Record<string, never>, port
     const bindings = ports.bindings;
     if (bindings === undefined) throw new ToolInputError({ message: "this site has no content database to keep the domain's tracking state in." });
     const { binding, delegation, verification } = await verifyDomainDns({ hostname, include: ["mail"] }, { ...cached, bindings });
-    return checkView({ hostname, zone: binding.zone, delegation: { state: delegation.state, reason: delegation.reason }, verification, binding, requirement, checkedAt: binding.lastCheckedAt ?? new Date(ports.now()).toISOString(), persisted: true });
+    // `verifyDomainDns` stamps `lastCheckedAt` on every binding it saves (`nextBinding`), so the saved check's time is never null here.
+    return checkView({ hostname, zone: binding.zone, delegation: { state: delegation.state, reason: delegation.reason }, verification, binding, requirement, checkedAt: binding.lastCheckedAt!, persisted: true });
   });
 }
