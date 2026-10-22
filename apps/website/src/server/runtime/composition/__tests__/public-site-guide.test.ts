@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPostRepo, listPublishedPosts } from "#src/features/post/index";
 import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-registry";
+import { publicCapabilityCard } from "#src/assistant/site/capability-card";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { SYSTEM_PREAMBLE as VISITOR_SYSTEM_PREAMBLE } from "../modules/site-assistant.js";
 import { runPublicSiteGuide } from "../public-site-guide.js";
@@ -18,6 +19,46 @@ test("anonymous guide exposes public content only, using the real Jini filtering
   assert.deepEqual(explained.facts, { content: { status: "ok", data: { visibility: "published-only", administration: false } } });
   assert.ok(!JSON.stringify(explained).includes("content_post_create"));
   assert.ok(!JSON.stringify(explained).includes("/admin/"));
+});
+
+test("guide explains only effective policy grants, without exposing tool ids", async () => {
+  const full = await runPublicSiteGuide({ input: { operation: "explain", topic: "content" } }, { availableTools: ["get_published_entry"] });
+  const text = JSON.stringify(full);
+  assert.match(text, /Read a published entry/);
+  assert.match(text, /Ask the site operator to plan or build features requiring those permissions/);
+  assert.doesNotMatch(text, /Search published|navigation|scroll|highlight|search_published_entries|get_published_entry/);
+  const empty = await runPublicSiteGuide({ input: { operation: "explain", topic: "content" } }, { availableTools: [] });
+  assert.match(JSON.stringify(empty), /No content tools are enabled/);
+});
+
+test("default grants preserve the original guide card through the injected engine", async () => {
+  const topics: unknown[] = [];
+  const engine = { createSiteGuide: (input: { builtInTopics: unknown[] }) => {
+    topics.push(...input.builtInTopics);
+    return { run: async () => "engine-result" };
+  } };
+  const result = await runPublicSiteGuide({ input: { operation: "overview" } }, { engine: engine as never,
+    availableTools: ["search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"] });
+  assert.equal(result, "engine-result");
+  assert.equal(topics[0], publicCapabilityCard);
+});
+
+test("all default tools leave both model-facing guide operations unchanged", async () => {
+  const availableTools = ["site_guide", "search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"];
+  for (const operation of ["overview", "explain"] as const) {
+    const input = operation === "overview" ? { operation } : { operation, topic: "content" };
+    assert.deepEqual(await runPublicSiteGuide({ input }, { availableTools }), await runPublicSiteGuide({ input }));
+  }
+});
+
+test("reduced guide cards include every allowed CMS action and preserve the operator guidance", async () => {
+  const result = await runPublicSiteGuide({ input: { operation: "explain", topic: "content" } }, {
+    availableTools: ["search_published_entries", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"],
+  });
+  for (const label of ["Search published entries", "List public categories", "Propose navigation", "Scroll to a public entry", "Highlight a public entry", "Ask the site operator"]) {
+    assert.ok(JSON.stringify(result).includes(label));
+  }
+  assert.doesNotMatch(JSON.stringify(result), /Read a published entry/);
 });
 test("visitor registry grants only the explicitly injected guide and still denies unknown names/callers", async () => {
   const deps = { workspaceId: "public-site", postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() };

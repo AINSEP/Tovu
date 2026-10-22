@@ -2,6 +2,8 @@ import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
 import { runPublicSiteGuide } from "../public-site-guide.js";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
+import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";
+import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
 import {
@@ -554,6 +556,8 @@ async function runSiteAssistantPreflight(
 
 export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
   const resolution = resolveSiteAssistantMode(env);
+  // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
+  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
   const reporter = createSiteAssistantErrorReporter({
     ids: deps.idGen, redact: redactSecrets,
     log: deps.siteAssistantErrorLog ?? (entry => console.error("[site-assistant]", entry)),
@@ -622,13 +626,37 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         // injected post content included) cannot influence. See `client-directives.ts`'s own doc for
         // why this specific input is what makes that security property hold.
         const autoNavigateAllowed = detectsExplicitNavigationIntent(message);
+        // A visitor closing the tab must stop the upstream request; without this the provider call
+        // runs to completion and is billed for output nobody will ever read.
+        //
+        // Listen on the RESPONSE, not the request. `req.on("close")` on a POST fires when the
+        // request BODY has finished being read — which is immediately, on every well-formed
+        // request — so wiring the abort there cancels every call before the model emits a token.
+        // Measured, not theorised: the first live request returned `{"message":"This operation was
+        // aborted"}` for exactly this reason.
+        //
+        // `res`'s own `close` also fires on a normal completion, so the `writableEnded` guard is
+        // what distinguishes "visitor left" from "we finished" — without it this aborts a request
+        // that already succeeded, which is harmless but produces alarming logs.
+        const abort = new AbortController();
+        res.on("close", () => { if (!res.writableEnded) abort.abort(); });
+        const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
+          reportError: error => { reportError({ code: "visitor_tools_policy", diagnostic: error }); } });
+        // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
+        const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
+          initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
+          ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: deps.idGen.newId(), clock: deps.clock,
+          ids: deps.idGen, sink: deps.toolAttemptAuditSink, signal: abort.signal,
+          reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
+        };
         const capabilities = createSiteCapabilityRegistry({
           postRepo: deps.postRepo,
           workspaceId: deps.workspaceId,
           autoNavigateAllowed,
           listPublishedPosts,
           memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
-        }, { siteGuide: { inputSchema: SITE_GUIDE_SCHEMA, run: runPublicSiteGuide } });
+        }, { visitorExecution, siteGuide: { inputSchema: SITE_GUIDE_SCHEMA,
+          run: ({ input, availableTools }) => runPublicSiteGuide({ input }, { availableTools }) } });
 
         /**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the
@@ -664,23 +692,6 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         };
 
         beginStream(req, res);
-        // A visitor closing the tab must stop the upstream request; without this the provider call
-        // runs to completion and is billed for output nobody will ever read.
-        //
-        // Listen on the RESPONSE, not the request. `req.on("close")` on a POST fires when the
-        // request BODY has finished being read — which is immediately, on every well-formed
-        // request — so wiring the abort there cancels every call before the model emits a token.
-        // Measured, not theorised: the first live request returned `{"message":"This operation was
-        // aborted"}` for exactly this reason.
-        //
-        // `res`'s own `close` also fires on a normal completion, so the `writableEnded` guard is
-        // what distinguishes "visitor left" from "we finished" — without it this aborts a request
-        // that already succeeded, which is harmless but produces alarming logs.
-        const abort = new AbortController();
-        res.on("close", () => {
-          if (!res.writableEnded) abort.abort();
-        });
-
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
         await runByokProviderTurn({

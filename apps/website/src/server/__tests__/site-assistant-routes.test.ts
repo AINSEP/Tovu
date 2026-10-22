@@ -13,6 +13,8 @@ import { set as setLegacySetting } from "@jini-ai/core/settings";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
+import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
+import type { InMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch
@@ -92,12 +94,14 @@ async function bootGeminiStub(
   t: import("node:test").TestContext,
   deps: RouteDeps,
   respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
+  options: { policyFlag?: "off" } = {},
 ): Promise<string> {
   const providerUrl = await startStubProviderServer(t, respond);
   await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
-  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl };
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl,
+    TOVU_VISITOR_TOOLS_POLICY: options.policyFlag ?? "on" };
 
   const app = express();
   app.use(express.json());
@@ -120,6 +124,61 @@ async function postChatWithBody(baseUrl: string, body: unknown): Promise<Respons
     body: JSON.stringify(body),
   });
 }
+
+for (const policyFlag of [undefined, "off"] as const) {
+  test(`T1 policy ${policyFlag ?? "on"}: HTTP path honors Off or restores literal tools without deleting choices`, async (t) => {
+    const deps = createRouteDeps();
+    await deps.assistantSettingsReady;
+    await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
+      clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+    await writeVisitorTools({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+      workspaceId: deps.workspaceId, callerPrincipalId: "test-caller", value: { version: 1, tools: { list_categories: { mode: "off" } } } });
+    const requests: Record<string, unknown>[] = [];
+    const baseUrl = await bootGeminiStub(t, deps, (count, body) => {
+      requests.push(body);
+      return count === 1 ? sseBody(functionCallCandidate("list_categories", { query: "visitor-private-input" }, "t1-call")) : sseBody(textCandidate("Done.", "STOP"));
+    }, { policyFlag });
+    const response = await postChat(baseUrl);
+    assert.equal(response.status, 200);
+    const stream = await response.text();
+    assert.match(stream, /Done/);
+    assert.doesNotMatch(stream, /list_categories|visitor-private-input|tool_use|tool_result/);
+    assert.equal(requests.length, 2);
+    assert.equal(JSON.stringify(requests[0].tools).includes('"list_categories"'), policyFlag === "off");
+    assert.equal(JSON.stringify(requests[1]).includes("This tool is unavailable."), policyFlag !== "off");
+    const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
+    assert.deepEqual(rows.map(row => row.phase), policyFlag === "off" ? [] : ["requested", "denied"]);
+    assert.doesNotMatch(JSON.stringify(rows), /visitor-private-input|127\.0\.0\.1/);
+    const stored = await deps.getEffective({ repo: deps.settingsRepo }, { namespace: "site.assistant", key: "visitor_tools", scopeContext: { workspaceId: deps.workspaceId } });
+    assert.equal((stored?.value as { tools: { list_categories: { mode: string } } }).tools.list_categories.mode, "off");
+  });
+}
+
+test("T1 HTTP turn has a four-call cap across parallel calls and emits no raw audit/tool events", async (t) => {
+  const deps = createRouteDeps();
+  await deps.assistantSettingsReady;
+  await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
+    clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+  { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
+  const requests: Record<string, unknown>[] = [];
+  const baseUrl = await bootGeminiStub(t, deps, (count, body) => {
+    requests.push(body);
+    if (count !== 1) return sseBody(textCandidate("Done.", "STOP"));
+    return sseBody(chunk({ candidates: [{ content: { role: "model", parts: Array.from({ length: 5 }, (_, n) => ({
+      functionCall: { name: "list_categories", args: {}, id: `cap-${n}` },
+    })) }, index: 0 }] }));
+  });
+  const response = await postChat(baseUrl);
+  assert.equal(response.status, 200);
+  const stream = await response.text();
+  assert.match(stream, /Done/);
+  assert.doesNotMatch(stream, /list_categories|tool_use|tool_result/);
+  assert.equal((JSON.stringify(requests[1]).match(/This tool is unavailable\./g) ?? []).length, 1);
+  const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
+  assert.equal(rows.filter(row => row.phase === "completed").length, 4);
+  assert.equal(rows.filter(row => row.phase === "denied").length, 1);
+});
 
 test("POST /api/site-assistant/chat 404s when the public assistant is disabled (the default)", async (t) => {
   const deps = createRouteDeps();

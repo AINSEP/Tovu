@@ -14,22 +14,26 @@
  *
  * SPEC-046 REQ-4/REQ-6 added three Tier A page-action capabilities (`navigate_to_entry`,
  * `scroll_to_entry`, `highlight_entry`) alongside the original three read-only ones — six entries
- * total now, all granted to `PUBLIC_READ_ONLY` (there is still only one real caller class). The
- * authorization story above is unchanged by that: a page-action capability is authorized the same way
- * a read-only one is, and its target resolution lives in `tools.ts`/`client-directives.ts`, not here
- * — this file still only decides WHETHER a call reaches a capability, never what that capability does.
+ * plus the explicitly injected anonymous guide. All declare `visitorOfferable: true`; T1 checks
+ * the anonymous caller class, site policy and budgets through the private visitor executor. A
+ * page-action capability is authorized the same way a read-only one is, and its target resolution
+ * lives in `tools.ts`/`client-directives.ts`, not here — this file still only decides WHETHER a call
+ * reaches a capability, never what that capability does.
  *
  * ## Default deny, preserved exactly
  *
  * ADR-054 chose the closed switch deliberately: "an unknown tool name cannot resolve to anything."
- * `capabilities` below is a `Map` built from a fixed, literal array — there is no registration
- * function, no dynamic loading, no config-driven capability list (explicit REQ-0 non-goal). A name
- * absent from the map refuses before anything runs, the same way the old switch's `default` branch
- * did; a name present but not granted to the calling class ALSO refuses before anything runs. Both
- * paths return the same `"refused"` outcome kind so an adapter cannot accidentally treat "capability
- * doesn't exist" and "capability exists but you may not call it" differently in a way that discloses
- * which one it was — see `tools.ts`'s own "same response for exists-but-hidden and doesn't-exist"
- * precedent for why that non-disclosure property matters on a surface anonymous traffic can probe.
+ * `capabilities` below is a `Map` built from a fixed, literal array and the named guide port. T1
+ * registers only these reviewed contracts in a private Jini registry: no dynamic loading or
+ * config-driven capability list (explicit REQ-0 non-goal). Site policy selects eligible contracts;
+ * it cannot make another tool eligible. No admin registry, plugin loader, credentials, invoker or
+ * CLI is accepted by this boundary. A name absent from the registry refuses before anything runs,
+ * the same way the old switch's `default` branch did; a name present but not granted to the caller
+ * ALSO refuses before anything runs. Both paths return the same `"refused"` outcome kind AND text
+ * so an adapter cannot accidentally disclose "capability doesn't exist" versus "capability exists
+ * but you may not call it" — see `tools.ts`'s own "same response for exists-but-hidden and
+ * doesn't-exist" precedent for why that non-disclosure property matters on a surface anonymous
+ * traffic can probe.
  *
  * ## Validation stays with the capability
  *
@@ -38,78 +42,67 @@
  * `tools.ts`). This registry does not re-parse or re-validate `input` itself; it only decides WHETHER
  * a call reaches that function at all. That split is deliberate: input shape is a capability concern
  * (only the capability knows its own contract), while "may this caller reach it" is a registry
- * concern that must be enforced identically regardless of which capability is being asked for. A
- * future capability with server-side target resolution (REQ-6, not built here) would do that
- * resolution inside its own `execute`, for the same reason — so no adapter could add a second one
- * that skips it.
+ * concern that must be enforced identically regardless of which capability is being asked for.
+ * Server-side target resolution (REQ-6) likewise stays inside each capability's own `execute`, so
+ * no adapter can add a second path that skips it. Published/trash/member checks keep their owners.
  *
  * ## What this deliberately does NOT do
  *
- * No plugin system, no dynamic capability registration, no config file describing capabilities —
- * REQ-0's explicit non-goal. Adding a capability means editing the literal array below, in code,
- * same as editing the old switch was. Adding an ADAPTER (WebMCP, A2A) means writing a translator that
- * calls `invoke()` with the right `caller` value — it requires no change to `CAPABILITIES` at all,
- * which is REQ-0's success test.
+ * No plugin system, no externally supplied capability registration, no config file describing
+ * capabilities — REQ-0's explicit non-goal. Adding a capability means editing the literal contracts
+ * below, in code, same as editing the old switch was. Adding an ADAPTER (WebMCP, A2A) means writing
+ * a translator that calls `invoke()` with the right `caller` value — it requires no change to the
+ * capability list at all, which is REQ-0's success test.
  */
 import type { ClientDirective } from "./client-directives.js";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
+import { createVisitorExecutor, type VisitorCapabilityContract, type VisitorExecutionPorts } from "./visitor-executor.js";
 
 /** Owner's site-guide brief adds one explicitly named read-only seam. This does not accept a
- * plugin catalog or arbitrary capability names; the host supplies an anonymous-safe guide only. */
+ * plugin catalog or arbitrary capability names; the host supplies an anonymous-safe guide only.
+ * Effective names contain only reviewed visitor capabilities. */
 export interface PublicSiteGuidePort {
   readonly inputSchema: Readonly<Record<string, unknown>>;
-  readonly run: (input: { input: unknown }, options?: Record<string, never>) => Promise<unknown>;
+  readonly run: (input: { input: unknown; availableTools?: readonly string[] }, options?: Record<string, never>) => Promise<unknown>;
 }
-
 /**
  * Who is asking. A real parameter threaded through every `invoke()` call, not an ambient assumption
  * the registry infers from context — so authorizing a new caller class is always a visible, reviewed
- * change to a capability's `allowedCallers` set, never a side effect of wiring up a new adapter.
+ * change to this union and the visitor executor's caller check, never a side effect of wiring an
+ * adapter. Exactly one member today, matching the one real caller (the public SSE widget).
  *
- * Exactly one member today, matching the one real caller (the public SSE widget). Extending this to
- * a second caller class (a logged-in admin, a WebMCP in-page agent, an A2A remote agent) is additive:
- * widen the union, then explicitly opt each capability in via its own `allowedCallers`.
+ * Extending to a second caller class (a logged-in admin, a WebMCP in-page agent, an A2A remote agent)
+ * means widening the union and explicitly reviewing its eligibility and policy. T1 replaces
+ * `allowedCallers` with the `visitorOfferable` contract plus the anonymous check in `invoke`.
  */
 export type SiteAssistantCallerClass = "anonymous-visitor";
-
 /** One capability invocation, addressed by name, carrying who is asking. */
 export interface SiteCapabilityInvocation {
-  readonly name: string;
-  readonly input: unknown;
-  readonly caller: SiteAssistantCallerClass;
+  readonly name: string; readonly input: unknown; readonly caller: SiteAssistantCallerClass;
 }
-
 export type SiteCapabilityOutcome =
   | {
       readonly kind: "ok";
       readonly result: unknown;
       /** SPEC-046 REQ-4: present only for a capability that resolved a client-facing action (the
-       *  three page-action tools). `site-assistant.ts` emits this as the `client_directive` SSE
-       *  event — a side channel from `result`, which is what the MODEL sees. `result` and `directive`
-       *  can therefore differ in content; neither is derived from the other at this layer, so an
-       *  adapter cannot accidentally conflate "what the model was told" with "what the client was
-       *  told" — see this file's own header on why that split matters for the no-tool_use/tool_result
-       *  privacy property REQ-4 preserves. */
+       * three page-action tools). `site-assistant.ts` emits this as the `client_directive` SSE
+       * event — a side channel from `result`, which is what the MODEL sees. `result` and `directive`
+       * can therefore differ in content; neither is derived from the other at this layer, so an
+       * adapter cannot accidentally conflate "what the model was told" with "what the client was
+       * told" — the no-tool_use/tool_result privacy property REQ-4 preserves. */
       readonly directive?: ClientDirective;
     }
-  /** Unknown capability name OR a known capability not granted to `caller` — see file header for why
-   *  both share this one outcome kind. */
+  /** Unknown capability OR a known capability not granted to `caller` — both share one outcome
+   * kind and uniform text so probing cannot distinguish them (see file header). */
   | { readonly kind: "refused"; readonly reason: string }
-  /** The capability's own `execute` threw. Carries the raw error (not a message string) so an
-   *  adapter can log it with full fidelity the way `site-assistant.ts`'s old catch block did. */
+  /** Jini returns a handler error message or terminal status, rather than the original exception.
+   * The execution wrapper reports original handler errors server-side before Jini normalizes them;
+   * the route presents a safe error id. Cancelled calls instead become silent refusals. */
   | { readonly kind: "error"; readonly error: unknown };
-
-interface SiteCapability {
-  readonly name: string;
-  readonly allowedCallers: ReadonlySet<SiteAssistantCallerClass>;
-  readonly execute: (input: unknown) => Promise<{ readonly result: unknown; readonly directive?: ClientDirective }>;
-}
-
-/** Granted to every capability below today — there is only one real caller class yet. Naming this
- *  once, rather than repeating an inline `new Set([...])` per entry, is what makes "which callers can
- *  reach the public read-only surface" a single visible fact instead of three copies that could
- *  silently disagree. */
-const PUBLIC_READ_ONLY: ReadonlySet<SiteAssistantCallerClass> = new Set(["anonymous-visitor"]);
+/** Eligibility is explicit on every reviewed contract. T1 replaces the shared PUBLIC_READ_ONLY
+ * caller set with `visitorOfferable: true` and one anonymous-only check in the executor, keeping
+ * "which callers can reach this surface" a single visible fact instead of copies that can drift. */
+type SiteCapability = VisitorCapabilityContract;
 
 /**
  * Builds the fixed capability list over one `tools.ts` instance. Kept as a plain function (not a
@@ -118,40 +111,40 @@ const PUBLIC_READ_ONLY: ReadonlySet<SiteAssistantCallerClass> = new Set(["anonym
  * `createSiteAssistantTools`'s own existing per-request lifetime, so no capability here is shared
  * across workspaces or requests.
  */
-function buildCapabilities(tools: ReturnType<typeof createSiteAssistantTools>): ReadonlyMap<string, SiteCapability> {
+function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssistantTools> }, _options = {}): ReadonlyMap<string, SiteCapability> {
   const entries: readonly SiteCapability[] = [
     {
       name: "search_published_entries",
-      allowedCallers: PUBLIC_READ_ONLY,
+      visitorOfferable: true,
       // Wrapped in `{ result }` — these three read-only tools return the model-facing value
       // directly, unlike the three page-action tools below, which already return `{ result,
       // directive? }` themselves (they have a directive to carry; these never do).
-      execute: async (input) => ({ result: await tools.search_published_entries(input as { query?: unknown }) }),
+      execute: async ({ input }, _options = {}) => ({ result: await tools.search_published_entries(input as { query?: unknown }) }),
     },
     {
       name: "get_published_entry",
-      allowedCallers: PUBLIC_READ_ONLY,
-      execute: async (input) => ({ result: await tools.get_published_entry(input as { slug?: unknown }) }),
+      visitorOfferable: true,
+      execute: async ({ input }, _options = {}) => ({ result: await tools.get_published_entry(input as { slug?: unknown }) }),
     },
     {
       name: "list_categories",
-      allowedCallers: PUBLIC_READ_ONLY,
-      execute: async () => ({ result: await tools.list_categories() }),
+      visitorOfferable: true,
+      execute: async (_required, _options = {}) => ({ result: await tools.list_categories() }),
     },
     {
       name: "navigate_to_entry",
-      allowedCallers: PUBLIC_READ_ONLY,
-      execute: (input) => tools.navigate_to_entry(input as { slug?: unknown }),
+      visitorOfferable: true,
+      execute: ({ input }, _options = {}) => tools.navigate_to_entry(input as { slug?: unknown }),
     },
     {
       name: "scroll_to_entry",
-      allowedCallers: PUBLIC_READ_ONLY,
-      execute: (input) => tools.scroll_to_entry(input as { slug?: unknown }),
+      visitorOfferable: true,
+      execute: ({ input }, _options = {}) => tools.scroll_to_entry(input as { slug?: unknown }),
     },
     {
       name: "highlight_entry",
-      allowedCallers: PUBLIC_READ_ONLY,
-      execute: (input) => tools.highlight_entry(input as { slug?: unknown }),
+      visitorOfferable: true,
+      execute: ({ input }, _options = {}) => tools.highlight_entry(input as { slug?: unknown }),
     },
   ];
   return new Map(entries.map((capability) => [capability.name, capability]));
@@ -159,51 +152,33 @@ function buildCapabilities(tools: ReturnType<typeof createSiteAssistantTools>): 
 
 export interface SiteCapabilityRegistry {
   /** The model-facing tool schemas (Google function-calling shape). Re-exported here so an adapter
-   *  never has to import `tools.ts` directly for anything, capability execution included. */
+   * never has to import `tools.ts` directly for anything, capability execution included. */
   readonly schemas: readonly { readonly name: string; readonly description: string; readonly parameters: Readonly<Record<string, unknown>> }[];
   invoke(invocation: SiteCapabilityInvocation): Promise<SiteCapabilityOutcome>;
 }
 
-/**
- * Creates one capability registry bound to a single workspace's read-only content. The SSE route is
- * the only production caller today; it invokes this once per chat request with `caller:
- * "anonymous-visitor"` for every tool call the model makes during that turn.
+/** Creates one registry bound to a single workspace's read-only content. The SSE route is the only
+ * production caller today; it invokes this once per chat request with `caller: "anonymous-visitor"`
+ * for every tool call the model makes during that turn.
  *
- * @complexity O(1) per `invoke()` call beyond whatever the underlying capability itself costs (a
- *   `Map.get` plus a `Set.has`); construction is O(1) in six content capabilities plus the optional
- *   explicitly named, anonymous-only guide. Omitted guide ports preserve the original surface.
- * @overallScore 100
+ * Build the visitor-only executor. Policy ports opt into T1; omitting them is the literal-registry
+ * rollback and preserves standalone adapter compatibility. Ask remains non-executable until T3.
+ * @complexity O(1) construction for the seven reviewed contracts; invocation adds policy/limiter I/O.
+ * @example createSiteCapabilityRegistry(contentDeps, { siteGuide, visitorExecution });
  */
-export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, options: { siteGuide?: PublicSiteGuidePort } = {}): SiteCapabilityRegistry {
+export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, options: {
+  siteGuide?: PublicSiteGuidePort; visitorExecution?: VisitorExecutionPorts;
+} = {}): SiteCapabilityRegistry {
   const tools = createSiteAssistantTools(deps);
-  const capabilities = new Map(buildCapabilities(tools));
+  const capabilities = new Map(buildCapabilities({ tools }));
   let schemas: SiteCapabilityRegistry["schemas"] = SITE_ASSISTANT_TOOL_SCHEMAS;
   if (options.siteGuide) {
     const guide = options.siteGuide;
-    capabilities.set("site_guide", { name: "site_guide", allowedCallers: PUBLIC_READ_ONLY, execute: async input => ({ result: await guide.run({ input }) }) });
-    schemas = [...SITE_ASSISTANT_TOOL_SCHEMAS, { name: "site_guide", description: "Read-only overview or explain(topic) of the capabilities granted to this visitor. Consult before planning or building; administrator topics and private site facts are unavailable.", parameters: guide.inputSchema }];
+    capabilities.set("site_guide", { name: "site_guide", visitorOfferable: true,
+      execute: async ({ input }, _options = {}) => ({ result: await guide.run({ input, availableTools: await executor.availableToolNames({}) }) }) });
+    schemas = [...schemas, { name: "site_guide", description: "Read-only overview or explain(topic) of the capabilities granted to this visitor. Administrator topics and private site facts are unavailable.", parameters: guide.inputSchema }];
   }
-
-  return {
-    schemas,
-
-    async invoke(invocation: SiteCapabilityInvocation): Promise<SiteCapabilityOutcome> {
-      const capability = capabilities.get(invocation.name);
-      if (!capability) {
-        return { kind: "refused", reason: `unknown tool: ${invocation.name}` };
-      }
-      if (!capability.allowedCallers.has(invocation.caller)) {
-        return {
-          kind: "refused",
-          reason: `capability "${invocation.name}" is not available to caller "${invocation.caller}"`,
-        };
-      }
-      try {
-        const { result, directive } = await capability.execute(invocation.input);
-        return { kind: "ok", result, directive };
-      } catch (error) {
-        return { kind: "error", error };
-      }
-    },
-  };
+  const executor = createVisitorExecutor({ capabilities: [...capabilities.values()] }, { ports: options.visitorExecution });
+  if (options.visitorExecution) schemas = schemas.filter(schema => executor.isAdvertised({ toolId: schema.name }));
+  return { schemas, invoke: invocation => executor.invoke(invocation) };
 }

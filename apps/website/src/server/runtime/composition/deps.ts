@@ -133,6 +133,8 @@ import {
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
+import { redactSecrets } from "@jini-ai/core";
 import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
@@ -1221,6 +1223,8 @@ async function composeSiteRouteDeps(
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
+  const reportToolAuditError = createSiteAssistantErrorReporter({ ids: idGen, redact: redactSecrets,
+    log: entry => console.error("[tool-audit]", entry) });
   const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => routeDeps.pluginHost,
@@ -2567,7 +2571,9 @@ async function composeSiteRouteDeps(
     // consumes it — see `RouteDeps.toolAttemptAuditSink`'s own doc. Deliberately not a second
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
-    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel),
+    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel, {
+      onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
+    }),
     toolGaps: createToolGapReader({ kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,

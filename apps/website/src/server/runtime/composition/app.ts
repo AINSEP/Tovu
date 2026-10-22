@@ -429,7 +429,8 @@ function createLazyProxy<T extends object>(factory: () => T): T {
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
-  const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink();
+  // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
+  const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink({});
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
   const postRepo = new InMemoryPostRepo(seededPosts);
   const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });

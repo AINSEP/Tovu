@@ -57,6 +57,31 @@ enumerated are restrictions that can be forgotten; a default-empty surface fails
 
 ### 2. Tool surface — read-only content only
 
+**2026-10-22 Visitor Tools T1 amendment (authorized by the owner dispatch; the Opus
+`2026-10-22-visitor-tools-design-review.md` overrides the companion design):** the reviewed static
+set now includes the three entry page actions and the anonymous `site_guide`, alongside the three
+content reads below. Each contract must explicitly declare visitor eligibility. A new, private
+visitor-only `createToolRegistry` / `createToolExecutor` executes this set; the admin registry,
+plugin code, arbitrary HTTP, credentials and CLI are never supplied to it. T1 does not add store or
+product behavior: future product search belongs to the commerce plugin.
+
+`site.assistant/visitor_tools` stores site grants, not eligibility. Only
+`features/settings/visitor-tools-write.ts` writes it, through the host settings chokepoint with
+`visitor-tools.manage`; the canonical dedicated-writer table blocks generic set, clear, reset and
+alias paths. The seven pre-existing tools stay Auto when unconfigured; future tools default Off.
+Explicit Off survives upgrade. Ask is stored and behaves as Off until T3. Invalid stored state
+denies the whole managed tool catalog. Public schemas and guide prose follow effective grants,
+and execution rechecks them each call.
+
+Budgets reuse HTTP-kit's memory limiter: 30/hour/IP/tool, 1,000/day/site/tool and four attempts per
+turn, in addition to chat admission (10 chats/5 minutes/IP). These are **per process**, with no
+cookie or shared counter migration. T1 supports defaults and reductions; widening needs T2's
+always-ask publication approval. Visitor audit uses `principalId: anonymous-visitor` with its own
+20,000-row cap, separate from the 50,000-row admin bucket. Audit failures are reported observations,
+not execution gates. `TOVU_VISITOR_TOOLS_POLICY=off` restores the reviewed literal surface and keeps
+saved choices. J1 owns atomic settings revision CAS; revision-dependent management writes refuse
+until that API is available. Admin UI/chat, consent and saved requests remain later phases.
+
 Allowlist, and nothing else:
 
 - `search_published_entries`

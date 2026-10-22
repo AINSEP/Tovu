@@ -36,6 +36,20 @@ invention.
 
 ## 1a. REQ-0 — Separate the capability layer from the transport
 
+**2026-10-22 T1 amendment:** the owner-authorized Visitor Tools T1 dispatch and Opus review
+(`ADS-memory/reports/2026-10-22-visitor-tools-design-review.md`, canonical workspace) amend this
+requirement together with ADR-054 §2. Static eligibility is still a reviewed literal set (the six
+CMS tools plus anonymous `site_guide`). Site settings select grants within it through one dedicated
+management writer; they cannot publish an admin tool. A visitor-only Jini executor enforces the
+contracts, fresh Auto/Off grants, existing public-content checks, two in-process per-tool quotas
+(30/hour/IP and 1,000/day/site) and a four-attempt turn cap. Unconfigured legacy tools remain Auto;
+new tools start Off; Ask is retained but denied until T3. Unknown, Off, Ask and quota refusals have
+the same public outcome. Invalid stored JSON fails closed. Generic set/clear/reset/alias/HTTP
+writes are denied. Anonymous audit pruning is independent of admin retention, with no migration.
+This amendment permits policy selection only; it does not authorize plugin loading, commerce in
+core, saved requests, consent UI or an admin registry on the public path. Atomic settings CAS stays
+with J1, and rollback (`TOVU_VISITOR_TOOLS_POLICY=off`) preserves stored choices.
+
 **The most important structural requirement, and the cheapest to do now.**
 
 Today the tool surface is *defined* in `src/assistant/site/tools.ts` but *dispatched* by a closed
