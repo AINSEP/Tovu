@@ -392,3 +392,23 @@ test('placement normalization preserves object content and regenerates empty or 
     { placementId: 'slot-2', widgetEntryId: widget.id, enabled: true },
   ]);
 });
+
+test('widgets_get_region surfaces a placement content override only on the placement that has one', async () => {
+  const deps = makeDeps();
+  const widget = await createInstance(deps, 'Overridden Note');
+  const region = await bindRegion(deps);
+  const content = { label: 'override' };
+  await wired('widgets_set_region_placements', deps).handler(executionContext({ regionKey: 'footer', baseVersion: region.version, placements: [
+    { placementId: 'with-content', widgetEntryId: widget.id, enabled: true, content },
+    { placementId: 'without-content', widgetEntryId: widget.id, enabled: false },
+  ] }));
+
+  const out = (await wired('widgets_get_region', deps).handler(executionContext({ regionKey: 'footer' }))) as {
+    placements: Array<Record<string, unknown>>;
+  };
+  assert.deepEqual(out.placements, [
+    { placementId: 'with-content', widgetEntryId: widget.id, enabled: true, content, widgetTitle: 'Overridden Note', widgetType: 'text', broken: false },
+    { placementId: 'without-content', widgetEntryId: widget.id, enabled: false, widgetTitle: 'Overridden Note', widgetType: 'text', broken: false },
+  ]);
+  assert.equal('content' in out.placements[1], false);
+});
