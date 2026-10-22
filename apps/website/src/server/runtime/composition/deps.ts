@@ -2643,7 +2643,7 @@ async function composeSiteRouteDeps(
     // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
     // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
     // spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: ({ themeId, consentAudit } = {}) =>
+    createSiteApp: ({ themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {}) =>
       createApp(routeDeps, {
         ...(themeId === undefined ? {} : { themeIdOverride: themeId }),
         ...(consentAudit ? { consentAudit } : {}),
