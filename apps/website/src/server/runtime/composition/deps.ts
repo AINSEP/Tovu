@@ -147,7 +147,8 @@ import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
-import { createLiveSiteDisplayName } from "#src/platform/site-dir/read-site-dir";
+import { createLiveSiteDisplayName, createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
+import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import { resolveSiteRoot, resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -1337,6 +1338,11 @@ async function composeSiteRouteDeps(
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
   const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
+  // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
+  const siteTimeZone = createSiteTimeZonePort({
+    settingsRepo,
+    ...(dbPath === ":memory:" ? {} : { creationTimeZone: createSiteCreationTimeZone({ dir: resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir }) }) }),
+  });
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
@@ -1356,6 +1362,8 @@ async function composeSiteRouteDeps(
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
+    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
+    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(
         { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
@@ -1794,6 +1802,7 @@ async function composeSiteRouteDeps(
   // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
   // (see `navigation/read-model.ts`'s file header).
   wireCoreResolvers({
+    siteTimeZone,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
@@ -2336,6 +2345,7 @@ async function composeSiteRouteDeps(
       loadAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     siteTitlePreservationStore,
     siteDisplayName,
+    siteTimeZone,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.

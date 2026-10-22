@@ -66,6 +66,7 @@ function validateConfig(parsed: unknown): ConfigJson {
     name,
     domain: candidate?.domain ?? null,
     port: candidate?.port ?? null,
+    ...(typeof candidate?.timezone === "string" ? { timezone: candidate.timezone } : {}),
   };
 }
 
@@ -146,6 +147,24 @@ export function createLiveSiteDisplayName(required: ReadSiteDirRequired): LiveSi
     read() {
       lastValidName = readValidName(required, lastValidName);
       return lastValidName;
+    },
+  };
+}
+
+/**
+ * Bug D: `dir`'s `config.json` `timezone` (the zone detected at creation), re-read on every `read()`
+ * like the display name. `undefined` when there is none or the file cannot be read; never throws.
+ * Validity is the resolver's concern (`features/settings/site-timezone.ts`).
+ * @complexity O(1) per read — one small, bounded-size file read.
+ */
+export function createSiteCreationTimeZone(required: ReadSiteDirRequired): { read(): string | undefined } {
+  return {
+    read() {
+      try {
+        return readSiteConfig(required).timezone;
+      } catch {
+        return undefined;
+      }
     },
   };
 }

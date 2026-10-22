@@ -29,6 +29,7 @@ import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
+import { formatDateLabel } from "@jini-ai/cms/widgets/date-label";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html/html-embeds";
 import { renderGallery, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html/gallery-render";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
@@ -2869,7 +2870,10 @@ function renderWidgetPostContent(props: JsonObject): string {
     publishAt: typeof props.publishAt === "string" ? props.publishAt : null,
     updatedAt: typeof props.updatedAt === "string" ? props.updatedAt : "",
   });
-  const dateLabel = dateIso ? new Date(dateIso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  // Bug D: the label is the calendar day in the site's zone (`props.timeZone`, set by the resolver
+  // from `core.site.timezone`), not the server's UTC; `datetime` keeps the stored instant.
+  const timeZone = typeof props.timeZone === "string" ? { timeZone: props.timeZone } : {};
+  const dateLabel = dateIso ? formatDateLabel({ iso: dateIso }, timeZone) : "";
   // Back-compat fork (post-title-in-document feature, 2026-08-11): a migrated body's OWN title node
   // drives the `<h1>` (text AND alignment) so centering it in the editor actually centers it here;
   // a pre-migration body (no title node yet — every row saved before this feature landed) falls back

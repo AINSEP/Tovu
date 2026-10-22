@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createLiveSiteDisplayName, readSiteConfig, readSiteDir } from "../../read-site-dir.js";
+import { createLiveSiteDisplayName, createSiteCreationTimeZone, readSiteConfig, readSiteDir } from "../../read-site-dir.js";
 
 /**
  * @file SPEC-003 C-004 (`readSiteDir`) — TDD certification, unit tier.
@@ -351,6 +351,33 @@ test("SPEC-050 REQ-13: createLiveSiteDisplayName reads config.json once when it 
     const liveName = createLiveSiteDisplayName({ dir });
     fs.writeFileSync(path.join(dir, "config.json"), '{"name": "Torn');
     assert.equal(liveName.read(), "Boot Name");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Bug D (2026-10-22): the zone detected at creation, `config.json` `timezone`, is the site timezone's fallback tier.
+test("Bug D: readSiteConfig carries a string timezone and omits an absent or non-string one", () => {
+  const dir = mkTempDir();
+  try {
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Demo", domain: null, port: null, timezone: "Asia/Tokyo" }));
+    assert.deepEqual(readSiteConfig({ dir }), { name: "Demo", domain: null, port: null, timezone: "Asia/Tokyo" });
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Demo", domain: null, port: null, timezone: 9 }));
+    assert.deepEqual(readSiteConfig({ dir }), { name: "Demo", domain: null, port: null });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("Bug D: createSiteCreationTimeZone reads config.json's timezone and never throws", () => {
+  const dir = mkTempDir();
+  try {
+    const source = createSiteCreationTimeZone({ dir });
+    assert.equal(source.read(), undefined, "no config.json");
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Demo", domain: null, port: null, timezone: "America/Los_Angeles" }));
+    assert.equal(source.read(), "America/Los_Angeles");
+    writeConfigName(dir, "Demo");
+    assert.equal(source.read(), undefined, "a config.json without one");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

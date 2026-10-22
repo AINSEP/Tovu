@@ -23,6 +23,11 @@ export interface ConfigJson {
   domain: string | null;
   /** Optional; 2nd in `serve`'s port precedence (BR-02). */
   port: number | null;
+  /**
+   * Optional IANA zone detected where the site was created (Bug D); the fallback for the
+   * `core.site.timezone` setting. Absent on sites created before it existed (they render UTC).
+   */
+  timezone?: string;
 }
 
 /** `.site-meta.json` — provenance + compatibility stamp; presence is init's commit marker (INV-02). */

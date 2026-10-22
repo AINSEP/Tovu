@@ -240,7 +240,11 @@ type InitSiteOptions = ReadTemplateOptional & {
   filesystem?: AtomicFilesystemPort;
   verifiedRestore?: InitSiteRestorePort;
   onAllocated?: (required: InitSiteResult & { dbPath: string }) => void;
+  /** The zone recorded as the site's creation zone (Bug D); defaults to this process's own zone. */
+  detectTimeZone?: () => string;
 };
+
+const detectProcessTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /** Everything `initSite` resolved before its first write; every path derives from `target` or the allocated database path. */
 interface NewSite {
@@ -290,7 +294,9 @@ async function createSiteContents(site: NewSite, options: InitSiteOptions, progr
   createSiteFolders(site, progress);
 
   // Step 5: config.json write.
-  const config: ConfigJson = { name: site.resolvedName, domain: null, port: null };
+  // `timezone` (Bug D): post dates render in the site's zone; until the owner sets one, it is the
+  // zone of the machine that created the site.
+  const config: ConfigJson = { name: site.resolvedName, domain: null, port: null, timezone: (options.detectTimeZone ?? detectProcessTimeZone)() };
   writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, { filesystem: options.filesystem });
 
   // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
