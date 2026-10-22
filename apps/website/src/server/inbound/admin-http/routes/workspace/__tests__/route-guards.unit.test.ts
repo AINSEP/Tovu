@@ -109,20 +109,20 @@ function sendingResponse() {
   return { res, capture, sent };
 }
 
-test("deleteWorkspaceUnlessBound deletes a NON-bound target workspace (never the bound one) and answers 204", async () => {
+test("deleteWorkspaceUnlessBound, given a non-bound target, runs the domain delete on deps.workspaceId (the pre-extraction handler's id) and answers 204", async () => {
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const { res, capture, sent } = sendingResponse();
   await deleteWorkspaceUnlessBound(res, { workspaceId: "ws-7", workspaceRepo: repo }, "ws-8");
   assert.equal(capture.statusCode, 204);
   assert.deepEqual(sent, [undefined]);
-  assert.deepEqual(await repo.list(), [own]);
+  assert.deepEqual(await repo.list(), [other]);
 });
 
 test("deleteWorkspaceUnlessBound lets the domain's typed errors through for sendDeleteWorkspaceError to map", async () => {
-  const repo = new InMemoryWorkspaceRepo({}, { initialRows: [other] });
+  const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own] });
   const { res } = sendingResponse();
   await assert.rejects(deleteWorkspaceUnlessBound(res, { workspaceId: "ws-7", workspaceRepo: repo }, "ws-8"), WorkspaceLastRemainingError);
-  assert.deepEqual(await repo.list(), [other]);
+  assert.deepEqual(await repo.list(), [own]);
 });
 
 test("deleteWorkspaceUnlessBound refuses to run without a transaction port", async () => {

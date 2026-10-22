@@ -37,9 +37,10 @@ export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
  * Extracted from the route handler and exported for direct-invoke coverage, for the same reason
  * `sendDeleteWorkspaceError` is: the route's `:workspaceId` check narrows every addressable target
  * to `deps.workspaceId`, so over HTTP this always takes the BOUND_WORKSPACE refusal in v1, and the
- * not-bound path below has no live caller until a second workspace becomes addressable. Deletes
- * `targetWorkspaceId` — the only id this path can ever see is one that is NOT the bound workspace.
- * Throws the domain's typed errors for the caller's `sendDeleteWorkspaceError` to map.
+ * not-bound path below has no live caller until a second workspace becomes addressable. It passes
+ * `deps.workspaceId` to the domain delete exactly as the inline handler did (behaviour kept
+ * identical in a coverage-only change); whether that should be `targetWorkspaceId` once a second
+ * workspace is addressable is an owner decision, not settled here. Throws the domain's typed errors for the caller's `sendDeleteWorkspaceError` to map.
  *
  * @complexity O(1) plus `deleteWorkspace`'s own O(workspaces) roster check.
  */
@@ -60,7 +61,7 @@ export async function deleteWorkspaceUnlessBound(
   if (!transaction) throw new Error("workspace deletion requires a transaction port");
   await deleteWorkspace({
     deps: { repo: deps.workspaceRepo, transaction: transaction.bind(deps.workspaceRepo) },
-    input: { id: targetWorkspaceId },
+    input: { id: deps.workspaceId },
   });
 
   res.status(204).send();
