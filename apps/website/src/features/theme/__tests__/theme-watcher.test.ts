@@ -191,3 +191,34 @@ test("a notification I/O failure is reported without a frame; a later edit retri
   assert.equal(f.themes[0]?.tokens["--ink"], "#abc");
   assert.equal(f.frames.length, 1);
 });
+
+test("the default OS watcher refreshes discovery and the preview marker after a real file write", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-watch-native-"));
+  const themesDir = path.join(root, "themes");
+  fs.mkdirSync(themesDir);
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
+  const errors: unknown[] = [];
+  const watcher = startThemeWatcher({ themes, themesDir }, { settleMs: 10, onError: ({ error }) => errors.push(error) });
+  t.after(async () => { await watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  const deadline = Date.now() + 10_000;
+  let frame: ThemePreviewRefresh | null = null;
+  for (let attempt = 0; frame === null && Date.now() < deadline; attempt += 1) {
+    fs.writeFileSync(path.join(themesDir, `touch-${attempt}.txt`), "x");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    frame = readThemePreviewRefresh({ themesDir });
+  }
+  assert.ok(frame, "a real filesystem event reached the settle-then-refresh path");
+  assert.deepEqual(errors, []);
+});
+
+test("without an onError option, an opening failure is logged rather than thrown", async (t) => {
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const missing = path.join(os.tmpdir(), `tovu-theme-watch-missing-${process.pid}-${Date.now()}`);
+  const watcher = startThemeWatcher({ themes: [], themesDir: missing });
+  await watcher.stop();
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0][0], "[theme-watcher] theme refresh failed");
+  assert.equal((logged[0][1] as NodeJS.ErrnoException).code, "ENOENT");
+});
