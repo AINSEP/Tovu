@@ -70,3 +70,13 @@ test("the no-access filesystem reports every path absent and refuses every read"
   assert.equal(NO_ACCESS_FS.dirname!("/root/file.liquid"), "");
   assert.equal(NO_ACCESS_FS.sep, "/");
 });
+
+test("a template that passes lint but exhausts the engine's memory budget at render time is a controlled error reply", () => {
+  // 24 doublings of a 1-char string reach ~16M chars, past the engine's 5,000,000 memoryLimit; every
+  // tag and filter here is allowlisted, so only the engine's own runtime limit can refuse it.
+  const source = `{% assign s = "x" %}${"{% assign s = s | append: s %}".repeat(24)}{{ s | size }}`;
+  const result = runLiquidRender({ workerData: { source, ctx } });
+  assert.equal(result.ok, false);
+  assert.doesNotMatch((result as { error: string }).error, /^disallowed Liquid usage/);
+  assert.match((result as { error: string }).error, /memory/i);
+});

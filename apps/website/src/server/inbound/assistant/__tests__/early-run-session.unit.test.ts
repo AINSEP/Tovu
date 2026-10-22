@@ -122,3 +122,14 @@ test("a host with no durable run store persists the locator through the session 
   assert.deepEqual(calls, [{ conversationId: "chat-3", agentId: "codex", sessionId: "thread-3" }]);
   assert.deepEqual(reads, []);
 });
+
+test("an event that carries no session locator writes nothing and reads no process identity", async () => {
+  const writes: unknown[] = [];
+  const sessions: AgentSessionStore = { getSessionId: async () => null, clearSessionId: async () => {}, setSessionId: async (value) => { writes.push(value); } };
+  const durable = { captureSession: async (value: unknown) => { writes.push(value); return true; } } as unknown as DurableRunStore;
+  const reads: unknown[] = [];
+  const capture = createEarlySessionCapture({ sessions, durable, readStart: async (value) => { reads.push(value); return "start"; } });
+  await capture({ runId: "run-4", conversationId: "chat", agentId: "codex", event: { kind: "agent", payload: { type: "text_delta", text: "hi", childPid: 80 } } });
+  assert.deepEqual(writes, []);
+  assert.deepEqual(reads, []);
+});
