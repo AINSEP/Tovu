@@ -38,6 +38,8 @@ export const INFINITE_ANIMATION_ALLOWLIST: Record<string, string> = {
   "apps/desktop/src/renderer/app.css::.card.is-starting .state__dot,\n.card.is-stopping .state__dot":
     "only while a site is starting or stopping",
   "apps/admin/src/features/voice-input/push-to-talk-mic-button.css::.tovu-push-to-talk__dot": "rendered only while recording",
+  "apps/admin/src/styles/library.css::.library-spinner": "rendered only while a library upload row is uploading",
+  "apps/admin/src/styles/site-transfer.css::.site-transfer-spinner": "rendered only while a site import, export or publish is running",
   "apps/admin/src/styles.css::.theme-card.active:hover::before": "only while the pointer is over the active theme card; runs 3 sweeps otherwise",
   "content/themes/static/basic-2/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
   "content/themes/static/tailark-quartz-libre/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
