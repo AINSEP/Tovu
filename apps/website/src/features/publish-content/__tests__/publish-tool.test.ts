@@ -96,6 +96,13 @@ test("publishes pending content without a UI card and returns live slug URLs", a
   assert.equal(contributePublishContentTools().risk.get(ID), "mutates-durable-state");
 });
 
+test("an absent input publishes exactly like an empty one", async () => {
+  const f = await fixture();
+  const result = await (await tool(f.deps, ID)).handler(context(undefined)) as { published: unknown[] };
+  assert.equal(result.published.length, 2);
+  assert.deepEqual(f.counts(), { confirms: 1, executes: 1 });
+});
+
 test("selects an exact title and excludes named items before staging the confirmed bundle", async () => {
   const f = await fixture();
   const result = await publish(f, { items: ["How Tovu Saves You Time", "Contact"], excludeItems: ["Contact"] });
