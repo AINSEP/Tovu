@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 
 import { countWords, WORD_COUNT_MANIFEST } from "../../index.js";
 
@@ -88,4 +89,22 @@ test("REQ-09: WORD_COUNT_MANIFEST declares exactly the three v1 capabilities, on
   assert.equal(WORD_COUNT_MANIFEST.fields[0].type, "integer");
   assert.equal(WORD_COUNT_MANIFEST.fields[0].queryable, false);
   assert.equal(WORD_COUNT_MANIFEST.tier, "tier-3");
+});
+
+test("the runtime source imports the plugin whose beforeSave filter stores the entry's word count", async () => {
+  const { HOOK_CONTENT_ENTRY_BEFORE_SAVE } = await import("@tovu/sdk");
+  const { WORD_COUNT_PLUGIN, WORD_COUNT_RUNTIME_SOURCE } = await import("../../index.js");
+  assert.equal(WORD_COUNT_RUNTIME_SOURCE.entryPath, "built-in:word-count");
+  assert.equal(WORD_COUNT_RUNTIME_SOURCE.source, "built-in");
+  assert.equal(WORD_COUNT_RUNTIME_SOURCE.manifest, WORD_COUNT_MANIFEST);
+  assert.equal(WORD_COUNT_RUNTIME_SOURCE.sourceDir, path.resolve(import.meta.dirname, "../.."));
+  const imported = await WORD_COUNT_RUNTIME_SOURCE.importModule();
+  assert.equal(imported.default, WORD_COUNT_PLUGIN);
+
+  const filters: { hook: string; filter: (entry: { bodyJson: unknown }) => Promise<unknown> }[] = [];
+  const sdk = { addFilter: (hook: string, filter: (entry: { bodyJson: unknown }) => Promise<unknown>) => { filters.push({ hook, filter }); } };
+  await imported.default.definition.setup(sdk as unknown as Parameters<typeof imported.default.definition.setup>[0]);
+  assert.deepEqual(filters.map((f) => f.hook), [HOOK_CONTENT_ENTRY_BEFORE_SAVE]);
+  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "three small words" }] }] };
+  assert.deepEqual(await filters[0]!.filter({ bodyJson: body }), { count: 3 });
 });

@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
+import Database from "better-sqlite3";
+
 import { SiteDirInvalidError } from "../../../platform/site-dir/index.js";
 import { SiteRepairRefusedError } from "../../../platform/site-dir/repair-site.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
@@ -171,6 +173,23 @@ test("a non-refusal error (an invalid --name) propagates unchanged", async (t) =
     assert.ok(err instanceof Error);
     assert.equal(err.name, "ValidationError");
     assert.equal(err instanceof SiteRepairRefusedError, false);
+    return true;
+  });
+  assert.equal(fs.existsSync(path.join(dir, "config.json")), false);
+});
+
+test("any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list", async (t) => {
+  const dir = tempParent(t);
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  new Database(dbPath).close();
+  fs.writeFileSync(path.join(dir, "other.db"), "");
+  captureStdout(t);
+  await assert.rejects(runAdoptCommand({ dir }), (err: unknown) => {
+    assert.ok(err instanceof SiteRepairRefusedError);
+    assert.equal(err.reason, "CONTENT_DB_UNMIGRATED");
+    assert.match(err.message, /^adopt: refusing — .* has never had a migration applied/);
+    assert.equal(err.message.includes("other.db"), false, "only the no-content.db refusal lists sibling databases");
     return true;
   });
   assert.equal(fs.existsSync(path.join(dir, "config.json")), false);
