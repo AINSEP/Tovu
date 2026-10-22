@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 
-import { busy, connectToHost, failureText, h, show, wait } from '../ui/dom.mjs';
+import { busy, connectToHost, failureText, h, notice, show, tip, wait } from '../ui/dom.mjs';
 import { HOST_ORIGIN, MARKUP, MOUNT_ID, createFrame, flush } from './frame-harness.mjs';
 
 let frame;
@@ -125,4 +125,114 @@ test('wait: resolves only after the given milliseconds', async () => {
   mock.timers.tick(1);
   await flush();
   assert.deepEqual({ early, done }, { early: false, done: true });
+});
+
+// ---- toggletips, notices and focus-keeping re-renders ----
+
+function key(frameWindow, target, value) {
+  const event = new frameWindow.KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+}
+
+test('tip: an "i" trigger described by its own explanation; click and Enter/Space toggle it, Escape closes it, other keys do nothing', () => {
+  const wrapper = tip('About Products', 'What products do.', { bodyClass: 'intro' });
+  frame.document.body.append(wrapper);
+  const [icon, body] = wrapper.children;
+  assert.equal(icon.getAttribute('aria-label'), 'About Products');
+  assert.equal(icon.getAttribute('aria-describedby'), body.id);
+  assert.equal(body.className, 'tip-body intro');
+  assert.equal(body.textContent, 'What products do.');
+  assert.equal(tip('A', 'b').children[1].className, 'tip-body');
+  assert.notEqual(tip('A', 'b').children[1].id, body.id);
+
+  icon.click();
+  assert.equal(wrapper.classList.contains('open'), true);
+  assert.equal(icon.getAttribute('aria-expanded'), 'true');
+  const ignored = key(frame.window, icon, 'a');
+  assert.equal(ignored.defaultPrevented, false);
+  assert.equal(wrapper.classList.contains('open'), true);
+  assert.equal(key(frame.window, icon, 'Enter').defaultPrevented, true);
+  assert.equal(wrapper.classList.contains('open'), false);
+  key(frame.window, icon, ' ');
+  assert.equal(icon.getAttribute('aria-expanded'), 'true');
+  key(frame.window, icon, 'Escape');
+  key(frame.window, icon, 'Escape');
+  assert.equal(wrapper.classList.contains('open'), false);
+  assert.equal(icon.getAttribute('aria-expanded'), 'false');
+});
+
+test('tip: a tap elsewhere closes an open tip, a tap inside keeps it; the document is wired once', () => {
+  const added = mock.method(frame.document, 'addEventListener');
+  connectToHost({ window: frame.window }).close();
+  connectToHost({ window: frame.window }).close();
+  assert.equal(added.mock.calls.filter((call) => call.arguments[0] === 'click').length, 1);
+  const wrapper = tip('About', 'Text');
+  const outside = h('p', {}, ['elsewhere']);
+  frame.document.body.append(wrapper, outside);
+  wrapper.firstChild.click();
+  wrapper.children[1].click();
+  assert.equal(wrapper.classList.contains('open'), true);
+  outside.click();
+  assert.equal(wrapper.classList.contains('open'), false);
+  assert.equal(wrapper.firstChild.getAttribute('aria-expanded'), 'false');
+});
+
+test('notice: error tone is the plain notice; other tones add their class; retry adds a Try again button in the same box', () => {
+  const plain = notice({ text: 'Failed.' });
+  assert.equal(plain.outerHTML, '<p class="notice" role="status">Failed.</p>');
+  assert.equal(notice({ text: 'Done', tone: 'ok' }).className, 'notice ok');
+  let retried = 0;
+  const group = notice({ text: 'Offline', tone: 'warn', retry: () => { retried += 1; } });
+  assert.equal(group.className, 'notice-group warn');
+  assert.equal(group.children[0].className, 'notice warn');
+  group.querySelector('button').click();
+  assert.equal(group.querySelector('button').textContent, 'Try again');
+  assert.equal(retried, 1);
+});
+
+test('show: keeps focus on the same control across a re-render, matched by id, else by tag and name', () => {
+  const root = frame.document.getElementById('app');
+  show(root, h('button', { id: 'save' }, ['Save']), h('button', {}, ['Cancel']));
+  root.querySelector('#save').focus();
+  show(root, h('button', {}, ['First']), h('button', { id: 'save' }, ['Save now']));
+  assert.equal(frame.document.activeElement.id, 'save');
+  root.querySelectorAll('button')[0].focus();
+  show(root, h('button', { 'aria-label': 'Other' }, ['x']), h('button', {}, ['First']));
+  assert.equal(frame.document.activeElement.textContent, 'First');
+  frame.document.activeElement.blur();
+  root.replaceChildren(h('span', { 'aria-label': 'Labelled', tabindex: '0' }, ['x']));
+  root.firstChild.focus();
+  show(root, h('button', {}, ['Labelled']), h('span', { 'aria-label': 'Labelled', tabindex: '0' }, ['y']));
+  assert.equal(frame.document.activeElement.tagName, 'SPAN');
+});
+
+test('show: focus moves to the first control when the focused one is gone, and is left alone when nothing in the region had it', () => {
+  const root = frame.document.getElementById('app');
+  show(root, h('button', {}, ['Gone']));
+  root.firstChild.focus();
+  show(root, h('p', {}, ['text']), h('a', { href: '#x' }, ['Link']), h('button', {}, ['Next']));
+  assert.equal(frame.document.activeElement.textContent, 'Link');
+  show(root, h('p', {}, ['no controls']));
+  assert.equal(frame.document.activeElement, frame.document.body);
+  const outside = h('button', {}, ['Outside']);
+  frame.document.body.append(outside);
+  outside.focus();
+  show(root, h('button', {}, ['Inside']));
+  assert.equal(frame.document.activeElement, outside);
+  root.tabIndex = 0;
+  root.focus();
+  show(root, h('button', {}, ['Inside']));
+  assert.equal(frame.document.activeElement, root);
+});
+
+test('busy then show: the focused button disabled during the work regains focus in the new content', async () => {
+  const root = frame.document.getElementById('app');
+  show(root, h('button', {}, ['Send']));
+  root.firstChild.focus();
+  await busy(root, async () => {
+    show(root, h('button', {}, ['Back']), h('button', {}, ['Send']));
+  });
+  assert.equal(frame.document.activeElement.textContent, 'Send');
+  assert.equal(root.pendingFocus, null);
 });
