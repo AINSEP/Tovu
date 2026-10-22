@@ -1193,6 +1193,12 @@ async function composeSiteRouteDeps(
       });
     }
   }
+  // Media-generation vendors (built-in + Agent Plugin contributed), built ONCE here — see
+  // `features/media-generation/media-provider-registry.ts`. A refused plugin vendor is logged, never fatal.
+  // Awaited in the prelude, before the first fire-and-forget boot promise below (boot-order rule
+  // pinned by composition-boot-order.unit.test.ts); it needs only the workspace and plugin layout.
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
+  for (const refusal of mediaProviders.refusals) console.error(`[media-providers] ${refusal}`);
   // Posts written before migration 0022 existed — and the demo content `prepareContentStore` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Unconditional, and awaited by every
@@ -2150,10 +2156,6 @@ async function composeSiteRouteDeps(
   });
 
   // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
-  // Media-generation vendors (built-in + Agent Plugin contributed), built ONCE here — see
-  // `features/media-generation/media-provider-registry.ts`. A refused plugin vendor is logged, never fatal.
-  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions });
-  for (const refusal of mediaProviders.refusals) console.error(`[media-providers] ${refusal}`);
   const guardedOutboundHttpClient = createGuardedMediaHttpClient({
       ...createNodeGuardedHttpPorts({}),
       userAgent: "Tovu/0.1.0",
