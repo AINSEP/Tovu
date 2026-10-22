@@ -183,6 +183,9 @@ export interface SkippedAgentPluginMcpServer {
 /** One server {@link planAgentPluginMcpFederation} determined should be provisioned (subject to
  *  rule 1's existence check at apply time). Carries the derived id and the resolved config, but not
  *  yet `workspaceId`/`principalId` — those are per-CALL, not per-server. */
+/** The shape of `classifyAgentPluginMcpServerTrust` (`capability-projection.ts`). */
+export type AgentPluginMcpTrustClassifier = (server: Pick<McpServerConfig, "type">) => "auto-admit" | "requires-confirmation";
+
 export interface PlannedAgentPluginMcpUpsert {
   readonly connectionId: string;
   readonly serverKey: string;
@@ -213,11 +216,12 @@ export interface AgentPluginMcpFederationPlan {
 function classifyAgentPluginMcpServerForFederation(
   serverKey: string,
   config: McpServerConfig,
+  classifyTrust: AgentPluginMcpTrustClassifier,
 ): { readonly kind: "upsert"; readonly planned: PlannedAgentPluginMcpUpsert } | { readonly kind: "skip"; readonly reason: string } {
   if (config.type === "stdio") {
     return { kind: "skip", reason: "declares a 'stdio' local process — requires explicit operator confirmation, never auto-wired from a plugin" };
   }
-  if (classifyAgentPluginMcpServerTrust(config) !== "auto-admit") {
+  if (classifyTrust(config) !== "auto-admit") {
     return {
       kind: "skip",
       reason: "this server's trust classification is not 'auto-admit' — refusing to wire it until this file is re-verified against classifyAgentPluginMcpServerTrust's current rule",
@@ -260,12 +264,18 @@ function classifyAgentPluginMcpServerForFederation(
  */
 export function planAgentPluginMcpFederation(input: {
   readonly servers: Readonly<Record<string, McpServerConfig>>;
-}): AgentPluginMcpFederationPlan {
+}, options: {
+  /** The trust rule consulted after the stdio narrowing. Defaults to the real
+   *  `classifyAgentPluginMcpServerTrust`; injectable so the drift guard above (a remote transport
+   *  reclassified as "requires-confirmation") stays verifiable while today's rule never trips it. */
+  readonly classifyTrust?: AgentPluginMcpTrustClassifier;
+} = {}): AgentPluginMcpFederationPlan {
+  const classifyTrust = options.classifyTrust ?? classifyAgentPluginMcpServerTrust;
   const toUpsert: PlannedAgentPluginMcpUpsert[] = [];
   const skipped: SkippedAgentPluginMcpServer[] = [];
 
   for (const [serverKey, config] of Object.entries(input.servers)) {
-    const result = classifyAgentPluginMcpServerForFederation(serverKey, config);
+    const result = classifyAgentPluginMcpServerForFederation(serverKey, config, classifyTrust);
     if (result.kind === "upsert") toUpsert.push(result.planned);
     else skipped.push({ serverKey, reason: result.reason });
   }
