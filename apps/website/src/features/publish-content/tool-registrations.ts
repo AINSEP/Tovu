@@ -485,7 +485,8 @@ async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): 
     if (connected) return connected.id;
     if (rows.length === 1) return rows[0]!.id;
   }
-  throw new ToolInputError({ message: `Several destinations are saved. Choose a peerId: ${rows.map(row => `${row.id} (${row.label})`).join(", ")}.` });
+  const choices = rows.map(row => `${row.id} (${row.label})`).join(", ");
+  throw new ToolInputError({ message: `Several destinations are saved. Choose a peerId: ${choices}.` });
 }
 
 /** Fresh hooks from the same factory /import/plan and /import/execute use. O(1) projection. */

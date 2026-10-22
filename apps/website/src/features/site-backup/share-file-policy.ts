@@ -60,7 +60,8 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   // This one exact path is produced by trusted projection, never by a filesystem walk.
   const reason = p === "database/content.db" ? null : checkTreePath(p);
   if (reason || hasUnportableSpelling({ path: p })) {
-    throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${reason ? `: ${reason}` : "."}` });
+    const suffix = reason ? `: ${reason}` : ".";
+    throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${suffix}` });
   }
 }
 

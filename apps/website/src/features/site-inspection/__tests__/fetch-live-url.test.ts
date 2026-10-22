@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
+import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
-import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "../live-url.js";
+import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveOriginSourceDeps } from "../live-url.js";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 const origin = 'https://site.example';
@@ -118,6 +119,36 @@ test("known origins are freshly read, deduplicated, and exclude superseded conne
   ] }, publishHistoryStore: { listLiveUrls: async () => [origin + '/repo'] }, originRegistry: { canonicalOrigin: async () => ({ scheme: 'https', host: 'configured.example', source: 'workspace-setting' }) } };
   assert.deepEqual(await listKnownLiveOrigins(deps as never), ['https://configured.example', 'https://peer.example', origin]);
   peer = 'https://fresh.example'; assert.deepEqual(await listKnownLiveOrigins(deps as never), ['https://configured.example', 'https://fresh.example', 'https://peer.example', origin]);
+});
+test("absent and development origin evidence supplies no live address", async () => {
+  assert.deepEqual(await listKnownLiveOrigins({ workspaceId: 'w' }), []);
+  assert.deepEqual(await listKnownLiveOrigins({ workspaceId: 'w', originRegistry: {
+    canonicalOrigin: async required => {
+      assert.deepEqual(required, { workspaceId: 'w' });
+      return { scheme: 'http', host: 'localhost', port: 3000, source: 'dev-capability', verifiedAt: '' };
+    },
+  } }), []);
+});
+test("configured origin port formatting preserves absent, zero, default and refused ports", async () => {
+  for (const port of [undefined, 0, 443]) {
+    const deps: LiveOriginSourceDeps = { workspaceId: 'w', originRegistry: {
+      canonicalOrigin: async () => ({ scheme: 'https', host: 'configured.example', source: 'workspace-setting', verifiedAt: '', ...(port === undefined ? {} : { port }) }),
+    } };
+    assert.deepEqual(await listKnownLiveOrigins(deps), ['https://configured.example']);
+  }
+  await assert.rejects(listKnownLiveOrigins({ workspaceId: 'w', originRegistry: {
+    canonicalOrigin: async () => ({ scheme: 'https', host: 'configured.example', port: 8443, source: 'workspace-setting', verifiedAt: '' }),
+  } }), { constructor: ToolInputError, message: 'fetch_live_url: live origins must use HTTPS on port 443 without credentials.' });
+});
+test("only missing origin verification is ignored; other registry failures retain their identity", async () => {
+  assert.deepEqual(await listKnownLiveOrigins({ workspaceId: 'w', originRegistry: {
+    canonicalOrigin: async () => { throw new OriginNotVerifiedError({ message: 'not configured' }); },
+  } }), []);
+  for (const error of [new Error('registry unavailable'), { code: 'registry failure' }]) {
+    await assert.rejects(listKnownLiveOrigins({ workspaceId: 'w', originRegistry: {
+      canonicalOrigin: async () => { throw error; },
+    } }), caught => caught === error);
+  }
 });
 test("registration is readOnly and permission denial prevents origin reads and fetches", async () => {
   let reads = 0;

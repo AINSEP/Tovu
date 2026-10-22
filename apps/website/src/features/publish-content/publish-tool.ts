@@ -32,14 +32,22 @@ function readReport(value: unknown): PublishContentReport {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ToolInputError({ message: "The live site returned no publish report." });
   const report = value as PublishContentReport;
   const outcomes = new Set(["created", "applied", "forced", "unchanged", "conflict", "blocked"]);
-  if (typeof report.refused !== "boolean" || !Array.isArray(report.rows) || !report.rows.every(row =>
-    row && typeof row.entityType === "string" && typeof row.entityId === "string" &&
-    typeof row.writes === "boolean" && outcomes.has(row.outcome) &&
-    row.writes === ["created", "applied", "forced"].includes(row.outcome))) {
+  if (typeof report.refused !== "boolean" || !Array.isArray(report.rows) || !report.rows.every(row => validReportRow({ row, outcomes }))) {
     throw new ToolInputError({ message: "The live site returned an invalid publish report." });
   }
   if (report.refused) throw new ToolInputError({ message: report.refusalReason ?? "The live site refused this publish." });
   return report;
+}
+
+/** A remote row's write flag must agree with its outcome before it can be reported as published.
+ * @complexity O(1) time and space per row. */
+function validReportRow(
+  { row, outcomes }: { row: PublishContentReport["rows"][number]; outcomes: ReadonlySet<string> },
+  _options: Record<string, never> = {},
+): boolean {
+  return row && typeof row.entityType === "string" && typeof row.entityId === "string" &&
+    typeof row.writes === "boolean" && outcomes.has(row.outcome) &&
+    row.writes === ["created", "applied", "forced"].includes(row.outcome);
 }
 
 /** CMS-specific autonomous push. Ports supply credential resolution, export and peer HTTP; no
