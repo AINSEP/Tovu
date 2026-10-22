@@ -24,23 +24,26 @@ const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-deploy-config-worker-coverage-"));
 after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
 
-function runCli(args: string[]): { status: number | null; stdout: string; stderr: string } {
+/** A plugin root holding only the neutral `example-host` generator (core stays vendor-neutral). */
+const FIXTURE_PLUGINS_ENV = { TOVU_BUNDLED_AGENT_PLUGINS_DIR: path.resolve(import.meta.dirname, "../fixtures/deploy-config-plugins") };
+
+function runCli(args: string[], extraEnv: Record<string, string> = {}): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], {
     encoding: "utf8",
-    env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+    env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...extraEnv },
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
-test("tovu deploy config --target fly --region <r>: exits 0 and prints fly.toml to stdout", () => {
-  const result = runCli(["deploy", "config", "--target", "fly", "--region", "iad"]);
+test("tovu deploy config --target <t> --region <r>: exits 0 and prints the generated config to stdout", () => {
+  const result = runCli(["deploy", "config", "--target", "example-host", "--region", "iad"], FIXTURE_PLUGINS_ENV);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   assert.match(result.stdout, /^app = "tovu"$/m);
   assert.match(result.stdout, /primary_region = "iad"/);
   assert.match(result.stdout, /path = "\/readyz"/);
   // Follow-up notes go to stderr, never mixed into the file contents on stdout.
-  assert.match(result.stderr, /fly volumes create/);
-  assert.doesNotMatch(result.stdout, /fly volumes create/);
+  assert.match(result.stderr, /example-host volumes create/);
+  assert.doesNotMatch(result.stdout, /example-host volumes create/);
 });
 
 test("tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout", () => {
@@ -81,13 +84,13 @@ test("tovu deploy config --target railway --region <bad>: rejected as VALIDATION
   assert.match(result.stderr, /is not a valid Railway region/);
 });
 
-test("tovu deploy config --target fly --region <r> --out <file>: writes the file instead of printing it", () => {
+test("tovu deploy config --target <t> --region <r> --out <file>: writes the file instead of printing it", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-deploy-config-out-"));
-  const outFile = path.join(dir, "generated-fly.toml");
+  const outFile = path.join(dir, "generated-example-host.conf");
 
-  const result = runCli(["deploy", "config", "--target", "fly", "--region", "iad", "--out", outFile]);
+  const result = runCli(["deploy", "config", "--target", "example-host", "--region", "iad", "--out", outFile], FIXTURE_PLUGINS_ENV);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.match(result.stdout, /wrote fly\.toml \(fly\) to/);
+  assert.match(result.stdout, /wrote example-host\.conf \(example-host\) to/);
   assert.doesNotMatch(result.stdout, /^app = /m, "the file's own contents must not ALSO print to stdout");
 
   const written = fs.readFileSync(outFile, "utf8");

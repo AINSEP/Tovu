@@ -1,0 +1,1 @@
+{ "schemaVersion": 1, "generators": [{ "id": "example-host", "label": "Example Host", "module": "deploy-configs/example-host.mjs" }] }
