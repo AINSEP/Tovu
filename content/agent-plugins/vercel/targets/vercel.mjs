@@ -386,20 +386,12 @@ export function bindVercel(kit) {
       return /^https?:\/\//i.test(url) ? url : `https://${url}`;
   }
   /**
-   * `if (!json) continue` is unreachable via this file's one call site,
-   * `deploymentUrlCandidates(publicHost, ready, created)` in `publish()`: `created` comes
-   * from `readVercelJson`, which either returns a real parsed `JsonObject` or
-   * throws (never resolves to null/undefined); `ready` is either `created`
-   * itself (same guarantee) or `pollVercelDeployment`'s result, which — per
-   * that function's own loop shape (`i < 30` starting at `i = 0`, so it always
-   * runs at least one full iteration before it can return, and that iteration
-   * unconditionally assigns `last = json` right after the `!resp.ok` throw
-   * check, before any `return`) — can only resolve to a real `JsonObject` or
-   * throw, never resolve to `null`. The wider `(JsonObject | null | undefined)[]`
-   * parameter type is deliberately more permissive than what this one caller
-   * can ever supply — same "general-purpose helper, defense-in-depth beyond
-   * today's only caller" reasoning `netlify.ts`'s own `netlifyUrlCandidates`
-   * already documents for its structurally identical guard.
+   * `if (!json) continue` skips a response that is not there. Of this file's one call site,
+   * `deploymentUrlCandidates(publicHost, ready, created)` in `publish()`, `created` is always a parsed
+   * `JsonObject` (`readVercelJson` returns one or throws), but `ready` is `null` when every one of
+   * `pollVercelDeployment`'s 30 status reads was unparseable (each such read is skipped with
+   * `continue`, so `last` is never assigned) — then only `created` supplies candidates. Same guard
+   * `netlify.ts`'s own `netlifyUrlCandidates` keeps for the same reason.
    */
   function deploymentUrlCandidates(publicHost, ...responses) {
       // Aliases (the production `<project>.vercel.app` among them) are tried before `url`: `url` is the
