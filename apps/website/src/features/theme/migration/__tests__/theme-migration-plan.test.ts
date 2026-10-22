@@ -208,3 +208,35 @@ test("planV2Migration (static) flags a non-.html file inside pages/ as unrecogni
   const plan = planV2Migration({ themeDir: dir, tier: "static" });
   assert.deepEqual(plan.unrecognized, ["pages/stray.txt"]);
 });
+
+function bareThemeDir(t: test.TestContext, tier: string, files: Record<string, string> = {}): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-plan-bare-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "bare", name: "Bare", version: "1.0.0", tier }));
+  for (const [rel, content] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), content);
+  }
+  return dir;
+}
+
+test("a non-static theme with no templates/ folder plans no moves", (t) => {
+  const dir = bareThemeDir(t, "declarative");
+  const plan = planV2Migration({ themeDir: dir, tier: "declarative" });
+  assert.deepEqual(plan.moves.filter((move) => move.from.startsWith("templates/")), []);
+  assert.deepEqual(plan.unrecognized, []);
+});
+
+test("a static theme with only theme.json plans no css/js/pages moves", (t) => {
+  const dir = bareThemeDir(t, "static");
+  const plan = planV2Migration({ themeDir: dir, tier: "static" });
+  assert.deepEqual(plan.moves, []);
+  assert.deepEqual(plan.unrecognized, []);
+});
+
+test("a static css/ folder without styles.css reports each of its files as unrecognized", (t) => {
+  const dir = bareThemeDir(t, "static", { "css/extra.css": "a{}", "pages/index.html": "<html></html>" });
+  const plan = planV2Migration({ themeDir: dir, tier: "static" });
+  assert.deepEqual(plan.moves, [{ from: "pages/index.html", to: "render/pages/index.html" }]);
+  assert.deepEqual(plan.unrecognized, ["css/extra.css"]);
+});
