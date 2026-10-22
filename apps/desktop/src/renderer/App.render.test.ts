@@ -11,7 +11,7 @@
  *
  * Host stand-ins, not module mocks: `matchMedia` and `ResizeObserver` are absent from jsdom and get a
  * minimal recording version; `.css` imports (a Vite concern, `SitesFolders.tsx`'s dialog stylesheet)
- * load as empty modules through a `registerHooks` load hook, since Node cannot import CSS at all.
+ * load as empty modules through a `registerHooks` resolve hook, since Node cannot import CSS at all.
  */
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
