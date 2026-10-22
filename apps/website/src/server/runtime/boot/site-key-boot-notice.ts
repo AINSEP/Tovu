@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
@@ -49,12 +49,18 @@ export interface SiteKeyBootNoticeDeps {
   log?: (line: string) => void;
   /** Source for the `TOVU_SITE_KEY_NOTICE` switch below. Defaults to `process.env`. */
   env?: NodeJS.ProcessEnv;
+  /** The served site's directory. Its `.site-meta.json` names the per-site key file a fresh local
+   *  site keeps its key in; without it only the env var and the legacy shared file are checked, so a
+   *  site whose key is per-site would be reported as having none (a false alarm). */
+  siteDir?: string;
 }
 
 /**
  * Warns on this server's terminal when it booted without usable site-key material.
  *
- * Call from a top-level boot path, next to `runProductionReadinessGateOrExit()`. Inert in
+ * Call from a top-level boot path, AFTER `ensureSiteKeyForBoot()` (which mints a fresh local
+ * site's per-site key) and with that site's `siteDir` — called before it, or without the site, a
+ * brand-new `tovu init` site warned "no key file at ." on its first boot. Inert in
  * production, where that gate has already refused to boot at all for this exact condition —
  * running both would print a warning immediately before an exit.
  *
@@ -77,7 +83,7 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   const log = deps.log ?? ((line: string) => console.warn(line));
   let status: SiteKeyStatus;
   try {
-    status = deps.inspect ? deps.inspect() : inspectSiteKeyMaterial({ sources: siteKeySources({ mode, env, home: homedir(), cwd: process.cwd() }) }, { env: () => env });
+    status = deps.inspect ? deps.inspect() : inspectLocalSiteKey({ mode, env, siteDir: deps.siteDir });
   } catch {
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
@@ -87,6 +93,14 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   if (status.active) return;
 
   safely(log, siteKeyBootNoticeLines(status));
+}
+
+/** The same ordered sources the composition root's keyrings read — including this site's own
+ *  per-site file — so the notice can never disagree with what the server will actually use. */
+function inspectLocalSiteKey(input: { mode: "production" | "local"; env: NodeJS.ProcessEnv; siteDir: string | undefined }): SiteKeyStatus {
+  const siteKeyId = input.siteDir ? resolveSiteKeyId({ siteDir: input.siteDir }) : undefined;
+  const sources = siteKeySources({ mode: input.mode, env: input.env, home: homedir(), cwd: process.cwd(), siteKeyId });
+  return inspectSiteKeyMaterial({ sources }, { env: () => input.env });
 }
 
 /** Writes the notice, tolerating a sink that throws — a dead stderr must not take the boot down. */

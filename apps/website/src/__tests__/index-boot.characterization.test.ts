@@ -104,7 +104,7 @@ for (const memory of [true, false]) {
       await assert.rejects(boot.main(), (error) => error === boot.compositionReached);
       const preparation = memory
         ? ["rejections", "capture", "token", "sdk", "production-gate", "key-notice"]
-        : ["rejections", "pin-root", "capture", "attach-logs", "token", "sdk", "production-gate", "key-notice", "claim", "sync-warning", "schema", "ensure-key"];
+        : ["rejections", "pin-root", "capture", "attach-logs", "token", "sdk", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
       assert.deepEqual(boot.calls, [...preparation, tls ? "https" : "http", "reserve", "origin", ...(memory ? [] : ["ready"]), "error-listener"]);
       assert.equal(boot.env.PORT, "4322");
       const response = boot.response();

@@ -190,10 +190,6 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // See runtime/boot/boot-readiness-gate.ts for the policy.
   await runProductionReadinessGateOrExit();
 
-  // Local boots also need the missing-site-key notice; the readiness gate is production-only.
-  // See runtime/boot/site-key-boot-notice.ts.
-  warnIfNoSiteKeyAtBoot();
-
   warnIfLegacyEnvVarsIgnored();
 
   const target = resolveInstallDirTarget(input.dir);
@@ -271,6 +267,11 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // marker-less dir that gained a `.site-meta.json` here is one `tovu adopt` then refuses as
   // partially adopted.
   await ensureSiteKeyForBoot({ siteDir: target, findSiteKeyDependentData });
+
+  // Local boots also need the missing-site-key notice; the readiness gate is production-only.
+  // See runtime/boot/site-key-boot-notice.ts. After the ensure above, with this site, so a fresh
+  // site's just-minted per-site key counts (2026-10-22: it warned "no key file at .").
+  warnIfNoSiteKeyAtBoot({ siteDir: target });
 
   reportSitesSyncWarning({});
   const paths = resolveSiteDatabasePaths({ dir: target });

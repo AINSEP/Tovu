@@ -160,12 +160,6 @@ async function prepareSiteBoot(
 
   await runProductionReadinessGateOrExit();
 
-  // The LOCAL-mode counterpart to the gate above, which returns immediately outside production.
-  // "Do not refuse to boot without a site key" was implemented as "do not mention it", and that
-  // silence cost an afternoon on 2026-09-18 — see `site-key-boot-notice.ts`'s own header. Warns
-  // and carries on; never refuses, never throws.
-  warnIfNoSiteKeyAtBoot();
-
   // Claim before the schema guard, which already opens the site's database.
   const runningLease = useMemory ? undefined : claimSiteRunning({ dir: siteDir(), app: "Web", scheme: devTls.active ? "https" : "http" });
   if (!useMemory) reportSitesSyncWarning({});
@@ -175,6 +169,13 @@ async function prepareSiteBoot(
   // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
+
+  // The LOCAL-mode counterpart to the production readiness gate, which returns immediately outside
+  // production. "Do not refuse to boot without a site key" was implemented as "do not mention it",
+  // and that silence cost an afternoon on 2026-09-18 — see `site-key-boot-notice.ts`'s own header.
+  // Warns and carries on; never refuses, never throws. After the ensure above and given the site,
+  // so a fresh site's just-minted per-site key counts (2026-10-22: it warned "no key file at .").
+  warnIfNoSiteKeyAtBoot(useMemory ? {} : { siteDir: siteDir() });
 
   return runningLease;
 }
