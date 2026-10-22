@@ -39,6 +39,29 @@ export interface PackageFileTreeController {
   readonly onRowFocus: (path: string) => void;
 }
 
+/** What one key action can do to the tree; {@link applyPackageFileTreeKeyAction}'s effects port. */
+export interface PackageFileTreeKeyEffects {
+  readonly setExpanded: (path: string, expanded: boolean) => void;
+  readonly openFile: (relativePath: string) => void;
+  readonly focus: (path: string) => void;
+}
+
+/**
+ * Carries out one key action's effects (expand/collapse, open, then focus). Every field of the action
+ * is optional by contract — the current key map always moves focus, but an action that only opens or
+ * only toggles still does exactly that and nothing more.
+ *
+ * @returns Whether the key was the tree's (so the caller suppresses the browser's default).
+ * @complexity O(1).
+ */
+export function applyPackageFileTreeKeyAction(action: ReturnType<typeof packageFileTreeKeyAction>, effects: PackageFileTreeKeyEffects): boolean {
+  if (!action.focus && !action.setExpanded && !action.open) return false;
+  if (action.setExpanded) effects.setExpanded(action.setExpanded.path, action.setExpanded.expanded);
+  if (action.open) effects.openFile(action.open);
+  if (action.focus) effects.focus(action.focus);
+  return true;
+}
+
 /**
  * @returns The rows to render and the handlers for the tree.
  * @complexity O(files) per render to rebuild visible rows; the tree itself is memoized on the paths.
@@ -74,14 +97,15 @@ export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageF
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (activePath === null) return;
     const action = packageFileTreeKeyAction(rows, activePath, event.key, isExpanded);
-    if (!action.focus && !action.setExpanded && !action.open) return;
-    event.preventDefault();
-    if (action.setExpanded) setExpanded(action.setExpanded.path, action.setExpanded.expanded);
-    if (action.open) onOpenFile(action.open);
-    if (action.focus) {
-      setFocusedPath(action.focus);
-      moveDomFocus.current = true;
-    }
+    const handled = applyPackageFileTreeKeyAction(action, {
+      setExpanded,
+      openFile: onOpenFile,
+      focus: (path) => {
+        setFocusedPath(path);
+        moveDomFocus.current = true;
+      },
+    });
+    if (handled) event.preventDefault();
   };
 
   const onRowClick = (row: PackageFileTreeRow) => {
