@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
-import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError } from "../rules";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError, termListView, TERM_PICKER_COLLAPSED_COUNT, TERM_PICKER_MAX_SHOWN } from "../rules";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -314,5 +314,62 @@ describe("findTermByName", () => {
 
   it("is undefined for a name no term has", () => {
     expect(findTermByName(terms, "Fict")).toBeUndefined();
+  });
+});
+
+describe("termListView", () => {
+  const many = (count: number) => Array.from({ length: count }, (_, i) => term({ id: `t${i}`, name: `Tag ${i}` }));
+  const none = new Set<string>();
+  const ids = (terms: AdminTerm[]) => terms.map((t) => t.id);
+
+  it("shows every term, with no toggle and no search, when the row fits", () => {
+    const view = termListView({ terms: many(TERM_PICKER_COLLAPSED_COUNT), pinned: none, selected: none, expanded: false, query: "" });
+    expect(view.shown).toHaveLength(TERM_PICKER_COLLAPSED_COUNT);
+    expect(view.canToggle).toBe(false);
+    expect(view.searchable).toBe(false);
+  });
+
+  it("folds a long row to the first few, offering the toggle", () => {
+    const view = termListView({ terms: many(50), pinned: none, selected: none, expanded: false, query: "" });
+    expect(ids(view.shown)).toEqual(ids(many(TERM_PICKER_COLLAPSED_COUNT)));
+    expect(view.canToggle).toBe(true);
+  });
+
+  it("expanded, reveals up to the cap and offers search past it", () => {
+    const view = termListView({ terms: many(250), pinned: none, selected: none, expanded: true, query: "" });
+    expect(view.shown).toHaveLength(TERM_PICKER_MAX_SHOWN);
+    expect(view.canToggle).toBe(true);
+    expect(view.searchable).toBe(true);
+  });
+
+  it("leads with the pinned (ticked) terms, keeping the total at the limit", () => {
+    const terms = many(50);
+    const pinned = new Set(["t40", "t45"]);
+    const view = termListView({ terms, pinned, selected: pinned, expanded: false, query: "" });
+    expect(ids(view.shown).slice(0, 3)).toEqual(["t40", "t45", "t0"]);
+    expect(view.shown).toHaveLength(TERM_PICKER_COLLAPSED_COUNT);
+  });
+
+  it("never hides a ticked term — pinned ones past the cap, and live ticks past the limit", () => {
+    const terms = many(250);
+    const pinned = new Set(ids(terms).slice(0, 120));
+    const selected = new Set([...pinned, "t200"]);
+    const view = termListView({ terms, pinned, selected, expanded: true, query: "" });
+    expect(view.shown).toHaveLength(121);
+    expect(ids(view.shown).at(-1)).toBe("t200");
+  });
+
+  it("filters the unticked terms by name, ignoring case, but keeps ticked ones", () => {
+    const terms = [term({ id: "a", name: "Apple" }), term({ id: "b", name: "Banana" }), term({ id: "c", name: "Cherry" })];
+    const view = termListView({ terms, pinned: new Set(["c"]), selected: new Set(["b", "c"]), expanded: false, query: " APP " });
+    expect(ids(view.shown)).toEqual(["c", "a", "b"]);
+  });
+
+  it("offers no toggle when the pinned terms alone fill the folded row and nothing else matches", () => {
+    const terms = many(30);
+    const pinned = new Set(ids(terms).slice(0, 25));
+    const view = termListView({ terms, pinned, selected: pinned, expanded: false, query: "zzz" });
+    expect(view.shown).toHaveLength(25);
+    expect(view.canToggle).toBe(false);
   });
 });

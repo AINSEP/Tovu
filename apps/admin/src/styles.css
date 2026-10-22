@@ -3233,6 +3233,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .term-picker-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
 .term-picker-add .jini-suggest-input { width: 18rem; max-width: 100%; }
 .term-picker-add .jini-suggest-input input { width: 100%; }
+/* A long row folds behind "See more" (owner, 2026-10-22) — the button is the shared `.link-button`
+   (blue `--link` text); past 100 terms a search box sits above the ticks, as wide as the add box. */
+.term-picker-search { width: 18rem; max-width: 100%; }
+.term-picker-more { font-size: var(--text-sm); }
 
 /* Jini `SuggestInput` (`@jini-ai/ui/admin-widgets`, 2026-10-10): a free-text input with our own
    suggestion list, replacing the native `<datalist>` whose dark macOS bubble and ▼ could not be

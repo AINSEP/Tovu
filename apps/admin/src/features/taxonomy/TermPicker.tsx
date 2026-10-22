@@ -1,7 +1,10 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
-import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
+import { useId } from "react";
+import type { AdminTaxonomyWithTerms } from "@/lib/api";
+import { useWiredTermPicker, type TermPickerController } from "./hooks/use-term-picker.hooks";
+import { useTermListReveal } from "./hooks/use-term-list-reveal.hooks";
 
 /**
  * @file The Categories & Tags box the post, page and collection-entry editors mount (design-spec.md
@@ -10,6 +13,9 @@ import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
  *
  * Each row also takes a typed name — ticks the matching term or creates it — when the admin may
  * create terms (see the hook's header).
+ *
+ * A long row folds: it shows a few terms (ticked first) with a "See more" that reveals up to 100,
+ * plus a search box past 100 — see `TermChecklist` below (owner, 2026-10-22).
  *
  * Mount it only for content that exists (a saved post/page/entry has an id to tag).
  */
@@ -32,13 +38,17 @@ export function TermPicker(props: {
 
   // Term ids are database row ids — globally unique across every taxonomy, not just within one —
   // so one flat handle list across all taxonomies is correct.
-  const termHandles = buildAgentListHandles({ prefix: "term-picker-term", ids: taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)) }
-  );
-  let termHandleIndex = 0;
+  // Keyed by id, not render position: a row shows only some of its terms ("See more"), and a
+  // term's handle must not change with what else is on screen.
+  const termIds = taxonomies.flatMap(({ terms }) => terms.map((term) => term.id));
+  const termHandles = buildAgentListHandles({ prefix: "term-picker-term", ids: termIds });
+  const termHandleById = new Map(termIds.map((termId, index) => [termId, termHandles[index]!]));
   const taxonomyIds = taxonomies.map(({ taxonomy }) => taxonomy.id);
   const addInputHandles = buildAgentListHandles({ prefix: "term-picker-new-term", ids: taxonomyIds });
   const addTriggerHandles = buildAgentListHandles({ prefix: "term-picker-open-new-term", ids: taxonomyIds });
   const addButtonHandles = buildAgentListHandles({ prefix: "term-picker-add-term", ids: taxonomyIds });
+  const moreHandles = buildAgentListHandles({ prefix: "term-picker-more", ids: taxonomyIds });
+  const searchHandles = buildAgentListHandles({ prefix: "term-picker-search", ids: taxonomyIds });
 
   return (
     <section className="card term-picker">
@@ -61,29 +71,16 @@ export function TermPicker(props: {
               <div className="term-picker-body">
                 {terms.length === 0 && !showInput ? <p className="field-hint">{t("No terms yet.")}</p> : null}
                 {terms.length > 0 ? (
-                  <div className="term-picker-terms">
-                    {terms.map((term) => {
-                      // Consumed in rendered (taxonomy, then term) order, matching how `termHandles`
-                      // was built above via the identical `flatMap` order.
-                      const handle = termHandles[termHandleIndex];
-                      termHandleIndex += 1;
-                      return (
-                        <label key={term.id} className="form-checkbox-field">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(term.id)}
-                            disabled={loading}
-                            onChange={() => toggle(term.id)}
-                            {...agentHandle({ handle }, {
-                              role: "checkbox",
-                              label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
-                            })}
-                          />
-                          {term.name}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <TermChecklist
+                    taxonomy={taxonomy}
+                    terms={terms}
+                    picker={picker}
+                    handles={{
+                      term: (termId) => termHandleById.get(termId)!,
+                      more: moreHandles[groupIndex]!,
+                      search: searchHandles[groupIndex]!,
+                    }}
+                  />
                 ) : null}
                 {picker.showAddTrigger(id) ? (
                   <button
@@ -164,5 +161,74 @@ export function TermPicker(props: {
         {error ? <span className="save-error">{error}</span> : null}
       </span>
     </section>
+  );
+}
+
+/**
+ * One taxonomy row's checkboxes. Shows the first few, with ticked terms first; "See more" reveals
+ * up to 100 and "Show less" folds them back; past 100 a search box finds any term (owner,
+ * 2026-10-22: "looking at all this up front is a lot"). What shows is `rules.ts`'s `termListView`.
+ */
+function TermChecklist(props: {
+  taxonomy: AdminTaxonomyWithTerms["taxonomy"];
+  terms: AdminTaxonomyWithTerms["terms"];
+  picker: TermPickerController;
+  handles: { term: (termId: string) => string; more: string; search: string };
+}) {
+  const { taxonomy, terms, picker, handles } = props;
+  const { selected, toggle, loading, subject, t } = picker;
+  const reveal = useTermListReveal({ terms, selected, loading });
+  const listId = useId();
+  return (
+    <>
+      {reveal.searchable ? (
+        <input
+          type="search"
+          className="term-picker-search"
+          aria-label={t("Search terms")}
+          aria-controls={listId}
+          placeholder={t("Search terms")}
+          autoComplete="off"
+          value={reveal.query}
+          onChange={(event) => reveal.setQuery(event.target.value)}
+          {...agentHandle({ handle: handles.search }, {
+            role: "field",
+            label: `Filter the "${taxonomy.name}" terms shown for this ${subject} by name`,
+          })}
+        />
+      ) : null}
+      <div id={listId} className="term-picker-terms">
+        {reveal.shown.map((term) => (
+          <label key={term.id} className="form-checkbox-field">
+            <input
+              type="checkbox"
+              checked={selected.has(term.id)}
+              disabled={loading}
+              onChange={() => toggle(term.id)}
+              {...agentHandle({ handle: handles.term(term.id) }, {
+                role: "checkbox",
+                label: `Tag this ${subject} with the "${taxonomy.name}" term "${term.name}"`,
+              })}
+            />
+            {term.name}
+          </label>
+        ))}
+      </div>
+      {reveal.canToggle ? (
+        <button
+          type="button"
+          className="link-button term-picker-more"
+          aria-expanded={reveal.expanded}
+          aria-controls={listId}
+          onClick={reveal.toggleExpanded}
+          {...agentHandle({ handle: handles.more }, {
+            role: "button",
+            label: `Show more or fewer of the "${taxonomy.name}" terms`,
+          })}
+        >
+          {reveal.expanded ? t("Show less") : t("See more")}
+        </button>
+      ) : null}
+    </>
   );
 }

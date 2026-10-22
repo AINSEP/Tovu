@@ -279,4 +279,46 @@ describe("TermPicker", () => {
     renderPicker({ t: (key) => (key === "Categories & Tags" ? "Categorías y etiquetas" : key) });
     expect(screen.getByRole("heading", { name: "Categorías y etiquetas" })).toBeInTheDocument();
   });
+
+  describe("a long row folds behind See more", () => {
+    const LONG: AdminTaxonomyWithTerms = {
+      taxonomy: taxonomy({ name: "Tag" }),
+      terms: Array.from({ length: 130 }, (_, i) => term({ id: `t${i}`, name: `Tag ${i}` })),
+    };
+    const checkboxes = () => screen.getAllByRole("checkbox");
+
+    it("shows the first few with ticked terms first, and See more reveals up to 100 then Show less folds back", async () => {
+      renderPicker({ taxonomies: [LONG], selected: new Set(["t120"]) });
+      expect(checkboxes()).toHaveLength(20);
+      expect(screen.getByRole("checkbox", { name: /Tag 120/ })).toBeChecked();
+      expect(checkboxes()[0]).toHaveAccessibleName(/Tag 120/);
+      const more = screen.getByRole("button", { name: "See more" });
+      expect(more).toHaveAttribute("aria-expanded", "false");
+      await userEvent.click(more);
+      expect(checkboxes()).toHaveLength(100);
+      const less = screen.getByRole("button", { name: "Show less" });
+      expect(less).toHaveAttribute("aria-expanded", "true");
+      await userEvent.click(less);
+      expect(checkboxes()).toHaveLength(20);
+    });
+
+    it("past 100 terms, a search box finds any term", async () => {
+      renderPicker({ taxonomies: [LONG] });
+      await userEvent.type(screen.getByRole("searchbox", { name: "Search terms" }), "Tag 12");
+      expect(checkboxes()).toHaveLength(11);
+      expect(screen.getByText("Tag 125")).toBeInTheDocument();
+    });
+
+    it("a short row shows everything, with no toggle and no search", () => {
+      renderPicker();
+      expect(screen.queryByRole("button", { name: "See more" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    });
+
+    it("keeps each term's agent handle when only some are shown", () => {
+      renderPicker({ taxonomies: [LONG] });
+      expect(document.querySelector('[data-agent-element="term-picker-term-t0"]')).not.toBeNull();
+      expect(document.querySelector('[data-agent-element="term-picker-term-t125"]')).toBeNull();
+    });
+  });
 });
