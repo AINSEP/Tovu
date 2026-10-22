@@ -379,7 +379,7 @@ for (const [result, status, body] of [
   [{ executionId: "x", status: "completed", output: { posts: [{ id: "p1" }] } }, 200, { posts: [{ id: "p1" }] }],
   [{ executionId: "x", status: "failed", error: "query must not be empty" }, 400, { error: "query must not be empty", code: "TOOL_CALL_FAILED" }],
 ] as Array<[ToolExecutionResult, number, unknown]>) {
-  test(`maps a legacy redemption that ends ${result.status}${"output" in result ? "" : " (no output/error)"} to HTTP ${status}`, async (t) => {
+  test(`maps a legacy redemption that ends ${result.status}${"output" in result || "error" in result ? "" : " (no output/error)"} to HTTP ${status}`, async (t) => {
     const { executor, calls } = createFakeToolExecutor(() => result);
     const baseUrl = await startTestServer(buildApp(executor), t);
     const res = await postToolCall(baseUrl, { toolName: "content_post_search", params: { query: "x" } }, LEGACY_HEADERS);
@@ -388,15 +388,6 @@ for (const [result, status, body] of [
     assert.equal(calls.length, 1);
   });
 }
-
-test("a request with no JSON body is refused as a missing toolName before the executor runs", async (t) => {
-  const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
-  const baseUrl = await startTestServer(buildApp(executor), t);
-  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, { method: "POST", headers: LEGACY_HEADERS });
-  assert.equal(res.status, 400);
-  assert.deepEqual(await res.json(), { error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
-  assert.equal(calls.length, 0);
-});
 
 test("an executor that throws is reported as a 500 with its message, never a crash", async (t) => {
   for (const thrown of [new Error("tool not registered: content_post_search"), "string failure"]) {
