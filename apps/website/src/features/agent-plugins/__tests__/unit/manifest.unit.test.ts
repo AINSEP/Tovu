@@ -320,7 +320,7 @@ test("mcp.json: several servers of mixed transports and validity all resolve ind
   const result = parseAgentPluginMcpConfig({ value: {
     $schema: MCP_SCHEMA_1_0_0,
     mcpServers: {
-      local: { type: "stdio", command: "fly-mcp" },
+      local: { type: "stdio", command: "example-host-mcp" },
       remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
       broken: { type: "stdio" },
     },

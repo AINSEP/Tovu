@@ -71,12 +71,12 @@ test("readInstalledMcpServerIds reads a real mcp.json and returns its server ids
       path.join(root, "mcp.json"),
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-        mcpServers: { "fly-cli": { type: "stdio", command: "fly-mcp" }, "another-server": { type: "stdio", command: "x" } },
+        mcpServers: { "example-host-cli": { type: "stdio", command: "example-host-mcp" }, "another-server": { type: "stdio", command: "x" } },
       }),
     );
 
     const serverIds = await readInstalledMcpServerIds(root);
-    assert.deepEqual([...serverIds].sort(), ["another-server", "fly-cli"]);
+    assert.deepEqual([...serverIds].sort(), ["another-server", "example-host-cli"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -119,7 +119,7 @@ test("readInstalledMcpServers reads a real mcp.json and returns each server's fu
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
         mcpServers: {
-          "fly-cli": { type: "stdio", command: "fly-mcp", args: ["deploy"] },
+          "example-host-cli": { type: "stdio", command: "example-host-mcp", args: ["deploy"] },
           remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
         },
       }),
@@ -128,7 +128,7 @@ test("readInstalledMcpServers reads a real mcp.json and returns each server's fu
     const servers = await readInstalledMcpServers(root);
     // A null-prototype map, so a hostile server id such as "__proto__" stays an ordinary key.
     assert.deepEqual(servers, Object.assign(Object.create(null), {
-      "fly-cli": { type: "stdio", command: "fly-mcp", args: ["deploy"] },
+      "example-host-cli": { type: "stdio", command: "example-host-mcp", args: ["deploy"] },
       remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" },
     }));
   } finally {

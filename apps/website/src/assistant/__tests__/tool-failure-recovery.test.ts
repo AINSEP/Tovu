@@ -581,7 +581,7 @@ for (const [setupToolId, prefill] of [
   ['credential_save', { kind: 'api', label: 'api', baseUrl: 'https://api.example.com' }],
   ['credential_save', { kind: 'api', target: 'api' }],
   ['credential_save', { kind: 'media-provider', target: 'openai' }],
-  ['credential_save', { kind: 'api', label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' }],
+  ['credential_save', { kind: 'api', label: 'example-host', baseUrl: 'https://api.example-host.dev', category: 'ops' }],
   ['credential_save', { kind: 'publish-host', target: 'vercel' }],
   ['external_mcp_save', { id: 'hosted' }],
 ] as const) test(`credential setup ${setupToolId} goes straight to the card and retries once`, async () => {
