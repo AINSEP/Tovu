@@ -28,6 +28,8 @@ import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/regis
 
 import { buildFormsRegistrations } from "../../features/forms/tool-registrations.js";
 import { buildThemesRegistrations } from "../../features/theme/tool-registrations.js";
+import { buildMediaRegistrations } from "../../features/media/tool-registrations.js";
+import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
@@ -221,6 +223,50 @@ test("themes (real handler): the same permission refusal by id as by list, no th
   await assert.rejects(realThemeCard(false).handler(executionContext({ themeId: "hb" })), { message: listError.message });
 });
 
+test("media (real handler): canonical id and mediaId select one scoped asset, including trashed media", async () => {
+  const reads: string[] = [];
+  const permissions: unknown[] = [];
+  const media = ["active", "trashed"].map((status, index) => ({
+    id: `asset-${index}`, slug: `photo-${index}`, title: `Photo ${index}`, alt: "alt", caption: "caption", credit: "credit",
+    source: { sha256: `sha-${index}` }, status, version: 1, cssClass: null, htmlAttributes: null,
+  }));
+  const deps = {
+    workspaceId: "ws-media", authorize: async (input: unknown) => { permissions.push(input); return { allowed: true, reason: "test" }; },
+    mediaRepo: { list: async ({ workspaceId }: { workspaceId: string }) => { reads.push(workspaceId); return media; } },
+  } as unknown as Parameters<typeof buildMediaRegistrations>[0];
+  const registration = card(buildMediaRegistrations(deps), "content_read.media_asset");
+  for (const input of [{ id: "asset-1" }, { mediaId: "asset-1" }]) {
+    const result = await executeRegisteredTool({ registration, input });
+    assert.equal(result.status, "completed");
+    assert.deepEqual(result.output, { media: [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, cssClass: null, htmlAttributes: null, publicUrl: null }] });
+  }
+  assert.deepEqual(reads, ["ws-media", "ws-media"]);
+  assert.equal(permissions.length, 2, "the source authorization runs exactly once per lookup");
+  const listed = await executeRegisteredTool({ registration, input: {} });
+  assert.equal(listed.status, "completed");
+  assert.equal((listed.output as { media: unknown[] }).media.length, 2);
+  const missing = await executeRegisteredTool({ registration, input: { id: "other-workspace-asset" } });
+  assert.equal(missing.errorKind, "validation");
+  assert.match(missing.error!, /media_asset 'other-workspace-asset' was not found.*without id/);
+  const readsBeforeInvalid = reads.length;
+  for (const input of [{ id: "" }, { id: 42 }, { id: "asset-1", mediaId: "asset-1" }, { slug: "photo-1" }]) {
+    assert.equal((await executeRegisteredTool({ registration, input })).errorKind, "validation");
+  }
+  assert.equal(reads.length, readsBeforeInvalid, "invalid selectors must not reach the source reader");
+});
+
+test("media (real handler): list and id lookup retain the same permission refusal before repo access", async () => {
+  const deps = {
+    workspaceId: "ws-media", authorize: async () => ({ allowed: false, reason: "test" }),
+    mediaRepo: { list: async () => { assert.fail("permission refusal must precede a media read"); } },
+  } as unknown as Parameters<typeof buildMediaRegistrations>[0];
+  const registration = card(buildMediaRegistrations(deps), "content_read.media_asset");
+  const listed = await executeRegisteredTool({ registration, input: {} });
+  const selected = await executeRegisteredTool({ registration, input: { id: "asset-1" } });
+  assert.notEqual(listed.status, "completed");
+  assert.equal(selected.error, listed.error);
+});
+
 function formsDeps() {
   const definition = (id: string, slug: string) => ({
     id,
@@ -265,6 +311,7 @@ const LIST_LOOKUP_ID_PROPERTIES: Readonly<Record<string, string>> = {
   "content_read.identity_policy": "policyId",
   "content_read.identity_role": "roleId",
   "content_read.identity_user": "principalId",
+  "content_read.media_asset": "mediaId",
   "content_read.plugin": "pluginId",
   "content_read.taxonomy": "taxonomyId",
   "content_read.theme": "themeId",
@@ -350,6 +397,7 @@ const LOOKUP_SELECTORS = [
   ["identity_policy", "identity_policy_list", "policyId", "policies", "id"],
   ["identity_role", "identity_role_list", "roleId", "roles", "id"],
   ["identity_user", "identity_user_list", "principalId", "users", "principalId"],
+  ["media_asset", "media_list_assets", "mediaId", "media", "id"],
   ["plugin", "plugins_list", "pluginId", "plugins", "id"],
   ["taxonomy", "taxonomy_list", "taxonomyId", "items", "taxonomy"],
   ["theme", "theme_list", "themeId", "themes", "id"],

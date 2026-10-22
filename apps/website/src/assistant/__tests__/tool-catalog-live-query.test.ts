@@ -78,3 +78,25 @@ test("daemon admission updates the mounted query while retaining boot tools", as
   }
   assert.equal(sink.events.filter((event) => event.toolId === "search_tools").length, 1, "the rebound snapshot must still be audited");
 });
+
+test("the daemon describe route exposes the read family and refreshes its registered cards", async () => {
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { createInMemoryToolAttemptAuditSink } = await import("../../features/tool-audit/repo.memory.js");
+  const { mountDaemonCatalog } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-catalog.js");
+  const registry = createToolRegistry({});
+  const registration = ({ id, description }: { id: string; description: string }, _options = {}) => ({ descriptor: { id, description, readOnly: true }, handler: async () => "ok", policy: { authorize: () => "allow" as const } });
+  registry.register(registration({ id: "content_read.media_asset", description: "Lists media assets." }));
+  const mounted = await mountDaemonCatalog(registry, createInMemoryToolAttemptAuditSink());
+  const before = await mounted.request("/api/tools/:id", {}, { id: "content_read" });
+  assert.equal(before.status, 200);
+  assert.match(before.body.description, /content_read\.media_asset — Lists media assets\./);
+  assert.doesNotMatch(before.body.description, /content_read\.theme/);
+  assert.equal(registry.has({ toolId: "content_read" }), false, "the description must not create an executable parent tool");
+  registry.register(registration({ id: "content_read.theme", description: "Reads themes." }));
+  mounted.onAdmitted({ newlyAdmittedConnectionIds: ["read-card-probe"], reports: [], connectFailures: [] });
+  const after = await mounted.request("/api/tools/:id", {}, { id: "content_read" });
+  assert.equal(after.status, 200);
+  assert.match(after.body.description, /content_read\.media_asset — Lists media assets\./);
+  assert.match(after.body.description, /content_read\.theme — Reads themes\./);
+  assert.equal((await mounted.request("/api/tools/:id", {}, { id: "content_read.missing" })).status, 404);
+});

@@ -244,11 +244,13 @@ test("an aborted call that is still waiting in the queue never starts a capture"
   const first = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/1" }) });
   const controller = new AbortController();
   const second = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/2" }) }, { signal: controller.signal });
+  // MOVE: observe rejection before aborting and yielding, so node:test never sees an unhandled rejection.
+  const secondRejected = assert.rejects(second, { name: "AbortError" });
   controller.abort();
   while (!release) await new Promise((resolve) => setImmediate(resolve));
   release();
   await first;
-  await assert.rejects(second, { name: "AbortError" });
+  await secondRejected;
   assert.equal(capture.requests.length, 1);
 });
 

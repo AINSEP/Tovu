@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
+import { KEYWORD_MARKER } from "../tool-search-keywords.js";
 
 /**
  * @file Tests this module's OWN contract — seeding a `ToolCatalogQuery` from a `ToolRegistry`-shaped
@@ -73,6 +74,26 @@ test("describe returns the full entry including inputSchema for a known id", () 
 test("describe returns null, not throws, for an unknown id", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
   assert.equal(catalog.describe({ id: "nonexistent_tool" }), null);
+});
+
+test("describe content_read lists only registered cards and their first authored sentence", () => {
+  const media = { id: "content_read.media_asset", description: `Lists media assets. Includes trashed assets.${KEYWORD_MARKER}hidden vocabulary`, inputSchema: { type: "object" } };
+  const theme = { id: "content_read.theme", description: "Reads themes.\nMore guidance." };
+  const catalog = buildToolCatalogQuery({ list: () => [media, theme, ...DESCRIPTORS] });
+  assert.deepEqual(catalog.describe({ id: "content_read" }), {
+    id: "content_read", source: "content",
+    description: "Read-card family. Describe a card id below for its inputs, then call that card.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.",
+  });
+  assert.equal(catalog.describe({ id: media.id })?.description, "Lists media assets. Includes trashed assets.");
+  assert.deepEqual(catalog.describe({ id: media.id })?.inputSchema, media.inputSchema);
+  assert.equal(catalog.describe({ id: "content_read.missing" }), null);
+  assert.ok(catalog.search({ query: "media" }).every(hit => hit.id !== "content_read"), "the family is a description, not a callable search hit");
+});
+
+test("a family without registered cards is absent; a card without prose still has a purpose", () => {
+  assert.equal(buildToolCatalogQuery(fakeRegistry()).describe({ id: "content_read" }), null);
+  const catalog = buildToolCatalogQuery({ list: () => [{ id: "content_read.media_asset" }] });
+  assert.match(catalog.describe({ id: "content_read" })!.description, /content_read\.media_asset — Read media asset\./);
 });
 
 test("describe omits inputSchema for a descriptor that declared none", () => {

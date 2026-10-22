@@ -31,7 +31,7 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  * that returns the WHOLE set names `listLookup` instead, and an id is served by that same list
  * handler's result filtered to the matching item — so its permission check, visibility rules and
  * view shape are the list's own, with no second per-resource reader to drift from it. A paginated
- * or status-filtered list (comment moderation queue, media) cannot answer "does id X exist" from one
+ * or status-filtered list (comment moderation queue) cannot answer "does id X exist" from one
  * page, so those cards get no lookup. A card never carries both: a hand-written get always wins.
  */
 
@@ -92,7 +92,8 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
     // identity_user_list caps at 200 and reports `truncated`; a miss past the cap says so.
     listLookup: lookupIn("principalId", "users", "principalId"),
   },
-  { resource: "media_asset", permission: "media.read", list: { toolId: "media_list_assets" } },
+  // MOVE: media_list_assets returns the complete workspace media set, including trashed assets.
+  { resource: "media_asset", permission: "media.read", list: { toolId: "media_list_assets" }, listLookup: lookupIn("mediaId", "media") },
   { resource: "member", permission: "member.manage", get: { toolId: "members_get_by_id", idProperty: "memberId" }, list: { toolId: "members_list" } },
   { resource: "menu", permission: "admin.menus.read", get: { toolId: "menus_get_menu", idProperty: "menuId" }, list: { toolId: "menus_list_menus" } },
   {
@@ -480,7 +481,7 @@ function mapCardSelectors(
   return { input: { ...candidate.value, items }, notes };
 }
 
-/** The media card is list-only: a slug cannot be an id alias or a silently discarded filter.
+/** The media card has no slug reader: a slug cannot be an id alias or a discarded filter.
  * @returns Unchanged input when no unsupported slug filter is present.
  * @throws ToolInputError listing the actual composed schema's properties and a recovery example.
  * @complexity O(p) time/space for p accepted property names on refusal; no I/O.
@@ -490,7 +491,7 @@ function normalizeMediaCardInput(
 ): NormalizedToolInput {
   if (Object.hasOwn(input, "slug")) {
     const properties = (inputSchema.properties as Record<string, unknown> | undefined) ?? EMPTY_SCHEMA;
-    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ") || "none"}. This card lists media; it does not look up a slug. Call content_read.media_asset({}) and select the asset with the matching slug from the returned assets. For a peer site, retain its declared site selector.` });
+    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ") || "none"}. This card lists media or reads by id; it does not look up a slug. Call content_read.media_asset({}) and select the asset with the matching slug from the returned assets. For a peer site, retain its declared site selector.` });
   }
   return { input, notes: [] };
 }
@@ -503,12 +504,12 @@ function canonicalCardDispatch(
   { card, byId }: { card: ContentReadCard; byId: ReadonlyMap<string, ToolRegistration> }, _options = {},
 ) {
   const dispatch = cardDispatch({ card, byId });
-  if (card.resource === "media_asset") return { ...dispatch,
-    normalizeInput: ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizeMediaCardInput({ input, inputSchema: dispatch.inputSchema }),
-  };
   const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
   if (!idProperty || idProperty === "id") return { ...dispatch, normalizeInput: undefined };
-  const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => mapCardSelectors({ input, from: idProperty, to: "id" });
+  const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => {
+    if (card.resource === "media_asset") normalizeMediaCardInput({ input, inputSchema: canonicalCardSchema({ inputSchema: dispatch.inputSchema, idProperty }) });
+    return mapCardSelectors({ input, from: idProperty, to: "id" });
+  };
   const handler: ToolHandler = (ctx, options) => dispatch.handler({ ...ctx, input: mapCardSelectors({ input: ctx.input, from: "id", to: idProperty }).input }, options);
   return { ...dispatch, handler, normalizeInput };
 }
