@@ -430,7 +430,7 @@ async function resolveProviderConfigOrRespond(
  *  The non-decrypting fallback read was split out purely to keep the configuration function's
  *  complexity under the shop ceiling. The saved-only gate now refuses that branch, so no second
  *  repository read remains on a visitor turn. */
-interface SiteAssistantCredentialChoice {
+export interface SiteAssistantCredentialChoice {
   readonly provider: string;
   readonly baseUrl: string | null;
   readonly model: string | null;
@@ -482,11 +482,11 @@ function nonBlank(value: string | undefined): string | undefined {
 
 /**
  * The decision half of {@link resolveProviderConfigOrRespond}, separated from its I/O so every
- * branch below is directly assertable without a repo or a sealer.
+ * branch below is directly assertable without a repo or a sealer (exported for exactly that).
  *
  * @complexity O(1).
  */
-function resolveProviderFromCredential(
+export function resolveProviderFromCredential(
   res: Response,
   env: NodeJS.ProcessEnv,
   choice: SiteAssistantCredentialChoice,

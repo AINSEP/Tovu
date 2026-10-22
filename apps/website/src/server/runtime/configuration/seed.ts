@@ -42,7 +42,9 @@ type Node = JsonObject;
 function t(text: string, ...marks: Array<"bold" | "italic" | "code">): Node {
   return marks.length ? { type: "text", text, marks: marks.map((m) => ({ type: m })) } : { type: "text", text };
 }
-function link(text: string, href: string, ...marks: Array<"bold" | "italic" | "code">): Node {
+/** Exported (with `ol`) so the authoring helpers' full mark/node surface is unit-tested even where the
+ * shipped seed copy happens not to use it (a marked link; a pre-built ordered-list item). */
+export function link(text: string, href: string, ...marks: Array<"bold" | "italic" | "code">): Node {
   return { type: "text", text, marks: [...marks.map((m) => ({ type: m })), { type: "link", attrs: { href } }] };
 }
 function p(...kids: Array<Node | string>): Node {
@@ -57,7 +59,7 @@ function li(...kids: Node[]): Node {
 function ul(...items: Array<string | Node>): Node {
   return { type: "bulletList", content: items.map((i) => (typeof i === "string" ? li(p(i)) : i)) };
 }
-function ol(...items: Array<string | Node>): Node {
+export function ol(...items: Array<string | Node>): Node {
   return { type: "orderedList", content: items.map((i) => (typeof i === "string" ? li(p(i)) : i)) };
 }
 function quote(...lines: string[]): Node {

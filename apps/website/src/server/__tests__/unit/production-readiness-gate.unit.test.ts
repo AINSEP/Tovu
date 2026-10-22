@@ -300,3 +300,16 @@ test("production route guards consult classified inventory entries and keep thei
   assert.deepEqual(capabilityRouteGuard({ capabilityName: "posts", mode: "production" }), { register: true });
   assert.deepEqual(capabilityRouteGuard({ capabilityName: "seo", mode: "local" }), { register: true });
 });
+
+test("a non-production capability without a durable adapter is not a durability refusal, and a throwing sharp probe is a readiness failure", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry({ name: "local-only-capability", classification: "local-only", hasDurableAdapter: false })],
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingSiteKey: false },
+    sharpReadiness: async () => { throw new Error("sharp native binary failed to load"); },
+  });
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.ok ? [] : result.failures.map((failure) => [failure.code, failure.details]), [
+    ["SHARP_READINESS_FAILED", { checkName: "native-binary-load" }],
+  ]);
+});

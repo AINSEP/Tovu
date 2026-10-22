@@ -387,3 +387,19 @@ test("fetchAgentDaemonEventStream: a transport failure ends its span as ERROR wi
   assert.equal(span.status.code, SpanStatusCode.ERROR);
   assert.equal(typeof span.attributes["error.type"], "string");
 });
+
+test("fetchAgentDaemonEventStream: a daemon that starts listening AFTER the stream request still opens it (boot-window retry), untraced by default", async (t) => {
+  const port = await freePort();
+  withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${port}`, [TOKEN_ENV]: "tok-stream" });
+  const { res, sent } = fakeRes();
+
+  const pending = fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/late/events");
+  await new Promise((r) => setTimeout(r, 600));
+  const daemon = await startDaemon(t, (_s, r) => { r.writeHead(200, { "content-type": "text/event-stream" }); r.end("data: {}\n\n"); }, port);
+
+  const open = await pending;
+  assert.equal(open?.statusCode, 200);
+  assert.equal(await new Response(open?.body).text(), "data: {}\n\n");
+  assert.equal(sent.status, undefined, "nothing was written to res — the caller relays the stream");
+  assert.deepEqual(daemon.seen.map((seen) => [seen.method, seen.url, seen.headers.authorization]), [["GET", "/api/runs/late/events", "Bearer tok-stream"]]);
+});

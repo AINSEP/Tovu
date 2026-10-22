@@ -109,3 +109,24 @@ test("a loader failure is logged and never thrown; the pass continues without th
   assert.ok(warn.mock.calls.some((call) => call.arguments[0] === "[executable-tools-test] executable agent-plugin tools could not be registered, continuing without them — contributions unreadable"));
   assert.deepEqual(registry.list({}).filter((descriptor) => descriptor.id.startsWith("p_")), []);
 });
+
+test("every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const installed: ToolRegistration[] = [];
+  // Every layout read fails: both the agent-plugin and the skill family lose their install roots.
+  const brokenLayout = new Proxy({}, { get: () => { throw new Error("layout unreadable"); } });
+  await registerInstalledExtensionTools(
+    { register: (registration: ToolRegistration) => void installed.push(registration) },
+    testSiteLayoutContext({
+      ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo([]),
+      pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }),
+      discoverPlugins: async () => { throw "discovery offline"; },
+    }),
+    "[families-test]",
+  );
+  const lines = warn.mock.calls.map((call) => call.arguments[0]);
+  assert.ok(lines.includes("[families-test] agent-plugin tools could not be registered, continuing without them — layout unreadable"), String(lines));
+  assert.ok(lines.includes("[families-test] skill tools could not be registered, continuing without them — layout unreadable"), String(lines));
+  assert.ok(lines.includes("[families-test] plugin capability tools could not be registered, continuing without them — discovery offline"), String(lines));
+  assert.deepEqual(installed, []);
+});

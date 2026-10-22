@@ -48,17 +48,13 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     await registerInstalledAgentPluginTools(aliases.registry, deps);
     aliases.registerAliases();
   } catch (error) {
-    console.warn(
-      `${log} agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
+    warnFamilySkipped({ log, family: "agent-plugin tools", error });
   }
 
   try {
     await registerInstalledSkillTools(registry, deps);
   } catch (error) {
-    console.warn(
-      `${log} skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
+    warnFamilySkipped({ log, family: "skill tools", error });
   }
 
   await registerExecutableAgentPluginTools(deps, log);
@@ -76,9 +72,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
       ...(deps.previewPluginBeforeSave ? { previewPluginBeforeSave: deps.previewPluginBeforeSave } : {}),
     });
   } catch (error) {
-    console.warn(
-      `${log} plugin capability tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
+    warnFamilySkipped({ log, family: "plugin capability tools", error });
   }
 };
 
@@ -98,8 +92,12 @@ async function registerExecutableAgentPluginTools(deps: Parameters<InstalledExte
     });
     for (const refusal of refusals) console.warn(`${log} ${refusal}`);
   } catch (error) {
-    console.warn(
-      `${log} executable agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
-    );
+    warnFamilySkipped({ log, family: "executable agent-plugin tools", error });
   }
+}
+
+/** One family's registration failed: log it with the registrar's prefix and continue without it
+ * (every family is optional — a broken install must never take the whole tool pass down). O(1). */
+function warnFamilySkipped({ log, family, error }: { log: string; family: string; error: unknown }, _options = {}): void {
+  console.warn(`${log} ${family} could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`);
 }

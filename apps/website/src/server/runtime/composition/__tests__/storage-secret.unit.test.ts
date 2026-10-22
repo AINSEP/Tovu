@@ -111,3 +111,34 @@ test("secretRef { env }: the variable's value, or an error naming the variable",
     (err: unknown) => err instanceof StorageSecretError && /environment variable SITE_PG_URL, which is not set/.test(err.message)
   );
 });
+
+for (const action of ["invalid", "refuse"] as const) {
+  test(`new-site sealing refuses (${action} site key) before writing any sealed file`, async (t) => {
+    const dir = siteDir(t);
+    const asked: unknown[] = [];
+    const { sealConnectionStringForNewSite } = await import("../storage-secret.js");
+    await assert.rejects(
+      sealConnectionStringForNewSite({ siteDir: dir, siteKeyId: "k1", connectionString: URL }, {
+        ensure: async (input) => { asked.push({ siteDir: input.siteDir, siteKeyId: input.siteKeyId, dependent: await input.findSiteKeyDependentData!() }); return action === "invalid" ? { action, perSiteFilePath: "x", reason: "bad" } as never : { action, perSiteFilePath: "x" } as never; },
+        sealerFor: () => { throw new Error("must not build a sealer after a refusal"); },
+      }),
+      (error: unknown) => error instanceof StorageSecretError && error.message === `could not prepare this site's key to seal its Postgres connection string (${action}); fix the site key, then retry`,
+    );
+    assert.deepEqual(asked, [{ siteDir: dir, siteKeyId: "k1", dependent: false }]);
+    assert.equal(fs.existsSync(path.join(dir, STORAGE_SECRET_FILENAME)), false);
+  });
+}
+
+test("new-site sealing seals with the sealer built for the new site's key id and returns it", async (t) => {
+  const dir = siteDir(t);
+  const sealing = sealerFor(new InMemoryKeyring());
+  const keyIds: string[] = [];
+  const { sealConnectionStringForNewSite } = await import("../storage-secret.js");
+  const returned = await sealConnectionStringForNewSite({ siteDir: dir, siteKeyId: "k2", connectionString: URL }, {
+    ensure: async () => ({ action: "mint" }) as never,
+    sealerFor: (siteKeyId) => { keyIds.push(siteKeyId); return sealing; },
+  });
+  assert.equal(returned, sealing);
+  assert.deepEqual(keyIds, ["k2"]);
+  assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: sealing.sealer }), URL);
+});

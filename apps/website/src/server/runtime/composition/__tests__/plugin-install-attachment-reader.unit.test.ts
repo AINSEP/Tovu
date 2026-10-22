@@ -27,3 +27,13 @@ test("plugin install attachment reader enforces owner, accepted message/run, siz
   await writeFile(filePath, "different bytes");
   assert.deepEqual(await read(required, { maxBytes: 32 * 1024 * 1024 }), { ok: false, refusal: "integrity" });
 });
+
+test("plugin install attachment reader refuses as no-record when the composition gave it no upload directory", async () => {
+  const ref = "attachment:12345678-1234-1234-1234-123456789012";
+  const required = { ref, ownerId: "owner", runId: "accepted" };
+  // No run scoping and no directory: nothing to read from, never a guessed path.
+  assert.deepEqual(await createPluginInstallAttachmentReader({})(required, { maxBytes: 1024 }), { ok: false, refusal: "no-record" });
+  // The run accepted the ref, but there is still no directory to read it from.
+  const scoped = createPluginInstallAttachmentReader({}, { getMessageAttachmentRefs: () => [ref] });
+  assert.deepEqual(await scoped(required, { maxBytes: 1024 }), { ok: false, refusal: "no-record" });
+});

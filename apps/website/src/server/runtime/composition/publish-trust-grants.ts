@@ -47,7 +47,9 @@ export type PublishTrustGrantResolver = () => Promise<PublishTrustResolution>;
  * @complexity O(1) per call after the first; the first reads one file.
  */
 export function createPublishTrustGrantResolver(
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  // The config-file reader port (real node I/O by default) so a read failure is testable in-process.
+  { readFile = nodeProvisioningFileIo.read }: { readFile?: typeof nodeProvisioningFileIo.read } = {},
 ): PublishTrustGrantResolver {
   let cached: Promise<PublishTrustResolution> | null = null;
 
@@ -58,7 +60,7 @@ export function createPublishTrustGrantResolver(
       // — the empty value is the provider-console kill switch — so this must not collapse them.
       const envValue = env[PUBLISH_TRUST_ENV_VAR];
       const configPath = path.join(resolveCommittedConfigRoot(env), PUBLISH_TRUST_CONFIG_PATH);
-      const fileContents = await nodeProvisioningFileIo.read(configPath);
+      const fileContents = await readFile(configPath);
       return resolvePublishTrust({ envValue, fileContents });
     })().catch((error: unknown) => {
       cached = null;
