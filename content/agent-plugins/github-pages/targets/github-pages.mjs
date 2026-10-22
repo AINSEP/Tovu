@@ -124,23 +124,8 @@ export function bindGitHubPages(kit) {
               throw new DeployError('GitHub Pages owner and repo are required.', 400);
           }
           const branch = this.config.branch || DEFAULT_GITHUB_PAGES_BRANCH;
-          const parentSha = await getGitHubRefSha(this.config, owner, repo, branch);
-          const treeSha = await createGitHubTreeFromFiles(this.config, owner, repo, input.files);
-          const label = typeof input.projectName === 'string' && input.projectName.trim() ? input.projectName.trim() : 'site';
-          const commitSha = await createGitHubCommit(this.config, owner, repo, `Deploy ${label} via @jini-ai/deploy`, treeSha, parentSha ? [parentSha] : []);
-          if (parentSha) {
-              await updateGitHubRef(this.config, owner, repo, branch, commitSha);
-          }
-          else {
-              await createGitHubRef(this.config, owner, repo, branch, commitSha);
-          }
-          const site = await ensureGitHubPagesSite(this.config, owner, repo, branch);
-          const configuredBranch = typeof site.source?.branch === 'string' ? site.source.branch : undefined;
-          const sourceBranchMismatch = configuredBranch !== undefined && configuredBranch !== branch;
-          const build = await pollGitHubPagesBuild(this.config, owner, repo, commitSha);
-          if (build?.status === GITHUB_PAGES_BUILD_FAILURE) {
-              throw new DeployError(build.errorMessage || 'GitHub Pages build errored.', 502, build.raw);
-          }
+          const { parentSha, commitSha } = await pushGitHubPagesFiles({ config: this.config, owner, repo, branch, input });
+          const { site, sourceBranchMismatch } = await prepareGitHubPagesSite({ config: this.config, owner, repo, branch, commitSha });
           const candidates = githubPagesUrlCandidates(site);
           const link = await waitForReachableDeploymentUrl(candidates, { providerLabel: 'GitHub Pages' });
           return {
@@ -164,6 +149,29 @@ export function bindGitHubPages(kit) {
       async checkReachability(url) {
           return checkDeploymentUrl(url);
       }
+  }
+  async function pushGitHubPagesFiles({ config, owner, repo, branch, input }, _options = {}) {
+      const parentSha = await getGitHubRefSha(config, owner, repo, branch);
+      const treeSha = await createGitHubTreeFromFiles(config, owner, repo, input.files);
+      const label = typeof input.projectName === 'string' && input.projectName.trim() ? input.projectName.trim() : 'site';
+      const commitSha = await createGitHubCommit(config, owner, repo, `Deploy ${label} via @jini-ai/deploy`, treeSha, parentSha ? [parentSha] : []);
+      if (parentSha) {
+          await updateGitHubRef(config, owner, repo, branch, commitSha);
+      }
+      else {
+          await createGitHubRef(config, owner, repo, branch, commitSha);
+      }
+      return { parentSha, commitSha };
+  }
+  async function prepareGitHubPagesSite({ config, owner, repo, branch, commitSha }, _options = {}) {
+      const site = await ensureGitHubPagesSite(config, owner, repo, branch);
+      const configuredBranch = typeof site.source?.branch === 'string' ? site.source.branch : undefined;
+      const sourceBranchMismatch = configuredBranch !== undefined && configuredBranch !== branch;
+      const build = await pollGitHubPagesBuild(config, owner, repo, commitSha);
+      if (build?.status === GITHUB_PAGES_BUILD_FAILURE) {
+          throw new DeployError(build.errorMessage || 'GitHub Pages build errored.', 502, build.raw);
+      }
+      return { site, sourceBranchMismatch };
   }
   function enc(value) {
       return encodeURIComponent(value);
@@ -339,6 +347,39 @@ export function bindGitHubPages(kit) {
           throw githubError(json, getResp.status, 'GitHub Pages site lookup failed.');
       return json;
   }
+  async function readPagesBuildResponse({ resp }, _options = {}) {
+      if (resp.status === 404)
+          return undefined;
+      let json;
+      try {
+          json = await readGitHubJson(resp);
+      }
+      catch {
+          // Same "nothing usable to report yet" bucket as the 404 branch above, not a
+          // publish failure: every step up to and including enabling the Pages site has
+          // already irreversibly succeeded by the time this loop runs (see `publish()`'s
+          // call order), so a response this file cannot parse as JSON — an empty/no-content
+          // body while GitHub's build-tracking record has not been written yet, or a
+          // transient gateway/edge response — is exactly as uninformative as a 404, never a
+          // reason to report the whole publish as failed. A genuinely persistent problem
+          // still surfaces: this loop is bounded by the same fixed 30-attempt budget as every
+          // other outcome (see `proceeds to the reachability wait ... exhausts its 30-attempt
+          // budget`), after which `publish()` falls through to the reachability probe with
+          // whatever URL it already has — never a false "published: false" for a site that is
+          // actually live (`github-pages.test.ts`'s `keeps polling past a builds/latest
+          // response that fails to parse as JSON` regression test).
+          return undefined;
+      }
+      if (!resp.ok)
+          throw githubError(json, resp.status, 'GitHub Pages build status check failed.');
+      return { json };
+  }
+  function pagesBuildState({ json }, _options = {}) {
+      const status = typeof json.status === 'string' ? json.status : '';
+      const errorObj = json.error;
+      const errorMessage = typeof errorObj?.message === 'string' ? errorObj.message : undefined;
+      return { status, ...(errorMessage ? { errorMessage } : {}), raw: json };
+  }
   /**
    * Polls `GET /repos/{owner}/{repo}/pages/builds/latest` — deliberately not
    * the Pages site resource's own `status` field (`GET
@@ -370,37 +411,14 @@ export function bindGitHubPages(kit) {
           await sleep(i < 5 ? 1000 : 2000);
           const resp = await fetchWithTimeout(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/pages/builds/latest`, redirectGuardInit({ headers: githubHeaders(config.token) }), { timeoutMs: FETCH_TIMEOUT_MS.DEPLOY });
           assertNotRedirected(resp, 'GitHub Pages build status check');
-          if (resp.status === 404)
-              continue;
-          let json;
-          try {
-              json = await readGitHubJson(resp);
-          }
-          catch {
-              // Same "nothing usable to report yet" bucket as the 404 branch above, not a
-              // publish failure: every step up to and including enabling the Pages site has
-              // already irreversibly succeeded by the time this loop runs (see `publish()`'s
-              // call order), so a response this file cannot parse as JSON — an empty/no-content
-              // body while GitHub's build-tracking record has not been written yet, or a
-              // transient gateway/edge response — is exactly as uninformative as a 404, never a
-              // reason to report the whole publish as failed. A genuinely persistent problem
-              // still surfaces: this loop is bounded by the same fixed 30-attempt budget as every
-              // other outcome (see `proceeds to the reachability wait ... exhausts its 30-attempt
-              // budget`), after which `publish()` falls through to the reachability probe with
-              // whatever URL it already has — never a false "published: false" for a site that is
-              // actually live (`github-pages.test.ts`'s `keeps polling past a builds/latest
-              // response that fails to parse as JSON` regression test).
-              continue;
-          }
-          if (!resp.ok)
-              throw githubError(json, resp.status, 'GitHub Pages build status check failed.');
+          const read = await readPagesBuildResponse({ resp });
+          if (read === undefined) continue;
+          const { json } = read;
           const commit = typeof json.commit === 'string' ? json.commit : '';
           if (commit !== commitSha)
               continue;
-          const status = typeof json.status === 'string' ? json.status : '';
-          const errorObj = json.error;
-          const errorMessage = typeof errorObj?.message === 'string' ? errorObj.message : undefined;
-          last = { status, ...(errorMessage ? { errorMessage } : {}), raw: json };
+          last = pagesBuildState({ json });
+          const { status } = last;
           if (status === GITHUB_PAGES_BUILD_SUCCESS || status === GITHUB_PAGES_BUILD_FAILURE)
               return last;
       }

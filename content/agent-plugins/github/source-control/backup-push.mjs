@@ -79,15 +79,8 @@ function treeEntry(entry) {
 
 /** @param {GitDataClient} git */
 export function createBackupPusher(git) {
-  /** @param {Target} target */
-  async function checkRepository(target) {
-    const name = `${target.owner}/${target.repo}`;
-    const repoJson = await git.getJson(target, repoPathOf(target), "GitHub repository lookup failed");
-    if (!repoJson.ok) return repoJson;
-    if (!repoJson.found) {
-      return { ok: false, code: "repo-not-found", message: `repository ${name} was not found, or this credential cannot see it` };
-    }
-    const json = repoJson.json;
+  /** @param {{ json: any, name: string }} required */
+  function checkBackupPrivacy({ json, name }, _options = {}) {
     const visibility = typeof json.visibility === "string" ? json.visibility : json.private === true ? "private" : "public";
     if (json.private !== true || visibility !== "private") {
       return {
@@ -98,6 +91,20 @@ export function createBackupPusher(git) {
           "which would be exposed to everyone who can read that repository. Back up only to a private repository.",
       };
     }
+    return undefined;
+  }
+
+  /** @param {Target} target */
+  async function checkRepository(target) {
+    const name = `${target.owner}/${target.repo}`;
+    const repoJson = await git.getJson(target, repoPathOf(target), "GitHub repository lookup failed");
+    if (!repoJson.ok) return repoJson;
+    if (!repoJson.found) {
+      return { ok: false, code: "repo-not-found", message: `repository ${name} was not found, or this credential cannot see it` };
+    }
+    const json = repoJson.json;
+    const privacy = checkBackupPrivacy({ json, name });
+    if (privacy) return privacy;
     const permissions = json.permissions;
     if (typeof permissions === "object" && permissions !== null && permissions.push === false) {
       return { ok: false, code: "no-push-permission", message: `this credential can read ${name} but cannot push to it` };
@@ -123,6 +130,11 @@ export function createBackupPusher(git) {
     const parentCommitSha = refBody.ok ? extractStringField(refBody.json?.object, "sha") : "";
     if (!parentCommitSha) return { ok: false, code: "provider-error", message: "GitHub branch lookup response did not include a sha" };
 
+    return readBackupParentTree({ target, parentCommitSha });
+  }
+
+  /** @param {{ target: Target, parentCommitSha: string }} required */
+  async function readBackupParentTree({ target, parentCommitSha }, _options = {}) {
     const commitJson = await git.getJson(target, `${repoPathOf(target)}/git/commits/${enc(parentCommitSha)}`, "GitHub parent-commit lookup failed");
     if (!commitJson.ok) return commitJson;
     const baseTreeSha = commitJson.found ? extractStringField(commitJson.json.tree, "sha") : "";

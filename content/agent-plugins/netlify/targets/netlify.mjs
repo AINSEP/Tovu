@@ -95,23 +95,9 @@ class NetlifyDeployTarget {
     const deployId = typeof created.id === "string" ? created.id : "";
     if (!deployId) throw new kit.DeployError("Netlify deploy response did not include an id.", 502, created);
 
-    const required = Array.isArray(created.required) ? created.required.filter((hash) => typeof hash === "string") : [];
-    for (const hash of required) {
-      const file = byHash.get(hash);
-      // `required` is derived from the manifest just sent, so an unknown hash should never happen;
-      // skip it rather than fail the whole publish.
-      if (!file) continue;
-      await uploadNetlifyFile(this, deployId, file);
-    }
+    await uploadRequiredNetlifyFiles({ target: this, deployId, created, byHash });
 
-    const finalState = await pollNetlifyDeploy(this, deployId);
-    if (finalState && NETLIFY_FAILURE_STATES.has(String(finalState.state))) {
-      throw new kit.DeployError(
-        (typeof finalState.error_message === "string" && finalState.error_message) || `Netlify deployment ${finalState.state}.`,
-        502,
-        finalState,
-      );
-    }
+    const finalState = await readyNetlifyDeploy({ target: this, deployId });
 
     const candidates = netlifyUrlCandidates(kit, finalState, site);
     const link = await kit.waitForReachableDeploymentUrl(candidates, { providerLabel: "Netlify" });
@@ -132,6 +118,31 @@ class NetlifyDeployTarget {
   async checkReachability(url) {
     return this.kit.checkDeploymentUrl(url);
   }
+}
+
+/** @param {{ target: NetlifyDeployTarget, deployId: string, created: JsonObject, byHash: Map<string, DeployFile> }} required */
+async function uploadRequiredNetlifyFiles({ target, deployId, created, byHash }, _options = {}) {
+  const required = Array.isArray(created.required) ? created.required.filter((hash) => typeof hash === "string") : [];
+  for (const hash of required) {
+    const file = byHash.get(hash);
+    // `required` is derived from the manifest just sent, so an unknown hash should never happen;
+    // skip it rather than fail the whole publish.
+    if (!file) continue;
+    await uploadNetlifyFile(target, deployId, file);
+  }
+}
+
+/** @param {{ target: NetlifyDeployTarget, deployId: string }} required */
+async function readyNetlifyDeploy({ target, deployId }, _options = {}) {
+  const finalState = await pollNetlifyDeploy(target, deployId);
+  if (finalState && NETLIFY_FAILURE_STATES.has(String(finalState.state))) {
+    throw new target.kit.DeployError(
+      (typeof finalState.error_message === "string" && finalState.error_message) || `Netlify deployment ${finalState.state}.`,
+      502,
+      finalState,
+    );
+  }
+  return finalState;
 }
 
 /**

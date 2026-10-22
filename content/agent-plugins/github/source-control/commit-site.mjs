@@ -335,6 +335,16 @@ export function createSiteCommitter(kit) {
     return /** @type {const} */ ({ ok: true, baseTreeSha: parentTreeResult.treeSha, previousManagedFiles: manifestResult.files, parents: [parentSha] });
   }
 
+  /** @param {{ input: { branch?: string }, defaultBranch: string }} required */
+  function siteCommitBranch({ input, defaultBranch }, _options = {}) {
+    return input.branch ?? defaultBranch;
+  }
+
+  /** @param {{ baseTreeSha: string | undefined, treeSha: string }} required */
+  function unchangedSiteTree({ baseTreeSha, treeSha }, _options = {}) {
+    return baseTreeSha !== undefined && baseTreeSha === treeSha;
+  }
+
   /**
    * @param {{ token: string, owner: string, repo: string, branch?: string, commitMessage: string, files: readonly CommitFile[] }} input
    * @complexity O(f) requests in the file count, plus one per path a previous export owned and dropped.
@@ -344,7 +354,7 @@ export function createSiteCommitter(kit) {
 
     const repoResult = await fetchRepo(token, owner, repo);
     if (!repoResult.ok) return repoResult;
-    const branch = input.branch ?? repoResult.defaultBranch;
+    const branch = siteCommitBranch({ input, defaultBranch: repoResult.defaultBranch });
 
     const tipResult = await fetchBranchTip(token, owner, repo, branch);
     if (!tipResult.ok) return tipResult;
@@ -357,7 +367,7 @@ export function createSiteCommitter(kit) {
     const treeResult = await buildTree(token, owner, repo, branch, files, prereqs.baseTreeSha, prereqs.previousManagedFiles);
     if (!treeResult.ok) return treeResult;
 
-    if (prereqs.baseTreeSha !== undefined && prereqs.baseTreeSha === treeResult.sha) {
+    if (unchangedSiteTree({ baseTreeSha: prereqs.baseTreeSha, treeSha: treeResult.sha })) {
       return { ok: false, code: "no-changes", message: "nothing changed since the branch's last commit" };
     }
 

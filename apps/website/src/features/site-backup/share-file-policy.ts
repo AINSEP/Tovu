@@ -5,25 +5,41 @@ import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
 
+function excludedRuntimeSharePath({ path, parts }: { path: string; parts: string[] }, _options = {}): boolean {
+  // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
+  const roots = [
+    /^plugins\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/,
+    /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/,
+    /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/,
+    /^uploads\/chat-attachments(?:\/|$)/,
+  ];
+  return roots.some(root => root.test(path)) ||
+    parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part));
+}
+
+function suspiciousSharePart({ part }: { part: string }, _options = {}): boolean {
+  const names = [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"];
+  const prefixes = [".share-", "restore-point-", "superseded-"];
+  const patterns = [
+    /(?:credential|vault|keyring|site-key|private[-_]?key)/,
+    /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/,
+    /\.(?:pem|key|p12|pfx)(?:[.-]|$)/,
+    /\.(?:db|sqlite|sqlite3)(?:$|[.-])/,
+    /^\.mcp(?:\..*)?\.json$/,
+  ];
+  return names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || patterns.some(pattern => pattern.test(part));
+}
+
 /** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth). */
 export function excludedSharePath(required: { path: string }, _optional: Record<string, never> = {}): boolean {
   const p = required.path.toLowerCase();
   const parts = p.split("/");
-  // Plugin runtime data/memory have fixed roots. A package's src/data or docs/notes is content.
-  if (/^plugins\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/.test(p) ||
-      /^agent-plugins\/ws\/[^/]+\/(?:data|staging)(?:\/|$)/.test(p) ||
-      /^agent-plugins\/ws\/[^/]+\/[^/]+\/(?:data|memory)(?:\/|$)/.test(p) ||
-      /^uploads\/chat-attachments(?:\/|$)/.test(p) ||
-      parts.some(part => part.startsWith(".env") || /^chat\.db(?:$|[.-])/.test(part))) return true;
+  if (excludedRuntimeSharePath({ path: p, parts })) return true;
   // Installed packages ship MCP declarations and credential schemas as content, not runtime secrets.
   // Exempt only those names below the seven-segment package root; their bytes still get secret-scanned.
   const packageContent = PACKAGE_CONTENT_ROOT.test(p);
   const suspiciousParts = parts.filter((part, index) => !(packageContent && index >= 7 && ["mcp.json", "tovu-credential-schemes.json"].includes(part)));
-  if (suspiciousParts.some(part => [".git", "node_modules", ".publish-staging", ".publish-previous", ".storage-secret.json", ".ds_store", "_share", "mcp.json", ".npmrc", ".netrc", ".fs-custom-root.json"].includes(part) ||
-      part.startsWith(".share-") || /(?:credential|vault|keyring|site-key|private[-_]?key)/.test(part) ||
-      /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(part) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(part) ||
-      /\.(?:db|sqlite|sqlite3)(?:$|[.-])/.test(part) || /^\.mcp(?:\..*)?\.json$/.test(part) ||
-      part.startsWith("restore-point-") || part.startsWith("superseded-"))) {
+  if (suspiciousParts.some(part => suspiciousSharePart({ part }))) {
     throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
   }
   return false;

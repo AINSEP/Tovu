@@ -1761,6 +1761,15 @@ async function captureSlugChange(
   });
 }
 
+function savedPostPresentation({ post }: { post: PostRecord }, _options: Record<string, never> = {}) {
+  return {
+    templateChoice: post.templateChoice ?? null,
+    author: post.author ?? null,
+    showAuthor: post.showAuthor ?? false,
+    publishAt: post.publishAt ?? null,
+  };
+}
+
 /**
  * The content this save path owns, with absent optional values represented as their stored
  * defaults. Null template/override choices remain distinct from explicit empty/false choices.
@@ -1776,10 +1785,7 @@ function savedPostContent(post: PostRecord) {
     bodyFormat: post.bodyFormat,
     bodyJson: post.bodyFormat === "html" ? null : post.bodyJson,
     bodyHtml: post.bodyFormat === "html" ? post.bodyHtml : null,
-    templateChoice: post.templateChoice ?? null,
-    author: post.author ?? null,
-    showAuthor: post.showAuthor ?? false,
-    publishAt: post.publishAt ?? null,
+    ...savedPostPresentation({ post }),
     featuredMediaId: post.featuredMediaId ?? null,
     overridesThemePage: post.overridesThemePage ?? null,
     ext: post.ext ?? {},

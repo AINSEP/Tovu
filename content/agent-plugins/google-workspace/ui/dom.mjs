@@ -98,6 +98,11 @@ function focusKey(element, root) {
   return { id: element.id, tag: element.tagName, name: element.getAttribute('aria-label') ?? element.textContent.trim() };
 }
 
+function matchesFocusKey({ control, key }, _options = {}) {
+  return (key.id && control.id === key.id)
+    || (control.tagName === key.tag && (control.getAttribute('aria-label') ?? control.textContent.trim()) === key.name);
+}
+
 /**
  * Replaces a region's content, keeping keyboard focus where the person was: on the same control
  * when it is still there, else on the first control of the new content (never lost to `<body>`).
@@ -108,8 +113,7 @@ export function show(root, ...nodes) {
   root.replaceChildren(...nodes.filter(Boolean));
   if (key === null) return;
   const controls = [...root.querySelectorAll(FOCUSABLE)];
-  const same = controls.find((control) => (key.id && control.id === key.id)
-    || (control.tagName === key.tag && (control.getAttribute('aria-label') ?? control.textContent.trim()) === key.name));
+  const same = controls.find(control => matchesFocusKey({ control, key }));
   (same ?? controls[0])?.focus();
 }
 
