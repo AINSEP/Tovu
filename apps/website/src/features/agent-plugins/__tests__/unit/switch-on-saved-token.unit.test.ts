@@ -18,7 +18,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
-import { switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
+import { AGENT_PLUGINS_SCREEN, describeSavedTokenSwitch, EXTERNAL_MCP_SCREEN, switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
@@ -150,4 +150,55 @@ test("the production fallback enables an untouched saved-token row with the inst
     assert.deepEqual(row.sealedOAuth, before.sealedOAuth);
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, true);
   });
+});
+
+test("a connection row an operator left disabled is reported as off, and the plugin is never switched on", async () => {
+  await withAgentPluginsDir(async (workspaceRoot) => {
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
+    const deps = await operatorEnabledRow();
+    const row = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE, serverId: "remote" }))!;
+    await deps.externalMcpServerRepo.upsert({ ...row, enabled: false });
+    const switched: string[] = [];
+    const outcome = await switchOnSavedTokenConnection({ ...deps, switchPluginOn: async (pluginId) => (switched.push(pluginId), true) }, { pluginId: PLUGIN, connectionId: "remote" });
+    assert.deepEqual(outcome, { state: "connection-off-by-operator" });
+    assert.deepEqual(switched, []);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN]?.enabled, false);
+  });
+});
+
+test("a missing connection row is reported as off", async () => {
+  await withAgentPluginsDir(async () => {
+    const deps = await operatorEnabledRow();
+    assert.deepEqual(await switchOnSavedTokenConnection(deps, { pluginId: PLUGIN, connectionId: "no-such-row" }), { state: "connection-off-by-operator" });
+  });
+});
+
+test("a plugin an operator already switched on stays on without a write", async () => {
+  await withAgentPluginsDir(async (workspaceRoot) => {
+    await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: true, actor: "owner" });
+    const outcome = await switchOnSavedTokenConnection(await operatorEnabledRow(), { pluginId: PLUGIN, connectionId: "remote" });
+    assert.deepEqual(outcome, { state: "on" });
+    assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN]?.updatedBy, "owner");
+  });
+});
+
+test("injected activation ports decide the outcome: an operator-off check short-circuits, a refused switch-on is off", async () => {
+  await withAgentPluginsDir(async () => {
+    const deps = await operatorEnabledRow();
+    const seen: string[] = [];
+    assert.deepEqual(await switchOnSavedTokenConnection({ ...deps, isPluginOffByOperator: async (id) => (seen.push(`off?${id}`), true),
+      onConnected: async () => assert.fail("never connects a plugin the operator turned off") }, { pluginId: PLUGIN, connectionId: "remote" }), { state: "plugin-off-by-operator" });
+    assert.deepEqual(await switchOnSavedTokenConnection({ ...deps, isPluginOffByOperator: async () => false,
+      switchPluginOn: async (id) => (seen.push(`on!${id}`), false) }, { pluginId: PLUGIN, connectionId: "remote" }), { state: "plugin-off-by-operator" });
+    assert.deepEqual(seen, [`off?${PLUGIN}`, `on!${PLUGIN}`]);
+  });
+});
+
+test("describeSavedTokenSwitch names the screen that turns each kind of 'off' back on", () => {
+  const names = { displayName: "Some Plugin", connectionId: "remote" };
+  assert.equal(describeSavedTokenSwitch({ state: "on" }, names), "Some Plugin is connected and switched on. Its tools are ready to use.");
+  assert.equal(describeSavedTokenSwitch({ state: "plugin-off-by-operator" }, names),
+    `Token saved. Some Plugin stays off because an operator turned it off. To use it, switch 'Some Plugin' on in ${AGENT_PLUGINS_SCREEN}.`);
+  assert.equal(describeSavedTokenSwitch({ state: "connection-off-by-operator" }, names),
+    `Token saved. The 'remote' connection stays off because an operator changed its settings. To use it, switch it on in ${EXTERNAL_MCP_SCREEN}.`);
 });
