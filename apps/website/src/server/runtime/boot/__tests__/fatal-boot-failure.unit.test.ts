@@ -95,3 +95,21 @@ test("default ports report on console.error and exit the real process with code 
   assert.match(String(logged[0]?.[0]), /^\[boot\] Tovu failed to start: default port failure\./);
   assert.equal(logged[0]?.[1], error);
 });
+
+/** The request-time guard's default sink is `console.error`: the installed listener (found by
+ * diffing the process's listeners, then invoked directly so node:test's own rejection tracking is
+ * not involved) logs and keeps the process alive; uninstalling removes exactly that listener. */
+test("installUnhandledRejectionGuard's default logger writes the rejection to console.error", async (t) => {
+  const { installUnhandledRejectionGuard } = await import("../process-error-guards.js");
+  const before = new Set(process.listeners("unhandledRejection"));
+  const uninstall = installUnhandledRejectionGuard();
+  const added = process.listeners("unhandledRejection").filter((listener) => !before.has(listener));
+  assert.equal(added.length, 1);
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const reason = new Error("stray rejection");
+  (added[0] as (reason: unknown) => void)(reason);
+  uninstall();
+  assert.equal(process.listeners("unhandledRejection").includes(added[0]!), false);
+  assert.deepEqual(logged, [["[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", reason]]);
+});

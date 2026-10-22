@@ -21,3 +21,12 @@ test("an injected peer transport bypasses environment lookup and default adapter
   const env = { get TOVU_PUBLISH_CONTENT_DEV_HOSTS(): string { throw new Error("must not read"); } };
   assert.equal(resolvePublishContentPeerHttpClient({}, { client, env, createClient: () => { throw new Error("must not construct"); } }), client);
 });
+
+test("the default boot report logs the development peer hosts once; no hosts means no report", (t) => {
+  const lines: unknown[][] = [];
+  t.mock.method(console, "info", (...args: unknown[]) => { lines.push(args); });
+  const client: HttpClientPort = { send: async () => { throw new Error("unused"); } };
+  resolvePublishContentPeerHttpClient({}, { env: { TOVU_PUBLISH_CONTENT_DEV_HOSTS: "peer.internal" }, createClient: () => client });
+  resolvePublishContentPeerHttpClient({}, { env: {}, createClient: () => client });
+  assert.deepEqual(lines, [["[publish-content] development peer hosts: peer.internal"]]);
+});

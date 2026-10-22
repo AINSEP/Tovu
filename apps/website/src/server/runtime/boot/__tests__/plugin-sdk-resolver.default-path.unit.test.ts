@@ -24,3 +24,9 @@ test("registerPluginSdkResolver() with no options redirects a plugin's SDK impor
   assert.equal(typeof bundled.definePlugin, "function");
   assert.equal(plugin.sdk.definePlugin, bundled.definePlugin);
 });
+
+test("a second registration in the same process is refused as a boot-sequencing bug", async () => {
+  const { PluginSdkResolverAlreadyRegisteredError } = await import("../plugin-sdk-resolver.js");
+  assert.throws(() => registerPluginSdkResolver(), (error: unknown) => error instanceof PluginSdkResolverAlreadyRegisteredError
+    && (error as Error).name === "PluginSdkResolverAlreadyRegisteredError");
+});

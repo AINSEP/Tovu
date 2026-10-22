@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { allocateFreePort, ensureAgentDaemonPortResolved, getAgentDaemonPortForSpawnEnv, getAgentDaemonUrl } from "../agent-daemon-port.js";
+import { allocateFreePort, createAgentDaemonOriginResolver, ensureAgentDaemonPortResolved, getAgentDaemonPortForSpawnEnv, getAgentDaemonUrl } from "../agent-daemon-port.js";
 
 /** A hand-built probe socket: `listen` invokes its callback at once, `address`/`close` return the
  * scripted outcome. Lets the two failure arms of the real free-port probe run deterministically. */
@@ -52,5 +52,17 @@ test("production resolver honors JINI_AGENT_DAEMON_URL across ensure/getUrl/getP
   } finally {
     if (previousUrl === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
     else process.env.JINI_AGENT_DAEMON_URL = previousUrl;
+  }
+});
+
+test("before ensure() with nothing configured there is no spawn-env port to hand the daemon child", () => {
+  const saved = { url: process.env.JINI_AGENT_DAEMON_URL, port: process.env.JINI_AGENT_DAEMON_PORT };
+  delete process.env.JINI_AGENT_DAEMON_URL;
+  delete process.env.JINI_AGENT_DAEMON_PORT;
+  try {
+    assert.equal(createAgentDaemonOriginResolver().getPortForSpawnEnv(), undefined);
+  } finally {
+    if (saved.url !== undefined) process.env.JINI_AGENT_DAEMON_URL = saved.url;
+    if (saved.port !== undefined) process.env.JINI_AGENT_DAEMON_PORT = saved.port;
   }
 });
