@@ -34,7 +34,7 @@ async function shareRegistry(t: import("node:test").TestContext) {
 
 function fakeRemote(state: { present: boolean; deletes: number }): ShareDelivery {
   return {
-    provider: "s3-compatible", binding: "bucket-a",
+    provider: "example-store", binding: "bucket-a",
     store: {
       upload: async () => ({ url: "https://bucket.example.test/x" }),
       delete: async () => { state.deletes++; state.present = false; },
@@ -68,7 +68,7 @@ test("revoke of a remote export disables the link first; without its original st
   const registry = await shareRegistry(t);
   const remote = { present: true, deletes: 0 };
   const row = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("PK remote") });
-  await registry.put({ record: { ...row, url: "https://bucket.example.test/x", storage: { provider: "s3-compatible", binding: "bucket-a", key: "k" } } });
+  await registry.put({ record: { ...row, url: "https://bucket.example.test/x", storage: { provider: "example-store", binding: "bucket-a", key: "k" } } });
   await assert.rejects(revokeSiteShare({ registry, site: "ws", shareId: row.shareId }), { code: "DELETE_FAILED", message: /configure its original storage/ });
   await assert.rejects(revokeSiteShare({ registry, site: "ws", shareId: row.shareId }, { delivery: { ...fakeRemote(remote), binding: "bucket-b" } }), { code: "DELETE_FAILED" });
   assert.equal(remote.deletes, 0, "a changed default bucket must never be asked to delete");
@@ -82,7 +82,7 @@ test("revoke of a remote export disables the link first; without its original st
 test("revoke reports DELETE_FAILED when the remote copy is still reachable after delete", async t => {
   const registry = await shareRegistry(t);
   const row = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("PK remote") });
-  await registry.put({ record: { ...row, url: "https://bucket.example.test/x", storage: { provider: "s3-compatible", binding: "bucket-a", key: "k" } } });
+  await registry.put({ record: { ...row, url: "https://bucket.example.test/x", storage: { provider: "example-store", binding: "bucket-a", key: "k" } } });
   const sticky = fakeRemote({ present: true, deletes: 0 });
   const delivery = { ...sticky, store: { ...sticky.store, delete: async () => {} } } as ShareDelivery;
   await assert.rejects(revokeSiteShare({ registry, site: "ws", shareId: row.shareId }, { delivery }), { code: "DELETE_FAILED", message: /not verified/ });
@@ -158,7 +158,7 @@ test("export leaves the source's publish history destinations untouched and neve
 const archive = Buffer.from("PK test artifact");
 const input = { site: "ws", name: "site", archive };
 function delivery(overrides: Partial<ShareDelivery["store"]> = {}): ShareDelivery {
-  return { provider: "s3-compatible", binding: "bucket", store: { upload: async () => ({ url: "https://bucket.example/site.zip" }), delete: async () => {}, verify: async () => true, ...overrides } };
+  return { provider: "example-store", binding: "bucket", store: { upload: async () => ({ url: "https://bucket.example/site.zip" }), delete: async () => {}, verify: async () => true, ...overrides } };
 }
 function plan(): SiteSharePlanContent {
   return { profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
@@ -245,7 +245,7 @@ test("revoke preserves the tombstone if deleting the local ZIP fails, and retry 
 });
 test("revoke checks provider as well as binding and skips URL verification when none was uploaded", async t => {
   const r = await shareRegistry(t), row = await createSiteShare({ registry: r, ...input });
-  await r.put({ record: { ...row, storage: { provider: "s3-compatible", binding: "bucket", key: "saved-key" } } });
+  await r.put({ record: { ...row, storage: { provider: "example-store", binding: "bucket", key: "saved-key" } } });
   await assert.rejects(revokeSiteShare({ registry: r, site: "ws", shareId: row.shareId }, { delivery: { ...delivery(), provider: "other" } }), { code: "DELETE_FAILED" });
   const deletes: string[] = [];
   await revokeSiteShare({ registry: r, site: "ws", shareId: row.shareId }, { delivery: delivery({ delete: async ({ key }) => { deletes.push(key); }, verify: async () => assert.fail("no URL exists") }) });
@@ -326,21 +326,21 @@ test("backend refuses unknown jobs and concurrent exports, resumes only for the 
 
 test("backend resolves a saved remote locator and leaves a revoked row when resolution fails", async t => {
   const r = await shareRegistry(t), row = await createSiteShare({ registry: r, ...input });
-  await r.put({ record: { ...row, storage: { provider: "s3-compatible", binding: "original", key: "k" } } });
+  await r.put({ record: { ...row, storage: { provider: "example-store", binding: "original", key: "k" } } });
   const resolutions: unknown[] = [];
   const backend = createSiteShareBackend({ registry: r, site: "ws", zip: zipFolderFiles, prepare: async () => assert.fail("not exporting"), delivery: async request => { resolutions.push(request); throw new Error("credentials removed"); } });
   await assert.rejects(backend.revoke({ shareId: row.shareId }), { code: "DELETE_FAILED" });
-  assert.deepEqual(resolutions, [{ provider: "s3-compatible", binding: "original" }]);
+  assert.deepEqual(resolutions, [{ provider: "example-store", binding: "original" }]);
   assert.equal((await r.get(row))?.status, "revoked");
 });
 
-test("delivery selection pins the runtime binding and rejects unsupported providers without touching S3", async t => {
+test("delivery selection pins the runtime binding and rejects unsupported providers without touching object storage", async t => {
   const r = await shareRegistry(t), runtime = createRuntimeShareDelivery({ registry: r, site: "ws", publicOrigin: "https://public.example", http: { send: async () => assert.fail("selection has no HTTP") } });
-  const ports = { peer: async () => undefined, runtime: () => runtime, http: { send: async () => assert.fail("selection has no HTTP") }, s3: async () => undefined };
+  const ports = { peer: async () => undefined, runtime: () => runtime, http: { send: async () => assert.fail("selection has no HTTP") }, objectStore: async () => undefined };
   assert.equal(await resolveShareDelivery(ports), runtime);
   assert.equal(await resolveShareDelivery(ports, { provider: "tovu-server", binding: r.directory }), runtime);
   assert.equal(await resolveShareDelivery(ports, { provider: "tovu-server", binding: "old" }), undefined);
-  assert.equal(await resolveShareDelivery({ ...ports, s3: async () => assert.fail("unknown provider") }, { provider: "unknown" }), undefined);
+  assert.equal(await resolveShareDelivery({ ...ports, objectStore: async () => assert.fail("unknown provider") }, { provider: "unknown" }), undefined);
 });
 for (const publicOrigin of ["http://public.example", "https://user@public.example", "https://:password@public.example", "https://public.example/path", "https://public.example/?x=1", "https://public.example/#fragment"]) {
   test(`runtime delivery rejects non-origin ${publicOrigin}`, async t => {

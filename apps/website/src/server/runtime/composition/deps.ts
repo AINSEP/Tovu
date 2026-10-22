@@ -2838,7 +2838,7 @@ async function composeSiteRouteDeps(
             ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
               runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
             } : {}),
-            s3: async () => {
+            objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
               // the site's media choice wins so media and shares share one provider and connection.
               const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });

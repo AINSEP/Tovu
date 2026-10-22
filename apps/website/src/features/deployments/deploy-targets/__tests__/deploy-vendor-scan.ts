@@ -22,8 +22,10 @@ export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-basel
 /** The core surfaces the plan's T7 and T10 boundaries name. Directory entries end in `/`. */
 export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/features/deployments/",
-  // Vendor extraction phase 5: the diagnostic public-DNS resolver URL is plugin data.
+  // Vendor extraction phases 5/6: diagnostic resolver URLs and object-store env mappings.
   "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
+  "apps/website/src/features/object-storage/",
+  "apps/website/src/features/site-backup/share-hosting.ts",
   "apps/website/src/features/site-export/",
   "apps/website/src/features/vendor-credentials/",
   // Form destinations (2026-10-19): vendor receivers are plugin form destinations, never core.

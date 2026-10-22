@@ -245,8 +245,8 @@ test("peer verification refuses the runtime origin's URL for the same key", asyn
 
 const store = { upload: async () => ({ url: "unused" }), delete: async () => {}, verify: async () => true };
 const RUNTIME: ShareDelivery = { provider: "tovu-server", binding: "/srv/shares", store };
-const S3: ShareDelivery = { provider: "s3-compatible", binding: "bucket-a", store };
-function selection(overrides: { peer?: () => Promise<PeerCallDeps | undefined>; s3?: () => Promise<ShareDelivery | undefined>; runtime?: () => ShareDelivery } = {}) {
+const OBJECT_STORE: ShareDelivery = { provider: "example-store", binding: "bucket-a", store };
+function selection(overrides: { peer?: () => Promise<PeerCallDeps | undefined>; objectStore?: () => Promise<ShareDelivery | undefined>; runtime?: () => ShareDelivery } = {}) {
   const calls: string[] = [];
   const { peer } = peerDeps();
   return {
@@ -254,14 +254,14 @@ function selection(overrides: { peer?: () => Promise<PeerCallDeps | undefined>; 
     required: {
       http: anonymousHttp().http,
       peer: overrides.peer ?? (async () => { calls.push("peer"); return peer; }),
-      s3: overrides.s3 ?? (async () => { calls.push("s3"); return S3; }),
+      objectStore: overrides.objectStore ?? (async () => { calls.push("objectStore"); return OBJECT_STORE; }),
       ...(overrides.runtime ? { runtime: overrides.runtime } : {}),
     },
   };
 }
 const noPeer = async (): Promise<undefined> => undefined;
 
-test("selection prefers a connected peer and does not consult S3", async () => {
+test("selection prefers a connected peer and does not consult OBJECT_STORE", async () => {
   const { required, calls } = selection();
   const chosen = await resolveShareDelivery(required);
   assert.deepEqual({ binding: chosen?.binding, calls }, { binding: PEER_BASE, calls: ["peer"] });
@@ -283,7 +283,7 @@ test("selection skips a peer bound elsewhere and takes the runtime delivery matc
   assert.equal(await resolveShareDelivery(selection({ runtime: () => RUNTIME }).required, { provider: "tovu-server", binding: "/srv/shares" }), RUNTIME);
 });
 
-test("a saved server binding matching neither peer nor runtime selects nothing and never S3", async () => {
+test("a saved server binding matching neither peer nor runtime selects nothing and never OBJECT_STORE", async () => {
   const { required, calls } = selection({ runtime: () => RUNTIME });
   assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "tovu-server", binding: "https://old.example.test" }), calls }, { chosen: undefined, calls: ["peer"] });
 });
@@ -292,38 +292,38 @@ test("a saved server provider without any server delivery selects nothing", asyn
   assert.equal(await resolveShareDelivery(selection({ peer: noPeer }).required, { provider: "tovu-server" }), undefined);
 });
 
-test("with no provider, a runtime bound elsewhere falls through to S3", async () => {
-  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, runtime: () => ({ ...RUNTIME, binding: "/other" }) }).required, { binding: "bucket-a" }), S3);
+test("with no provider, a runtime bound elsewhere falls through to OBJECT_STORE", async () => {
+  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, runtime: () => ({ ...RUNTIME, binding: "/other" }) }).required, { binding: "bucket-a" }), OBJECT_STORE);
 });
 
-test("with no provider and no server delivery, S3 is selected", async () => {
-  assert.equal(await resolveShareDelivery(selection({ peer: noPeer }).required), S3);
+test("with no provider and no server delivery, OBJECT_STORE is selected", async () => {
+  assert.equal(await resolveShareDelivery(selection({ peer: noPeer }).required), OBJECT_STORE);
 });
 
 test("an empty provider is treated as no provider", async () => {
-  assert.equal(await resolveShareDelivery(selection({ peer: noPeer }).required, { provider: "" }), S3);
+  assert.equal(await resolveShareDelivery(selection({ peer: noPeer }).required, { provider: "" }), OBJECT_STORE);
 });
 
-test("a saved S3 provider skips the server deliveries", async () => {
+test("a saved OBJECT_STORE provider skips the server deliveries", async () => {
   const { required, calls } = selection({ runtime: () => assert.fail("runtime must not be consulted") });
-  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "s3-compatible", binding: "bucket-a" }), calls }, { chosen: S3, calls: ["s3"] });
+  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "example-store", binding: "bucket-a" }), calls }, { chosen: OBJECT_STORE, calls: ["objectStore"] });
 });
 
-test("a saved S3 binding that differs selects nothing", async () => {
-  assert.equal(await resolveShareDelivery(selection().required, { provider: "s3-compatible", binding: "bucket-b" }), undefined);
+test("a saved OBJECT_STORE binding that differs selects nothing", async () => {
+  assert.equal(await resolveShareDelivery(selection().required, { provider: "example-store", binding: "bucket-b" }), undefined);
 });
 
 test("a saved provider the site's object store does not resolve to selects nothing (the server deliveries are not consulted)", async () => {
   // Object-store providers are an open set now, so a non-server provider asks the object-store
   // source and keeps only a delivery of that same provider.
   const { required, calls } = selection();
-  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "ftp" }), calls }, { chosen: undefined, calls: ["s3"] });
+  assert.deepEqual({ chosen: await resolveShareDelivery(required, { provider: "ftp" }), calls }, { chosen: undefined, calls: ["objectStore"] });
 });
 
-test("no configured S3 selects nothing", async () => {
-  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, s3: async () => undefined }).required), undefined);
+test("no configured OBJECT_STORE selects nothing", async () => {
+  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, objectStore: async () => undefined }).required), undefined);
 });
 
-test("a failed S3 credential resolution selects nothing", async () => {
-  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, s3: async () => { throw new Error("missing credentials"); } }).required), undefined);
+test("a failed OBJECT_STORE credential resolution selects nothing", async () => {
+  assert.equal(await resolveShareDelivery(selection({ peer: noPeer, objectStore: async () => { throw new Error("missing credentials"); } }).required), undefined);
 });

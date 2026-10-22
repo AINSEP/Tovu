@@ -1,13 +1,12 @@
-import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import fs from "node:fs";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
 import sharp from "sharp";
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
@@ -15,11 +14,11 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import { createMediaBlobStore, loadBundledObjectStoreRegistry } from "#src/features/object-storage/index";
-import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { trackFetch } from "#src/platform/observability/index";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
-import { createApp, createRouteDeps } from "../../../server/runtime/composition/app.js";
-import { registerTransform, SharpImageTransformer, uploadMedia } from "../index.js";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { registerTransform, SharpImageTransformer, uploadMedia } from "#src/features/media/index";
 
 /**
  * @file Proves the S3 media path as production wires it, end to end, without Docker and without any
@@ -48,30 +47,23 @@ const KEY_PREFIX = "tenant/";
 const ACCESS_KEY_ID = "test-access-key-id";
 const SECRET_ACCESS_KEY = "test-secret-access-key";
 
-interface FakeS3Server {
-  readonly baseUrl: string;
-  readonly objectKeys: () => string[];
-  readonly lastAuthorizationHeader: () => string | undefined;
-  /** Overrides a method/key response before changing stored objects. */
-  readonly setForcedStatus: (method: string, key: string, status: number | undefined, body?: string) => void;
-  readonly close: () => Promise<void>;
-}
 
-async function startFakeS3(): Promise<FakeS3Server> {
-  const objects = new Map<string, Buffer>();
-  const forcedResponses = new Map<string, { status: number; body: string }>();
-  let lastAuthorizationHeader: string | undefined;
 
-  function readBody(req: IncomingMessage): Promise<Buffer> {
-    const chunks: Buffer[] = [];
+async function startFakeS3() {
+  const objects = new Map();
+  const forcedResponses = new Map();
+  let lastAuthorizationHeader;
+
+  function readBody(req) {
+    const chunks = [];
     return new Promise((resolve, reject) => {
-      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("data", (chunk) => chunks.push(chunk));
       req.on("end", () => resolve(Buffer.concat(chunks)));
       req.on("error", reject);
     });
   }
 
-  function objectKeyFromPath(url: string): string | undefined {
+  function objectKeyFromPath(url) {
     // Only the fixture bucket exists: silently discarding this segment hides wrong-bucket writes.
     const decoded = decodeURIComponent(url.replace(/^\//, ""));
     const firstSlash = decoded.indexOf("/");
@@ -79,9 +71,9 @@ async function startFakeS3(): Promise<FakeS3Server> {
     return decoded.slice(firstSlash + 1);
   }
 
-  const etagOf = (body: Buffer) => `"${createHash("md5").update(body).digest("hex")}"`;
+  const etagOf = (body) => `"${createHash("md5").update(body).digest("hex")}"`;
 
-  const server: Server = createServer((req: IncomingMessage, res: ServerResponse) => {
+  const server = createServer((req, res) => {
     void (async () => {
       lastAuthorizationHeader = req.headers.authorization;
       const key = objectKeyFromPath(req.url ?? "/");
@@ -135,29 +127,30 @@ async function startFakeS3(): Promise<FakeS3Server> {
 
   server.listen(0);
   await once(server, "listening");
-  const address = server.address() as AddressInfo;
+  const address = server.address();
 
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
     objectKeys: () => [...objects.keys()],
     lastAuthorizationHeader: () => lastAuthorizationHeader,
-    setForcedStatus: (method: string, key: string, status: number | undefined, body = "") => {
+    /** Overrides a method/key response before changing stored objects. */
+    setForcedStatus: (method, key, status, body = "") => {
       if (status === undefined) forcedResponses.delete(`${method}:${key}`);
       else forcedResponses.set(`${method}:${key}`, { status, body });
     },
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }
 
 /** An empty uploads folder, removed after the test: a correctly wired S3 store never writes into it. */
-function uploadsDir(t: TestContext): string {
+function uploadsDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-media-s3-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
 /** Files under `dir`, recursively — the proof that nothing fell back to local disk. */
-function filesUnder(dir: string): string[] {
+function filesUnder(dir) {
   return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => entry.name);
 }
 
@@ -165,8 +158,8 @@ function filesUnder(dir: string): string[] {
  * The media store exactly as `deps.ts` builds it for `TOVU_MEDIA_BLOB_STORE=s3`. The site-setting
  * ports throw: the env override must never consult them.
  */
-function buildEnvS3MediaStore(required: { readonly uploadsDir: string; readonly endpoint: string; readonly observability: ObservabilityPort }) {
-  const notOnEnvPath = (name: string) => async (): Promise<never> => {
+function buildEnvS3MediaStore(required) {
+  const notOnEnvPath = (name) => async () => {
     throw new Error(`${name} must not be called when TOVU_MEDIA_BLOB_STORE=s3`);
   };
   return createMediaBlobStore({
@@ -186,7 +179,7 @@ function buildEnvS3MediaStore(required: { readonly uploadsDir: string; readonly 
         wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: required.observability }),
       },
       loadBundledRegistry: () =>
-        loadBundledObjectStoreRegistry({ uploadsDir: required.uploadsDir, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins") }),
+        loadBundledObjectStoreRegistry({ uploadsDir: required.uploadsDir, sourceRoot: path.resolve(import.meta.dirname, "../..") }),
       loadSiteRegistry: notOnEnvPath("loadSiteRegistry"),
       readSetting: notOnEnvPath("readSetting"),
       resolveSharedCredential: notOnEnvPath("resolveSharedCredential"),
@@ -248,7 +241,7 @@ test("env-selected S3 media store end to end: uploadMedia() writes to S3-compati
   server.listen(0);
   await once(server, "listening");
   try {
-    const address = server.address() as AddressInfo;
+    const address = server.address();
     const res = await fetch(`http://127.0.0.1:${address.port}/m/${uploaded.id}/${definition.name}.v${definition.version}/hero.webp`);
 
     assert.equal(res.status, 200);
@@ -267,7 +260,7 @@ test("env-selected S3 media store end to end: uploadMedia() writes to S3-compati
     assert.ok(data.every((value, index) => Math.abs(value - expectedPixel[index % 3]) <= 3),
       "the decoded rendition must retain the source color (allowing WebP compression rounding)");
   } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise((resolve) => server.close(() => resolve()));
   }
   assert.deepEqual(filesUnder(dir), [], "serving read from S3 without caching anything into the uploads folder");
 });
