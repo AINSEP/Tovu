@@ -1,6 +1,6 @@
 /**
  * @file The shared jsdom host for `App.render.test.ts` and `App.start-panel.render.test.ts`: one
- * jsdom per test PROCESS (node --test gives each file its own), the CSS load hook, the host
+ * jsdom per test PROCESS (node --test gives each file its own), the CSS resolve hook, the host
  * stand-ins, the recording desktop bridge and `renderApp`. See `App.render.test.ts` for why each
  * piece is a stand-in rather than a module mock. Not a test file itself.
  */
@@ -14,10 +14,14 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteFoldersSettings } from './use-site-folders.hooks.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 
+// A resolve hook, not a load hook: under tsx, any sync `load` hook makes Node 24 reject the
+// source-less result its default step returns for CommonJS packages such as `react` (an
+// ERR_INVALID_RETURN_PROPERTY_VALUE that kills the whole file). Resolving `.css` straight to an
+// empty data: module never touches the load chain.
 registerHooks({
-  load(url, context, nextLoad) {
-    if (url.endsWith('.css')) return { format: 'module', source: '', shortCircuit: true };
-    return nextLoad(url, context);
+  resolve(specifier, context, nextResolve) {
+    if (specifier.endsWith('.css')) return { url: 'data:text/javascript,', format: 'module', shortCircuit: true };
+    return nextResolve(specifier, context);
   },
 });
 
