@@ -293,5 +293,5 @@ test("native smoke malformed JSON and module errors expose only bounded redacted
   const entries = parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [detail] }));
   for (const secret of secrets) assert.ok(!JSON.stringify(entries).includes(secret));
   assert.ok(!JSON.stringify(entries).includes(homePath));
-  assert.ok(entries.unresolved[0].length <= 2_000);
+  assert.ok(entries.unresolved[0]!.length <= 2_000);
 });
