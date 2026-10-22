@@ -205,3 +205,66 @@ test("L044 undo covered roots remain case sensitive (reported, not fixed)", asyn
   assert.equal(await contributeRawFilePublish().build(deps).inspect(entity.id), null);
   assert.equal(await undoRawFile({ deps, entity, before, afterHash: entity.contentHash }), null);
 });
+
+test("a destination without a blob store treats verified bytes as missing, and an unreadable live file inspects as absent", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const noBlobs = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs: undefined } });
+  assert.match((await noBlobs.precheck(entity))!, /verified bytes are missing/);
+  const unreadable = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw new Error("EACCES"); } } } });
+  assert.equal(await unreadable.inspect(entity.id), null);
+});
+
+test("precheck turns only typed row refusals into reasons; an unexpected port failure still propagates", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const failing = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, check: async () => { throw new Error("disk gone"); } } } });
+  await assert.rejects(failing.precheck(entity), /disk gone/);
+});
+
+test("apply refuses to write when the stored bytes change between the check and the write", async (t) => {
+  const f = await fixture(t);
+  const target = path.join(f.siteDir, "snippets/footer.html");
+  await writeFile(target, "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  let gets = 0;
+  const blobs = { ...f.blobs,
+    exists: async () => true,
+    get: async () => Buffer.from(++gets === 1 ? "footer" : "swapped"),
+  } as unknown as NonNullable<PublishContentDeps["backstop"]>["blobs"];
+  const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs } });
+  const inspected = await handler.inspect(entity.id);
+  await assert.rejects(handler.apply({ entity, expectedVersion: inspected!.version, principalId: "admin", idempotencyKey: "swap" }), /bytes changed before apply/);
+  assert.equal(gets, 2);
+  assert.equal(await readFile(target, "utf8"), "footer");
+});
+
+test("undo refuses a private path before touching it", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  const before = await f.files.capture({ relPath: entity.id });
+  const privateEntity = { ...entity, id: ".env" };
+  assert.match((await undoRawFile({ deps: f.deps, entity: privateEntity, before: { ...before, relPath: ".env" }, afterHash: entity.contentHash }))!, /never|environment/);
+});
+
+test("a change-set write failing after the file was replaced rolls the live file back to its prior bytes", async (t) => {
+  const f = await fixture(t);
+  const target = path.join(f.siteDir, "snippets/footer.html");
+  await writeFile(target, "new");
+  const [entity] = await f.pack();
+  assert.ok(entity);
+  await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("new") });
+  await writeFile(target, "old");
+  const changeSets = f.deps.changeSets!;
+  changeSets.insert = async () => { throw new Error("audit store down"); };
+  const prior = await f.handler.inspect(entity.id);
+  await assert.rejects(f.handler.apply({ entity, expectedVersion: prior!.version, principalId: "admin", idempotencyKey: "rollback" }), /audit store down/);
+  assert.equal(await readFile(target, "utf8"), "old");
+});
