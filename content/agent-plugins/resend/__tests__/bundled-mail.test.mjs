@@ -1,7 +1,9 @@
-import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-mail-resend.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
+import { createTovuAgentPluginLifecycle } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "../../activation-effects.js";
+import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises";
@@ -9,17 +11,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-import type { MailAdapterModule, MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 
-import { forceRemove } from "../fixtures/force-remove.js";
+import { forceRemove } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
 
-import { packAgentPluginDirectory } from "../../lifecycle.js";
-import { resolveAgentPluginLayout } from "../../layout.js";
-import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistryFromSource } from "../../mail-adapter-registry.js";
+import { packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
+import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistryFromSource } from "../../../../apps/website/src/features/agent-plugins/mail-adapter-registry.ts";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
-import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
+import { seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 
 /**
  * @file The bundled `resend` Agent Plugin: a valid package, seeded ENABLED so a site that already
@@ -28,11 +28,11 @@ import { seedBundledAgentPlugins } from "../../lifecycle.js";
  * send goes to a fake `HttpClientPort`, never the network.
  */
 
-const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+const CONTENT_ROOT = path.resolve(import.meta.dirname, "../..");
 const PACKAGE_ROOT = path.join(CONTENT_ROOT, "resend");
 const WORKSPACE_ID = "workspace-local";
 
-async function readPackageJson(relativePath: string): Promise<unknown> {
+async function readPackageJson(relativePath) {
   return JSON.parse(await readFile(path.join(PACKAGE_ROOT, relativePath), "utf8"));
 }
 
@@ -65,7 +65,7 @@ test("the package packs through the real packer with its descriptor, module and 
   }
 });
 
-async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgentPluginLayout>) => Promise<T>): Promise<T> {
+async function withAgentPluginsDir(fn) {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-resend-plugin-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
@@ -109,18 +109,17 @@ test("an operator who switched resend off stays switched off across boots, and t
 // The bundled mail adapter.
 // ---------------------------------------------------------------------------------------------
 
-type ScriptedResponse = HttpResponse | (() => HttpResponse);
 
-class FakeHttpClient implements HttpClientPort {
-  readonly calls: HttpRequest[] = [];
-  private readonly responses: readonly ScriptedResponse[];
-  private cursor = 0;
+class FakeHttpClient {
+  calls = [];
+  responses;
+  cursor = 0;
 
-  constructor(responses: readonly ScriptedResponse[] = [{ status: 200, headers: {}, bodyText: '{"id":"resend-id-1"}' }]) {
+  constructor(responses = [{ status: 200, headers: {}, bodyText: '{"id":"resend-id-1"}' }]) {
     this.responses = responses;
   }
 
-  async send(request: HttpRequest): Promise<HttpResponse> {
+  async send(request) {
     this.calls.push(request);
     const entry = this.responses[Math.min(this.cursor, this.responses.length - 1)];
     this.cursor += 1;
@@ -129,13 +128,13 @@ class FakeHttpClient implements HttpClientPort {
   }
 }
 
-const SEND_OPTIONS: MailerSendOptions = {
+const SEND_OPTIONS = {
   idempotencyKey: "idem-1",
   workspaceId: "ws-1",
   sourceContext: { module: "members" },
 };
 
-function makeMessage(overrides: Partial<OutboundEmail> = {}): OutboundEmail {
+function makeMessage(overrides = {}) {
   return {
     workspaceId: "ws-1",
     to: { email: "member@example.com" },
@@ -146,9 +145,9 @@ function makeMessage(overrides: Partial<OutboundEmail> = {}): OutboundEmail {
   };
 }
 
-let adapterModule: Promise<MailAdapterModule> | undefined;
+let adapterModule;
 
-async function makeAdapter(http: HttpClientPort, credential: { token: string; baseUrl?: string } = { token: "re_test" }): Promise<MailerPort> {
+async function makeAdapter(http, credential = { token: "re_test" }) {
   adapterModule ??= loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: PACKAGE_ROOT }).then((registry) => {
     const loaded = registry.list()[0];
     assert.ok(loaded, `resend adapter did not load: ${registry.refusals.join("; ")}`);
@@ -174,7 +173,7 @@ test("send() POSTs to /emails with bearer auth, JSON body, and the idempotency k
   const result = await adapter.send(makeMessage(), SEND_OPTIONS);
 
   assert.equal(http.calls.length, 1);
-  const req = http.calls[0]!;
+  const req = http.calls[0];
   assert.equal(req.method, "POST");
   assert.equal(req.url, "https://api.resend.com/emails");
   assert.equal(req.headers.Authorization, "Bearer re_test_key");
@@ -182,7 +181,7 @@ test("send() POSTs to /emails with bearer auth, JSON body, and the idempotency k
   assert.equal(req.headers["Idempotency-Key"], "idem-1");
   assert.equal(req.timeoutMs, 10_000);
 
-  const body = JSON.parse(Buffer.from(req.body ?? "{}").toString("utf8")) as Record<string, unknown>;
+  const body = JSON.parse(Buffer.from(req.body ?? "{}").toString("utf8"));
   assert.equal(body.from, "Tovu <no-reply@tovu.local>");
   assert.equal(body.to, "member@example.com");
   assert.equal(body.subject, "Your sign-in link");
@@ -195,14 +194,14 @@ test("send() uses the saved credential's baseUrl", async () => {
   const http = new FakeHttpClient();
   const adapter = await makeAdapter(http, { token: "re_test", baseUrl: "https://mail.example.internal" });
   await adapter.send(makeMessage(), SEND_OPTIONS);
-  assert.equal(http.calls[0]!.url, "https://mail.example.internal/emails");
+  assert.equal(http.calls[0].url, "https://mail.example.internal/emails");
 });
 
 test("send() forwards attachments using Resend's snake_case field shape", async () => {
   const http = new FakeHttpClient();
   const adapter = await makeAdapter(http);
   await adapter.send(makeMessage({ attachments: [{ filename: "invoice.pdf", contentType: "application/pdf", contentBase64: "QUFB" }] }), SEND_OPTIONS);
-  const body = JSON.parse(Buffer.from(http.calls[0]!.body ?? "{}").toString("utf8")) as { attachments?: unknown[] };
+  const body = JSON.parse(Buffer.from(http.calls[0].body ?? "{}").toString("utf8"));
   assert.deepEqual(body.attachments, [{ filename: "invoice.pdf", content: "QUFB", content_type: "application/pdf" }]);
 });
 
@@ -272,7 +271,7 @@ test("sendBatch() keeps every per-message result after empty and malformed succe
   );
   assert.deepEqual(results.map((result) => result.ok ? result.providerMessageId : result.errorCode),
     ["idem-1:0", "idem-1:1", "validation_error", "last-accepted"]);
-  assert.deepEqual(http.calls.map((call) => JSON.parse(Buffer.from(call.body!).toString("utf8")).to),
+  assert.deepEqual(http.calls.map((call) => JSON.parse(Buffer.from(call.body).toString("utf8")).to),
     ["one@example.com", "two@example.com", "three@example.com", "four@example.com"]);
 });
 
@@ -319,7 +318,7 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
     ["ok-1", "validation_error", "ok-3"],
   );
   assert.deepEqual(
-    http.calls.map((call) => (JSON.parse(Buffer.from(call.body ?? "{}").toString("utf8")) as { to: string }).to),
+    http.calls.map((call) => (JSON.parse(Buffer.from(call.body ?? "{}").toString("utf8"))).to),
     ["one@example.com", "two@example.com", "three@example.com"],
   );
 });
@@ -342,7 +341,7 @@ test("send() forwards replyTo, html, and custom headers when provided", async ()
     makeMessage({ replyTo: { email: "support@example.com", name: "Support" }, html: "<p>Hello</p>", headers: { "X-Custom": "val" } }),
     SEND_OPTIONS,
   );
-  const body = JSON.parse(Buffer.from(http.calls[0]!.body ?? "{}").toString("utf8")) as Record<string, unknown>;
+  const body = JSON.parse(Buffer.from(http.calls[0].body ?? "{}").toString("utf8"));
   assert.equal(body.reply_to, "Support <support@example.com>");
   assert.equal(body.html, "<p>Hello</p>");
   assert.deepEqual(body.headers, { "X-Custom": "val" });
@@ -364,5 +363,5 @@ test("send() handles 409 conflict as retryable, and empty bodyText falls back to
 test("send() uses timeoutMs from options when specified", async () => {
   const http = new FakeHttpClient();
   await (await makeAdapter(http)).send(makeMessage(), { ...SEND_OPTIONS, timeoutMs: 2500 });
-  assert.equal(http.calls[0]!.timeoutMs, 2500);
+  assert.equal(http.calls[0].timeoutMs, 2500);
 });

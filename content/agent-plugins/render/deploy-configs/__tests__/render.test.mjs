@@ -1,28 +1,30 @@
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-config-render.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { ValidationError } from "#src/platform/site-dir/index";
+import { ValidationError } from "../../../../../apps/website/src/platform/site-dir/index.ts";
 
-import { createDeployConfigKit, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
+import { createDeployConfigKit } from "../../../../../apps/website/src/features/deployments/deploy-config.ts";
 
 /** The bundled `render` plugin's generator module, imported from its source like the other bundled-deploy tests. */
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/render/deploy-configs/render.mjs");
-const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule; RENDER_VALID_REGIONS: readonly string[] };
+const MODULE_PATH = path.resolve(import.meta.dirname, "../render.mjs");
+const imported = (await import(pathToFileURL(MODULE_PATH).href));
 const RENDER_VALID_REGIONS = imported.RENDER_VALID_REGIONS;
 
 /** The module's `render` with the real host kit, under the name the core renderer had before it moved. */
-function renderRenderYaml(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions): RenderedDeployConfig {
+function renderRenderYaml(descriptor, options) {
   return imported.default.render(descriptor, options, createDeployConfigKit());
 }
 
 /**
  * @file `renderRenderYaml` against a KNOWN, hand-fixed descriptor — exact-string assertions, same
- * discipline as `bundled-deploy-config-fly.unit.test.ts`.
+ * discipline as `content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs`.
  */
 
-const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
+const FIXTURE_DESCRIPTOR = {
   appName: "acme-app",
   port: 4000,
   dockerfilePath: "Dockerfile",
@@ -124,14 +126,14 @@ test("renderRenderYaml: rejects a quote- or newline-bearing appName/volumeName (
 test("renderRenderYaml: rejects a colon in appName/volumeName — would end the plain scalar and start a new YAML key", () => {
   assert.throws(
     () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil:app" }, { region: "frankfurt" }),
-    (err: unknown) =>
+    (err) =>
       err instanceof ValidationError &&
       err.message ===
         'the derived Render service name (fly.toml\'s app) ("evil:app") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
   );
   assert.throws(
     () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, volumeName: "evil:vol" }, { region: "frankfurt" }),
-    (err: unknown) =>
+    (err) =>
       err instanceof ValidationError &&
       err.message ===
         'the derived Render disk name (fly.toml\'s [[mounts]].source) ("evil:vol") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
@@ -141,7 +143,7 @@ test("renderRenderYaml: rejects a colon in appName/volumeName — would end the 
 test("renderRenderYaml: rejects a hash in appName — would start an inline YAML comment mid-scalar", () => {
   assert.throws(
     () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil#app" }, { region: "frankfurt" }),
-    (err: unknown) =>
+    (err) =>
       err instanceof ValidationError &&
       err.message ===
         'the derived Render service name (fly.toml\'s app) ("evil#app") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
@@ -151,7 +153,7 @@ test("renderRenderYaml: rejects a hash in appName — would start an inline YAML
 test("renderRenderYaml: rejects a curly brace in appName — would open a YAML flow mapping", () => {
   assert.throws(
     () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil{app}" }, { region: "frankfurt" }),
-    (err: unknown) =>
+    (err) =>
       err instanceof ValidationError &&
       err.message ===
         'the derived Render service name (fly.toml\'s app) ("evil{app}") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
@@ -161,7 +163,7 @@ test("renderRenderYaml: rejects a curly brace in appName — would open a YAML f
 test("renderRenderYaml: rejects a leading hyphen in volumeName — would read as a YAML block-sequence entry", () => {
   assert.throws(
     () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, volumeName: "-evilvol" }, { region: "frankfurt" }),
-    (err: unknown) =>
+    (err) =>
       err instanceof ValidationError &&
       err.message ===
         'the derived Render disk name (fly.toml\'s [[mounts]].source) ("-evilvol") starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file'
@@ -181,8 +183,8 @@ test("renderRenderYaml: a normal appName/volumeName still renders byte-identical
 
 test("render is a seeded-enabled config-only package with its descriptor, module and skill packed", async () => {
   const { readFile } = await import("node:fs/promises");
-  const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../lifecycle.js");
-  const { loadDeployConfigGeneratorsFromSource } = await import("#src/features/deployments/deploy-config-registry");
+  const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../../apps/website/src/features/agent-plugins/lifecycle.ts");
+  const { loadDeployConfigGeneratorsFromSource } = await import("../../../../../apps/website/src/features/deployments/deploy-config-registry.ts");
   const packageRoot = path.dirname(path.dirname(MODULE_PATH));
   const manifest = JSON.parse(await readFile(path.join(packageRoot, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "render");

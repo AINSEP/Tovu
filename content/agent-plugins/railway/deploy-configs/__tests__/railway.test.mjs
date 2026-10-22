@@ -1,19 +1,21 @@
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-config-railway.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { ValidationError } from "#src/platform/site-dir/index";
+import { ValidationError } from "../../../../../apps/website/src/platform/site-dir/index.ts";
 
-import { createDeployConfigKit, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
+import { createDeployConfigKit } from "../../../../../apps/website/src/features/deployments/deploy-config.ts";
 
 /** The bundled `railway` plugin's generator module, imported from its source like the other bundled-deploy tests. */
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/railway/deploy-configs/railway.mjs");
-const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule; RAILWAY_VALID_REGIONS: readonly string[] };
+const MODULE_PATH = path.resolve(import.meta.dirname, "../railway.mjs");
+const imported = (await import(pathToFileURL(MODULE_PATH).href));
 const RAILWAY_VALID_REGIONS = imported.RAILWAY_VALID_REGIONS;
 
 /** The module's `render` with the real host kit, under the name the core renderer had before it moved. */
-function renderRailwayConfig(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions): RenderedDeployConfig {
+function renderRailwayConfig(descriptor, options) {
   return imported.default.render(descriptor, options, createDeployConfigKit());
 }
 
@@ -22,7 +24,7 @@ function renderRailwayConfig(descriptor: DeploymentDescriptor, options: RenderDe
  * discipline as the Fly/Render renderer tests.
  */
 
-const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
+const FIXTURE_DESCRIPTOR = {
   appName: "acme-app",
   port: 4000,
   dockerfilePath: "Dockerfile",
@@ -75,7 +77,7 @@ test("renderRailwayConfig: never emits a secret VALUE or any env-var field at al
 
   assert.ok(!result.contents.includes("TOVU_ADMIN_PASSWORD"));
   assert.ok(!result.contents.includes("TOVU_SITE_KEY"));
-  const parsed = JSON.parse(result.contents) as Record<string, unknown>;
+  const parsed = JSON.parse(result.contents);
   assert.ok(!("envVars" in parsed), "no top-level envVars key");
   assert.ok(!("variables" in parsed), "no top-level variables key");
   assert.ok(
@@ -108,17 +110,17 @@ test("renderRailwayConfig: pins numReplicas to 1 for every documented region —
   assert.deepEqual(RAILWAY_VALID_REGIONS, expectedRegions);
   for (const region of expectedRegions) {
     const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region });
-    const parsed = JSON.parse(result.contents) as { deploy: { multiRegionConfig: Record<string, { numReplicas: number }> } };
+    const parsed = JSON.parse(result.contents);
     assert.deepEqual(Object.keys(parsed.deploy.multiRegionConfig), [region]);
-    assert.equal(parsed.deploy.multiRegionConfig[region]!.numReplicas, 1);
+    assert.equal(parsed.deploy.multiRegionConfig[region].numReplicas, 1);
   }
 });
 
 
 test("railway is a seeded-enabled config-only package with its descriptor, module and skill packed", async () => {
   const { readFile } = await import("node:fs/promises");
-  const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../lifecycle.js");
-  const { loadDeployConfigGeneratorsFromSource } = await import("#src/features/deployments/deploy-config-registry");
+  const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../../apps/website/src/features/agent-plugins/lifecycle.ts");
+  const { loadDeployConfigGeneratorsFromSource } = await import("../../../../../apps/website/src/features/deployments/deploy-config-registry.ts");
   const packageRoot = path.dirname(path.dirname(MODULE_PATH));
   const manifest = JSON.parse(await readFile(path.join(packageRoot, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "railway");

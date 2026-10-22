@@ -1,22 +1,24 @@
-import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/cloudflare-contribution-migration.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
+import "../../../../apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts";
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createTovuAgentPluginLifecycle, type AgentPluginArchiveEntry } from '../../lifecycle.js';
-import { resolveAgentPluginLayout } from '../../layout.js';
-import { loadDeployTargetRegistry } from '#src/features/deployments/deploy-targets/registry';
-import { forceRemove } from '../fixtures/force-remove.js';
+import { createTovuAgentPluginLifecycle } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
+import { resolveAgentPluginLayout } from '../../../../apps/website/src/features/agent-plugins/layout.ts';
+import { loadDeployTargetRegistry } from '../../../../apps/website/src/features/deployments/deploy-targets/registry.ts';
+import { forceRemove } from '../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts';
 
 /** Real trusted-package and contribution owners, simulating seed/retirement failures on disk. */
-function entry(entryPath: string, content: string): AgentPluginArchiveEntry {
+function entry(entryPath, content) {
   const bytes = Buffer.from(content);
   return { kind: 'file', entryPath, declaredSize: bytes.length, executable: false,
     async *openReadStream() { yield bytes; } };
 }
-async function install(required: { owner: ReturnType<typeof createTovuAgentPluginLifecycle>; layout: ReturnType<typeof resolveAgentPluginLayout>; workspaceId: string; pluginId: string; trusted: boolean; enabled: boolean }) {
+async function install(required) {
   const { owner, layout, workspaceId, pluginId, trusted, enabled } = required;
   const archive = Buffer.from(`fixture-${pluginId}`);
   const entries = [entry('plugin.json', JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: pluginId, version: '1.0.0' })),

@@ -1,13 +1,14 @@
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-github-pages.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import path from "node:path";
 import { describe, it, afterEach } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { DeployError, type DeployPublishResult } from "@jini-ai/devops/deploy";
+import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
+import { createDeployHostKit } from "../../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 
-import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
+import { expect, installNetworkGuard, vi } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts";
 
 /**
  * @file The bundled `github-pages` plugin's module
@@ -23,26 +24,20 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github-pages/targets/github-pages.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../github-pages.mjs");
 
-interface GitHubPagesBinding {
-  GitHubPagesDeployTarget: new (config: { token: string; owner: string; repo: string; branch?: string }) => {
-    publish(input: HostDeployPublishInput): Promise<DeployPublishResult>;
-    checkReachability(url: string): Promise<import("@jini-ai/devops/deploy").DeploymentUrlCheck>;
-  };
-}
 
-const loaded = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployTargetModule; bindGitHubPages(kit: DeployHostKit): GitHubPagesBinding };
+const loaded = (await import(pathToFileURL(MODULE_PATH).href));
 const { GitHubPagesDeployTarget } = loaded.bindGitHubPages(createDeployHostKit());
 
 /** A GitHub API double for one publish to an existing `octo/demo` gh-pages branch; returns the tree
  *  paths committed and the branch the ref lookup asked for. */
-function stubGitHubApi(): { treePaths: () => string[]; refUrls: string[] } {
-  let treePaths: string[] = [];
-  const refUrls: string[] = [];
+function stubGitHubApi() {
+  let treePaths = [];
+  const refUrls = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string, init?: RequestInit) => {
+    vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? "GET";
       if (url.startsWith("https://api.github.com/")) {
@@ -55,7 +50,7 @@ function stubGitHubApi(): { treePaths: () => string[]; refUrls: string[] } {
       }
       if (method === "POST" && url.endsWith("/git/blobs")) return jsonResponse(201, { sha: "blob-sha" });
       if (method === "POST" && url.endsWith("/git/trees")) {
-        treePaths = JSON.parse(String(init?.body)).tree.map((entry: { path: string }) => entry.path);
+        treePaths = JSON.parse(String(init?.body)).tree.map((entry) => entry.path);
         return jsonResponse(201, { sha: "tree-sha" });
       }
       if (method === "POST" && url.endsWith("/git/commits")) return jsonResponse(201, { sha: "commit-sha" });
@@ -102,8 +97,8 @@ describe("hosting plugin module contract (github-pages)", () => {
 
   for (const status of [200, 401, 403, 429, 503]) {
     it(`verifyCredential classifies HTTP ${status} with the exact account request`, async () => {
-      const requests: unknown[] = [];
-      const result = await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: {
+      const requests = [];
+      const result = await loaded.default.verifyCredential({ credential: { token: "tok" }, kit: {
         ...kit,
         fetch: async (url, init, options) => {
           requests.push({ url, headers: Object.fromEntries(new Headers(init.headers)), timeoutMs: options.timeoutMs });
@@ -122,7 +117,7 @@ describe("hosting plugin module contract (github-pages)", () => {
 
   for (const body of [{}, { login: "" }, { login: 42 }, null, "not JSON"]) {
     it(`verifyCredential accepts a valid response without a usable login: ${JSON.stringify(body)}`, async () => {
-      const result = await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: {
+      const result = await loaded.default.verifyCredential({ credential: { token: "tok" }, kit: {
         ...kit, fetch: async () => typeof body === "string" ? new Response(body) : jsonResponse(200, body),
       } });
       expect(result).toEqual({ ok: true, accountLabel: undefined });
@@ -143,7 +138,7 @@ describe("hosting plugin module contract (github-pages)", () => {
   });
 
   it("validateConfig keeps the legacy exact refusal texts", () => {
-    const validate = (config: Record<string, unknown>) => loaded.default.validateConfig?.({ target: "github-pages", owner: "octo", repo: "demo", ...config });
+    const validate = (config) => loaded.default.validateConfig?.({ target: "github-pages", owner: "octo", repo: "demo", ...config });
     expect(validate({})).toBeNull();
     expect(validate({ branch: "gh-pages" })).toBeNull();
     expect(validate({ owner: "-bad" })).toBe("invalid GitHub owner '-bad'");
@@ -155,12 +150,12 @@ describe("hosting plugin module contract (github-pages)", () => {
 });
 
 
-function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+function jsonResponse(status, body, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 }
 
 /** Shorthand matcher: does `url` end with `.../pages` exactly (not `.../pages/builds/latest`)? */
-function isPagesSiteUrl(url: string): boolean {
+function isPagesSiteUrl(url) {
   return url.endsWith('/pages');
 }
 
@@ -194,7 +189,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('refuses to follow a redirect on the branch-ref lookup, and requests redirect: manual on every call', async () => {
-    const fetchSpy = vi.fn(async (_input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (_input, init) => {
       expect(init?.redirect).toBe('manual');
       return new Response('', { status: 302, headers: { location: 'https://evil.example/steal-token' } });
     });
@@ -208,13 +203,13 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('publishes a brand-new site: no existing branch, no existing Pages config, dedupes identical file content into one blob', async () => {
-    const calls: Array<{ method: string; url: string; body?: unknown }> = [];
+    const calls = [];
     let blobCalls = 0;
     const binary = Buffer.from([0, 255, 128, 13, 10]);
-    const blobs: Array<{ content: string; encoding: string }> = [];
+    const blobs = [];
     let buildPollCount = 0;
 
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (url.startsWith('https://api.github.com/')) {
@@ -301,16 +296,16 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('bounds every call in the ref -> blob -> tree -> commit -> branch -> pages -> build-poll chain with a timeout signal', async () => {
-    const deadlines: number[] = [];
+    const deadlines = [];
     const kit = createDeployHostKit();
     const bound = loaded.bindGitHubPages({ ...kit, fetch: (url, init, options) => {
       deadlines.push(options.timeoutMs);
       return kit.fetch(url, init, options);
     } });
-    const signals: Record<string, AbortSignal | null | undefined> = {};
+    const signals = {};
     let buildPollCount = 0;
 
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
 
@@ -366,7 +361,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   for (const [stalledCall, existingBranch] of [
-    ...Array.from({ length: 8 }, (_, index) => [index, false] as const), [4, true] as const,
+    ...Array.from({ length: 8 }, (_, index) => [index, false]), [4, true],
   ]) {
     it(`aborts stalled request ${stalledCall + 1} (${existingBranch ? 'update' : 'create'} branch)`, async () => {
       let call = 0;
@@ -384,12 +379,12 @@ describe('GitHubPagesDeployTarget.publish', () => {
       const kit = createDeployHostKit({ timeouts: { QUICK: 15, DEPLOY: 20, UPLOAD: 25 }, fetchFn: async (_url, init) => {
         const current = call++;
         if (current !== stalledCall) return responses[current]();
-        return new Promise<Response>((_resolve, reject) => {
+        return new Promise((_resolve, reject) => {
           const watchdog = setTimeout(() => reject(new Error('deadline did not abort')), 1000);
           init?.signal?.addEventListener('abort', () => {
             clearTimeout(watchdog);
             aborted = true;
-            reject(init.signal!.reason);
+            reject(init.signal.reason);
           }, { once: true });
         });
       } });
@@ -403,8 +398,8 @@ describe('GitHubPagesDeployTarget.publish', () => {
   }
 
   it('bounds the PATCH branch-update call with a timeout signal too', async () => {
-    let updateRefSignal: AbortSignal | null | undefined;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    let updateRefSignal;
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) {
@@ -432,7 +427,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('updates an existing branch (force push) instead of creating a new ref when the branch already has a tip commit', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) {
@@ -471,7 +466,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('flags sourceBranchMismatch when the existing Pages site is configured against a different branch', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -492,9 +487,9 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('uses a caller-supplied branch instead of the gh-pages default', async () => {
-    let refBody: unknown;
-    let pagesBody: unknown;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    let refBody;
+    let pagesBody;
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/site')) return new Response('', { status: 404 });
@@ -527,7 +522,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError when the Pages build reaches a terminal errored state, surfacing error.message', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -548,7 +543,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with a generic message when a terminal errored build carries no error.message', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -572,7 +567,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
     vi.useFakeTimers();
     try {
       let pollCount = 0;
-      const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+      const fetchSpy = vi.fn(async (input, init) => {
         const url = String(input);
         const method = init?.method ?? 'GET';
         if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -603,7 +598,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when blob creation fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -616,7 +611,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError when a blob response has no sha', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -631,7 +626,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when tree creation fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -644,7 +639,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError when a tree response has no sha', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -657,7 +652,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when commit creation fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -671,7 +666,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError when a commit response has no sha', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -685,7 +680,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when creating a new branch ref fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -700,7 +695,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when updating an existing branch ref fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) {
@@ -724,7 +719,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when the Pages site lookup fails (not a 404)', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -740,7 +735,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError with the message field when Pages site creation fails', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -762,14 +757,14 @@ describe('GitHubPagesDeployTarget.publish', () => {
     // exercises for its own `readNetlifyJson` catch branch.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.error()));
     const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
-    const err = (await target.publish({ files: [], projectName: 'demo' }).catch((e: unknown) => e)) as DeployError;
+    const err = (await target.publish({ files: [], projectName: 'demo' }).catch((e) => e));
     expect(err).toBeInstanceOf(DeployError);
     expect(err.message).toBe('GitHub returned a non-JSON response.');
     expect(err.status).toBe(502);
   });
 
   it('treats a malformed branch-ref response (200 OK, but no object.sha) the same as a not-yet-existing branch', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) {
@@ -797,7 +792,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
 
   it('keeps polling past a builds/latest entry with a non-string commit or status field before matching the real build', async () => {
     let pollCount = 0;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -835,7 +830,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
     // exception propagate all the way out of `publish()`, turning an ambiguous polling
     // hiccup into a reported publish failure for content that was already live.
     let pollCount = 0;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -862,7 +857,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('throws DeployError when a build status check fails mid-poll (not a 404)', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -886,7 +881,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('falls back to a bare url when html_url is absent from the Pages site response', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -905,7 +900,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('falls back to an empty URL and link-delayed status when the Pages site response has no URL at all', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
@@ -926,8 +921,8 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('falls back to "site" in the commit message when projectName is blank/whitespace', async () => {
-    let commitBody: unknown;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    let commitBody;
+    const fetchSpy = vi.fn(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? 'GET';
       if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });

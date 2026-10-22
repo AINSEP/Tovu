@@ -1,13 +1,14 @@
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-netlify.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import test, { type TestContext } from "node:test";
+import test, { } from "node:test";
 
 import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
+import { createDeployHostKit } from "../../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 
 /**
  * @file The bundled `netlify` plugin's module (`content/agent-plugins/netlify/targets/netlify.mjs`).
@@ -21,39 +22,33 @@ import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "
  * fake timers. The `responseHeaders` cases at the end are new: they are the reason the port exists.
  */
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/netlify/targets/netlify.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../netlify.mjs");
 
-type FetchHandler = (url: string, init: RequestInit) => Promise<Response> | Response;
-interface KitCall {
-  readonly method: string;
-  readonly url: string;
-  readonly timeoutMs: number;
+
+async function loadModule() {
+  return ((await import(pathToFileURL(MODULE_PATH).href))).default;
 }
 
-async function loadModule(): Promise<DeployTargetModule> {
-  return ((await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployTargetModule }).default;
-}
-
-function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+function jsonResponse(status, body, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 }
 
-function sha1(data: string): string {
+function sha1(data) {
   return createHash("sha1").update(Buffer.from(data)).digest("hex");
 }
 
 /** The real kit, with global `fetch` stubbed for this test only, `sleep` a no-op, and every
  *  `kit.fetch` call recorded with the timeout it named. */
-function stubKit(t: TestContext, handler: FetchHandler, overrides: Partial<DeployHostKit> = {}, token = "tok"): { kit: DeployHostKit; calls: KitCall[] } {
-  t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
+function stubKit(t, handler, overrides = {}, token = "tok") {
+  t.mock.method(globalThis, "fetch", async (input, init = {}) => {
     const url = String(input);
     const headers = new Headers(init.headers);
     assert.equal(headers.get("Authorization"), new URL(url).origin === "https://api.netlify.com" ? `Bearer ${token}` : null);
     return handler(url, init);
   });
   const real = createDeployHostKit();
-  const calls: KitCall[] = [];
-  const kit: DeployHostKit = {
+  const calls = [];
+  const kit = {
     ...real,
     fetch: (url, init, options) => {
       calls.push({ method: init.method ?? "GET", url, timeoutMs: options.timeoutMs });
@@ -65,11 +60,11 @@ function stubKit(t: TestContext, handler: FetchHandler, overrides: Partial<Deplo
   return { kit, calls };
 }
 
-async function netlifyTarget(kit: DeployHostKit, token = "tok") {
+async function netlifyTarget(kit, token = "tok") {
   return (await loadModule()).create({ credential: { token }, config: {}, kit });
 }
 
-async function publish(kit: DeployHostKit, input: HostDeployPublishInput, token = "tok") {
+async function publish(kit, input, token = "tok") {
   return (await netlifyTarget(kit, token)).publish(input);
 }
 
@@ -106,7 +101,7 @@ test("finds an existing site, uploads only required files, polls to ready, and r
     if (method === "PUT" && url.includes("/deploys/deploy_1/files/index.html")) {
       assert.equal(new Headers(init.headers).get("Content-Type"), "text/html");
       assert.deepEqual(init.body, Buffer.from("<html></html>"));
-      assert.equal(createHash("sha1").update(init.body as Buffer).digest("hex"), fileHash);
+      assert.equal(createHash("sha1").update(init.body).digest("hex"), fileHash);
       return jsonResponse(200, { id: "f1", path: "/index.html", sha: fileHash, size: 13 });
     }
     if (method === "GET" && url.endsWith("/deploys/deploy_1")) {
@@ -241,7 +236,7 @@ test("falls back to a generic message when an error body has no message field", 
 
 test("throws DeployError when a response body is not valid JSON", async (t) => {
   const { kit } = stubKit(t, () => new Response("not json", { status: 200 }));
-  await assert.rejects(publish(kit, { files: [], projectName: "demo" }), (error: unknown) => error instanceof DeployError);
+  await assert.rejects(publish(kit, { files: [], projectName: "demo" }), (error) => error instanceof DeployError);
 });
 
 test("throws DeployError when the site response has no id", async (t) => {
@@ -312,7 +307,7 @@ test("skips uploading a hash Netlify reports as required but that is not in the 
 
 test("URL-encodes nested file paths for the upload endpoint and treats duplicate-content files as one upload", async (t) => {
   const shared = sha1("same-content");
-  const paths: string[] = [];
+  const paths = [];
   const { kit } = stubKit(t, (url, init) => {
     const method = init.method ?? "GET";
     if (method === "GET" && url.includes("/sites?")) return jsonResponse(200, [{ id: "site_1", name: "jini-demo" }]);
@@ -335,7 +330,7 @@ test("URL-encodes nested file paths for the upload endpoint and treats duplicate
     projectName: "demo",
   });
   assert.equal(paths.length, 1);
-  assert.ok(paths[0]!.includes("/deploys/deploy_1/files/assets/a%20b.txt"));
+  assert.ok(paths[0].includes("/deploys/deploy_1/files/assets/a%20b.txt"));
 });
 
 test("keeps polling past a deploy status-check response that fails to parse as JSON instead of treating it as a hard failure", async (t) => {
@@ -358,7 +353,7 @@ test("keeps polling past a deploy status-check response that fails to parse as J
 
 test("returns the last known deploy state once polling exhausts its 30-attempt budget without a terminal state", async (t) => {
   let pollCount = 0;
-  const delays: number[] = [];
+  const delays = [];
   const { kit } = stubKit(
     t,
     (url, init) => {
@@ -447,7 +442,7 @@ test("handles a non-object (array) error body from a failed site lookup by falli
 
 test("falls back to HTTP 502 when a non-JSON response carries no HTTP status of its own", async (t) => {
   const { kit } = stubKit(t, () => Response.error());
-  const error = await publish(kit, { files: [], projectName: "demo" }).catch((caught: unknown) => caught);
+  const error = await publish(kit, { files: [], projectName: "demo" }).catch((caught) => caught);
   assert.ok(error instanceof DeployError);
   assert.equal(error.message, "Netlify returned a non-JSON response.");
   assert.equal(error.status, 502);
@@ -477,9 +472,9 @@ test("throws DeployError when a deploy status check fails mid-poll", async (t) =
 // ---- New with the plugin port: security headers arrive as data, and the module renders them. ----
 
 /** A deploy that records the manifest it was sent and the body of every uploaded file. */
-function recordingNetlify(t: TestContext) {
-  const uploads = new Map<string, string>();
-  let manifest: Record<string, string> = {};
+function recordingNetlify(t) {
+  const uploads = new Map();
+  let manifest = {};
   const { kit } = stubKit(t, async (url, init) => {
     const method = init.method ?? "GET";
     if (method === "GET" && url.includes("/sites?")) return jsonResponse(200, [{ id: "site_1", name: "jini-demo", ssl_url: "https://jini-demo.netlify.app" }]);
@@ -488,7 +483,7 @@ function recordingNetlify(t: TestContext) {
       return jsonResponse(200, { id: "deploy_1", state: "preparing", required: [...new Set(Object.values(manifest))] });
     }
     if (method === "PUT") {
-      uploads.set(decodeURIComponent(url.split("/files/")[1]!), Buffer.from(init.body as Buffer).toString("utf8"));
+      uploads.set(decodeURIComponent(url.split("/files/")[1]), Buffer.from(init.body).toString("utf8"));
       return jsonResponse(200, {});
     }
     if (method === "GET" && url.endsWith("/deploys/deploy_1")) return jsonResponse(200, { id: "deploy_1", state: "ready", ssl_url: "https://jini-demo.netlify.app" });
@@ -539,7 +534,7 @@ for (const status of [200, 204, 401, 403, 429, 503]) {
       t.mock.method(response, "json", () => { throw new Error("must not read private identity fields"); });
       return response;
     });
-    const result = await (await loadModule()).verifyCredential!({ credential: { token: "tok" }, kit });
+    const result = await (await loadModule()).verifyCredential({ credential: { token: "tok" }, kit });
     assert.deepEqual(result, status < 300 ? { ok: true } : {
       ok: false,
       reason: status === 401 || status === 403 ? "rejected" : "unreachable",

@@ -1,14 +1,15 @@
+// Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-vercel.unit.test.ts (types stripped): vendor tests live with
+// the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { describe, it, afterEach } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { DeployError, type DeployPublishResult } from "@jini-ai/devops/deploy";
+import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
+import { createDeployHostKit } from "../../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 
-import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
+import { expect, installNetworkGuard, vi } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/vitest-compat.ts";
 
 /**
  * @file The bundled `vercel` plugin's module (`content/agent-plugins/vercel/targets/vercel.mjs`).
@@ -25,34 +26,27 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/vercel/targets/vercel.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../vercel.mjs");
 
-interface VercelBinding {
-  VercelDeployTarget: new (config: { token: string; teamId?: string; teamSlug?: string }) => {
-    publish(input: HostDeployPublishInput): Promise<DeployPublishResult>;
-    checkReachability(url: string): Promise<import("@jini-ai/devops/deploy").DeploymentUrlCheck>;
-  };
-  isVercelProtectedResponse(resp: Response, body?: string): boolean;
-}
 
-const loaded = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployTargetModule; bindVercel(kit: DeployHostKit): VercelBinding };
+const loaded = (await import(pathToFileURL(MODULE_PATH).href));
 const { VercelDeployTarget, isVercelProtectedResponse } = loaded.bindVercel(createDeployHostKit());
 
 /** A Vercel API double that stores `/v2/files` uploads by digest, accepts one deployment and reports
  *  it READY; returns the deployed files, resolved from the uploads by `sha`. */
-function stubVercelApi(): () => Array<{ file: string; data: string }> {
-  let posted: Array<{ file: string; data: string }> = [];
-  const uploads = new Map<string, Buffer>();
+function stubVercelApi() {
+  let posted = [];
+  const uploads = new Map();
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string, init?: RequestInit) => {
+    vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === "POST" && url.includes("/v2/files")) {
-        uploads.set(new Headers(init.headers).get("x-vercel-digest") ?? "", Buffer.from(init.body as Uint8Array));
+        uploads.set(new Headers(init.headers).get("x-vercel-digest") ?? "", Buffer.from(init.body));
         return jsonResponse(200, {});
       }
       if (init?.method === "POST" && url.includes("/v13/deployments")) {
-        posted = JSON.parse(String(init.body)).files.map((f: { file: string; sha: string }) => ({ file: f.file, data: uploads.get(f.sha)?.toString("utf8") ?? "<not uploaded>" }));
+        posted = JSON.parse(String(init.body)).files.map((f) => ({ file: f.file, data: uploads.get(f.sha)?.toString("utf8") ?? "<not uploaded>" }));
         return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
       }
       if (url.includes("/v13/deployments/dpl_1")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
@@ -71,7 +65,7 @@ describe("hosting plugin module contract (vercel)", () => {
 
   it("create() builds a target from the credential token and the config's teamId", async () => {
     vi.useFakeTimers();
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === "POST") return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
       if (String(input).includes("/v13/deployments/dpl_1")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
       return new Response("", { status: 200 });
@@ -85,7 +79,7 @@ describe("hosting plugin module contract (vercel)", () => {
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("teamId=team_1");
     const apiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith("https://api.vercel.com/"));
     expect(apiCalls).toHaveLength(2);
-    for (const [, init] of apiCalls) expect(new Headers((init as RequestInit).headers).get("Authorization")).toBe("Bearer tok");
+    for (const [, init] of apiCalls) expect(new Headers((init).headers).get("Authorization")).toBe("Bearer tok");
   });
 
   it("validateConfig refuses a blank teamId with the exact legacy text, accepts none or a real one", () => {
@@ -102,12 +96,12 @@ describe("hosting plugin module contract (vercel)", () => {
     for (const status of [401, 403, 500]) {
       const fetchSpy = vi.fn(async () => jsonResponse(status, { user: { username: "must-not-be-used" } }));
       vi.stubGlobal("fetch", fetchSpy);
-      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({
+      expect(await loaded.default.verifyCredential({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({
         ok: false, reason: status === 500 ? "unreachable" : "rejected", statusCode: status,
       });
       expect(fetchSpy.mock.calls).toHaveLength(1);
       expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://api.vercel.com/v2/user");
-      expect(new Headers((fetchSpy.mock.calls[0]?.[1] as RequestInit).headers).get("Authorization")).toBe("Bearer tok");
+      expect(new Headers((fetchSpy.mock.calls[0]?.[1]).headers).get("Authorization")).toBe("Bearer tok");
     }
   });
 
@@ -117,9 +111,9 @@ describe("hosting plugin module contract (vercel)", () => {
       [{ user: { email: "private@example.com", name: "Private Name" }, username: "wrong-root" }, undefined],
       [{ user: { username: "" } }, undefined],
       [{ user: { username: 42 } }, undefined],
-    ] as const) {
+    ]) {
       vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(200, body)));
-      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel });
+      expect(await loaded.default.verifyCredential({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel });
     }
   });
 });
@@ -169,19 +163,19 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
     vi.unstubAllGlobals();
   });
 
-  const sha1 = (data: string | Buffer) => createHash("sha1").update(data).digest("hex");
+  const sha1 = (data) => createHash("sha1").update(data).digest("hex");
   const { VercelDeployTarget: NoWaitTarget } = loaded.bindVercel({ ...createDeployHostKit(), sleep: async () => undefined });
 
   /** Records every Vercel API call; `create` answers each `/v13/deployments` POST in order. */
-  function recordVercelApi(options: { create?: Array<() => Response>; upload?: (sha: string) => Response } = {}) {
-    const uploads: Array<{ url: string; headers: Headers; body: Buffer }> = [];
-    const creates: Array<{ url: string; body: string; bytes: number }> = [];
+  function recordVercelApi(options = {}) {
+    const uploads = [];
+    const creates = [];
     const create = [...(options.create ?? [])];
-    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+    vi.stubGlobal("fetch", vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === "POST" && url.includes("/v2/files")) {
         const headers = new Headers(init.headers);
-        uploads.push({ url, headers, body: Buffer.from(init.body as Uint8Array) });
+        uploads.push({ url, headers, body: Buffer.from(init.body) });
         return options.upload?.(headers.get("x-vercel-digest") ?? "") ?? jsonResponse(200, {});
       }
       if (init?.method === "POST" && url.includes("/v13/deployments")) {
@@ -212,7 +206,7 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
       expect(sha1(upload.body)).toBe(upload.headers.get("x-vercel-digest"));
     }
     expect(api.creates).toHaveLength(1);
-    expect(JSON.parse(api.creates[0]!.body).files).toEqual([
+    expect(JSON.parse(api.creates[0].body).files).toEqual([
       { file: "index.html", sha: sha1("<html></html>"), size: 13 },
       { file: "a/photo.jpg", sha: sha1(photo), size: 5 },
       { file: "b/copy.html", sha: sha1("<html></html>"), size: 13 },
@@ -227,7 +221,7 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
     expect(api.uploads).toHaveLength(4);
     const limit = 10 * 1024 * 1024;
     for (const upload of api.uploads) expect(upload.body.length < limit).toBe(true);
-    expect(api.creates[0]!.bytes < 10_000).toBe(true);
+    expect(api.creates[0].bytes < 10_000).toBe(true);
   });
 
   it("re-uploads exactly the files a missing_files answer names, then creates the deployment once more", async () => {
@@ -264,12 +258,12 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
   it("retries an upload whose connection drops, and names the transport cause once the tries run out", async () => {
     const dropped = () => Promise.reject(new TypeError("fetch failed", { cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }) }));
     let drops = 1;
-    const recovered = recordVercelApi({ upload: () => (drops-- > 0 ? (dropped() as unknown as Response) : jsonResponse(200, {})) });
+    const recovered = recordVercelApi({ upload: () => (drops-- > 0 ? (dropped()) : jsonResponse(200, {})) });
     await new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" });
     expect(recovered.uploads).toHaveLength(2);
     expect(recovered.creates).toHaveLength(1);
 
-    const api = recordVercelApi({ upload: () => dropped() as unknown as Response });
+    const api = recordVercelApi({ upload: () => dropped() });
     await expect(new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow(
       "Vercel file upload failed: fetch failed (other side closed)",
     );
@@ -280,7 +274,7 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
   it("does not retry an upload that hit the host-kit timeout", async () => {
     const kit = createDeployHostKit({
       timeouts: { QUICK: 10, DEPLOY: 10, UPLOAD: 10 },
-      fetchFn: async (_url, init) => new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })),
+      fetchFn: async (_url, init) => new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })),
     });
     let sleeps = 0;
     const { VercelDeployTarget: Bounded } = loaded.bindVercel({ ...kit, sleep: async () => { sleeps += 1; } });
@@ -298,7 +292,7 @@ describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
   });
 });
 
-function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+function jsonResponse(status, body, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 }
 
@@ -330,7 +324,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('refuses to follow a redirect on the create-deployment call, and requests redirect: manual', async () => {
-    const fetchSpy = vi.fn(async (_input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (_input, init) => {
       expect(init?.redirect).toBe('manual');
       return new Response('', { status: 302, headers: { location: 'https://evil.example/steal-token' } });
     });
@@ -346,7 +340,7 @@ describe('VercelDeployTarget.publish', () => {
     const createBody = { id: 'dpl_1', readyState: 'QUEUED', url: 'demo-abc123.vercel.app' };
     const readyBody = { id: 'dpl_1', readyState: 'READY', url: 'demo-abc123.vercel.app' };
 
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         // Assert the deployment name was sanitized from the caller's projectName.
         const parsed = JSON.parse(String(init.body));
@@ -374,15 +368,15 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('bounds both the create-deployment call and the status-poll call with a timeout signal, so a stalled Vercel response cannot hang a publish forever', async (t) => {
-    const deadlines: number[] = [];
+    const deadlines = [];
     const timeout = AbortSignal.timeout.bind(AbortSignal);
-    t.mock.method(AbortSignal, 'timeout', (ms: number) => { deadlines.push(ms); return timeout(ms); });
+    t.mock.method(AbortSignal, 'timeout', (ms) => { deadlines.push(ms); return timeout(ms); });
     const createBody = { id: 'dpl_1', readyState: 'QUEUED', url: 'demo-abc123.vercel.app' };
     const readyBody = { id: 'dpl_1', readyState: 'READY', url: 'demo-abc123.vercel.app' };
-    let createSignal: AbortSignal | null | undefined;
-    let pollSignal: AbortSignal | null | undefined;
+    let createSignal;
+    let pollSignal;
 
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         createSignal = init?.signal;
         expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok');
@@ -409,22 +403,22 @@ describe('VercelDeployTarget.publish', () => {
 
   it('aborts stalled create and poll requests at the host-kit timeout bounds', async () => {
     for (const stalled of ['create', 'poll']) {
-      let signal: AbortSignal | null | undefined;
+      let signal;
       const kit = createDeployHostKit({
         timeouts: { QUICK: 10, DEPLOY: 20, UPLOAD: 30 },
         fetchFn: async (_url, init) => {
           if (stalled === 'poll' && init?.method === 'POST') return jsonResponse(200, { id: 'dpl_stalled', readyState: 'QUEUED' });
           signal = init?.signal;
-          return new Promise<Response>((_resolve, reject) => {
+          return new Promise((_resolve, reject) => {
             signal?.addEventListener('abort', () => reject(signal?.reason), { once: true });
           });
         },
       });
       const { VercelDeployTarget: BoundedTarget } = loaded.bindVercel({ ...kit, sleep: async () => {} });
-      let timer: ReturnType<typeof setTimeout> | undefined;
+      let timer;
       try {
         const publishing = new BoundedTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
-        const watchdog = new Promise<never>((_resolve, reject) => {
+        const watchdog = new Promise((_resolve, reject) => {
           timer = setTimeout(() => reject(new Error('Vercel request exceeded its bound')), 1000);
         });
         await expect(Promise.race([publishing, watchdog])).rejects.toThrow(`fetch timed out after ${stalled === 'create' ? 30 : 20}ms:`);
@@ -442,7 +436,7 @@ describe('VercelDeployTarget.publish', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (_input: string, init?: RequestInit) => {
+      vi.fn(async (_input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         return jsonResponse(200, errorBody);
       }),
@@ -476,7 +470,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('falls back to a generic "Vercel request failed" message when the error body carries neither an error object nor a message', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: string) => String(input).includes('/v2/files') ? jsonResponse(200, {}) : jsonResponse(500, {})));
+    vi.stubGlobal('fetch', vi.fn(async (input) => String(input).includes('/v2/files') ? jsonResponse(200, {}) : jsonResponse(500, {})));
     const target = new VercelDeployTarget({ token: 'tok' });
     await expect(
       target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' }),
@@ -497,7 +491,7 @@ describe('VercelDeployTarget.publish', () => {
     // fallback side of the nested ternary.
     const createBody = { uid: 'dpl_uid_only', readyState: 'QUEUED', url: 'demo.vercel.app' };
     const readyBody = { uid: 'dpl_uid_only', readyState: 'READY', url: 'demo.vercel.app' };
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === 'POST') return jsonResponse(200, createBody);
       if (String(input).includes('/v13/deployments/dpl_uid_only')) return jsonResponse(200, readyBody);
       return new Response('', { status: 200 });
@@ -514,7 +508,7 @@ describe('VercelDeployTarget.publish', () => {
     const errorBody = { id: 'dpl_noerr', readyState: 'ERROR' };
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (_input: string, init?: RequestInit) => {
+      vi.fn(async (_input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         return jsonResponse(200, errorBody);
       }),
@@ -529,7 +523,7 @@ describe('VercelDeployTarget.publish', () => {
     const createBody = { id: 'dpl_pollfail', readyState: 'QUEUED', url: 'demo.vercel.app' };
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (_input: string, init?: RequestInit) => {
+      vi.fn(async (_input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         return jsonResponse(500, {});
       }),
@@ -556,10 +550,10 @@ describe('VercelDeployTarget.publish', () => {
     // `alias`/`url` fields are usually bare hostnames, but nothing prevents a fully-qualified
     // value from coming back (or a caller-shaped test double), and this file must not double-prefix it.
     const createBody = { readyState: 'READY', url: 'https://already-absolute.vercel.app' };
-    const probed: string[] = [];
+    const probed = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: string, init?: RequestInit) => {
+      vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         probed.push(String(input));
         return new Response('', { status: 200 });
@@ -576,10 +570,10 @@ describe('VercelDeployTarget.publish', () => {
     // of the reachability wait — this covers its `(json?.alias)?.[0]` fallback branch specifically
     // (as opposed to deploymentUrlCandidates' separate, already-covered `.alias` loop).
     const createBody = { readyState: 'READY', alias: ['alias-only.vercel.app'] };
-    const probed: string[] = [];
+    const probed = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: string, init?: RequestInit) => {
+      vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         probed.push(String(input));
         return new Response('', { status: 200 });
@@ -595,10 +589,10 @@ describe('VercelDeployTarget.publish', () => {
       readyState: 'READY',
       aliases: ['plain-string-alias.example'],
     };
-    const probed: string[] = [];
+    const probed = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: string, init?: RequestInit) => {
+      vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         probed.push(String(input));
         return new Response('', { status: 200 });
@@ -651,10 +645,10 @@ describe('VercelDeployTarget.publish', () => {
       alias: ['alias-one.vercel.app'],
       aliases: [{ domain: 'from-domain.example' }, { url: 'from-url.example' }, 42, { neither: true }],
     };
-    const probed: string[] = [];
+    const probed = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: string, init?: RequestInit) => {
+      vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         if (String(input).includes('/v13/deployments/dpl_3')) return jsonResponse(200, createBody);
         probed.push(String(input));
@@ -677,7 +671,7 @@ describe('VercelDeployTarget.publish', () => {
   it('returns each object alias when it is the only reachable production URL', async () => {
     for (const alias of [{ domain: 'domain-only.example' }, { url: 'url-only.example' }]) {
       const expected = 'https://' + ('domain' in alias ? alias.domain : alias.url);
-      vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      vi.stubGlobal('fetch', vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, { readyState: 'READY', url: 'unreachable.vercel.app', aliases: [alias] });
         return new Response('', { status: String(input) === expected + '/' ? 200 : 503 });
       }));
@@ -697,7 +691,7 @@ describe('VercelDeployTarget.publish', () => {
     const createBody = { id: 'dpl_flaky_poll', readyState: 'QUEUED', url: 'demo.vercel.app' };
     const readyBody = { id: 'dpl_flaky_poll', readyState: 'READY', url: 'demo.vercel.app' };
     let pollCount = 0;
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === 'POST') return jsonResponse(200, createBody);
       if (String(input).includes('/v13/deployments/dpl_flaky_poll')) {
         pollCount += 1;
@@ -729,7 +723,7 @@ describe('VercelDeployTarget.publish', () => {
       const createBody = { id: 'dpl_never_ready', readyState: 'QUEUED', url: 'demo.vercel.app' };
       const pollingBody = { id: 'dpl_never_ready', readyState: 'BUILDING', url: 'demo.vercel.app' };
       let pollCount = 0;
-      const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+      const fetchSpy = vi.fn(async (input, init) => {
         if (init?.method === 'POST') return jsonResponse(200, createBody);
         if (String(input).includes('/v13/deployments/dpl_never_ready')) {
           pollCount += 1;
@@ -766,7 +760,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('publish reports a Deployment Protection auth wall as protected', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+    vi.stubGlobal('fetch', vi.fn(async (_url, init) => init?.method === 'POST'
       ? jsonResponse(200, { readyState: 'READY', url: 'protected.vercel.app' })
       : new Response('', { status: 401, headers: { 'set-cookie': '_vercel_sso_nonce=dummy' } })));
     const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
@@ -775,9 +769,9 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('creates a production deployment and reports the production alias, not the per-deployment URL', async () => {
-    let createBody: Record<string, unknown> | undefined;
+    let createBody;
     const ready = { id: 'dpl_p', readyState: 'READY', url: 'plannie-leon-abc123-team.vercel.app', alias: ['plannie-leon.vercel.app'] };
-    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === 'POST' && url.includes('/v13/deployments')) {
         createBody = JSON.parse(String(init.body));
@@ -798,8 +792,8 @@ describe('VercelDeployTarget.publish', () => {
     // 2026-10-11: the team alias answered `protected` first and the publish stopped there, though the
     // public alias served 200.
     const ready = { readyState: 'READY', url: 'plannie-leon-abc123-team.vercel.app', alias: ['plannie-leon-team.vercel.app', 'plannie-leon.vercel.app'] };
-    const probed: string[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+    const probed = [];
+    vi.stubGlobal('fetch', vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === 'POST' && url.includes('/v13/deployments')) return jsonResponse(200, ready);
       if (url.startsWith('https://api.vercel.com/')) return new Response('', { status: 200 });
@@ -815,7 +809,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('reports a URL that redirects to Vercel login as protected, not ready', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+    vi.stubGlobal('fetch', vi.fn(async (_url, init) => init?.method === 'POST'
       ? jsonResponse(200, { readyState: 'READY', url: 'demo-abc123.vercel.app' })
       : new Response('', { status: 302, headers: { location: 'https://vercel.com/sso-api?url=https%3A%2F%2Fdemo-abc123.vercel.app' } })));
     const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
@@ -825,7 +819,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('includes teamId (preferred over teamSlug) or teamSlug in the query string when configured', async () => {
-    const fetchSpy = vi.fn(async (_input: string, _init?: RequestInit) => jsonResponse(200, { id: 'dpl_scoped', readyState: 'READY', url: 'demo.vercel.app' }));
+    const fetchSpy = vi.fn(async (_input, _init) => jsonResponse(200, { id: 'dpl_scoped', readyState: 'READY', url: 'demo.vercel.app' }));
     vi.stubGlobal('fetch', fetchSpy);
 
     const withTeamId = new VercelDeployTarget({ token: 'tok', teamId: 'team_1', teamSlug: 'ignored-slug' });
@@ -851,7 +845,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('falls back to a random project name when the caller-supplied projectName sanitizes to nothing', async () => {
-    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input, init) => {
       if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         const parsed = JSON.parse(String(init.body));
         expect(parsed.name).toMatch(/^deploy-[a-z0-9]+$/);
@@ -873,20 +867,20 @@ describe("VercelDeployTarget — edge answers (bodies that cannot be read, missi
 
   const { VercelDeployTarget: NoWaitTarget } = loaded.bindVercel({ ...createDeployHostKit(), sleep: async () => undefined });
   /** A response whose body stream fails mid-read, as a dropped connection does. */
-  const brokenBody = (status: number) => new Response(new ReadableStream({ start(controller) { controller.error(new Error("socket reset")); } }), { status });
+  const brokenBody = (status) => new Response(new ReadableStream({ start(controller) { controller.error(new Error("socket reset")); } }), { status });
 
   it("verifyCredential reads no account label from a non-JSON body, a null body, or a non-object user", async () => {
     for (const make of [() => new Response("not json", { status: 200 }), () => jsonResponse(200, null), () => jsonResponse(200, { user: "public-name" })]) {
       vi.stubGlobal("fetch", vi.fn(async () => make()));
-      expect(await loaded.default.verifyCredential!({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel: undefined });
+      expect(await loaded.default.verifyCredential({ credential: { token: "tok" }, kit: createDeployHostKit() })).toEqual({ ok: true, accountLabel: undefined });
     }
   });
 
   it("an upload ack, a retried upload answer and the login-check HEAD whose bodies cannot be drained do not fail the publish", async () => {
     const uploads = [brokenBody(503), brokenBody(200)];
     let uploadCalls = 0;
-    const heads: string[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+    const heads = [];
+    vi.stubGlobal("fetch", vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === "POST" && url.includes("/v2/files")) { uploadCalls += 1; return uploads.shift() ?? jsonResponse(200, {}); }
       if (init?.method === "POST" && url.includes("/v13/deployments")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
@@ -903,7 +897,7 @@ describe("VercelDeployTarget — edge answers (bodies that cannot be read, missi
   });
 
   it("a redirect with no Location header is not Vercel's login wall", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => (init?.method === "POST"
+    vi.stubGlobal("fetch", vi.fn(async (_url, init) => (init?.method === "POST"
       ? jsonResponse(200, { readyState: "READY", url: "demo-abc123.vercel.app" })
       : new Response("", { status: 302 }))));
     const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [], projectName: "demo" });
@@ -912,8 +906,8 @@ describe("VercelDeployTarget — edge answers (bodies that cannot be read, missi
   });
 
   it("a login-check HEAD that throws leaves the reachability result as it was", async () => {
-    const heads: string[] = [];
-    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+    const heads = [];
+    vi.stubGlobal("fetch", vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === "POST") return jsonResponse(200, { readyState: "READY", url: "demo.vercel.app" });
       if (init?.method === "HEAD") {
@@ -930,7 +924,7 @@ describe("VercelDeployTarget — edge answers (bodies that cannot be read, missi
 
   it("when no status poll is ever readable, the URL candidates come from the create answer alone", async () => {
     let polls = 0;
-    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+    vi.stubGlobal("fetch", vi.fn(async (input, init) => {
       const url = String(input);
       if (init?.method === "POST") return jsonResponse(200, { id: "dpl_q", readyState: "QUEUED", url: "demo-q.vercel.app" });
       if (url.includes("/v13/deployments/dpl_q")) { polls += 1; return new Response("not json", { status: 200 }); }
