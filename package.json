@@ -124,6 +124,7 @@
     "@jini-ai/agent-runtime": "^0.4.12",
     "@jini-ai/agentic": "^0.4.5",
     "@jini-ai/analytics": "^0.2.2",
+    "@jini-ai/capability-providers": "^0.4.2",
     "@jini-ai/chat": "^0.6.7",
     "@jini-ai/cli": "^0.4.2",
     "@jini-ai/cms": "^0.5.14",
@@ -168,6 +169,7 @@
     "hast-util-to-mdast": "10.1.2",
     "js-yaml": "^5.3.0",
     "jsdom": "^25.0.1",
+    "jszip": "^3.10.2",
     "kysely": "^0.29.6",
     "liquidjs": "^10.27.1",
     "mdast-util-gfm-table": "2.0.0",
@@ -180,8 +182,7 @@
     "sharp": "^0.35.3",
     "undici": "^7.30.0",
     "yauzl": "^3.4.0",
-    "zod-to-json-schema": "^3.25.2",
-    "@jini-ai/capability-providers": "^0.4.2"
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",

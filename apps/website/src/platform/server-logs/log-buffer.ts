@@ -91,7 +91,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
   const listeners = new Set<(entry: ServerLogEntry) => void>();
 
   function dropOldest(): void {
-    bytes -= items[head].message.length;
+    bytes -= items[head]!.message.length;
     head += 1;
     // Compact once the dead prefix outweighs the live part, keeping memory bounded.
     if (head > 1_024 && head * 2 > items.length) {
