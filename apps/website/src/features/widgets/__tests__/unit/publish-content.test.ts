@@ -192,6 +192,8 @@ test("widget references name configured form, menu and term references, and tole
   const refs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } });
   assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);
   assert.deepEqual(await handler.references!({ ...widget, state: { ...widget.state, config: undefined } }), []);
+  const htmlRefs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", html: '<img src="/media/html-key/original">' } } });
+  assert.deepEqual(htmlRefs, [{ entityType: "media", key: "html-key" }], "media inside a raw-html config field is referenced too");
 });
 
 test("a contact-form reference to a form the source cannot find packs unchanged", async () => {
