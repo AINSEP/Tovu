@@ -2,16 +2,20 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { IMPORT_EXPORT_LINKS, type ImportExportLink } from "./import-export-links";
 import { useImportExportTranslate } from "./hooks/use-import-export.hooks";
+import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
+import { GitBackupCard } from "./GitBackupCard";
 
 /**
  * @file Operations → Import & Export (`/admin/import-export`). A hub, not a second copy of any flow:
- * one card per existing screen that moves a site in or out (see `import-export-links.ts`). Git
- * backup has tools but no route or screen yet, so it is not listed here.
+ * one card per existing screen that moves a site in or out (see `import-export-links.ts`), plus the
+ * Git backup card, whose flow lives here because it has no other screen (`GitBackupCard.tsx`).
  */
 
 export interface ImportExportProps {
   /** Injected in tests; the panel uses the locale-bound translator otherwise. */
   useTranslate?: () => Translate;
+  /** Injected in tests; the live Git backup controller otherwise. */
+  useGitBackup?: typeof useWiredGitBackup;
 }
 
 function ImportExportCard({ link, t }: { link: ImportExportLink; t: Translate }) {
@@ -33,8 +37,9 @@ function ImportExportCard({ link, t }: { link: ImportExportLink; t: Translate })
   );
 }
 
-export function ImportExport({ useTranslate = useImportExportTranslate }: ImportExportProps = {}) {
+export function ImportExport({ useTranslate = useImportExportTranslate, useGitBackup = useWiredGitBackup }: ImportExportProps = {}) {
   const t = useTranslate();
+  const gitBackup = useGitBackup({ t });
   return (
     <div className="page import-export-page">
       <div className="page-header">
@@ -47,6 +52,7 @@ export function ImportExport({ useTranslate = useImportExportTranslate }: Import
       <div className="import-export-grid">
         {IMPORT_EXPORT_LINKS.map((link) => <ImportExportCard key={link.id} link={link} t={t} />)}
       </div>
+      <GitBackupCard controller={gitBackup} t={t} />
     </div>
   );
 }

@@ -181,9 +181,9 @@ function renderTab(overrides: {
 }
 
 describe("StaticSiteTab — card 1, unchanged", () => {
-  it("still states the export is a terminal command, lists what survives it, and every host the registry lists", () => {
+  it("titles the card with both ways to build (here or a terminal), lists what survives it, and every host the registry lists", () => {
     renderTab();
-    expect(screen.getByText("Build it from a terminal")).toBeInTheDocument();
+    expect(screen.getByText("Build here or in a terminal")).toBeInTheDocument();
     expect(screen.getByText("tovu export <dir>")).toBeInTheDocument();
     for (const capability of STATIC_SITE_CAPABILITIES) expect(screen.getByText(capability.labelKey)).toBeInTheDocument();
     // `getAllByText` rather than `getByText`: "GitHub Pages" now also appears as the provider

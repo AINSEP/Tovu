@@ -2,9 +2,10 @@ import { useId, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { RemixIcon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
 import { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
-import { activateDockMenuItem, type DockSettingsMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
+import { activateDockMenuItem, isChoiceSection, type DockSettingsMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
 
 type DockMenu = ReturnType<typeof useTaxonomyRowMenu>;
 
@@ -18,21 +19,23 @@ type DockMenu = ReturnType<typeof useTaxonomyRowMenu>;
  * always laid out and only shown when on, so toggling never shifts the menu. `notice` is a status
  * line under the rows (a failed save). A row's ⓘ sits beside its button; a radio group's single
  * ⓘ (`groupOptionTooltips`) sits beside its heading.
+ * A radio group (Tool calls, Agent plugins) is the Chat settings dialog's own segmented control
+ * (owner, 2026-10-21), not a column of check rows. It takes ONE roving-focus stop, its checked
+ * option: ↑/↓ move between stops as before, ←/→ pick within the pill (native radio keys).
  * Disabled rows use `aria-disabled`, not `disabled`, so keyboard focus can still land on them.
  */
 export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonomyRowMenu }: {
   label: string; sections: DockSettingsMenuSection[]; notice?: string; useMenu?: typeof useTaxonomyRowMenu;
 }) {
-  const items = sections.flatMap((section) => section.items);
-  const menu = useMenu({ itemCount: items.length });
   const helpId = useId();
-  // Each section's first row index in the flat roving-focus order.
+  // Each section's first row index in the flat roving-focus order; a segmented choice is one stop.
   let nextIndex = 0;
   const firstIndexes = sections.map((section) => {
     const first = nextIndex;
-    nextIndex += section.items.length;
+    nextIndex += isChoiceSection(section) ? 1 : section.items.length;
     return first;
   });
+  const menu = useMenu({ itemCount: nextIndex });
   return <>
     <button
       ref={menu.triggerRef}
@@ -87,9 +90,21 @@ function MenuSection({ section, separated, firstIndex, helpId, menu }: {
         <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div>
         {section.tooltip ? <InfoTip label={section.tooltip} descriptionId={`${helpId}-section-${section.key}`} /> : null}
       </div> : null}
-      {section.items.map((item, offset) => <MenuRow key={item.key} item={item} itemIndex={firstIndex + offset} helpId={helpId} menu={menu} />)}
+      {isChoiceSection(section)
+        ? <MenuChoice section={section} itemIndex={firstIndex} name={`${helpId}-${section.key}`} menu={menu} />
+        : section.items.map((item, offset) => <MenuRow key={item.key} item={item} itemIndex={firstIndex + offset} helpId={helpId} menu={menu} />)}
     </div>
   </>;
+}
+
+/** A radio section as the dialog's segmented pill; a choice applies in place and leaves the menu open. */
+function MenuChoice({ section, itemIndex, name, menu }: { section: DockSettingsMenuSection; itemIndex: number; name: string; menu: DockMenu }) {
+  return <div className="dock-settings-menu-choice">
+    <ChatSettingsSegmented name={name} inputRole="menuitemradio"
+      // The hook's roving focus only calls `focus()`, so the checked radio can fill a button's slot.
+      checkedRef={(input) => { menu.itemRefs.current[itemIndex] = input as unknown as HTMLButtonElement | null; }}
+      items={section.items.map((item) => ({ ...item, change: () => activateDockMenuItem({ item, selectItem: menu.selectItem }) }))} />
+  </div>;
 }
 
 function MenuRow({ item, itemIndex, helpId, menu }: { item: DockSettingsMenuItem; itemIndex: number; helpId: string; menu: DockMenu }) {

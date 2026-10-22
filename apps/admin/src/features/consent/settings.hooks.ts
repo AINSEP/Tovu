@@ -1,44 +1,90 @@
-import { useCallback } from 'react';
-import { useSettingsSlice } from '@/hooks/use-settings-slice.hooks';
-import { loadNamespaceValues, saveChangedEntries } from '@/lib/ledger-slice';
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, type SiteConsentSettings } from '../../../../website/src/features/consent/config.js';
+import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
+import { WORKSPACE_ID, authenticatedAdminRequest } from '@/lib/api';
 
-/** The adapter calls the existing settings lifecycle; it has no competing save/debounce state. */
-export interface SiteConsentSettingsPort {
-  load(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteConsentSettings>;
-  save(required: { next: SiteConsentSettings; previous: SiteConsentSettings }, optional?: Record<string, never>): Promise<readonly string[]>;
+/**
+ * @file The Cookie Consent page's port onto the revisions API
+ * (`apps/website/src/server/inbound/admin-http/routes/consent/routes.ts`, contract in
+ * `apps/website/src/features/consent/README.md`). It replaces the legacy `core.consent` ledger
+ * adapter: the page edits immutable draft revisions and publishes one atomically, so it reads the
+ * published revision rather than ledger values.
+ */
+
+export interface ConsentRevision {
+  id: string;
+  config: ConsentSettingsView;
+  actorId: string;
+  createdAt: string;
 }
 
-/** Preserve the shared load/diff-write owner while mapping the site's public settings keys.
- * @complexity O(1), nine bounded fields; writes stay sequential in the ledger owner. */
-export function createSiteConsentSettingsPort({ loadValues = loadNamespaceValues, saveEntries = saveChangedEntries }: { loadValues?: typeof loadNamespaceValues; saveEntries?: typeof saveChangedEntries } = {}, _options = {}): SiteConsentSettingsPort {
+/** What GET /settings says the editor may offer. Categories and GPC are fixed by the engine. */
+export interface ConsentEditorLimits {
+  placements: string[];
+  textLimits: Partial<Record<'title' | 'message' | 'acceptLabel' | 'rejectLabel' | 'preferencesLabel' | 'secondaryLinkLabel', number>>;
+  maxCssLength: number;
+  regionModes: ConsentSettingsView['regionMode'][];
+  rules: { gpc: string; preferenceMaxAgeMs: number; staticReceipts: boolean };
+}
+
+export interface ConsentSettingsSnapshot {
+  draft: ConsentRevision | null;
+  published: ConsentRevision | null;
+  /** The published revision, or the legacy ledger values before the first publication. */
+  effective: ConsentSettingsView;
+  editor: ConsentEditorLimits;
+}
+
+export interface ConsentDetectedItem {
+  tag: string;
+  category: string;
+  source: string | null;
+}
+
+export interface ConsentReadiness {
+  ready: boolean;
+  enabled: boolean;
+  blockingProblems: ConsentFieldProblem[];
+  detected: ConsentDetectedItem[];
+  truncated: boolean;
+  limitations: string[];
+}
+
+export interface ConsentPreview {
+  html: string;
+  blockingProblems: ConsentFieldProblem[];
+  revisionId: string | null;
+}
+
+export interface ConsentDraftSaved {
+  revision: ConsentRevision;
+  blockingProblems: ConsentFieldProblem[];
+}
+
+/** The adapter is only HTTP; it has no competing save/debounce state. Autosave ordering lives in
+ * `consent-autosave.ts`, so this stays a 1:1 map of the six routes. */
+export interface ConsentRevisionsPort {
+  get(required?: Record<string, never>, optional?: Record<string, never>): Promise<ConsentSettingsSnapshot>;
+  readiness(required?: { path?: string }, optional?: Record<string, never>): Promise<ConsentReadiness>;
+  dryRun(required: { config: ConsentSettingsView; path?: string }, optional?: Record<string, never>): Promise<ConsentReadiness>;
+  preview(required: { config: ConsentSettingsView; path?: string }, optional?: Record<string, never>): Promise<ConsentPreview>;
+  saveDraft(required: { config: ConsentSettingsView; expectedDraftId: string | null }, optional?: Record<string, never>): Promise<ConsentDraftSaved>;
+  publish(required: { draftId: string; expectedPublishedId: string | null }, optional?: Record<string, never>): Promise<{ published: true; revisionId: string }>;
+}
+
+/** `authenticatedAdminRequest`'s shape: resolves the JSON body, rejects with `ApiError` on non-2xx. */
+export type ConsentRequest = <T>(required: { method: string; path: string; body?: unknown }) => Promise<T>;
+
+/** Builds the port over any request function, so tests drive it with a fake per status code.
+ * @complexity O(1) per call; one request each. */
+export function createConsentRevisionsPort({ request }: { request: ConsentRequest }, { workspaceId = WORKSPACE_ID }: { workspaceId?: string } = {}): ConsentRevisionsPort {
+  const base = `/workspaces/${encodeURIComponent(workspaceId)}/consent`;
   return {
-    async load(_input = {}, _optional = {}) {
-      const values = await loadValues(SITE_CONSENT_NAMESPACE);
-      const result = { ...SITE_CONSENT_DEFAULTS };
-      for (const key of Object.keys(result) as (keyof SiteConsentSettings)[]) {
-        const value = values.get(key) ?? result[key];
-        if (typeof value !== typeof result[key]) throw new Error(`Invalid cookie consent setting: ${key}.`);
-        Object.assign(result, { [key]: value });
-      }
-      if (!['auto', 'opt-in', 'opt-out'].includes(result.regionMode)) throw new Error('Invalid cookie consent region mode.');
-      return result;
-    },
-    save({ next, previous }) {
-      if (!next.policyVersion.trim() || next.policyVersion.length > 128) throw new Error('Cookie consent policy version must contain 1–128 characters.');
-      const candidates = (Object.keys(next) as (keyof SiteConsentSettings)[]).map(key => ({ key, valueJson: next[key], changed: next[key] !== previous[key] }));
-      return saveEntries(SITE_CONSENT_NAMESPACE, 'workspace', candidates);
-    },
+    get: () => request({ method: 'GET', path: `${base}/settings` }),
+    readiness: ({ path } = {}) => request({ method: 'GET', path: `${base}/readiness${path === undefined ? '' : `?path=${encodeURIComponent(path)}`}` }),
+    dryRun: body => request({ method: 'POST', path: `${base}/dry-run`, body }),
+    preview: body => request({ method: 'POST', path: `${base}/preview`, body }),
+    saveDraft: body => request({ method: 'PUT', path: `${base}/settings`, body }),
+    publish: body => request({ method: 'POST', path: `${base}/publish`, body }),
   };
 }
 
-const defaultPort = createSiteConsentSettingsPort({});
-
-/** Host hook binds package-owned debounce, refresh and error handling to the consent panel.
- * @complexity O(1); all field changes remain in the existing ledger slice. */
-export function useSiteConsentSettings({ port = defaultPort }: { port?: SiteConsentSettingsPort } = {}, _options = {}) {
-  const slice = useSettingsSlice<SiteConsentSettings>({ load: () => port.load({}), save: (next, previous) => port.save({ next, previous }), defaultValue: SITE_CONSENT_DEFAULTS, namespaces: [SITE_CONSENT_NAMESPACE] });
-  const value = slice.value ?? SITE_CONSENT_DEFAULTS;
-  const onChange = useCallback(({ patch }: { patch: Partial<SiteConsentSettings> }, _optional = {}) => slice.onChange({ ...value, ...patch }), [value, slice.onChange]);
-  return { value, onChange, loading: slice.value === null || slice.loadError !== null, error: slice.loadError ?? (slice.saveState.status === 'error' ? slice.saveState.message : null), status: slice.saveState.status === 'saving' ? 'Saving cookie consent settings…' : slice.saveState.status === 'saved' ? 'Cookie consent settings saved.' : 'Changes save automatically.' };
-}
+export const defaultConsentRevisionsPort = createConsentRevisionsPort({ request: required => authenticatedAdminRequest(required) });

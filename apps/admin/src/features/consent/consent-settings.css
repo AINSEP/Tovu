@@ -1,5 +1,79 @@
-.jini-consent-settings-fields { border:0; padding:0; margin:1rem 0; min-width:0; display:grid; gap:.75rem; }
-.jini-consent-settings-fields legend { font-weight:600; margin-bottom:.75rem; }
-.jini-consent-settings-field { display:grid; gap:.35rem; min-width:0; }
-.jini-consent-settings-field .jini-input { width:100%; min-width:0; max-width:100%; font:inherit; }
-.jini-consent-settings-field textarea { resize:vertical; }
+/* Administration → Cookie Consent. Feature-scoped: `.consent-*` page classes plus the plain
+   `jini-consent-*` classes Jini's field sections and preview frame render (Jini ships no CSS for
+   them; hosts style them). Only admin tokens, so light and dark follow the admin theme. */
+
+/* Overview: the same card rhythm as Deployment's tabs, so cards never touch. */
+.consent-overview { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-5); }
+.consent-note { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--muted); }
+.consent-problem-list,
+.consent-paused-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.consent-problem-list li { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--fg-2); }
+.consent-fix-link { font-weight: 600; white-space: nowrap; }
+/* Label left, count right, a hairline between rows: a scannable tally, not a run-on word. */
+.consent-paused-list { gap: 0; max-width: 24rem; }
+.consent-paused-list li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-4);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border); color: var(--fg-2);
+}
+.consent-paused-list li:last-child { border-bottom: 0; }
+.consent-paused-list strong { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* Header status beside Publish. */
+.consent-save-status { font-size: var(--text-sm); color: var(--muted); }
+
+/* Editor tabs: fields left, live preview right; one column once the pair would squeeze below
+   ~26rem each. The preview sticks while the longer field column scrolls past it. */
+.consent-editor { display: grid; gap: var(--space-5); margin-top: var(--space-5); align-items: start; }
+.consent-editor-with-preview { grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+.consent-editor > * { min-width: 0; }
+/* Rules has no preview: keep its fields at a readable measure instead of the full content width. */
+.consent-editor:not(.consent-editor-with-preview) { max-width: 48rem; }
+.consent-preview-pane { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.consent-fixed-rules { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--space-2); color: var(--fg-2); }
+
+/* Jini field sections, sitting in a card. The legend takes `.card-title`'s face. */
+.jini-consent-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-4); }
+.jini-consent-settings-fields legend {
+  padding: 0; margin-bottom: var(--space-4);
+  font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.3; color: var(--fg);
+}
+.jini-consent-settings-field { display: grid; gap: var(--space-1); min-width: 0; align-content: start; }
+.jini-consent-settings-field .jini-input { width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+.jini-consent-settings-field textarea { resize: vertical; }
+.jini-consent-settings-fields .jini-hint { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.jini-consent-field-problems { display: grid; gap: var(--space-1); }
+.jini-consent-settings-fields .jini-hint-error { color: var(--danger); }
+.jini-consent-css { font-family: var(--font-mono); font-size: var(--text-sm); }
+
+/* Appearance tokens: an even grid of small controls, as many per row as fit. */
+.jini-consent-token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: var(--space-4); }
+.jini-consent-color-row { display: flex; align-items: center; gap: var(--space-2); min-height: 2.25rem; }
+.jini-consent-color {
+  inline-size: 2.25rem; block-size: 2.25rem; flex-shrink: 0; padding: 2px; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface);
+}
+.jini-consent-color-row code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.jini-consent-color-row .jini-btn-link {
+  margin-left: auto; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: var(--text-sm); color: var(--accent-text, var(--accent));
+}
+
+/* Preview: Phone/Desktop as the admin's segmented control, the page in a framed viewport. */
+.jini-consent-preview { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.jini-consent-preview-widths {
+  display: inline-flex; align-self: flex-start; gap: 0.25rem; padding: 0.2rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+}
+.jini-consent-preview-widths button {
+  border: 0; background: transparent; padding: 0.35rem 0.75rem; border-radius: 6px;
+  font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--muted); box-shadow: none;
+}
+.jini-consent-preview-widths button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--jini-control-shadow-segment); }
+.jini-consent-preview-frame {
+  display: block; max-width: 100%; block-size: 34rem; margin-inline: auto;
+  border: 1px solid var(--border); border-radius: var(--r-md); background: #fff;
+}
+.jini-consent-preview-empty {
+  display: grid; place-items: center; block-size: 34rem; margin: 0;
+  border: 1px dashed var(--border); border-radius: var(--r-md); color: var(--muted);
+}

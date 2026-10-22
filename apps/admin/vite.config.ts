@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -112,6 +112,12 @@ const injectAdminDevPort: Plugin = {
   }),
 };
 
+/** The Jini checkout `@jini-ai/ui` actually links to (empty when it is not linked). */
+function linkedJiniRoot(): string[] {
+  const linkedUi = path.resolve(__dirname, "node_modules/@jini-ai/ui");
+  return existsSync(linkedUi) ? [path.resolve(realpathSync(linkedUi), "../..")] : [];
+}
+
 export default defineConfig({
   base: "/admin/",
   define: {
@@ -189,8 +195,10 @@ export default defineConfig({
     // 7's temporary state, not the intended published-package boundary — see F1 in the fulldiff
     // audit). Vite resolves symlinks to their real path before checking `fs.allow`, so serving any
     // package asset a browser fetches at runtime (e.g. `RemixIcon`'s `import.meta.url`-relative
-    // font/CSS) needs that real path allow-listed too, or Vite 403s it under `/@fs/`.
-    fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini")] },
+    // font/CSS) needs that real path allow-listed too, or Vite 403s it under `/@fs/`. The link's own
+    // target is added as well: a checkout whose Jini sibling is not named `Jini` (an integration
+    // clone) otherwise 403s the icon font and every RemixIcon renders as a blank square.
+    fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini"), ...linkedJiniRoot()] },
     proxy: {
       // `secure: false` on every entry below: when `apiScheme` is `https`, the target is the API's
       // own mkcert-issued cert, which is locally-trusted in the OS/browser trust store (mkcert

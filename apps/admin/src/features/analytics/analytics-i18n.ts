@@ -16,6 +16,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const ANALYTICS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Cookie Consent": "Consentimiento de cookies",
     Marketing: "Marketing",
     Analytics: "Analítica",
     "The most recent pageviews and events captured on this site.": "Las vistas de página y eventos más recientes capturados en este sitio.",
@@ -32,6 +33,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Cargando visitas recientes…",
   },
   id: {
+    "Cookie Consent": "Persetujuan Cookie",
     Marketing: "Pemasaran",
     Analytics: "Analitik",
     "The most recent pageviews and events captured on this site.": "Tampilan halaman dan peristiwa terbaru yang tercatat di situs ini.",
@@ -48,6 +50,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Memuat hit terbaru…",
   },
   de: {
+    "Cookie Consent": "Cookie-Einwilligung",
     Marketing: "Marketing",
     Analytics: "Analytik",
     "The most recent pageviews and events captured on this site.": "Die neuesten Seitenaufrufe und Ereignisse, die auf dieser Website erfasst wurden.",
@@ -64,6 +67,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Aktuelle Treffer werden geladen…",
   },
   "zh-CN": {
+    "Cookie Consent": "Cookie 同意",
     Marketing: "营销",
     Analytics: "分析",
     "The most recent pageviews and events captured on this site.": "本网站捕获的最新页面浏览量和事件。",
@@ -80,6 +84,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "正在加载最近的命中记录…",
   },
   "zh-TW": {
+    "Cookie Consent": "Cookie 同意",
     Marketing: "行銷",
     Analytics: "分析",
     "The most recent pageviews and events captured on this site.": "本網站擷取的最新頁面瀏覽量與事件。",
@@ -96,6 +101,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "正在載入最近的命中記錄…",
   },
   "pt-BR": {
+    "Cookie Consent": "Consentimento de cookies",
     Marketing: "Marketing",
     Analytics: "Análise",
     "The most recent pageviews and events captured on this site.": "As visualizações de página e eventos mais recentes capturados neste site.",
@@ -112,6 +118,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Carregando acessos recentes…",
   },
   ru: {
+    "Cookie Consent": "Согласие на cookie",
     Marketing: "Маркетинг",
     Analytics: "Аналитика",
     "The most recent pageviews and events captured on this site.": "Последние просмотры страниц и события, зафиксированные на этом сайте.",
@@ -128,6 +135,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Загрузка последних обращений…",
   },
   fa: {
+    "Cookie Consent": "رضایت کوکی",
     Marketing: "بازاریابی",
     Analytics: "تحلیل داده",
     "The most recent pageviews and events captured on this site.": "جدیدترین بازدیدهای صفحه و رویدادهای ثبت‌شده در این سایت.",
@@ -144,6 +152,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "در حال بارگذاری بازدیدهای اخیر…",
   },
   ar: {
+    "Cookie Consent": "الموافقة على ملفات تعريف الارتباط",
     Marketing: "التسويق",
     Analytics: "التحليلات",
     "The most recent pageviews and events captured on this site.": "أحدث مشاهدات الصفحات والأحداث المسجَّلة على هذا الموقع.",
@@ -160,6 +169,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "جارٍ تحميل الزيارات الأخيرة…",
   },
   ja: {
+    "Cookie Consent": "Cookie の同意",
     Marketing: "マーケティング",
     Analytics: "アナリティクス",
     "The most recent pageviews and events captured on this site.": "このサイトで記録された最新のページビューとイベントです。",
@@ -176,6 +186,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "最近のヒットを読み込み中…",
   },
   ko: {
+    "Cookie Consent": "쿠키 동의",
     Marketing: "마케팅",
     Analytics: "분석",
     "The most recent pageviews and events captured on this site.": "이 사이트에서 캡처된 최신 페이지뷰 및 이벤트입니다.",
@@ -192,6 +203,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "최근 히트를 불러오는 중…",
   },
   pl: {
+    "Cookie Consent": "Zgoda na cookies",
     Marketing: "Marketing",
     Analytics: "Analityka",
     "The most recent pageviews and events captured on this site.": "Najnowsze odsłony stron i zdarzenia zarejestrowane w tej witrynie.",
@@ -208,6 +220,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Wczytywanie najnowszych odsłon…",
   },
   hu: {
+    "Cookie Consent": "Cookie-hozzájárulás",
     Marketing: "Marketing",
     Analytics: "Elemzés",
     "The most recent pageviews and events captured on this site.": "Az ezen a webhelyen rögzített legutóbbi oldalmegtekintések és események.",
@@ -224,6 +237,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Legutóbbi találatok betöltése…",
   },
   fr: {
+    "Cookie Consent": "Consentement aux cookies",
     Marketing: "Marketing",
     Analytics: "Analytique",
     "The most recent pageviews and events captured on this site.": "Les pages vues et événements les plus récents enregistrés sur ce site.",
@@ -240,6 +254,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Chargement des visites récentes…",
   },
   uk: {
+    "Cookie Consent": "Згода на cookie",
     Marketing: "Маркетинг",
     Analytics: "Аналітика",
     "The most recent pageviews and events captured on this site.": "Останні перегляди сторінок і події, зафіксовані на цьому сайті.",
@@ -256,6 +271,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Завантаження останніх звернень…",
   },
   tr: {
+    "Cookie Consent": "Çerez İzni",
     Marketing: "Pazarlama",
     Analytics: "Analitik",
     "The most recent pageviews and events captured on this site.": "Bu sitede yakalanan en son sayfa görüntülemeleri ve etkinlikler.",
@@ -272,6 +288,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Son isabetler yükleniyor…",
   },
   th: {
+    "Cookie Consent": "ความยินยอมคุกกี้",
     Marketing: "การตลาด",
     Analytics: "การวิเคราะห์",
     "The most recent pageviews and events captured on this site.": "การดูหน้าเว็บและเหตุการณ์ล่าสุดที่บันทึกไว้ในไซต์นี้",
@@ -288,6 +305,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "กำลังโหลดการเข้าชมล่าสุด…",
   },
   it: {
+    "Cookie Consent": "Consenso ai cookie",
     Marketing: "Marketing",
     Analytics: "Analisi",
     "The most recent pageviews and events captured on this site.": "Le visualizzazioni di pagina e gli eventi più recenti registrati su questo sito.",
@@ -304,6 +322,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "Caricamento delle visite recenti…",
   },
   hi: {
+    "Cookie Consent": "कुकी सहमति",
     Marketing: "मार्केटिंग",
     Analytics: "एनालिटिक्स",
     "The most recent pageviews and events captured on this site.": "इस साइट पर दर्ज किए गए सबसे हाल के पेजव्यू और इवेंट।",
@@ -320,6 +339,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "हाल के हिट लोड हो रहे हैं…",
   },
   ur: {
+    "Cookie Consent": "کوکی رضامندی",
     Marketing: "مارکیٹنگ",
     Analytics: "تجزیات",
     "The most recent pageviews and events captured on this site.": "اس سائٹ پر ریکارڈ کیے گئے تازہ ترین پیج ویوز اور واقعات۔",
@@ -336,6 +356,7 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     "Loading recent hits…": "تازہ ترین ہٹس لوڈ ہو رہے ہیں…",
   },
   bn: {
+    "Cookie Consent": "কুকি সম্মতি",
     Marketing: "মার্কেটিং",
     Analytics: "অ্যানালিটিক্স",
     "The most recent pageviews and events captured on this site.": "এই সাইটে রেকর্ড করা সাম্প্রতিকতম পেজভিউ এবং ইভেন্টগুলো।",

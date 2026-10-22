@@ -82,22 +82,39 @@ describe("DockSettingsMenu", () => {
     const user = userEvent.setup();
     render(<SettingsMenuHarness />);
     await user.click(screen.getByRole("button", { name: "Settings" }));
-    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
-    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
-    await user.keyboard("{ArrowUp}");
+    // Tool calls is one segmented control, so its stop is the checked option (owner, 2026-10-21).
     expect(screen.getByRole("menuitemradio", { name: "Collapsed" })).toHaveFocus();
+    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
     await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Done line" })).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
     expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveFocus();
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Thinking" }));
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveFocus();
     await user.keyboard("{ArrowUp}");
     expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveFocus();
     await user.keyboard("{Home}");
-    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveFocus();
     await user.keyboard("{End}{Escape}");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
+  });
+
+  it("picks within the segmented control with Left/Right and keeps the menu open", async () => {
+    const user = userEvent.setup();
+    render(<SettingsMenuHarness />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveAttribute("aria-checked", "true");
+    await user.keyboard("{ArrowLeft}{ArrowLeft}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Collapsed" })).toHaveAttribute("aria-checked", "false");
+    await user.keyboard("{ArrowDown}{ArrowUp}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
   it("changes settings in place with the menu left open, and closes on Escape, outside click and a second click", async () => {
@@ -142,13 +159,13 @@ describe("DockSettingsMenu", () => {
     screen.getByRole("button", { name: "Settings" }).focus();
 
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Collapsed" })).toHaveFocus();
     await user.keyboard("{End}");
     expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveFocus();
     await user.keyboard("{Enter}");
     expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveAttribute("aria-checked", "true");
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    expect(screen.getByRole("menuitemradio", { name: "Collapsed" })).toHaveFocus();
   });
 
   it("shows a failed save as a status line under the rows", async () => {

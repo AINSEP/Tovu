@@ -315,7 +315,7 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
   );
 }
 
-/** The "Build it from a terminal" card's second half — the command block (unchanged) plus the real
+/** The "Build here or in a terminal" card's second half — the command block (unchanged) plus the real
  *  build action: a clean/overwrite checkbox, the Build button itself, a live status pill, and the
  *  run's own result once it settles. */
 function BuildExportCard({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
@@ -330,7 +330,7 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
       })}
     >
       <div className="card-head">
-        <h2 className="card-title">{translate("Build it from a terminal")}</h2>
+        <h2 className="card-title">{translate("Build here or in a terminal")}</h2>
         <div className="card-head-actions">
           <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey(controller.run))}</span>
         </div>

@@ -54,7 +54,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Una copia rápida y de solo lectura de las páginas publicadas de este sitio — sin servidor detrás.",
     "Not built yet": "Aún no está implementado",
-    "Build it from a terminal": "Constrúyelo desde una terminal",
+    "Build here or in a terminal": "Constrúyelo aquí o en una terminal",
     "Build static export": "Generar exportación estática",
     "What Full Site gives you": "Qué te ofrece el sitio completo",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -131,7 +131,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Salinan cepat dan hanya-baca dari halaman situs yang dipublikasikan — tanpa server di baliknya.",
     "Not built yet": "Belum dibangun",
-    "Build it from a terminal": "Bangun dari terminal",
+    "Build here or in a terminal": "Bangun di sini atau dari terminal",
     "Build static export": "Bangun ekspor statis",
     "What Full Site gives you": "Apa yang diberikan Situs Lengkap",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -208,7 +208,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Eine schnelle, schreibgeschützte Kopie der veröffentlichten Seiten dieser Website — kein Server dahinter.",
     "Not built yet": "Noch nicht gebaut",
-    "Build it from a terminal": "Über ein Terminal erstellen",
+    "Build here or in a terminal": "Hier oder im Terminal erstellen",
     "Build static export": "Statischen Export erstellen",
     "What Full Site gives you": "Was Vollständige Seite bietet",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -285,7 +285,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "此站点已发布页面的快速只读副本 — 背后没有服务器。",
     "Not built yet": "尚未构建",
-    "Build it from a terminal": "从终端构建",
+    "Build here or in a terminal": "在此处或终端中构建",
     "Build static export": "生成静态导出",
     "What Full Site gives you": "完整站点能带来什么",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -361,7 +361,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "此網站已發佈頁面的快速唯讀副本 — 背後沒有伺服器。",
     "Not built yet": "尚未建置",
-    "Build it from a terminal": "從終端機建置",
+    "Build here or in a terminal": "在此處或終端機中建置",
     "Build static export": "建立靜態匯出",
     "What Full Site gives you": "完整網站能帶來什麼",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -437,7 +437,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Uma cópia rápida e somente leitura das páginas publicadas deste site — sem servidor por trás.",
     "Not built yet": "Ainda não implementado",
-    "Build it from a terminal": "Gere pelo terminal",
+    "Build here or in a terminal": "Gere aqui ou pelo terminal",
     "Build static export": "Gerar exportação estática",
     "What Full Site gives you": "O que o Site completo oferece",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -514,7 +514,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Быстрая копия опубликованных страниц сайта только для чтения — без сервера позади неё.",
     "Not built yet": "Пока не реализовано",
-    "Build it from a terminal": "Соберите через терминал",
+    "Build here or in a terminal": "Соберите здесь или через терминал",
     "Build static export": "Собрать статический экспорт",
     "What Full Site gives you": "Что даёт Полноценный сайт",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -590,7 +590,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "یک نسخه سریع و فقط‌خواندنی از صفحات منتشرشده این سایت — بدون سروری در پشت آن.",
     "Not built yet": "هنوز ساخته نشده",
-    "Build it from a terminal": "از ترمینال بسازید",
+    "Build here or in a terminal": "اینجا یا از ترمینال بسازید",
     "Build static export": "ساخت خروجی ایستا",
     "What Full Site gives you": "سایت کامل چه چیزی به شما می‌دهد",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -666,7 +666,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "نسخة سريعة للقراءة فقط من صفحات هذا الموقع المنشورة — بلا خادم خلفها.",
     "Not built yet": "لم يُبنَ بعد",
-    "Build it from a terminal": "أنشئه من الطرفية",
+    "Build here or in a terminal": "أنشئه هنا أو من الطرفية",
     "Build static export": "إنشاء تصدير ثابت",
     "What Full Site gives you": "ما الذي يمنحك إياه الموقع الكامل",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -742,7 +742,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "このサイトの公開済みページの高速な読み取り専用コピー — 背後にサーバーはありません。",
     "Not built yet": "まだ構築されていません",
-    "Build it from a terminal": "ターミナルからビルドする",
+    "Build here or in a terminal": "ここまたはターミナルからビルドする",
     "Build static export": "静的エクスポートをビルド",
     "What Full Site gives you": "フルサイトで得られるもの",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -818,7 +818,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "이 사이트의 게시된 페이지를 빠르게 읽기 전용으로 복사한 것 — 그 뒤에 서버는 없습니다.",
     "Not built yet": "아직 구현되지 않음",
-    "Build it from a terminal": "터미널에서 빌드하기",
+    "Build here or in a terminal": "여기 또는 터미널에서 빌드하기",
     "Build static export": "정적 내보내기 빌드",
     "What Full Site gives you": "전체 사이트가 제공하는 것",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -894,7 +894,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Szybka, tylko do odczytu kopia opublikowanych stron tej witryny — bez serwera z tyłu.",
     "Not built yet": "Jeszcze nie zbudowane",
-    "Build it from a terminal": "Zbuduj z terminala",
+    "Build here or in a terminal": "Zbuduj tutaj lub z terminala",
     "Build static export": "Zbuduj eksport statyczny",
     "What Full Site gives you": "Co daje Pełna witryna",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -970,7 +970,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Az oldal publikált lapjainak gyors, csak olvasható másolata — szerver nélkül a háttérben.",
     "Not built yet": "Még nincs kiépítve",
-    "Build it from a terminal": "Építsd meg terminálból",
+    "Build here or in a terminal": "Építsd meg itt vagy terminálból",
     "Build static export": "Statikus export létrehozása",
     "What Full Site gives you": "Mit ad a Teljes oldal",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1046,7 +1046,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Une copie rapide et en lecture seule des pages publiées de ce site — sans serveur derrière.",
     "Not built yet": "Pas encore développé",
-    "Build it from a terminal": "Générez-le depuis un terminal",
+    "Build here or in a terminal": "Générez-le ici ou depuis un terminal",
     "Build static export": "Générer l'export statique",
     "What Full Site gives you": "Ce que vous offre le Site complet",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1123,7 +1123,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Швидка копія опублікованих сторінок сайту лише для читання — без сервера позаду неї.",
     "Not built yet": "Ще не реалізовано",
-    "Build it from a terminal": "Зберіть через термінал",
+    "Build here or in a terminal": "Зберіть тут або через термінал",
     "Build static export": "Зібрати статичний експорт",
     "What Full Site gives you": "Що дає Повноцінний сайт",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1199,7 +1199,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Bu sitenin yayınlanmış sayfalarının hızlı, salt okunur bir kopyası — arkasında sunucu yok.",
     "Not built yet": "Henüz oluşturulmadı",
-    "Build it from a terminal": "Terminalden oluşturun",
+    "Build here or in a terminal": "Burada veya terminalden oluşturun",
     "Build static export": "Statik dışa aktarma oluştur",
     "What Full Site gives you": "Tam Site size ne sağlar",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1275,7 +1275,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "สำเนาแบบอ่านอย่างเดียวที่รวดเร็วของหน้าที่เผยแพร่ของเว็บไซต์นี้ — ไม่มีเซิร์ฟเวอร์อยู่เบื้องหลัง",
     "Not built yet": "ยังไม่ได้สร้าง",
-    "Build it from a terminal": "สร้างจากเทอร์มินัล",
+    "Build here or in a terminal": "สร้างที่นี่หรือจากเทอร์มินัล",
     "Build static export": "สร้างการส่งออกแบบสแตติก",
     "What Full Site gives you": "เว็บไซต์แบบเต็มรูปแบบให้อะไรกับคุณ",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1351,7 +1351,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "Una copia veloce e di sola lettura delle pagine pubblicate di questo sito — senza server dietro.",
     "Not built yet": "Non ancora realizzato",
-    "Build it from a terminal": "Generalo da un terminale",
+    "Build here or in a terminal": "Generalo qui o da un terminale",
     "Build static export": "Genera esportazione statica",
     "What Full Site gives you": "Cosa offre il Sito completo",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1428,7 +1428,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "इस साइट के प्रकाशित पृष्ठों की एक तेज़, केवल-पढ़ने योग्य प्रति — इसके पीछे कोई सर्वर नहीं।",
     "Not built yet": "अभी नहीं बना",
-    "Build it from a terminal": "टर्मिनल से बनाएं",
+    "Build here or in a terminal": "यहाँ या टर्मिनल से बनाएं",
     "Build static export": "स्थिर एक्सपोर्ट बनाएं",
     "What Full Site gives you": "पूर्ण साइट आपको क्या देती है",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1504,7 +1504,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "اس سائٹ کے شائع شدہ صفحات کی تیز، صرف پڑھنے کے قابل کاپی — اس کے پیچھے کوئی سرور نہیں۔",
     "Not built yet": "ابھی تک نہیں بنایا گیا",
-    "Build it from a terminal": "ٹرمینل سے بنائیں",
+    "Build here or in a terminal": "یہاں یا ٹرمینل سے بنائیں",
     "Build static export": "جامد ایکسپورٹ بنائیں",
     "What Full Site gives you": "مکمل سائٹ آپ کو کیا دیتی ہے",
     "The complete Tovu server — admin, assistant, checkout, everything works.":
@@ -1580,7 +1580,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "A fast, read-only copy of this site's published pages — no server behind it.":
       "এই সাইটের প্রকাশিত পৃষ্ঠাগুলোর একটি দ্রুত, শুধুমাত্র-পঠনযোগ্য কপি — এর পিছনে কোনো সার্ভার নেই।",
     "Not built yet": "এখনও তৈরি হয়নি",
-    "Build it from a terminal": "টার্মিনাল থেকে তৈরি করুন",
+    "Build here or in a terminal": "এখানে বা টার্মিনাল থেকে তৈরি করুন",
     "Build static export": "স্ট্যাটিক এক্সপোর্ট তৈরি করুন",
     "What Full Site gives you": "সম্পূর্ণ সাইট আপনাকে কী দেয়",
     "The complete Tovu server — admin, assistant, checkout, everything works.":

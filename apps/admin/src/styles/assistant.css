@@ -491,6 +491,8 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
   font-weight: 600;
   color: var(--muted);
 }
+/* Tool calls / Agent plugins: the Chat settings dialog's segmented pill, inset to the rows' text. */
+.dock-settings-menu-choice { display: flex; padding: 0.15rem 0.65rem 0.35rem; }
 .dock-settings-menu-separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
 .dock-settings-menu .row-menu-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
 .dock-settings-menu .row-menu-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
@@ -1735,7 +1737,7 @@ button.jini-composer-leading,
   position: relative; display: inline-flex; align-items: center; padding: 0.4rem 0.95rem;
   border-radius: 6px; font-size: var(--text-sm, 0.875rem); color: var(--muted); cursor: pointer;
 }
-.jini-chat-settings-dialog .jini-chat-settings-segment input {
+.jini-chat-settings-segment input {
   position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer;
 }
 .jini-chat-settings-segment:hover { color: var(--fg); }
@@ -1746,7 +1748,9 @@ button.jini-composer-leading,
 .jini-chat-settings-row { display: flex; align-items: flex-start; gap: 0.75rem; padding-block: 0.5rem; }
 .jini-chat-settings-row > input[role="switch"] { margin-top: 0.0625rem; }
 .jini-chat-settings-text { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
-.jini-chat-settings-row > .info-tip { flex: none; margin-inline: auto 0; }
+/* A switch's ⓘ follows its label's text, like the legend's (owner, 2026-10-21), outside the label so a tap never toggles. */
+.jini-chat-settings-label-row { display: flex; align-items: center; gap: 0.3rem; }
+.jini-chat-settings-label-row > .info-tip { flex: none; }
 .jini-chat-settings-label { font-size: 0.9375rem; line-height: 1.4; cursor: pointer; }
 .jini-chat-settings-description { margin: 0; font-size: 0.8125rem; line-height: 1.35; color: var(--jini-text-muted, var(--muted)); }
 .jini-chat-settings-description--group { margin: -0.25rem 0 0.625rem; }
@@ -1789,13 +1793,13 @@ button.jini-composer-leading,
   .dock-settings-menu-row .info-tip-icon,
   .dock-settings-menu-heading-row .info-tip-icon,
   .jini-chat-settings-legend .info-tip-icon,
-  .jini-chat-settings-row > .info-tip .info-tip-icon { position: relative; }
+  .jini-chat-settings-label-row > .info-tip .info-tip-icon { position: relative; }
   .dock-settings-menu-row .info-tip-icon::before,
   .dock-settings-menu-heading-row .info-tip-icon::before,
   .jini-chat-settings-legend .info-tip-icon::before,
-  .jini-chat-settings-row > .info-tip .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
+  .jini-chat-settings-label-row > .info-tip .info-tip-icon::before { content: ""; position: absolute; inset: -13px; }
   .jini-dialog .jini-chat-settings-legend .info-tip-icon[role="button"],
-  .jini-dialog .jini-chat-settings-row > .info-tip .info-tip-icon[role="button"] { min-width: 0; min-height: 0; }
+  .jini-dialog .jini-chat-settings-label-row > .info-tip .info-tip-icon[role="button"] { min-width: 0; min-height: 0; }
 }
 @media (max-width: 640px) {
   .jini-chat-settings-dialog input[type="checkbox"][role="switch"] { width: 38px; height: 22px; }

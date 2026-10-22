@@ -17,6 +17,7 @@ describe("analytics screen translations", () => {
     ["event:", "evento:"],
     ["Time", "Hora"],
     ["Loading recent hits…", "Cargando visitas recientes…"],
+    ["Cookie Consent", "Consentimiento de cookies"],
   ])("translates Spanish analytics copy %s", (key, expected) => {
     expect(t({ locale: "es", key: key })).toBe(expected);
   });

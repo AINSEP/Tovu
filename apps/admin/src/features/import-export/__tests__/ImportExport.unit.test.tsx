@@ -2,17 +2,28 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
 import { ImportExport } from "../ImportExport";
 import { IMPORT_EXPORT_DICT, t } from "../import-export-i18n";
+import { createFakeGitBackupPort } from "../hooks/git-backup-port.hooks";
+import { useGitBackup } from "../hooks/use-git-backup.hooks";
+
+/** The Git backup card on a fake port with no connection, so no test here reaches the network. */
+const useFakeGitBackup = ({ t: translate }: { t: (key: string) => string }) => useGitBackup({ port: createFakeGitBackupPort(), t: translate });
 
 it("links each card to the screen that owns the flow, with a distinct accessible name", () => {
-  render(<ImportExport />);
+  render(<ImportExport useGitBackup={useFakeGitBackup} />);
   expect(screen.getByRole("heading", { level: 1, name: "Import & Export" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "Open Export Site" }).getAttribute("href")).toBe("/admin/sites?tab=export");
   expect(screen.getByRole("link", { name: "Open Import Site" }).getAttribute("href")).toBe("/admin/sites?tab=import");
   expect(screen.getByRole("link", { name: "Open Static Site" }).getAttribute("href")).toBe("/admin/deployment?tab=static-site");
 });
 
+it("adds the Git backup card, which links to Source Control until a connection exists", async () => {
+  render(<ImportExport useGitBackup={useFakeGitBackup} />);
+  expect(screen.getByRole("heading", { level: 2, name: "Git backup" })).toBeTruthy();
+  expect((await screen.findByRole("link", { name: "Open Source Control" })).getAttribute("href")).toBe("/admin/source-control");
+});
+
 it("renders through the translator it is given", () => {
-  render(<ImportExport useTranslate={() => (key) => `[${key}]`} />);
+  render(<ImportExport useTranslate={() => (key) => `[${key}]`} useGitBackup={useFakeGitBackup} />);
   expect(screen.getByRole("heading", { level: 1, name: "[Import & Export]" })).toBeTruthy();
   expect(screen.getByText("[Read-only HTML of the published pages, for any static host.]")).toBeTruthy();
 });
