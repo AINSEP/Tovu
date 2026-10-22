@@ -663,6 +663,10 @@ export interface MembersDeps {
   mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
+  /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
+  mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;
+  /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
+  mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
 }
 
 /**

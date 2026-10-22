@@ -331,6 +331,9 @@
     "mail_send_test": "send test email mail check delivery works inbox try verify",
     "mail_list_providers": "email mail providers installed list configured key saved setup fields smtp hosted api",
     "mail_configure_provider": "email mail provider configure set up save key api key replace rotate smtp password without switching",
+    "mail_get_readiness": "email uses readiness sign-in links confirmations form notifications newsletter blocked ready why not sending",
+    "mail_list_activity": "email activity recent sends history log failures bounced delivered complained suppressed outcome",
+    "mail_get_activity": "email send detail feedback timeline delivered bounced message id provider error",
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
     "search_reindex": "search reindex rebuild refresh index full backfill",
@@ -1945,6 +1948,20 @@
       "Replace my email provider's API key.",
       "Save the SMTP password for my site's email."
     ],
+    "mail_get_readiness": [
+      "Which of my site's emails can send right now?",
+      "Why aren't form notification emails going out?",
+      "Is newsletter email blocked?"
+    ],
+    "mail_list_activity": [
+      "Show recent emails this site sent.",
+      "Which emails bounced?",
+      "Did the sign-in email to this address go out?"
+    ],
+    "mail_get_activity": [
+      "Show the details of that email send.",
+      "What happened to this email after the provider accepted it?"
+    ],
     "search_query": [
       "Search my site for posts about pricing.",
       "Which pages mention our refund policy?",
@@ -3468,6 +3485,18 @@
       "confirmation": "direct"
     },
     "mail_configure_provider": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_get_readiness": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_list_activity": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_get_activity": {
       "class": "read",
       "confirmation": "direct"
     },

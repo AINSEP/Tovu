@@ -46,4 +46,25 @@ export const toolMetadata = {
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
+  "mail_get_readiness": {
+    search: {
+      keywords: "email uses readiness sign-in links confirmations form notifications newsletter blocked ready why not sending",
+      queries: ["Which of my site's emails can send right now?", "Why aren't form notification emails going out?", "Is newsletter email blocked?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_list_activity": {
+    search: {
+      keywords: "email activity recent sends history log failures bounced delivered complained suppressed outcome",
+      queries: ["Show recent emails this site sent.", "Which emails bounced?", "Did the sign-in email to this address go out?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_get_activity": {
+    search: {
+      keywords: "email send detail feedback timeline delivered bounced message id provider error",
+      queries: ["Show the details of that email send.", "What happened to this email after the provider accepted it?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

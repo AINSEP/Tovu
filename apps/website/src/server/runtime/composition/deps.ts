@@ -111,6 +111,8 @@ import { loadSourceControlProviderRegistry } from "#src/features/source-control/
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
+import { createMailActivityRepo } from "#src/features/mail/activity.repo";
+import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-probe";
 import { createMailTestSendLimiter } from "#src/features/mail-status/test-send";
 import { ensureMailProviderSettings, readMailProviderSetting, readMailTestMode } from "#src/features/settings/mail-provider";
 import { createSenderDomainVerification } from "../boot/sender-domain-verification.js";
@@ -2006,6 +2008,9 @@ async function composeSiteRouteDeps(
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
   });
   const mailTestMode = async () => { await siteTitleReady; return readMailTestMode({ settingsRepo, workspaceId }); };
+  // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
+  // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
+  const mailDurableOutboxReady = (_capabilityName: string): boolean => false;
   // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
   // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
   const mailSenderIdentity = createMailSenderIdentityResolver({ mailer: resolvedMailer.mailer }, {
@@ -2448,7 +2453,7 @@ async function composeSiteRouteDeps(
     mailer: wrapMailerWithPurposeGate({
       inner: resolvedMailer.mailer,
       mode: runtimeMode,
-      durableOutboxReady: () => false,
+      durableOutboxReady: mailDurableOutboxReady,
     }),
     settleMailer: resolvedMailer.settle,
     mailStatus: resolvedMailer.status,
@@ -2460,6 +2465,9 @@ async function composeSiteRouteDeps(
     mailTestMode,
     // One bucket per site, so the Email page's button and the assistant's tool share it.
     mailTestSendLimiter: createMailTestSendLimiter(),
+    // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
+    mailActivity: createMailActivityRepo({ db: kernel }),
+    mailPurposeGate: createMailPurposeGateProbe({ mode: runtimeMode, durableOutboxReady: mailDurableOutboxReady }),
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

@@ -76,6 +76,7 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'media-providers': 'Provider configuration is credential-bearing.',
   'system-mail': 'Mail status belongs to the active process and provider credentials.',
   'system-mail-providers': 'Mail provider configuration is credential-bearing and belongs to the active process.',
+  'system-mail-delivery': 'Mail readiness and send history belong to the active process and its own mail ledgers.',
   'agent-plugin-search': 'Search reads installed plugin packages and activation state.',
   'agent-plugin-skill': 'Installed skill packages may run code.',
   'agent-plugin-memory': 'Plugin runtime memory belongs to its installed execution context.',

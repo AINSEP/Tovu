@@ -177,6 +177,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "analytics",
     "system-mail",
     "system-mail-providers",
+    "system-mail-delivery",
     "system-server-logs",
     "identity-policy-list-permissions",
     "sites-list",
