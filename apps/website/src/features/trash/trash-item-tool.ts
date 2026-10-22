@@ -305,9 +305,12 @@ export const trashItemDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
  * this branch under today's `MoveToTrashOutcome`; the cast is only ever exercised once a new reason
  * exists, and `never` is assignable to anything, so it costs nothing today.
  *
+ * Exported so each reason's message is asserted directly: the generic handler only reaches the
+ * non-`not-found` reasons through races (a version bump, a revoked grant) a tool test cannot stage.
+ *
  * @complexity O(1).
  */
-function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string, outcome: Extract<MoveToTrashOutcome, { ok: false }>): ToolInputError {
+export function moveToTrashOutcomeToError(entityType: TrashEntityType, entityId: string, outcome: Extract<MoveToTrashOutcome, { ok: false }>): ToolInputError {
   switch (outcome.reason) {
     case "not-found":
       return new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
