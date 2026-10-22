@@ -243,3 +243,40 @@ test("deskfx M1: a refresh may create themes inside an existing site but never r
   assert.throws(() => requestThemePreviewRefresh({ themesDir: file }), { code: "EEXIST" });
   assert.equal(fs.readFileSync(file, "utf8"), "keep");
 });
+
+test("preview path refusals: control characters, undecodable escapes and URL-normalised admin paths", () => {
+  for (const path of ["/has space", "/tab\there", "/%E0%A4%A", "/./admin", "/x/%2e%2e/api"]) {
+    assert.throws(() => validatePreviewPath({ path }), {
+      message: "path must be a site-relative public URL starting with /",
+    }, path);
+  }
+  assert.equal(validatePreviewPath({ path: "/administrator" }), "/administrator", "only the exact admin/api segment is reserved");
+});
+
+test("a marker with an invalid revision or an unsafe stored path reads as no refresh", (t) => {
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-refresh-invalid-"));
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const marker = path.join(themesDir, ".preview-refresh.json");
+  fs.writeFileSync(marker, JSON.stringify({ revision: 42 }));
+  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  fs.writeFileSync(marker, JSON.stringify({ revision: "has space" }));
+  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  fs.writeFileSync(marker, JSON.stringify({ revision: "ok-1", path: "//evil.example" }));
+  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  fs.writeFileSync(marker, JSON.stringify({ revision: "ok-2", path: "/fine" }));
+  assert.deepEqual(readThemePreviewRefresh({ themesDir }), { revision: "ok-2", path: "/fine" });
+});
+
+test("a feed that starts with no marker stays silent until one appears, and ignores a vanished marker", async () => {
+  const { createThemePreviewFeed } = await import("../preview-refresh.js");
+  let frame: import("../preview-refresh.js").ThemePreviewRefresh | null = null;
+  const emitted: unknown[] = [];
+  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) });
+  tick();
+  assert.deepEqual(emitted, []);
+  frame = { revision: "first" };
+  tick();
+  frame = null;
+  tick();
+  assert.deepEqual(emitted, [{ revision: "first" }]);
+});
