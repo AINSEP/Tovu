@@ -24,6 +24,7 @@ import {
 } from './App.hooks.js';
 import { chromeVisibility, workspaceOnScreen } from './expanded-mode.js';
 import { useAddSite } from './use-add-site.hooks.js';
+import { useUpdateCheck } from './use-update-check.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { resolveImportSiteTarget, type SiteAdminPage } from './import-site-entry.js';
 import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
@@ -433,8 +434,8 @@ function NavLink({
   );
 }
 
-/** Gear icon that opens the Settings menu: two rows that open a screen (Sites settings…, Appearance)
- *  and an inline Theme switch, the one setting worth changing without leaving the menu. Closes on
+/** Gear icon that opens the Settings menu: two rows that open a screen (Sites settings…, Appearance),
+ *  Check for updates…, and an inline Theme switch, the one setting worth changing without leaving the menu. Closes on
  *  selection or on a click/tap outside the dropdown; arrow keys move between entries. */
 function SettingsControl({
   theme,
@@ -450,6 +451,7 @@ function SettingsControl({
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
   const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteSettings({});
+  const updateCheck = useUpdateCheck({ onDone: () => setOpen(false) });
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
@@ -492,6 +494,13 @@ function SettingsControl({
               <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+          {/* Stays open reading "Checking…" until main shows its answer, then closes. */}
+          {updateCheck.available && (
+            <button type="button" role="menuitem" className="settings__item" aria-disabled={updateCheck.checking} onClick={() => { void updateCheck.checkForUpdates(); }}>
+              <MenuIcon kind="update" />
+              <span className="settings__label">{updateCheck.checking ? 'Checking…' : 'Check for updates…'}</span>
+            </button>
+          )}
           <div className="settings__sep" role="separator" />
           <div className="settings__row">
             <span className="settings__label" id="settings-theme-label">Theme</span>

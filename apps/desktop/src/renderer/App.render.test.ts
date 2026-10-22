@@ -118,6 +118,32 @@ test('App: the Settings menu opens, moves with the arrows, picks a theme, opens 
   assert.match(app.text(), /No websites yet/);
 });
 
+test('App: Check for updates… reads Checking… until main answers, then closes', async (t) => {
+  let answer!: () => void;
+  let checks = 0;
+  const app = await renderApp(t, { checkForUpdates: () => { checks++; return new Promise<void>((resolve) => { answer = resolve; }); } });
+  const gear = app.byLabel('Settings')!;
+  await app.click(gear);
+  const row = () => app.all('[role="menuitem"]').find((b) => /updates…|Checking…/.test(b.textContent ?? ''));
+  assert.equal(row()?.textContent?.trim(), 'Check for updates…');
+  await app.click(row());
+  assert.equal(row()?.textContent?.trim(), 'Checking…', 'the menu stays open while main checks');
+  assert.equal(row()?.getAttribute('aria-disabled'), 'true');
+  await app.click(row());
+  assert.equal(checks, 1, 'a second click while checking starts no second check');
+  await act(async () => { answer(); });
+  await settle();
+  assert.equal(app.container.querySelector('[role="menu"]'), null, 'main has shown its notice; the menu closes');
+  await app.click(gear);
+  assert.equal(row()?.textContent?.trim(), 'Check for updates…');
+});
+
+test('App: without checkForUpdates on the bridge the Settings menu has no update row', async (t) => {
+  const app = await renderApp(t, { checkForUpdates: undefined });
+  await app.click(app.byLabel('Settings'));
+  assert.equal(app.all('[role="menuitem"]').some((b) => b.textContent?.includes('Check for updates')), false);
+});
+
 test('App: a created site\'s notice says it is ready with its token outcome, and Cancel returns to the grid', async (t) => {
   const results = [{ ...site('n1') }, { ...site('n2'), agentPluginTokens: { status: 'saved', pluginIds: ['github'] } }] as CreatedSiteRecord[];
   const app = await renderApp(t, { createSite: async () => results.shift()! });

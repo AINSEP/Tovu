@@ -201,7 +201,7 @@ export function NavIcon({ kind }: { kind: NavIconKind }) {
   );
 }
 
-export type MenuIconKind = 'folder' | 'appearance' | 'light' | 'system' | 'dark';
+export type MenuIconKind = 'folder' | 'appearance' | 'update' | 'light' | 'system' | 'dark';
 
 /** The Settings menu's glyphs: a leading icon per row, and the three theme choices. Same 20-unit
  *  frame and stroke as the nav, so the menu reads as part of the bar that opened it. */
@@ -212,6 +212,13 @@ const menuPaths: Record<MenuIconKind, JSX.Element> = {
     <>
       <circle cx="10" cy="10" r="6.6" />
       <path d="M10 3.4a6.6 6.6 0 0 1 0 13.2z" fill="currentColor" />
+    </>
+  ),
+  // The Updates section's circular arrow, so "Check for updates…" reads as the same thing.
+  update: (
+    <>
+      <path d="M16.5 10a6.5 6.5 0 1 1-2-4.7" />
+      <path d="M17 2.5V6h-3.5" />
     </>
   ),
   light: (

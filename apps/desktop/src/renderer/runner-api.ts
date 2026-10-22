@@ -27,11 +27,13 @@ import type {
 } from '../contracts/workspace-conversations.js';
 import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
 import type { ZoomDirection } from '../contracts/zoom.js';
-import type { RunnerAppVersionBridge } from '../contracts/app-version.js';
+import type { RunnerAppVersionBridge, RunnerUpdateCheckBridge } from '../contracts/app-version.js';
 
 export interface RunnerInventoryBridge {
   /** Optional for a stale preload; the current bridge resolves Electron's app.getVersion(). */
   getAppVersion?: RunnerAppVersionBridge['getAppVersion'];
+  /** Optional for a stale preload; the Settings menu hides "Check for updates…" without it. */
+  checkForUpdates?: RunnerUpdateCheckBridge['checkForUpdates'];
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;

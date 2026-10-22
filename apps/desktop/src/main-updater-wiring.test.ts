@@ -23,11 +23,14 @@ function block(anchor: string, end: string): string {
 }
 
 test("the updater is gated by updaterSkipReason, including the Store and self-test cases", () => {
+  // One gate shared with Settings › Check for updates…, so the two can never disagree.
+  const gate = block("function currentUpdaterSkipReason()", "\n}\n");
+  assert.match(gate, /updaterSkipReason\(\{/);
+  assert.match(gate, /isPackaged: app\.isPackaged,/);
+  assert.match(gate, /windowsStore: process\.windowsStore === true,/);
+  assert.match(gate, /selftest: SELFTEST,/);
   const starter = block("async function startAutoUpdater()", "\n}\n");
-  assert.match(starter, /updaterSkipReason\(\{/);
-  assert.match(starter, /isPackaged: app\.isPackaged,/);
-  assert.match(starter, /windowsStore: process\.windowsStore === true,/);
-  assert.match(starter, /selftest: SELFTEST,/);
+  assert.match(starter, /const skip = currentUpdaterSkipReason\(\);/);
   assert.match(starter, /if \(skip !== null\) \{[\s\S]*?return;/);
 });
 
@@ -61,7 +64,7 @@ test("the actual startup helper starts the created controller, and boot catches 
     require: (name: string) => { assert.equal(name, "electron-updater"); return { default: { autoUpdater: updater } }; },
     app: { isPackaged: true, getPath: () => "/user-data", quit: () => {} },
     process: { windowsStore: false, platform: "darwin", env: {}, pid: 42 }, SELFTEST: false,
-    updaterSkipReason: () => null,
+    currentUpdaterSkipReason: () => null,
     readAutomaticUpdates: () => true,
     desktopPreferencesPath: () => "/user-data/desktop-preferences.json",
     quitPhase: "idle",
@@ -73,12 +76,12 @@ test("the actual startup helper starts the created controller, and boot catches 
       calls.push("create"); return { start: () => calls.push("start") };
     }, console: { log: () => {} },
   };
-  const start = new Function(...Object.keys(deps), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; ${executable}; return startAutoUpdater;`)(...Object.values(deps));
+  const start = new Function(...Object.keys(deps), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; let updateReadyVersion = null; ${executable}; return startAutoUpdater;`)(...Object.values(deps));
   await start();
   assert.deepEqual(calls, ["create", "start"]);
   calls.length = 0;
-  const skipped = { ...deps, updaterSkipReason: () => "disabled" };
-  await new Function(...Object.keys(skipped), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; ${executable}; return startAutoUpdater;`)(...Object.values(skipped))();
+  const skipped = { ...deps, currentUpdaterSkipReason: () => "disabled" };
+  await new Function(...Object.keys(skipped), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; let updateReadyVersion = null; ${executable}; return startAutoUpdater;`)(...Object.values(skipped))();
   assert.deepEqual(calls, []);
 
   let bootStatement: ts.ExpressionStatement | undefined;

@@ -63,9 +63,9 @@ test('back, forward and reload draw different shapes, and reload matches the upd
   assert.equal(bodies[2], inner(renderToStaticMarkup(React.createElement(SectionIcon, { id: 'updates' }))));
 });
 
-test('the Settings menu glyphs are five distinct shapes in the shared frame', async () => {
+test('the Settings menu glyphs are six distinct shapes in the shared frame', async () => {
   const { MenuIcon } = await import('./icons.js');
-  const kinds = ['folder', 'appearance', 'light', 'system', 'dark'] as const;
+  const kinds = ['folder', 'appearance', 'update', 'light', 'system', 'dark'] as const;
   const bodies = kinds.map((kind) => inner(renderToStaticMarkup(React.createElement(MenuIcon, { kind }))));
   for (const body of bodies) assert.match(body, /^<(path|rect|circle) /);
   assert.equal(new Set(bodies).size, kinds.length);
