@@ -6,3 +6,4 @@
 - 01:13Z: Jini worker done: 11/12 at 100 (adapter.tanstack b212 left; 4th worker investigating). pnpm guard self-test failure confirmed pre-existing on base. SHAs 60394cea c85e4c79 10392220 b812fa30 c878ffdf 645e1365 5149e055 fdca8041 f031d3cf 583b5aa1.
 - 01:23Z: tanstack b212 reachable (invalidate+replace same tick on loader-only key); test added, 3a88a543. adapter 100/100/100.
 - 01:25Z: admin worker done: 7/10 at 100; use-agent-plugins BUG fixed with failing-test-first (52f06f8f); full admin 795 files/13137 pass. 3 files need Jini props optional -> 5th worker (Jini type refactor + Tovu stub removal).
+- 01:39Z: done; REPORT written.
