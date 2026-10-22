@@ -164,3 +164,73 @@ test("any other Agent Plugin write failure propagates unchanged and provisions n
   await assert.rejects(h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), {}), /^Error: disk full$/);
   assert.equal(h.events.includes("provisionMcp:higgsfield"), false);
 });
+
+test("plugins_uninstall: a confirmed uninstall of an unchanged site plugin removes it and reports what was trashed", async () => {
+  const removed: string[] = [];
+  const h = harness({ removePlugin: async ({ id }) => { removed.push(id); return { ok: true, version: null }; } });
+  const { outcome } = await answerCard({ tool: h.tool("plugins_uninstall"), surfaceExchanges: h.surfaceExchanges, input: { family: "site-runtime", pluginId: PLUGIN_ID }, decision: "confirm" });
+  const result = await outcome as { pluginId: string; trashed: unknown };
+  assert.equal(result.pluginId, PLUGIN_ID);
+  assert.deepEqual(Object.keys(result).sort(), ["pluginId", "trashed"]);
+  assert.deepEqual(removed, [PLUGIN_ID]);
+});
+
+test("plugins_uninstall: a plugin that changed after the user confirmed is not removed, and says so", async () => {
+  const removed: string[] = [];
+  let scans = 0;
+  const h = harness({
+    discovery: () => [siteRecord(++scans > 1 ? { version: "9.9.9" } : {})],
+    removePlugin: async ({ id }) => { removed.push(id); return { ok: true, version: null }; },
+  });
+  const { outcome } = await answerCard({ tool: h.tool("plugins_uninstall"), surfaceExchanges: h.surfaceExchanges, input: { family: "site-runtime", pluginId: PLUGIN_ID }, decision: "confirm" });
+  const result = await outcome as { uninstalled: boolean; reason: string; note: string };
+  assert.equal(result.uninstalled, false);
+  assert.equal(result.reason, "changed-since-confirmation");
+  assert.match(result.note, /Nothing was removed/);
+  assert.deepEqual(removed, []);
+});
+
+test("plugins_uninstall: a declined confirmation removes nothing", async () => {
+  const removed: string[] = [];
+  const h = harness({ removePlugin: async ({ id }) => { removed.push(id); return { ok: true, version: null }; } });
+  const { outcome } = await answerCard({ tool: h.tool("plugins_uninstall"), surfaceExchanges: h.surfaceExchanges, input: { family: "site-runtime", pluginId: PLUGIN_ID }, decision: "cancel" });
+  const result = await outcome as { pluginId: string; uninstalled: boolean };
+  assert.equal(result.pluginId, PLUGIN_ID);
+  assert.equal(result.uninstalled, false);
+  assert.deepEqual(removed, []);
+});
+
+test("a plugin family outside the two systems is an input error naming both", async () => {
+  const h = harness();
+  await assert.rejects(Promise.resolve(h.tool("plugins_set_enabled").handler(context({ family: "other", pluginId: PLUGIN_ID, enabled: true }), {})),
+    (error: unknown) => error instanceof ToolInputError && /'site-runtime'.*'agent-plugin'/s.test((error as Error).message));
+});
+
+test("plugins_list degrades its Agent Plugin half to empty on a read failure, and shows a missing version as null", async () => {
+  const failing = harness({ agentHost: { listInstalled: async () => { throw new Error("disk unavailable"); } } });
+  const degraded = await failing.tool("plugins_list").handler(context({}), {}) as Record<string, unknown>;
+  assert.ok(JSON.stringify(degraded).includes(PLUGIN_ID), "the site half still answers");
+  assert.equal(JSON.stringify(degraded).includes("higgsfield"), false);
+  const skills = [{ name: "media", skillPath: "skills/media/SKILL.md" }] as unknown as ReturnType<typeof installedAgentPlugin>["skills"];
+  const unversioned = harness({ agentHost: { listInstalled: async () => [installedAgentPlugin({ version: undefined, skills })] } });
+  const listed = await unversioned.tool("plugins_list").handler(context({}), {});
+  assert.match(JSON.stringify(listed), /"pluginId":"higgsfield","version":null,"archiveDigest":"a{64}","skills":\["media"\]/);
+});
+
+test("plugins_uninstall: a removal failure other than a changed plugin propagates unchanged", async () => {
+  const failure = new Error("trash unavailable");
+  const h = harness({ removePlugin: async () => { throw failure; } });
+  const { outcome } = await answerCard({ tool: h.tool("plugins_uninstall"), surfaceExchanges: h.surfaceExchanges, input: { family: "site-runtime", pluginId: PLUGIN_ID }, decision: "confirm" });
+  await assert.rejects(outcome, (error: unknown) => error === failure || (error instanceof Error && /trash unavailable/.test(error.message)));
+});
+
+test("an unreadable activation record on a disable says the plugin was NOT disabled", async (t) => {
+  t.mock.method(console, "warn", () => undefined);
+  const h = harness({
+    layout: layoutAt("/ws-root"),
+    injected: { setAgentPluginEnabled: async () => { throw new AgentPluginActivationsUnreadableError({ filePath: "/ws-root/activations.json", reason: "not JSON" }); } },
+  });
+  const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: false }), {}) as { reason: string; note: string };
+  assert.equal(result.reason, "activations-unreadable");
+  assert.match(result.note, /'higgsfield' was NOT disabled\./);
+});
