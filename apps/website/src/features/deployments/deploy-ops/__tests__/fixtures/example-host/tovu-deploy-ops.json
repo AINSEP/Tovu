@@ -1,1 +1,4 @@
-{ "schemaVersion": 1, "platforms": [{ "id": "example-host", "label": "Example Host", "module": "deploy-ops/example-host.mjs", "hosts": ["api.example-host.dev"] }] }
+{ "schemaVersion": 1, "platforms": [
+  { "id": "example-host", "label": "Example Host", "module": "deploy-ops/example-host.mjs", "hosts": ["api.example-host.dev"] },
+  { "id": "example-observer", "label": "Example Observer", "module": "deploy-ops/example-observer.mjs", "hosts": ["api.example-host.dev"] }
+] }
