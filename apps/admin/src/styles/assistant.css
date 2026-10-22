@@ -492,7 +492,10 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
    a divider between groups, and a check-mark column that is always laid out (hidden when off) so a
    toggle never shifts the rows. The row's own fill stays the hover cue; keyboard focus also gets the
    admin's focus ring, inset so the popup's edge never clips it. */
-.dock-settings-menu { min-width: 11rem; }
+.dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
+/* The popup is a flex column; once it is height-capped and scrolls, rows must not shrink (the 1px
+   separators would collapse to nothing). */
+.dock-settings-menu > * { flex-shrink: 0; }
 .dock-settings-menu-row { display: flex; align-items: center; }
 .dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
 .dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }

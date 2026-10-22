@@ -75,7 +75,18 @@ function popupStyle(position: DockMenu["position"]): CSSProperties {
     left: position ? position.left : -9999,
     visibility: position ? "visible" : "hidden",
     transform: position?.placement === "above" ? "translateY(-100%)" : undefined,
+    maxHeight: popupMaxHeight(position),
   };
+}
+
+/**
+ * Caps the menu to the room on its side of the gear so it scrolls instead of running off-screen
+ * when neither side fits it (a short phone viewport with the dock sheet half-way up). The hook
+ * checks "fits below" first, so a capped below-menu still fits below on re-measure and never flips.
+ */
+function popupMaxHeight(position: DockMenu["position"]): string | undefined {
+  if (!position) return undefined;
+  return position.placement === "above" ? `${Math.max(0, position.top - 4)}px` : `calc(100dvh - ${position.top + 8}px)`;
 }
 
 function MenuSection({ section, separated, firstIndex, helpId, menu }: {
