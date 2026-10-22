@@ -483,12 +483,18 @@ function filesHaveSameBytes(pathA: string, pathB: string): boolean {
     try {
       const chunkA = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
       const chunkB = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
-      for (let position = 0; ; position += COMPARE_CHUNK_BYTES) {
-        const readA = readFullChunk(fdA, chunkA, position);
+      // A short chunk (readA < COMPARE_CHUNK_BYTES) means end of file: once it compared equal, so are
+      // the files. A do/while rather than `for (;;)` with a return inside, so no unreachable
+      // fall-through follows the loop.
+      let position = 0;
+      let readA: number;
+      do {
+        readA = readFullChunk(fdA, chunkA, position);
         const readB = readFullChunk(fdB, chunkB, position);
         if (readA !== readB || !chunkA.subarray(0, readA).equals(chunkB.subarray(0, readB))) return false;
-        if (readA < COMPARE_CHUNK_BYTES) return true;
-      }
+        position += COMPARE_CHUNK_BYTES;
+      } while (readA === COMPARE_CHUNK_BYTES);
+      return true;
     } finally {
       closeSync(fdB);
     }
@@ -945,6 +951,8 @@ function resolveCopyOrRenameTargets(
 /**
  * Duplicate one file inside a theme's folder to a new path also inside it, byte-for-byte.
  *
+ * @param optional.copyFile - The exclusive copy primitive; defaults to `node:fs` `copyFileSync`.
+ *   A seam so the lost-race (`EEXIST`) mapping below is testable without a real concurrent copy.
  * @returns The absolute destination path written.
  * @throws {ThemePathError} On containment failure for either path, a missing/non-file source, or a
  * destination that already exists. There is no size limit.
@@ -953,8 +961,9 @@ function resolveCopyOrRenameTargets(
  */
 export function copyThemeFile(
   required: { themeDir: string; themesRoot: string; sourcePath: string; destPath: string },
-  _optional: Record<string, never> = {}
+  optional: { copyFile?: typeof copyFileSync } = {}
 ): string {
+  const { copyFile = copyFileSync } = optional;
   const { source, dest } = resolveCopyOrRenameTargets(required);
   mkdirSync(dirname(dest), { recursive: true });
   try {
@@ -966,7 +975,7 @@ export function copyThemeFile(
     // a known, narrower, accepted gap there — this domain is a single authenticated operator's admin
     // tool, not a multi-tenant race target, and every other write in this file already accepts the
     // same class of risk (`writeThemeFile` has no equivalent guard at all).
-    copyFileSync(source, dest, fsConstants.COPYFILE_EXCL);
+    copyFile(source, dest, fsConstants.COPYFILE_EXCL);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "EEXIST") {
       throw new ThemePathError(`path '${required.destPath}' already exists in this theme`);

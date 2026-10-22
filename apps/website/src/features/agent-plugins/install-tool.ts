@@ -131,7 +131,9 @@ async function updateArchivePlugin(
     });
     // No preview here: its replace checks refuse an enabled plugin, which an update keeps enabled.
     // The trust warning is the same static text install's preview carries, minus "stays OFF".
-    return { updated: !result.alreadyInstalled, alreadyInstalled: result.alreadyInstalled, enabled: result.enabled ?? null, warnings: result.warnings ?? [],
+    // `enabled`/`warnings` are always present on the update path (`UpdatedUploadedAgentPlugin`: the
+    // lifecycle owner's `updateAgentPlugin` result carries both), so no `null`/`[]` fallback is needed.
+    return { updated: !result.alreadyInstalled, alreadyInstalled: result.alreadyInstalled, enabled: result.enabled, warnings: result.warnings,
       plugin: { id: result.plugin.pluginId, ...(result.plugin.version ? { version: result.plugin.version } : {}) },
       warning: UPLOADED_AGENT_PLUGIN_TRUST_WARNING,
       note: result.alreadyInstalled ? "These exact bytes are already installed; nothing changed."

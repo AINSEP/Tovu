@@ -18,6 +18,11 @@ test('TW3 local classification preserves each dynamic rule and rejects inherited
   assert.throws(() => approvalClassFor({ toolId: 'toString', input: {} }), /has no approval classification/);
 });
 
+test('TW3 a rule name that is only inherited (not an own classifier) falls back to the static class', () => {
+  const inherited = 'toString' as unknown as ToolApprovalPolicy['rule'];
+  assert.equal(approvalClassFor({ toolId: 'page.click', input: { method: 'DELETE' } }, { policy: { class: 'edit', confirmation: 'direct', rule: inherited } }), 'edit');
+});
+
 test('TW3 federated classification pins action, declaration, hint and fallback precedence', () => {
   const cases: [Parameters<typeof federatedApprovalClassFor>[0], string][] = [
     [{ input: { action: 'trash delete' } }, 'trash'],

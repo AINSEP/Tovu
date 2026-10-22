@@ -63,6 +63,10 @@ test("sites move-home forwards the folder and refuses one outside the former def
   await assert.rejects(parse(["sites", "move-home", missing]));
 });
 
+test("sites move-home also accepts --projects-path and still refuses a folder outside the former default home", async () => {
+  await assert.rejects(parse(["sites", "move-home", missing, "--projects-path", path.join(root, "projects.json")]));
+});
+
 test("theme validate forwards --profile", async () => {
   await assert.rejects(parse(["theme", "validate", missing, "--profile", "strict"]), { name: "ValidationError", message: /--profile must be one of/ });
 });

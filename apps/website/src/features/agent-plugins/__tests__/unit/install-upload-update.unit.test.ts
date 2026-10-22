@@ -275,3 +275,16 @@ test("install: an ordinary install or replacement is refused while an update jou
     assert.deepEqual(await liveDigests(layout), [old.archiveDigest]);
   });
 });
+
+test("update: a host without MCP effects is refused as a wiring fault and the old package stays live and OFF", async () => {
+  await withLayout(async (layout) => {
+    const old = await installFirst(layout, await packageZip("1.0.0"));
+    const next = await packageZip("1.1.0");
+    await assert.rejects(() => installUploadedAgentPlugin(
+      { archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", update: { pluginId: PLUGIN, expectedOldDigest: old.archiveDigest } },
+      { layout, snapshotSettings: recordingSnapshot().snapshotSettings },
+    ), /does not provide network installation or MCP provisioning/);
+    assert.deepEqual(await liveDigests(layout), [old.archiveDigest]);
+    assert.equal((await readActivation(layout)).enabled, false, "a disabled plugin stays disabled");
+  });
+});

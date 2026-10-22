@@ -234,3 +234,31 @@ test("createDefaultConnect: a resolved stdio launch is handed to the injected sp
   await assert.rejects(connect({ config: { ...CONFIG, connectionId: "closing-vendor" }, launch: { command: "vendor-mcp", args: ["--stdio"], env: {} } }));
   assert.deepEqual(spawned, [resolved], "the resolver's launch, not the raw spec, is what gets spawned");
 });
+
+test("attachFederatedMcpTools without a logger reports through the console with the agent-daemon prefix", async (t) => {
+  const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
+  const logged: string[] = [];
+  const warned: string[] = [];
+  t.mock.method(console, "log", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
+  t.mock.method(console, "warn", (...args: unknown[]) => { warned.push(args.map(String).join(" ")); });
+  const deps = { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: WORKSPACE_ID };
+
+  const ok = await attachFederatedMcpTools({
+    registry: fakeRegistry(), deps, connections: [], extraConnections: [{ config: { ...CONFIG, allowedToolNames: ["ping"] }, launch: HTTP_LAUNCH }],
+    connect: async () => ({
+      listTools: async () => [{ name: "ping", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } }],
+      callTool: async () => ({ content: [] }),
+      close: async () => undefined,
+    }),
+  });
+  const failed = await attachFederatedMcpTools({
+    registry: fakeRegistry(), deps, connections: [], extraConnections: [HTTP_CONNECTION],
+    connect: async () => { throw new Error("vendor unreachable"); },
+  });
+
+  assert.equal(ok.connectFailures.length, 0);
+  assert.equal(failed.connectFailures.length, 1);
+  assert.ok(logged.length + warned.length > 0, "the default logger wrote something");
+  for (const line of [...logged, ...warned]) assert.match(line, /^\[agent-daemon\] /);
+  assert.ok(warned.some((line) => line.includes("hosted-vendor")), `the failed connection is named in a warning; got ${JSON.stringify(warned)}`);
+});

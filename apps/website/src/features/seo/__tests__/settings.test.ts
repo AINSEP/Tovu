@@ -510,3 +510,24 @@ test("setSeoSettings: a robots rule 'allow' with exactly 100 entries is accepted
   assert.deepEqual(result.robotsRules, expected);
   assert.deepEqual((await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE })).robotsRules, expected);
 });
+
+test("getSeoSettings: with no registered definitions every key falls back to its safe default", async () => {
+  const settings = await getSeoSettings({ settingsRepo: new InMemorySettingsRepo() }, { workspaceId: WORKSPACE });
+  assert.equal(settings.titleTemplate, "%s");
+  assert.deepEqual(settings.robotsRules, []);
+  assert.deepEqual(settings.defaultRobots, { noindex: false, nofollow: false });
+  assert.equal(settings.sitemapEnabled, true);
+  assert.equal(settings.defaultDescription, undefined);
+});
+
+test("setSeoSettings: an ISO-only clock is adapted, and a robots change invalidates the sitemap once", async () => {
+  const deps = await seeded();
+  const invalidated: string[] = [];
+  const result = await setSeoSettings({ ...deps, clock: { nowIso: () => "2026-07-14T00:00:00.000Z" }, invalidateSitemap: async ({ workspaceId }: { workspaceId: string }) => { invalidated.push(workspaceId); } } as never, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { defaultRobots: { noindex: true, nofollow: false } },
+  });
+  assert.deepEqual(result.defaultRobots, { noindex: true, nofollow: false });
+  assert.deepEqual(invalidated, [WORKSPACE]);
+});

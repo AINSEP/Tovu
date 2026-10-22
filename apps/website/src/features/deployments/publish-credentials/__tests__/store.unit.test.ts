@@ -11,7 +11,9 @@ import {
   describeCredential,
   hasDefaultForPublish,
   healAccountLabel,
+  invalidatePublishCredentialCompatibility,
   listPublishCredentials,
+  publishHostsForCredential,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
   PublishCredentialSecretStoreUnconfiguredError,
@@ -1089,4 +1091,61 @@ test("the providerId refusal names only hosts that declare a credential; an unkn
     );
   }
   assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "not-installed" }), null);
+});
+
+test("compatibility invalidation drops only the hosts a create (no before) or delete (no after) actually affects", async () => {
+  const registry = await loadBundledDeployTargets(WORKSPACE);
+  const custom = { credentialType: "custom" as const, worksFor: ["vercel"] };
+  const expected = publishHostsForCredential({ registry, credential: { kind: "vendor", provider: null, label: "", meta: custom } });
+  assert.deepEqual(expected, ["vercel"]);
+  for (const edit of [{ after: custom }, { before: custom }]) {
+    const deleted: Array<{ workspaceId: string; target: string }> = [];
+    invalidatePublishCredentialCompatibility({ workspaceId: WORKSPACE, registry, cache: { delete: input => deleted.push(input) }, ...edit });
+    assert.deepEqual(deleted, [{ workspaceId: WORKSPACE, target: "vercel" }]);
+  }
+  const unchanged: unknown[] = [];
+  invalidatePublishCredentialCompatibility({ workspaceId: WORKSPACE, registry, cache: { delete: input => unchanged.push(input) }, before: custom, after: custom });
+  assert.deepEqual(unchanged, []);
+});
+
+test("a host that declares no credential is never offered for a credential, even when its module accepts everything", async () => {
+  const withCredential = pluginOnlyHostRegistry();
+  const credentialless: LoadedDeployTarget = { pluginId: "local", module: { create: () => { throw new Error("not used"); } },
+    descriptor: { id: "local-folder", label: "Local folder", module: "targets/local.mjs", configFields: [] } };
+  const registry: DeployTargetRegistry = { ...withCredential, get: (id) => withCredential.get(id) ?? (id === "local-folder" ? credentialless : undefined), list: () => [credentialless, ...withCredential.list()] };
+  const hosts = publishHostsForCredential({ registry, credential: { kind: "vendor", provider: "fixture", label: "", meta: { credentialType: "vendor", worksFor: ["local-folder", "fixture-host"] } } });
+  assert.equal(hosts.includes("local-folder"), false);
+});
+
+test("resolveDefaultForPublish returns null when the selected default's vault row vanishes between inventory and open", async () => {
+  const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Default", connection: { providerId: "vercel", token: "default-token" } });
+  deps.repo.vault!.find = async () => null;
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
+});
+
+test("a blank-secret update whose stored payload cannot be reopened refuses with the typed storage error and keeps the row", async () => {
+  for (const breakIt of ["missing", "undecryptable"] as const) {
+    const deps = makeDeps();
+    const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pin", connection: { providerId: "vercel", token: "original" } });
+    const find = deps.repo.vault!.find.bind(deps.repo.vault!);
+    let reads = 0;
+    // The first two reads are updatePublishCredential's own existence lookups; the third is the reopen.
+    if (breakIt === "missing") deps.repo.vault!.find = async input => { reads += 1; return reads <= 2 ? find(input) : null; };
+    else deps.sealer = new AesGcmSecretSealer(new BrokenKeyring());
+    await assert.rejects(
+      updatePublishCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "vercel", token: "" } }),
+      PublishCredentialSecretStoreUnconfiguredError,
+    );
+    deps.repo.vault!.find = find;
+    assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.label, "Pin");
+  }
+});
+
+test("resolveForPublish refuses a selected row that carries no sealed payload with the typed storage error, never a half-built connection", async () => {
+  const deps = makeDeps();
+  const saved = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Empty", connection: { providerId: "vercel", token: "t" } });
+  const find = deps.repo.vault!.find.bind(deps.repo.vault!);
+  deps.repo.vault!.find = async input => { const row = await find(input); return row ? { ...row, sealed: null } : null; };
+  await assert.rejects(resolveForPublish(deps, { workspaceId: WORKSPACE, id: saved.id }), PublishCredentialSecretStoreUnconfiguredError);
 });

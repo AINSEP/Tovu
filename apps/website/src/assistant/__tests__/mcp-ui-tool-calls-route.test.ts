@@ -376,8 +376,10 @@ for (const [result, status, body] of [
   [{ executionId: "x", status: "timed-out" }, 504, { error: "'content_post_search' timed out", code: "GATEWAY_TIMEOUT" }],
   [{ executionId: "x", status: "cancelled" }, 500, { error: "'content_post_search' was cancelled before it completed", code: "INTERNAL_ERROR" }],
   [{ executionId: "x", status: "failed" }, 400, { error: "'content_post_search' failed", code: "TOOL_CALL_FAILED" }],
+  [{ executionId: "x", status: "completed", output: { posts: [{ id: "p1" }] } }, 200, { posts: [{ id: "p1" }] }],
+  [{ executionId: "x", status: "failed", error: "query must not be empty" }, 400, { error: "query must not be empty", code: "TOOL_CALL_FAILED" }],
 ] as Array<[ToolExecutionResult, number, unknown]>) {
-  test(`maps a legacy redemption that ends ${result.status}${"output" in result ? "" : " (no output/error)"} to HTTP ${status}`, async (t) => {
+  test(`maps a legacy redemption that ends ${result.status}${"output" in result || "error" in result ? "" : " (no output/error)"} to HTTP ${status}`, async (t) => {
     const { executor, calls } = createFakeToolExecutor(() => result);
     const baseUrl = await startTestServer(buildApp(executor), t);
     const res = await postToolCall(baseUrl, { toolName: "content_post_search", params: { query: "x" } }, LEGACY_HEADERS);

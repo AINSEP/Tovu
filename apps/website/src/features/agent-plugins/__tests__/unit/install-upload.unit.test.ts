@@ -220,3 +220,24 @@ test("L025b host admission surrounds publication and same-byte no-ops", async ()
     assert.equal((candidates[0] as { localId: string }).localId, "hosted");
   });
 });
+
+test("replacing a package that declared no version reports no upgradeFrom, and a version-less candidate previews none", async () => {
+  await withLayout(async layout => {
+    const unversioned = (name: string) => JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name });
+    const old = await buildZipFixture([{ path: "plugin.json", content: unversioned("notes") }]);
+    const next = await buildZipFixture([{ path: "plugin.json", content: manifest("notes", "2.0.0") }]);
+    await install(layout, old);
+    const preview = await previewUploadedAgentPlugin({ archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
+    assert.equal(preview.version, "2.0.0");
+    assert.equal("upgradeFrom" in preview, false, "a version-less predecessor names nothing to upgrade from");
+    const result = await installUploadedAgentPlugin({ archive: next, expectedSha256: sha(next), workspaceId: WORKSPACE, actor: "owner", replace: true }, { layout });
+    assert.equal(result.plugin.version, "2.0.0");
+    assert.deepEqual(result.upgradeFrom ?? [], []);
+    assert.deepEqual(await readdir(layout.forWorkspace(WORKSPACE).pluginPackagesDir({ pluginId: "notes" })), [sha(next)]);
+
+    const fresh = await buildZipFixture([{ path: "plugin.json", content: unversioned("fresh") }]);
+    const freshPreview = await previewUploadedAgentPlugin({ archive: fresh, expectedSha256: sha(fresh), workspaceId: WORKSPACE, actor: "owner" }, { layout });
+    assert.equal(freshPreview.pluginId, "fresh");
+    assert.equal("version" in freshPreview, false);
+  });
+});

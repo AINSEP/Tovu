@@ -28,6 +28,7 @@ import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
 import type { StagedBundleRecord } from "../bundle-staging.js";
 import {
   buildPublishContentImportHooks,
+  PublishContentBundleNotFoundError,
   type PublishContentApplyPort,
   type PublishContentDbOpsPort,
   type PublishContentRestorePointSavePort,
@@ -215,4 +216,45 @@ test("publish-content applies the report the gateway verified, not one re-derive
     "the applied report must be the confirmed/verified one — a row confirmed as 'conflict' must never reach apply as 'applied'"
   );
   assert.equal(appliedReport.rows[0]?.writes, false, "a row the operator confirmed as non-writing must not become a write");
+});
+
+/** A minimal hooks bag around `bundleRepo` whose apply port records exactly what it was handed. */
+function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: Record<string, unknown>, seen: Array<Record<string, unknown>>) {
+  let nextId = 0;
+  const idGen = { newId: () => `min-${++nextId}` };
+  const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
+  const hooks = buildPublishContentImportHooks({
+    workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, clock, idGen,
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo() } }, ...extraDeps } as never,
+    bundleRepo, baselineRepo: new InMemoryPublishContentBaselineRepo(), blobStore: { exists: async () => true },
+    dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-min", watermarkAtCapture: 1 }) },
+    restorePointsRepo: { save: async () => {} },
+    applyPort: { applyReport: async (args) => { seen.push({ ...args }); return { runId: "run-min", changeSetIds: [], retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] }; } },
+  });
+  return { hooks, deps: { clock, idGen, authorize: async () => ({ allowed: true, reason: "ok" }), tokens: new InMemoryTokenStore() } };
+}
+
+test("planning a bundle that was never staged (or expired) is refused as not found", async () => {
+  registerFakeHandler(new Map());
+  const { hooks, deps } = minimalHooks(new InMemoryPublishContentBundleRepo(), {}, []);
+  await assert.rejects(plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks }), (err: unknown) =>
+    err instanceof PublishContentBundleNotFoundError && err.message.includes(`bundle '${BUNDLE_ID}' was not found`));
+});
+
+test("execute threads this request's backstop and authorize into the apply port, and omits them when absent", async () => {
+  for (const extra of [{}, { backstop: { marker: "backstop" }, authorize: async () => ({ allowed: true, reason: "attenuated" }) }]) {
+    resetPublishContentContributorsForTests();
+    registerFakeHandler(new Map([[ENTITY_ID, { version: 1, hash: BASELINE_HASH }]]));
+    const bundleRepo = new InMemoryPublishContentBundleRepo();
+    await bundleRepo.save(stagedBundle());
+    const seen: Array<Record<string, unknown>> = [];
+    const { hooks, deps } = minimalHooks(bundleRepo, extra, seen);
+    const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
+    const token = await confirm({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, planId: planned.planId, planHash: planned.planHash });
+    await execute({ deps, principalId: ACTOR_ID, principalKind: "user", hooks, confirmationToken: token.confirmationToken });
+    assert.equal(seen.length, 1);
+    assert.equal("backstop" in seen[0]!, "backstop" in extra);
+    assert.equal("authorize" in seen[0]!, "authorize" in extra);
+    if ("backstop" in extra) assert.equal(seen[0]!.backstop, extra.backstop);
+  }
 });

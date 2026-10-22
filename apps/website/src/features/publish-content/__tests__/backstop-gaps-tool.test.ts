@@ -30,3 +30,11 @@ test("gap reads enforce publish_content.read and return an empty list before sch
   assert.deepEqual(await tool.handler({ principal: { id: "assistant" }, input: {} } as ToolExecutionContext), { gaps: [] });
   assert.deepEqual(permissions, ["publish_content.read"]);
 });
+
+test("gap reads accept an absent input, and answer no gaps when the host wires no backstop audit", async () => {
+  const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), publishTrustProvisioning: {},
+    makePublishContentDeps: () => ({}) } as unknown as PublishContentToolDeps;
+  const tool = buildPublishContentRegistrations(deps, {} as never).find((r) => r.descriptor.id === "publish_backstop_gaps")!;
+  assert.deepEqual(await tool.handler({ principal: { id: "assistant" }, input: undefined } as ToolExecutionContext), { gaps: [] });
+  await assert.rejects(tool.handler({ principal: { id: "assistant" }, input: { extra: true } } as ToolExecutionContext), /extra/);
+});

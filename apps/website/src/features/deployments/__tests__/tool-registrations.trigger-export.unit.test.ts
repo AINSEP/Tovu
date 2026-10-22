@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { getExportRunSnapshot, type ExportRunReportLike } from "../export-run.js";
-import { buildDeploymentsRegistrations, contributeDeploymentsTools, deploymentsDerivedRisk, type DeploymentsToolDeps } from "../tool-registrations.js";
+import { buildDeploymentsRegistrations, contributeDeploymentsTools, deploymentsDerivedRisk, pickExportSiteOptions, type DeploymentsToolDeps } from "../tool-registrations.js";
 
 /** deployment_trigger_export's input contract and option forwarding, the Dockerfile conflict text
  *  for a missing file, and the contributor shape — through the registered handlers. */
@@ -63,4 +63,12 @@ test("contributeDeploymentsTools contributes the deployments registrations with 
   assert.equal(contributor.domain, "deployments");
   assert.equal(contributor.build, buildDeploymentsRegistrations);
   assert.equal(contributor.risk, deploymentsDerivedRisk);
+});
+
+test("pickExportSiteOptions omits an absent clean/basePath and never copies extra keys such as routeDeps", () => {
+  assert.deepEqual(pickExportSiteOptions({ outputDir: "/out" }), { outputDir: "/out" });
+  assert.equal("clean" in pickExportSiteOptions({ outputDir: "/out" }), false);
+  assert.deepEqual(pickExportSiteOptions({ outputDir: "/out", clean: false, basePath: "/b" }), { outputDir: "/out", clean: false, basePath: "/b" });
+  const withExtra = { outputDir: "/out", clean: true, routeDeps: { secret: 1 } };
+  assert.deepEqual(pickExportSiteOptions(withExtra), { outputDir: "/out", clean: true });
 });

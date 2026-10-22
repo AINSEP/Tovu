@@ -2,7 +2,7 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -15,7 +15,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
 
-import { deriveAgentPluginConnectionId, planAgentPluginMcpFederation, provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../../federate-mcp.js";
+import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
@@ -533,3 +533,113 @@ for (const failure of [new Error("adoption unavailable"), "adoption unavailable"
     assert.deepEqual(await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "existing" }), before);
   });
 }
+
+/** Installs one plugin package from in-memory files through the real install pipeline. */
+async function installMcpPlugin(workspaceId: string, pluginId: string, mcpServers: Record<string, unknown>, pluginExtensions?: Record<string, unknown>) {
+  const files = {
+    "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0", ...(pluginExtensions ? { extensions: pluginExtensions } : {}) }),
+    "mcp.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers }),
+  };
+  const archive = Buffer.from(JSON.stringify(files));
+  return installAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId, archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: {
+    async *entries() {
+      for (const [entryPath, text] of Object.entries(files)) {
+        const bytes = Buffer.from(text);
+        yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } };
+      }
+    },
+  } });
+}
+
+async function withPluginsDir(run: () => Promise<void>): Promise<void> {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-mcp-bundled-only-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  try {
+    await run();
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+}
+
+test("planAgentPluginMcpFederation: a remote server the trust rule does not auto-admit is skipped, never planned", () => {
+  const seen: string[] = [];
+  const plan = planAgentPluginMcpFederation({ servers: { main: REMOTE_SERVER, stdio: STDIO_SERVER } }, {
+    classifyTrust: (server) => { seen.push(server.type); return "requires-confirmation"; },
+  });
+  assert.deepEqual(plan.toUpsert, []);
+  assert.deepEqual(plan.skipped.map(s => s.serverKey), ["main", "stdio"]);
+  assert.match(plan.skipped[0]?.reason ?? "", /trust classification is not 'auto-admit'/);
+  assert.match(plan.skipped[1]?.reason ?? "", /'stdio' local process/);
+  assert.deepEqual(seen, ["streamable-http"], "stdio is narrowed away before the trust rule is consulted");
+});
+
+test("planAgentPluginMcpFederation: a server key with no usable characters is skipped with a reason", () => {
+  const plan = planAgentPluginMcpFederation({ servers: { "!!!": REMOTE_SERVER } });
+  assert.deepEqual(plan.toUpsert, []);
+  assert.deepEqual(plan.skipped, [{ serverKey: "!!!", reason: "server key '!!!' has no valid characters to derive a connection id from" }]);
+});
+
+test("resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers", async () => {
+  await withPluginsDir(async () => {
+    const layout = resolveAgentPluginLayout();
+    const resolve = (workspaceId: string, pluginId: string) => resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId, pluginId, bundledOnly: true }));
+    // Installed but never seeded by the build: no read trust source.
+    await installMcpPlugin("ws-installed", "widget", { main: REMOTE_SERVER });
+    assert.deepEqual(await resolve("ws-installed", "widget"), {});
+    // Seeded digest recorded, but that package is not installed in this workspace.
+    await mkdir(layout.forWorkspace("ws-missing").root, { recursive: true });
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-missing").root, seeded: [{ pluginId: "widget", archiveDigest: "0".repeat(64) }] });
+    assert.deepEqual(await resolve("ws-missing", "widget"), {});
+    // Seeded and installed: the declared servers come back.
+    const seeded = await installMcpPlugin("ws-seeded", "widget", { main: REMOTE_SERVER });
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-seeded").root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
+    assert.deepEqual({ ...await resolve("ws-seeded", "widget") }, { main: REMOTE_SERVER });
+  });
+});
+
+test("resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise", async () => {
+  await withPluginsDir(async () => {
+    const layout = resolveAgentPluginLayout();
+    const read = (workspaceId: string, url: string) => resolveAgentPluginReadOnlyRemoteNames({ agentPluginLayout: layout, workspaceId, pluginId: "widget", serverId: "main", url });
+    const extensions = { tovu: { mcpServers: { main: { tovuDefaultTools: { write: [], read: ["list_things"] } } } } };
+    const seeded = await installMcpPlugin("ws-1", "widget", { main: REMOTE_SERVER }, extensions);
+    await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace("ws-1").root, seeded: [{ pluginId: "widget", archiveDigest: seeded.archiveDigest }] });
+    assert.deepEqual([...await read("ws-1", "https://mcp.example.com/mcp")], ["list_things"]);
+    assert.deepEqual([...await read("ws-1", "https://moved.example.com/mcp")], [], "an edited endpoint never inherits read trust");
+    await installMcpPlugin("ws-2", "widget", { main: REMOTE_SERVER }, extensions);
+    assert.deepEqual([...await read("ws-2", "https://mcp.example.com/mcp")], [], "an arbitrary install is never a read-trust source");
+  });
+});
+
+test("findAgentPluginMcpServerDefaults matches stored identity and exact endpoint only", () => {
+  const defaults = { write: ["create_thing"], read: ["list_things"] };
+  const servers: Record<string, McpServerConfig> = {
+    helper: STDIO_SERVER,
+    "Main Server": { ...REMOTE_SERVER, tovuDefaultTools: defaults },
+    plain: REMOTE_SERVER,
+  };
+  assert.deepEqual(findAgentPluginMcpServerDefaults(servers, { serverId: "main-server", url: REMOTE_SERVER.url }), defaults);
+  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "main-server", url: "https://elsewhere.example/mcp" }), null);
+  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "plain", url: REMOTE_SERVER.url }), null, "a match that declares no defaults");
+  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "helper", url: null }), null, "stdio never supplies defaults");
+  assert.equal(findAgentPluginMcpServerDefaults(servers, { serverId: "unknown", url: REMOTE_SERVER.url }), null);
+});
+
+test("isEmptyJsonList treats null, blank, non-array and unreadable lists as empty", () => {
+  for (const raw of [null, "", "[]", "{}", "\"text\"", "not json"]) assert.equal(isEmptyJsonList(raw), true, String(raw));
+  assert.equal(isEmptyJsonList('["list_things"]'), false);
+});
+
+test("provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url", async () => {
+  const deps = makeDeps();
+  await provisionAgentPluginMcpServers(deps, { workspaceId: "ws-1", pluginId: "plugin-a", servers: { main: REMOTE_SERVER }, principalId: "principal-1" });
+  const row = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "main" });
+  assert.ok(row);
+  await deps.repo.upsert({ ...row, url: null });
+  const result = await provisionAgentPluginMcpServers(deps, { workspaceId: "ws-1", pluginId: "plugin-b", servers: { main: REMOTE_SERVER }, principalId: "principal-1" });
+  assert.equal(result.failed.length, 1);
+  assert.match(result.failed[0]?.reason ?? "", /owned by plugin 'plugin-a' at a different endpoint \(url='',/);
+});

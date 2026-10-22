@@ -164,12 +164,24 @@ export interface InstalledUploadedAgentPlugin {
   readonly upgradeFrom?: readonly string[];
 }
 
+/** An explicit update's result: the lifecycle owner's `updateAgentPlugin` always reports the
+ *  plugin's kept on/off state and its warnings, so neither is optional on this path. */
+export type UpdatedUploadedAgentPlugin = InstalledUploadedAgentPlugin & { readonly enabled: boolean; readonly warnings: readonly string[] };
+
 /**
  * Installs one uploaded Agent Plugin `.zip`, switched off.
  * @throws {AgentPluginInstallError} Size, digest, manifest and every extraction refusal.
  * @throws {AgentPluginUploadError} An unreadable archive, or an id another package already holds.
  * @complexity O(e + b) in entry count and extracted bytes, both capped by `install.ts`.
  */
+export function installUploadedAgentPlugin(
+  required: InstallUploadedAgentPluginRequired & { readonly update: NonNullable<InstallUploadedAgentPluginRequired["update"]> },
+  optional: InstallUploadedAgentPluginOptional,
+): Promise<UpdatedUploadedAgentPlugin>;
+export function installUploadedAgentPlugin(
+  required: InstallUploadedAgentPluginRequired,
+  optional: InstallUploadedAgentPluginOptional,
+): Promise<InstalledUploadedAgentPlugin>;
 export async function installUploadedAgentPlugin(
   required: InstallUploadedAgentPluginRequired,
   optional: InstallUploadedAgentPluginOptional,
@@ -234,7 +246,7 @@ export async function installUploadedAgentPlugin(
 async function updateUploadedAgentPlugin(
   required: InstallUploadedAgentPluginRequired & { readonly update: NonNullable<InstallUploadedAgentPluginRequired["update"]>; readonly archiveReader: AgentPluginArchiveReaderPort; readonly candidateId: string },
   optional: InstallUploadedAgentPluginOptional,
-): Promise<InstalledUploadedAgentPlugin> {
+): Promise<UpdatedUploadedAgentPlugin> {
   if (required.candidateId !== required.update.pluginId) throw new AgentPluginUpdateError({ code: "PLUGIN_ID_MISMATCH", message: "This package is a different plugin. Choose a package for the plugin you are updating." });
   const snapshotSettings = optional.snapshotSettings;
   if (!snapshotSettings) throw new Error("Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.");

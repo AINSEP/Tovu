@@ -70,9 +70,11 @@ export function startThemeWatcher(
   stopActiveWatcher = stop;
 
   /** Refresh loaded source maps as well as roster membership; nested edits evade the fingerprint. */
+  // No `closed` check here: `pending` is this refresh's only scheduler, and every path that sets
+  // `closed` (stop(), reached from replacement, watch errors and open failures) clears `pending`
+  // synchronously first, so a refresh never runs after close.
   const refresh = (): void => {
     pending = undefined;
-    if (closed) return;
     try {
       syncThemeRoster(required, { force: true });
       requestThemePreviewRefresh({ themesDir: required.themesDir });

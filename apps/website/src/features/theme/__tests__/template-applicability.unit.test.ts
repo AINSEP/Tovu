@@ -54,3 +54,10 @@ test("templateFor: inherited object names remain unlisted and apply to both kind
     assert.deepEqual(applicableThemeTemplates({ manifest, kind }), manifest.templates);
   }
 });
+
+test("templateFor without any declared templates: an empty mapping parses, any named template is refused", () => {
+  assert.deepEqual(parseTemplateFor({ value: {} }), {});
+  assert.throws(() => parseTemplateFor({ value: { "landing.html": ["page"] } }), {
+    message: "theme.json templateFor 'landing.html' is not listed in templates",
+  });
+});

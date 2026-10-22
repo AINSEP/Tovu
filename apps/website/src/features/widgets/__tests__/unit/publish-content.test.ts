@@ -135,3 +135,91 @@ test("widget-area: a placement naming a widget the destination lacks is blocked 
   assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: "widget_area" }), []);
   assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }), [], "a blocked apply must leave no entries of any type");
 });
+
+test("widget: a contact-form widget's form reference travels as the form's slug and lands as the destination form's id", async () => {
+  const { src, dst, a } = await sites();
+  const form = (id: string) => ({ id, workspaceId: WORKSPACE_ID, name: "Contact", slug: "contact", fields: [], notify: { enabled: false, recipients: [] }, status: "active",
+    createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z", version: 1 }) as unknown as Parameters<InMemoryFormDefinitionRepo["create"]>[0];
+  await src.ports.forms.create(form("form-src"));
+  await dst.ports.forms.create(form("form-dst"));
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  const payload = (config: Record<string, unknown>) => ({ ext: { widget: { payload: JSON.stringify({ widgetType: "contact-form", config, status: "active" }) } } });
+  await src.ports.entries.save({ ...row, fieldsJson: payload({ formDefinitionId: "form-src" }) });
+
+  const packed = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
+  assert.match(JSON.stringify(packed?.state), /"formDefinitionId":"contact"/, "the packed reference is the portable slug");
+  await roundTrip(src.site, dst.site);
+  assert.match(JSON.stringify((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.fieldsJson), /\\"formDefinitionId\\":\\"form-dst\\"/);
+});
+
+test("widget/widget-area references: a widget names the media its config uses; an area names the widgets it places", async () => {
+  const { src, a, b } = await sites();
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  await src.ports.entries.save({ ...row, fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "text", config: { body: '<img src="/media/hero-key/original">' }, status: "active" }) } } } });
+  const entities = await packAll(src.site);
+  const byType = new Map([["widget", contributeWidgetPublish().build(src.site)], ["widget-area", contributeWidgetAreaPublish().build(src.site)]] as const);
+  const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const area = entities.find((e) => e.entityType === "widget-area")!;
+  const unknownType = { ...widget, state: { ...widget.state, widgetType: "no-such-widget-type" } };
+  assert.deepEqual(await byType.get("widget")!.references!(unknownType), [], "an unregistered widget type references nothing");
+  assert.deepEqual(await byType.get("widget")!.references!(widget), [{ entityType: "media", key: "hero-key" }]);
+  const areaRefs = (await byType.get("widget-area")!.references!(area)).map((r) => JSON.stringify(r));
+  assert.ok(areaRefs.some((r) => r.includes(a.id)) && areaRefs.some((r) => r.includes(b.id)), `area references name both placed widgets: ${areaRefs.join(" ")}`);
+});
+
+test("widget precheck refuses a widget type the destination lacks, and settings its schema rejects", async () => {
+  const { src, dst, a } = await sites();
+  const entities = await packAll(src.site);
+  const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const others = entities.filter((e) => e !== widget && e.entityType === "widget");
+  const reasonFor = async (state: Record<string, unknown>) =>
+    (await plan([...others, { ...widget, state: { ...widget.state, ...state } }], dst.site)).rows.find((r) => r.entityId === a.id);
+
+  const unknown = await reasonFor({ widgetType: "no-such-widget-type" });
+  assert.equal(unknown?.outcome, "blocked");
+  assert.equal(unknown?.reason, `widget '${a.id}': widget type 'no-such-widget-type' is not installed on the destination`);
+  const invalid = await reasonFor({ config: { body: 42 } });
+  assert.equal(invalid?.outcome, "blocked");
+  assert.equal(invalid?.reason, `widget '${a.id}': its settings do not fit the destination's 'text' widget`);
+});
+
+test("widget references name configured form, menu and term references, and tolerate a widget with no config", async () => {
+  const { src, a } = await sites();
+  const handler = contributeWidgetPublish().build(src.site);
+  const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const refs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } });
+  assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);
+  assert.deepEqual(await handler.references!({ ...widget, state: { ...widget.state, config: undefined } }), []);
+  const htmlRefs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", html: '<img src="/media/html-key/original">' } } });
+  assert.deepEqual(htmlRefs, [{ entityType: "media", key: "html-key" }], "media inside a raw-html config field is referenced too");
+});
+
+test("a contact-form reference to a form the source cannot find packs unchanged", async () => {
+  const { src, a } = await sites();
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  await src.ports.entries.save({ ...row, fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "contact-form", config: { formDefinitionId: "gone-form" }, status: "active" }) } } } });
+  const packed = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
+  assert.match(JSON.stringify(packed?.state), /"formDefinitionId":"gone-form"/);
+});
+
+test("widget-area: a placement change on the source updates the destination's existing area in place (forced)", async () => {
+  const { src, dst, a, b } = await sites();
+  await roundTrip(src.site, dst.site);
+  const binding = await src.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
+  assert.ok(binding);
+  const area = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
+  assert.ok(area);
+  const reordered = [{ placementId: "p-2", widgetEntryId: a.id, enabled: true }, { placementId: "p-1", widgetEntryId: b.id, enabled: true }];
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
+
+  const entities = await packAll(src.site);
+  await applyReport(await plan(entities, dst.site, ["widget-area:sidebar"]), entities, dst.site);
+  const dstBinding = await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
+  assert.ok(dstBinding);
+  const dstArea = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: dstBinding.areaEntryId });
+  assert.ok(dstArea);
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: dstArea.fieldsJson }).doc.placements, reordered);
+});

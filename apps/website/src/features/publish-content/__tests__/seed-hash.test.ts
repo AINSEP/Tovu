@@ -67,3 +67,12 @@ test("an inspect() that throws against the seed answers null instead of rejectin
 
   assert.equal(await lookup({ entityType: "page", entityId: "p-1" }), null);
 });
+
+test("a type the registry no longer knows answers null without inspecting anything", async () => {
+  let inspected = 0;
+  registerInspect("page", async () => { inspected += 1; return { hash: "page-hash" } as never; });
+  const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps });
+
+  assert.equal(await lookup({ entityType: "retired-type", entityId: "r-1" }), null);
+  assert.equal(inspected, 0);
+});

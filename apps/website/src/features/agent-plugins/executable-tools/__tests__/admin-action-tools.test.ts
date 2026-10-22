@@ -24,13 +24,14 @@ const surface: LoadedAdminSurface = {
 async function fixture(authorize: AuthorizeFn = allowAll) {
   const registry = createToolRegistry({});
   let active = true;
+  let listed: LoadedAdminSurface = surface;
   let calls = 0;
   const handlers = { 'sign-in': async () => { calls++; return 'https://auth.example.test/start'; }, status: async () => 'connected', disconnect: async () => 'disconnected' };
   const host: AgentPluginExecutableToolHost = {
     loadContributions: async () => ({ items: [], refusals: [] }),
     connections: fakeConnections({ accountId: 'alice' }).connections, http: fakeHttp().http,
     limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => [], issuedTokens: createIssuedTokenMemories(),
-    adminSurfaces: { source: { list: async () => active ? [surface] : [] }, host: {
+    adminSurfaces: { source: { list: async () => active ? [listed] : [] }, host: {
       refresh: async () => [], handlersFor: () => handlers, bootstrapData: async () => null,
     } },
   };
@@ -39,7 +40,7 @@ async function fixture(authorize: AuthorizeFn = allowAll) {
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });
   const registered = await register();
-  return { registry, executor: createToolExecutor({ registry }), surfaces, registered, register, handlers, host, calls: () => calls, disable: () => { active = false; } };
+  return { registry, executor: createToolExecutor({ registry }), surfaces, registered, register, handlers, host, calls: () => calls, disable: () => { active = false; }, relist: (next: LoadedAdminSurface) => { listed = next; } };
 }
 const SIGN_IN = 'p_acme_office__account_sign_in';
 
@@ -99,4 +100,47 @@ test('invalid schema input cannot reach a handler or create a card', async () =>
     const result = await f.executor.execute({ toolId: SIGN_IN, principal: { id: 'owner' }, run: { id: 'invalid' }, input: { payload: { extra: 'refuse' } } }, { emitSurface: async () => { emitted = true; } });
     assert.notEqual(result.status, 'completed'); assert.equal(emitted, false); assert.equal(f.calls(), 0);
   } finally { f.registered.dispose(); }
+});
+test('a surface whose declaration changed before confirmation is refused, and its handler never runs', async () => {
+  const f = await fixture();
+  try {
+    const call = await startConfirmingCall(f, SIGN_IN, { payload: {} });
+    f.relist({ ...surface, descriptor: { ...surface.descriptor, title: 'Account (changed)' } });
+    call.answer('confirm');
+    const result = await call.pending;
+    assert.notEqual(result.status, 'completed');
+    assert.match(JSON.stringify(result), /no longer available/);
+    assert.equal(f.calls(), 0);
+  } finally { f.registered.dispose(); }
+});
+test('a switched-off plugin denies its read admin action before the admin permission is checked', async () => {
+  const permissions: string[] = [];
+  const f = await fixture(async request => { permissions.push(request.permission); return { allowed: true, reason: 'test' }; });
+  try {
+    const status = f.registry.list({}).find(row => row.id.endsWith('account_status'))!;
+    f.disable();
+    const result = await f.executor.execute({ toolId: status.id, principal: { id: 'owner' }, run: { id: 'switched-off' }, input: { payload: {} } });
+    assert.notEqual(result.status, 'completed');
+    assert.equal(permissions.includes('admin.plugins.enable'), false);
+  } finally { f.registered.dispose(); }
+});
+test('without assistant permission the admin gate is never consulted', async () => {
+  const permissions: string[] = [];
+  const f = await fixture(async request => { permissions.push(request.permission); return { allowed: false, reason: 'test' }; });
+  try {
+    const status = f.registry.list({}).find(row => row.id.endsWith('account_status'))!;
+    const result = await f.executor.execute({ toolId: status.id, principal: { id: 'owner' }, run: { id: 'denied-base' }, input: { payload: {} } });
+    assert.notEqual(result.status, 'completed');
+    assert.equal(permissions.includes('admin.plugins.enable'), false, 'the base policy denied first');
+  } finally { f.registered.dispose(); }
+});
+test('refresh keeps still-listed admin tools; a disposed registration refuses to refresh', async () => {
+  const f = await fixture();
+  const before = f.registry.list({}).map(row => row.id).sort();
+  await f.registered.refresh();
+  assert.deepEqual(f.registry.list({}).map(row => row.id).sort(), before);
+  assert.ok(before.includes(SIGN_IN));
+  f.registered.dispose();
+  assert.deepEqual(f.registry.list({}), []);
+  await assert.rejects(() => f.registered.refresh(), /Plugin tool registration was disposed/);
 });

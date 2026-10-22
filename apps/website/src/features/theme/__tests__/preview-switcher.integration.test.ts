@@ -66,8 +66,30 @@ test("workspace setting defaults disabled; generic writes validate installed ros
   const changed = await readPreviewSwitcher({ ...f.deps, activeThemeId: "preview-three" });
   assert.ok(changed.themes.some(theme => theme.themeId === "preview-three"));
   assert.equal(changed.themes.length, 3);
+  assert.deepEqual(await readPreviewSwitcher({ ...f.deps, activeThemeId: "not-installed" }), { enabled: false, themes: [], position: "top" },
+    "an enabled roster is inert while the active theme is not an installed, valid theme");
   f.deps.themes.splice(0, 2);
   assert.equal((await readPreviewSwitcher({ ...f.deps, activeThemeId: "preview-three" })).enabled, false);
+});
+
+test("the raw settings writer, uncomposed with the theme policy, refuses a preview write instead of storing it", async t => {
+  const f = await fixture(t);
+  const { set } = await import("#src/features/settings/site-title-write");
+  const before = await f.deps.settingsRepo.maxRevisionSeq();
+  const { ValueValidationFailedError } = await import("@jini-ai/core/settings");
+  await assert.rejects(set({ deps: f.writeDeps, input: f.input }), (error: unknown) =>
+    error instanceof ValueValidationFailedError && error.message === "Theme preview write policy is unavailable.");
+  assert.equal(await f.deps.settingsRepo.maxRevisionSeq(), before);
+});
+
+test("assistant tools sync the roster from the site folder first, and pass unexpected write faults through unchanged", async t => {
+  const f = await fixture(t);
+  const fault = new Error("ledger offline");
+  const registrations = buildPreviewSwitcherRegistrations({ deps: { ...f.deps, authorize: f.authorize, principalRepo: f.principals, set: async () => { throw fault; } } });
+  const call = (id: string, input: unknown = {}) => registrations.find(registration => registration.descriptor.id === id)!
+    .handler({ principal: { id: "owner" }, input } as ToolExecutionContext);
+  assert.deepEqual(await call("theme_get_preview_switcher"), { enabled: false, themes: [], position: "top" });
+  await assert.rejects(call("theme_update_preview_switcher", f.config), error => error === fault);
 });
 
 test("assistant get/update use the ledger and active-theme permission; denied and invalid tools never write", async t => {

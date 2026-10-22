@@ -381,3 +381,18 @@ test("L025b search projection preserves optional metadata and isolates invalid i
     assert.equal(result.matches[0]!.description, null);
   });
 });
+
+test("offset pages the ranked catalog; a negative or fractional offset is an input error", async () => {
+  await withAgentPluginsDir(async () => {
+    for (let i = 0; i < 3; i += 1) {
+      await installReal(WORKSPACE_A, `paged-tool-${i}`, { "plugin.json": manifestJson(`paged-tool-${i}`, { keywords: ["paged"] }) }, `archive-offset-${i}`);
+    }
+    const all = await search(WORKSPACE_A, { query: "paged", limit: 25 });
+    assert.equal(all.matches.length, 3);
+    const rest = await search(WORKSPACE_A, { query: "paged", limit: 25, offset: 1 });
+    assert.deepEqual(rest.matches.map(match => match.pluginId), all.matches.slice(1).map(match => match.pluginId));
+    for (const offset of [-1, 1.5]) {
+      await assert.rejects(() => search(WORKSPACE_A, { query: "paged", offset }), { message: "offset must be a non-negative safe integer" });
+    }
+  });
+});

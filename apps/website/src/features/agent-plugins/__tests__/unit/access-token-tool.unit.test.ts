@@ -170,6 +170,19 @@ test("a plugin whose servers declare no tovuTokenAuth is refused: there is no to
   assert.equal(env.surfaceExchanges.size(), 0);
 });
 
+test("a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for", async () => {
+  const env = await setup({ servers: { ...SUPABASE_SERVERS, second: { type: "streamable-http", url: "https://second.example.com/mcp", tovuAuthMode: "oauth", tovuTokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL } } } });
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /'supabase' declares more than one access-token sign-in\./);
+  assert.equal(env.surfaceExchanges.size(), 0);
+  assert.equal(env.http.requests.length, 0);
+});
+
+test("a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth", async () => {
+  const env = await setup({ servers: { "!!!": SUPABASE_SERVERS.supabase!, local: { type: "stdio", command: "node", args: [] } } });
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /'supabase''s '!!!' connection could not be set up in this Tovu version\./);
+  assert.equal(env.surfaceExchanges.size(), 0);
+});
+
 test("a row an operator pointed at another host is refused, so the token is never sent there", async () => {
   const env = await setup({ rowUrl: "https://elsewhere.example.com/mcp" });
   await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /no longer points at/);

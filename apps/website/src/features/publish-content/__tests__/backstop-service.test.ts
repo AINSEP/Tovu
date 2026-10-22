@@ -12,6 +12,16 @@ test("wrong typed host and a short reason are rejected with plain exact text", (
   });
 });
 
+test("an omitted rows or files list is read as an empty list, not a malformed body", () => {
+  const rows = [{ table: "p_widgets", pk: { id: "x" } }];
+  assert.deepEqual(validateBackstopRequest({ body: { reason: "Emergency footer fix", typedHost: "live.example", rows }, destinationHost: "live.example" }), {
+    request: { reason: "Emergency footer fix", typedHost: "live.example", selection: { rows, files: [] } },
+  });
+  assert.deepEqual(validateBackstopRequest({ body: { reason: "Emergency footer fix", typedHost: "live.example", files: ["snippets/a.html"] }, destinationHost: "live.example" }), {
+    request: { reason: "Emergency footer fix", typedHost: "live.example", selection: { rows: [], files: ["snippets/a.html"] } },
+  });
+});
+
 test("row/file/byte caps and duplicate selections cannot widen the send", () => {
   const body = { reason: "Emergency footer fix", typedHost: "live.example", rows: [], files: Array.from({ length: 51 }, (_, i) => `snippets/${i}.html`) };
   assert.deepEqual(validateBackstopRequest({ body, destinationHost: "live.example" }), { error: "Choose at most 200 rows and 50 files per send." });

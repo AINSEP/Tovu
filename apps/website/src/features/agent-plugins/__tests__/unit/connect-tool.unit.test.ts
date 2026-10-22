@@ -12,6 +12,7 @@ import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
 
 import {
   InMemoryExternalMcpServerRepo,
+  ExternalMcpValidationError,
   saveExternalMcpServer,
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
@@ -20,7 +21,8 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
+import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
+import { ToolInputError } from "@jini-ai/core";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -530,3 +532,115 @@ for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
     assert.equal(surfaces.surfaceExchanges.size(), 0);
   });
 }
+
+function freshSurfaces(): AssistantSurfaceDeps {
+  return { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+}
+
+for (const [label, configured, expected] of [
+  ["a non-http TOVU_PUBLIC_URL falls back to the derived origin", "ftp://files.example", "https://derived.example/api/mcp-servers/oauth/callback/widget"],
+  ["a malformed TOVU_PUBLIC_URL is treated as absent", "not a url", "https://derived.example/api/mcp-servers/oauth/callback/widget"],
+] as const) {
+  test(`agent_plugin_connect: ${label}`, async (t) => {
+    const previous = process.env.TOVU_PUBLIC_URL;
+    process.env.TOVU_PUBLIC_URL = configured;
+    t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+    const store = makeStoreDeps();
+    const original = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+    const redirects: Array<string | undefined> = [];
+    const result = await runAgentPluginConnect(baseDeps(store, {
+      derivedPublicOrigin: "https://derived.example",
+      waitTimeoutMs: 0,
+      externalMcpOAuth: { ...original, beginConnect: async (input) => { redirects.push(input.redirectUri); return original.beginConnect(input); } },
+      resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+    }), freshSurfaces(), fakeCtx([]), "widget-store");
+    assert.deepEqual(result, { status: "waiting-for-sign-in" });
+    assert.deepEqual(redirects, [expected]);
+  });
+}
+
+test("agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service", async (t) => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = "mailto:ops@example.com";
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previous; });
+  const store = makeStoreDeps();
+  const original = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+  const inputs: unknown[] = [];
+  await runAgentPluginConnect(baseDeps(store, {
+    waitTimeoutMs: 0,
+    externalMcpOAuth: { ...original, beginConnect: async (input) => { inputs.push(input); return original.beginConnect(input); } },
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+  }), freshSurfaces(), fakeCtx([]), "widget-store");
+  assert.deepEqual(inputs, [{ serverId: "widget", redirectUri: undefined }]);
+});
+
+test("agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged", async () => {
+  const boom = new Error("network down");
+  for (const [thrown, expected] of [
+    [new ExternalMcpValidationError("redirect URI is not allowed", "redirectUri"), (err: unknown) => err instanceof ToolInputError && /redirect URI is not allowed/.test((err as Error).message)],
+    [boom, (err: unknown) => err === boom],
+  ] as const) {
+    const store = makeStoreDeps();
+    const emissions: SurfaceEmission[] = [];
+    await assert.rejects(runAgentPluginConnect(baseDeps(store, {
+      externalMcpOAuth: { ...fakeOAuth(store.repo, "unused"), beginConnect: async () => { throw thrown; } },
+      resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+    }), freshSurfaces(), fakeCtx(emissions), "widget-store"), expected);
+    assert.equal(emissions.length, 0, "no card for a sign-in that never started");
+  }
+});
+
+test("agent_plugin_connect: a server key with no usable connection id is refused before any sign-in", async () => {
+  const store = makeStoreDeps();
+  let beginCalls = 0;
+  const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+  await assert.rejects(runAgentPluginConnect(baseDeps(store, {
+    externalMcpOAuth: { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } },
+    resolveInstalledPlugin: async () => ({ servers: { "!!!": OAUTH_SERVER } }),
+  }), freshSurfaces(), fakeCtx([]), "widget-store"), (err: unknown) => err instanceof ToolInputError && /'!!!' connection could not be set up/.test((err as Error).message));
+  assert.equal(beginCalls, 0);
+});
+
+test("agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping", { timeout: 2_000 }, async () => {
+  const store = makeStoreDeps();
+  const controller = new AbortController();
+  const find = store.repo.findByServerId.bind(store.repo);
+  let cardSent = false;
+  let pollsAfterCard = 0;
+  store.repo.findByServerId = async (input) => {
+    const row = await find(input);
+    if (cardSent) { pollsAfterCard += 1; controller.abort(); }
+    return row;
+  };
+  const ctx = { ...fakeCtx([], controller.signal), emitSurface: async () => { cardSent = true; } } as unknown as ToolExecutionContext;
+  const result = await runAgentPluginConnect(baseDeps(store, {
+    pollIntervalMs: 60_000, waitTimeoutMs: 60_000,
+    externalMcpOAuth: fakeOAuth(store.repo, "https://mcp.example.com/authorize"),
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+  }), freshSurfaces(), ctx, "widget-store");
+  assert.deepEqual(result, { status: "waiting-for-sign-in" });
+  assert.equal(pollsAfterCard, 1, "exactly one poll, then the aborted sleep returns and the loop exits");
+});
+
+test("agent_plugin_connect: default poll timing still reports a connection observed on the first poll", { timeout: 2_000 }, async () => {
+  const store = makeStoreDeps();
+  const ctx = { ...fakeCtx([]), emitSurface: async () => { await flipRowConnected(store.repo, "widget"); } } as unknown as ToolExecutionContext;
+  const deps = baseDeps(store, {
+    pollIntervalMs: undefined, waitTimeoutMs: undefined,
+    externalMcpOAuth: fakeOAuth(store.repo, "https://mcp.example.com/authorize"),
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+  });
+  assert.deepEqual(await runAgentPluginConnect(deps, freshSurfaces(), ctx, "widget-store"), { status: "connected" });
+});
+
+test("defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "connect-not-installed-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  try {
+    assert.equal(await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_ID, pluginId: "never-installed", agentPluginLayout: resolveAgentPluginLayout() }), null);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
+});

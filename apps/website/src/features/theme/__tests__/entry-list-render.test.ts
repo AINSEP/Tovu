@@ -237,3 +237,42 @@ test("renderEntryList template mode: author-literal attribute values without pla
   const entry = item();
   assert.equal(renderTemplate('<a href="docs/x?a=1&amp;b=2" onclick="track()">{{title}}</a>', entry), '<a href="docs/x?a=1&amp;b=2" onclick="track()">Untitled</a>');
 });
+
+test("list layout: an item without fields renders no empty <dl>", () => {
+  const html = assertRendered(renderEntryList([item({ title: "Bare" })], options({ layout: "list" })));
+  assert.match(html, /<li class="entry-list__item"><h3 class="entry-card__title"><a href="\/recipe\/untitled">Bare<\/a><\/h3><\/li>/);
+  assert.doesNotMatch(html, /<dl/);
+});
+
+test("template placeholders: a null url, an absent field and an unknown key all resolve to empty text", () => {
+  const html = assertRendered(renderEntryList(
+    [item({ title: "T", href: null, fields: [{ name: "serves", label: "Serves", kind: "number", value: 4 }] })],
+    options({ template: "<p>[{{url}}][{{fields.missing}}][{{nope}}][{{fields.serves}}][{{date}}]</p>" })
+  ));
+  assert.equal(html, "<p>[][][][4][Sep 1, 2026]</p>");
+});
+
+test("template: a placeholder in an attribute-name position gets the unquoted-attribute encoding", () => {
+  const html = assertRendered(renderEntryList([item({ title: 'a b"c' })], options({ template: "<div {{title}} class=x>{{title}}</div>" })));
+  assert.doesNotMatch(html, /<div a b"c/, "the title cannot inject a new attribute");
+  assert.match(html, /<div [^ >]+ class=x>a b&quot;c<\/div>/);
+});
+
+test("a see-more listing key wraps template items and marks the built-in list wrapper", () => {
+  const items = [item({ title: "One" })];
+  const templated = assertRendered(renderEntryList(items, options({ template: "<i>{{title}}</i>", listingKey: "k1" })));
+  assert.match(templated, /data-jini-listing|k1/);
+  assert.match(templated, /<i>One<\/i>/);
+  const builtIn = assertRendered(renderEntryList(items, options({ layout: "list", listingKey: "k1" })));
+  assert.match(builtIn, /<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list data-jini-listing="k1">/);
+});
+
+test("list layout: an item with fields renders its <dl>", () => {
+  const html = assertRendered(renderEntryList([item({ fields: [{ name: "serves", label: "Serves", kind: "number", value: 2 }] })], options({ layout: "list" })));
+  assert.match(html, /<li class="entry-list__item">.*<dl class="entry-card__fields">.*Serves.*2.*<\/dl><\/li>/);
+});
+
+test("withEntryListStyleOnce: a page with an entry list but no </head> is left untouched", () => {
+  const html = '<body><div data-tovu-entry-list class="entry-list"></div></body>';
+  assert.equal(withEntryListStyleOnce(html), html);
+});

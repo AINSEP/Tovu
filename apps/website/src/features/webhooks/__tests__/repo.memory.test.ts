@@ -230,3 +230,21 @@ test("claimPending returns due rows oldest nextAttemptAt first and caps them at 
   assert.deepEqual(claimed.map((row) => row.id), ["early", "mid"]);
   assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "late" }))?.status, "pending");
 });
+
+test("releaseClaim returns its own delivering claim to pending and undoes the attempt; stale fences, other states and unknown ids are no-ops", async () => {
+  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ id: "d1", nextAttemptAt: "2026-07-10T00:00:00.000Z" }), makeDelivery({ id: "pending-row" })]);
+  await repo.claimPending({ batchSize: 1, nowIso: "2026-07-10T00:00:00.000Z" });
+
+  await repo.releaseClaim({ workspaceId: "workspace-1", id: "d1", claimedAttempts: 0, nextAttemptAt: "2026-07-10T01:00:00.000Z" });
+  assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "d1" }))?.status, "delivering", "an older claim's fence cannot release a newer claim");
+
+  await repo.releaseClaim({ workspaceId: "workspace-1", id: "d1", claimedAttempts: 1, nextAttemptAt: "2026-07-10T01:00:00.000Z" });
+  const released = await repo.findById({ workspaceId: "workspace-1", id: "d1" });
+  assert.deepEqual([released?.status, released?.attempts, released?.nextAttemptAt], ["pending", 0, "2026-07-10T01:00:00.000Z"]);
+
+  const before = structuredClone(await repo.findById({ workspaceId: "workspace-1", id: "pending-row" }));
+  await repo.releaseClaim({ workspaceId: "workspace-1", id: "pending-row", claimedAttempts: before!.attempts, nextAttemptAt: "2027-01-01T00:00:00.000Z" });
+  assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "pending-row" }), before, "a row that is not delivering is untouched");
+  await repo.releaseClaim({ workspaceId: "workspace-1", id: "missing", claimedAttempts: 1, nextAttemptAt: "2027-01-01T00:00:00.000Z" });
+  assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "missing" }), null);
+});

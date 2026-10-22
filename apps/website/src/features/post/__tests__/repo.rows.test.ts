@@ -27,3 +27,9 @@ test("a row whose show_author column is NULL (written before the column existed)
   assert.equal(toRecord({ ...stored, show_author: 0 }).showAuthor, false);
   assert.equal(toRecord({ ...stored, show_author: null } as unknown as PostRow).showAuthor, false);
 });
+
+test("a non-empty ext column reads back as ext; the empty-object default reads back as no ext key at all", () => {
+  const stored = { ...toRow(state), ext: "{}", publish_at: null, featured_media_id: null } as PostRow;
+  assert.equal("ext" in toRecord(stored), false);
+  assert.deepEqual(toRecord({ ...stored, ext: '{"seo":{"title":"Custom"}}' }).ext, { seo: { title: "Custom" } });
+});

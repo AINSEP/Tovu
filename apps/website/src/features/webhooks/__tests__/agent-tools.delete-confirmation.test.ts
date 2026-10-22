@@ -317,3 +317,25 @@ test("changed webhook target refuses a previously confirmed card without exposin
   await assert.rejects(pending, { message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
   assert.ok(await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }));
 });
+
+test("a run aborted while the confirmed delete re-checks permission is abandoned, and nothing is deleted", async () => {
+  const controller = new AbortController();
+  let authorizations = 0;
+  const deps = {
+    ...makeDeps(),
+    // The second authorization is the run-time re-check after the human confirmed: abort during it.
+    authorize: async () => { if (++authorizations === 2) controller.abort(); return { allowed: true, reason: "matched" }; },
+  } as unknown as IntegrationsToolDeps;
+  const subscription = await seedSubscription(deps);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+
+  const { ui, pending } = await raiseDialog(deleteTool, subscription.id, controller.signal);
+  (({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "confirm"));
+  const result = (await pending) as { deleted: boolean };
+
+  assert.equal(result.deleted, false);
+  assert.equal(authorizations, 2);
+  const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.equal(row?.status, "active", "an abandoned run must not delete");
+});

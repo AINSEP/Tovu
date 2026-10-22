@@ -210,3 +210,15 @@ test("filesystem scan and CLI report a known violating file with a nonzero exit"
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("a quoted or computed 'aad' key is not recognised as aad, so the call fails closed as missing-aad", () => {
+  for (const src of [`sealer.seal({ "aad": rowAad, plaintext });`, `sealer.seal({ ["aad"]: rowAad, plaintext });`]) {
+    const violations = findSealCallsInSource(src, "fixture.ts");
+    assert.deepEqual(violations.map(v => v.reason), ["missing-aad"], src);
+  }
+});
+
+test("a .tsx display path is parsed as TSX, so JSX around a seal() call does not hide it", () => {
+  const src = `export const View = () => <div onClick={() => sealer.seal({ plaintext })}>x</div>;`;
+  assert.deepEqual(findSealCallsInSource(src, "fixture.tsx").map(v => v.reason), ["missing-aad"]);
+});
