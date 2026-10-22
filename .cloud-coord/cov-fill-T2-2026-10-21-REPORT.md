@@ -24,7 +24,8 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - theme files whose "before" gaps were split-run artefacts (100 in one run): static-render, tool-registrations, render-contract, static-asset-contract, token-aliases, verify-active-theme, hardcoded-link-lists, asset-path-rewrites, active-theme-publish-content, import-theme-file-tool.
 - deployments/tool-registrations 100/95.7/100 · seo/index 95.9/100/80 · seo/settings B96.8 · post/template-options B85.7 · webhooks/seal-aad-invariant B97.9 · webhooks/tool-registrations 99.7/86/93.5 · webhooks/repo.memory 98.6/94.6/97 · widgets/deps B90.9/F69 · widgets/publish-content 95/84.6/80.8 · publish-content seed-hash, backstop-service, planner, peer-transport, gated-hooks (all → 100).
 - cli/commands/adopt.ts (in-process 0 → 100; its old tests only spawn a subprocess) · contracts/core/scheduled-publish.ts F16.7 · agent-plugins/switch-on-saved-token 94/95/86 · plugin-runtime/install-consent 67/100/33 · plugin-runtime/built-ins/word-count F66.7 (all → 100).
-- S4/S5 results: SEE_S45
+- agent-plugins/federate-mcp 99.45/83.2/100 · plugin-runtime/tool-registrations 94.1/81.4/85 → 100 (L894 is the declaration line, a tsx artifact). Partial: connect-tool B103/104, install-tool B90/91, install-upload B134/136, lifecycle B59/65 F45/46, executable-tools/register B46/48, agent-plugins/tool-registrations 988/999 130/144 51/52.
+- S5 results: SEE_S5
 
 ## Improved, still below 100 (after L/B/F, reason)
 - theme-files 100/99.04/100: the `parent === probe` filesystem-root break (Windows only) and the readdir→lstat vanish race. Both are guards, kept.
@@ -46,12 +47,16 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - theme/theme-files.ts: `copyThemeFile` gets an optional `{ copyFile }` port (default copyFileSync), so the lost-race EEXIST mapping and the rethrow are tested. `filesHaveSameBytes` `for(;;)` → do/while, which removes a phantom dead fall-through.
 - trash/trash-item-tool.ts: `moveToTrashOutcomeToError` exported, so each refusal message is asserted.
 - Dead code removed (why comment in the code): theme-watcher.ts refresh `if (closed) return` (every path that sets closed clears `pending` first); entry-list-render.ts `name ?? ""` (the regex's attribute branch always captures name).
-- SEE_S45_REFACTOR
+- agent-plugins/federate-mcp.ts: `planAgentPluginMcpFederation(input, options = {})` takes an optional `classifyTrust` port. The ~L220 drift-guard skip is unreachable with today's rule (stdio is skipped first), and its doc comment says it is deliberate, so it was kept and made testable.
+- agent-plugins/install-upload.ts: an update overload returns `UpdatedUploadedAgentPlugin` (enabled and warnings required). install-tool.ts drops the never-taken `?? null`/`?? []` fallbacks (dead code: Jini's `UpdateAgentPluginResult` always carries both; why comment added).
+- agent-plugins/lifecycle.ts: `unboundSiteAgentPluginLayout` exported, so the L177 forWorkspace throw is tested directly.
+- SEE_S5_REFACTOR
 
 ## Pre-existing regression fixed
 - 172b9652: backstop-preview.test.ts now builds the PEM marker at runtime; the cov-T2 REPORT no longer quotes it. secret-scan-guard 18/18 pass, backstop-preview 8/8 pass.
 
 ## LOCAL-RUN NEEDED
+- agent-plugin-search-tool.integration "SINK: … SKILL.md is no longer readable" self-skips as root (cloud runs as root). Run it as a normal user: it covers agent-plugins/tool-registrations L248-252.
 - post/search-index.postgres.ts B14/15 (only *.postgres tests); platform/db migration-manifest-postgres + schema-postgres-parity; database-transfer copy-engine/tool-registrations .postgres; desktop websites-width.test.ts (Chromium). Plus everything in merge-REPORT's list.
 
 ## Tests run
@@ -63,5 +68,8 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
   - seo/index.unit (2 tests): fixed in this job, 0e8e032f.
 - Scoped tsc on S3's test files: 1 error, which S3 introduced and fixed (0d66f0f3); the rest are in base files. `npm run typecheck:tests` on an idle machine is advised.
 
+## Owner question (S4)
+- An update with no mcpProvisioning port is refused. For an ENABLED plugin, the old package stays live but the plugin ends up DISABLED. Is that intended? Not pinned by a test.
+
 ## Complexity
-eslint (development/sonarjs config, `complexity` 10 + `sonarjs/cognitive-complexity` 10) on every touched source file gives 0 errors: deployments/tool-registrations, publish-agent-tools, theme-watcher, theme-files, entry-list-render, trash-item-tool SEE_S45_CX. Warnings remain only on unchanged lines.
+eslint (development/sonarjs config, `complexity` 10 + `sonarjs/cognitive-complexity` 10) on every touched source file gives 0 errors: deployments/tool-registrations, publish-agent-tools, theme-watcher, theme-files, entry-list-render, trash-item-tool, federate-mcp, install-tool, install-upload, lifecycle SEE_S5_CX. Warnings remain only on unchanged lines.
