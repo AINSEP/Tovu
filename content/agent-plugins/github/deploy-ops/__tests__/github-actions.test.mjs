@@ -155,12 +155,12 @@ test("logs: an invalid job id or annotation response fails", async () => {
 
 test("deploy: resolves the ref to a full SHA, dispatches pinned to it, and reports the run GitHub returned directly", async () => {
   const { ctx, sends, gets } = ctxWith([[/commits\/release\/v1$/, { json: { sha: SHA } }]], { send: { workflow_run_id: 99, html_url: "https://github.com/acme/site/actions/runs/99" } });
-  const result = await actions.deploy(ctx, { target: "acme/site", ref: "release/v1" });
-  assert.deepEqual(sends, [{ method: "POST", url: `${REPO}/actions/workflows/fly-deploy.yml/dispatches`, body: { ref: "release/v1", inputs: { expected_sha: SHA } } }]);
+  const result = await deploy(ctx, { target: "acme/site", ref: "release/v1" });
+  assert.deepEqual(sends, [{ method: "POST", url: `${REPO}/actions/workflows/example-deploy.yml/dispatches`, body: { ref: "release/v1", inputs: { expected_sha: SHA } } }]);
   assert.deepEqual(gets, [`${REPO}/commits/release/v1`]);
   assert.deepEqual(result, {
     platform: "github-actions", target: "acme/site", started: true, sha: SHA, runId: "99", url: "https://github.com/acme/site/actions/runs/99",
-    summary: `Dispatched fly-deploy.yml on 'release/v1' at ${SHA}; run 99. The workflow refuses to deploy if 'release/v1' no longer resolves to ${SHA} when it starts.`,
+    summary: `Dispatched example-deploy.yml on 'release/v1' at ${SHA}; run 99. The workflow refuses to deploy if 'release/v1' no longer resolves to ${SHA} when it starts.`,
   });
 });
 
@@ -172,7 +172,7 @@ test("deploy: without a direct run id it looks the run up by SHA, skipping other
     { workflow_runs: [{ id: 3, head_sha: SHA, created_at: "2029-12-31T23:59:45Z", html_url: "http://insecure" }] },
   ];
   const { ctx, sleeps } = ctxWith([[/commits\/main$/, { json: { sha: SHA } }], [/runs\?event=workflow_dispatch/, () => ({ json: answers[lookups++] })]], { send: undefined });
-  const result = await actions.deploy(ctx, { target: "acme/site" });
+  const result = await deploy(ctx, { target: "acme/site" });
   assert.equal(result.runId, "3");
   assert.equal("url" in result, false);
   assert.deepEqual(sleeps, [2000, 2000]);
@@ -180,20 +180,22 @@ test("deploy: without a direct run id it looks the run up by SHA, skipping other
 
 test("deploy: a run never visible is still reported as dispatched; a non-numeric direct id falls back to lookup", async () => {
   const { ctx, gets, sleeps } = ctxWith([[/commits\/main$/, { json: { sha: SHA } }], [/runs\?event=workflow_dispatch/, { json: { workflow_runs: [] } }]], { send: { workflow_run_id: "abc" } });
-  const result = await actions.deploy(ctx, { target: "acme/site", ref: "main" });
+  const result = await deploy(ctx, { target: "acme/site", ref: "main" });
   assert.deepEqual(result, { platform: "github-actions", target: "acme/site", started: true, sha: SHA,
-    summary: `Dispatched fly-deploy.yml on 'main' at ${SHA}, but its run was not visible yet. The workflow refuses to deploy if 'main' no longer resolves to ${SHA} when it starts. Check deployment_ops_status with branch 'main' in a minute.` });
+    summary: `Dispatched example-deploy.yml on 'main' at ${SHA}, but its run was not visible yet. The workflow refuses to deploy if 'main' no longer resolves to ${SHA} when it starts. Check deployment_ops_status with branch 'main' in a minute.` });
   assert.equal(gets.length, 6);
   assert.deepEqual(sleeps, [2000, 2000, 2000, 2000]);
 });
 
 test("deploy: refuses bad refs, bare SHAs, unresolvable refs and malformed run lookups", async () => {
   for (const ref of ["-x", "a/", "a..b", "a//b", "x.lock", "has space", 5, "a".repeat(201), ".hidden"]) {
-    await assert.rejects(actions.deploy(ctxWith([]).ctx, { target: "acme/site", ref }), { message: "ref must be a branch or tag name." });
+    await assert.rejects(deploy(ctxWith([]).ctx, { target: "acme/site", ref }), { message: "ref must be a branch or tag name." });
   }
-  await assert.rejects(actions.deploy(ctxWith([]).ctx, { target: "acme/site", ref: "A".repeat(40) }), /cannot dispatch a workflow at a bare commit SHA/);
+  await assert.rejects(deploy(ctxWith([]).ctx, { target: "acme/site", ref: "A".repeat(40) }), /cannot dispatch a workflow at a bare commit SHA/);
   for (const json of [{ sha: "short" }, null, { sha: 5 }]) {
-    await assert.rejects(actions.deploy(ctxWith([[/commits\/main$/, { json }]]).ctx, { target: "acme/site" }), { message: "Could not resolve 'main' to a full commit SHA." });
+    await assert.rejects(deploy(ctxWith([[/commits\/main$/, { json }]]).ctx, { target: "acme/site" }), { message: "Could not resolve 'main' to a full commit SHA." });
   }
-  await assert.rejects(actions.deploy(ctxWith([[/commits\/main$/, { json: { sha: SHA } }], [/runs\?event/, { json: {} }]]).ctx, { target: "acme/site" }), { message: "Workflow runs response must contain workflow_runs." });
+  await assert.rejects(deploy(ctxWith([[/commits\/main$/, { json: { sha: SHA } }], [/runs\?event/, { json: {} }]]).ctx, { target: "acme/site" }), { message: "Workflow runs response must contain workflow_runs." });
 });
+
+const deploy = (ctx, input) => actions.deploy(ctx, { workflowFile: "example-deploy.yml", ...input });

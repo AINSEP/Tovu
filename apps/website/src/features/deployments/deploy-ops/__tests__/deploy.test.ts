@@ -169,3 +169,13 @@ test("the chat tool forwards an explicit credential label and omits an absent re
   assert.deepEqual(await tool.handler(execution({ platform: "example-host", target: "shop", credentialLabel: "ops" })), { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "10" });
   assert.deepEqual(received, { target: "shop" });
 });
+
+test("the host forwards declared workflow data while absent hints remain absent", async () => {
+  for (const workflowFile of [undefined, "example-pipeline.yml"]) {
+    const f = await withDeploy(async (_ctx, input) => {
+      assert.deepEqual(input, { target: "shop", ref: "main", ...(workflowFile === undefined ? {} : { workflowFile }) });
+      return accepted();
+    });
+    await runDeploy({ deps: { ...f.deps, deployWorkflowFile: workflowFile }, input: { platform: "example-host", target: "shop", ref: "main" } });
+  }
+});

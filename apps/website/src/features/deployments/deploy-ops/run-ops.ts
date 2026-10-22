@@ -30,6 +30,8 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   /** Production injects freshly gated installed packages; tests/hermetic composition inject source. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<DeployOpsRegistry>;
   deployOpsRegistry?: DeployOpsRegistry;
+  /** Workflow declared by the deployment config owner, passed by the host. */
+  deployWorkflowFile?: string;
   waitClock?: WaitClock;
   /** This boot's site folder; the default site-key reader resolves the same sources the Security page does. */
   siteBinding?: { dir?: string };
@@ -226,7 +228,7 @@ export async function runDeploy(required: { deps: DeployOpsToolDeps; input: Depl
   }
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
   if (signal?.aborted) throw aborted();
-  const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}) });
+  const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}), ...(deps.deployWorkflowFile === undefined ? {} : { workflowFile: deps.deployWorkflowFile }) });
   const normalized = normalizeDeployResult(input, result);
   await recordAcceptedDeploy({ deps, platform, normalized }, {});
   return normalized;

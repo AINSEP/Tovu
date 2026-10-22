@@ -93,8 +93,6 @@ async function logs(ctx, input) {
   }
   return { platform: "github-actions", target: input.target, lines, truncated };
 }
-/** The repo's deploy workflow. Its dispatch input `expected_sha` makes it refuse to deploy a ref that moved. */
-const DEPLOY_WORKFLOW = "fly-deploy.yml";
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const RUN_LOOKUPS = 5;
 const RUN_LOOKUP_DELAY_MS = 2000;
@@ -119,21 +117,25 @@ async function findRun(ctx, workflow, sha, since) {
   }
   return undefined;
 }
-/** Resolve ref -> full SHA, dispatch the deploy workflow pinned to it, then return the run id. O(1) + bounded lookups. */
+/** Resolve ref -> full SHA, dispatch the deploy workflow pinned to it, then return the run id. O(1) + bounded lookups.
+ *  The host supplies the repo's deploy workflow (`input.workflowFile`, declared by the deploy-config owner; plugins never
+ *  import each other). Its dispatch input `expected_sha` makes it refuse to deploy a ref that moved. */
 async function deploy(ctx, input) {
   const repo = base(ctx, input.target);
+  const workflowFile = input.workflowFile;
+  if (typeof workflowFile !== "string" || !/^[a-zA-Z0-9_-]+\.ya?ml$/.test(workflowFile)) ctx.fail("A declared deployment workflow filename is required.");
   const ref = refName(ctx, input.ref);
   const commit = (await ctx.get(`${repo}/commits/${ref.split("/").map(encodeURIComponent).join("/")}`)).json;
   if (typeof commit?.sha !== "string" || !FULL_SHA.test(commit.sha)) ctx.fail(`Could not resolve '${ref}' to a full commit SHA.`);
   const sha = commit.sha;
-  const workflow = `${repo}/actions/workflows/${DEPLOY_WORKFLOW}`;
+  const workflow = `${repo}/actions/workflows/${workflowFile}`;
   const since = Date.parse(ctx.nowIso()) - CLOCK_SKEW_MS;
   const dispatched = await ctx.send({ method: "POST", url: `${workflow}/dispatches`, body: { ref, inputs: { expected_sha: sha } } });
   // Newer API versions may answer with the run directly; otherwise (204) look it up by SHA.
   const directId = dispatched.json?.workflow_run_id;
   const run = directId !== undefined && /^\d+$/.test(String(directId)) ? { id: directId, html_url: dispatched.json.html_url } : await findRun(ctx, workflow, sha, since);
   const pinned = `The workflow refuses to deploy if '${ref}' no longer resolves to ${sha} when it starts.`;
-  if (!run) return { platform: "github-actions", target: input.target, started: true, sha, summary: text(`Dispatched ${DEPLOY_WORKFLOW} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
-  return { platform: "github-actions", target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${DEPLOY_WORKFLOW} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
+  if (!run) return { platform: "github-actions", target: input.target, started: true, sha, summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
+  return { platform: "github-actions", target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
 }
 export default { status, logs, deploy };

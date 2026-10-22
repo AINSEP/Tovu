@@ -59,11 +59,7 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
  * per (file, vendor) out of its result; any hit above it still counts, and the boundary test fails
  * when an entry no longer matches the file (so a stale entry cannot hide a later addition).
  */
-export const DEPLOY_VENDOR_ALLOWLIST: ReadonlyArray<{ file: string; rule: string; count: number; reason: string }> = [
-  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "fly", count: 2, reason: "file names only: optional generated config and workflow inputs carrying TOVU_PUBLIC_URL to pre-fill" },
-  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "railway", count: 1, reason: "a file name only: where to look for a committed TOVU_PUBLIC_URL to pre-fill" },
-  { file: "apps/website/src/features/publish-trust/connect.ts", rule: "render", count: 1, reason: "a file name only: where to look for a committed TOVU_PUBLIC_URL to pre-fill" },
-];
+export const DEPLOY_VENDOR_ALLOWLIST: ReadonlyArray<{ file: string; rule: string; count: number; reason: string }> = [];
 
 /** Cheap pre-filter: a file with no raw match cannot have one after comments are removed. */
 const ANY_RULE = new RegExp(RULES.map((rule) => rule.pattern.source).join("|"), "i");

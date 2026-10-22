@@ -498,6 +498,8 @@ export interface CredentialsDeps {
   siteBackupHttpClient?: HttpClientPort;
   /** Deploy observation requests must not follow vendor redirects, even to another public host. */
   deployOpsHttpClient?: HttpClientPort;
+  /** Deploy-config owner supplies this workflow; ops plugins never import each other. */
+  deployWorkflowFile?: string;
   /**
    * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
    * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink

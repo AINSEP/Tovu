@@ -23,6 +23,6 @@ export async function fixture(optional = {}) {
   let response = { status: 200, headers: {}, bodyText: "[]" };
   const audit = new InMemoryCredentialedRequestAuditLog();
   const httpClient = { send: async (request) => { calls.push(request); return response; } };
-  return { calls, registry, audit, setResponse: (next) => { response = next; }, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, customCredentialsHttpClient: httpClient, deployOpsHttpClient: httpClient, clock, loadAuthSchemes: async () => [], customCredentialsAudit: audit, deployOpsRegistry: registry, loadDeployOps: async () => registry } };
+  return { calls, registry, audit, setResponse: (next) => { response = next; }, deps: { deployWorkflowFile: "example-deploy.yml", workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }), customCredentialSetRepo: repo, siteAssistantSecretSealer: sealer, customCredentialsHttpClient: httpClient, deployOpsHttpClient: httpClient, clock, loadAuthSchemes: async () => [], customCredentialsAudit: audit, deployOpsRegistry: registry, loadDeployOps: async () => registry } };
 }
 export function execution(input, signal = new AbortController().signal) { return { executionId: "exec", run: { id: "run" }, principal: { id: "principal" }, input, signal }; }

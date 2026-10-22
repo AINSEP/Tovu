@@ -4,7 +4,13 @@
     {
       "id": "railway",
       "label": "Railway",
-      "module": "deploy-configs/railway.mjs"
+      "module": "deploy-configs/railway.mjs",
+      "candidatePaths": [
+        {
+          "path": "railway.toml",
+          "order": 3
+        }
+      ]
     }
   ]
 }

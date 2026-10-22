@@ -4,7 +4,13 @@
     {
       "id": "render",
       "label": "Render",
-      "module": "deploy-configs/render.mjs"
+      "module": "deploy-configs/render.mjs",
+      "candidatePaths": [
+        {
+          "path": "render.yaml",
+          "order": 2
+        }
+      ]
     }
   ]
 }

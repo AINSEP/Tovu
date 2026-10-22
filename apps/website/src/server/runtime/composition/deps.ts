@@ -1,3 +1,4 @@
+import { readBundledDeployWorkflowFile } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -2672,6 +2673,7 @@ async function composeSiteRouteDeps(
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
     loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    deployWorkflowFile: readBundledDeployWorkflowFile({ sourceRoot: bundledAgentPluginsDir() }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
