@@ -48,7 +48,7 @@
     "email_template_edit": "edit change update email template html subject fields layout",
     "email_template_get": "email template read open html subject fields",
     "email_template_list": "email template templates list html email transactional message design",
-    "email_template_preview": "preview email template render fields values sample what will be sent plain text",
+    "email_template_preview": "preview email template render fill-ins fields values sample inbox look plain text",
     "dns_plan": "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
     "dns_instructions": "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
     "dns_verify": "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
@@ -119,7 +119,7 @@
     "newsletter_create_campaign": "email campaign newsletter blast send announcement compose",
     "newsletter_list_campaigns": "email campaigns newsletters sent scheduled drafts list",
     "newsletter_remove_subscription": "unsubscribe remove subscriber opt out mailing list",
-    "newsletter_list_send_log": "email sent delivery log history newsletter campaign who received",
+    "newsletter_list_send_log": "email sent delivery delivered log history newsletter campaign who received",
     "newsletter_list_lists": "subscriber lists mailing lists available existing audience segments what lists",
     "newsletter_create_list": "subscriber list new create mailing list audience segment group",
     "newsletter_archive_list": "subscriber list archive retire remove hide stop using mailing list",
@@ -255,7 +255,7 @@
     "pages_write_region": "section sections region regions part parts piece block chunk area one single just the only the hero headline heading title banner cta call to action pricing faq testimonial footer text copy edit editing change changing update updating tweak adjust revise reword swap replace fix amend without rewriting not the whole page leave the rest keep the rest surgical targeted in place handle data-agent-element",
     "pages_move_region": "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
     "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers hosts where static host",
-    "deployment_preview_static_publish": "dry run check before deploy what would happen test authenticated hosting preview domain dns records bindings routes conflicts",
+    "deployment_preview_static_publish": "dry run check before deploy publish what would happen what will be published test authenticated hosting preview domain dns records bindings routes conflicts",
     "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
     "deployment_generate_bucket_hosting_setup": "instructions steps how to setup guide public website cloud storage host",
     "deployment_trigger_export": "build generate export files download self host static site",
@@ -673,7 +673,7 @@
     ],
     "email_template_preview": [
       "Preview the welcome email for Ada.",
-      "What will this email look like when it is sent?"
+      "How does this email look in the inbox with the fields filled in?"
     ],
     "dns_plan": [
       "What DNS changes does my domain need?",

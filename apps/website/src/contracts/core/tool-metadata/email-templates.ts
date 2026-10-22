@@ -33,8 +33,10 @@ export const toolMetadata = {
   },
   "email_template_preview": {
     search: {
-      keywords: "preview email template render fields values sample what will be sent plain text",
-      queries: ["Preview the welcome email for Ada.", "What will this email look like when it is sent?"],
+      // Phrased around the email itself: a generic "what will be ..." here outranked the static-publish
+      // dry run for "preview what will be published" (operator request dp-03).
+      keywords: "preview email template render fill-ins fields values sample inbox look plain text",
+      queries: ["Preview the welcome email for Ada.", "How does this email look in the inbox with the fields filled in?"],
     },
     approval: { class: 'read', confirmation: 'direct' },
   },
