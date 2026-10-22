@@ -9,9 +9,10 @@ import { credentialText, formatCredentialHint, translateCredentialMessage } from
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
+import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { redactSecrets, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { defineSecretCardTool, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
@@ -50,6 +51,7 @@ import {
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { cleanCardToken } from "./card-token.js";
+import { buildPluginCredentialForm, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
@@ -134,6 +136,8 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
    *  Agent Plugins supplied by composition — the bundled `github` one today). */
   readonly loadSourceControlProviders: LoadSourceControlProviders;
   readonly loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** Plugin-declared key cards (`plugin-credential-card.ts`); absent means none can be opened. */
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly publishCredentialVerificationCache?: { delete(input: { workspaceId: string; target: string }): void };
   /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
@@ -824,6 +828,68 @@ async function saveCreateCard(
   return saved;
 }
 
+/**
+ * Opens a create card and saves its submission as a NEW credential row — shared by the generic API
+ * card and a plugin's own key card, which differ only in their form and how a submission maps onto
+ * the row. Same engine, save port, safe errors and outcome for both.
+ * @complexity O(1) locally plus one createCustomCredential call per submission.
+ */
+async function openCreateCard(required: {
+  ctx: ToolExecutionContext; emitSurface: ToolExecutionOptions["emitSurface"];
+  routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps; locale: string; initialLabel: string;
+  form: () => SecretCardForm; submissionOf: (values: Readonly<Record<string, unknown>>) => CreateCredentialSubmission;
+}, _optional = {}): Promise<CreateCredentialResult> {
+  const { ctx, emitSurface, routeDeps, surfaces, locale, initialLabel, form, submissionOf } = required;
+  // Fail closed rather than degrade — the only place a token can enter is the rendered form.
+  // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
+  // The engine checks pre-dialog aborts and uses askThenReport so the save completes before Done.
+  // These safe projections are scoped to this invocation, never shared between concurrent cards.
+  // The error kind selects this tool's existing reason; the engine still owns error redaction.
+  let failure: CreateCardFailure | undefined;
+  let displayLabel = safeCredentialLabel({ label: initialLabel });
+  const card = defineSecretCardTool<Record<string, never>, CustomCredentialSummary, CreateCredentialResult>({
+    toolId: CREDENTIAL_SAVE_TOOL_ID,
+    prepare: async () => ({}),
+    form,
+    save: ({ values, signal }) => {
+      const submission = submissionOf(values);
+      displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
+      return saveCreateCard({ submission, routeDeps, signal });
+    },
+    result: ({ run }) => {
+      if (run.status === 'saved') {
+        // The summary's token hint is for the human outcome only; strip it before returning to the model.
+        const { tokenHint: _humanHint, ...credential } = run.saved;
+        return { created: true, credential };
+      }
+      if (run.status === 'blank') return { created: false, reason: 'invalid', message: credentialText({ id: 'blank', locale }) };
+      if (run.status === 'failed') return { created: false, reason: failure?.reason ?? 'error', message: run.safeMessage };
+      return { created: false, reason: run.status };
+    },
+    outcome: ({ run }) => {
+      if (run.status === 'saved') {
+        const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
+        return buildCreateOutcome({ label: run.saved.label, state: 'success', message: `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}` });
+      }
+      if (run.status === 'blank' || run.status === 'failed') return buildCreateOutcome({ label: displayLabel, state: 'failure',
+        message: run.status === 'blank' ? credentialText({ id: 'blank', locale }) : run.safeMessage });
+      // Cancel/expiry/abandonment already render locally: no second outcome is emitted.
+      return undefined;
+    },
+  }, {
+    uriHost: 'tovu',
+    text: { noEmitter: "custom_credential_create: this execution context has no interactive confirmation channel " +
+      "(no emitSurface), so a credential cannot be created here. Nothing was changed.", saveFailure: FORM_SAVE_FAILURE_MESSAGE },
+    safeError: err => {
+      failure = mapCreateCredentialError({ err, locale, label: displayLabel });
+      return failure.message;
+    },
+    // Fixed exchange metadata only: exception text, the label, and submitted values are unsafe.
+    logFailure: metadata => failureLog(routeDeps)(JSON.stringify(metadata)),
+  });
+  return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, { emitSurface });
+}
+
 /** Optional plugin catalogs enrich this feature's create form without owning its save path. */
 async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomCredentialsToolDeps }, _options = {}): Promise<{ id: string; vendorId: string }[]> {
   const providers: { id: string; vendorId: string }[] = [];
@@ -844,8 +910,8 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
  * @example buildApiCredentialSaveHandlers({ routeDeps, surfaces });
  * @complexity O(1) binding; each adapter performs the existing bounded store operations.
  */
-export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): { create: ToolHandler; rotate: ToolHandler } {
-  const handlers: { create: ToolHandler; rotate: ToolHandler } = {
+export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } {
+  const handlers: { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler } = {
     // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
     // for the full mechanism and why it holds up "a token must never pass through the model's
     // context" rather than merely "an agent must never write one". Shape validation
@@ -931,58 +997,28 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
 
       const providers = await loadCreateCredentialProviders({ routeDeps });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      // Fail closed rather than degrade — the only place a token can enter is the rendered form.
-      // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
-      // The engine checks pre-dialog aborts and uses askThenReport so the save completes before Done.
-      // These safe projections are scoped to this invocation, never shared between concurrent cards.
-      // The error kind selects this tool's existing reason; the engine still owns error redaction.
-      let failure: CreateCardFailure | undefined;
-      let displayLabel = safeCredentialLabel({ label: prefill.label ?? '' });
-      const card = defineSecretCardTool<{ prefill: CreateCredentialPrefill }, CustomCredentialSummary, CreateCredentialResult>({
-        toolId: CREDENTIAL_SAVE_TOOL_ID,
-        prepare: async () => ({ prefill }),
-        form: ({ prep }) => buildCreateForm({ prefill: prep.prefill, providers }),
-        save: ({ values, signal }) => {
-          const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(values));
-          displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
-          return saveCreateCard({ submission, routeDeps, signal });
-        },
-        result: ({ run }) => {
-          if (run.status === 'saved') {
-            // The summary's token hint is for the human outcome only; strip it before returning to the model.
-            const { tokenHint: _humanHint, ...credential } = run.saved;
-            return { created: true, credential };
-          }
-          if (run.status === 'blank') return { created: false, reason: 'invalid', message: credentialText({ id: 'blank', locale }) };
-          if (run.status === 'failed') return { created: false, reason: failure?.reason ?? 'error', message: run.safeMessage };
-          return { created: false, reason: run.status };
-        },
-        outcome: ({ run }) => {
-          if (run.status === 'saved') {
-            const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
-            return buildCreateOutcome({ label: run.saved.label, state: 'success', message: `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}` });
-          }
-          if (run.status === 'blank' || run.status === 'failed') return buildCreateOutcome({ label: displayLabel, state: 'failure',
-            message: run.status === 'blank' ? credentialText({ id: 'blank', locale }) : run.safeMessage });
-          // Cancel/expiry/abandonment already render locally: no second outcome is emitted.
-          return undefined;
-        },
-      }, {
-        uriHost: 'tovu',
-        text: { noEmitter: "custom_credential_create: this execution context has no interactive confirmation channel " +
-          "(no emitSurface), so a credential cannot be created here. Nothing was changed.", saveFailure: FORM_SAVE_FAILURE_MESSAGE },
-        safeError: err => {
-          failure = mapCreateCredentialError({ err, locale, label: displayLabel });
-          return failure.message;
-        },
-        // Fixed exchange metadata only: exception text, the label, and submitted values are unsafe.
-        logFailure: metadata => failureLog(routeDeps)(JSON.stringify(metadata)),
-      });
-      return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, { emitSurface });
+      return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: prefill.label ?? '',
+        form: () => buildCreateForm({ prefill, providers }),
+        submissionOf: values => deriveCreateCredentialSubmission(readRawCreateCredentialFields(values)) });
     },
 
+    // A plugin's own key card (credential_save kind plugin-provider): the plugin's copy, one token
+    // field, and the row's label/baseUrl/category fixed on the server from its descriptor. Same
+    // permission, save port and outcome as the generic create card. See plugin-credential-card.ts.
+    pluginProvider: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
+      const input = requireInputRecord({ input: ctx.input });
+      const providerId = requireString({ input, key: "provider" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
+      const card = (await routeDeps.loadPluginCredentialCards?.(routeDeps.workspaceId))?.find(entry => entry.providerId === providerId);
+      if (!card) throw new ToolInputError({ message: `No installed plugin declares a key card for '${providerId}'. Use credential_save with kind api instead.` });
+      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: card.label,
+        form: () => buildPluginCredentialForm({ card }),
+        submissionOf: values => ({ worksFor: [], label: card.label, baseUrl: card.baseUrl, category: card.category, username: undefined,
+          token: typeof values.token === "string" ? values.token : "", displayLabel: card.label }) });
+    },
   };
-  return withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }) as { create: ToolHandler; rotate: ToolHandler };
+  return withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }) as { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler };
 }
 
 export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentialsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {

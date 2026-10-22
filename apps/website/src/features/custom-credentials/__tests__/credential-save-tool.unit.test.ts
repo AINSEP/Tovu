@@ -14,6 +14,7 @@ const cases = [
   { adapter: 'sourceControl', input: { kind: 'source-control', target: 'github', label: 'backup' }, forwarded: { provider: 'github', label: 'backup' } },
   { adapter: 'publishHost', input: { kind: 'publish-host', target: 's3', prefill: { bucket: 'site', region: 'region-1' } }, forwarded: { target: 's3', bucket: 'site', region: 'region-1' } },
   { adapter: 'agentPluginToken', input: { kind: 'agent-plugin-token', target: 'supabase' }, forwarded: { pluginId: 'supabase' } },
+  { adapter: 'pluginProvider', input: { kind: 'plugin-provider', target: 'mail-host' }, forwarded: { provider: 'mail-host' } },
 ] as const;
 
 /** Inject observable adapters; no domain store, module mock or renderer is needed to test routing. */
@@ -65,6 +66,8 @@ test('unknown kinds, cross-kind fields, secret arguments and target replacement 
     { kind: 'source-control', target: 'github', provider: 'other' },
     { kind: 'publish-host', target: 's3', prefill: { target: 'other' } },
     { kind: 'publish-host', target: 's3', prefill: [] },
+    { kind: 'plugin-provider', target: 'mail-host', label: 'other row' },
+    { kind: 'plugin-provider', target: 'mail-host', baseUrl: 'https://elsewhere.example' },
   ]) {
     await assert.rejects(f.registrations[0]!.handler({ ...f.context, input }), ToolInputError);
   }
@@ -75,7 +78,7 @@ test('unknown credential kinds explain the supported kinds without calling an ow
   const f = fixture();
   await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'unsupported' } }), {
     name: 'ToolInputError',
-    message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host or agent-plugin-token.',
+    message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token or plugin-provider.',
   });
   assert.deepEqual(f.calls, []);
 });

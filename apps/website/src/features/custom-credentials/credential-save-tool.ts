@@ -13,9 +13,10 @@ export interface CredentialSaveAdapters {
   readonly sourceControl: ToolHandler;
   readonly publishHost: ToolHandler;
   readonly agentPluginToken: ToolHandler;
+  readonly pluginProvider: ToolHandler;
 }
 
-const KINDS = ['api', 'media-provider', 'source-control', 'publish-host', 'agent-plugin-token'] as const;
+const KINDS = ['api', 'media-provider', 'source-control', 'publish-host', 'agent-plugin-token', 'plugin-provider'] as const;
 type CredentialKind = typeof KINDS[number];
 
 /** Model input carries non-secret metadata only. Schema additionalProperties is descriptive:
@@ -26,8 +27,8 @@ type CredentialKind = typeof KINDS[number];
 export const credentialSaveCatalog: AgentToolDefinition[] = [{
   name: CREDENTIAL_SAVE_TOOL_ID,
   description: 'Save, add, connect or rotate a credential through a secure human form. The person types the API key, token or password in a masked card; it is sealed server-side and never enters chat or model input. This one call waits for submit, cancel, expiry or abandonment. ' +
-    'Choose kind: api for any third-party API, Stripe, Mailchimp, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for GitHub/GitLab repository commit and backup tokens; publish-host for static site hosting or S3 storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in. ' +
-    'Examples: create an API credential with {kind:"api",label:"Stripe",baseUrl:"https://api.stripe.com",category:"general"}; rotate a saved API token with {kind:"api",target:"github"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"openai"}; connect repository backups with {kind:"source-control",target:"github",label:"default"}; save a hosting connection with {kind:"publish-host",target:"s3",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"supabase"}. ' +
+    'Choose kind: api for any third-party API, Stripe, Mailchimp, DNS registrar or hosting API; media-provider for image/video generation keys; source-control for GitHub/GitLab repository commit and backup tokens; publish-host for static site hosting or S3 storage credentials; agent-plugin-token for an installed plugin personal access token fallback after agent_plugin_connect could not start OAuth sign-in; plugin-provider for a provider whose installed plugin ships its own key card (a plugin skill names it), which asks only for the key and saves it where that plugin reads it. ' +
+    'Examples: create an API credential with {kind:"api",label:"Stripe",baseUrl:"https://api.stripe.com",category:"general"}; rotate a saved API token with {kind:"api",target:"github"} (target is the exact saved label, username is preserved); save an image generation key with {kind:"media-provider",target:"openai"}; connect repository backups with {kind:"source-control",target:"github",label:"default"}; save a hosting connection with {kind:"publish-host",target:"s3",prefill:{bucket:"my-site",region:"us-east-1"}}; use a plugin token with {kind:"agent-plugin-token",target:"supabase"}; open a plugin’s own key card with {kind:"plugin-provider",target:"<provider id>"}. ' +
     'Discover targets first with content_read.custom_credential, media_list_providers, source_control_get_capabilities or deployment_get_static_publish_capabilities. API creation accepts optional label/baseUrl/category/worksFor prefill; without target it creates a new row and refuses a duplicate label. Publish prefill accepts only provider-declared non-secret fields. Never supply a secret in any argument. ' +
     'Permissions stay per kind: custom-credentials.write, admin.integrations.manage (media/plugin), source-control.credentials.write, deployments.credentials.write. Results retain each kind’s safe save status and errors; only API creation returns created/credential. Saving a media key does not verify it or add adapter support. External MCP server config, user creation, database destinations and app environment secrets use their own action tools. After success retry the original request once.',
   sideEffects: 'mutates-durable-state',
@@ -36,7 +37,7 @@ export const credentialSaveCatalog: AgentToolDefinition[] = [{
     type: 'object', additionalProperties: false, required: ['kind'],
     properties: {
       kind: { type: 'string', enum: [...KINDS] },
-      target: { type: 'string', minLength: 1, description: 'Existing API credential label to rotate, media/source-control/publish provider id, or installed plugin id.' },
+      target: { type: 'string', minLength: 1, description: 'Existing API credential label to rotate, media/source-control/publish/plugin provider id, or installed plugin id.' },
       label: { type: 'string', description: 'Optional new API or source-control credential label; never a secret.' },
       baseUrl: { type: 'string', description: 'API creation only: non-secret base URL prefill.' },
       worksFor: { type: "array", items: { type: "string" }, description: "API creation only: explicit host or vendor IDs to preselect in the secure form." },
@@ -57,13 +58,14 @@ export const credentialSaveDerivedRisk: DerivedRiskByToolId = new Map([[CREDENTI
  */
 function selectSave({ input, adapters }: { input: Record<string, unknown>; adapters: CredentialSaveAdapters }, _optional = {}): { handler: ToolHandler; input: Record<string, unknown> } {
   const kind = requireString({ input, key: 'kind' });
-  if (!KINDS.includes(kind as CredentialKind)) throw new ToolInputError({ message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host or agent-plugin-token.' });
+  if (!KINDS.includes(kind as CredentialKind)) throw new ToolInputError({ message: 'Unknown credential kind. Use api, media-provider, source-control, publish-host, agent-plugin-token or plugin-provider.' });
   const selectedKind = kind as CredentialKind;
   const { kind: _kind, ...metadata } = input;
   const fields = selectedKind === 'api'
     ? ['target', 'label', 'baseUrl', 'category', 'worksFor']
-    : ['target', 'prefill'];
-  const validateHere = selectedKind === 'publish-host' || (selectedKind === 'api' && !('target' in metadata));
+    : selectedKind === 'plugin-provider' ? ['target'] : ['target', 'prefill'];
+  // A plugin card fixes its row on the server, so no label, base URL or category may ride along.
+  const validateHere = selectedKind === 'publish-host' || selectedKind === 'plugin-provider' || (selectedKind === 'api' && !('target' in metadata));
   if (validateHere && Object.keys(metadata).some(key => !fields.includes(key))) {
     // Creation previously ignored unknown hints. Refuse them here; other owners already validate
     // their entire input and retain their exact per-kind errors. Never silently drop an extra key.
@@ -90,6 +92,7 @@ function routeSave({ selectedKind, metadata, adapters }: {
       return { handler: adapters.agentPluginToken, input: { ...hints, pluginId: metadata.target } };
     }
     case 'publish-host': return selectPublishSave({ metadata, adapters });
+    case 'plugin-provider': return { handler: adapters.pluginProvider, input: { provider: metadata.target } };
     // No default: selectSave refuses any kind outside KINDS before routing, and this switch covers
     // every CredentialKind, so the compiler proves no other value reaches here.
   }

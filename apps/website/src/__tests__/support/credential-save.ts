@@ -7,7 +7,7 @@ export function credentialSaveFixtureRegistrations(
 ): ToolRegistration[] {
   const unused = async (): Promise<never> => { throw new Error('Unexpected credential kind in this domain fixture'); };
   return [...registrations, ...buildCredentialSaveRegistrations({ adapters: {
-    apiCreate: unused, apiRotate: unused, mediaProvider: unused, sourceControl: unused, publishHost: unused, agentPluginToken: unused,
+    apiCreate: unused, apiRotate: unused, mediaProvider: unused, sourceControl: unused, publishHost: unused, agentPluginToken: unused, pluginProvider: unused,
     ...adapters,
   } })];
 }

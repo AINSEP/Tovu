@@ -500,6 +500,7 @@ export function installFirstPartyToolContributors(
         sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
         publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
         agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
+        pluginProvider: api.pluginProvider,
       } });
     },
   } });
