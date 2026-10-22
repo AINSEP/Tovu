@@ -19,7 +19,7 @@ function renderRenderYaml(descriptor: DeploymentDescriptor, options: RenderDeplo
 
 /**
  * @file `renderRenderYaml` against a KNOWN, hand-fixed descriptor — exact-string assertions, same
- * discipline as `bundled-deploy-config-fly.unit.test.ts`.
+ * discipline as `content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs`.
  */
 
 const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {

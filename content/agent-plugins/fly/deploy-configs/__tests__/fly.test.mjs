@@ -8,16 +8,18 @@ import { parse as parseToml } from "smol-toml";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
-import { ValidationError } from "#src/platform/site-dir/index";
+import { ValidationError } from "../../../../../apps/website/src/platform/site-dir/index.ts";
 
-import { createDeployConfigKit, MIGRATIONS_NOTE, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
+import { createDeployConfigKit, MIGRATIONS_NOTE } from "../../../../../apps/website/src/features/deployments/deploy-config.ts";
 
-/** The bundled `fly` plugin's generator module, imported from its source like the other bundled-deploy tests. */
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/fly/deploy-configs/fly.mjs");
-const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule };
+/** The bundled `fly` plugin's generator module. Moved from core's
+ * `agent-plugins/__tests__/unit/bundled-deploy-config-fly.unit.test.ts`: vendor tests live with the vendor;
+ * the host kit (`createDeployConfigKit`) is still core's real one, imported by path. */
+const MODULE_PATH = path.resolve(import.meta.dirname, "../fly.mjs");
+const imported = await import(pathToFileURL(MODULE_PATH).href);
 
 /** The module's `render` with the real host kit, under the name the core renderer had before it moved. */
-function renderFlyToml(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions): RenderedDeployConfig {
+function renderFlyToml(descriptor, options) {
   return imported.default.render(descriptor, options, createDeployConfigKit());
 }
 
@@ -27,7 +29,7 @@ function renderFlyToml(descriptor: DeploymentDescriptor, options: RenderDeployCo
  * `Dockerfile`/`package.json` happen to say at the time (that's `deploy-config.unit.test.ts`'s job).
  */
 
-const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
+const FIXTURE_DESCRIPTOR = {
   appName: "acme-app",
   port: 4000,
   dockerfilePath: "Dockerfile",
@@ -167,11 +169,7 @@ test("renderFlyToml preserves every production field, including the live volume 
 
 test("the production workflow's generation command uses the plugin and emits the parity config without npm or a built CLI", (t) => {
   const repoRoot = path.resolve(path.dirname(MODULE_PATH), "../../../..");
-  const workflow = parseYaml(readFileSync(path.join(repoRoot, ".github/workflows/fly-deploy.yml"), "utf8")) as {
-    env: Record<string, string>;
-    concurrency: { "cancel-in-progress": boolean };
-    jobs: { deploy: { steps: Array<{ name?: string; run?: string; env?: Record<string, string> }> } };
-  };
+  const workflow = parseYaml(readFileSync(path.join(repoRoot, ".github/workflows/fly-deploy.yml"), "utf8"));
   const steps = workflow.jobs.deploy.steps;
   const index = steps.findIndex(step => step.name === "Generate Fly config from the plugin");
   assert.ok(index >= 0);
@@ -188,7 +186,7 @@ test("the production workflow's generation command uses the plugin and emits the
   const moduleCopy = path.join(root, "content/agent-plugins/fly/deploy-configs/fly.mjs");
   mkdirSync(path.dirname(moduleCopy), { recursive: true });
   copyFileSync(MODULE_PATH, moduleCopy);
-  const result = spawnSync("bash", ["-eu", "-c", steps[index].run!], {
+  const result = spawnSync("bash", ["-eu", "-c", steps[index].run], {
     cwd: root, encoding: "utf8",
     env: { PATH: process.env.PATH, ...workflow.env, TOVU_ADMIN_PASSWORD: "never-render-this-secret" },
   });
@@ -211,14 +209,14 @@ test("renderFlyToml escapes variable values instead of treating them as TOML syn
 });
 
 test("renderFlyToml rejects invalid variable names, non-string values, and declared secrets in either map", () => {
-  for (const field of ["env", "buildArgs"] as const) {
+  for (const field of ["env", "buildArgs"]) {
     for (const variables of [
       { "BAD\n[env]": "value" },
       { BAD: 123 },
       { TOVU_ADMIN_PASSWORD: "never-include-this-value" },
     ]) {
       assert.throws(() => renderFlyToml(FIXTURE_DESCRIPTOR, {
-        region: "iad", [field]: variables as unknown as Record<string, string>,
+        region: "iad", [field]: variables,
       }), error => error instanceof ValidationError && !error.message.includes("never-include-this-value"));
     }
   }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { context, AT } from "./module-fixture.js";
-const fly = (await import(new URL("../../../../../../../content/agent-plugins/fly/deploy-ops/fly.mjs", import.meta.url).href)).default;
+import { context, AT } from "./module-fixture.mjs";
+import fly from "../fly.mjs";
 const url = "https://api.machines.dev/v1/apps/shop/machines";
 test("Fly status normalizes machines without exposing vendor fields", async () => {
   const ctx = context({ [url]: [{ id: "m1", region: "lax", state: "started", config: { image: "registry/image:v2", secret: "hidden" }, checks: [{ name: "web", status: "passing" }], updated_at: AT }] });
@@ -15,7 +15,7 @@ for (const [machine, state] of [
   [{ state: "destroyed" }, "stopped"], [{ state: "destroying" }, "stopped"], [{ state: "stopping" }, "stopped"],
   [{ state: "started", checks: [{ status: "critical" }] }, "failing"], [{ state: "started", checks: [{ status: "warning" }] }, "unknown"],
   [{ state: "mystery" }, "unknown"],
-] as const) test(`Fly maps ${JSON.stringify(machine)} to ${state}`, async () => {
+]) test(`Fly maps ${JSON.stringify(machine)} to ${state}`, async () => {
   assert.equal((await fly.status(context({ [url]: [{ id: "m1", ...machine }] }), { target: "shop" })).state, state);
 });
 test("Fly critical beats replacing regardless of order; empty apps are stopped", async () => {
