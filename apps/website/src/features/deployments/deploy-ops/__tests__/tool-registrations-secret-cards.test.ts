@@ -77,7 +77,7 @@ test("contributeDeployOpsTools builds from the supplied registry, or from the de
   const status = (registrations: ReturnType<typeof buildDeployOpsRegistrations>) => (registrations.find(r => r.descriptor.id === "deployment_ops_status")!.descriptor.inputSchema as { properties: { platform: { enum: string[] } } }).properties.platform.enum;
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   assert.deepEqual(status(narrowed.build(f.deps as never, surfaces)), ["example-host"]);
-  assert.deepEqual(status(contributeDeployOpsTools().build(f.deps as never, surfaces)), ["example-host", "example-observer"]);
+  assert.deepEqual(status(contributeDeployOpsTools().build(f.deps as never, surfaces)), ["example-host", "example-observer", "example-pipeline"]);
 });
 
 test("copying from another secret on the target writes the source's value; list goes through the same handler", async () => {

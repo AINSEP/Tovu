@@ -1,4 +1,5 @@
 { "schemaVersion": 1, "platforms": [
   { "id": "example-host", "label": "Example Host", "module": "deploy-ops/example-host.mjs", "hosts": ["api.example-host.dev", "logs.example-host.dev"] },
-  { "id": "example-observer", "label": "Example Observer", "module": "deploy-ops/example-observer.mjs", "hosts": ["api.example-host.dev"] }
+  { "id": "example-observer", "label": "Example Observer", "module": "deploy-ops/example-observer.mjs", "hosts": ["api.example-host.dev"] },
+  { "id": "example-pipeline", "label": "Example Pipeline", "module": "deploy-ops/example-pipeline.mjs", "hosts": ["api.example-host.dev"] }
 ] }
