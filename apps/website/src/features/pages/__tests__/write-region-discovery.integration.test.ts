@@ -128,12 +128,20 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
   const entry = JSON.parse(payload.content) as {
     id: string;
     description: string;
-    inputSchema?: { required?: string[]; properties?: Record<string, { type?: string; minimum?: number }> };
+    inputSchema?: {
+      required?: string[];
+      properties?: Record<string, { type?: string; minimum?: number; minItems?: number; maxItems?: number; description?: string }>;
+    };
   };
   assert.equal(entry.id, "pages_write_region");
-  // why: N3 (42773ffa) publishes regionId as the canonical region field; handle is an executor-side alias.
-  assert.deepEqual(entry.inputSchema?.required, ["id", "regionId", "html"]);
+  // Default-on batching moves the top-level `required` into the per-item contract (same change as
+  // agent-plugin-search-discovery's 6664d6df update); the three fields stay required on every item.
+  assert.equal(entry.inputSchema?.required, undefined);
   const properties = entry.inputSchema?.properties;
+  assert.equal(properties?.items.minItems, 1);
+  assert.equal(properties?.items.maxItems, 25);
+  // why: N3 (42773ffa) publishes regionId as the canonical region field; handle is an executor-side alias.
+  assert.match(properties?.items.description ?? "", /Each item needs id, regionId, html \(inside each item\)/);
   assert.equal(properties?.expectedVersion.type, "integer");
   assert.equal(properties?.expectedVersion.minimum, 0);
   for (const field of ["id", "regionId", "html"]) assert.equal(properties?.[field].type, "string");
@@ -143,4 +151,23 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
   // trim of this description.
   assert.match(entry.description, /INNER CONTENT ONLY/);
   assert.match(entry.description, /must NOT be re-emitted/);
+});
+
+// The `required` assertion above moved into the batch item contract; this pins that the schema still
+// refuses a call missing regionId, single or batched, before any executor (or fake store) is reached.
+test("pages_write_region still requires regionId for both single calls and batch items", async () => {
+  const s = surface();
+  for (const input of [{ id: "page-1", html: "<h1>x</h1>" }, { items: [{ id: "page-1", html: "<h1>x</h1>" }] }]) {
+    const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: "pages_write_region", input } });
+    const payload = result as { content: string; isError?: boolean };
+    if ("items" in input) {
+      const batch = JSON.parse(payload.content) as { succeeded: number; failed: number; results: { ok: boolean; error: string }[] };
+      assert.equal(batch.succeeded, 0);
+      assert.equal(batch.failed, 1);
+      assert.match(batch.results[0]?.error ?? "", /'regionId'.*required/);
+    } else {
+      assert.equal(payload.isError, true);
+      assert.match(payload.content, /'regionId'.*required/);
+    }
+  }
 });
