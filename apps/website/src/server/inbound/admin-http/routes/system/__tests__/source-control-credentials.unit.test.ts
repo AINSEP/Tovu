@@ -120,7 +120,8 @@ test('new credentials use neutral declared fields; unlisted saved rows remain vi
   const refused = await invoke('post', BASE, { body: input });
   assert.equal(refused.statusCode, 400);
   assert.equal(JSON.stringify(listed).includes('operator'), false);
-  assert.deepEqual(await invoke('delete', `${BASE}/:id`, { params: { workspaceId: 'ws-1', id: 'cred-1' } }), { statusCode: 204 });
+  assert.deepEqual(await invoke('delete', `${BASE}/:id`, { params: { workspaceId: 'ws-1', id: 'cred-1' } }), { statusCode: 204, jsonBody: undefined });
+  assert.deepEqual(await invoke('get', BASE), { statusCode: 200, jsonBody: { credentials: [] } });
 });
 
 for (const [method, route] of [['get', PROVIDERS], ['get', BASE], ['post', BASE], ['put', `${BASE}/:id`], ['delete', `${BASE}/:id`]] as const) {

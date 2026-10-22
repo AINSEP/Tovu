@@ -769,8 +769,9 @@ test('non-default declared token names accept canonical admin input and normaliz
     { name: 'username', label: 'Username', required: true },
   ] } } };
   const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }) });
-  for (const field of ['token', 'accessToken']) {
-    const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: field, isDefault: true,
+  // Keep public labels distinct from secret field names so the leak assertion checks the payload.
+  for (const [field, label] of [['token', 'canonical-input'], ['accessToken', 'declared-input']] as const) {
+    const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label, isDefault: true,
       connection: { providerId: 'example-access', [field]: '  first-secret  ', username: 'operator' } } });
     const resolve = async () => {
       const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'example-access' });
@@ -781,6 +782,7 @@ test('non-default declared token names accept canonical admin input and normaliz
     const rotated = await updateSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, id: saved.id,
       connection: { providerId: 'example-access', [field]: '  replacement-secret  ', username: 'new-operator' } } });
     assert.deepEqual(await resolve(), { providerId: 'example-access', token: 'replacement-secret', username: 'new-operator' });
+    assert.equal(rotated.label, label);
     assert.equal(rotated.tokenHint?.last4, 'cret');
     assert.doesNotMatch(JSON.stringify(rotated), /first-secret|replacement-secret|accessToken|new-operator/);
     const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: saved.id });
