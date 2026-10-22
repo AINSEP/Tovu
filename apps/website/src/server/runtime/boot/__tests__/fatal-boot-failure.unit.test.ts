@@ -79,3 +79,19 @@ test("the real index entrypoint catches main's rejection with the fatal boot ada
   assert.equal(reason.name.text, "error");
   assert.equal(handler.parameters[0].name.getText(ast), reason.name.text);
 });
+
+/** Production's only caller (`index.ts`) passes no ports: the defaults must be the real
+ * `console.error` and `process.exit(1)`. Both are stubbed on the real globals so the test process
+ * itself survives while the default wiring is still the code under test. */
+test("default ports report on console.error and exit the real process with code 1", (t) => {
+  const logged: unknown[][] = [];
+  const exits: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  t.mock.method(process, "exit", ((code?: number) => { exits.push(code); }) as never);
+  const error = new Error("default port failure");
+  reportFatalBootFailure({ error });
+  assert.deepEqual(exits, [1]);
+  assert.equal(logged.length, 1);
+  assert.match(String(logged[0]?.[0]), /^\[boot\] Tovu failed to start: default port failure\./);
+  assert.equal(logged[0]?.[1], error);
+});
