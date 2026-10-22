@@ -1,37 +1,92 @@
 ---
 name: resend
-description: Send the site's email through Resend. Covers getting an API key, verifying the sending domain, saving the key where Tovu finds it, and what each send failure means in plain words.
+description: Send the site's email through Resend, and manage the Resend account itself (domains and DNS verification, broadcasts, contacts, segments, topics, templates, logs, usage) through Resend's hosted MCP server. Covers which tools to use for what, the two keys and how each is saved through Tovu's secure form, verifying the sending domain, and what each send failure means in plain words.
 ---
 
-# Send the site's email through Resend
+# Resend: the site's email, and the Resend account
 
 ## Scope
 
-This plugin owns **sending the site's outbound email through Resend's hosted API**: sign-in links,
-form notifications and newsletters. The adapter code ships inside this plugin; Tovu runs it only
-because Tovu shipped it. When no Resend key is saved, Tovu falls back to an SMTP server if one is
-saved, and otherwise sends nothing (mail is only logged).
+This plugin does two separate jobs. Keep them apart.
 
-## Set it up
+1. **The site's own email** (sign-in links, form notifications, newsletters). The adapter ships in
+   this plugin and Tovu runs it only because Tovu shipped it. When no Resend key is saved, Tovu falls
+   back to an SMTP server if one is saved, and otherwise sends nothing (mail is only logged).
+2. **The Resend account** (domains, broadcasts, contacts, segments, topics, templates, logs, usage).
+   This goes through Resend's own hosted MCP server, `https://mcp.resend.com/mcp`. Its tools appear
+   as `mcp__resend__<name>`, for example `mcp__resend__list-domains`.
 
-1. **Get a key.** The person signs in at resend.com, opens **API Keys**, and creates a key with
-   "Sending access". Never ask them to paste the key into chat.
-2. **Verify the sending domain.** In Resend, **Domains**, add the domain the site sends from and add
-   the DNS records Resend shows. Until the domain is verified, Resend only sends to the account's own
-   address.
-3. **Save the key in Tovu.** Admin, **Access Tokens**, "Add custom provider":
-   - Label: exactly `Tovu Mail — Resend API`
-   - Category: `ops`
-   - Base URL: `https://api.resend.com`
-   - Token: the Resend API key
+## Which tools to use
+
+**Tovu's own mail tools are the source of truth for the site's email.** Use them for anything about
+how this site sends:
+
+- `system_get_mail_status`: is mail set up, which provider, is the domain ready.
+- `mail_set_provider`: switch the site between Resend, SMTP and none.
+- `mail_send_test`: prove the site's mail works end to end.
+- `dns_*`: add or check the DNS records on the site's own domain.
+
+Never use `mcp__resend__send-email` to test or stand in for the site's mail: it skips Tovu's outbox,
+retries, suppression list and logs, so a pass there proves nothing about the site.
+
+**Use the `mcp__resend__*` tools for work on the Resend account itself**, when the person asks for it:
+
+- **Domains**: `list-domains`, `get-domain`, `create-domain`, `update-domain`, `verify-domain`, and
+  the domain-claim tools. `create-domain` returns the DNS records; add them with Tovu's `dns_*`
+  tools when the site's DNS is managed in Tovu, otherwise show them to the person. Then call
+  `verify-domain`.
+- **Broadcasts**: draft, update, compose and cancel. Sending a broadcast is not switched on by
+  default (see below); the site's own newsletter goes through Tovu.
+- **Contacts, segments, topics, contact properties, templates**: list, read, create, update.
+- **Emails**: one-off emails the person asks for (`send-email`, `send-batch-emails`, which ask the
+  person to confirm first), reading sent and received emails, cancelling a scheduled one.
+- **Logs, usage, suppressions, webhooks, API keys**: read only.
+
+**Off by default:** every `remove-*` tool, `send-broadcast`, creating or changing API keys,
+creating, changing or rotating webhooks, and revoking sign-ins. Removals cannot be undone, a
+broadcast mails a whole audience, and new keys or webhook secrets would land in the chat. If the
+person really needs one of these, do it in the Resend dashboard, or tell them they can switch that
+tool on under Settings for this connection.
+
+## Connect the Resend account (before any `mcp__resend__*` tool)
+
+Call `agent_plugin_connect { pluginId: "resend" }` first, every time; it returns at once when it is
+already connected. It shows the person a button to sign in to Resend and approve access.
+
+- `{ status: "connected" }`: go ahead.
+- It fails because sign-in cannot start, or the person would rather use a key: open the secure key
+  form with `credential_save { kind: "agent-plugin-token", target: "resend" }`. Tell the person:
+  1. Sign in at [resend.com/api-keys](https://resend.com/api-keys) and choose **Create API Key**.
+  2. Permission: **Full access** (managing domains, contacts and broadcasts needs it; a "Sending
+     access" key is refused). Domain: all domains.
+  3. Paste it into the form Tovu shows. Never into the chat.
+- The form says the key was rejected: it is a "Sending access" key. Make a Full access one.
+- The form says Resend is unavailable right after a save: most often the key was mistyped (Resend
+  answers a malformed key that way). Ask the person to copy it again; retry once, then wait.
+
+Never ask for the key in chat, and never put it in any tool argument.
+
+## Set up the site's email
+
+1. **Get a sending key.** The person signs in at [resend.com/api-keys](https://resend.com/api-keys)
+   and creates a key with **Sending access** (only sending; the site needs nothing more). This is a
+   different key from the Full access one above.
+2. **Save it through the secure form:**
+   `credential_save { kind: "api", label: "Tovu Mail — Resend API", baseUrl: "https://api.resend.com", category: "ops" }`.
+   The label must be exactly that; it is how Tovu finds the key. Never ask for the key in chat.
+3. **Verify the sending domain.** Until it is verified, Resend only sends to the account's own
+   address. Check with `system_get_mail_status`; add records with `dns_*` (or, when the account is
+   connected, `mcp__resend__create-domain` then `mcp__resend__verify-domain`).
 4. **No restart needed** when no mail was going out yet: Tovu picks the key up on the next email it
    sends. If mail was already going out through a saved SMTP server, restart Tovu to switch to Resend.
+5. Prove it with `mail_send_test`.
 
 ## What a failure means
 
 - `validation_error`: a bad address or an unverified sending domain. Fix the address or verify the domain.
 - `missing_api_key`, `invalid_api_key`, `restricted_api_key`: the saved key is wrong or lacks sending
-  access. Create a new key and replace the saved one.
+  access. Create a new key and replace the saved one (`credential_save { kind: "api", target: "Tovu
+  Mail — Resend API" }`).
 - `rate_limit_exceeded`, HTTP 5xx, `TRANSPORT_ERROR`: temporary. Tovu retries these.
 
 ## Bounces and complaints (webhook)
@@ -40,13 +95,11 @@ Resend tells Tovu when a message hard-bounces or is marked as spam, so Tovu stop
 address (a complaint stops newsletters only; sign-in links still go out).
 
 1. In Resend, **Webhooks**, add the endpoint `https://<the site's public address>/hooks/mail/resend`
-   with the events `email.bounced`, `email.complained` and `email.delivered`.
+   with the events `email.bounced`, `email.complained` and `email.delivered`. Do this in the
+   dashboard, not with the MCP tools: the signing secret must not pass through the chat.
 2. Copy the endpoint's **signing secret** (it starts with `whsec_`). Never ask for it in chat.
-3. Save it under Access Tokens, "Add custom provider":
-   - Label: exactly `Tovu Mail — Resend Webhook Secret`
-   - Category: `ops`
-   - Base URL: `https://api.resend.com`
-   - Token: the signing secret
+3. Save it through the secure form: `credential_save { kind: "api", label: "Tovu Mail — Resend
+   Webhook Secret", baseUrl: "https://api.resend.com", category: "ops" }`.
 4. **Rotating it:** rename the saved one to `Tovu Mail — Resend Webhook Secret (previous)`, save the
    new one under the label above, then delete the previous one once Resend uses only the new secret.
 

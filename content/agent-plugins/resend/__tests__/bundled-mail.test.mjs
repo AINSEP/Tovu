@@ -43,10 +43,11 @@ test("plugin.json parses under the Agent Plugins v1.0.0 validator with no warnin
   assert.deepEqual(parsed.ok ? parsed.warnings : ["unreachable"], []);
 });
 
-test("mcp.json declares ZERO servers — the adapter runs in-process through the mail-adapter registry", async () => {
+test("mcp.json's only server is Resend's account MCP — the mail adapter still runs in-process through the mail-adapter registry", async () => {
   const parsed = parseAgentPluginMcpConfig({ value: await readPackageJson("mcp.json") });
   assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], []);
+  assert.deepEqual(parsed.ok ? parsed.config.serverIds : ["unreachable"], ["resend"]);
+  assert.notEqual(parsed.ok && parsed.config.servers.resend?.type, "stdio");
 });
 
 test("the credential label is byte-identical to the one sites already saved (no re-entry on upgrade)", async () => {
