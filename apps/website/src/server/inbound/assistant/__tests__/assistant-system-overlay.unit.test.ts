@@ -88,6 +88,17 @@ test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools
   }
 });
 
+test("every overlay names where file searches may run, so the no-system-search hook and 20 s search timeouts are avoided", () => {
+  for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
+    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    assert.match(overlay, /File searches \(Grep, Glob, rg, find\) must stay inside your working directory/);
+    for (const folder of ["themes/", "plugins/", "agent-plugins/", "skills/"]) assert.ok(overlay.includes(folder), `names ${folder}`);
+    assert.match(overlay, /Never search \/, ~ or \$HOME/);
+    assert.match(overlay, /uploads\/, out\/ and node_modules/);
+    assert.match(overlay, /theme_read_file/);
+  }
+});
+
 // FABRICATED-STAT FIX (2026-09-08): the overlay used to assert "the right tool is in the default
 // top 10 98% of the time and in the top 20 100% of the time". Verified fabricated: the eval it
 // claimed as its source (`tool-search-heldout-v2.eval.ts`) declares `CUTOFFS = [1, 3, 5, 10] as

@@ -157,6 +157,19 @@ export function buildBashProhibitionBlock(enabled: boolean): string {
  *
  * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
  */
+/**
+ * Where native file searches may run. Runs start in the site folder (`cwd` is the site dir, see
+ * `agent-daemon-server.ts`), the owner's no-system-search hook (see
+ * {@link resolveAssistantRunSettings}) denies searches rooted at `/` or `$HOME`, and a whole-tree
+ * ripgrep over uploads/build output hits the 20 s search timeout — so name the folders up front.
+ * Folder names follow `sites/README.md`'s "What one site holds".
+ */
+const SEARCH_SCOPE_GUIDANCE =
+  "File searches (Grep, Glob, rg, find) must stay inside your working directory, this site's folder, and should name " +
+  "one of its subfolders: themes/ (site themes), plugins/ (site plugins), agent-plugins/, skills/. Never search /, ~ or $HOME " +
+  "(a guard denies it), and skip uploads/, out/ and node_modules (huge; searches there time out after 20 s). " +
+  "Prefer the tools over searching files: theme_read_file and the theme file tools for themes, search_tools for everything else. ";
+
 export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean } = {}): string {
   return (
     SITE_GUIDE_POINTER +
@@ -197,6 +210,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
     "Never reuse a pageId from an earlier run or before a server/daemon restart. On 'No page found', list pages again or open a new page before navigating. " +
+    SEARCH_SCOPE_GUIDANCE +
     (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
     (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :

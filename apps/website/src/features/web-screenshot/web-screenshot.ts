@@ -73,6 +73,8 @@ export interface PageCapture {
   /** Height actually captured, in CSS px. */
   capturedHeight: number;
   blockedRequests: number;
+  /** Set when the picture is a best-effort frame (e.g. the page was still animating at the deadline). */
+  note?: string;
 }
 
 export type PageCaptureFailure = "refused" | "unavailable" | "timeout" | "failed";
@@ -260,6 +262,7 @@ async function buildCaptureResult(
     images: tiles.map((tile, index) => ({ index, top: tile.top, height: tile.height })),
     blockedRequests: shot.blockedRequests,
     capturedAt: new Date(capturedAtMs).toISOString(),
+    ...(shot.note === undefined ? {} : { note: shot.note }),
     ...saved,
     ...(site === null ? { untrusted: true, untrustedNotice: UNTRUSTED_NOTICE } : {}),
   };

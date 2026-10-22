@@ -448,3 +448,11 @@ test('off-origin site-path refusal leaks the opened server (reported, not fixed)
   assert.equal(closed, 0);
   assert.deepEqual(capture.requests, []);
 });
+
+test("a capture that came back with a note (e.g. a still-animating page) passes the note to the caller", async () => {
+  const note = "page was still animating near the 20 s deadline; captured the current frame";
+  const capture = fakeCapture((request) => shotFor(request, { note }));
+  const result = await createWebScreenshotService({ ports: ports(capture) }).screenshot({ input: readWebScreenshotInput({ url: "https://resend.com/" }) });
+  assert.equal(factsOf(result).note, note);
+  assert.equal(result.content.filter((block) => block.type === "image").length, 1);
+});
