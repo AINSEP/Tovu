@@ -184,3 +184,21 @@ test("widget precheck refuses a widget type the destination lacks, and settings 
   assert.equal(invalid?.outcome, "blocked");
   assert.equal(invalid?.reason, `widget '${a.id}': its settings do not fit the destination's 'text' widget`);
 });
+
+test("widget references name configured form, menu and term references, and tolerate a widget with no config", async () => {
+  const { src, a } = await sites();
+  const handler = contributeWidgetPublish().build(src.site);
+  const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id)!;
+  const refs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } });
+  assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);
+  assert.deepEqual(await handler.references!({ ...widget, state: { ...widget.state, config: undefined } }), []);
+});
+
+test("a contact-form reference to a form the source cannot find packs unchanged", async () => {
+  const { src, a } = await sites();
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  await src.ports.entries.save({ ...row, fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "contact-form", config: { formDefinitionId: "gone-form" }, status: "active" }) } } } });
+  const packed = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
+  assert.match(JSON.stringify(packed?.state), /"formDefinitionId":"gone-form"/);
+});
