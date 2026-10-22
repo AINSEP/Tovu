@@ -141,9 +141,20 @@ test("every operator-supplied value in both templates is marked as a placeholder
   assert.deepEqual(workflow.jobs.deploy.steps, [
     { uses: "actions/checkout@v4" },
     { uses: "superfly/flyctl-actions/setup-flyctl@v1" },
+    { name: "Snapshot the sites volume before deploy",
+      env: {
+        FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}",
+        FLY_APP: token("<<PLACEHOLDER: fly app name>>"),
+        FLY_VOLUME: token("<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>"),
+      },
+      run: (workflow.jobs.deploy.steps[2] as { run: string }).run },
     { run: "flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0",
       env: { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" } },
   ]);
+  // No snapshot, no deploy: the step must fail when the named volume is missing.
+  const snapshotRun = (workflow.jobs.deploy.steps[2] as { run: string }).run;
+  assert.match(snapshotRun, /flyctl volumes snapshots create/);
+  assert.match(snapshotRun, /exit 1/);
 
 });
 
