@@ -64,6 +64,13 @@ describe("Analytics — empty state", () => {
   });
 });
 
+describe("Analytics — Cookie Consent cross-link", () => {
+  it("links to the Cookie Consent screen from the header", () => {
+    render(<Analytics useAnalyticsHook={stubHook({ hits: [] })} />);
+    expect(screen.getByRole("link", { name: "Cookie Consent" })).toHaveAttribute("href", "/admin/consent");
+  });
+});
+
 describe("Analytics — populated table", () => {
   it("renders the five headers and formats each hit's occurrence time", () => {
     render(<Analytics useAnalyticsHook={stubHook({ hits: [HIT_WITH_EVENT, HIT_DIRECT_PAGEVIEW] })} />);

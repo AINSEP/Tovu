@@ -1,5 +1,6 @@
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { DataTable } from "@jini-ai/admin/react";
+import { adminHref } from "@/lib/router";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
 /**
@@ -39,6 +40,10 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
           <p className="page-kicker">{t("Marketing")}</p>
           <h1 className="page-title">{t("Analytics")}</h1>
           <p className="page-description">{t("The most recent pageviews and events captured on this site.")}</p>
+        </div>
+        {/* Which visitors may be tracked is set in Cookie Consent, so link it from here. */}
+        <div className="page-actions">
+          <a className="btn-secondary" href={adminHref("/consent")}>{t("Cookie Consent")}</a>
         </div>
       </div>
       <div className="notice">
