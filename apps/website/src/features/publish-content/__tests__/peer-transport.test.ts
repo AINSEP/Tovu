@@ -724,3 +724,17 @@ test("outbound failures, refusals and malformed success bodies never establish d
   }, { bundleId: "b1", confirmationToken: "token" }));
   assert.deepEqual(await store.list({ workspaceId: "source-ws" }), []);
 });
+
+test("pull labels an envelope with no sourceLabel after the saved peer", async () => {
+  const http = new FakeHttpClient([
+    { match: /\/export$/, json: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: 1, entities: [], blobManifest: [] } },
+  ]);
+  const envelope = await pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL });
+  assert.equal(envelope.sourceLabel, "production");
+});
+
+test("a transport error raised inside the http client passes through unchanged, not re-wrapped as unreachable", async () => {
+  const original = new PublishContentPeerTransportError("the peer refused the upload size", "PEER_RESPONSE_INVALID");
+  const http: HttpClientPort = { send: async () => { throw original; } };
+  await assert.rejects(pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL }), (err: unknown) => err === original);
+});

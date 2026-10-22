@@ -1134,3 +1134,36 @@ test("L044 schema refusal precedes every baseline read even after a compatible f
   assert.deepEqual(report.rows, []);
   assert.match(report.refusalReason!, /two.*schema version 99/);
 });
+
+test("referencedBy: only the retire row whose target is still linked gains holders; other retiring and non-retiring rows stay as they are", async () => {
+  const destination = new Map<string, FakeDestinationRow>([["w3", { version: 1, hash: "same" }]]);
+  const targets: Record<string, RetireTarget> = {
+    w1: { entityType: "widget", entityId: "linked-holder", entityLabel: "Linked", hash: "h1" },
+    w2: { entityType: "widget", entityId: "unlinked-holder", entityLabel: "Unlinked", hash: "h2" },
+  };
+  registerPublishContentContributor(
+    fakeContributor(
+      makeFakeHandler({
+        entityType: "widget",
+        destination,
+        blockedIds: new Set(["w1", "w2"]),
+        blockReason: "slug 'x' is already held by a different widget",
+        planRetire: async (entity) => targets[entity.id] ?? null,
+      })
+    )
+  );
+  const refHolder: ReferenceHolder = { entityType: "ref", entityId: "m1", entityLabel: "Header", referencedId: "linked-holder" };
+  registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "ref", destination: new Map(), referencesTo: async () => [refHolder] })));
+
+  const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "widget", id: "w2" }), makeEntity({ entityType: "widget", id: "w3", contentHash: "same" })];
+  const report = await planImport(
+    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
+    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1"), entityKey("widget", "w2")]) })
+  );
+  const byId = new Map(report.rows.map((r) => [r.entityId, r]));
+  assert.deepEqual(byId.get("w1")!.referencedBy, [refHolder]);
+  assert.equal(byId.get("w2")!.retires?.entityId, "unlinked-holder");
+  assert.equal("referencedBy" in byId.get("w2")!, false, "a retire target nothing links to gains no field");
+  assert.equal(byId.get("w3")!.retires, null);
+  assert.equal("referencedBy" in byId.get("w3")!, false);
+});
