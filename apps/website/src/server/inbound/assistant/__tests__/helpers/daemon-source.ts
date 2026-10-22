@@ -74,6 +74,8 @@ export async function captureDaemonRun(
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
     resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
+    // A CLI whose `--help` lists `--chrome`; fixtures override it to model an older CLI.
+    probeAssistantChrome: async () => true,
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },

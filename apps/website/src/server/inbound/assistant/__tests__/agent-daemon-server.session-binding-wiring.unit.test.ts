@@ -92,7 +92,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     AbortController, automaticPluginRuns: { start: async () => "", forget() {} },
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
-    resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
+    resolveAssistantRuntimeLaunch, getAgentDef, probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
     failRunBeforeStart: async ({ message }: { message: string }) => assert.fail(message),
   }) as (input: unknown) => void;

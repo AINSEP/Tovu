@@ -1,7 +1,7 @@
 /** Per-run system guidance from the person's runtime preferences and the runtime's declared support.
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
-import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef } from "@jini-ai/agent-runtime";
+import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
 import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps } from "../../../assistant/runtime-preferences.js";
 
 /** Exact delegation guidance (owner decision 2026-10-21). */
@@ -36,7 +36,8 @@ export const CLAUDE_IN_CHROME_GUIDANCE =
  */
 export const CLAUDE_IN_CHROME_ALLOWED_TOOLS: readonly string[] = Object.freeze(["mcp__claude-in-chrome", "mcp__claude-in-chrome__*"]);
 
-/** Chrome is used only when the person turned it on, the runtime honors `chromeIntegration`, and
+/** Chrome is used only when the person turned it on, the runtime honors `chromeIntegration` (its
+ * def declares it AND the probed CLI accepts `--chrome`; see {@link resolveAssistantRuntimeLaunch}), and
  * the launching principal is the site owner: Claude in Chrome drives the owner's own logged-in
  * browser on this machine, which no other admin's chat may borrow. Pure, O(1). */
 export function resolveClaudeInChromeEffective(
@@ -88,17 +89,57 @@ export interface AssistantRuntimeLaunch {
 
 type RuntimeDefLookup = (input: { id: string }) => Pick<RuntimeAgentDef, "supportsSubagents" | "supportsChromeIntegration"> | null;
 
+/** Whether the CLI this run will spawn really accepts `--chrome`. Resolves false when unknown. */
+export type AssistantChromeProbe = (input: { agentId: string }) => Promise<boolean>;
+
+/** The runtime's own registry, launch resolver, `--help` capability probe and capability map: the
+ * same ones the executor's `buildArgs` gate reads, so the guidance and the argv agree. */
+export interface AssistantChromeProbeDeps {
+  getDef: (input: { id: string }) => RuntimeAgentDef | null;
+  resolveAgentLaunch: (input: { def: RuntimeAgentDef }) => { launchPath: string | null };
+  ensureAgentCapabilities: (input: { def: RuntimeAgentDef; launchPath: string; env: NodeJS.ProcessEnv }) => Promise<void>;
+  capabilities: Pick<ReadonlyMap<string, RuntimeCapabilityMap>, "get">;
+  env: NodeJS.ProcessEnv;
+}
+
+/**
+ * Probe-backed Chrome support. A def's `supportsChromeIntegration` only says its `buildArgs` knows
+ * the flag; Jini still drops `--chrome` when the `--help` probe did not find it (an older CLI exits
+ * 1 on an unknown option), so the def alone made the prompt promise Claude in Chrome and allow its
+ * tools on CLIs that never received the flag. This fills the runtime's probe before the launch reads
+ * it — the executor's own `ensureAgentCapabilities` then finds the entry and keeps it, so both read
+ * one result — and reports the probed `chrome` flag. Any failure reads false (fail closed).
+ * Limit: the probe sees `--help`, not whether the browser extension is connected.
+ * @complexity O(1) after the first call per agent; the first costs one `--help` spawn.
+ */
+export function createAssistantChromeProbe(deps: AssistantChromeProbeDeps, _options = {}): AssistantChromeProbe {
+  return async ({ agentId }) => {
+    try {
+      const def = deps.getDef({ id: agentId });
+      const launchPath = def ? deps.resolveAgentLaunch({ def }).launchPath : null;
+      if (!def || !launchPath) return false;
+      // The def's declared env is a default the host env overrides, as in the executor's own launch.
+      await deps.ensureAgentCapabilities({ def, launchPath, env: { ...def.env, ...deps.env } });
+      return deps.capabilities.get(def.id)?.chrome === true;
+    } catch {
+      return false;
+    }
+  };
+}
+
 /** Read the person's preferences fresh and combine them with the runtime's declared support and
  * this run's resolved native capabilities. A failed read falls back to the registered defaults.
- * @complexity O(k) for k fixed preference keys plus one registry lookup. */
+ * Chrome support also needs `probeChrome` to confirm the CLI accepts `--chrome`; without a probe
+ * it is treated as unsupported, which emits no flag (byte-identical to Jini's own drop).
+ * @complexity O(k) for k fixed preference keys plus one registry lookup and at most one probe. */
 export async function resolveAssistantRuntimeLaunch(
   { deps, principalId, agentId, subagentsEnabled, isOwner }: { deps: AssistantRuntimePreferenceDeps; principalId: string; agentId: string; subagentsEnabled: boolean; isOwner: boolean },
-  { getDef }: { getDef?: RuntimeDefLookup } = {},
+  { getDef, probeChrome }: { getDef?: RuntimeDefLookup; probeChrome?: AssistantChromeProbe } = {},
 ): Promise<AssistantRuntimeLaunch> {
   const preferences = await readAssistantRuntimePreferences({ deps, principalId }, {});
   const lookup = getDef ? { getDef } : {};
   const runtimeSupportsSubagents = agentSupportsSubagents({ agentId }, lookup);
-  const runtimeSupportsChrome = agentSupportsChromeIntegration({ agentId }, lookup);
+  const runtimeSupportsChrome = agentSupportsChromeIntegration({ agentId }, lookup) && await probeChrome?.({ agentId }) === true;
   const claudeInChrome = resolveClaudeInChromeEffective({ useClaudeInChrome: preferences.useClaudeInChrome, runtimeSupportsChrome, isOwner });
   return {
     guidance: { preferSubagents: resolvePreferSubagentsEffective({ preferSubagents: preferences.preferSubagents, runtimeSupportsSubagents, subagentsEnabled }), claudeInChrome },

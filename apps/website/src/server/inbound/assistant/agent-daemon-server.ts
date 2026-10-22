@@ -89,7 +89,7 @@ import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLin
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
-import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { AdapterContext } from "@jini-ai/http-kit";
@@ -148,7 +148,7 @@ import {
   resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
-import { buildAssistantRuntimeGuidance, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
+import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
@@ -218,6 +218,9 @@ const DEFAULT_AGENT_ID = "claude";
 const assistantRuntime = createNativeAgentRuntime({ env: process.env });
 const assistantInventory = createAssistantAgentInventory({ runtime: assistantRuntime });
 const { getAgentDef, resolveAgentLaunch } = assistantRuntime;
+// Chrome guidance and tools follow the same `--help` probe that gates `--chrome` in the argv.
+const probeAssistantChrome = createAssistantChromeProbe({ getDef: getAgentDef, resolveAgentLaunch, capabilities: assistantRuntime.state.capabilities,
+  ensureAgentCapabilities: input => ensureAgentCapabilities(input, { state: assistantRuntime.state }), env: assistantRuntime.hostEnv });
 
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
 const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
@@ -1309,7 +1312,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const subagentsEnabled = nativeCapabilities.subagents;
     // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
     const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef });
+      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome });
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
     await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({

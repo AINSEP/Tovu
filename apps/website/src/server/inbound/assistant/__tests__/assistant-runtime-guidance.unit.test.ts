@@ -11,6 +11,7 @@ import {
   resolveClaudeInChromeEffective,
   buildAssistantRuntimeGuidance,
   buildPreferSubagentsGuidance,
+  createAssistantChromeProbe,
   resolveAssistantRuntimeLaunch,
   resolvePreferSubagentsEffective,
 } from "../assistant-runtime-guidance.js";
@@ -70,16 +71,18 @@ function deps(values: Record<string, unknown>) {
 }
 
 const base = { principalId: "p", agentId: "claude", subagentsEnabled: true, isOwner: true };
+/** A CLI whose `--help` probe found `--chrome`, so Jini really emits the flag. */
+const probed = { probeChrome: async () => true };
 
 test("launch: defaults on Claude Code for the owner — delegation guidance on, Chrome on (owner default 2026-10-22)", async () => {
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}) }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}) }, probed),
     { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
 });
 
 test("launch: the Chrome default still yields --no-chrome for a non-owner, and an explicit OFF wins for the owner", async () => {
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), isOwner: false }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}), isOwner: false }, probed),
     { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: false }) }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: false }) }, probed),
     { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
 });
 
@@ -91,12 +94,12 @@ test("launch: a runtime without native subagents, a denied Task/Agent or an OFF 
 });
 
 test("launch: Chrome ON for the owner on Claude Code passes --chrome and allows the server", async () => {
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, probed),
     { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
 });
 
 test("launch: Chrome ON stays off for a non-owner and is omitted for a runtime without support", async () => {
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), isOwner: false }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), isOwner: false }, probed),
     { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: { chromeIntegration: false } });
   assert.deepEqual((await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "codex" })).runOptions, {});
 });
@@ -104,7 +107,73 @@ test("launch: Chrome ON stays off for a non-owner and is omitted for a runtime w
 test("launch: the host's own def lookup decides runtime support", async () => {
   const seen: string[] = [];
   const getDef = ({ id }: { id: string }) => { seen.push(id); return id === "host-cli" ? { supportsSubagents: true, supportsChromeIntegration: true } : null; };
-  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "host-cli" }, { getDef }),
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "host-cli" }, { getDef, ...probed }),
     { guidance: { preferSubagents: true, claudeInChrome: true }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
   assert.deepEqual(seen, ["host-cli", "host-cli"]);
+});
+
+test("launch: a declared-but-unprobed or probe-rejected CLI gets no Chrome guidance, no Chrome tools and no flag", async () => {
+  const asked: string[] = [];
+  const rejected = { probeChrome: async ({ agentId }: { agentId: string }) => { asked.push(agentId); return false; } };
+  for (const optional of [{}, rejected]) {
+    assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, optional),
+      { guidance: { preferSubagents: true, claudeInChrome: false }, runOptions: {} });
+  }
+  assert.deepEqual(asked, ["claude"]);
+});
+
+test("launch: a runtime that does not declare Chrome support is never probed", async () => {
+  let probes = 0;
+  const launch = await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "codex" }, { probeChrome: async () => { probes += 1; return true; } });
+  assert.deepEqual(launch.runOptions, {});
+  assert.equal(probes, 0);
+});
+
+function probeDeps(overrides: Partial<Parameters<typeof createAssistantChromeProbe>[0]> = {}) {
+  const calls: unknown[] = [];
+  const def = { id: "claude", env: { ENABLE_TOOL_SEARCH: "false", PATH: "/def" } } as unknown as NonNullable<ReturnType<Parameters<typeof createAssistantChromeProbe>[0]["getDef"]>>;
+  const capabilities = new Map<string, Record<string, boolean>>();
+  return { calls, def, capabilities, deps: {
+    getDef: ({ id }: { id: string }) => (id === "claude" ? def : null),
+    resolveAgentLaunch: () => ({ launchPath: "/bin/claude" }),
+    ensureAgentCapabilities: async (input: unknown) => { calls.push(input); capabilities.set("claude", { chrome: true }); },
+    capabilities,
+    env: { PATH: "/host" },
+    ...overrides,
+  } };
+}
+
+test("chrome probe: fills the runtime's capability gate for the launch path, then reads its chrome flag", async () => {
+  const { calls, def, deps: probeDepsValue } = probeDeps();
+  assert.equal(await createAssistantChromeProbe(probeDepsValue)({ agentId: "claude" }), true);
+  assert.deepEqual(calls, [{ def, launchPath: "/bin/claude", env: { ENABLE_TOOL_SEARCH: "false", PATH: "/host" } }]);
+});
+
+test("chrome probe: a CLI whose --help lacks --chrome, or a probe that recorded nothing, reads false", async () => {
+  const lacking = probeDeps();
+  lacking.deps.ensureAgentCapabilities = async () => { lacking.capabilities.set("claude", { chrome: false }); };
+  assert.equal(await createAssistantChromeProbe(lacking.deps)({ agentId: "claude" }), false);
+  const empty = probeDeps({ ensureAgentCapabilities: async () => {} });
+  assert.equal(await createAssistantChromeProbe(empty.deps)({ agentId: "claude" }), false);
+});
+
+test("chrome probe: unknown agent, unresolved binary and a def without env", async () => {
+  const unknown = probeDeps();
+  assert.equal(await createAssistantChromeProbe(unknown.deps)({ agentId: "nope" }), false);
+  assert.deepEqual(unknown.calls, []);
+  const missing = probeDeps({ resolveAgentLaunch: () => ({ launchPath: null }) });
+  assert.equal(await createAssistantChromeProbe(missing.deps)({ agentId: "claude" }), false);
+  assert.deepEqual(missing.calls, []);
+  const bare = probeDeps();
+  const bareDef = { id: "claude" } as typeof bare.def;
+  bare.deps.getDef = () => bareDef;
+  assert.equal(await createAssistantChromeProbe(bare.deps)({ agentId: "claude" }), true);
+  assert.deepEqual(bare.calls, [{ def: bareDef, launchPath: "/bin/claude", env: { PATH: "/host" } }]);
+});
+
+test("chrome probe: a throwing launch resolver or probe fails closed", async () => {
+  const resolver = probeDeps({ resolveAgentLaunch: () => { throw new Error("no PATH"); } });
+  assert.equal(await createAssistantChromeProbe(resolver.deps)({ agentId: "claude" }), false);
+  const probe = probeDeps({ ensureAgentCapabilities: async () => { throw new Error("spawn failed"); } });
+  assert.equal(await createAssistantChromeProbe(probe.deps)({ agentId: "claude" }), false);
 });

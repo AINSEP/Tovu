@@ -18,7 +18,7 @@ import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from ".
 
 type Overlay = { systemOverlay(input: { agentId: string; turnIndex: number }): string };
 
-async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, owner = "daemon-test-principal" }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; owner?: string }) {
+async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, owner = "daemon-test-principal", chromeProbed = true }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; owner?: string; chromeProbed?: boolean }) {
   const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome };
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
@@ -37,7 +37,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
       toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
       getEffective: async (_deps: unknown, input: { key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
     },
-    assistantRuntimeGuidanceContext, assistantSubagentsContext,
+    assistantRuntimeGuidanceContext, assistantSubagentsContext, probeAssistantChrome: async () => chromeProbed,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => {
       launchedAgentId = required.agentId;
@@ -111,4 +111,13 @@ test("Chrome ON stays off for a non-owner, and is omitted for a runtime without 
   const codex = await launchOverlay({ enabled: true, agentId: "codex", preferSubagents: true, useClaudeInChrome: true });
   assert.equal("chromeIntegration" in codex.launched, false);
   assert.equal(codex.launched.allowedTools, undefined);
+});
+
+test("Chrome ON for the owner on a CLI whose --help lacks --chrome: no flag, no Chrome tools, no Chrome guidance", async () => {
+  const { overlay, launched } = await launchOverlay({ enabled: true, agentId: "claude", preferSubagents: true, useClaudeInChrome: true, chromeProbed: false });
+  assert.equal("chromeIntegration" in launched, false);
+  assert.equal(launched.allowedTools, undefined);
+  assert.equal(overlay.includes(CLAUDE_IN_CHROME_GUIDANCE), false);
+  const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: launched });
+  assert.equal(args.some(arg => arg === "--chrome" || arg === "--no-chrome" || arg.startsWith("mcp__claude-in-chrome")), false);
 });
