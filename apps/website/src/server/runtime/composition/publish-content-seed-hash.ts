@@ -9,6 +9,7 @@ import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
@@ -67,62 +68,68 @@ function unusedBySeedInspect<T extends object>(label: string): T {
 }
 
 /**
+ * The seed-backed deps one lookup hashes against: a private, migrated copy of the shipped seed DB,
+ * or `null` when no seed ships. Extracted from {@link createSqlitePublishContentSeedHash} so the
+ * ports bag (including its throwing stand-ins) is unit-testable directly.
+ * @complexity O(seed bytes) — copies the seed file once per call.
+ */
+export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInput): PublishContentDeps | null {
+  if (!existsSync(input.seedDbPath)) return null;
+  const copyPath = join(mkdtempSync(join(tmpdir(), "tovu-publish-seed-")), "content.seed.db");
+  copyFileSync(input.seedDbPath, copyPath);
+  const seedDb = openContentDb(copyPath);
+  const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
+  const seedPostRepo = new SqlitePostRepo(seedDb);
+  const { workspaceId } = input;
+  return {
+    workspaceId: input.workspaceId,
+    clock: input.clock,
+    idGen: input.idGen,
+    // F2 — one ports bag. Only the ports each registered type's `inspect()` actually reads need
+    // real seed-backed instances (see this file's own header: "the redirect handler's `inspect()`
+    // reads nothing but `repo`" is one example of this already being partial by design). The
+    // fields `PublishContentPorts` requires but no `inspect()` reads get a throwing stand-in
+    // ({@link unusedBySeedInspect}) instead of a real instance, so a future handler that DOES
+    // start reading one fails loudly here rather than silently hashing against the wrong store.
+    ports: {
+      post: { repo: seedPostRepo },
+      media: {
+        repo: new SqliteMediaRepo(seedDb),
+        assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
+        blobStore: unusedBySeedInspect("media.blobStore"),
+        contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),
+      },
+      menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
+      redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
+      ...buildContentPublishPorts({
+        formDefinitionRepo: new SqliteFormDefinitionRepo(seedDb),
+        contentTypeRepo: new SqliteContentTypeRepo(seedDb),
+        contentTypeIndexProvisioner: unusedBySeedInspect("contentTypeIndexProvisioner"),
+        workspaceId,
+        postRepo: seedPostRepo,
+        taxonomyRepo: new SqliteTaxonomyRepo({ db: seedDb, workspaceId }),
+        termRepo: new SqliteTermRepo({ db: seedDb, workspaceId }),
+        // Read by post/page/entry `inspect()` for their `termIds`.
+        entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
+        taxonomyRevisionRepo: unusedBySeedInspect("taxonomyRevisionRepo"),
+        stampWatermark: () => unusedBySeedInspect<{ call: never }>("stampWatermark").call,
+        entryRepo: new SqliteEntryRepo(seedDb),
+        entryRefsRepo: unusedBySeedInspect("entryRefsRepo"),
+        widgetBindingRepo: unusedBySeedInspect("widgetBindingRepo"),
+        // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.
+        settingsRepo: new SqliteSettingsRepo(seedDb),
+        principalRepo: unusedBySeedInspect("principalRepo"),
+        presentationRepo: new SqlitePresentationSettingsRepo(seedDb),
+        themes: [],
+      }),
+    },
+  };
+}
+
+/**
  * @complexity O(1) to create. The first lookup copies and migrates the seed (O(seed bytes)); every
  *   later lookup is one indexed read.
  */
 export function createSqlitePublishContentSeedHash(input: CreateSqlitePublishContentSeedHashInput): PublishContentSeedHashFn {
-  return createPublishContentSeedHash({
-    loadSeedDeps: () => {
-      if (!existsSync(input.seedDbPath)) return null;
-      const copyPath = join(mkdtempSync(join(tmpdir(), "tovu-publish-seed-")), "content.seed.db");
-      copyFileSync(input.seedDbPath, copyPath);
-      const seedDb = openContentDb(copyPath);
-      const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
-      const seedPostRepo = new SqlitePostRepo(seedDb);
-      const { workspaceId } = input;
-      return {
-        workspaceId: input.workspaceId,
-        clock: input.clock,
-        idGen: input.idGen,
-        // F2 — one ports bag. Only the ports each registered type's `inspect()` actually reads need
-        // real seed-backed instances (see this file's own header: "the redirect handler's `inspect()`
-        // reads nothing but `repo`" is one example of this already being partial by design). The
-        // fields `PublishContentPorts` requires but no `inspect()` reads get a throwing stand-in
-        // ({@link unusedBySeedInspect}) instead of a real instance, so a future handler that DOES
-        // start reading one fails loudly here rather than silently hashing against the wrong store.
-        ports: {
-          post: { repo: seedPostRepo },
-          media: {
-            repo: new SqliteMediaRepo(seedDb),
-            assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
-            blobStore: unusedBySeedInspect("media.blobStore"),
-            contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),
-          },
-          menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
-          redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
-          ...buildContentPublishPorts({
-            formDefinitionRepo: new SqliteFormDefinitionRepo(seedDb),
-            contentTypeRepo: new SqliteContentTypeRepo(seedDb),
-            contentTypeIndexProvisioner: unusedBySeedInspect("contentTypeIndexProvisioner"),
-            workspaceId,
-            postRepo: seedPostRepo,
-            taxonomyRepo: new SqliteTaxonomyRepo({ db: seedDb, workspaceId }),
-            termRepo: new SqliteTermRepo({ db: seedDb, workspaceId }),
-            // Read by post/page/entry `inspect()` for their `termIds`.
-            entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
-            taxonomyRevisionRepo: unusedBySeedInspect("taxonomyRevisionRepo"),
-            stampWatermark: () => unusedBySeedInspect<{ call: never }>("stampWatermark").call,
-            entryRepo: new SqliteEntryRepo(seedDb),
-            entryRefsRepo: unusedBySeedInspect("entryRefsRepo"),
-            widgetBindingRepo: unusedBySeedInspect("widgetBindingRepo"),
-            // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.
-            settingsRepo: new SqliteSettingsRepo(seedDb),
-            principalRepo: unusedBySeedInspect("principalRepo"),
-            presentationRepo: new SqlitePresentationSettingsRepo(seedDb),
-            themes: [],
-          }),
-        },
-      };
-    },
-  });
+  return createPublishContentSeedHash({ loadSeedDeps: () => loadSqliteSeedDeps(input) });
 }

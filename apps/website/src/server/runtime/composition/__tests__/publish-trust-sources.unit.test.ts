@@ -124,3 +124,15 @@ test("revocations: a non-Error throw still becomes { ok: false } with the generi
 
   assert.deepEqual(await reader(), { ok: false, reason: "the list of disconnected computers could not be read: unknown error" });
 });
+
+test("grants: a config read that rejects with a non-Error is invalid with a generic reason, and the next call retries the read", async (t) => {
+  const root = tempRoot(t);
+  let reads = 0;
+  const resolve = createPublishTrustGrantResolver({ TOVU_REPO_ROOT: root }, {
+    readFile: async () => { reads++; if (reads === 1) throw "EIO"; return null; },
+  });
+  assert.deepEqual(await resolve(), { state: "invalid", origin: "none", grants: [], reason: "the publishing config could not be read: unknown error" });
+  // A failed read is not cached: the next resolution reads again and sees the now-absent file.
+  assert.deepEqual(await resolve(), { state: "absent", origin: "none", grants: [], reason: null });
+  assert.equal(reads, 2);
+});

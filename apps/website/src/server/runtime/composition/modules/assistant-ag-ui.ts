@@ -88,7 +88,7 @@ function parseAgUiMessage(entry: unknown): AgUiChatMessage | null {
 /** Validates and bounds the client-supplied `messages` array — same fail-soft-on-malformed-entries
  *  posture as `assistant-byok.ts`'s `resolveMessages` (history is passive background context, not
  *  something the caller just authored this instant). */
-function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
+export function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
   if (!Array.isArray(raw)) return [];
   const messages: AgUiChatMessage[] = [];
   for (const entry of raw) {

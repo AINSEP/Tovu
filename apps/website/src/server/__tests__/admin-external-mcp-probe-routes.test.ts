@@ -356,3 +356,24 @@ test("an exhausted probe budget returns 429 and Retry-After without another conn
   assert.deepEqual(await denied.json(), { error: "too many probe attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
   assert.equal(connects, 1);
 });
+
+/** Records every route a module registers without starting a server, so the module's OAuth gate
+ * can be checked against the three shapes `deps.ts` may hand it. */
+function recordRegisteredRoutes(deps: RouteDeps): string[] {
+  const routes: string[] = [];
+  const app = new Proxy({}, { get: (_target, method) => (path: unknown) => { routes.push(`${String(method)} ${String(path)}`); } });
+  createExternalMcpModule(deps).registerRoutes?.(app as never);
+  return routes;
+}
+
+test("external-mcp module treats an explicitly-undefined externalMcpOAuth like an absent one: no OAuth routes", () => {
+  const base = createRouteDeps();
+  const { externalMcpOAuth: _composedOAuth, ...withoutOAuth } = base as RouteDeps & { externalMcpOAuth?: unknown };
+  const withoutKey = recordRegisteredRoutes(withoutOAuth as unknown as RouteDeps);
+  const withUndefined = recordRegisteredRoutes({ ...withoutOAuth, externalMcpOAuth: undefined } as unknown as RouteDeps);
+  assert.deepEqual(withUndefined, withoutKey);
+  assert.equal(withoutKey.some((route) => route.includes("oauth")), false);
+  const withOAuth = recordRegisteredRoutes(base);
+  assert.equal(withOAuth.filter((route) => route.includes("oauth")).length, 4);
+  assert.deepEqual(withOAuth.slice(0, withoutKey.length), withoutKey);
+});

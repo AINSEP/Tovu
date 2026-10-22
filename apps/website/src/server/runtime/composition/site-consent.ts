@@ -11,7 +11,14 @@ import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentAut
  * @example bindSiteConsentService({ deps })
  * @complexity O(1) setup; operations inherit the shared renderer/repository bounds. */
 export function bindSiteConsentService({ deps }: { deps: RouteDeps }, _options = {}) {
-  return createSiteConsentService({ ports: {
+  return createSiteConsentService({ ports: siteConsentPorts({ deps }) });
+}
+
+/** The consent service's ports bound to one site's deps; split from {@link bindSiteConsentService}
+ * so each port's fallback and failure arm is unit-testable without building the service.
+ * @complexity O(1) setup. */
+export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): Parameters<typeof createSiteConsentService>[0]["ports"] {
+  return {
     workspaceId: deps.workspaceId, authorize: deps.authorize, store: deps.consentStore,
     ready: deps.siteTitleReady ?? deps.settingsReady, clock: deps.clock, ids: deps.idGen,
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
@@ -27,5 +34,5 @@ export function bindSiteConsentService({ deps }: { deps: RouteDeps }, _options =
       const page = await fetchPublishedPage({ createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability }, { path: localPath }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
-  } });
+  };
 }

@@ -124,3 +124,18 @@ test("an attribute that merely ends in 'href' (e.g. an authored data-href) is no
   const html = `<a data-href="https://other.example/x">No real href</a>`;
   assert.equal(markOffSiteLinksOpenInNewTab(html, SITE_HOST), html);
 });
+
+test("a self-closing off-site anchor gets its attributes inserted before the '/>'", () => {
+  assert.equal(
+    markOffSiteLinksOpenInNewTab(`<a href="https://elsewhere.example/x"/>`, "mysite.test"),
+    // Each insertion re-emits " />", so two insertions leave a doubled space — harmless in HTML.
+    `<a href="https://elsewhere.example/x" rel="noopener noreferrer"  target="_blank" />`,
+  );
+});
+
+test("an empty single-quoted rel is replaced by the merged tokens, not left empty", () => {
+  assert.equal(
+    markOffSiteLinksOpenInNewTab(`<a rel='' href='https://elsewhere.example/'>x</a>`, "mysite.test"),
+    `<a rel="noopener noreferrer" href='https://elsewhere.example/' target="_blank">x</a>`,
+  );
+});

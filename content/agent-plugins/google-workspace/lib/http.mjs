@@ -149,16 +149,20 @@ export function createGoogleClient(required, optional = {}) {
      * @param {{ signal?: AbortSignal }} [options]
      */
     async request(request, options = {}) {
-      // A host quota wait must not let a later attempt reuse a token Google already rejected.
-      let rejectedToken;
-      for (let attempt = 0; ; attempt += 1) {
+      // One attempt, then (when the policy allows) a wait and the next attempt. Written as a bounded
+      // recursion rather than an endless `for (;;)`: `shouldRetryInline` caps the attempts, so every
+      // path ends in a return or a throw and there is no unreachable loop exit.
+      // A host quota wait must not let a later attempt reuse a token Google already rejected, so the
+      // rejected token is carried into the next attempt.
+      const attemptFrom = async (attempt, rejectedToken) => {
         const result = await attemptWithFreshToken(request, { signal: options.signal, rejectedToken });
-        rejectedToken = result.rejectedToken;
         if (result.ok) return result.value;
         const delayMs = backoffMs({ attempt, retryAfterMs: result.error.retryAfterMs }, optional.random ? { random: optional.random } : {});
         if (!shouldRetryInline({ error: result.error, attempt, delayMs })) throw result.error;
         await sleep(delayMs);
-      }
+        return attemptFrom(attempt + 1, result.rejectedToken);
+      };
+      return attemptFrom(0, undefined);
     },
   };
 }

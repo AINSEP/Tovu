@@ -305,3 +305,31 @@ test('L058a busy bags resist eviction and close drains the active handler', asyn
     assert.ok(f.chatHandles.every(handle => !handle.open));
   } finally { release(); await reading; }
 });
+
+test("a peer's blob store reads only files inside its own uploads folder, and theme links added later are refused on roster access", async t => {
+  const f = await peerFixture(t);
+  let peerDeps: Record<string, any> | undefined;
+  await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
+    buildRegistrations: deps => { peerDeps = deps as unknown as Record<string, any>; return inspection(async () => deps.workspaceId); } });
+  assert.ok(peerDeps);
+  const uploads = path.join(f.b.dir, 'uploads');
+  const stored = (fs.readdirSync(uploads, { recursive: true, withFileTypes: true }) as fs.Dirent[]).find(entry => entry.isFile());
+  assert.ok(stored, 'the fixture stored one blob for B');
+  const storageKey = path.relative(uploads, path.join(stored.parentPath, stored.name));
+  const blobStore = peerDeps.blobStore;
+  assert.equal(await blobStore.exists({ storageKey }), true);
+  assert.equal(await blobStore.sizeOf({ storageKey }), fs.statSync(path.join(uploads, storageKey)).size);
+  assert.deepEqual(Buffer.from(await blobStore.get({ storageKey })), fs.readFileSync(path.join(uploads, storageKey)));
+  assert.equal(await blobStore.exists({ storageKey: 'missing.bin' }), false);
+  assert.equal(await blobStore.sizeOf({ storageKey: 'missing.bin' }), null);
+
+  // A link planted in B's uploads that points at A's files must never be followed.
+  const outside = path.join(f.a.dir, '.site-meta.json');
+  fs.symlinkSync(outside, path.join(uploads, 'escape.bin'));
+  for (const read of [() => blobStore.exists({ storageKey: 'escape.bin' }), () => blobStore.sizeOf({ storageKey: 'escape.bin' }), () => blobStore.get({ storageKey: 'escape.bin' })]) {
+    await assert.rejects(read(), (error: unknown) => error instanceof ToolInputError && (error as Error).message === 'This site has files outside its local folder.');
+  }
+
+  fs.symlinkSync(outside, path.join(f.b.dir, 'themes', 'linked.json'));
+  assert.throws(() => peerDeps!.themes, (error: unknown) => error instanceof ToolInputError && (error as Error).message === 'Linked theme files cannot be read from another site.');
+});

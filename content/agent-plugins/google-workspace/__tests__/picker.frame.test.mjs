@@ -226,3 +226,22 @@ test('security: everything the panel posts is a declared picker action, to the h
   assert.equal(frame.requests().every((request) => declared.includes(request.action)), true);
   assert.equal(frame.posted.every((entry) => entry.targetOrigin === HOST_ORIGIN && entry.message.mountId === MOUNT_ID), true);
 });
+
+test('a first list the host calls retryable offers Try again, which lists again', async () => {
+  frame = createFrame();
+  let asked = 0;
+  frame.respond.set('list-picked', () => {
+    asked += 1;
+    if (asked === 1) throw refusal('The host did not answer in time. Try again.', { code: 'timeout', retryable: true });
+    return { spreadsheets: [] };
+  });
+  initPickerPanel({ window: frame.window, document: frame.document });
+  frame.init({ bootstrap: SYSTEM });
+  await flush();
+  assert.equal(frame.document.querySelector('.notice').textContent, 'The host did not answer in time. Try again.');
+  button(frame, 'Try again').click();
+  await flush();
+  assert.equal(asked, 2);
+  assert.equal(frame.document.querySelector('.notice-group'), null);
+  assert.equal(button(frame, 'Choose spreadsheet').disabled, false);
+});

@@ -30,3 +30,25 @@ for (const scenario of [
     assert.deepEqual(paths, [scenario.expected, scenario.expected]);
   });
 }
+
+/** Production callers pass no ports: the defaults must read the live sidecar registry file and
+ * resolve the path from the real process environment. A missing registry file reads as "no
+ * previous daemon" rather than throwing. */
+test("default ports read the real registry file and fall back to process.env", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "assistant-daemon-registry-"));
+  try {
+    const required = { siteDir: dir };
+    const expected = join(process.env.TOVU_SITE_DIR ?? dir, "ops", "assistant-daemon.json");
+    assert.equal(resolveAssistantDaemonRegistryPath(required), expected);
+    assert.equal(await readPreviousAssistantDaemon(required, { env: {} }), null);
+    const publication = createAssistantDaemonRegistry(required, { env: {} });
+    assert.equal(publication.registryPath, join(dir, "ops", "assistant-daemon.json"));
+    assert.equal(await publication.registry.readLive(), null);
+    assert.equal(createAssistantDaemonRegistry(required).registryPath, expected);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

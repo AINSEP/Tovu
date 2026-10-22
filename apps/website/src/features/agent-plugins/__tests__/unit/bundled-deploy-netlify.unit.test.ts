@@ -271,6 +271,32 @@ test("throws DeployError when a required file upload fails", async (t) => {
   await assert.rejects(publish(kit, { files: [{ file: "big.bin", data: "x" }], projectName: "demo" }), { message: "Payload too large" });
 });
 
+test("a failed file upload whose body is not JSON still fails with the upload step's own message", async (t) => {
+  const fileHash = sha1("x");
+  const { kit } = stubKit(t, (url, init) => {
+    const method = init.method ?? "GET";
+    if (method === "GET" && url.includes("/sites?")) return jsonResponse(200, [{ id: "site_1", name: "jini-demo" }]);
+    if (method === "POST" && url.endsWith("/deploys")) return jsonResponse(200, { id: "deploy_1", state: "preparing", required: [fileHash] });
+    if (method === "PUT") return new Response("<html>bad gateway</html>", { status: 502 });
+    return new Response("", { status: 200 });
+  });
+  await assert.rejects(publish(kit, { files: [{ file: "big.bin", data: "x" }], projectName: "demo" }), { message: 'Netlify file upload failed for "big.bin".' });
+});
+
+test("when no status poll is ever readable the URL comes from the site alone", async (t) => {
+  let polls = 0;
+  const { kit } = stubKit(t, (url, init) => {
+    const method = init.method ?? "GET";
+    if (method === "GET" && url.includes("/sites?")) return jsonResponse(200, [{ id: "site_1", name: "jini-demo", ssl_url: "https://jini-demo.netlify.app" }]);
+    if (method === "POST" && url.endsWith("/deploys")) return jsonResponse(200, { id: "deploy_q", state: "preparing", required: [] });
+    if (method === "GET" && url.endsWith("/deploys/deploy_q")) { polls += 1; return new Response("not json", { status: 200 }); }
+    return new Response("", { status: 200 });
+  });
+  const result = await publish(kit, { files: [], projectName: "demo" });
+  assert.equal(polls, 30);
+  assert.equal(result.url, "https://jini-demo.netlify.app");
+});
+
 test("skips uploading a hash Netlify reports as required but that is not in the sent manifest", async (t) => {
   const { kit } = stubKit(t, (url, init) => {
     const method = init.method ?? "GET";

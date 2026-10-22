@@ -188,3 +188,10 @@ test("trash_item user: a store with no Trash wiring is refused with the not-supp
     message: "trash_item: this identity store has no Trash wiring; users cannot be deleted (composition-only limitation). Nothing was changed.",
   });
 });
+
+test("trash_item user: an unexpected store fault propagates as itself, never relabelled as a model-facing refusal", async () => {
+  const fault = new Error("user store write failed: disk full");
+  const { trashItem, ownerId, makeUser } = await harness({ removeUser: async () => { throw fault; } });
+  const jane = await makeUser("jane-fault");
+  await assert.rejects(call(trashItem, ownerId, { entityType: "user", entityId: jane.id }), (error: unknown) => error === fault);
+});

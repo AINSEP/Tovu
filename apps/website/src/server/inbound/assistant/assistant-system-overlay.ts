@@ -68,8 +68,12 @@ export function buildAssistantSubagentsOverlay(required: {
 export const BATCH_GUIDANCE =
   "When doing the same operation to several items, pass them as items: [{...}, ...] in ONE call of that tool instead of one call per item. ";
 
-/** The default guidance shares the actual host-CLI tool grant's source of truth. */
-export const BASH_GUIDANCE_BLOCK = ASSISTANT_DISALLOWED_TOOLS.includes("Bash")
+/** The default guidance shares the actual host-CLI tool grant's source of truth. Takes the grant as
+ *  an argument so both arms are verifiable: today's grant always disallows Bash, which would
+ *  otherwise leave the narrow-purpose text untestable until the grant changes.
+ *  @complexity O(n) in the disallow-list length. */
+export function buildBashGuidanceBlock(disallowedTools: readonly string[]): string {
+  return disallowedTools.includes("Bash")
   ? "Bash is unavailable because it is disabled for this assistant. " +
     "Read remains available only for reading Tovu's own source to answer a code-level question. " +
     "Never read config files to infer state a registered tool would report directly; use search_tools instead. "
@@ -82,6 +86,10 @@ export const BASH_GUIDANCE_BLOCK = ASSISTANT_DISALLOWED_TOOLS.includes("Bash")
   "registered tool do this, and would this command still work on a deployed Tovu with no source " +
   "checkout and no CLI on the machine? If the answer to the first is yes, or the second is no, " +
   "you are about to do it the wrong way — search_tools again instead. ";
+}
+
+/** The default guidance for the actual host-CLI tool grant. */
+export const BASH_GUIDANCE_BLOCK = buildBashGuidanceBlock(ASSISTANT_DISALLOWED_TOOLS);
 
 /**
  * Which of the `claude` CLI's own settings layers an assistant run loads — forwarded to

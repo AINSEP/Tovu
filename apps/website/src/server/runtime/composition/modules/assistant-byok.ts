@@ -175,7 +175,7 @@ function isPlainMessage(value: unknown): value is { role: unknown; content: unkn
  * @complexity O(k) in `emission.payload`'s own key count.
  * @overallScore 100
  */
-function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: string): Record<string, unknown> {
+export function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: string): Record<string, unknown> {
   const safePayload: Record<string, unknown> = { ...emission.payload };
   delete safePayload.type;
   delete safePayload.toolUseId;
@@ -204,7 +204,7 @@ function toByokChatMessage(entry: unknown): ByokChatMessage | null {
  *  the sibling visitor-assistant route: history is passive background context the caller did not
  *  just author this instant, so a malformed entry degrades the turn's context rather than the whole
  *  request. */
-function resolveMessages(raw: unknown): ByokChatMessage[] {
+export function resolveMessages(raw: unknown): ByokChatMessage[] {
   if (!Array.isArray(raw)) return [];
   const messages: ByokChatMessage[] = [];
   for (const entry of raw) {

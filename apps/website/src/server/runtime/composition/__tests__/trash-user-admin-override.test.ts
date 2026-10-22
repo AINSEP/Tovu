@@ -124,3 +124,13 @@ test("withUserTrashAdminOverride: a caller holding neither owner nor the built-i
   const result = await wrapped({ principalId: bareUser, permission: "*", workspaceId, entityType: USER_ENTITY_TYPE });
   assert.deepEqual(result, denyReason);
 });
+
+test("withUserTrashAdminOverride: a purge check failing for any reason other than owner protection propagates instead of deciding", async () => {
+  const workspaceId = "ws-user-purge-check-fault";
+  const { identity, ownerPrincipalId } = await buildIdentity(workspaceId);
+  let baseCalls = 0;
+  const wrapped = withUserTrashAdminOverride({ base: async () => { baseCalls++; return denyReason; }, identity, workspaceId, seededOwnerPrincipalId: Promise.resolve(ownerPrincipalId) });
+  await assert.rejects(wrapped({ principalId: ownerPrincipalId, permission: "*", workspaceId, entityType: USER_ENTITY_TYPE, entityId: "no-such-principal" }),
+    (error: unknown) => error instanceof Error && !/owner-account-protection/.test(error.message));
+  assert.equal(baseCalls, 0, "no authorization decision is made once the purge check itself failed");
+});

@@ -58,3 +58,12 @@ test("admin retains editable credit while the public DTO exposes only opted-in d
     assert.equal(toHeadlessContentPost({ ...post, author, showAuthor: true }).author, null);
   }
 });
+
+test("scheduling and featured-media fields appear on the admin DTO only when set", () => {
+  const scheduled = toHeadlessPost({ ...post, publishAt: "2026-10-01T09:00:00Z", featuredMediaId: "media-3" });
+  assert.equal(scheduled.publishAt, "2026-10-01T09:00:00Z");
+  assert.equal(scheduled.featuredMediaId, "media-3");
+  const plain = toHeadlessPost({ ...post, publishAt: null, featuredMediaId: null } as PostRecord);
+  assert.equal("publishAt" in plain, false);
+  assert.equal("featuredMediaId" in plain, false);
+});

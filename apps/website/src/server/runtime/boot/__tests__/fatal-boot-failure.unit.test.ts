@@ -79,3 +79,37 @@ test("the real index entrypoint catches main's rejection with the fatal boot ada
   assert.equal(reason.name.text, "error");
   assert.equal(handler.parameters[0].name.getText(ast), reason.name.text);
 });
+
+/** Production's only caller (`index.ts`) passes no ports: the defaults must be the real
+ * `console.error` and `process.exit(1)`. Both are stubbed on the real globals so the test process
+ * itself survives while the default wiring is still the code under test. */
+test("default ports report on console.error and exit the real process with code 1", (t) => {
+  const logged: unknown[][] = [];
+  const exits: unknown[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  t.mock.method(process, "exit", ((code?: number) => { exits.push(code); }) as never);
+  const error = new Error("default port failure");
+  reportFatalBootFailure({ error });
+  assert.deepEqual(exits, [1]);
+  assert.equal(logged.length, 1);
+  assert.match(String(logged[0]?.[0]), /^\[boot\] Tovu failed to start: default port failure\./);
+  assert.equal(logged[0]?.[1], error);
+});
+
+/** The request-time guard's default sink is `console.error`: the installed listener (found by
+ * diffing the process's listeners, then invoked directly so node:test's own rejection tracking is
+ * not involved) logs and keeps the process alive; uninstalling removes exactly that listener. */
+test("installUnhandledRejectionGuard's default logger writes the rejection to console.error", async (t) => {
+  const { installUnhandledRejectionGuard } = await import("../process-error-guards.js");
+  const before = new Set(process.listeners("unhandledRejection"));
+  const uninstall = installUnhandledRejectionGuard();
+  const added = process.listeners("unhandledRejection").filter((listener) => !before.has(listener));
+  assert.equal(added.length, 1);
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
+  const reason = new Error("stray rejection");
+  (added[0] as (reason: unknown) => void)(reason);
+  uninstall();
+  assert.equal(process.listeners("unhandledRejection").includes(added[0]!), false);
+  assert.deepEqual(logged, [["[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", reason]]);
+});

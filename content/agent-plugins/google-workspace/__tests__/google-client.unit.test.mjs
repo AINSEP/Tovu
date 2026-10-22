@@ -144,6 +144,15 @@ test('client: an HTML 503 page is service-unavailable; a read is retried with fu
   assert.deepEqual(sleeps, [250, 500]);
 });
 
+test('client: without an injected jitter source the backoff uses Math.random, within the full-jitter bounds', async (t) => {
+  t.mock.method(Math, 'random', () => 0.25);
+  const { client, fetches, sleeps } = scripted({ answers: [{ status: 503, text: '<html>busy</html>' }] });
+  await assert.rejects(read(client), { code: 'service-unavailable', retryable: true });
+  assert.equal(fetches.length, 3);
+  // round(0.25 * 500 * 2^attempt): 125 ms, then 250 ms.
+  assert.deepEqual(sleeps, [125, 250]);
+});
+
 test('client: Retry-After is never undercut by the jitter', async () => {
   const { client, sleeps } = scripted({ answers: [{ status: 429, text: '{}', headers: { 'retry-after': '2' } }, { status: 200, text: '{"ok":true}' }] }, { random: () => 0 });
   assert.deepEqual(await read(client), { ok: true });

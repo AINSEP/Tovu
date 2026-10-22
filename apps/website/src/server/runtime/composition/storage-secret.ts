@@ -90,18 +90,27 @@ export async function writeSealedConnectionString(
  * @returns the sealer, so init can open the store before the meta file names the key.
  * @throws {StorageSecretError} when the site key cannot be made (an invalid key source, or a refusal).
  */
-export async function sealConnectionStringForNewSite(required: {
-  siteDir: string;
-  siteKeyId: string;
-  connectionString: string;
-}): Promise<SiteSecretSealer> {
+export async function sealConnectionStringForNewSite(
+  required: {
+    siteDir: string;
+    siteKeyId: string;
+    connectionString: string;
+  },
+  // Ports, real by default: `ensure` mints/validates the key on disk under the operator's home and
+  // `sealerFor` builds the env/file keyring, so a unit test can drive the refusal and sealing arms
+  // in-process without touching the real home directory.
+  {
+    ensure = ensureSiteKey,
+    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer(required.siteDir, process.env, siteKeyIdForSite),
+  }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
+): Promise<SiteSecretSealer> {
   const { siteDir, siteKeyId, connectionString } = required;
   // A site being created holds no key-dependent data yet.
-  const ensured = await ensureSiteKey({ siteDir, siteKeyId, findSiteKeyDependentData: async () => false });
+  const ensured = await ensure({ siteDir, siteKeyId, findSiteKeyDependentData: async () => false });
   if (ensured.action === "invalid" || ensured.action === "refuse") {
     throw new StorageSecretError(`could not prepare this site's key to seal its Postgres connection string (${ensured.action}); fix the site key, then retry`);
   }
-  const sealing = siteSecretSealer(siteDir, process.env, siteKeyId);
+  const sealing = sealerFor(siteKeyId);
   await writeSealedConnectionString({ siteDir, connectionString }, sealing);
   return sealing;
 }

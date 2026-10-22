@@ -1,4 +1,4 @@
-import { createServer } from "node:net";
+import { createServer, type Server } from "node:net";
 
 /**
  * @file Self-contained per-instance agent-daemon origin resolution (2026-08-28 dispatch — daemon
@@ -67,10 +67,14 @@ function readExplicitOrigin(): ExplicitOrigin | undefined {
  *  "ask the OS for a free port" helper accepts — narrow in practice because the daemon child is
  *  spawned within milliseconds of this resolving, on the same host, with nothing else in this
  *  process's own boot sequence competing for a port.
+ *  `createProbe` is the socket-factory port (real `net.createServer` by default) so the two
+ *  failure arms — a close error and an address-less listener — are testable without a real OS fault.
  *  @complexity O(1) — one socket bind/close round trip. */
-function allocateFreePort(): Promise<number> {
+export function allocateFreePort(
+  { createProbe = createServer }: { createProbe?: () => Pick<Server, "once" | "listen" | "address" | "close"> } = {},
+): Promise<number> {
   return new Promise((resolvePort, rejectPort) => {
-    const probe = createServer();
+    const probe = createProbe();
     probe.once("error", rejectPort);
     probe.listen(0, "127.0.0.1", () => {
       const address = probe.address();

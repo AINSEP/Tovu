@@ -359,3 +359,41 @@ test('security: a sign-in answer carrying a link renders nothing of it (the admi
   await flush();
   assert.equal(frame.document.documentElement.outerHTML.includes('accounts.google.com'), false);
 });
+
+test('a first status the host calls retryable offers Try again, which asks for the status again and renders it', async () => {
+  frame = createFrame();
+  let asked = 0;
+  frame.respond.set('status', () => {
+    asked += 1;
+    if (asked === 1) throw refusal('The host did not answer in time. Try again.', { code: 'timeout', retryable: true });
+    return panelView();
+  });
+  initConnectionPanel({ window: frame.window, document: frame.document });
+  frame.init();
+  await flush();
+  assert.equal(notice(frame).textContent, 'The host did not answer in time. Try again.');
+  button(frame, 'Try again').click();
+  await flush();
+  assert.equal(asked, 2);
+  assert.equal(frame.document.getElementById('account-heading').textContent, 'Connected as Alice');
+});
+
+test('a refused action the host calls retryable offers Try again, which re-sends exactly that action', async () => {
+  await openPanel(panelView());
+  let sent = 0;
+  frame.respond.set('set-product', () => {
+    sent += 1;
+    if (sent === 1) throw refusal('Google did not answer. Try again.', { retryable: true });
+    return panelView({ products: [{ id: 'sheets', label: 'Google Sheets', enabled: false, granted: true }] });
+  });
+  button(frame, 'Turn Google Sheets off').click();
+  await flush();
+  assert.equal(notice(frame).textContent, 'Google did not answer. Try again.');
+  button(frame, 'Try again').click();
+  await flush();
+  assert.deepEqual(frame.requests().filter((r) => r.action === 'set-product'), [
+    { action: 'set-product', payload: { productId: 'sheets', enabled: false } },
+    { action: 'set-product', payload: { productId: 'sheets', enabled: false } },
+  ]);
+  assert.equal(button(frame, 'Turn Google Sheets on').getAttribute('aria-pressed'), 'false');
+});
