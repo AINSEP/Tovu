@@ -5,6 +5,7 @@ import { registerRoleManagePermissionGrants } from "#src/features/identity/role-
 import { registerSiteKeyPermissionGrants } from "#src/features/identity/site-key-permission";
 import { registerPagesPermissionGrants } from "#src/features/pages/permissions";
 import { registerPublishContentPermissionGrants } from "#src/features/publish-content/permissions";
+import { registerMailPermissionGrants } from "#src/features/mail-status/permissions";
 
 /**
  * @file Every permission grant this app reconciles at boot, registered explicitly.
@@ -29,5 +30,6 @@ export function createAppPermissionGrants(
   registerFsFilesCustomRootPermissionGrants({ registry });
   registerRoleManagePermissionGrants({ registry });
   registerUserManagePermissionGrants({ registry });
+  registerMailPermissionGrants({ registry });
   return registry;
 }

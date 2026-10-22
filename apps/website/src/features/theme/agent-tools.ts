@@ -246,7 +246,12 @@ const EDIT_FILE_SCHEMA = {
     newString: {
       type: "string",
       maxLength: MAX_THEME_FILE_BYTES,
-      description: "The text to put in oldString's place. May be an empty string to delete oldString outright.",
+      description: "The text to put in oldString's place. May be an empty string to delete oldString outright. An edit that would leave the whole file empty (or whitespace-only) is refused unless intent is 'delete'.",
+    },
+    intent: {
+      type: "string",
+      enum: ["delete"],
+      description: "Pass 'delete' only to confirm an edit that empties the WHOLE file. Not needed for ordinary deletions (an empty newString removing part of the file).",
     },
     replaceAll: {
       type: "boolean",
@@ -392,7 +397,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_edit_file",
       description:
-        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
+        "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. To DELETE text, pass newString: '' (empty string). An edit that would leave the whole file empty is refused unless intent: 'delete' is passed. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: EDIT_FILE_SCHEMA,

@@ -77,4 +77,25 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  "mail_dns_status": {
+    search: {
+      keywords: "email mail dns sender domain records spf dkim dmarc mx verified verification status missing mismatch check provider sending domain",
+      queries: [
+        "Are my email DNS records set up correctly?",
+        "Which SPF, DKIM or DMARC records are missing for my sender domain?",
+        "Has my mail provider verified my sending domain?",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_dns_verify": {
+    search: {
+      keywords: "email mail dns sender domain records verify recheck check again track propagation entered spf dkim dmarc",
+      queries: [
+        "I added the email DNS records, check them again.",
+        "Start tracking my sender domain's mail records until they propagate.",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

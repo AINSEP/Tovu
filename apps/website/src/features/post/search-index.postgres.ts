@@ -86,7 +86,7 @@ export const pgPostSearch: PostSearchDialect = {
     const terms = query.terms.flatMap((term) => foldForIndex(term).split(" ")).filter(Boolean);
     if (terms.length === 0) return [];
     const tsquery = sql`to_tsquery(${sql.lit(SEARCH_CONFIG)}::regconfig, ${terms.join(" | ")})`;
-    const filters = [sql`d.search @@ q.query`, sql`p.workspace_id = ${query.workspaceId}`, sql`p.deleted_at IS NULL`];
+    const filters = [sql`d.search @@ q.query`, sql`p.workspace_id = ${query.workspaceId}`, sql`p.deleted_at IS NULL`, sql`p.kind IN ('post', 'page')`];
     if (query.kind !== undefined) filters.push(sql`p.kind = ${query.kind}`);
     if (query.status !== undefined) filters.push(sql`p.status = ${query.status}`);
 

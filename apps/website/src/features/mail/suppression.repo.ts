@@ -1,4 +1,5 @@
 /** @file SQL adapter for Jini's `MailSuppressionRepoPort` (migration 0023), one body for SQLite and Postgres. */
+import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import type { MailDeliveryLane, MailSuppressionRepoPort, MailSuppressionScope } from "@jini-ai/platform/mail";
 import type { MailRepoDeps, MailRepoOptions } from "./ledger.repo.js";
@@ -28,8 +29,8 @@ export function createMailSuppressionRepo<DB>({ db }: MailRepoDeps<DB>, optional
       return rows.length > 0;
     },
     async suppress({ workspaceId, normalizedAddress, scope, reason }) {
-      await db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at)
-        VALUES (${workspaceId}, ${normalize(normalizedAddress)}, ${scope}, ${reason}, ${nowIso()})
+      await db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at, revision)
+        VALUES (${workspaceId}, ${normalize(normalizedAddress)}, ${scope}, ${reason}, ${nowIso()}, ${randomUUID()})
         ON CONFLICT (workspace_id, normalized_address, scope) DO NOTHING`);
     },
   };

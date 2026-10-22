@@ -17,6 +17,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `state` (`ready|unconfigured|degraded`, which drives the admin's blocking banner), per-lane
  * provider/state, `warnings` (`sender_unverified`/`sender_unknown`) and the installed providers.
  * Never credentials.
+ *
+ * 2026-10-22 (email phase 2): `providers` entries are the safe configuration DTO
+ * (`features/mail-status/provider-operations.ts`), plus `checkedAt` and `lastError`. The status is
+ * cached for 30 s (`resolve-mailer.ts`); `?refresh=1` rebuilds it. Provider actions live beside
+ * this route in `./mail-providers.ts`.
  */
 export type AdminMailStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "mailer" | "mailStatus">;
 
@@ -46,7 +51,9 @@ export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatus
         return;
       }
 
-      const status = deps.mailStatus ? await deps.mailStatus() : {};
+      // `?refresh=1` rebuilds the briefly cached status (provider checks) instead of reusing it.
+      const refresh = req.query.refresh === "1" || req.query.refresh === "true";
+      const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
       res.status(200).json({ mailDeliveryAvailable: isMailDeliveryAvailable(deps.mailer), ...status });
     } catch (err) {
       console.error("[system/mail-status] unexpected error", err);

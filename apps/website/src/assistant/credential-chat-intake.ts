@@ -13,7 +13,10 @@ export function redactAdminRunContextRef({ contextRef }: { contextRef: string },
     safe[field] = redaction.text;
     // Lifecycle acceptance may sanitize this envelope again before model dispatch. Preserve the
     // signal so the model can offer the card without inferring a paste from placeholder prose.
-    if (redaction.secretRedacted) safe.secretRedacted = true;
+    // Only the CURRENT prompt's redaction is a paste signal: history (e.g. a DKIM record from an
+    // earlier turn) is still sanitized above, but flagging it put "The user tried to share a
+    // credential" on an unrelated message like "https://resend.com/ I really like it".
+    if (redaction.secretRedacted && field === "prompt") safe.secretRedacted = true;
   }
   return JSON.stringify(safe);
 }

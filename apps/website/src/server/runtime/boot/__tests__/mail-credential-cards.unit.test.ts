@@ -17,8 +17,11 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
 import { buildPluginCredentialForm, type PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
-import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import { loadMailCredentialCards, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
+import { buildMailProviderRegistrations } from "#src/features/mail-status/provider-tool-registrations";
+import type { HttpClientPort } from "#src/platform/http/index";
+import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { loadMailCredentialCards, loadMailProviderCatalog, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
+import { describeMailProviders } from "../mail-provider-configuration.js";
 
 /**
  * @file Plugin-declared mail key cards: a v2 mail descriptor's `credentialCard` becomes a
@@ -102,21 +105,76 @@ function harness(cards: readonly PluginCredentialCard[]) {
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handlers = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } });
-  const [save] = credentialSaveFixtureRegistrations({ adapters: { pluginProvider: handlers.pluginProvider } }) as [ToolRegistration];
+  const [save] = credentialSaveFixtureRegistrations({ adapters: { apiCreate: handlers.create, apiRotate: handlers.rotate, pluginProvider: handlers.pluginProvider } }) as [ToolRegistration];
   const writeDeps = { repo, sealer, keyring, clock: deps.clock, idGen };
   return { save, surfaceExchanges, repo, sealer, writeDeps };
 }
 
-async function submitKey({ h, token, fields = {} }: { h: ReturnType<typeof harness>; token: string; fields?: Record<string, unknown> }, _options = {}): Promise<unknown> {
+async function submitKey({ h, token, fields = {}, input = { kind: "plugin-provider", target: "resend" }, inspectForm }: {
+  h: ReturnType<typeof harness>; token: string; fields?: Record<string, unknown>; input?: Record<string, unknown>; inspectForm?: (html: string) => void;
+}, _options = {}): Promise<unknown> {
   const emitted: unknown[] = [];
-  const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input: { kind: "plugin-provider", target: "resend" }, signal: new AbortController().signal };
+  const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
   const pending = h.save.handler(ctx, { emitSurface: async (surface) => void emitted.push(surface) });
   await new Promise((resolve) => setImmediate(resolve));
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  inspectForm?.(html);
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
   assert.deepEqual(h.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { ...fields, token } }, { toolId: "credential_save" }), { ok: true });
   return pending;
 }
+
+test("a combined descriptor feeds both plugin cards and provider setup's secure credential_save prefill", async () => {
+  const label = "Merged sending key";
+  const baseUrl = "https://api.merged.test";
+  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{
+    id: "merged", label: "Merged", module: "mail.mjs", credentialLabel: label, credentialKeys: ["token"], feedback: false,
+    credentialCard: { title: "Connect merged mail", baseUrl },
+    setup: { fields: [{ key: "baseUrl", label: "Endpoint", type: "url", defaultValue: baseUrl }] },
+  }] }));
+  assert.ok(parsed.ok);
+  const descriptor = parsed.descriptors[0]!;
+  const registry: MailAdapterRegistry = { refusals: [], list: () => [{ pluginId: "merged-plugin", descriptor,
+    module: { id: "merged", capabilities: { hosted: true, feedback: false, domainVerification: false }, create: () => { throw new Error("must not send"); } } as never,
+  }] };
+  const loadMailAdapters = async () => registry;
+  const cards = await loadMailCredentialCards({ loadMailAdapters });
+  const h = harness(cards);
+  const catalog = await loadMailProviderCatalog({ workspaceId: WORKSPACE_ID, loadMailAdapters,
+    customCredentialRepo: h.repo, sealer: h.sealer, httpClient: {} as HttpClientPort,
+  });
+  assert.deepEqual(catalog.refusals, []);
+  assert.deepEqual(catalog.pluginIds, ["merged"]);
+  assert.deepEqual(catalog.setupFor({ id: "merged" }), descriptor.setup);
+  assert.deepEqual(cards, [{ providerId: "merged", label, category: MAIL_CREDENTIAL_CATEGORY, title: "Connect merged mail", baseUrl }]);
+  assert.deepEqual(buildPluginCredentialForm({ card: cards[0]! }).fields.map(field => [field.name, field.secret]), [["token", true]]);
+  let activations = 0;
+  const configure = buildMailProviderRegistrations({ workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "matched" }),
+    mailProviderControl: { check: async () => ({ ok: true, label: "Merged" }), select: async () => { activations++; },
+      describe: async () => describeMailProviders({ catalog, records: await h.repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), setting: { transactional: null, bulk: null } }),
+    },
+  }).find(registration => registration.descriptor.id === "mail_configure_provider")!;
+  const plan = await configure.handler({ executionId: "plan-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input: { providerId: "merged" }, signal: new AbortController().signal }) as {
+    activated: false; credentialSetup: { prefill: Record<string, string> }; followUps: unknown[];
+  };
+  assert.equal(plan.activated, false);
+  assert.deepEqual(plan.followUps, []);
+  assert.deepEqual(plan.credentialSetup.prefill, { kind: "api", label, category: MAIL_CREDENTIAL_CATEGORY, baseUrl });
+  const token = "private_merge_key";
+  const result = await submitKey({ h, token, input: plan.credentialSetup.prefill, fields: { label, baseUrl, category: MAIL_CREDENTIAL_CATEGORY },
+    inspectForm: html => {
+      assert.match(html, /type="password"/);
+      assert.ok(html.includes(label));
+      assert.ok(html.includes(baseUrl));
+      assert.ok(!html.includes(token));
+    },
+  });
+  assert.equal((result as { created: boolean }).created, true);
+  const saved = await resolveCustomCredentialByLabel({ repo: h.repo, sealer: h.sealer }, { workspaceId: WORKSPACE_ID, label });
+  assert.deepEqual([saved?.connection.token, saved?.baseUrl, saved?.category], [token, baseUrl, MAIL_CREDENTIAL_CATEGORY]);
+  assert.ok(!JSON.stringify([plan, result]).includes(token));
+  assert.equal(activations, 0);
+});
 
 test("credential_save plugin-provider saves the key under the plugin's label, base URL and category", async () => {
   const h = harness(await bundledCards());

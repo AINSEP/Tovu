@@ -161,14 +161,14 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
   assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
     "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "assistant-history", "change-sets", "comments", "consent",
     "content-duplication", "content-stats", "content-types", "credential-copy", "credential-save", "custom-credentials",
-    "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "entries",
+    "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "email-templates", "entries",
     "external-mcp", "external-mcp-operations", "forms", "fs-files", "identity",
     "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
     "media-providers", "media-video-view", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
     "pages", "permanent-delete", "plugin-source", "plugins", "plugins-install", "post", "post-preview", "publish-content",
     "publish-content-disconnect", "recovery", "redirects", "search", "seo", "settings", "settings-ui-locales",
     "site-backup", "site-evidence", "site-guide", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
-    "static-publish", "system-mail", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-preview-switcher", "theme-set-active", "theme-set-page-published", "theme-trash",
+    "static-publish", "system-mail", "system-mail-delivery", "system-mail-providers", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-preview-switcher", "theme-set-active", "theme-set-page-published", "theme-trash",
     "themes", "trash", "web", "web-screenshot", "widgets", "workspace",
   ].sort());
   assert.deepEqual(contributions.derivedContributors.list({}).map(({ domain }) => domain), ["trash-item"]);

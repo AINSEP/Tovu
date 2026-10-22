@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createLostFrontendBindings, LOST_FRONTEND_BINDING_MESSAGE } from "../lost-frontend-binding.js";
+import { createLostFrontendBindings, FrontendDisconnectedError, LOST_FRONTEND_BINDING_MESSAGE } from "../lost-frontend-binding.js";
 
 /**
  * @file Certifies the clearer frontend-tool failure for a run whose tab bound with a token the
@@ -46,12 +46,38 @@ test("a run whose bind token was unknown gets the reload message instead of the 
   });
 });
 
-test("another run's 'no frontend is bound' is left alone", async () => {
+/** A run with no restart record whose tab is simply gone (closed, reloaded, socket dropped). */
+function isDisconnected(err: unknown, cause: Error): boolean {
+  assert.ok(err instanceof FrontendDisconnectedError);
+  assert.equal(err.code, "frontend_disconnected");
+  assert.equal(err.retryable, true);
+  assert.match(err.message, /^frontend_disconnected \(retryable\): /, "the model only sees the message, so it carries the code");
+  assert.match(err.message, /reload the admin page/i);
+  assert.equal(err.cause, cause);
+  return true;
+}
+
+test("another run's 'no frontend is bound' becomes a recoverable frontend_disconnected error naming the server-side alternative", async () => {
   const lost = createLostFrontendBindings();
   lost.noteBindError({ runId: "run-1", error: unknownTokenError });
   const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
 
-  await assert.rejects(wrapped.handler(ctx("run-2")), (err: Error) => err === unboundError);
+  await assert.rejects(wrapped.handler(ctx("run-2")), (err: Error) => {
+    assert.match(err.message, /nothing was changed/);
+    assert.match(err.message, /publish_content_publish/);
+    return isDisconnected(err, unboundError);
+  });
+});
+
+test("a tab that detaches mid-call is also frontend_disconnected, and says the outcome is unknown", async () => {
+  const lost = createLostFrontendBindings();
+  const detached = new Error('frontend session "s-1" detached before answering');
+  const wrapped = lost.wrap(registration(async () => { throw detached; }));
+
+  await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => {
+    assert.match(err.message, /outcome is unknown/);
+    return isDisconnected(err, detached);
+  });
 });
 
 test("a bind error that is not about the token is not recorded", async () => {
@@ -59,7 +85,7 @@ test("a bind error that is not about the token is not recorded", async () => {
   lost.noteBindError({ runId: "run-1", error: new SyntaxError("Unexpected token } in JSON") });
   const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
 
-  await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => err === unboundError);
+  await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => err.message !== LOST_FRONTEND_BINDING_MESSAGE && isDisconnected(err, unboundError));
 });
 
 test("other failures of a lost-binding run pass through unchanged, and success is untouched", async () => {
@@ -78,6 +104,12 @@ test("the record is bounded: the oldest run is forgotten first", async () => {
   for (const runId of ["run-a", "run-b", "run-c"]) lost.noteBindError({ runId, error: unknownTokenError });
   const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
 
-  await assert.rejects(wrapped.handler(ctx("run-a")), (err: Error) => err === unboundError);
+  await assert.rejects(wrapped.handler(ctx("run-a")), (err: Error) => isDisconnected(err, unboundError));
   await assert.rejects(wrapped.handler(ctx("run-c")), (err: Error) => err.message === LOST_FRONTEND_BINDING_MESSAGE);
+});
+
+test("a non-Error rejection passes through untouched", async () => {
+  const lost = createLostFrontendBindings();
+  const wrapped = lost.wrap(registration(async () => { throw "plain string"; }));
+  await assert.rejects(wrapped.handler(ctx("run-1")), (err: unknown) => err === "plain string");
 });

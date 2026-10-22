@@ -246,9 +246,36 @@ export async function domainDnsInstructions(required: DnsChangeRequest, ports: D
   const errorPrefix = "dns_instructions";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const planned = await planTarget({ target, errorPrefix }, ports);
+  return { planned, instructions: instructionsFor(target, planned) };
+}
+
+/** The provider's own rendering of the rows when it has one, else the kernel's. */
+function instructionsFor(target: Target, planned: DomainDnsPlan): DnsInstructions {
   const input = [{ plan: planned.plan }, { requirements: target.requirements }] as const;
-  const instructions = target.provider.instructions ? target.provider.instructions(...input) : renderDnsInstructions(...input);
-  return { planned, instructions };
+  return target.provider.instructions ? target.provider.instructions(...input) : renderDnsInstructions(...input);
+}
+
+/** A read-only look: the plan and rows plus one unsaved check and the last saved binding. */
+export interface DomainDnsInspection {
+  planned: DomainDnsPlan;
+  instructions: DnsInstructions;
+  /** `null` when no zone was found, so there are no authoritative nameservers to ask. */
+  verification: DnsVerification | null;
+  /** The saved tracking state (status, timestamps), or `null` when `dns_verify` never ran for it. */
+  binding: DomainBinding | null;
+}
+
+/**
+ * Plan, rows and one authoritative check of every required record, WITHOUT saving anything
+ * (the read-permission view; `verifyDomainDns` stays the single writer of `domain_binding.status`).
+ * @complexity The plan's reads plus O(records · nameservers) DNS queries.
+ */
+export async function inspectDomainDns(required: DnsChangeRequest, ports: DnsChangePorts): Promise<DomainDnsInspection> {
+  const errorPrefix = "dns_status";
+  const target = await resolveTarget({ ...required, errorPrefix }, ports);
+  const planned = await planTarget({ target, errorPrefix }, ports);
+  const verification = planned.zoneFound ? await verifyRequirements({ zone: planned.zone, requirements: target.requirements }, { resolver: ports.resolver }) : null;
+  return { planned, instructions: instructionsFor(target, planned), verification, binding: target.binding };
 }
 
 const iso = (ms: number): string => new Date(ms).toISOString();

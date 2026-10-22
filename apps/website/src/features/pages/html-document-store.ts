@@ -13,7 +13,7 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
-import { SYSTEM_ACTOR_ID, type PostKind, type PostRepoPort, type PostStatus } from "../post/post.js";
+import { HTML_DOCUMENT_KINDS, SYSTEM_ACTOR_ID, type PostKind, type PostRepoPort, type PostStatus } from "../post/post.js";
 import { announcePendingGoLive } from "../post/go-live.js";
 
 /**
@@ -374,7 +374,8 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: row.deleted_at ? "trashed" : "live" });
-    if (row.kind !== "page") {
+    // An email template is born through this same store (`post.ts`'s HTML_DOCUMENT_KINDS).
+    if (!HTML_DOCUMENT_KINDS.has(row.kind)) {
       throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
     }
 

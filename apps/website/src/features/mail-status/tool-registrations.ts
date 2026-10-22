@@ -8,32 +8,37 @@ import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
+import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailProviderControl, MailStatusReport } from "../../platform/mail/mail-status.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
+import { planMailTestSend, readTestRecipient, runMailTestSend, type MailTestSendDeps, type MailTestSendPlan } from "./test-send.js";
+import { activateMailProvider, checkMailProvider } from "./provider-operations.js";
+import { asToolInputError, currentLanesDetail, readCurrentLanes } from "./provider-tool-registrations.js";
 
 export interface MailStatusToolDeps {
   authorize: AuthorizeFn; workspaceId: string; mailer: MailerPort;
   /** Lanes, providers and warnings (`server/runtime/boot/resolve-mailer.ts`); absent in hermetic roots. */
-  mailStatus?: () => Promise<MailStatusReport>;
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<MailStatusReport>;
   /** Provider selection for `mail_set_provider`; absent, that tool refuses and changes nothing. */
   mailProviderControl?: MailProviderControl;
-  /** The operator's account, for `mail_send_test`'s only recipient. */
+  /** The operator's account, for `mail_send_test`'s default recipient. */
   userRepo?: Pick<UserRepoPort, "findByPrincipalId">;
   /** The site's system-mail From (`platform/mail/sender-identity.ts`). */
   mailSenderIdentity?: MailSenderIdentityPort;
+  /** Shared with the admin test-send route (`features/mail-status/test-send.ts`). */
+  mailTestSendLimiter?: MailTestSendDeps["mailTestSendLimiter"];
+  mailTestMode?: MailTestSendDeps["mailTestMode"];
+  mailTestProvider?: MailTestSendDeps["mailTestProvider"];
+  mailTestRequests?: MailTestSendDeps["mailTestRequests"];
 }
 export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> mailer.capabilities() only; the adapter may refresh configuration, but sends/writes nothing.
   ["system_get_mail_status", "none"],
   // -> mailProviderControl.select: one settings-ledger write of core.mail.provider.
   ["mail_set_provider", "mutates-durable-state"],
-  // -> mailer.send: one delivery (ledger row, provider call) to the operator's own address.
+  // -> mailer.send: one delivery (ledger row, provider call) to the operator's own or a chosen address.
   ["mail_send_test", "mutates-durable-state"],
 ]);
-
-/** Placeholder From for a non-delivering mailer; a real provider gets the site's configured sender. */
-const TEST_FALLBACK_SENDER = { email: "no-reply@mail.local", name: "Tovu" } as const;
 
 function permission(deps: MailStatusToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
@@ -53,15 +58,10 @@ function readProviderId(input: unknown): string {
   return providerId;
 }
 
-/**
- * The signed-in operator's own address: the account email, else a username that is an address.
- * @throws {ToolInputError} When the account has no address, so no test can go anywhere else.
- */
-async function operatorAddress(deps: MailStatusToolDeps, principalId: string): Promise<string> {
-  const user = await deps.userRepo?.findByPrincipalId({ workspaceId: deps.workspaceId, principalId });
-  const address = [user?.email, user?.username].find((value) => typeof value === "string" && value.includes("@"));
-  if (!address) throw new ToolInputError({ message: "Your account has no email address, so there is nowhere to send a test. Add one to your user profile first. Nothing was sent." });
-  return address;
+/** Test mode rewrites or keeps the message: the card says so before the person confirms. */
+function testModeDetails(plan: MailTestSendPlan): { label: string; value: string }[] {
+  if (plan.redirectTo !== undefined) return [{ label: "Test mode", value: `Redirected to ${plan.redirectTo}` }];
+  return plan.capture ? [{ label: "Test mode", value: "Captured on this server; nothing is sent" }] : [];
 }
 
 /** Reads delivery configuration after the admin route's permission check, and offers the two
@@ -76,10 +76,10 @@ async function operatorAddress(deps: MailStatusToolDeps, principalId: string): P
 export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     system_get_mail_status: async ctx => {
-      requireInputRecord({ input: ctx.input });
+      const refresh = requireInputRecord({ input: ctx.input }).refresh === true;
       await permission(deps, ctx, "admin.forms.manage");
       const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
-      const status = deps.mailStatus ? await deps.mailStatus() : {};
+      const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
       return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
     },
     // No rememberKey: a provider switch redirects every email the site sends, so it always asks.
@@ -87,40 +87,34 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
       prepare: async ({ ctx }) => {
         const providerId = readProviderId(ctx.input);
         await permission(deps, ctx, "settings.workspace.write");
-        const check = await providerControl(deps).check({ id: providerId });
-        if (!check.ok) throw new ToolInputError({ message: `Cannot switch to ${check.reason}. Nothing was changed.` });
-        return { providerId, label: check.label };
+        const control = providerControl(deps);
+        const { label } = await asToolInputError({ run: () => checkMailProvider({ control, providerId }) });
+        return { providerId, label, current: await readCurrentLanes({ control }) };
       },
       describe: ({ prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
-        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }],
+        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }, ...currentLanesDetail(prepared)],
         warning: "From the next message on, every email this site sends (sign-in links, confirmations, form notifications, newsletters) goes through this provider.", confirmLabel: "Switch provider" }),
       run: async ({ ctx, prepared }) => {
         // The card may sit open for minutes: recheck the grant at the moment of the write.
         await permission(deps, ctx, "settings.workspace.write");
-        await providerControl(deps).select({ id: prepared.providerId, principalId: ctx.principal.id });
+        // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
+        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id }) });
         return { set: true, providerId: prepared.providerId };
       },
     }, { flag: "set" }),
     mail_send_test: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
-        requireInputRecord({ input: ctx.input });
+        const to = readTestRecipient({ value: requireInputRecord({ input: ctx.input }).to });
         await permission(deps, ctx, "admin.forms.manage");
-        return { to: await operatorAddress(deps, ctx.principal.id) };
+        return planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
       },
       describe: ({ prepared }) => ({ toolId: "mail_send_test", errorCode: "MAIL", title: `Send a test email to ${prepared.to}?`,
-        details: [{ label: "To", value: prepared.to }, { label: "Through", value: deps.mailer.capabilities().driver }], confirmLabel: "Send test email" }),
+        details: [{ label: "To", value: prepared.to }, { label: "Through", value: prepared.driver }, ...testModeDetails(prepared)], confirmLabel: "Send test email" }),
       run: async ({ ctx, prepared }) => {
         await permission(deps, ctx, "admin.forms.manage");
-        const senderIdentity = mailSenderIdentityFor({ mailer: deps.mailer }, deps.mailSenderIdentity ? { senderIdentity: deps.mailSenderIdentity } : {});
-        const from = await senderIdentity.resolve({ workspaceId: deps.workspaceId, fallback: TEST_FALLBACK_SENDER });
-        const result = await deps.mailer.send(
-          { workspaceId: deps.workspaceId, to: { email: prepared.to }, from, subject: "Test email from your site", text: "This is a test email sent at your request. If you can read it, your site can deliver email." },
-          // The operator is waiting on this message: transactional, interactive lane.
-          { idempotencyKey: `mail:test:${ctx.executionId}`, workspaceId: deps.workspaceId, sourceContext: { module: "mail", ref: ctx.executionId }, purpose: "transactional", lane: "interactive" },
-        );
-        return result.ok
-          ? { sent: true, to: prepared.to, providerMessageId: result.providerMessageId }
-          : { sent: false, to: prepared.to, errorCode: result.errorCode, message: result.message };
+        const result = await runMailTestSend({ deps, principalId: ctx.principal.id, plan: prepared, ref: ctx.executionId });
+        // `sent` means it left for its recipient; a capture or a refusal did not. Never "delivered".
+        return { sent: result.outcome === "accepted" || result.outcome === "redirected", ...result };
       },
     }, { flag: "sent" }),
   }, rules: [forbiddenRule({ domainPrefix: "MAIL_STATUS", error: ForbiddenError })] }) });

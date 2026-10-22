@@ -50,7 +50,7 @@ export const toolMetadata = {
   },
   "deployment_preview_static_publish": {
     search: {
-      keywords: "dry run check before deploy what would happen test authenticated hosting preview domain dns records bindings routes conflicts",
+      keywords: "dry run check before deploy publish what would happen what will be published test authenticated hosting preview domain dns records bindings routes conflicts",
       // Questions phrase the operator's pre-publish check; without them that phrasing ranked this
       // read 4th, behind the draft-preview and template-reload tools.
       queries: [

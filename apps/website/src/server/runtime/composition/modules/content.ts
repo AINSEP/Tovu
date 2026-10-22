@@ -10,6 +10,7 @@ import { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/rou
 import { registerAdminPageGetRoute } from "#src/server/inbound/admin-http/routes/pages/get-by-id";
 import { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/routes/pages/update";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
+import { registerAdminEmailTemplateRoutes } from "#src/server/inbound/admin-http/routes/email-templates/routes";
 import { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
 import { registerAdminChangeSetListRoute } from "#src/server/inbound/admin-http/routes/change-sets/list";
 import { registerAdminChangeSetGetRoute } from "#src/server/inbound/admin-http/routes/change-sets/get";
@@ -97,6 +98,8 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       // ordering is the guarantee, not the current path shapes.)
       registerAdminPageUpdateHtmlRoute(app, deps);
       registerAdminPageDeleteRoute(app, deps);
+      // HTML email templates: Pages storage (kind "email-template"), same HTML store and gates.
+      registerAdminEmailTemplateRoutes(app, deps);
       registerAdminChangeSetListRoute(app, deps);
       registerAdminChangeSetGetRoute(app, deps);
       registerAdminChangeSetRevertRoute(app, deps);

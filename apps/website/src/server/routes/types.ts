@@ -649,8 +649,9 @@ export interface MembersDeps {
   settleMailer?: () => Promise<void>;
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
-  mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
-  /** Provider selection for `mail_set_provider` (`server/runtime/composition/site-mailer.ts`). Absent: the tool refuses. */
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
+   *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
   mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
   /** The active transactional provider's DNS records for the configured sender domain
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
@@ -659,6 +660,21 @@ export interface MembersDeps {
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
+  /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
+  mailSenderDomainVerification?: import("#src/platform/mail/sender-domain-verification").SenderDomainVerificationPort;
+  /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
+  mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
+  /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
+  mailTestProvider?: () => Promise<string | null>;
+  mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
+  mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
+  mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
+  /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
+  mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;
+  /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
+  mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+  /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
+  mailSuppressionAdmin?: import("#src/features/mail/suppression-admin.repo").MailSuppressionAdminRepo;
 }
 
 /**

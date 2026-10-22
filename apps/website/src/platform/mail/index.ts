@@ -5,10 +5,10 @@
 // pull a higher-tier feature into the platform barrel (ADR-024). The local SMTP adapter is same-tier.
 export type {
   EmailAddress, EmailAttachment, MailerCapabilities, MailerFeedbackEvent,
-  MailerSendOptions, MailerSendResult, OutboundEmail,
+  MailerSendResult, OutboundEmail,
   MailSuppressionRepoPort, MailSendDedupRepoPort,
 } from "@jini-ai/platform/mail";
-export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort } from "./ports.js";
+export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort, MailerSendOptions, MailTestApproval } from "./ports.js";
 export type { MailAdapterCreateContext, MailAdapterCredential, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
 export { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "./delivery-availability.js";
 export {

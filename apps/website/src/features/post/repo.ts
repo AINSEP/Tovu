@@ -79,6 +79,19 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     return rows.map(toRecord);
   }
 
+  /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
+  async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+    const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)
+      .where("body_format", "=", "html").where("body_html", "is not", null).where("deleted_at", "is", null)
+      .$if(required.before !== undefined, qb => qb.where(eb => eb.or([
+        eb("updated_at", "<", required.before!.updatedAt),
+        eb.and([eb("updated_at", "=", required.before!.updatedAt), eb("id", ">", required.before!.id)]),
+      ])))
+      .orderBy("updated_at", "desc").orderBy("id", "asc").limit(required.limit).execute());
+    return rows.map(toRecord);
+  }
+
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract. Every filter
    *  (workspace, `status`, `kind`, non-trashed) and the `LIMIT` are pushed into the ONE query — no
    *  in-JS filter or slice after the fact, the discipline that method's doc requires. */

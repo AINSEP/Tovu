@@ -6,6 +6,8 @@ import { mailFeedbackProcessed } from "./0025_mail_feedback_processed.js";
 import { domainBindingVersion } from "./0026_domain_binding_version.js";
 import { searchIndex } from "./0027_search_index.js";
 import { searchIndexRetired } from "./0028_search_index_retired.js";
+import { mailActivityIndexes } from "./0029_mail_activity_indexes.js";
+import { mailSuppressionAdmin } from "./0030_mail_suppression_admin.js";
 import { publishHistoryKind } from "./0017_publish_history_kind.js";
 import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_receipts.js";
 import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
@@ -84,6 +86,8 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   domainBindingVersion({ checksum: pinned("0026_domain_binding_version") }),
   searchIndex({ checksum: pinned("0027_search_index") }),
   searchIndexRetired({ checksum: pinned("0028_search_index_retired") }),
+  mailActivityIndexes({ checksum: pinned("0029_mail_activity_indexes") }),
+  mailSuppressionAdmin({ checksum: pinned("0030_mail_suppression_admin") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

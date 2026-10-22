@@ -113,6 +113,8 @@ import { loadSourceControlProviderRegistry } from "#src/features/source-control/
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
+import { createMailActivityRepo } from "#src/features/mail/activity.repo";
+import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -145,6 +147,8 @@ import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
+import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
+import { startMailRetention } from "#src/features/mail/retention";
 import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
@@ -332,7 +336,6 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#s
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
 import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
@@ -933,13 +936,14 @@ async function openCompositionStore(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
   const registrations: StoreCloseRegistration[] = [];
   const bootDrains: Array<() => Promise<void>> = [];
   const stopStoreUsers = async (): Promise<void> => {
     // Boot still uses the inventory, journal and repos that the disposers below release.
     await Promise.all(bootDrains.map((drain) => drain()));
     await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
-    await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]);
+    await Promise.all([stopChatSweep(), stopSubmissionIpSweep(), stopMailRetention()]);
   };
   const store: SiteStore = {
     ...opened,
@@ -1981,26 +1985,31 @@ async function composeSiteRouteDeps(
   // Email provider contract v1 (2026-10-21): lanes read `core.mail.provider` (first boot writes the
   // provider the old implicit chain picked), and every provider sits behind Jini's delivery policy
   // over the mail ledgers (`features/mail`). See `site-mailer.ts` and `resolve-mailer.ts`.
+  const mailResolveDeps = {
+    workspaceId,
+    customCredentialRepo: customCredentialSetRepo,
+    sealer: siteAssistantSecretSealer,
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    mode: runtimeMode,
+  };
   const resolvedMailer = createSiteMailer({
-    resolve: {
-      workspaceId,
-      customCredentialRepo: customCredentialSetRepo,
-      sealer: siteAssistantSecretSealer,
-      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
-      loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-      mode: runtimeMode,
-    },
+    resolve: mailResolveDeps,
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
-    delivery: { ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
+    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
-  });
+    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
+  }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName) });
+  // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
+  // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
+  // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
+  const mailDurableOutboxReady = (_capabilityName: string): boolean => false;
   // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
   // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
-  const mailSenderIdentity = createMailSenderIdentityResolver({ mailer: resolvedMailer.mailer }, {
-    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
-    settle: resolvedMailer.settle,
-  });
+
+
+  const mailSenderIdentity = resolvedMailer.operations.mailSenderIdentity!;
 
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
@@ -2437,14 +2446,19 @@ async function composeSiteRouteDeps(
     mailer: wrapMailerWithPurposeGate({
       inner: resolvedMailer.mailer,
       mode: runtimeMode,
-      durableOutboxReady: () => false,
+      durableOutboxReady: mailDurableOutboxReady,
     }),
     settleMailer: resolvedMailer.settle,
     mailStatus: resolvedMailer.status,
-    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider },
+    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider, describe: resolvedMailer.describeProviders, invalidate: resolvedMailer.invalidate },
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
-    mailSenderIdentity,
+    ...resolvedMailer.operations,
+    // One bucket per site, so the Email page's button and the assistant's tool share it.
+    // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
+    mailActivity: createMailActivityRepo({ db: kernel }),
+    // Email page phase 5: the do-not-send list's operator side (list, audited removal) and feedback setup.
+    mailSuppressionAdmin: createMailSuppressionAdminRepo({ db: kernel }),
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

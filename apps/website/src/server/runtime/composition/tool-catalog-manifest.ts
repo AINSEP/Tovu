@@ -16,6 +16,8 @@ import type { AssistantToolContributions } from "#src/assistant/index";
 import { ToolInputError } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
+import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
+import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
 import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
@@ -61,6 +63,7 @@ import { probeExternalMcpServer } from "#src/server/runtime/services/external-mc
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -347,6 +350,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
+  contributions.contributors.register({ contribution: contributeMailProviderTools() });
+  contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
   contributions.contributors.register({ contribution: contributeServerLogsTools() });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
@@ -415,6 +420,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });

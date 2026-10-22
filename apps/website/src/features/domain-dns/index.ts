@@ -7,3 +7,8 @@ export { createDomainBindingStore } from "./binding.repo.js";
 export type { DomainBinding, DomainBindingStatus, DomainBindingStore } from "./binding.repo.js";
 export { planDomainDns, domainDnsInstructions, verifyDomainDns, verifyDueDomainBindings } from "./dns-changes.js";
 export type { DnsChangePorts, DomainDnsPlan, DomainDnsBlocker, DomainDnsVerifyResult } from "./dns-changes.js";
+export { inspectDomainDns } from "./dns-changes.js";
+export type { DomainDnsInspection } from "./dns-changes.js";
+export { readMailDnsStatus, verifyMailDnsStatus, mailDnsRecordStatus } from "./mail-dns-status.js";
+export type { MailDnsStatus, MailDnsCheck, MailDnsRecordView, MailDnsRecordStatus, MailDnsState, MailDnsStatusPorts } from "./mail-dns-status.js";
+export { buildMailDnsRegistrations, mailDnsAgentToolCatalog, mailDnsDerivedRisk, mailDnsPorts } from "./mail-dns-tools.js";

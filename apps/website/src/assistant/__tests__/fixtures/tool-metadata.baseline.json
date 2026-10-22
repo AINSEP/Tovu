@@ -44,9 +44,16 @@
     "domain_lookup_dns": "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
     "domain_check_dns": "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
     "domain_tls_status": "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
+    "email_template_create": "create new email template html email design welcome confirmation fields placeholders",
+    "email_template_edit": "edit change update email template html subject fields layout",
+    "email_template_get": "email template read open html subject fields",
+    "email_template_list": "email template templates list html email transactional message design",
+    "email_template_preview": "preview email template render fill-ins fields values sample inbox look plain text",
     "dns_plan": "dns plan records changes needed required provider zone delegation nameserver registrar spf dkim dmarc mx verification connect custom domain set up",
     "dns_instructions": "dns instructions steps rows copy paste enter add records registrar dns host manual table how to set up",
     "dns_verify": "dns verify verification track tracking records entered done authoritative nameservers status propagated required records binding",
+    "mail_dns_status": "email mail dns sender domain records spf dkim dmarc mx verified verification status missing mismatch check provider sending domain",
+    "mail_dns_verify": "email mail dns sender domain records verify recheck check again track propagation entered spf dkim dmarc",
     "media_list_assets": "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
     "media_upload_asset": "image images photo upload uploads uploading add attach file files picture logo library uplaod",
     "media_trash_asset": "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
@@ -112,7 +119,7 @@
     "newsletter_create_campaign": "email campaign newsletter blast send announcement compose",
     "newsletter_list_campaigns": "email campaigns newsletters sent scheduled drafts list",
     "newsletter_remove_subscription": "unsubscribe remove subscriber opt out mailing list",
-    "newsletter_list_send_log": "email sent delivery log history newsletter campaign who received",
+    "newsletter_list_send_log": "email sent delivery delivered log history newsletter campaign who received",
     "newsletter_list_lists": "subscriber lists mailing lists available existing audience segments what lists",
     "newsletter_create_list": "subscriber list new create mailing list audience segment group",
     "newsletter_archive_list": "subscriber list archive retire remove hide stop using mailing list",
@@ -248,7 +255,7 @@
     "pages_write_region": "section sections region regions part parts piece block chunk area one single just the only the hero headline heading title banner cta call to action pricing faq testimonial footer text copy edit editing change changing update updating tweak adjust revise reword swap replace fix amend without rewriting not the whole page leave the rest keep the rest surgical targeted in place handle data-agent-element",
     "pages_move_region": "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
     "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers hosts where static host",
-    "deployment_preview_static_publish": "dry run check before deploy what would happen test authenticated hosting preview domain dns records bindings routes conflicts",
+    "deployment_preview_static_publish": "dry run check before deploy publish what would happen what will be published test authenticated hosting preview domain dns records bindings routes conflicts",
     "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting static host custom domain apex www dns",
     "deployment_generate_bucket_hosting_setup": "instructions steps how to setup guide public website cloud storage host",
     "deployment_trigger_export": "build generate export files download self host static site",
@@ -322,6 +329,14 @@
     "theme_update_preview_switcher": "theme preview switcher banner demo enable disable themes labels top static live settings",
     "mail_set_provider": "email mail provider switch change choose smtp hosted api sending service configure set up",
     "mail_send_test": "send test email mail check delivery works inbox try verify",
+    "mail_list_providers": "email mail providers installed list configured key saved setup fields smtp hosted api",
+    "mail_configure_provider": "email mail provider configure set up save key api key replace rotate smtp password without switching",
+    "mail_get_readiness": "email uses readiness sign-in links confirmations form notifications newsletter blocked ready why not sending",
+    "mail_list_activity": "email activity recent sends history log failures bounced delivered complained suppressed outcome",
+    "mail_get_activity": "email send detail feedback timeline delivered bounced message id provider error",
+    "mail_list_suppressions": "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
+    "mail_remove_suppression": "email unblock remove suppression allow email again bounced complained do not send list",
+    "mail_get_feedback_setup": "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
     "search_query": "search find site content posts pages full text query results lookup",
     "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
     "search_reindex": "search reindex rebuild refresh index full backfill",
@@ -640,6 +655,26 @@
       "Has my site's certificate expired?",
       "Does the certificate match the domain hostname?"
     ],
+    "email_template_create": [
+      "Make a welcome email template.",
+      "Design an HTML email with a {{name}} field."
+    ],
+    "email_template_edit": [
+      "Change the subject of my welcome email.",
+      "Make the email template's button blue."
+    ],
+    "email_template_get": [
+      "Open the order confirmation email template.",
+      "Show me the HTML of my welcome email."
+    ],
+    "email_template_list": [
+      "What email templates does my site have?",
+      "Show my email templates."
+    ],
+    "email_template_preview": [
+      "Preview the welcome email for Ada.",
+      "How does this email look in the inbox with the fields filled in?"
+    ],
     "dns_plan": [
       "What DNS changes does my domain need?",
       "Plan the DNS records for connecting my custom domain.",
@@ -655,6 +690,15 @@
       "I added the DNS records, are they live yet?",
       "Verify the required DNS records on the authoritative nameservers.",
       "Track whether my domain's records have propagated."
+    ],
+    "mail_dns_status": [
+      "Are my email DNS records set up correctly?",
+      "Which SPF, DKIM or DMARC records are missing for my sender domain?",
+      "Has my mail provider verified my sending domain?"
+    ],
+    "mail_dns_verify": [
+      "I added the email DNS records, check them again.",
+      "Start tracking my sender domain's mail records until they propagate."
     ],
     "external_mcp_list": [
       "Which external MCP servers are configured and enabled?",
@@ -1897,6 +1941,43 @@
       "Send me a test email.",
       "Check that my site can actually send email."
     ],
+    "mail_list_providers": [
+      "Which email providers can this site use?",
+      "Is my mail provider's key saved?",
+      "What do I need to set up SMTP?"
+    ],
+    "mail_configure_provider": [
+      "Set up a mail provider without switching to it yet.",
+      "Replace my email provider's API key.",
+      "Save the SMTP password for my site's email."
+    ],
+    "mail_get_readiness": [
+      "Which of my site's emails can send right now?",
+      "Why aren't form notification emails going out?",
+      "Is newsletter email blocked?"
+    ],
+    "mail_list_activity": [
+      "Show recent emails this site sent.",
+      "Which emails bounced?",
+      "Did the sign-in email to this address go out?"
+    ],
+    "mail_get_activity": [
+      "Show the details of that email send.",
+      "What happened to this email after the provider accepted it?"
+    ],
+    "mail_list_suppressions": [
+      "Which addresses will my site not email?",
+      "Is this address blocked from my emails?",
+      "Show bounced email addresses."
+    ],
+    "mail_remove_suppression": [
+      "Let my site email this address again.",
+      "Remove this address from the do-not-send list."
+    ],
+    "mail_get_feedback_setup": [
+      "Is bounce and complaint reporting set up for my email?",
+      "What webhook URL do I give my mail provider?"
+    ],
     "search_query": [
       "Search my site for posts about pricing.",
       "Which pages mention our refund policy?",
@@ -2484,6 +2565,26 @@
       "class": "read",
       "confirmation": "direct"
     },
+    "email_template_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "email_template_edit": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "email_template_get": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "email_template_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "email_template_preview": {
+      "class": "read",
+      "confirmation": "direct"
+    },
     "dns_plan": {
       "class": "read",
       "confirmation": "direct"
@@ -2493,6 +2594,14 @@
       "confirmation": "direct"
     },
     "dns_verify": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "mail_dns_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_dns_verify": {
       "class": "edit",
       "confirmation": "direct"
     },
@@ -3387,6 +3496,38 @@
       "class": "publish",
       "confirmation": "plan"
     },
+    "mail_list_providers": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_configure_provider": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_get_readiness": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_list_activity": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_get_activity": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_list_suppressions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "mail_remove_suppression": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "mail_get_feedback_setup": {
+      "class": "read",
+      "confirmation": "direct"
+    },
     "search_query": {
       "class": "read",
       "confirmation": "direct"
@@ -3461,6 +3602,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3553,6 +3695,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
@@ -3612,6 +3755,7 @@
     "consent_update_settings",
     "consent_publish_settings",
     "mail_set_provider",
+    "mail_remove_suppression",
     "mail_send_test",
     "search_reindex",
     "search_set_provider",

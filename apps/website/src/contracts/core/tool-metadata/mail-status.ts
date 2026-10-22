@@ -32,4 +32,60 @@ export const toolMetadata = {
     },
     approval: { class: 'publish', confirmation: 'plan' },
   },
+  "mail_list_providers": {
+    search: {
+      keywords: "email mail providers installed list configured key saved setup fields smtp hosted api",
+      queries: ["Which email providers can this site use?", "Is my mail provider's key saved?", "What do I need to set up SMTP?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_configure_provider": {
+    search: {
+      keywords: "email mail provider configure set up save key api key replace rotate smtp password without switching",
+      queries: ["Set up a mail provider without switching to it yet.", "Replace my email provider's API key.", "Save the SMTP password for my site's email."],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_get_readiness": {
+    search: {
+      keywords: "email uses readiness sign-in links confirmations form notifications newsletter blocked ready why not sending",
+      queries: ["Which of my site's emails can send right now?", "Why aren't form notification emails going out?", "Is newsletter email blocked?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_list_activity": {
+    search: {
+      keywords: "email activity recent sends history log failures bounced delivered complained suppressed outcome",
+      queries: ["Show recent emails this site sent.", "Which emails bounced?", "Did the sign-in email to this address go out?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_get_activity": {
+    search: {
+      keywords: "email send detail feedback timeline delivered bounced message id provider error",
+      queries: ["Show the details of that email send.", "What happened to this email after the provider accepted it?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_list_suppressions": {
+    search: {
+      keywords: "email suppression list blocked recipients do not send bounced complained unsubscribe blocklist",
+      queries: ["Which addresses will my site not email?", "Is this address blocked from my emails?", "Show bounced email addresses."],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "mail_remove_suppression": {
+    search: {
+      keywords: "email unblock remove suppression allow email again bounced complained do not send list",
+      queries: ["Let my site email this address again.", "Remove this address from the do-not-send list."],
+    },
+    approval: { class: 'escalation', confirmation: 'plan' },
+  },
+  "mail_get_feedback_setup": {
+    search: {
+      keywords: "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
+      queries: ["Is bounce and complaint reporting set up for my email?", "What webhook URL do I give my mail provider?"],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

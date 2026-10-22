@@ -52,6 +52,7 @@ const RAW_SQL_MANAGED: ReadonlyMap<string, string> = new Map([
   ["search_index_watermarks", "ADR-066 step 0027: resumable search backfill cursors"],
   ["search_index_targets", "ADR-066 step 0027: per-site active/building search target"],
   ["search_index_retired", "ADR-066 step 0028: replaced search generations awaiting their index drop"],
+  ["mail_suppression_removals", "ADR-066 step 0030: audit record of deliberate suppression removals"],
 ]);
 
 /** Which SQLite declared types can hold each generated TypeScript type. */

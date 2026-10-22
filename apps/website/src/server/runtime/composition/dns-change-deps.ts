@@ -13,7 +13,7 @@ import { createDomainBindingStore, verifyDueDomainBindings, type DnsChangePorts,
 import type { RouteDeps } from "../../routes/types.js";
 import { createAuthoritativeDnsResolver } from "./authoritative-dns.js";
 
-type DnsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "contentKernel" | "mailDomainRequirements">;
+type DnsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "contentKernel" | "mailDomainRequirements" | "mailSenderDomainVerification">;
 type DnsShared = Pick<DnsChangePorts, "registry" | "resolver"> & { now: () => number; httpClient: DnsChangePorts["context"]["httpClient"] };
 
 /** The process-wide resolver, registry, clock and adapted client. */
@@ -56,6 +56,8 @@ export function createDnsChangeDepsFactory(
     ...workspaceDnsPorts(shared, routeDeps),
     // Mail requirements reach DNS only through this port (`include: ["mail"]`).
     ...(routeDeps.mailDomainRequirements ? { mailRequirements: routeDeps.mailDomainRequirements } : {}),
+    // The provider's own verdict stays beside, never inside, the DNS check (`mail_dns_status`).
+    ...(routeDeps.mailSenderDomainVerification ? { senderDomainVerification: routeDeps.mailSenderDomainVerification } : {}),
   });
 }
 

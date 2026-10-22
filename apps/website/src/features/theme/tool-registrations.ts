@@ -386,6 +386,23 @@ function countOccurrences(haystack: string, needle: string): number {
  */
 function applyThemeFileEdit(
   currentContent: string,
+  edit: { oldString: string; newString: string; replaceAll: boolean; intent?: "delete" },
+  relativePath: string
+): string {
+  const nextContent = replaceThemeFileText(currentContent, edit, relativePath);
+  // An empty `newString` deletes text (allowed as is); only an edit that leaves NOTHING (empty or
+  // whitespace-only) needs the explicit `intent: "delete"` — the one deletion a too-wide oldString
+  // could do by accident, and a whole-file wipe is never what "remove this line" meant.
+  if (nextContent.trim() === "" && edit.intent !== "delete") {
+    throw new ThemeFileEditMatchError(
+      `this edit would leave '${relativePath}' empty; narrow oldString to the text to remove, or pass intent: 'delete' if emptying the whole file is really intended`
+    );
+  }
+  return nextContent;
+}
+
+function replaceThemeFileText(
+  currentContent: string,
   edit: { oldString: string; newString: string; replaceAll: boolean },
   relativePath: string
 ): string {
@@ -808,7 +825,7 @@ export function buildThemesRegistrations(
         assertThemeFileWritable(theme, relativePath);
 
         const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
-        const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll }, relativePath);
+        const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath);
         const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);

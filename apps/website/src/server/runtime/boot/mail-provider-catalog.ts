@@ -17,6 +17,8 @@ import {
 import type { PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";
+import type { MailProviderSetup } from "#src/platform/mail/mail-status";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
@@ -44,6 +46,17 @@ export const MAIL_CREDENTIAL_CATEGORY = "ops";
 /** Exact `custom_credential_sets.label` an operator must use for the SMTP provider. */
 export const MAIL_SMTP_CREDENTIAL_LABEL = "Tovu Mail — SMTP Server";
 
+/**
+ * The SMTP protocol's setup form (core: SMTP is a protocol, not a vendor — owner decision
+ * 2026-10-22). A vendor's SMTP host/port preset belongs in that vendor's plugin. `baseUrl` packs
+ * `host:port` behind an `https://` prefix — see `resolve-mailer.ts`'s header for the encoding.
+ */
+export const SMTP_PROVIDER_SETUP: MailProviderSetup = { fields: [
+  { key: "baseUrl", label: "SMTP server", type: "url", required: true, placeholder: "https://smtp.example.com:465", help: "Host and port after https://. Ports 465 and 443 use implicit TLS; any other port uses STARTTLS." },
+  { key: "username", label: "Username", type: "text", required: true },
+  { key: "token", label: "Password", type: "secret", required: true },
+] };
+
 /** Every mail credential label starts with this; used to spot a key whose plugin is not loaded yet. */
 const MAIL_CREDENTIAL_LABEL_PREFIX = "Tovu Mail — ";
 
@@ -70,6 +83,8 @@ export interface MailProviderCatalog {
   credentialLabelFor(required: { id: string }): string | undefined;
   /** Plugin adapters/providers that were not loaded, and why (log-safe). */
   readonly refusals: readonly string[];
+  /** The provider's declarative setup form; no fields for one that needs no saved key. */
+  setupFor(required: { id: string }): MailProviderSetup;
 }
 
 function builtins(deps: MailProviderCatalogDeps): MailProviderModule[] {
@@ -101,12 +116,15 @@ export async function loadMailProviderCatalog(deps: MailProviderCatalogDeps, _op
   const adapters = await loadAdapters(deps);
   const { accepted, refusals } = contributeMailProviders({ registry, adapters });
   const labels = new Map<string, string>([["smtp", MAIL_SMTP_CREDENTIAL_LABEL]]);
+  const setups = new Map<string, MailProviderSetup>([["smtp", SMTP_PROVIDER_SETUP]]);
   for (const adapter of adapters.list()) {
     // Only providers that read a credential get a label; label presence is "needs a saved key".
-    const needsKey = (adapter.descriptor.credentialKeys ?? ["token"]).length > 0;
-    if (accepted.includes(adapter.descriptor.id) && needsKey) labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
+    const keys = adapter.descriptor.credentialKeys ?? ["token"];
+    if (!accepted.includes(adapter.descriptor.id) || keys.length === 0) continue;
+    labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
+    setups.set(adapter.descriptor.id, adapter.descriptor.setup ?? defaultMailProviderSetup({ credentialKeys: keys }));
   }
-  return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id) };
+  return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id), setupFor: ({ id }) => setups.get(id) ?? { fields: [] } };
 }
 
 /**

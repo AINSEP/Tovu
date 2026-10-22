@@ -313,3 +313,33 @@ test('theme_edit_file: an empty replacement deletes the exact match', async () =
   assert.equal((result as { occurrencesReplaced: number }).occurrencesReplaced, 1);
   assert.equal(readFile(themesDir, 'styles.css'), 'body{padding:0}\n');
 });
+
+test("theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = readFile(themesDir, "styles.css");
+  await assert.rejects(
+    () => wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before, newString: "" })),
+    /would leave 'styles\.css' empty.*intent: 'delete'/
+  );
+  // Whitespace-only is still "empty" for a stylesheet: everything meaningful is gone.
+  await assert.rejects(
+    () => wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before.trimEnd(), newString: " " })),
+    /would leave 'styles\.css' empty/
+  );
+  assert.equal(readFile(themesDir, "styles.css"), before);
+});
+
+test("theme_edit_file: intent 'delete' confirms emptying the whole file", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = readFile(themesDir, "styles.css");
+  const result = await wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before, newString: "", intent: "delete" }));
+  assert.equal((result as { bytesWritten: number }).bytesWritten, 0);
+  assert.equal(readFile(themesDir, "styles.css"), "");
+});
+
+test("theme_edit_file: the schema documents intent 'delete' and empty-string deletion", async () => {
+  const { deps } = fakeRouteDeps();
+  const schema = wired(deps, "theme_edit_file").descriptor.inputSchema as { properties: Record<string, { enum?: string[]; description?: string }> };
+  assert.deepEqual(schema.properties.intent?.enum, ["delete"]);
+  assert.match(schema.properties.newString?.description ?? "", /empty string/i);
+});
