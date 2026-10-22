@@ -8,6 +8,7 @@ import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assis
 import { TOOLS_FIRST_RULE } from '#src/contracts/core/assistant-native-fallbacks';
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { ToolAttemptEvent } from '@jini-ai/daemon/tool-audit';
+import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 
 test('real local-owner dispatch grants Bash/edit while retaining security denies and audit subscription', async () => {
   let subscribed = false;
@@ -71,6 +72,7 @@ test('prompt and runtime share the per-run grant across concurrent contexts', as
     buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantNativeToolsContext: native,
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(), bashProhibitionEnabled: false,
     customInstructionsCache: { readOverlay: () => null },
+    buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
   });
   await Promise.all([true, false].map(enabled => native.run(enabled, async () => {
     await Promise.resolve();

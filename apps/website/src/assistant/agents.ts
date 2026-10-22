@@ -7,7 +7,7 @@
  * PATH probing performs filesystem I/O. Cache it across session-lifetime health polls because
  * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
-import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, detectAgents, probeAgentModels, type DetectedAgent, runtimeSupportsExternalTools, runtimeSupportsSubagents, createNativeAgentRuntime, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createCliProbeCache } from "./cli-probe-cache.js";
 import { MODEL_NEGATIVE_TTL_MS } from "@jini-ai/agent-runtime/model-discovery";
 import type { AgentSummary } from "@jini-ai/daemon/http";
@@ -39,6 +39,9 @@ export type AssistantAgentSummary = AgentSummary & {
    * decide whether a turn needs the full transcript or just the newest message.
    */
   readonly carriesOwnMemory: boolean;
+  /** The runtime has a native subagent tool (`@jini-ai/agent-runtime`'s `runtimeSupportsSubagents`);
+   *  the admin hides the "Prefer subagents" preference for a runtime without one. */
+  readonly supportsSubagents: boolean;
 };
 
 /** Tovu projections and background inventory lifecycle bound to one native runtime. */
@@ -142,6 +145,7 @@ function projectAssistantAgent({ def, launch, modelResult }: {
     // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
     // the CLI itself, not this transport, owns the def's multi-turn memory.
     carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),
+    supportsSubagents: runtimeSupportsSubagents({ def }),
     ...(def.reasoningOptions ? { reasoningOptions: def.reasoningOptions } : {}),
     ...(available ? {} : { diagnostic: launch.diagnostic ?? `${def.name} CLI not found on PATH` }),
   };

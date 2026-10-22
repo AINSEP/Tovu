@@ -21,6 +21,8 @@ import { createConversationStartLock } from "../../../../../assistant/agent-sess
 import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.js";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../../run-start-decisions.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
+import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
+import { getAgentDef } from "@jini-ai/agent-runtime";
 
 export const daemonSource = ts.createSourceFile(
   "agent-daemon-server.ts",
@@ -70,6 +72,8 @@ export async function captureDaemonRun(
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
     assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
+    // Real preference resolution; fixtures without settings ports read the registered defaults.
+    resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },

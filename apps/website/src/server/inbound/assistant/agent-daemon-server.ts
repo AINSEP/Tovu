@@ -147,6 +147,7 @@ import {
   resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
+import { buildAssistantRuntimeGuidance, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
@@ -726,6 +727,8 @@ const customInstructionsCache = createCustomInstructionsCache(
 // concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
 const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
 const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
+// Same per-launch scoping for the person's runtime preferences (`assistant-runtime-guidance.ts`).
+const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
 
 /**
  * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
@@ -745,7 +748,8 @@ const assistantPromptAugmenter: PromptAugmenter = {
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
     const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, { nativeToolAccess: assistantNativeToolsContext.getStore() === true }) +
-      buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: assistantSubagentsContext.getStore() === true }, {});
+      buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: assistantSubagentsContext.getStore() === true }, {}) +
+      buildAssistantRuntimeGuidance({ input: assistantRuntimeGuidanceContext.getStore() }, {});
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
     // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
@@ -1301,9 +1305,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     }
     // One launch snapshot supplies every dimension; edits affect only subsequent runs.
     const subagentsEnabled = nativeCapabilities.subagents;
+    // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
+    const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
+      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled }, { getDef: getAgentDef });
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
-    await assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
+    await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
       prompt,
@@ -1336,7 +1343,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
       // id that was persisted and the id handed to the CLI can never drift apart.
       ...sessionBinding.sessionFields,
-    }) })));
+    }) }))));
   }
 };
 

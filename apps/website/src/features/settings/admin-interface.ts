@@ -32,6 +32,11 @@ export const CHAT_TOOL_CALLS_KEY = "chatToolCalls";
 export const CHAT_SHOW_USAGE_LINE_KEY = "chatShowUsageLine";
 export const CHAT_SHOW_THINKING_KEY = "chatShowThinking";
 export const CHAT_AGENT_PLUGINS_KEY = "chatAgentPlugins";
+/** Per-person assistant runtime preference (2026-10-21): when the run's CLI has a native subagent
+ *  tool and Task/Agent is not denied, steer multi-step or output-heavy work to a subagent. Default
+ *  `true`. Read fresh per run by `assistant/runtime-preferences.ts`; mirrored by the admin's
+ *  `components/AssistantDock/assistant-runtime-preferences.ts`. */
+export const PREFER_SUBAGENTS_KEY = "preferSubagents";
 export const ADMIN_THEME_KEY = "adminTheme";
 /** Per-admin-theme colours; Classic retains core.appearance.accentColor's scalar contract. */
 export const ADMIN_THEME_ACCENTS_KEY = "adminThemeAccents";
@@ -46,7 +51,7 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 /**
  * Idempotently registers Tovu's admin interface and theme-accent definitions. Safe on every boot.
  *
- * @complexity O(1), eight definitions.
+ * @complexity O(1), nine definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -61,6 +66,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: CHAT_SHOW_USAGE_LINE_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_AGENT_PLUGINS_KEY, schema: { type: "enum", values: ["auto", "ask", "off"] }, defaultValue: "auto", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
+      { key: PREFER_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
