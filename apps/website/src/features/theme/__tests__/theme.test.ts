@@ -277,3 +277,38 @@ test("a templates/*.json file that fails to parse is reported per-file, not thro
   assert.ok(theme.templates.entry);
   assert.equal(theme.templates.home, undefined);
 });
+
+/** A static theme on disk with the given theme.json extras and token files (raw JSON text). */
+function staticThemeDir(t: test.TestContext, options: { manifest?: Record<string, unknown>; tokens?: string; tokensLight?: string }): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-parse-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "pages", "index.html"), "<!doctype html><html><body>Home</body></html>");
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: "p", name: "P", version: "1.0.0", tier: "static", engine: 1, ...options.manifest }));
+  fs.writeFileSync(path.join(dir, "tokens.json"), options.tokens ?? "{}");
+  if (options.tokensLight !== undefined) fs.writeFileSync(path.join(dir, "tokens.light.json"), options.tokensLight);
+  return dir;
+}
+
+test("slots: entries without a string source are skipped, and a variants map with no string values is dropped", (t) => {
+  const dir = staticThemeDir(t, { manifest: { slots: {
+    nav: { source: "nav.html", variants: { compact: 3, wide: null } },
+    footer: { source: "footer.html", variants: { dark: "footer-dark.html", broken: 1 } },
+    sidebar: { source: 7 },
+    banner: "banner.html",
+  } } });
+  const theme = loadTheme({ themeDir: dir, id: "p", source: "site" });
+  assert.deepEqual(theme.manifest.slots, {
+    nav: { source: "nav.html" },
+    footer: { source: "footer.html", variants: { dark: "footer-dark.html" } },
+  });
+});
+
+test("token files that are JSON but not objects are reported, not loaded", (t) => {
+  const dir = staticThemeDir(t, { tokens: "[1,2]", tokensLight: '"light"' });
+  const theme = loadTheme({ themeDir: dir, id: "p", source: "site" });
+  assert.deepEqual(theme.tokens, {});
+  assert.deepEqual(theme.tokensLight, {});
+  assert.ok(theme.errors.includes("tokens.json: tokens.json is not an object"), JSON.stringify(theme.errors));
+  assert.ok(theme.errors.includes("tokens.light.json: tokens.light.json is not an object"), JSON.stringify(theme.errors));
+});
