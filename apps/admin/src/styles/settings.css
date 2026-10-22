@@ -62,6 +62,11 @@
      theme's lighter orange (3:1 on white). `--primary` holds 4.5:1 on white in both themes. */
   --selected-text: var(--primary);
 }
+/* This panel is always light, so a light accent's darker text (classic/admin.css) applies here in
+   either admin scheme. */
+:where(:root[data-admin-accent="light"]:not([data-admin-theme]), :root[data-admin-accent="light"][data-admin-theme="classic"]) .settings-ui-section[data-theme="light"] {
+  --selected-text: color-mix(in oklab, var(--jini-primary) 45%, var(--jini-text));
+}
 
 /* --- The LOUD half of the same report: the global disabled-button tint ------
  *

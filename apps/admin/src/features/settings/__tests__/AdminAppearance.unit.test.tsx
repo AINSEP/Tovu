@@ -112,12 +112,14 @@ describe("Appearance moved to Admin UI", () => {
     expect(appearance.onChange).toHaveBeenCalledWith({ theme: "system", accentColor: "#a855f7" });
   });
 
-  it("offers the theme's default and Jini's presets without changing the scheme", async () => {
+  it("offers the theme's default, Jini's presets and Tovu gold without changing the scheme", async () => {
     const appearance = slice({ value: { ...DEFAULT_APPEARANCE, theme: "system" } });
     render(<AdminAppearance useAppearanceHook={() => appearance} {...themePicker()} />);
     const group = screen.getByRole("radiogroup", { name: "Accent color" });
     await userEvent.click(within(group).getByRole("radio", { name: "#059669" }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ theme: "system", accentColor: "#059669" });
+    await userEvent.click(within(group).getByRole("radio", { name: "#ffba3e" }));
+    expect(appearance.onChange).toHaveBeenLastCalledWith({ theme: "system", accentColor: "#ffba3e" });
     await userEvent.click(within(group).getByRole("radio", { name: DEFAULT_ACCENT_COLOR }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ ...DEFAULT_APPEARANCE, theme: "system", accentColor: DEFAULT_ACCENT_COLOR });
     await userEvent.click(within(group).getByRole("radio", { name: "Default accent color" }));

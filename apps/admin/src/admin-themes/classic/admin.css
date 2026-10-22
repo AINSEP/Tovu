@@ -429,4 +429,14 @@
   /* Dark's default ink input reads --primary-ink; break that reverse edge while customized.
      Both schemes use Jini's existing light ink input for the operator's same chosen fill. */
   --jini-theme-dark-primary-ink: var(--jini-theme-light-primary-ink);
+  /* Solid accent controls take the picked ink too, as Glass maps them; Classic's #fff is only
+     right for its own orange. */
+  --jini-theme-control-solid-ink: var(--jini-primary-ink);
+}
+/* A light accent (one Jini's readableTextColor gives dark ink, e.g. Tovu gold) is unreadable as
+   TEXT on light paper: the active nav label, current tab and links. Light scheme only, those text
+   roles mix toward the text color; fills, rings and the dark scheme keep the accent itself. */
+:root:where(:not([data-admin-theme]), [data-admin-theme="classic"])[data-admin-accent="light"]:not([data-theme="dark"]) {
+  --selected-text: color-mix(in oklab, var(--jini-primary) 45%, var(--jini-text));
+  --link: color-mix(in oklab, var(--jini-primary) 45%, var(--jini-text));
 }

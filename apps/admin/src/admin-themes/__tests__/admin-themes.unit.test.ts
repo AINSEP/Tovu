@@ -99,10 +99,11 @@ describe("admin theme cascade", () => {
   it("scopes every classic block so another theme stops matching it", () => {
     const lightPin = `${CLASSIC_ROOT} [data-theme="light"]`;
     const customAccent = `${CLASSIC_ROOT}[data-admin-accent]`;
+    const lightAccent = `${CLASSIC_ROOT}[data-admin-accent="light"]:not([data-theme="dark"])`;
     for (const sheet of ["admin.css", "chat.css"]) {
       parse(read(resolve(THEME_DIRS.classic!, sheet))).walkRules((rule) => {
-        expect([CLASSIC_ROOT, CLASSIC_DARK, lightPin, customAccent], `${sheet}: ${rule.selector}`).toContain(rule.selector);
-        if (rule.selector === lightPin || rule.selector === customAccent) {
+        expect([CLASSIC_ROOT, CLASSIC_DARK, lightPin, customAccent, lightAccent], `${sheet}: ${rule.selector}`).toContain(rule.selector);
+        if (rule.selector === lightPin || rule.selector === customAccent || rule.selector === lightAccent) {
           expect(rule.nodes.every((node) => node.type === "comment" || (node.type === "decl" && node.prop.startsWith("--"))),
             `${sheet}: ${rule.selector} may only re-resolve custom properties`).toBe(true);
         }

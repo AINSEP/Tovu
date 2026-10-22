@@ -46,11 +46,14 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
   );
 }
 
+/** Tovu's own presets, after Jini's generic palette: the stock tovu-theme `--gold`. */
+const TOVU_ACCENT_SWATCHES = ["#ffba3e"] as const;
+
 /** Host composition of Jini's palette/validation. Default clears the override; CSS is preview-only. */
 function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange }: { accentColor: string | undefined; defaultAccent: string; defaultPickerAccent: string; onChange: (color: string | undefined) => void }) {
   const t = useT();
   const resolvedAccent = resolveAccentColor({ value: accentColor ?? defaultPickerAccent });
-  const swatches = [...new Set([defaultAccent, ...ACCENT_SWATCHES])];
+  const swatches = [...new Set([defaultAccent, ...ACCENT_SWATCHES, ...TOVU_ACCENT_SWATCHES])];
   const swatchHandles = buildAgentListHandles({ prefix: agentSubHandle({ base: "settings-appearance", action: "swatch" }), ids: swatches });
   return (
     <div className="jini-field">

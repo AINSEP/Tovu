@@ -34,6 +34,11 @@ it.each(["light", "dark"] as const)("routes Classic's live %s primary ramp throu
     });
     expect(primary()).toBe("#a855f7");
     expect(root.style.getPropertyValue("--jini-theme-dark-primary")).toBe("#a855f7");
+    expect(root.style.getPropertyValue("--jini-theme-light-primary-ink")).toBe("#ffffff");
+    rerender({ accentColor: "#ffba3e" });
+    expect(root.style.getPropertyValue("--jini-theme-dark-primary-ink")).toBe("#111111");
+    expect(root.getAttribute("data-admin-accent")).toBe("light");
+    rerender({ accentColor: "#a855f7" });
     // JSDOM exposes custom-property expressions; the real aliases plus both live inputs are
     // asserted here. Browser colour resolution/contrast still needs rendered verification.
     const roles = ["--jini-primary", "--jini-accent-strong", "--jini-primary-ink", "--jini-accent-soft", "--jini-accent-ring", "--jini-link", "--jini-link-ink"];
@@ -44,6 +49,7 @@ it.each(["light", "dark"] as const)("routes Classic's live %s primary ramp throu
     rerender({ accentColor: adminThemeAccent({ appearance: DEFAULT_APPEARANCE, themeId: "classic" }) });
     expect(primary()).toBe("");
     expect(root.style.getPropertyValue("--jini-theme-dark-primary")).toBe("");
+    expect(root.style.getPropertyValue("--jini-theme-light-primary-ink")).toBe("");
     expect(tokens.map((token) => getComputedStyle(root).getPropertyValue(token))).toEqual(defaults);
   } finally {
     stylesheet.remove();

@@ -46,7 +46,10 @@ describe("admin selection ring", () => {
         selectedTextSelectors.push(...rule.selectors);
       }
     });
-    expect(selectedTextSelectors).toEqual([settingsSelector]);
+    // A light accent (dark ink) darkens the same panel's selected text, still Classic-only.
+    const lightAccentSelector = ':where(:root[data-admin-accent="light"]:not([data-admin-theme]), :root[data-admin-accent="light"][data-admin-theme="classic"]) .settings-ui-section[data-theme="light"]';
+    expect(effectiveDeclarationsFor(settings, lightAccentSelector)).toMatch(/--selected-text\s*:\s*color-mix\(in oklab, var\(--jini-primary\) \d+%, var\(--jini-text\)\)\s*;/);
+    expect(selectedTextSelectors).toEqual([settingsSelector, lightAccentSelector]);
   });
 
   it("the active sidebar label is the selected-text orange, nudged toward --fg for contrast on its tinted row", () => {
