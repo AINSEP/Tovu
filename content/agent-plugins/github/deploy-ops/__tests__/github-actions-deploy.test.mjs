@@ -1,32 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runDeploy } from "../run-ops.js";
-import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import { fixture, execution } from "./ops-fixture.js";
-import { AT } from "./module-fixture.js";
-const github = (await import(new URL("../../../../../../../content/agent-plugins/github/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
+import { runDeploy } from "../../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
+import { buildDeployOpsRegistrations } from "../../../../../apps/website/src/features/deployments/deploy-ops/tool-registrations.ts";
+import { fixture, execution, AT } from "./ops-fixture.mjs";
+import github from "../github-actions.mjs";
 
+// Moved from core deploy-ops/__tests__/github-actions-deploy.test.ts: the Actions dispatcher's own deploy verb,
+// plus one pass through the generic runner and wait tool with this package's real registry.
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OTHER = "fedcba9876543210fedcba9876543210fedcba98";
 const repo = "https://api.github.com/repos/owner/repo";
 const workflow = `${repo}/actions/workflows/fly-deploy.yml`;
 const lookup = `${workflow}/runs?event=workflow_dispatch&head_sha=${SHA}&per_page=10`;
-const run = (id: number, extra: Record<string, unknown> = {}) => ({ id, head_sha: SHA, created_at: AT, html_url: `https://github.com/owner/repo/actions/runs/${id}`, ...extra });
+const run = (id, extra = {}) => ({ id, head_sha: SHA, created_at: AT, html_url: `https://github.com/owner/repo/actions/runs/${id}`, ...extra });
 
 /** Recorded-shape fake: GET answers come from a queue per URL; every send and sleep is captured. */
-function ctx(gets: Record<string, unknown[]>, dispatched: { status: number; json?: unknown } = { status: 204 }) {
-  const calls: string[] = []; const sends: any[] = []; const sleeps: number[] = [];
+function ctx(gets, dispatched = { status: 204 }) {
+  const calls = []; const sends = []; const sleeps = [];
   return {
     calls, sends, sleeps, nowIso: () => AT,
-    fail: (message: string): never => { throw new Error(message); },
-    sleep: async (ms: number) => { sleeps.push(ms); },
-    get: async (url: string) => {
+    fail: (message) => { throw new Error(message); },
+    sleep: async (ms) => { sleeps.push(ms); },
+    get: async (url) => {
       calls.push(url);
       const queue = gets[url]; assert.ok(queue?.length, `unexpected GET ${url}`);
       const json = queue.length > 1 ? queue.shift() : queue[0];
       return { status: 200, json, text: JSON.stringify(json) };
     },
-    send: async (request: any) => { sends.push(request); return { status: dispatched.status, ...(dispatched.json ? { json: dispatched.json } : {}), text: "" }; },
+    send: async (request) => { sends.push(request); return { status: dispatched.status, ...(dispatched.json ? { json: dispatched.json } : {}), text: "" }; },
   };
 }
 
@@ -67,22 +68,22 @@ test("bare SHAs, bad refs, injected targets and unresolvable refs are refused be
     [{ target: "owner/repo", ref: "main?x=1" }, {}, "ref must be a branch or tag name."],
     [{ target: "owner/../repo" }, {}, "Target must be owner/repo."],
     [{ target: "owner/repo", ref: "main" }, { [`${repo}/commits/main`]: [{ sha: "abc" }] }, "Could not resolve 'main' to a full commit SHA."],
-  ] as const) {
-    const c = ctx(gets as Record<string, unknown[]>);
+  ]) {
+    const c = ctx(gets);
     await assert.rejects(github.deploy(c, input), { message });
     assert.deepEqual(c.sends, []);
   }
 });
 
 test("through the real registry: runDeploy sends one JSON dispatch and deployment_ops_wait accepts the returned runId", async () => {
-  const f = await fixture(["gh"], "https://api.github.com", []);
-  const answers: Record<string, unknown> = {
+  const f = await fixture({ labels: ["gh"], host: "https://api.github.com", additionalHosts: [] });
+  const answers = {
     [`${repo}/commits/main`]: { sha: SHA },
     [lookup]: { workflow_runs: [run(77)] },
     [`${repo}/actions/runs/77`]: { id: 77, name: "Deploy to Fly.io", status: "completed", conclusion: "success", head_sha: SHA, html_url: "https://github.com/owner/repo/actions/runs/77" },
     [`${repo}/actions/runs/77/jobs?per_page=100`]: { jobs: [] },
   };
-  f.deps.deployOpsHttpClient = { send: async (request: any) => {
+  f.deps.deployOpsHttpClient = { send: async (request) => {
     f.calls.push(request);
     if (request.method === "POST") return { status: 204, headers: {}, bodyText: "" };
     assert.ok(Object.hasOwn(answers, request.url), `unexpected ${request.method} ${request.url}`);
@@ -94,8 +95,8 @@ test("through the real registry: runDeploy sends one JSON dispatch and deploymen
   assert.equal(post.length, 1);
   assert.equal(post[0].url, `${workflow}/dispatches`);
   assert.deepEqual(JSON.parse(post[0].body), { ref: "main", inputs: { expected_sha: SHA } });
-  const wait = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === "deployment_ops_wait")!;
-  const waited = await wait.handler(execution({ platform: "github-actions", target: "owner/repo", runId: started.runId, until: "finished" })) as any;
+  const wait = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === "deployment_ops_wait");
+  const waited = await wait.handler(execution({ platform: "github-actions", target: "owner/repo", runId: started.runId, until: "finished" }));
   assert.equal(waited.reached, true);
   assert.equal(waited.last.state, "healthy");
 });
