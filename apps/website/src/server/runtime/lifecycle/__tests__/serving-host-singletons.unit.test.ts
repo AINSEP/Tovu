@@ -85,13 +85,13 @@ for (const [label, forHost] of [
 }
 
 /** Removes the signal listeners `localSiteSupervisorForHost` prepended, returning the SIGTERM one. */
-function takeAddedSignalListeners(before: Map<string, Function[]>): Function[] {
+function takeAddedSignalListeners(before: Map<string, Function[]>, keep = "SIGTERM"): Function[] {
   const added: Function[] = [];
   for (const [signal, listeners] of before) {
     for (const listener of process.listeners(signal as NodeJS.Signals)) {
       if (listeners.includes(listener)) continue;
       process.removeListener(signal, listener as () => void);
-      if (signal === "SIGTERM") added.push(listener);
+      if (signal === keep) added.push(listener);
     }
   }
   return added;
@@ -125,4 +125,15 @@ test("shutdownLocalSiteHosts stops every assembled supervisor, so none accepts a
   assert.ok(supervisor);
   await shutdownLocalSiteHosts({});
   await assert.rejects(supervisor.start({ name: "another-site" }), { code: "SITE_HOST_STOPPING" });
+});
+
+test("local site supervisor: the synchronous process-exit listener kills its children, so the supervisor refuses later starts", (t) => {
+  withEnv(t, { TOVU_ENABLE_SITE_SWITCHER: "1" });
+  const before = new Map(["SIGTERM", "SIGINT", "SIGHUP", "exit"].map((signal) => [signal, process.listeners(signal as NodeJS.Signals)]));
+  const supervisor = localSiteSupervisorForHost({ binding: binding() });
+  const onExit = takeAddedSignalListeners(before, "exit");
+  assert.ok(supervisor);
+  assert.equal(onExit.length, 1);
+  onExit[0]!();
+  return assert.rejects(supervisor.start({ name: "another-site" }), { code: "SITE_HOST_STOPPING" });
 });
