@@ -171,7 +171,7 @@ test("a plugin whose servers declare no tovuTokenAuth is refused: there is no to
 });
 
 test("a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for", async () => {
-  const env = await setup({ servers: { ...SUPABASE_SERVERS, second: { ...SUPABASE_SERVERS.supabase!, url: "https://second.example.com/mcp" } } });
+  const env = await setup({ servers: { ...SUPABASE_SERVERS, second: { type: "streamable-http", url: "https://second.example.com/mcp", tovuAuthMode: "oauth", tovuTokenAuth: { helpUrl: TOKENS_PAGE, probeUrl: PROBE_URL } } } });
   await assert.rejects(call(env.tools.get(SET_TOKEN), { emitSurface: async () => undefined }), /'supabase' declares more than one access-token sign-in\./);
   assert.equal(env.surfaceExchanges.size(), 0);
   assert.equal(env.http.requests.length, 0);
