@@ -42,6 +42,7 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -178,8 +179,8 @@ test("every wired SEO registration publishes its catalog entry's inputSchema and
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.seo_entry_meta") continue;
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

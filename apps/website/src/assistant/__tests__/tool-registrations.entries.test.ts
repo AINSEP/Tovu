@@ -14,6 +14,7 @@ import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -140,8 +141,8 @@ test("every wired Entries registration publishes its catalog entry's inputSchema
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.collection_entry") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

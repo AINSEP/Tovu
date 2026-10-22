@@ -26,6 +26,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 
 const contributions = {
@@ -200,8 +201,8 @@ test("every wired taxonomy registration publishes its catalog entry's inputSchem
     // file could not have built its registrations at all had that thrown.
     if (id.startsWith("content_read.")) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

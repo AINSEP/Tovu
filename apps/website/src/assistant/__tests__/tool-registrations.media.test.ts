@@ -40,6 +40,7 @@ import { contributeMediaTools } from "../../features/media/tool-registrations.js
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -197,8 +198,8 @@ test("every wired Media registration publishes its catalog entry's inputSchema a
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.media_asset") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

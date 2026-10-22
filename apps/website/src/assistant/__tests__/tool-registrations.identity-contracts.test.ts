@@ -26,6 +26,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 
 const contributions = {
@@ -188,11 +189,11 @@ test("every wired registration publishes the inputSchema and description from it
     const descriptor = { id, inputSchema: catalog.inputSchema, description: catalog.description };
     // d1c1fbd9a added one-card delete plans; 13138e356 normalizes their items in Jini.
     const plan = ["identity_user_delete", "identity_role_delete", "identity_policy_delete"].includes(id);
-    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : descriptor;
+    const expected = plan ? batchDescriptorFor({ descriptor, tool: { toolId: id } }) : publishedCatalogDescriptor({ registration, entry: catalog });
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema);
     assert.equal(registration.descriptor.description, plan
       ? `${catalog.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.`
-      : catalog.description);
+      : expected.description);
   }
   const create = identityRegistrations(deps, false).get("identity_user_create")!.descriptor;
   const catalogSchema = catalogEntry("identity_user_create").inputSchema as { properties: Record<string, unknown> };

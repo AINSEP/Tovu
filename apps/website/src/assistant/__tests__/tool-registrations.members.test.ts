@@ -34,6 +34,7 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMembersTools } from "../../features/members/tool-registrations.js";
+import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -180,8 +181,8 @@ test("every wired Members registration publishes its catalog entry's inputSchema
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.member") continue;
     assert.ok(registration.descriptor.inputSchema);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).inputSchema);
+    assert.equal(registration.descriptor.description, publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }).description);
   }
 });
 

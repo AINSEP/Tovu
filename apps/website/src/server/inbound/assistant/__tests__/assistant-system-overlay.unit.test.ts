@@ -5,6 +5,7 @@ import {
   ASSISTANT_DISALLOWED_TOOLS,
   ASSISTANT_SETTING_SOURCES,
   BASH_GUIDANCE_BLOCK,
+  BATCH_GUIDANCE,
   BASH_PROHIBITION_BLOCK,
   buildBaseSystemOverlay,
   buildBashProhibitionBlock,
@@ -237,4 +238,11 @@ test("default prompt describes the enforced host tool grant", () => {
   assert.equal(overlay.includes("Bash is unavailable because it is disabled for this assistant."), true);
   assert.equal(overlay.includes("Bash and file access remain available"), false);
   assert.equal(overlay.includes("Read remains available only for reading Tovu's own source"), true);
+});
+
+test("every overlay tells the model to batch the same operation on several items into one items call", () => {
+  assert.match(BATCH_GUIDANCE, /same operation to several items, pass them as items: \[\{\.\.\.\}, \.\.\.\] in ONE call/);
+  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), buildBaseSystemOverlay(false, { nativeToolAccess: true })]) {
+    assert.ok(overlay.includes(BATCH_GUIDANCE));
+  }
 });

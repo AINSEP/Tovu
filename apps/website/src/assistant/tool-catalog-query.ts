@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { toolRegistryRevision, type ToolRegistry } from "@jini-ai/core";
+import { toolRegistryRevision, withoutBatchGuidance, type ToolRegistry } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
@@ -42,10 +42,17 @@ const enricher: SearchEnricher = {
   // Index its action paragraph too: that surrounding prose dilutes "create a new site" in BM25.
   // Static publish's input/confirmation/result contract likewise diluted "publish the site" to rank 6.
   indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor(id,
-    id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || description.includes(PAGE_HTML_CONTRACT) ? description.split("\n\n", 1)[0]! : description,
-    { ...optional, ...(metadata ? { metadata } : {}) }),
+    indexableDescription({ id, description }), { ...optional, ...(metadata ? { metadata } : {}) }),
   authoredDescription: ({ description }) => stripSearchKeywords(description),
 };
+/** The authored text BM25 indexes. The batch guidance most tools append (`items: [...]`) is the
+ * same boilerplate everywhere, so it is dropped first: indexing it on ~200 tools ranked unrelated
+ * tools above the requested action (e.g. "remove mike's access" lost identity_user_disable). */
+function indexableDescription({ id, description }: { id: string; description: string }, _optional = {}): string {
+  const authored = withoutBatchGuidance({ description });
+  const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || authored.includes(PAGE_HTML_CONTRACT);
+  return actionParagraphOnly ? authored.split("\n\n", 1)[0]! : authored;
+}
 const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };
 
 /**

@@ -9,8 +9,10 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
  * 3. Partial failure: a failing item never stops the rest; its error drops the appended schema.
  * 4. Malformed `items` is refused before any item runs, with the exact message.
  * 5. The published descriptor: `items` added, top-level `required` moved into its description.
- * 6. The real composition: every batchable tool publishes `items`, and a real theme batch reads and
- *    writes several files in one call through the same handlers a single call uses.
+ * 6. The guard: every production tool is batchable by default, on `BATCH_OPT_OUT` with a reason, or a
+ *    read-only list; no tool that asks per call is batched (it would ask once per item).
+ * 7. The real composition: every batchable tool publishes `items` with its cap, and a real theme batch
+ *    reads and writes several files in one call through the same handlers a single call uses.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,7 +30,9 @@ import { buildImportThemeFileRegistrations } from "../../features/theme/import-t
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { applyBatchInputs, BATCHABLE_TOOLS, batchDescriptorFor, DEFAULT_MAX_BATCH_ITEMS, withBatchInput, type BatchResult } from "../batch-tool-inputs.js";
+import { applyBatchInputs, BATCH_OPT_OUT, batchDescriptorFor, batchEligibilityFor, DEFAULT_MAX_BATCH_ITEMS, resolveBatchableTools, withBatchInput, type BatchResult } from "../batch-tool-inputs.js";
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { approvalClassAsks, toolApprovalPolicyFor } from "../../contracts/headless/assistant-tool-approval-policy.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { currentToolIdFor } from "../content-read-tool.js";
 
@@ -143,18 +147,51 @@ test("applyBatchInputs wraps only the listed tools and returns every other regis
   assert.equal(sameOther, other);
 });
 
-test("the real composition: every batchable tool is registered and publishes items", () => {
+function productionContributions() {
   const contributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
-  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
-  for (const { toolId } of BATCHABLE_TOOLS) {
-    const schema = byId.get(currentToolIdFor(toolId))?.descriptor.inputSchema as { properties?: Record<string, { type?: string }> } | undefined;
+  return contributions;
+}
+
+test("guard: every production tool is batchable by default, explicitly opted out, or a list read", () => {
+  // Raw, pre-batch registrations with every permanent delete granted, so the guard sees them all.
+  const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, {
+    contributions: productionContributions(), includeContentReadCollapse: false, batchableTools: [], permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
+  });
+  const optOut = new Set(BATCH_OPT_OUT.map(entry => entry.toolId));
+  const ids = new Set(raw.map(registration => registration.descriptor.id));
+  const unclassified = raw.filter(registration => !["batchable", "opted-out", "list-read"].includes(batchEligibilityFor({ registration }, { optOut })));
+  assert.deepEqual(unclassified.map(registration => registration.descriptor.id), [], "add these to BATCH_OPT_OUT with a one-line reason, or make them batchable");
+  const asking = raw.filter(registration => {
+    const policy = toolApprovalPolicyFor({ registration });
+    return (policy.rule !== undefined || approvalClassAsks({ class: policy.class })) && !optOut.has(registration.descriptor.id);
+  });
+  assert.deepEqual(asking.map(registration => registration.descriptor.id), [], "a tool that asks per call would ask once per item: opt it out");
+  assert.deepEqual(BATCH_OPT_OUT.filter(entry => !ids.has(entry.toolId)).map(entry => entry.toolId), [], "stale opt-out entries");
+  assert.equal(optOut.size, BATCH_OPT_OUT.length, "each opt-out appears once");
+  for (const entry of BATCH_OPT_OUT) assert.ok(entry.reason.length > 0, `${entry.toolId} needs a reason`);
+});
+
+test("the real composition: every default batchable tool publishes items with its cap", () => {
+  const contributions = productionContributions();
+  const deps = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
+  const raw = buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: false, batchableTools: [] });
+  const byId = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const tools = resolveBatchableTools({ registrations: raw });
+  assert.ok(tools.length > 150, `expected default-on batching, got ${tools.length} tools`);
+  for (const { toolId, maxItems = DEFAULT_MAX_BATCH_ITEMS } of tools) {
+    const schema = byId.get(currentToolIdFor(toolId))?.descriptor.inputSchema as { properties?: Record<string, { type?: string; maxItems?: number }> } | undefined;
     assert.ok(schema, `expected '${toolId}' in the production catalog`);
     assert.equal(schema.properties?.items?.type, "array", `${toolId} must accept items`);
+    if (byId.has(toolId)) assert.equal(schema.properties?.items?.maxItems, maxItems, `${toolId}'s cap`);
   }
+  for (const toolId of ["redirects_tombstone", "taxonomy_create_term", "taxonomy_assign_terms", "seo_set_entry_overrides", "theme_trash_file"]) {
+    assert.equal(tools.find(tool => tool.toolId === toolId)?.maxItems, 100, `${toolId} is a cheap row-level write`);
+  }
+  for (const { toolId } of BATCH_OPT_OUT) assert.equal(tools.some(tool => tool.toolId === toolId), false, `${toolId} is opted out`);
 });
 
 test("a real theme batch writes then reads several files in one call each, through the single-call handlers", async () => {
@@ -219,13 +256,13 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
 
 test("web fetch batches refuse screenshots from shared or item fields before rendering and continue other items", async () => {
   const inputs: unknown[] = [];
-  const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; }, { type: "object", properties: { url: { type: "string" }, screenshot: { type: "boolean" } } });
+  const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; }, { type: "object", required: ["url"], properties: { url: { type: "string" }, screenshot: { type: "boolean" } } });
   const wrapped = applyBatchInputs({ registrations: [registration] })[0]!;
   const result = await invokeRegistration(wrapped, executionContext({ screenshot: true, items: [
     { url: "https://a.example/" }, { url: "https://b.example/", screenshot: false }, { url: "https://c.example/", screenshot: true },
   ] })) as BatchResult;
   assert.deepEqual([result.total, result.succeeded, result.failed], [3, 1, 2]);
-  // BATCHABLE_TOOLS gives web_fetch_page items a bounded maxChars default.
+  // BATCH_TOOL_SETTINGS gives web_fetch_page items a bounded maxChars default.
   assert.deepEqual(inputs, [{ url: "https://b.example/", screenshot: false, maxChars: 8000 }]);
   for (const item of result.results.filter(item => !item.ok)) assert.match(item.error, /screenshot is unavailable in batch items; use a single render call/);
   assert.ok(!JSON.stringify(result).includes('"type":"image"'));
@@ -234,7 +271,6 @@ test("web fetch batches refuse screenshots from shared or item fields before ren
 });
 
 test("local theme asset batches inherit root/theme, allow item overrides and continue after a refusal", async (t) => {
-  assert.ok(BATCHABLE_TOOLS.some(tool => tool.toolId === "theme_import_local_file"));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-batch-local-theme-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const dir = path.join(root, "plain");

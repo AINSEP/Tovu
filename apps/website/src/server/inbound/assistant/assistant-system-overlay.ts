@@ -64,6 +64,10 @@ export function buildAssistantSubagentsOverlay(required: {
  * Todo 21 corrects that old availability claim: the enforced disallow list now owns this wording.
  */
 
+/** Most tools take `items` by default (`assistant/batch-tool-inputs.ts`); one call beats dozens. */
+export const BATCH_GUIDANCE =
+  "When doing the same operation to several items, pass them as items: [{...}, ...] in ONE call of that tool instead of one call per item. ";
+
 /** The default guidance shares the actual host-CLI tool grant's source of truth. */
 export const BASH_GUIDANCE_BLOCK = ASSISTANT_DISALLOWED_TOOLS.includes("Bash")
   ? "Bash is unavailable because it is disabled for this assistant. " +
@@ -180,6 +184,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
+    BATCH_GUIDANCE +
     "For visual site checks, prefer Tovu's web_screenshot_page; use web_fetch_page for public-page HTML/text or render:true with screenshot:true. " +
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
