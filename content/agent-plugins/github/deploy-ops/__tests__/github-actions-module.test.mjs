@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { context, AT } from "./module-fixture.js";
-const github = (await import(new URL("../../../../../../../content/agent-plugins/github/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
+import { context, AT } from "./module-fixture.mjs";
+import github from "../github-actions.mjs";
+// Moved from core deploy-ops/__tests__/github-actions-module.test.ts: the Actions adapter's own normalization.
 const base = "https://api.github.com/repos/owner/repo/actions/runs";
 const run = { id: 21, name: "Deploy", status: "completed", conclusion: "failure", html_url: "https://github.com/owner/repo/actions/runs/21", head_sha: "abc" };
 const job = { id: 31, name: "build", status: "completed", conclusion: "failure", steps: [{ name: "install", conclusion: "success" }, { name: "compile", conclusion: "failure" }] };
@@ -16,7 +17,7 @@ for (const [status, conclusion, state] of [
   ["completed", "startup_failure", "failing"], ["completed", "stale", "failing"],
   ["completed", "mystery", "unknown"], ["completed", null, "unknown"],
   ["completed", "cancelled", "stopped"], ["completed", "skipped", "stopped"], ["completed", "neutral", "stopped"], ["mystery", null, "unknown"],
-] as const) test(`Actions ${status}/${conclusion} -> ${state}`, async () => {
+]) test(`Actions ${status}/${conclusion} -> ${state}`, async () => {
   assert.equal((await github.status(context({ [`${base}/21`]: { ...run, status, conclusion }, [`${base}/21/jobs?per_page=100`]: { jobs: [] } }), { target: "owner/repo", runId: "21" })).state, state);
 });
 test("Actions logs use annotations, never job logs redirects, and cap output", async () => {
@@ -35,7 +36,7 @@ test("Actions clips long annotation messages and reports that content was omitte
 });
 test("Actions caps annotation fanout to ten failed jobs and reports omitted jobs", async () => {
   const jobs = Array.from({ length: 11 }, (_, i) => ({ ...job, id: 100 + i, steps: [] }));
-  const responses: Record<string, unknown> = { [`${base}/21`]: run, [`${base}/21/jobs?per_page=100`]: { jobs } };
+  const responses = { [`${base}/21`]: run, [`${base}/21/jobs?per_page=100`]: { jobs } };
   const annotations = Array.from({ length: 10 }, (_, i) => `https://api.github.com/repos/owner/repo/check-runs/${100 + i}/annotations?per_page=100`);
   for (const url of annotations) responses[url] = [];
   const ctx = context(responses);
