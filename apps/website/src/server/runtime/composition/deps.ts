@@ -1,5 +1,6 @@
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
@@ -2302,6 +2303,8 @@ async function composeSiteRouteDeps(
     sitemapService,
     settingsReady,
     assistantSettingsReady,
+    visitorToolsManagement: composeVisitorToolsManagement({ workspaceId, ready: assistantSettingsReady,
+      settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
     // `server/app.ts`'s `createRouteDeps()`.
     adminAssistantEnabled: isAdminAssistantEnabled(),

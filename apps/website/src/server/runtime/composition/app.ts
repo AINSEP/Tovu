@@ -1,5 +1,6 @@
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -1295,6 +1296,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     seoDeps,
     sitemapService,
     assistantSettingsReady,
+    visitorToolsManagement: composeVisitorToolsManagement({ workspaceId: seededWorkspace.id, ready: assistantSettingsReady,
+      settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,

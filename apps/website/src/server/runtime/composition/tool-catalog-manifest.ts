@@ -104,6 +104,7 @@ import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/deli
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
+import { contributeVisitorTools } from "#src/features/settings/visitor-tools-registrations";
 import { contributeUiLocalesTools } from "#src/features/settings/ui-locales-tool";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
@@ -456,6 +457,7 @@ export function installFirstPartyToolContributors(
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
+  contributions.contributors.register({ contribution: contributeVisitorTools() });
   contributions.contributors.register({ contribution: contributeConsentTools() });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its

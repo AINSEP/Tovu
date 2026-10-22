@@ -1,4 +1,5 @@
 import { registerAdminAssistantGetSettingsRoute } from "#src/server/inbound/admin-http/routes/assistant/get-settings";
+import { registerAdminVisitorToolsRoutes } from "#src/server/inbound/admin-http/routes/assistant/visitor-tools";
 import { registerAdminAssistantPutSettingsRoute } from "#src/server/inbound/admin-http/routes/assistant/put-settings";
 import { registerAdminAssistantGetSiteCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/get-site-credential";
 import { registerAdminAssistantPutSiteCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/put-site-credential";
@@ -35,6 +36,7 @@ export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps):
     name: "assistant-settings",
     registerRoutes: (app) => {
       registerAdminAssistantGetSettingsRoute(app, deps);
+      registerAdminVisitorToolsRoutes({ app, deps });
       registerAdminAssistantPutSettingsRoute(app, deps);
       registerAdminAssistantGetSiteCredentialRoute(app, deps);
       registerAdminAssistantPutSiteCredentialRoute(app, deps);

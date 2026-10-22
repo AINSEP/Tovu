@@ -1,0 +1,42 @@
+/** Admin-only visitor catalog/read model. Source owners supply eligibility; policy cannot invent it. */
+import type { VisitorToolChoice, VisitorToolLimits, VisitorToolMode, VisitorToolPolicy } from "./visitor-tools.js";
+
+export interface VisitorToolDescriptor {
+  readonly id: string;
+  /** Assigned by the host source adapter; plugins cannot claim builtin to bypass publication approval. */
+  readonly source: "builtin" | "plugin" | "created" | "unavailable";
+  readonly sourceRevision: string;
+  readonly title: string;
+  readonly description: string;
+  readonly effect: "read" | "write";
+  readonly availability: { readonly available: boolean; readonly reason?: string };
+  /** T4/later source owners supply non-secret disclosure, never tokens or headers. */
+  readonly publication?: { readonly endpoint: string; readonly credentialId: string; readonly returnedFields: readonly string[] };
+}
+export interface VisitorToolsView {
+  readonly revisionSeq: number;
+  /** Unreadable stored policy: every catalog tool is Off; only a site-wide Off reset is accepted. */
+  readonly policyState?: "invalid";
+  readonly defaults: VisitorToolLimits;
+  readonly callsPerTurn: number;
+  readonly tools: readonly (VisitorToolDescriptor & VisitorToolChoice)[];
+}
+export interface VisitorToolsConfigureInput {
+  readonly toolId: string;
+  readonly expectedRevisionSeq: number;
+  readonly mode?: VisitorToolMode;
+  readonly limits?: Partial<VisitorToolLimits>;
+}
+export interface PreparedVisitorToolsChange {
+  readonly revisionSeq: number;
+  readonly policy: VisitorToolPolicy;
+  readonly catalog: readonly VisitorToolDescriptor[];
+  readonly changes: readonly { readonly tool: VisitorToolDescriptor; readonly previous: VisitorToolChoice; readonly next: VisitorToolChoice }[];
+  readonly requiresApproval: boolean;
+}
+/** DI boundary shared by HTTP and chat. Prepared changes originate only in the server's prepare(). */
+export interface VisitorToolsManagementPort {
+  list(required: { callerPrincipalId: string }, optional?: Record<string, never>): Promise<VisitorToolsView>;
+  prepare(required: { callerPrincipalId: string; input: unknown }, optional?: Record<string, never>): Promise<PreparedVisitorToolsChange>;
+  apply(required: { callerPrincipalId: string; prepared: PreparedVisitorToolsChange }, optional?: Record<string, never>): Promise<VisitorToolsView>;
+}

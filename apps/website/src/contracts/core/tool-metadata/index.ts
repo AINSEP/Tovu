@@ -40,6 +40,7 @@ import { toolMetadata as search } from './search.js';
 import { toolMetadata as seo } from './seo.js';
 import { toolMetadata as server_logs } from './server-logs.js';
 import { toolMetadata as settings } from './settings.js';
+import { toolMetadata as visitor_tools } from './visitor-tools.js';
 import { toolMetadata as site_backup } from './site-backup.js';
 import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
@@ -103,6 +104,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'seo', tools: seo },
   { domain: 'server-logs', tools: server_logs },
   { domain: 'settings', tools: settings },
+  { domain: 'visitor-tools', tools: visitor_tools },
   { domain: 'site-backup', tools: site_backup },
   { domain: 'site-evidence', tools: site_evidence },
   { domain: 'site-guide', tools: site_guide },

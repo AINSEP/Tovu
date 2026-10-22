@@ -99,6 +99,7 @@ import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
 import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
 import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
+import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
 import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
@@ -207,6 +208,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-mail": mailStatusAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-mail-providers": mailProviderAgentToolCatalog as unknown as AgentToolDefinition[],
+  "visitor-tools": visitorToolsAgentCatalog,
   "system-mail-delivery": mailDeliveryAgentToolCatalog as unknown as AgentToolDefinition[],
   "post-preview": postPreviewAgentToolCatalog,
   "identity-policy-list-permissions": identityPolicyPermissionsCatalog as unknown as AgentToolDefinition[],

@@ -18,21 +18,24 @@ export interface VisitorToolPolicy { readonly version: 1; readonly tools: Readon
 export const EMPTY_VISITOR_TOOL_POLICY: VisitorToolPolicy = { version: 1, tools: {} };
 export class VisitorToolPolicyValidationError extends Error {}
 
-/** Require a closed JSON object. Errors never include stored values. @complexity O(k) keys. */
-function objectWithKeys({ value, keys }: { value: unknown; keys?: readonly string[] }, _options = {}): Record<string, unknown> {
+/** Require a visitor-policy/configure object, optionally closed to the owner's known keys.
+ * Errors never include stored values. @complexity O(k) keys.
+ * @example visitorToolsObject({value, keys:["mode", "limits"]});
+ */
+export function visitorToolsObject({ value, keys }: { value: unknown; keys?: readonly string[] }, _options = {}): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new VisitorToolPolicyValidationError("Visitor tools must use objects.");
   if (keys && Object.keys(value).some(key => !keys.includes(key))) throw new VisitorToolPolicyValidationError("Unknown visitor-tools field.");
   return value as Record<string, unknown>;
 }
 
-/** T1 permits defaults or reductions; widening needs T2's always-ask publication approval. */
+/** Stored limits may exceed defaults; T2's management boundary gates widening with a fresh card. */
 function parseLimits({ value }: { value: unknown }, _options = {}): VisitorToolLimits {
   if (value === undefined) return { ...VISITOR_TOOL_DEFAULT_LIMITS };
-  const limits = objectWithKeys({ value, keys: ["perIpPerHour", "perSitePerDay"] });
+  const limits = visitorToolsObject({ value, keys: ["perIpPerHour", "perSitePerDay"] });
   for (const key of ["perIpPerHour", "perSitePerDay"] as const) {
     const count = limits[key];
-    if (!Number.isSafeInteger(count) || (count as number) < 1 || (count as number) > VISITOR_TOOL_DEFAULT_LIMITS[key]) {
-      throw new VisitorToolPolicyValidationError("Visitor-tool limits must be positive whole numbers within the T1 defaults.");
+    if (!Number.isSafeInteger(count) || (count as number) < 1) {
+      throw new VisitorToolPolicyValidationError("Visitor-tool limits must be positive safe whole numbers.");
     }
   }
   return { perIpPerHour: limits.perIpPerHour as number, perSitePerDay: limits.perSitePerDay as number };
@@ -40,7 +43,7 @@ function parseLimits({ value }: { value: unknown }, _options = {}): VisitorToolL
 
 /** Parse one saved choice. Ask is retained for T3 but is never executable in T1. */
 function parseChoice({ value }: { value: unknown }, _options = {}): VisitorToolChoice {
-  const choice = objectWithKeys({ value, keys: ["mode", "limits"] });
+  const choice = visitorToolsObject({ value, keys: ["mode", "limits"] });
   if (choice.mode !== "auto" && choice.mode !== "ask" && choice.mode !== "off") throw new VisitorToolPolicyValidationError("Unknown visitor-tool mode.");
   return { mode: choice.mode, limits: parseLimits({ value: choice.limits }) };
 }
@@ -50,9 +53,9 @@ function parseChoice({ value }: { value: unknown }, _options = {}): VisitorToolC
  * @example parseVisitorToolPolicy({ value: { version: 1, tools: {} } });
  */
 export function parseVisitorToolPolicy({ value }: { value: unknown }, _options = {}): VisitorToolPolicy {
-  const policy = objectWithKeys({ value, keys: ["version", "tools"] });
+  const policy = visitorToolsObject({ value, keys: ["version", "tools"] });
   if (policy.version !== 1) throw new VisitorToolPolicyValidationError("Unsupported visitor-tools version.");
-  const entries = Object.entries(objectWithKeys({ value: policy.tools }));
+  const entries = Object.entries(visitorToolsObject({ value: policy.tools }));
   if (entries.length > 128) throw new VisitorToolPolicyValidationError("Too many visitor tools.");
   const tools = entries.map(([id, choice]) => {
     if (!/^[a-z][a-z0-9_]{0,127}$/.test(id)) throw new VisitorToolPolicyValidationError("Invalid visitor-tool id.");

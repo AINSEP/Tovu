@@ -28,14 +28,14 @@ for (const value of invalid) test(`malformed policy fails closed: ${JSON.stringi
   assert.throws(() => parseVisitorToolPolicy({ value }), VisitorToolPolicyValidationError);
 });
 
-for (const limits of [null, [], {}, { perIpPerHour: 1 }, { perIpPerHour: 0, perSitePerDay: 1 }, { perIpPerHour: 31, perSitePerDay: 1 },
-  { perIpPerHour: 1, perSitePerDay: 1001 }, { perIpPerHour: 1.5, perSitePerDay: 1 }, { perIpPerHour: "1", perSitePerDay: 1 },
+for (const limits of [null, [], {}, { perIpPerHour: 1 }, { perIpPerHour: 0, perSitePerDay: 1 }, { perIpPerHour: Number.MAX_SAFE_INTEGER + 1, perSitePerDay: 1 },
+  { perIpPerHour: 1, perSitePerDay: Infinity }, { perIpPerHour: 1.5, perSitePerDay: 1 }, { perIpPerHour: "1", perSitePerDay: 1 },
   { perIpPerHour: 1, perSitePerDay: 1, extra: true }]) test(`invalid limits: ${JSON.stringify(limits)}`, () => {
   assert.throws(() => parseVisitorToolPolicy({ value: { version: 1, tools: { a: { mode: "auto", limits } } } }), VisitorToolPolicyValidationError);
 });
 
-test("all valid reductions round-trip, with no widening or mode loss", () => {
-  fc.assert(fc.property(fc.integer({ min: 1, max: 30 }), fc.integer({ min: 1, max: 1000 }), fc.constantFrom("auto", "ask", "off"), (perIpPerHour, perSitePerDay, mode) => {
+test("positive safe limits including approved widening round-trip without mode loss", () => {
+  fc.assert(fc.property(fc.integer({ min: 1, max: Number.MAX_SAFE_INTEGER }), fc.integer({ min: 1, max: Number.MAX_SAFE_INTEGER }), fc.constantFrom("auto", "ask", "off"), (perIpPerHour, perSitePerDay, mode) => {
     const value = { version: 1, tools: { a: { mode, limits: { perIpPerHour, perSitePerDay } } } };
     assert.deepEqual(parseVisitorToolPolicy({ value }), value);
   }));
