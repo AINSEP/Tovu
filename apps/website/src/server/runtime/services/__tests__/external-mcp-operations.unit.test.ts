@@ -197,3 +197,26 @@ test("admissions relays array entries verbatim but drops unrelated fields", asyn
   const result = await fetchDaemonAdmissions({ token: "fixture-token", daemonUrl: "http://127.0.0.1:4999", fetch: async () => Response.json({ connections, configFailures, extra: true }) });
   assert.deepEqual(result, { ok: true, connections, configFailures });
 });
+
+test("an OAuth server already marked needs_reauth is a 409 with its settings link, answered before any connect or token resolution", async () => {
+  const deps = await fixture({ authMode: "oauth", oauth: { grant: "authorization_code", clientId: "client" }, label: "Hosted" });
+  const record = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" }))!;
+  await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "needs_reauth" });
+  let touched = false;
+  const externalMcpOAuth = { tokenResolver: { resolveAccessToken: async () => { touched = true; return "token"; } } } as never;
+  const result = await probeExternalMcpServer({ ...deps, externalMcpOAuth, connect: async () => { touched = true; throw new Error("must not connect"); } }, "hosted");
+  const expected = new ExternalMcpReauthRequiredError({ serverId: "hosted", label: "Hosted" });
+  assert.deepEqual(result, { ok: false, status: 409, body: { error: expected.message, code: expected.code, details: { retryable: false, settingsLink: expected.settingsLink } } });
+  assert.equal(touched, false);
+});
+
+test("with no injected connect, the real HTTP session factory is used: a refused endpoint is a 502 unreachable, not a thrown error", async () => {
+  const { createServer } = await import("node:http");
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as { port: number };
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  const deps = await fixture({ url: `http://127.0.0.1:${port}/mcp` });
+  const result = await probeExternalMcpServer(deps, "hosted");
+  assert.deepEqual(result, { ok: false, status: 502, body: { error: "Could not reach the server.", code: "MCP_SERVER_UNREACHABLE" } });
+});
