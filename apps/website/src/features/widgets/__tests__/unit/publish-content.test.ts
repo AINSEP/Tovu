@@ -202,3 +202,22 @@ test("a contact-form reference to a form the source cannot find packs unchanged"
   const packed = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
   assert.match(JSON.stringify(packed?.state), /"formDefinitionId":"gone-form"/);
 });
+
+test("widget-area: a placement change on the source updates the destination's existing area in place (forced)", async () => {
+  const { src, dst, a, b } = await sites();
+  await roundTrip(src.site, dst.site);
+  const binding = await src.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
+  assert.ok(binding);
+  const area = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
+  assert.ok(area);
+  const reordered = [{ placementId: "p-2", widgetEntryId: a.id, enabled: true }, { placementId: "p-1", widgetEntryId: b.id, enabled: true }];
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, areaEntryId: area.id, baseVersion: area.version, placements: reordered } });
+
+  const entities = await packAll(src.site);
+  await applyReport(await plan(entities, dst.site, ["widget-area:sidebar"]), entities, dst.site);
+  const dstBinding = await dst.ports.bindings.findByRegion({ workspaceId: WORKSPACE_ID, regionKey: "sidebar" });
+  assert.ok(dstBinding);
+  const dstArea = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: dstBinding.areaEntryId });
+  assert.ok(dstArea);
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: dstArea.fieldsJson }).doc.placements, reordered);
+});
