@@ -69,8 +69,7 @@ export interface CreateCredentialPrefill {
  */
 export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; providers?: readonly { id: string; vendorId: string; label?: string }[] }, _optional = {}): SecretCardForm & { preferredFrameSize: readonly [string, string] } {
   const { prefill, providers = [] } = spec;
-  const worksFor = prefill.worksFor ?? suggestCredentialWorksFor({ label: prefill.label ?? "", providers });
-  const options = [...new Set([...providers.flatMap(provider => [provider.id, provider.vendorId]), ...worksFor])];
+  const worksForField = buildWorksForField({ prefill, providers });
   return {
     title: "Save an API credential",
     description:
@@ -110,14 +109,7 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
         // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
         value: prefill.category ?? "general",
       },
-      {
-        kind: "multi-enum",
-        name: "worksFor",
-        label: "Works for",
-        hint: "Choose the hosts or vendors this credential can be used with. The label is a display name.",
-        options: options.map(id => ({ value: id })),
-        value: worksFor,
-      },
+      ...(worksForField ? [worksForField] : []),
       {
         kind: "string",
         name: "username",
@@ -135,6 +127,35 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
     ],
     app: { appName: "tovu-custom-credential-create", appVersion: "1" },
     preferredFrameSize: ["100%", "560px"],
+  };
+}
+
+/** Categories whose credentials the deploy/source-control catalog in `providers` can use. */
+const CATALOG_CATEGORIES: ReadonlySet<string> = new Set(["hosting", "source-control"]);
+
+/**
+ * The "Works for" picker, or `undefined` when nothing makes it relevant. `providers` is the deploy
+ * and source-control catalog, so its hosts are offered only for a hosting/source-control credential
+ * (by category, or by a prefilled/suggested target in the catalog). Otherwise only targets the
+ * prefill names are offered, and a credential with none — e.g. a mail API key — gets no picker at
+ * all instead of every deploy host (2026-10-22, a Resend key listed vercel, netlify, s3…). An absent
+ * field saves as `worksFor: []`, the same as an empty selection.
+ *
+ * @complexity O(p + w) in the provider and target counts.
+ */
+function buildWorksForField({ prefill, providers }: { prefill: CreateCredentialPrefill; providers: readonly { id: string; vendorId: string }[] }): SecretCardForm["fields"][number] | undefined {
+  const worksFor = prefill.worksFor ?? suggestCredentialWorksFor({ label: prefill.label ?? "", providers });
+  const catalog = providers.flatMap(provider => [provider.id, provider.vendorId]);
+  const catalogRelevant = CATALOG_CATEGORIES.has(prefill.category ?? "") || worksFor.some(id => catalog.includes(id));
+  const options = [...new Set([...(catalogRelevant ? catalog : []), ...worksFor])];
+  if (options.length === 0) return undefined;
+  return {
+    kind: "multi-enum",
+    name: "worksFor",
+    label: "Works for",
+    hint: "Choose the hosts or vendors this credential can be used with. The label is a display name.",
+    options: options.map(id => ({ value: id })),
+    value: worksFor,
   };
 }
 

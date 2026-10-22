@@ -658,7 +658,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
     };
     const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const createTool = tool(buildRegistrations(configured, exchanges), TOOL_ID);
-    const { pending, exchangeId, ui } = await raiseForm(createTool, { worksFor: ["explicit-host"] }, { signal: t.signal });
+    const { pending, exchangeId, ui } = await raiseForm(createTool, { category: "hosting", worksFor: ["explicit-host"] }, { signal: t.signal });
     assert.deepEqual(calls, mode === "missing" ? ["source"] : ["deploy", "source"]);
     assert.match(ui.resource.text, /explicit-host/);
     if (mode === "populated" || mode === "partial") {
