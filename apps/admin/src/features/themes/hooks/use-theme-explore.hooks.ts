@@ -913,8 +913,9 @@ export function useThemeExplore(
   const fetchDetail = useMemo(() => detailFetchFor(themeId), [detailFetchFor, themeId]);
   const detailLoader = useCachedLoader({ key: detailKey, fetch: fetchDetail }, { staleTime: 0 });
   const sourceKey = useMemo(() => ["themes", "source", themeId] as const, [themeId]);
-  const fetchSource = useCallback(async (): ReturnType<ThemeExplorePort["getThemeFile"]> => { throw new Error("Theme file path required"); }, []);
-  const sourceLoader = useCachedLoader({ key: sourceKey, fetch: fetchSource }, { staleTime: 0 });
+  // No default fetch: every file read names its own `["themes", "file", id, path]` key and fetch (see
+  // `cachedReads.getThemeFile`), so an argument-less `load()` here would be a bug — the loader rejects it.
+  const sourceLoader = useCachedLoader<Awaited<ReturnType<ThemeExplorePort["getThemeFile"]>>>({ key: sourceKey }, { staleTime: 0 });
   const cachedReads = useMemo<ThemeExplorePort>(() => ({ ...port,
     getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
     getThemeFile: (id, path) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile(id, path) }),
