@@ -24,11 +24,15 @@ export interface MediaViewVideoToolDeps extends MediaVideoToolPorts {
 }
 export const MEDIA_VIEW_VIDEO_INPUT_SCHEMA = {
   type: 'object', additionalProperties: false,
-  oneOf: [{ required: ['mediaId'] }, { required: ['attachmentRef'] }],
+  oneOf: [
+    { anyOf: [{ required: ['mediaId'] }, { required: ['slug'] }], not: { required: ['attachmentRef'] } },
+    { required: ['attachmentRef'], not: { anyOf: [{ required: ['mediaId'] }, { required: ['slug'] }] } },
+  ],
   not: { required: ['at', 'every'] },
   properties: {
-    mediaId: { type: 'string', minLength: 1, description: 'One owned media-library id, from content_read.media_asset. Supply this OR attachmentRef.' },
-    attachmentRef: { type: 'string', pattern: '^attachment:[A-Za-z0-9-]{8,80}$', description: 'One owned chat attachment ref, attachment:<uuid>. Supply this OR mediaId. Paths are refused.' },
+    mediaId: { type: 'string', minLength: 1, description: 'One owned media-library id, from content_read.media_asset. Supply mediaId or slug OR attachmentRef.' },
+    slug: { type: 'string', minLength: 1, description: 'Media-library slug from content_read.media_asset; resolved to mediaId before validation. If both are supplied they must select the same asset. Cannot be combined with attachmentRef.' },
+    attachmentRef: { type: 'string', pattern: '^attachment:[A-Za-z0-9-]{8,80}$', description: 'One owned chat attachment ref, attachment:<uuid>. Supply this OR mediaId/slug. Paths are refused.' },
     layout: { type: 'string', enum: ['frames', 'sheet'], default: 'frames', description: 'Separate frames by default. Use sheet for a cheap skim of a long clip: up to four grids of sixteen tiles, with a text map of tile positions to timestamps. Then use start/every with separate frames to zoom in on a section.' },
     frames: { type: 'integer', minimum: 1, maximum: VIDEO_MAX_FRAMES, description: 'Frame count (default 16 without every, clamped to 1–64; samples beyond 16 shrink automatically). Without every, evenly spaced near start and end. With every, request this many samples, clamping beyond the clip to its last seekable time (possibly repeated). Omit with every to take only samples that fit, up to 64. Ignored when at is supplied.' },
     at: { type: 'array', minItems: 1, maxItems: VIDEO_MAX_FRAMES, items: { type: 'number', minimum: 0 }, description: 'Explicit nonnegative finite timestamps in seconds, overriding frames and start. Up to 64, clamped to the clip bounds; returned in the same order. Cannot be combined with every.' },
@@ -38,12 +42,33 @@ export const MEDIA_VIEW_VIDEO_INPUT_SCHEMA = {
 } as const;
 export const catalog = [{
   name: MEDIA_VIEW_VIDEO_TOOL_ID,
-  description: 'LOOK AT / SEE / VIEW A VIDEO from your media library or chat attachment. Use before describing a clip, answering what is in it, or finding which video shows something. Pass exactly one mediaId or attachmentRef (attachment:<uuid>); never a filesystem path. Default 16 evenly spaced still frames; up to 64 samples. Separate JPEG frames stay at max 768px long edge up to 16 samples and shrink automatically beyond 16 (64 samples: 384px), keeping estimated image tokens bounded. Use layout: sheet to skim long clips cheaply in up to four grids of sixteen tiles; a text map gives each one-based row/column and timestamp in seconds, with no drawn labels. Then use start/every and layout: frames to zoom in on a section. Same frames/every/start/at sampling args work in both layouts. Separate images max 512KiB each, sheets max 2 MiB each, 8 MiB total JPEG bytes. Returns actual JPEG images plus duration, source width/height, codec/container, sizeBytes, hasAudio and timestamps. Use every: 0.5 to see motion, with start in seconds (default 0) and optional frames to control count; omit frames with every to take only fitting samples, up to 64. Requested times clamp to the last seekable time, so an explicit count can repeat end frames. at chooses up to 64 explicit nonnegative finite seconds and overrides frames/start; every with at is refused. Events between samples and audio content are not analyzed. Read-only and owner-scoped. If host codec tools are missing it returns video preview unavailable on this host.',
+  description: 'LOOK AT / SEE / VIEW A VIDEO from your media library or chat attachment. Use before describing a clip, answering what is in it, or finding which video shows something. Pass mediaId or slug for a library asset, OR attachmentRef (attachment:<uuid>); never a filesystem path. If mediaId and slug are both supplied they must resolve to the same asset. Default 16 evenly spaced still frames; up to 64 samples. Separate JPEG frames stay at max 768px long edge up to 16 samples and shrink automatically beyond 16 (64 samples: 384px), keeping estimated image tokens bounded. Use layout: sheet to skim long clips cheaply in up to four grids of sixteen tiles; a text map gives each one-based row/column and timestamp in seconds, with no drawn labels. Then use start/every and layout: frames to zoom in on a section. Same frames/every/start/at sampling args work in both layouts. Separate images max 512KiB each, sheets max 2 MiB each, 8 MiB total JPEG bytes. Returns actual JPEG images plus duration, source width/height, codec/container, sizeBytes, hasAudio and timestamps. Use every: 0.5 to see motion, with start in seconds (default 0) and optional frames to control count; omit frames with every to take only fitting samples, up to 64. Requested times clamp to the last seekable time, so an explicit count can repeat end frames. at chooses up to 64 explicit nonnegative finite seconds and overrides frames/start; every with at is refused. Events between samples and audio content are not analyzed. Read-only and owner-scoped. If host codec tools are missing it returns video preview unavailable on this host.',
   sideEffects: 'none' as AgentToolSideEffect,
   authorization: { permission: 'media.read' }, inputSchema: MEDIA_VIEW_VIDEO_INPUT_SCHEMA,
 }];
 export const mediaViewVideoDerivedRisk: DerivedRiskByToolId = new Map([[MEDIA_VIEW_VIDEO_TOOL_ID, 'none']]);
 const catalogById = indexCatalogById({ catalog });
+
+/** Resolve a media slug through the workspace repository before the canonical gate runs.
+ * Leaves caller input intact; the existing handler still enforces permission and ownership.
+ * @returns Canonical mediaId input and the shared gate's per-item alias note.
+ * @throws ToolInputError for invalid, missing or conflicting selectors.
+ * @complexity O(k) copy for k fields and one indexed slug lookup; no blob reads.
+ */
+async function normalizeVideoInput(
+  { input, deps }: { input: Readonly<Record<string, unknown>>; deps: Pick<MediaViewVideoToolDeps, 'workspaceId' | 'mediaRepo'> },
+  _options: Record<string, never> = {},
+) {
+  if (!Object.hasOwn(input, 'slug')) return { input, notes: [] };
+  const { slug, ...rest } = input;
+  if (typeof slug !== 'string' || !slug || /[/\\\0]/u.test(slug)) throw refusal({ message: 'slug must be a nonempty media-library slug; filesystem paths are refused.' });
+  if (input.attachmentRef !== undefined) throw refusal({ message: 'pass a mediaId or slug, OR attachmentRef.' });
+  // MOVE: slugs are lookup keys, not ids; the existing repository also owns historical slug aliases.
+  const asset = await deps.mediaRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
+  if (!asset || asset.workspaceId !== deps.workspaceId) throw refusal({ message: 'media is unavailable or not owned by the caller.' });
+  if (input.mediaId !== undefined && input.mediaId !== asset.id) throw refusal({ message: 'slug and mediaId disagree; send selectors for the same media asset.' });
+  return { input: { ...rest, mediaId: asset.id }, notes: ['slug→mediaId'] };
+}
 
 function refusal(required: { message: string }, _optional: Record<string, never> = {}) {
   return new ToolInputError({ message: `${MEDIA_VIEW_VIDEO_TOOL_ID}: ${required.message}` });
@@ -185,6 +210,7 @@ export function buildMediaViewVideoRegistrations(
   deps: MediaViewVideoToolDeps, _optional: Record<string, never> = {},
 ): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: 'media-video-view', catalogModule: 'features/media/view-video-tool.ts', catalog: catalogById, derivedRisk: mediaViewVideoDerivedRisk,
+    inputNormalizers: { [MEDIA_VIEW_VIDEO_TOOL_ID]: ({ input }, _options = {}) => normalizeVideoInput({ input, deps }) },
     handlers: { [MEDIA_VIEW_VIDEO_TOOL_ID]: async ctx => {
       const input = readInput({ input: ctx.input }, {});
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'media.read' }, { entityType: 'media' });

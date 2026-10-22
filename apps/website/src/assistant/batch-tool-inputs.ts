@@ -17,6 +17,9 @@ export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
     "widgets_trash_instance", "comments_trash_comment", "comments_approve_comment", "comments_mark_comment_spam",
   ].map(toolId => ({ toolId, maxItems: ROW_LEVEL_MAX_ITEMS })),
   { toolId: "theme_read_file", maxItems: 20 },
+  // MOVE: video previews can each return 8 MiB; cap the shared wrapper without a second batch path.
+  { toolId: "media_view_video", maxItems: 8 },
+  { toolId: "web_screenshot_page", maxItems: 8 },
   { toolId: 'plugin_source_read', maxItems: 20 },
   // 10 pages x 8,000 characters keeps one result near what a single default fetch used to return.
   { toolId: "web_fetch_page", maxItems: 10, itemDefaults: { maxChars: 8_000 }, validateItem: ({ input }) => {

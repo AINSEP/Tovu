@@ -199,7 +199,7 @@ const READ_FILE_SCHEMA = {
     },
     context: {
       type: "integer", minimum: 0, maximum: 20, default: 3,
-      description: "Lines before and after each matching line when find is given. Defaults to 3.",
+      description: "Lines before and after each matching line when find is given. Defaults to 3; maximum 20. Larger integers are clamped to 20 with a result note; negatives and non-integers are refused.",
     },
   },
 } as const;
