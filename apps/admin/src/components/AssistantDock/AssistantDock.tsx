@@ -7,6 +7,8 @@ import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
+import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
+import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "./assistant-runtime-preferences";
 import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
@@ -160,6 +162,8 @@ export interface AssistantDockProps {
   useChatDisplayPreferences?: typeof useChatDisplayPreferences;
   /** The gear menu's Agent plugins choice seam (`useChatAgentPluginsPreference`); a test passes a fake. */
   useChatAgentPlugins?: typeof useChatAgentPluginsPreference;
+  /** The gear menu's Use Claude in Chrome / Prefer subagents seam; a test passes a fake. */
+  useAssistantRuntimePreferences?: typeof useAssistantRuntimePreferencesPreference;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
    * with the dock). `null` until the daemon has attached the surface, or if it never does.
@@ -313,6 +317,7 @@ export function AssistantDock({
   useExecutionPolicy,
   useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
   useChatAgentPlugins = useChatAgentPluginsPreference,
+  useAssistantRuntimePreferences = useAssistantRuntimePreferencesPreference,
 }: AssistantDockProps) {
   const renderers = useDockRendererRegistry();
   const { mcpUiToolCaller } = renderers;
@@ -327,6 +332,8 @@ export function AssistantDock({
   const chatDisplay = useChatDisplayPreferencesOverride();
   // Gear menu: per-person Agent plugins mode; Off hides the pane's "Using" chip at once.
   const agentPlugins = useChatAgentPlugins();
+  // Gear menu: per-person runtime switches; the server reads them when it starts the next run.
+  const runtimePreferences = useAssistantRuntimePreferences();
   const chatSettings = useChatSettingsDialog({});
   const agentPermissions = useDockAgentPermissions({ t, openSettings: chatSettings.show });
 
@@ -366,6 +373,12 @@ export function AssistantDock({
   const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
   const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam(useRuntimeAccessOverride));
+  // Only a Local CLI run spawns the picked agent, so only then do its `supports*` flags apply. Each
+  // `/api/agents` entry carries them; `ChatPaneAgent` just does not declare them.
+  const selectedAgent = executionConfig.mode === "local-cli"
+    ? (agentsPlaceholder as readonly (AgentRuntimePreferenceSupport & { id: string })[] | undefined)?.find((agent) => agent.id === localCliSelection.agentId)
+    : undefined;
+  const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
@@ -500,7 +513,7 @@ export function AssistantDock({
         header={
           <DockHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
             locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
-            agentPlugins={agentPlugins} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
+            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
         }
         title={t("Tovu assistant")}
         placeholder={t("Ask the assistant to do something…")}

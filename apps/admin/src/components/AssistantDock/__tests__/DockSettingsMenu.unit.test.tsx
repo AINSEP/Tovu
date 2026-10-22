@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
-import type { DockSettingsMenuSection } from "../dock-header-rules";
+import { dockSettingsMenuSections, type DockSettingsMenuSection } from "../dock-header-rules";
+import { DEFAULT_CHAT_DISPLAY } from "../chat-display-preferences";
+import { visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**
  * @file `DockSettingsMenu` markup for every popup position and row shape, against a typed fake of
@@ -152,5 +154,38 @@ describe("rows", () => {
     expect(selected).toEqual([]);
     fireEvent.click(screen.getByRole("menuitem", { name: "Open settings" }));
     expect(selected).toEqual([SECTIONS[2]!.items[0]!.onSelect]);
+  });
+});
+
+describe("runtime switches", () => {
+  function renderRuntime(agent: { supportsSubagents?: boolean; supportsClaudeInChrome?: boolean } | undefined) {
+    const update = vi.fn();
+    const sections = dockSettingsMenuSections({ t: (key) => key }, {
+      display: { preferences: DEFAULT_CHAT_DISPLAY, update: () => {} },
+      runtime: { preferences: { useClaudeInChrome: true, preferSubagents: false }, update, visible: visibleAssistantRuntimePreferences({ agent }) },
+    });
+    render(<DockSettingsMenu label="Chat settings" sections={sections} useMenu={fakeMenu(PLACED).useMenu} />);
+    return update;
+  }
+  const switches = () => screen.queryAllByRole("menuitemcheckbox").filter((row) => /Chrome|subagents/.test(row.textContent ?? ""));
+
+  it("shows each switch only when the selected runtime supports it, checked from the stored value", () => {
+    renderRuntime({ supportsSubagents: true, supportsClaudeInChrome: true });
+    expect(switches().map((row) => [row.textContent, row.getAttribute("aria-checked"), Boolean(row.getAttribute("aria-describedby"))])).toEqual([
+      ["Use Claude in Chrome", "true", true], ["Prefer subagents", "false", true],
+    ]);
+    cleanup();
+    renderRuntime({ supportsSubagents: true });
+    expect(switches().map((row) => row.textContent)).toEqual(["Prefer subagents"]);
+    cleanup();
+    renderRuntime(undefined);
+    expect(switches()).toEqual([]);
+  });
+
+  it("saves the flipped value in place", () => {
+    const update = renderRuntime({ supportsSubagents: true, supportsClaudeInChrome: true });
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Use Claude in Chrome" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Prefer subagents" }));
+    expect(update.mock.calls).toEqual([[{ useClaudeInChrome: false }], [{ preferSubagents: true }]]);
   });
 });

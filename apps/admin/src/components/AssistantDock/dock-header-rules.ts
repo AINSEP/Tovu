@@ -8,6 +8,8 @@ import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
 import { CHAT_AGENT_PLUGIN_OPTIONS } from "./chat-agent-plugin-preferences";
 import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
+import type { AssistantRuntimePreferences } from "./assistant-runtime-preferences";
+import type { AssistantRuntimePreferencesController } from "./hooks/use-assistant-runtime-preferences.hooks";
 
 /**
  * Whether a hover/focus on `target` should open the header tooltip. Never while the control's own
@@ -89,17 +91,21 @@ export function groupOptionTooltips(section: DockSettingsMenuSection): DockSetti
  * changes stay available. Both surfaces receive these same actions and stored preferences.
  * Agent plugins (owner, 2026-10-18) follows as an Auto/Ask first/Off radio group: a per-person
  * choice of whether the assistant loads matching installed plugins by itself.
+ * Use Claude in Chrome and Prefer subagents (2026-10-22) follow as on/off rows, each only when the
+ * selected runtime supports it (`visibleAssistantRuntimePreferences`); the server reads them per run.
  * @param input.t - The dock's translator.
  * @param options.display - The current choices and their saver (`useChatDisplayPreferences`).
  * @param options.agentPlugins - The Agent plugins mode and its saver (`useChatAgentPlugins`); no section without it.
+ * @param options.runtime - The runtime switches, their saver and which ones apply; no rows without it.
  * @returns The sections, in display order.
  * @complexity O(1).
  */
 export function dockSettingsMenuSections(
   { t }: { t: (key: string) => string },
-  { display, agentPlugins, onMoreSettings }: {
+  { display, agentPlugins, runtime, onMoreSettings }: {
     display: Pick<ChatDisplayPreferencesController, "preferences" | "update">;
     agentPlugins?: Pick<ChatAgentPluginsController, "mode" | "update">;
+    runtime?: DockRuntimeSwitches;
     onMoreSettings?: () => void;
   },
 ): DockSettingsMenuSection[] {
@@ -149,10 +155,30 @@ export function dockSettingsMenuSections(
         onSelect: () => agentPlugins.update(option.value),
       })),
     }] : []),
+    ...runtimeSection({ t }, { runtime }),
     ...(onMoreSettings ? [{ key: "more-settings", items: [{ key: "more-settings", label: t("More settings…"), onSelect: onMoreSettings }] }] : []),
   ];
   // Every section passes through `groupOptionTooltips`, so a radio group added above gets one tip.
   return sections.map(groupOptionTooltips);
+}
+
+/** The runtime switches' values and saver, plus which ones the selected runtime supports. */
+export type DockRuntimeSwitches = Pick<AssistantRuntimePreferencesController, "preferences" | "update"> & { visible: Record<keyof AssistantRuntimePreferences, boolean> };
+
+/** The runtime switches as one unheaded run of on/off rows; none when no switch applies. */
+function runtimeSection(
+  { t }: { t: (key: string) => string },
+  { runtime }: { runtime?: DockRuntimeSwitches },
+): DockSettingsMenuSection[] {
+  if (!runtime) return [];
+  const { preferences, update, visible } = runtime;
+  const items: DockSettingsMenuItem[] = [
+    ...(visible.useClaudeInChrome ? [{ key: "use-claude-in-chrome", label: t("Use Claude in Chrome"), role: "menuitemcheckbox" as const, checked: preferences.useClaudeInChrome,
+      tooltip: t("Let the assistant check pages in your own signed-in Chrome. Site owner only."), onSelect: () => update({ useClaudeInChrome: !preferences.useClaudeInChrome }) }] : []),
+    ...(visible.preferSubagents ? [{ key: "prefer-subagents", label: t("Prefer subagents"), role: "menuitemcheckbox" as const, checked: preferences.preferSubagents,
+      tooltip: t("Hand long or many-step work to a subagent so the chat stays short."), onSelect: () => update({ preferSubagents: !preferences.preferSubagents }) }] : []),
+  ];
+  return items.length ? [{ key: "runtime", items }] : [];
 }
 
 /**

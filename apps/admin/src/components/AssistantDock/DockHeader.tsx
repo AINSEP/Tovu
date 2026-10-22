@@ -7,7 +7,7 @@ import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { SubagentsIndicator } from "./SubagentsIndicator";
 import { DockHeaderTip } from "./DockHeaderTip";
 import { DockSettingsMenu } from "./DockSettingsMenu";
-import { dockSettingsMenuSections } from "./dock-header-rules";
+import { dockSettingsMenuSections, type DockRuntimeSwitches } from "./dock-header-rules";
 import { renameActiveConversation } from "./assistant-dock-props";
 import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
 import type { ChatAgentPluginsController } from "./hooks/use-chat-agent-plugins.hooks";
@@ -31,6 +31,8 @@ export interface DockHeaderProps {
   readonly conversationDelete: Pick<ReturnType<typeof useConfirmRequest>, "confirm">;
   readonly chatDisplay: ChatDisplayPreferencesController;
   readonly agentPlugins: ChatAgentPluginsController;
+  /** The gear's Use Claude in Chrome / Prefer subagents switches, each shown only where the runtime supports it. */
+  readonly runtime?: DockRuntimeSwitches & { saveFailed: boolean };
   /** Opens the advanced chat settings; absent when this admin may not open them. */
   readonly onMoreSettings: (() => void) | undefined;
   /** Whether the transcript is empty, which shows the greeting under the header row. */
@@ -46,7 +48,7 @@ export interface DockHeaderProps {
  * @complexity O(c) in the number of conversations (one `find` for the active title).
  */
 export function DockHeader({
-  chats, activeTitle, mode, agentId, locale, t, chatI18n, conversationDelete, chatDisplay, agentPlugins, onMoreSettings, empty,
+  chats, activeTitle, mode, agentId, locale, t, chatI18n, conversationDelete, chatDisplay, agentPlugins, runtime, onMoreSettings, empty,
 }: DockHeaderProps) {
   return (
     <>
@@ -99,8 +101,8 @@ export function DockHeader({
         </DockHeaderTip>
         {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
         <DockHeaderTip label={t("Settings")}>
-          <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins, onMoreSettings })}
-            notice={chatDisplay.saveFailed || agentPlugins.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
+          <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins, runtime, onMoreSettings })}
+            notice={chatDisplay.saveFailed || agentPlugins.saveFailed || runtime?.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
         </DockHeaderTip>
       </div>
       {empty ? (
