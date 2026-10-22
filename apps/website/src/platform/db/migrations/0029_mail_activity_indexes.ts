@@ -3,8 +3,8 @@ import type { StorageKernel } from "../kernel/port.js";
 import type { MigrationStep } from "./step.js";
 
 /**
- * @file Migration 0029: read indexes for the Email page's **Recent sends and failures** (email
- * phase 4, `features/mail/activity.repo.ts`).
+ * @file Migration 0029: activity storage for the Email page's **Recent sends and failures** (email
+ * phase 4, `features/mail/activity.repo.ts` and `features/mail/attempts.repo.ts`).
  *
  * - `mail_send_ledger (workspace_id, created_at)`: the activity list reads newest first per
  *   workspace, 25 at a time. 0023's primary key starts with the idempotency key, so without this a
@@ -13,9 +13,10 @@ import type { MigrationStep } from "./step.js";
  *   delivered/bounced/complained events by the message id the provider returned. 0023 keys the inbox
  *   by (provider, event id), which cannot answer "which events belong to this message".
  *
- * Indexes only: no row or column changes, so the 0023 ledger contract (`MailSendLedgerPort`) and
- * every stored row are untouched. 0023 stays immutable. Portable DDL for SQLite and Postgres, shared
- * with the fresh-database bootstrap.
+ * Adds opaque activity identities and retention flags to historical sends, plus body-free attempt
+ * observations (including preflight refusals and captures) keyed by workspace, request and recipient.
+ * Existing send outcomes and deduplication identities stay intact. 0023 stays immutable. Common DDL
+ * is shared with fresh SQLite bootstrap; only upgrades need the historical-identity backfill.
  */
 export const MAIL_ACTIVITY_INDEXES_ID = "0029_mail_activity_indexes";
 

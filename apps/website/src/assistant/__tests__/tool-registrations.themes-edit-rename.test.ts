@@ -109,7 +109,8 @@ test("chat-input regression: theme_edit_file deletes exact text with an empty re
     assert.equal(deleted.status, "completed");
     assert.equal(readFile(themesDir, "styles.css"), "body{padding:0}\n");
     const blanked = await executeRegisteredTool({ registration, input: {
-      themeId: "plain", items: [{ path: "styles.css", oldString: "body{padding:0}", newString: " " }],
+      // Whitespace is literal, but leaving only whitespace requires whole-file deletion intent.
+      themeId: "plain", items: [{ path: "styles.css", oldString: "body{padding:0}", newString: " ", intent: "delete" }],
     } });
     assert.equal(blanked.status, "completed");
     assert.equal((blanked.output as { succeeded: number }).succeeded, 1);

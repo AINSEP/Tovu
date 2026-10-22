@@ -47,6 +47,7 @@ const RAW_SQL_MANAGED: ReadonlyMap<string, string> = new Map([
   ["mail_suppression", "ADR-066 step 0023: provider-independent do-not-send list"],
   ["mail_feedback_inbox", "ADR-066 step 0023: webhook replay dedup"],
   ["mail_capture", "ADR-066 step 0023: test/capture-mode sink"],
+  ["mail_activity_attempts", "ADR-066 step 0029: body-free delivery observations owned by features/mail/attempts.repo.ts and activity.repo.ts; attempts-retention.dialects.test.ts covers both dialects"],
   ["domain_binding", "ADR-066 step 0024: per-hostname DNS requirements and verification state"],
   ["search_index_state", "ADR-066 step 0027: site-search index bookkeeping"],
   ["search_index_watermarks", "ADR-066 step 0027: resumable search backfill cursors"],

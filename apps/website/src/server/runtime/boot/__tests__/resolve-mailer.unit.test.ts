@@ -272,7 +272,7 @@ test("an unknown provider id reports the plugin refusals; a settings fault becom
 
   const broken = createResolvedMailer(makeResolveDeps({ providerSetting: { read: async () => { throw new Error("db down"); }, write: async () => {} } }));
   const refused = await broken.mailer.send(MESSAGE, OPTIONS);
-  assert.equal(!refused.ok && refused.message, "mail provider selection failed (db down)");
+  assert.equal(!refused.ok && refused.message, "Mail provider selection failed; check configuration.");
 });
 
 test("a failed migration write warns and still serves this send from the computed setting", async () => {
@@ -436,10 +436,10 @@ test("a plugin registry that cannot be listed is reported as a refusal", async (
   assert.match(warnings[1]!, /could not be listed \(eio\)/);
 });
 
-test("non-Error faults are reported by value; a throwing warn is swallowed; the default warn is console.warn", async (t) => {
+test("selection faults use safe copy; a throwing warn is swallowed; the default warn is console.warn", async (t) => {
   const broken = createResolvedMailer(makeResolveDeps({ providerSetting: { read: async () => { throw "nope"; }, write: async () => {} } }));
   const refused = await broken.mailer.send(MESSAGE, OPTIONS);
-  assert.equal(!refused.ok && refused.message, "mail provider selection failed (nope)");
+  assert.equal(!refused.ok && refused.message, "Mail provider selection failed; check configuration.");
 
   const failingWrite = createResolvedMailer(makeResolveDeps({ loadMailAdapters: async () => EMPTY_REGISTRY, providerSetting: { read: async () => null, write: async () => { throw "locked"; } }, warn: () => { throw new Error("log sink down"); } }));
   const result = await failingWrite.mailer.send(MESSAGE, OPTIONS);
@@ -570,5 +570,5 @@ test("domainRequirements: the active transactional provider's records for the se
   assert.equal(asked.length, 1, "only the configured case reaches the provider");
 
   answer = { status: "rejected", error: { code: "unauthorized", message: "bad key" } };
-  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), /the mail provider 'postal' could not list the DNS records example\.com needs \(bad key\)/);
+  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
 });

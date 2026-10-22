@@ -125,12 +125,12 @@ test("no record table: each reason is its own state, and the provider verdict st
   assert.equal((await readMailDnsStatus({}, portsFor({ requirement: null, verdict: { state: "unsupported", domain: "example.com", providerId: "plain" } }))).senderDomain, "example.com");
 });
 
-test("no record table: no port, a provider error and a thrown non-error are distinct states", async () => {
+test("no record table: no port is unavailable; provider errors and non-errors share safe failure copy", async () => {
   const { mailRequirements: _drop, ...noPort } = portsFor();
   assert.deepEqual([(await readMailDnsStatus({}, noPort)).state, (await readMailDnsStatus({}, noPort)).message], ["requirements_unavailable", "This server cannot report its mail provider's DNS records."]);
-  const failed = await readMailDnsStatus({}, portsFor({ requirement: new Error("The mail provider could not list its required DNS records.") }));
+  const failed = await readMailDnsStatus({}, portsFor({ requirement: new Error("private provider response") }));
   assert.deepEqual([failed.state, failed.message], ["requirements_failed", "The mail provider could not list its required DNS records."]);
-  assert.equal((await readMailDnsStatus({}, portsFor({ requirement: "throw-value" }))).message, "the mail provider could not list its DNS records");
+  assert.equal((await readMailDnsStatus({}, portsFor({ requirement: "throw-value" }))).message, "The mail provider could not list its required DNS records.");
 });
 
 test("a DNS-layer refusal becomes check_failed; any other fault propagates", async () => {

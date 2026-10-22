@@ -123,7 +123,7 @@ test("invalidate drops cached providers even when the row is unchanged", async (
   assert.deepEqual(keys, ["key-one", "key-one"]);
 });
 
-test("a store fault while fingerprinting keeps the cached provider; a fault at resolution re-resolves once the store reads", async () => {
+test("a store fault while fingerprinting keeps the cached provider; recovery during resolution verifies the fingerprint before construction", async () => {
   const creds = credentialDeps();
   await saveKey(creds, "key-one");
   const repo = flakyRepo(creds.repo);
@@ -134,7 +134,7 @@ test("a store fault while fingerprinting keeps the cached provider; a fault at r
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true, "mail it could still send is not refused");
   assert.deepEqual(keys, ["key-one"]);
 
-  // Only the first list (the fingerprint) fails: the key still resolves, fingerprinted "unknown".
+  // Only the first fingerprint read fails; the post-decrypt check retries before constructing.
   const second = flakyRepo(creds.repo);
   second.failing.on = true;
   second.failing.remaining = 1;
@@ -142,7 +142,7 @@ test("a store fault while fingerprinting keeps the cached provider; a fault at r
   const other = createResolvedMailer(deps({ creds: { ...creds, repo: second }, registry: fresh.registry }));
   assert.equal((await other.mailer.send(MESSAGE, OPTIONS)).ok, true);
   assert.equal((await other.mailer.send(MESSAGE, OPTIONS)).ok, true);
-  assert.deepEqual(fresh.keys, ["key-one", "key-one"], "the unknown fingerprint is replaced by the real one");
+  assert.deepEqual(fresh.keys, ["key-one"], "only a mailer with a verified fingerprint is constructed and cached");
 });
 
 test("status is cached for the TTL on the injected clock; refresh and invalidate rebuild it; checkedAt is the build time", async () => {

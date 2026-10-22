@@ -215,7 +215,7 @@ test("sender, forms and gate failures: a missing sender blocks, a failed check i
   const noGateNoSender = await byUse(readinessDeps({ mailSenderIdentity: undefined }));
   assert.deepEqual([noGateNoSender.sign_in!.state, noGateNoSender.sign_in!.sender], ["blocked", null]);
   const evidenceDown = await byUse(readinessDeps({ mailActivity: { list: async () => { throw new Error("db"); } } }));
-  assert.deepEqual([evidenceDown.sign_in!.state, evidenceDown.sign_in!.evidence], ["blocked", null]);
+  assert.deepEqual([evidenceDown.sign_in!.state, evidenceDown.sign_in!.reasons, evidenceDown.sign_in!.evidence], ["ready", [], null]);
 });
 
 test("without Newsletter only sign-in and forms are listed; the default clock stamps checkedAt", async () => {

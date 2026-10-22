@@ -10,7 +10,8 @@ import { MIGRATION_CHECKSUMS } from "../checksums.js";
 
 /**
  * @file Migration 0029 (`0029_mail_activity_indexes`) on SQLite and PGlite: registered after 0028
- * with its pinned checksum, adds the two activity read indexes once, and keeps 0023's rows intact.
+ * with its pinned checksum, adds activity indexes and body-free observations once, and preserves
+ * 0023's send results while backfilling their opaque activity identities.
  */
 
 const AT = "2026-10-22T12:00:00.000Z";
@@ -24,7 +25,7 @@ async function indexNames(kernel: StorageKernel<unknown>, name: "sqlite" | "pgli
 
 for (const adapter of eachDialect({ tables: ["mail_send_ledger", "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
-  test(`[${name}] 0029 follows 0028 and adds the activity indexes once, rows untouched`, async () => {
+  test(`[${name}] 0029 follows 0028 and adds activity storage once, preserving send results`, async () => {
     const kernel = adapter.make() as StorageKernel<unknown>;
     try {
       const ids = CONTENT_MIGRATIONS.map(entry => entry.id);
@@ -35,16 +36,21 @@ for (const adapter of eachDialect({ tables: ["mail_send_ledger", "workspaces"], 
       assert.equal(step.checksum, MIGRATION_CHECKSUMS[MAIL_ACTIVITY_INDEXES_ID]);
       await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('w', 'W', 'w', ${AT})`);
       // The dialect matrix built the head schema; rebuild 0023 alone, then apply 0029 to it.
-      for (const table of ["mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
+      for (const table of ["mail_activity_attempts", "mail_suppression_removals", "mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "mail_activity_indexes_step_migrations" };
       await runMigrations(kernel, [ledgers], options);
       await kernel.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at)
         VALUES ('w', 'members:signin:h', 'a@x.test', 'p', 'transactional', 'smtp', 'sent', ${AT}, ${AT})`);
       assert.deepEqual(await indexNames(kernel, name), ["idx_mail_capture_workspace_created"]);
       assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [MAIL_ACTIVITY_INDEXES_ID]);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [], "a second run applies nothing");
-      assert.deepEqual(await indexNames(kernel, name), ["idx_mail_capture_workspace_created", "idx_mail_feedback_inbox_workspace_message", "idx_mail_send_ledger_workspace_created"]);
+      assert.deepEqual(await indexNames(kernel, name), ["idx_mail_attempts_workspace_created", "idx_mail_capture_workspace_created", "idx_mail_feedback_inbox_workspace_message", "idx_mail_send_ledger_workspace_created"]);
       assert.deepEqual(await kernel.query(sql`SELECT idempotency_key, outcome FROM mail_send_ledger`), [{ idempotency_key: "members:signin:h", outcome: "sent" }]);
+      const [historical] = await kernel.query<{ activity_id: string; activity_retained: number }>(sql`SELECT activity_id, activity_retained FROM mail_send_ledger`);
+      assert.match(historical!.activity_id, /^[a-f0-9]{32}$/);
+      assert.equal(historical!.activity_retained, 1);
+      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual(await kernel.query(sql`SELECT activity_id, activity_retained FROM mail_send_ledger`), [historical], "a rerun preserves the backfilled identity");
+      assert.deepEqual(await kernel.query(sql`SELECT * FROM mail_activity_attempts`), [], "historical sends remain in the ledger projection");
     } finally {
       if (name === "sqlite") await kernel.close();
     }

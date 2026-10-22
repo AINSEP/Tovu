@@ -82,8 +82,8 @@ test("the content history through the current head applies on real Postgres", as
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
-  assert.equal(n, collectCoreTables().length + 14, "declared content tables plus post_search_document, tovu_migrations, two TS-only site consent tables, five TS-only mail tables (four ledgers and the suppression removal audit), domain_binding and four TS-only search index tables");
-  assert.equal(n, 92, "92 tables at 0030_mail_suppression_admin: an accidental drop or addition must change this pin");
+  assert.equal(n, collectCoreTables().length + 15, "declared content tables plus post_search_document, tovu_migrations, two TS-only site consent tables, six TS-only mail tables (four ledgers, activity attempts and the suppression removal audit), domain_binding and four TS-only search index tables");
+  assert.equal(n, 93, "93 tables at 0030_mail_suppression_admin: an accidental drop or addition must change this pin");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");
