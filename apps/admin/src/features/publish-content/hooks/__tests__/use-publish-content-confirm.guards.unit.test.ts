@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport } from "@tovu/publish-content-ui";
 import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
-import { usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
+import { publishMismatchMessage, usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
 
 /**
  * @file The confirm hook's re-entry and selection guards, driven through its public view over the
@@ -148,6 +148,33 @@ describe("usePublishContentConfirm — overwrite toggles and criteria results", 
     await waitFor(() => expect(result.current.overwriteKeys.size).toBe(0));
   });
 
+  // An overwrite tick dispatched from the same render as Confirm (a double action before React
+  // re-renders) still re-plans; its answer must not pull a publish that already started back to review.
+  it("a re-plan that lands after the publish moved on leaves the publish's own phase alone", async () => {
+    const port = createFakePublishContentPort({ peers: [peer], report: WITH_CONFLICT });
+    const planPublish = port.planPublish.bind(port);
+    const heldReplans: Array<() => void> = [];
+    port.planPublish = (input) =>
+      input.overwriteEntityKeys?.length
+        ? new Promise((resolve, reject) => { heldReplans.push(() => { planPublish(input).then(resolve, reject); }); })
+        : planPublish(input);
+    const { result } = await planned(port);
+    const [overwriteKey] = [...result.current.overwriteOfferKeys];
+
+    act(() => {
+      const view = result.current;
+      void view.onPrimary();
+      view.onToggleOverwrite(overwriteKey!);
+    });
+    await waitFor(() => expect(result.current.phase.kind).toBe("done"));
+    expect(heldReplans).toHaveLength(1);
+
+    await act(async () => { heldReplans[0]!(); });
+
+    expect(result.current.phase.kind).toBe("done");
+    expect(port.calls.executePublish).toHaveLength(1);
+  });
+
   it("reports a criteria plan's left-alone row that came back with no reason", async () => {
     const onPlanned = vi.fn();
     const port = createFakePublishContentPort({ peers: [peer], report: WITH_CONFLICT });
@@ -155,5 +182,27 @@ describe("usePublishContentConfirm — overwrite toggles and criteria results", 
     await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
     const result = onPlanned.mock.calls[0]![0] as { leftAlone?: { label: string; reason: string }[] };
     expect(JSON.stringify(result)).toMatch(/"label":"post-edited","reason":"[^"]+"/);
+  });
+});
+
+describe("usePublishContentConfirm — a site id the loaded list does not name", () => {
+  const other = { ...peer, id: "staging", label: "Staging" };
+
+  it("a criteria plan for that site reports no site label rather than a wrong one", async () => {
+    const onPlanned = vi.fn();
+    const port = createFakePublishContentPort({ peers: [peer, other], report: TWO_POSTS });
+    const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, criteria: {}, onPlanned }));
+    await waitFor(() => expect(result.current.peers).toHaveLength(2));
+
+    act(() => result.current.onSelectPeer("retired-site"));
+
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
+    expect(port.calls.planPublish[0]).toMatchObject({ peerId: "retired-site" });
+    expect(onPlanned.mock.calls[0]![0]).toMatchObject({ site: null, willPublish: ["post-a", "post-b"] });
+  });
+
+  it("the changed-under-you sentence names the listed site, or falls back to the live site", () => {
+    expect(publishMismatchMessage({ peers: [peer], peerId: "live", t })).toBe("Live changed while you were deciding. Check the list again.");
+    expect(publishMismatchMessage({ peers: [peer], peerId: "retired-site", t })).toBe("the live site changed while you were deciding. Check the list again.");
   });
 });

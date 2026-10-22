@@ -1295,7 +1295,10 @@ function publishPrimaryDisabled(
   return primaryDisabled;
 }
 
-function publishMismatchMessage(
+/** The sentence shown when live answered differently from the report on screen. Names the site
+ *  from the loaded list, or a generic "the live site" when that list does not name `peerId`
+ *  (`onSelectPeer` accepts any id). @complexity O(peers). */
+export function publishMismatchMessage(
   { peers, peerId, t }: { peers: readonly PublishContentPeerSummary[]; peerId: string; t: Translate },
   _options: Record<string, never> = {}
 ): string {
