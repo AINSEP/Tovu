@@ -221,6 +221,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "newsletter",
     "newsletter-delivery",
     "pages",
+    // 2026-10-22 (round 2): raw-HTML email templates on Pages storage (`features/email-templates`).
+    "email-templates",
     "plugins",
     // 2026-10-05: confirmed installs, each its own domain beside the tools they feed.
     "plugins-install",
