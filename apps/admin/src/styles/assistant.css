@@ -166,6 +166,21 @@
 /* The package floats "Jump to latest" above its composer OVERLAY; here the controls are a flex
    sibling below the list, so the scrollport's own bottom edge is already the composer's top. */
 .admin-chat-dock .jini-chat-pane .jini-message-list__jump { bottom: 8px; }
+/* Owner 2026-10-22: the centred "Jump to latest" pill covered what they were reading. It is an
+   icon-only round button at the right edge instead; the label text stays in the DOM (font-size 0)
+   so it is still the button's accessible name. */
+.jini-chat-pane .jini-message-list__jump { justify-content: flex-end; padding-right: 12px; }
+.jini-chat-pane .jini-message-list__jump-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  font-size: 0;
+  background: #fff;
+  color: #6b7280;
+}
+.jini-chat-pane .jini-message-list__jump-btn svg { width: 16px; height: 16px; }
 
 .admin-chat-dock .jini-chat-pane .jini-message-list > :last-child {
   margin-bottom: 0;
