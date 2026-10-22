@@ -106,8 +106,9 @@ for (const mode of ['success', 'foreign', 'rollback', 'quarantine', 'approval'] 
     const discovery = await h.runtime.discoverPlugins();
     const approved = discovery.find(record => record.id === 'pin')?.manifest;
     assert.ok(approved);
-    // why: 1c97a499's consent gate refuses a re-seal that adds to the owner's recorded approval;
-    // the owner's enable (set-enabled.ts) records it first, so this direct enable does the same.
+    // why: Tovu b4ae8d8a4 refuses widened re-seal reloads beyond the owner's recorded approval;
+    // Jini 2bac9709 owns capability comparison and approval storage. The owner's enable
+    // (set-enabled.ts) records approval first, so this direct enable does the same.
     await h.source.recordApproval({ id: 'pin', capabilities: pluginCapabilitySet({ manifest: approved }) }, {});
     await setPluginEnabled({ deps: { clock, repo: h.repo, discovery,
       onEnabled: mode === 'foreign' ? async () => {} : h.runtime.onPluginEnabled,

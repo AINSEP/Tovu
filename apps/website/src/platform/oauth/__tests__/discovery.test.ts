@@ -258,7 +258,8 @@ test("discovery retains a device endpoint and refuses an unsafe advertised devic
   for (const deviceEndpoint of [`${origin}/device`, "https://169.254.169.254/device"]) {
     const fetchFn: typeof fetch = async (url) => new Response(JSON.stringify(
       String(url).includes("oauth-protected-resource")
-        // why: RFC 9728 §3.3 `resource` is required since Jini rebased discovery on openid-client (b0853b6d).
+        // why: Jini 03251d4b adopted upstream issuer/resource validation (packages/oauth/CHANGELOG.md);
+        // b0853b6d's initial migration still allowed a missing RFC 9728 `resource`.
         ? { resource: `${origin}/mcp`, authorization_servers: [origin] }
         : { issuer: origin, token_endpoint: `${origin}/token`, device_authorization_endpoint: deviceEndpoint },
     ));
