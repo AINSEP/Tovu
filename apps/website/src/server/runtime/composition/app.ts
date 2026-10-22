@@ -1583,7 +1583,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
     // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
     // shape carries (spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: ({ themeId, consentAudit } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) }),
+    createSiteApp: ({ themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) }),
     // 2026-08-16 — see `routes/types.ts`'s `resolveStorefrontProducts` doc (edge 2 of the
     // export<->server decoupling): a direct reference, same reasoning as `createSiteApp` above
     // (`resolveStorefrontProducts` is declared in `./routes/site/products`, already imported by

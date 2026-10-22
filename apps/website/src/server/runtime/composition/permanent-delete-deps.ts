@@ -184,7 +184,9 @@ async function prepareTrash(deps: Deps, toolId: PermanentDeleteToolId, id: strin
 export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
   return {
     workspaceId: deps.workspaceId, authorize: deps.authorize,
-    prepare: async (toolId, id, principalId) => {
+    // The trash ids return before the switch, which covers every other id; TypeScript cannot see
+    // that through `includes`, so it would add `undefined` to the result type.
+    prepare: (async (toolId, id, principalId) => {
       if (["trash_empty", "trash_purge_item", "identity_user_delete"].includes(toolId)) return prepareTrash(deps, toolId, id, principalId);
       if (id === null) throw notFound(toolId);
       const key = { workspaceId: deps.workspaceId, id };
@@ -245,6 +247,6 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",
             remove: async () => { await deleteSourceControlCredential({ repo: deps.sourceControlCredentialSetRepo }, key); return { removed: true, id }; } });
       }
-    },
+    }) as PermanentDeleteToolDeps["prepare"],
   };
 }
