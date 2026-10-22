@@ -74,8 +74,8 @@ test("createSeoDeps: static bindings, clock/transform receivers and public-acces
 test("createSeoDeps: liveness and url ports delegate to the scheduled-publish and routing owners", () => {
   const { deps } = makeDeps();
   const seo = createSeoDeps({ deps } as never, {});
-  const live = { status: "published", publishedAt: "2026-01-01T00:00:00.000Z", trashedAt: null, deletedAt: null };
-  const scheduled = { ...live, publishedAt: "2027-01-01T00:00:00.000Z" };
+  const live = { status: "published", publishAt: "2026-01-01T00:00:00.000Z", updatedAt: "2025-12-31T00:00:00.000Z", deletedAt: null };
+  const scheduled = { ...live, publishAt: "2027-01-01T00:00:00.000Z" };
   const nowIso = "2026-06-01T00:00:00.000Z";
 
   assert.equal(seo.liveness.isLiveAt({ post: live, nowIso } as never), true);
@@ -116,8 +116,8 @@ test("createSeoPostPort: every port method calls through the host repo with its 
   assert.equal(await port.saveIfVersion({ record: { id: "p" }, ifVersion: 3 } as never), true);
   await port.appendRevision({ stateJson: { id: "p" }, workspaceId: "w" } as never);
   assert.equal(port.extractPlainText({ html: "<p>Hello <b>there</b></p>" }).replace(/\s+/g, " ").trim(), "Hello there");
-  assert.equal(port.isTrashed({ post: { trashedAt: "2026-01-01T00:00:00.000Z" } } as never), true);
-  assert.equal(port.isTrashed({ post: { trashedAt: null } } as never), false);
+  assert.equal(port.isTrashed({ post: { deletedAt: "2026-01-01T00:00:00.000Z" } } as never), true);
+  assert.equal(port.isTrashed({ post: { deletedAt: null } } as never), false);
   assert.deepEqual(calls, [
     'repo:findById:{"workspaceId":"w","id":"p"}', 'repo:list:{"workspaceId":"w"}', "repo:transaction", "repo:saveIfVersion:3", "repo:appendRevision:p",
   ]);

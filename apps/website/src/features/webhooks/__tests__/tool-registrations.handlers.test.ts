@@ -5,7 +5,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
-import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { buildWebhooksRegistrations, contributeWebhooksTools, webhooksDerivedRisk, type IntegrationsToolDeps } from "../tool-registrations.js";
 
 /**
  * @file The non-delete webhooks tool handlers, called through their registrations against the
@@ -63,10 +63,17 @@ async function created(call: ReturnType<typeof makeHarness>["call"], topics: unk
   return result.subscription;
 }
 
-test("create: a non-array topics value becomes an empty topic list; an array is stringified", async () => {
+test("create: a non-array topics value is read as no topics (and refused as such); an array is stringified", async () => {
   const { call } = makeHarness();
-  assert.deepEqual((await created(call, "post.published")).topics, []);
+  await assert.rejects(created(call, "post.published"), /at least one topic is required/);
   assert.deepEqual((await created(call, ["post.published"])).topics, ["post.published"]);
+});
+
+test("contributeWebhooksTools contributes these registrations under the integrations domain with their risk", () => {
+  const contributor = contributeWebhooksTools();
+  assert.equal(contributor.build, buildWebhooksRegistrations);
+  assert.equal(contributor.risk, webhooksDerivedRisk);
+  assert.equal(webhooksDerivedRisk.get("webhooks_delete_subscription"), "deletes-durable-state");
 });
 
 test("list: each row summarises its most recent delivery by createdAt, whatever order the repo returns", async () => {
