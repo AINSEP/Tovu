@@ -355,4 +355,7 @@
   /* Same owner call for the extension-keeping name: show it whole, wrapped, not cut in the middle. */
   .media-card-title .jini-middle-truncate { display: inline; white-space: normal; }
   .media-card-title .jini-middle-truncate__head { overflow: visible; }
+  /* Undo the app-wide `pre` (styles.css) so the halves wrap; inline, the space at the cut survives
+     ordinary collapsing on its own. */
+  .media-card-title .jini-middle-truncate > span { white-space: normal; }
 }

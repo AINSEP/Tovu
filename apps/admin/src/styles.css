@@ -1393,6 +1393,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   --jini-scroll-jump-right: 16px;
   --jini-scroll-jump-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
+/* Dark: Jini paints the pair `--jini-bg-elevated` (#171717 here, the page's own fill) with a muted
+   glyph at 0.85 opacity, so the buttons all but vanished. One surface step up, the strong hairline
+   and the secondary text colour make them read as raised controls, as in light. */
+:root[data-theme="dark"] .jini-scroll-jump__btn {
+  background: var(--surface-3); border-color: var(--border-strong); color: var(--fg-2); opacity: 1;
+}
+/* `MiddleTruncate` (@jini-ai/ui): head and tail are separate flex items, so with `nowrap` a space
+   right at the cut is trimmed off the end of the head or the start of the tail —
+   "Shot 9.41.02 PM.png" rendered "Shot 9.41.02PM.png". `pre` keeps it; file names carry no
+   newlines or runs of spaces for it to expose. */
+.jini-middle-truncate__head, .jini-middle-truncate__tail { white-space: pre; }
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 /* The page's REAL width, as a named size container (2026-10-11, owner: "horrendous" with the side
    nav expanded and the dock open). Page layouts used to key their breakpoints on the VIEWPORT, but
@@ -5492,7 +5503,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
 /* Git backup: the one Import & Export card with its own flow, so it sits full-width under the grid
    (inside it, a full-row card would keep an empty fourth track beside the three link cards). */
-.import-export-card-wide { margin-top: var(--space-4); }
+/* `.page`'s own 24px gap already separates it from the grid; pulling back the difference leaves the
+   grid's 16px row gap, so the card reads as the grid's next row rather than a 40px-away section. */
+.import-export-card-wide { margin-top: calc(var(--space-4) - var(--space-6)); }
 .git-backup-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
 .git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -5912,6 +5925,12 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 :where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .media-providers-panel[data-theme="light"] {
   --jini-bg-panel: var(--surface);
   --jini-bg-elevated: var(--surface);
+}
+/* The panel's heading and each provider card's name are bare Jini `<h4>`/`<strong>` that rendered
+   16px/700 — a size above every other card title. Same 14px/600 as `.card-title` and Settings'
+   `.settings-ui-section h4`. */
+.media-providers-panel :is(.jini-section-head h4, .jini-media-provider-card-head > strong) {
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; line-height: 1.3;
 }
 .deployment-action-reason { margin: 0; font-size: var(--text-xs); color: var(--muted); max-width: 60ch; }
 

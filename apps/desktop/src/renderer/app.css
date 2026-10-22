@@ -517,7 +517,10 @@ button { font: inherit; color: inherit; }
   flex: none;
   height: 34px;
   max-width: 220px;
-  padding: 0 0.5rem 0 1.375rem;
+  /* Right padding matches the left (and the "All" tab's): the right edge slants in like the left,
+     so at 0.5rem the close button's hover circle ran into the slant and was clipped by the mask on
+     wider tabs (owner screenshot, 2026-10-22). */
+  padding: 0 1.375rem;
   background: var(--surface-2);
   color: var(--muted);
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 34' preserveAspectRatio='none'%3E%3Cpath d='M0 34 L10.86 5.6 Q13 0 19 0 L81 0 Q87 0 89.14 5.6 L100 34 Z' fill='black'/%3E%3C/svg%3E");

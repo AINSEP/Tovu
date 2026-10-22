@@ -118,17 +118,16 @@
   min-width: 0;
 }
 
-/* Same family as `.card-title` (`--font-display`, 700, -0.005em) so a section title on this screen
-   and a card title on the next read as the same tier, one step quieter: 1.05rem against 1.15rem,
-   because a title in its own column carries more weight from position than one inline above the
-   fields it names, and matching the card size made it compete with the 26.4px page title. */
+/* Exactly `.card-title`'s 14px/600 (styles.css), so a section title on this screen and a card title
+   on the next are the same tier. It was 1.05rem/700, one step under the old 1.15rem card tier; once
+   `.card-title` dropped to Settings' 14px/600 (owner, 2026-10-22: "it should all be the same
+   text") that left these the largest titles in the admin. */
 .jini-seo-section-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.35;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--fg);
   text-wrap: balance;
 }
@@ -259,15 +258,17 @@
    rendering LARGER than the section title above them — 18.72px DM Sans against `.seo-section-title`
    at 16.8px display, an inverted hierarchy that the boxes used to excuse by making each panel look
    like a separate screen. Same face as the rail titles, one step down (0.95rem), so the three tiers
-   on this tab now descend: page title 26.4px -> section 16.8px -> subsection 15.2px. */
+   on this tab now descend: page title 26.4px -> section 16.8px -> subsection 15.2px.
+   2026-10-22: the section title is now `.card-title`'s 14px/600, so 15.2px/700 here inverted the
+   order again. These panels are cards in all but border, so they take that same card-title tier;
+   the 13px/700 group legends inside them stay the step below. */
 .jini-seo-entry-panel > h3,
 .jini-seo-entry-head-bar > h3,
 .jini-seo-analyze-head > h3 {
   font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.35;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--fg);
 }
 
