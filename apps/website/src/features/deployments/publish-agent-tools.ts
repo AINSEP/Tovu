@@ -784,26 +784,7 @@ async function saveProposedCredential(required: {
   for (const field of credential.fields) {
     if (typeof values[field.name] === "string") connection[field.name] = values[field.name];
   }
-  const store = deps.vendorCredentialSetRepo;
-  // Since secrets_vault (9b20083b6) create/update write through `repo.vault`; dropping it here made
-  // every agent save fail with VaultError invalid-record. Its writes get the same abort guard.
-  const vault = store.vault && new Proxy(store.vault, { get(target, key) {
-    const value = Reflect.get(target, key);
-    if (typeof value !== "function") return value;
-    return (...args: unknown[]) => { if (key === "put" || key === "applyBatch") signal.throwIfAborted(); return value.apply(target, args); };
-  } });
-  // Registry reads, blank-secret preservation and sealing await; guard both existing write ports.
-  const repo: VendorCredentialSetRepoPort = {
-    ...(vault ? { vault } : {}),
-    insert: record => { signal.throwIfAborted(); return store.insert(record); },
-    update: record => { signal.throwIfAborted(); return store.update(record); },
-    findById: input => store.findById(input),
-    findDefaultByVendor: input => store.findDefaultByVendor(input),
-    listByVendor: input => store.listByVendor(input),
-    listByWorkspace: input => store.listByWorkspace(input),
-    delete: input => store.delete(input),
-    updateAccountLabel: input => store.updateAccountLabel(input),
-  };
+  const repo = abortGuardedCredentialRepo({ store: deps.vendorCredentialSetRepo, signal });
   const writeDeps: PublishCredentialWriteDeps = {
     repo,
     loadDeployTargets: deployTargetsLoader(deps),
@@ -820,6 +801,34 @@ async function saveProposedCredential(required: {
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
     : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null };
+}
+
+/**
+ * Wraps the credential repo so every persistence write (insert/update and the vault's put/applyBatch)
+ * first refuses an aborted signal; reads, deletes and non-function vault members pass straight through.
+ * Extracted from `saveProposedCredential` so the guard is testable against a hand-written repo.
+ * @complexity O(1) wiring; each call costs what the wrapped repo's call costs.
+ */
+export function abortGuardedCredentialRepo({ store, signal }: { store: VendorCredentialSetRepoPort; signal: AbortSignal }, _optional = {}): VendorCredentialSetRepoPort {
+  // Since secrets_vault (9b20083b6) create/update write through `repo.vault`; dropping it here made
+  // every agent save fail with VaultError invalid-record. Its writes get the same abort guard.
+  const vault = store.vault && new Proxy(store.vault, { get(target, key) {
+    const value = Reflect.get(target, key);
+    if (typeof value !== "function") return value;
+    return (...args: unknown[]) => { if (key === "put" || key === "applyBatch") signal.throwIfAborted(); return value.apply(target, args); };
+  } });
+  // Registry reads, blank-secret preservation and sealing await; guard both existing write ports.
+  return {
+    ...(vault ? { vault } : {}),
+    insert: record => { signal.throwIfAborted(); return store.insert(record); },
+    update: record => { signal.throwIfAborted(); return store.update(record); },
+    findById: input => store.findById(input),
+    findDefaultByVendor: input => store.findDefaultByVendor(input),
+    listByVendor: input => store.listByVendor(input),
+    listByWorkspace: input => store.listByWorkspace(input),
+    delete: input => store.delete(input),
+    updateAccountLabel: input => store.updateAccountLabel(input),
+  };
 }
 
 /**

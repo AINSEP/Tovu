@@ -81,6 +81,18 @@ export const deploymentsDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["deployment_set_dockerfile", "mutates-durable-state"],
 ]);
 
+/**
+ * Picks only the three fields `exportSiteBound` declares from an `ExportEngine` call, omitting an
+ * absent `clean`/`basePath` rather than forwarding it as an explicit `undefined` key. Never copies
+ * the engine options' `routeDeps` field (see `buildDeploymentsRegistrations`'s comment for why).
+ * Exported so the omission contract is testable directly: this module's own callers in
+ * `export-run.ts` always pass a boolean `clean`, but `ExportEngine` declares it optional.
+ * @complexity O(1).
+ */
+export function pickExportSiteOptions({ outputDir, clean, basePath }: { outputDir: string; clean?: boolean; basePath?: string }): { outputDir: string; clean?: boolean; basePath?: string } {
+  return { outputDir, ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) };
+}
+
 export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): ToolRegistration[] {
   // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
   // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
@@ -89,8 +101,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
   // catch the excess property on this non-literal argument). Picking only the three fields
   // `exportSiteBound` actually declares means the narrow deps here never travel at all — see
   // `DeploymentsToolDeps`'s own doc above and this file's regression test.
-  const engine: ExportEngine<DeploymentsToolDeps> = ({ outputDir, clean, basePath }) =>
-    routeDeps.exportSiteBound({ outputDir, ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
+  const engine: ExportEngine<DeploymentsToolDeps> = (options) => routeDeps.exportSiteBound(pickExportSiteOptions(options));
   const handlers: Record<string, ToolHandler> = {
     deployment_trigger_export: async (ctx) => {
       const candidate = { value: ctx.input };
