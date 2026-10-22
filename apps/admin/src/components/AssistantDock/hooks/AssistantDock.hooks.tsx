@@ -1130,6 +1130,9 @@ const AGENTS_STALE_TIME_MS = 15 * 60_000;
 const AGENTS_RETRY_TIME_MS = 30_000;
 const AGENTS_PENDING_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 
+/** The agents `CachedLoader` plus the accepted snapshot's refresh deadline. */
+export type AgentsLoader = CachedLoader<ChatPaneAgent[]> & { refreshAt(): number | undefined };
+
 // Keys are snapshots owned by the boot-scoped query cache, so deadlines cannot leak across boots.
 const agentsDeadlines = new WeakMap<ChatPaneAgent[], { expiresAt: number; pendingStep: number }>();
 
@@ -1154,7 +1157,7 @@ function rememberAgentsDeadline(
 }
 
 /** Writes a fresh inventory into the cache and everything that reads it. */
-function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
+export function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
   recordAgents(agents);
   loader.replace({ value: agents });
   rememberAgentsDeadline({ agents: loader.peek() ?? agents });
@@ -1183,11 +1186,18 @@ async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<
  * Structural sharing can publish a different array from the transport result. Overlapping readers
  * and late pre-Rescan GETs must not extend a newer snapshot's deadline. Exposes that same deadline
  * so pane retries can wait out a pending cooldown instead of spending their budget on cached reads. */
-function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> & { refreshAt(): number | undefined } {
+function useAgentsLoader(): AgentsLoader {
   const { queryScope } = useAdminBootScope();
   const key = useMemo(() => [...AGENTS_QUERY_KEY, queryScope], [queryScope]);
   const loader = useCachedLoader({ key, fetch: fetchAgents }, { staleTime: AGENTS_STALE_TIME_MS });
-  return useMemo(() => ({
+  return useMemo(() => createAgentsLoader(loader), [loader]);
+}
+
+/** {@link useAgentsLoader}'s deadline rules over any `CachedLoader` — the hook passes the provider's,
+ *  a test a plain object. `CachedLoader.peek` may answer `undefined` (its contract promises nothing
+ *  more), so each read of the accepted snapshot falls back to the array this call itself holds. */
+export function createAgentsLoader(loader: CachedLoader<ChatPaneAgent[]>): AgentsLoader {
+  return {
     peek: loader.peek,
     replace: loader.replace,
     refreshAt: () => {
@@ -1212,7 +1222,7 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> & { refreshAt(): numbe
         throw error;
       });
     },
-  }), [loader]);
+  };
 }
 
 /**
