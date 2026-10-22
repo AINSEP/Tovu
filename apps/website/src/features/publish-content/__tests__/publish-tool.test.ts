@@ -8,6 +8,7 @@ import { contributePublishContentTools } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity } from "../type-registry.js";
 import { fixture as pullFixture, context, tool, OWNER } from "./pull-tool-fixture.js";
 import type { PublishContentReport } from "../planner.js";
+import { planPublishToPeer } from "../push-plan.js";
 
 const ID = "publish_content_publish";
 function post(id: string, title: string): PackedEntity {
@@ -221,4 +222,26 @@ test("TW2 pins peer validation and empty selection without execution", async () 
   assert.deepEqual(result.published, []);
   assert.deepEqual(f.counts(), { confirms: 0, executes: 0 });
   assert.equal(result.skipped.length, 2);
+});
+
+test("planPublishToPeer labels an unnamed workspace by its id, honours a scope, and gives a URL only to routable posts", async () => {
+  const unroutable = { ...post("draft", "Draft"), state: { title: "Draft", status: "draft", deletedAt: null } };
+  const f = await fixture([post("one", "Kept Post"), post("out", "Out Of Scope"), unroutable]);
+  const sourceLabels: unknown[] = [];
+  const send = f.deps.publishContentPeerHttpClient!.send;
+  f.deps.publishContentPeerHttpClient = { send: async request => {
+    if (new URL(request.url).pathname.endsWith("/bundles")) sourceLabels.push(JSON.parse(String(request.body)).sourceLabel);
+    return send(request);
+  } };
+  const credential = { id: "live", label: "Live site", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: "private-key" };
+  const result = await planPublishToPeer({
+    deps: { ...f.deps, workspaceRepo: { findById: async () => null }, publishContentDeps: { workspaceId: "local", clock: f.deps.clock, idGen: f.deps.idGen, ports: {} } },
+    peer: { credential, httpClient: f.deps.publishContentPeerHttpClient },
+    principalId: OWNER,
+  }, { scope: { entityKeys: ["post:one", "post:draft"] } });
+  assert.deepEqual(sourceLabels, [f.deps.workspaceId]);
+  assert.deepEqual(f.staged.at(-1)?.map(entity => entity.id), ["one", "draft"]);
+  assert.deepEqual(Object.keys(result.publicUrls), ["post:one"]);
+  assert.deepEqual(result.itemNames["post:draft"], ["Draft"]);
+  assert.equal(result.entityCount, 2);
 });
