@@ -135,3 +135,20 @@ test("widget-area: a placement naming a widget the destination lacks is blocked 
   assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: "widget_area" }), []);
   assert.deepEqual(await dst.ports.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }), [], "a blocked apply must leave no entries of any type");
 });
+
+test("widget: a contact-form widget's form reference travels as the form's slug and lands as the destination form's id", async () => {
+  const { src, dst, a } = await sites();
+  const form = (id: string) => ({ id, workspaceId: WORKSPACE_ID, name: "Contact", slug: "contact", fields: [], notify: { enabled: false, recipients: [] }, status: "active",
+    createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z", version: 1 }) as unknown as Parameters<InMemoryFormDefinitionRepo["create"]>[0];
+  await src.ports.forms.create(form("form-src"));
+  await dst.ports.forms.create(form("form-dst"));
+  const row = await src.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id });
+  assert.ok(row);
+  const payload = (config: Record<string, unknown>) => ({ ext: { widget: { payload: JSON.stringify({ widgetType: "contact-form", config, status: "active" }) } } });
+  await src.ports.entries.save({ ...row, fieldsJson: payload({ formDefinitionId: "form-src" }) });
+
+  const packed = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id);
+  assert.match(JSON.stringify(packed?.state), /"formDefinitionId":"contact"/, "the packed reference is the portable slug");
+  await roundTrip(src.site, dst.site);
+  assert.match(JSON.stringify((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.fieldsJson), /\\"formDefinitionId\\":\\"form-dst\\"/);
+});
