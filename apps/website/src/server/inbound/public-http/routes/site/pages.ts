@@ -2207,7 +2207,7 @@ export async function handlePostNotFoundOnSlugRoute(
   theme: DiscoveredTheme | null,
   staticMenus: StaticMenuMap | undefined
 ): Promise<void> {
-  if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
+  if (await tryRedirectPhase("post_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
 
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
   // the bare fallback below — E4 (D2, 2026-09-23) runs it through the SAME
@@ -2685,8 +2685,16 @@ const listingBatchRequests = new WeakMap<Request, ListingBatchRequest>();
 /** A `.json` batch request's page, recorded by the post-previews resolver for that request's key. */
 const listingJsonPages = new WeakMap<ListingBatchRequest, ListingJsonPage<ListingJsonItem>>();
 
-/** Numbered listing page requests by request, set by the `/page/<n>` rewrite in {@link registerSiteRoutes}. */
-const listingPageRequests = new WeakMap<Request, ListingPageRequest>();
+/** Numbered listing page requests by request, set by the `/page/<n>` rewrite in {@link registerSiteRoutes}.
+ *  `requestPath` is the path as requested, before the rewrite pointed `req.url` at its page. */
+const listingPageRequests = new WeakMap<Request, ListingPageRequest & { requestPath: string }>();
+
+/** The path redirect rules are matched against: a `/page/<n>` request's own URL, never the page its
+ *  rewrite points at (A-1, 2026-10-22). Matching the rewritten path made a rule on `/old/page/3` (a
+ *  WordPress import's numbered archive) never fire, and a rule on `/old` catch every `/old/page/<n>`. */
+function redirectLookupPath({ req }: { req: Request }, _optional: Record<string, never> = {}): string {
+  return listingPageRequests.get(req)?.requestPath ?? req.path;
+}
 
 /** The page behind a batch URL has no see-more listing with that key, or the page behind a
  *  `/page/<n>` URL has no paged listing reaching page `n`: answered as a 404. */
@@ -2717,9 +2725,20 @@ function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<
   return { ...deps, listingBatch, listingPage, commentsCursor };
 }
 
-/** A batch request whose page has no such listing: restore the batch URL and fall through to the 404. */
-function listingBatchNotFound(req: Request, next: NextFunction): void {
+/** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.
+ *  A numbered page first consults its own not-found redirect rules, which the nested-path redirect
+ *  fallback never saw because the rewrite had already claimed the request (A-1, 2026-10-22); a
+ *  failing lookup goes to Express's error handling, as that fallback's does. */
+async function listingBatchNotFound({ req, res, next, workspaceId }: {
+  req: Request; res: Response; next: NextFunction; workspaceId: string;
+}, _optional: Record<string, never> = {}): Promise<void> {
+  const numberedPage = listingPageRequests.has(req);
   req.url = req.originalUrl;
+  try {
+    if (numberedPage && (await tryRedirectPhase("post_content", req.path, workspaceId, res))) return;
+  } catch (err) {
+    return next(err);
+  }
   next();
 }
 
@@ -2741,7 +2760,7 @@ async function sendPublicPage({ req, res, deps, html, perVisitor }: {
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,
  *  or the theme's home route). Errors propagate to the route's catch. */
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
-  if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
+  if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
 
   const memberAccessResolver = createMemberAccessResolver(deps);
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
@@ -2846,7 +2865,7 @@ async function handleSlugRouteError({ err, req, res, next, deps, theme, staticMe
   err: unknown; req: Request; res: Response; next: NextFunction; deps: SiteRequestDeps;
   theme: DiscoveredTheme | null; staticMenus: StaticMenuMap | undefined; slug: string;
 }): Promise<void> {
-  if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound(req, next);
+  if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound({ req, res, next, workspaceId: deps.workspaceId });
   // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
   // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
   if (err instanceof PostNotFoundError) {
@@ -2904,7 +2923,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
   app.get(/\/page\/[^/]+\/?$/, (req, _res, next) => {
     const listingPage = parseListingPagePath({ path: req.path });
     if (listingPage === undefined) return next();
-    listingPageRequests.set(req, listingPage);
+    listingPageRequests.set(req, { ...listingPage, requestPath: req.path });
     rewriteToListingPage({ req, pagePath: listingPage.pagePath });
     next();
   });
@@ -2914,7 +2933,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     try {
       await serveHomePage({ req, res, deps });
     } catch (err) {
-      if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound(req, next);
+      if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound({ req, res, next, workspaceId: deps.workspaceId });
       reportSiteRenderFault("GET / failed", err);
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -2941,7 +2960,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     let theme: DiscoveredTheme | null = null;
     let staticMenus: StaticMenuMap | undefined;
     try {
-      if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
+      if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
 
       const memberAccessResolver = createMemberAccessResolver(deps);
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([

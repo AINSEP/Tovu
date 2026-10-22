@@ -5,10 +5,14 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
+import express, { type NextFunction, type Request, type Response } from "express";
+
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
+import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { registerSiteRoutes } from "../pages.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 
@@ -129,4 +133,77 @@ test("GET /news/page/2: a Page rendered through a template carrying a paged list
   assert.equal(res.status, 200);
   assert.equal(cardCount(html), 6);
   assert.match(html, /rel="prev" href="\/news"/);
+});
+
+// --- redirect rules see the numbered page's own URL (A-1, 2026-10-22) ----------------------------
+// The `/page/<n>` rewrite points the request at its parent page; redirect rules must still be
+// matched against the URL the visitor asked for, never the parent's.
+
+/** Registers a `phase` redirect rule for exactly `from`, revoked when the test ends. */
+function redirectRule(t: TestContext, phase: "pre_content" | "post_content", from: string, location: string): void {
+  t.after(registerResolvePhase({ phase, resolver: async (path) => (path === from ? { kind: "redirect", location, statusCode: 301 } : null) }));
+}
+
+async function redirectOf(url: string): Promise<{ status: number; location: string | null }> {
+  const res = await fetch(url, { redirect: "manual" });
+  await res.arrayBuffer();
+  return { status: res.status, location: res.headers.get("location") };
+}
+
+test("GET /old-slug/page/3: a redirect rule on the numbered URL fires when its parent page does not exist", async (t) => {
+  const baseUrl = await boot(t, 30);
+  redirectRule(t, "post_content", "/old-slug/page/3", "/blog/page/2");
+
+  assert.deepEqual(await redirectOf(`${baseUrl}/old-slug/page/3`), { status: 301, location: "/blog/page/2" });
+});
+
+test("GET /blog/page/3: a redirect rule on a numbered page past the last fires instead of the 404", async (t) => {
+  const baseUrl = await boot(t, 30);
+  redirectRule(t, "post_content", "/blog/page/3", "/blog");
+
+  assert.deepEqual(await redirectOf(`${baseUrl}/blog/page/3`), { status: 301, location: "/blog" });
+});
+
+test("GET /blog/page/2: an override rule on the numbered URL fires; one on /blog does not catch /blog/page/2", async (t) => {
+  const baseUrl = await boot(t, 30);
+  redirectRule(t, "pre_content", "/blog/page/2", "/archive");
+  redirectRule(t, "pre_content", "/blog", "/elsewhere");
+
+  assert.deepEqual(await redirectOf(`${baseUrl}/blog/page/2`), { status: 301, location: "/archive" });
+  assert.deepEqual(await redirectOf(`${baseUrl}/blog`), { status: 301, location: "/elsewhere" });
+});
+
+test("GET /about-old/page/2: a not-found rule on the missing parent does not catch its numbered pages", async (t) => {
+  const baseUrl = await boot(t, 30);
+  redirectRule(t, "post_content", "/about-old", "/about");
+
+  assert.deepEqual(await redirectOf(`${baseUrl}/about-old/page/2`), { status: 404, location: null });
+  assert.deepEqual(await redirectOf(`${baseUrl}/about-old`), { status: 301, location: "/about" });
+});
+
+test("GET /page/2: an override rule on / does not catch the home page's numbered pages", async (t) => {
+  const baseUrl = await boot(t, 25, { index: `<html><body>${PAGED}</body></html>` });
+  redirectRule(t, "pre_content", "/", "/welcome");
+
+  assert.deepEqual(await redirectOf(`${baseUrl}/page/2`), { status: 200, location: null });
+  assert.deepEqual(await redirectOf(`${baseUrl}/`), { status: 301, location: "/welcome" });
+});
+
+test("GET /about/page/2: a redirect lookup that throws on a numbered page with no listing is handed to Express's error handling", async (t) => {
+  const failure = new Error("redirect phase down");
+  const seen: unknown[] = [];
+  const app = express();
+  registerSiteRoutes(app, { ...createRouteDeps(), themes: [theme({})], postRepo: new InMemoryPostRepo(posts(30)) });
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    seen.push(err);
+    res.status(500).send("error handler");
+  });
+  const baseUrl = await startTestServer(app, t);
+  t.after(registerResolvePhase({ phase: "post_content", resolver: async () => { throw failure; } }));
+
+  const res = await fetch(`${baseUrl}/about/page/2`);
+
+  assert.equal(res.status, 500);
+  assert.equal(await res.text(), "error handler");
+  assert.deepEqual(seen, [failure]);
 });
