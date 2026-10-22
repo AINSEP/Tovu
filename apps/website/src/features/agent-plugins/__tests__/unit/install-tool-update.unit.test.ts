@@ -7,7 +7,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { ToolInputError } from "@jini-ai/core";
+import { ToolInputError, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
+import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { approvalClassAsks } from "../../../../contracts/headless/assistant-tool-approval-policy.js";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -23,7 +26,9 @@ import { agentPluginActivations } from "../../activation-effects.js";
  * @file `agent_plugins_update` — the assistant's explicit Agent Plugin update. It reads the
  * candidate like the install tool (zip path, attachment or folder) and goes through the same
  * `installUploadedAgentPlugin({ update })` transaction as the admin Update button, with the host's
- * settings-snapshot owner and MCP effects. Approval matches `agent_plugins_install`.
+ * settings-snapshot owner and MCP effects. Unlike `agent_plugins_install` (which always lands OFF
+ * and needs the always-ask `plugins_set_enabled`), an update keeps an enabled plugin enabled, so it
+ * asks a human every time: otherwise an assistant could make an unverified package live alone.
  */
 
 const WORKSPACE = "workspace-local";
@@ -72,7 +77,7 @@ async function folderWithoutManifest(dir: string): Promise<string> {
   return folder;
 }
 
-test("agent_plugins_update: catalog, risk and approval match the install tool", () => {
+test("agent_plugins_update: catalog and risk match the install tool; approval always asks", () => {
   const update = catalog.find((entry) => entry.name === AGENT_PLUGINS_UPDATE_TOOL_ID);
   assert.ok(update);
   assert.equal(update.authorization?.permission, "admin.plugins.enable");
@@ -80,7 +85,24 @@ test("agent_plugins_update: catalog, risk and approval match the install tool", 
   assert.deepEqual((update.inputSchema as { required: string[] }).required, ["source", "pluginId", "expectedOldDigest"]);
   assert.match(update.description, /plugins_list/);
   assert.equal(derivedRisk.get(AGENT_PLUGINS_UPDATE_TOOL_ID), "mutates-durable-state");
-  assert.deepEqual(toolMetadata.agent_plugins_update.approval, toolMetadata.agent_plugins_install.approval);
+  assert.deepEqual(toolMetadata.agent_plugins_update.approval, { class: "escalation", confirmation: "policy" });
+  assert.equal(approvalClassAsks(toolMetadata.agent_plugins_update.approval), true);
+});
+
+test("agent_plugins_update: without a human confirmation an enabled plugin is not updated", async () => {
+  await withInstalled(async ({ dir, layout, oldDigest }) => {
+    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: true, actor: "owner" });
+    const zip = path.join(dir, "notes-2.0.0.zip");
+    await writeFile(zip, await packageZip("2.0.0"));
+    const registry = createToolRegistry({});
+    registry.register(applyToolApprovalPolicy({ registration: updateTool({ agentPluginLayout: layout, ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) }), surfaces: {} as never }));
+    const result = await createToolExecutor({ registry }).execute({ toolId: AGENT_PLUGINS_UPDATE_TOOL_ID, principal: { id: "owner" }, run: { id: "run" },
+      input: { source: { kind: "zip", path: zip }, pluginId: PLUGIN, expectedOldDigest: oldDigest } });
+    assert.equal(result.status, "failed");
+    const after = await installUploadedAgentPlugin({ archive: await packageZip("1.0.0"), expectedSha256: oldDigest, workspaceId: WORKSPACE, actor: "owner" }, { layout });
+    assert.equal(after.alreadyInstalled, true, "the installed bytes are still the 1.0.0 package");
+  });
 });
 
 test("agent_plugins_update: a newer zip updates the plugin, keeps it enabled, and snapshots settings through the host owner", async () => {

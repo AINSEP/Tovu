@@ -16,9 +16,12 @@ export const toolMetadata = {
   "agent_plugin_write_note": {
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  // Always asks: an update keeps an enabled plugin enabled, so without a click an assistant (or a
+  // prompt injection) could make a new unverified local/zip package live. Install lands OFF and
+  // enabling goes through plugins_set_enabled's own escalation, so install stays direct.
   "agent_plugins_update": {
     search: { keywords: "agent plugin update upgrade replace zip folder version digest" },
-    approval: { class: 'edit', confirmation: 'direct' },
+    approval: { class: 'escalation', confirmation: 'policy' },
   },
   "agent_plugins_install": {
     search: {

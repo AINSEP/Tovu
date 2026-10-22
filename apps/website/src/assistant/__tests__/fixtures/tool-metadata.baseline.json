@@ -2151,8 +2151,8 @@
       "confirmation": "direct"
     },
     "agent_plugins_update": {
-      "class": "edit",
-      "confirmation": "direct"
+      "class": "escalation",
+      "confirmation": "policy"
     },
     "analytics_list_recent_hits": {
       "class": "read",
@@ -3439,6 +3439,7 @@
     "newsletter_schedule_campaign",
     "newsletter_send_campaign",
     "plugins_set_enabled",
+    "agent_plugins_update",
     "plugins_uninstall",
     "publish_content_execute_pull",
     "publish_content_publish",
@@ -3523,6 +3524,7 @@
     "newsletter_schedule_campaign",
     "newsletter_send_campaign",
     "plugins_set_enabled",
+    "agent_plugins_update",
     "plugins_uninstall",
     "publish_content_execute_pull",
     "publish_content_publish",
@@ -3587,6 +3589,7 @@
     "newsletter_schedule_campaign",
     "newsletter_send_campaign",
     "plugins_set_enabled",
+    "agent_plugins_update",
     "plugins_uninstall",
     "publish_content_execute_pull",
     "publish_content_publish",
