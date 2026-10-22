@@ -911,6 +911,23 @@ describe("VercelDeployTarget — edge answers (bodies that cannot be read, missi
     expect(result.url).toBe("https://demo-abc123.vercel.app");
   });
 
+  it("a login-check HEAD that throws leaves the reachability result as it was", async () => {
+    const heads: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST") return jsonResponse(200, { readyState: "READY", url: "demo.vercel.app" });
+      if (init?.method === "HEAD") {
+        heads.push(url);
+        // The kit's own probe asks for the root path ("/"); the login check asks for the bare URL.
+        if (!url.endsWith("/")) throw new TypeError("fetch failed");
+      }
+      return new Response("", { status: 200 });
+    }));
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [], projectName: "demo" });
+    expect(heads).toEqual(["https://demo.vercel.app/", "https://demo.vercel.app"]);
+    expect(result.status).toBe("ready");
+  });
+
   it("when no status poll is ever readable, the URL candidates come from the create answer alone", async () => {
     let polls = 0;
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
