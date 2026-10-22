@@ -54,7 +54,7 @@ delete process.env.TOVU_START_AUTO_PORT;
 const useMemory = process.env.TOVU_DB === "memory";
 // LAN-bind plan (2026-09-23): `undefined` is this entry point's OWN existing default (Node's own
 // all-interfaces bind) — unchanged, per the plan's Decision (a container has to listen on every
-// interface; Docker, compose, Fly and Render all run this file). `TOVU_HOST` now lets an operator
+// interface; Docker, compose and every container host run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
 const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);

@@ -48,7 +48,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Until this fix, a generated file could never help production: the boot gate checked only the
  * env var, the default path resolved under the container's ephemeral rootfs (wiped every
  * redeploy), and `siteAssistantSecretKeyring` refused to read a file at all. All three are fixed:
- * `defaultSiteKeyFilePath()` is mode-aware (the durable Fly-volume-backed `<cwd>/sites/.tovu/
+ * `defaultSiteKeyFilePath()` is mode-aware (the durable data-volume-backed `<cwd>/sites/.tovu/
  * integrations-site-key.hex` in production), `hasMissingSiteKey`
  * (`runtime/boot/boot-readiness-gate.ts`) now accepts a valid file too, and
  * `siteAssistantSecretKeyring` (`composition/deps.ts`) now reads (but never auto-generates) one.
@@ -64,10 +64,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  *
  * ## The accepted security tradeoff — read this before "fixing" the asymmetry away
  *
- * A generated key file now lives on the SAME Fly volume as `content.db`. Someone who obtains a
+ * A generated key file now lives on the SAME data volume as `content.db`. Someone who obtains a
  * volume snapshot/backup gets both the ciphertext and the key that opens it — the "leaked backup
  * alone is not enough" defense ADR-058 §9 described no longer holds once a file exists. This is an
- * OWNER-APPROVED, DOCUMENTED cost of making the install self-contained (no `fly secrets set`
+ * OWNER-APPROVED, DOCUMENTED cost of making the install self-contained (no host `secrets set`
  * required), not an oversight. See `composition/deps.ts`'s `siteAssistantSecretKeyring`
  * construction comment and `ADS-memory/reports/2026-09-09-security-site-key.md` for the full
  * writeup.

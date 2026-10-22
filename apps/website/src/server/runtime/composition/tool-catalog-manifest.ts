@@ -255,7 +255,7 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `contributeCustomCredentialsTools()` (2026-08-31) is a NEW domain, same category as
  * `site-inspection`/`site-evidence` above rather than a member of the 25-domain rollout: it closes
  * the "the assistant can save a custom provider credential — Access Tokens page's 'Add custom
- * provider' rows, e.g. name.com, fly.io — but can never USE one" gap with two tools,
+ * provider' rows, e.g. name.com, a hosting provider — but can never USE one" gap with two tools,
  * `custom_credential_verify` and `custom_credential_make_request` (GET-only in this slice — see
  * `features/custom-credentials/credentialed-request.ts`'s own header for why write methods are a
  * disclosed omission). Adds no new module edge for the identical reason `site-evidence` above does
@@ -454,7 +454,7 @@ export function installFirstPartyToolContributors(
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
   const publicBrowserPool = createRenderBrowserPool({
     launch: async () => (await playwrightModuleLoader.load({ moduleName: "playwright" })).chromium.launch({
-      ...PUBLIC_RENDER_LAUNCH_OPTIONS, chromiumSandbox: false, // Fly composition explicitly permits unsandboxed Chromium.
+      ...PUBLIC_RENDER_LAUNCH_OPTIONS, chromiumSandbox: false, // The production container composition explicitly permits unsandboxed Chromium.
     }),
   }, { maxConcurrent: 2 });
   const renderedWebClient = createHttpClient({ ...WEB_FETCH_EGRESS_POLICY, maxRedirects: 0 }, { observability });

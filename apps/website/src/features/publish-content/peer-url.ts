@@ -6,7 +6,7 @@ import { hasForbiddenRawUrlCharacter } from "@jini-ai/http-kit/verified-origin";
  *
  * `baseUrl` validation for a `publish_content_peers` row — "a Tovu at a URL", which is the whole of
  * a peer's identity (plan §0b: never a platform identifier such as an app name, project id or
- * region, because those are Fly/Railway/Render-shaped and this feature must work on all of them and
+ * region, because those are shaped by one host and this feature must work on all of them and
  * on a bare VPS).
  *
  * Deliberately modelled on `features/origin/configured-origin.ts`'s refusal pipeline, and reusing
@@ -20,7 +20,7 @@ import { hasForbiddenRawUrlCharacter } from "@jini-ai/http-kit/verified-origin";
  * opposite kind of thing — it is a host this process dials OUT to, and a legitimate peer may well
  * sit on a private network: Railway and Render both give services internal DNS names, AWS puts them
  * in a VPC, and a bare VPS may run two Tovus behind one firewall. Refusing private addresses here
- * would make this feature Fly-shaped (public-internet-only) in exactly the way plan §0b forbids.
+ * would make this feature host-shaped (public-internet-only) in exactly the way plan §0b forbids.
  *
  * The private-address decision therefore belongs to the ONE place that already owns it — ADR-038's
  * `EgressPolicy.denyPrivateAddresses` plus its named `devHostAllowlist` capability, enforced in

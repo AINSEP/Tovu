@@ -62,7 +62,7 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  *
  * Page renamed "Security" -> "Secrets" the same day (owner naming decision, not this agent's
  * call): the most accurate label for what's actually here — access tokens, the site key,
- * credentials — matching what Fly/GitHub already call the same thing. The rename is cosmetic
+ * credentials — matching what hosting and git providers already call the same thing. The rename is cosmetic
  * (nav label + `<h1>` only, per `translateAdminNavLabel`'s "copy string is its own i18n key"
  * convention — `panels.tsx`'s nav entry and this file's own `t(locale, "Secrets")` calls are the
  * only two places the old "Security" literal lived); the module/file names, the route id

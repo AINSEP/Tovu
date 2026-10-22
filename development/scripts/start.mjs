@@ -154,7 +154,7 @@ export function startQuietEnvDefaults(env) {
  * Resolves the `TOVU_HOST` value `main()` writes back to `process.env` before
  * importing `dist/src/index.js` in-process. `index.ts`'s own default (`resolveBindHost` called with
  * `process.env.TOVU_HOST`, falling back to `undefined`) is Node's all-interfaces bind — correct for
- * `index.ts`'s OTHER caller, the container entrypoint (Docker/compose/Fly/Render all bind every
+ * `index.ts`'s OTHER caller, the container entrypoint (Docker/compose/container hosts all bind every
  * interface on purpose), but wrong for a developer running plain `npm start`: without this, a
  * TOVU_HOST-less `npm start` would boot the server reachable from the whole LAN by default. `npm
  * start` narrows that default to loopback-only unless the operator explicitly set `TOVU_HOST`.

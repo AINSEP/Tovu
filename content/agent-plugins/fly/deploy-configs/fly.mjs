@@ -9,6 +9,11 @@
  * large (~30 codes) and had no authoritative source to enumerate against without risking rejecting a
  * real one. Only presence is checked.
  *
+ * Every quoted sink (`app = "${...}"`, `source = "${...}"`, `primary_region = "${...}"`) goes through
+ * the host kit's `assertNoConfigInjection` first: `--region 'iad"\nprimary_region_evil="x'` once closed
+ * the quoted value early and emitted a real extra `primary_region_evil` key into `fly.toml` (moved
+ * here from core's `deploy-config.ts` doc; regression pinned in `__tests__/fly.test.mjs`).
+ *
  * Moved from core (`features/deployments/deploy-config-fly.ts`) byte-for-byte in output; plain JS by
  * owner decision (2026-09-29). The host passes the kit (`DeployConfigKit` in core's
  * `deploy-config.ts`): `assertNoConfigInjection`, `validationError(message)`, `migrationsNote`.

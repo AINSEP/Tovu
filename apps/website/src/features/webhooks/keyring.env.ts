@@ -30,7 +30,7 @@ import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, 
  * anonymous newsletter request must never choose the key the credential store adopts.
  *
  * Local per-site keys stay outside the portable `sites/<name>/` folder (ADR-012). Production
- * files live at `<cwd>/sites/.tovu/` on the durable Fly volume rather than the ephemeral rootfs
+ * files live at `<cwd>/sites/.tovu/` on the durable data volume rather than the ephemeral rootfs
  * `homedir()` used to select (the 2026-09-09 durability bug, ddfa5e07). A sibling of each site
  * folder keeps individual site exports portable. Newsletter signing remains env-only in
  * production; credential storage may read an existing volume file. That accepted tradeoff means
@@ -400,7 +400,7 @@ export interface SiteKeyReveal extends SiteKeyStatus {
  * system/site-key.ts`'s `POST .../reveal`.
  *
  * Reads whichever source is currently active (env or file, same precedence as `resolveSiteKey`),
- * so an admin can confirm the value in this UI matches what they set in `fly secrets`/their shell,
+ * so an admin can confirm the value in this UI matches what they set in their host's secrets/their shell,
  * not only the file-backed case.
  */
 export function revealSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyReveal {

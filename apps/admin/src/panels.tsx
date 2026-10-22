@@ -951,7 +951,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // the owner asked for this page at `/admin/access-tokens` specifically, not `/admin/security`.
     // `nav.label` below is "Secrets" (renamed from "Security" 2026-09-09, owner naming decision:
     // the most accurate label for what's actually on the page — access tokens, the site/site key,
-    // credentials — and matches what Fly/GitHub already call the same thing) — the nav LABEL and
+    // credentials — and matches what hosting and git providers already call the same thing) — the nav LABEL and
     // the route id are independent, same as every other panel here (e.g. `id: "themes"` labels
     // "Themes" while `id: "providers"` labels "Integrations").
     id: "access-tokens",

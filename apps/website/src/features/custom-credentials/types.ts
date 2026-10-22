@@ -46,8 +46,8 @@ export interface CustomCredentialSetRecord {
   readonly label: string;
   readonly category: CustomCredentialCategoryId;
   readonly baseUrl: string;
-  /** Extra allowed origins beyond `baseUrl` (e.g. fly.io needs both `api.fly.io` and
-   *  `api.machines.dev`) — see `db/schema.sqlite.ts`'s `customCredentialSets.additionalHostsJson` doc.
+  /** Extra allowed origins beyond `baseUrl` (e.g. a provider whose API spans two
+   *  hosts for one account) — see `db/schema.sqlite.ts`'s `customCredentialSets.additionalHostsJson` doc.
    *  Each entry is a normalized ORIGIN (`https://host[:port]`), never a full URL with a path.
    *  Empty, never `null` — `store.ts`'s read path normalizes the DB's nullable column to `[]`. */
   readonly additionalHosts: readonly string[];

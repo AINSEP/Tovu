@@ -60,7 +60,7 @@ export const FS_FILES_DENYLIST = {
    *
    * `.tovu` (2026-09-24) — the install-wide site key's own directory. `keyring.env.ts`'s
    * `siteKeySources` resolves to `<cwd>/sites/.tovu/site-key.hex` in production
-   * (a SIBLING of every `sites/<name>/` folder, on the durable Fly volume) and to
+   * (a SIBLING of every `sites/<name>/` folder, on the durable data volume) and to
    * `~/.tovu/site-keys/<siteKeyId>.hex` in local/dev (reachable through the operator-set `custom`
    * root, `layout.ts`'s home-directory case). `TOVU_SITE_KEY` is the one secret the
    * "site key" admin UI, webhook/newsletter signing secrets, and site-key

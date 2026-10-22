@@ -47,8 +47,8 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  *
  * - `maxFiles`: the confirmation dialog this tool opens (`write-files-confirmation-ui.ts`) lists
  *   every path by name so a human can actually read and approve each one before anything is written;
- *   past a few dozen rows that review stops being real. The one caller that exists today (the
- *   `fly` plugin's skill) writes exactly 2 files. 25 is generous headroom above that for any plausible
+ *   past a few dozen rows that review stops being real. The one caller that exists today (a
+ *   bundled hosting plugin's skill) writes exactly 2 files. 25 is generous headroom above that for any plausible
  *   future caller while keeping the dialog reviewable.
  * - `maxPathLength`: far beyond any real repository path, while still bounding one hostile field.
  * - `maxFileBytes`: every known caller writes small hand-authored or LLM-authored text config

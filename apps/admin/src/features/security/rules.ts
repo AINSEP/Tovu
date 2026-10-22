@@ -740,8 +740,8 @@ export interface CustomCredentialFormFields {
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
-  /** Raw textarea input for extra allowed hosts beyond `baseUrl` (e.g. fly.io needs both
-   *  `api.fly.io` and `api.machines.dev`) — one URL per line or comma-separated, operator's
+  /** Raw textarea input for extra allowed hosts beyond `baseUrl` (e.g. a provider whose
+   *  API spans two hosts for one account) — one URL per line or comma-separated, operator's
    *  choice; see {@link parseAdditionalHostsInput}. Always optional: a blank value means "no
    *  extra hosts", matching `src/features/custom-credentials/types.ts`'s server-side
    *  `allowedOriginsFor`/`validateAdditionalHosts` omitted-is-not-an-error contract. */

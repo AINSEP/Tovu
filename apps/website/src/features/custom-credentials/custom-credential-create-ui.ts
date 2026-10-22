@@ -106,7 +106,7 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
         // (`apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts`'s `emptyCustomAddForm`),
         // which has always defaulted this field the same way. Without this, `renderSelect` (required +
         // no `value`) renders a genuinely blank, blocking required select — a human with no obvious
-        // category for e.g. a fly.io token had nothing sensible to pick. Still freely changeable before
+        // category for e.g. a hosting provider's deploy token had nothing sensible to pick. Still freely changeable before
         // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
         value: prefill.category ?? "general",
       },

@@ -11,7 +11,7 @@ import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, D
 
 /**
  * @file Generic host-secrets verbs (owner 2026-10-05: "a tool that sets and unsets secrets ... not just
- * for Fly ... it should work for really any vendor"). Vendors are adapters exported by the trusted
+ * for one host ... it should work for really any vendor"). Vendors are adapters exported by the trusted
  * deploy plugin's deploy-ops modules (`listSecrets`/`setSecret`/`unsetSecret`, optional `readSecret`);
  * this file owns everything vendor-neutral: the value source, the compare-before-write, the human
  * confirmation before an overwrite or removal, and a result that never carries a secret value.
@@ -186,7 +186,7 @@ function describeSource({ source }: { source: SecretValueSource }, _optional = {
  * @returns changed, comparison, the value's fingerprint, when it applies, and an optional vendor version. Never the value.
  * @throws {ToolInputError} Invalid names, unusable sources, secrets-less platforms, credential/host/auth failures, or an overwrite with no confirm channel.
  * @complexity Time: O(credentials + secrets + value length) plus at most four adapter requests. Space: O(secrets).
- * @example await runSetSecret({ deps, input: { platform: "fly", target: "my-app", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm });
+ * @example await runSetSecret({ deps, input: { platform: "my-host", target: "my-app", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm });
  */
 export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: SetSecretInput }, optional: { signal?: AbortSignal; confirm?: SecretConfirm; typedValue?: unknown } = {}): Promise<SetSecretResult> {
   const { deps, input } = required; const { signal, confirm } = optional;
@@ -223,7 +223,7 @@ function requireSecretSnapshot({ secrets, name }: { secrets: DeployOpsSecretInfo
  * @returns removed, when the removal applies, and an optional vendor version.
  * @throws {ToolInputError} Invalid names, secrets-less platforms, credential/host/auth failures, or no confirm channel.
  * @complexity Time and space: O(credentials + secrets) plus at most three adapter requests.
- * @example await runUnsetSecret({ deps, input: { platform: "fly", target: "my-app", name: "OLD_KEY" } }, { confirm });
+ * @example await runUnsetSecret({ deps, input: { platform: "my-host", target: "my-app", name: "OLD_KEY" } }, { confirm });
  */
 export async function runUnsetSecret(required: { deps: DeployOpsToolDeps; input: UnsetSecretInput }, optional: { signal?: AbortSignal; confirm?: SecretConfirm } = {}): Promise<UnsetSecretResult> {
   const { deps, input } = required; const { signal, confirm } = optional;

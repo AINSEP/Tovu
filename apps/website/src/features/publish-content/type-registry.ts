@@ -141,7 +141,7 @@ export interface PublishContentPorts {
     readonly themesDir: string;
     /** Apply-only — called right after `apply()` swaps a tree into {@link themesDir} (and again
      *  after a rollback swaps it back), so the running site's in-memory `DiscoveredTheme.pages`/
-     *  `partials` re-render without a restart (2026-09-24 tovu.fly.dev). A composition root binds it
+     *  `partials` re-render without a restart (2026-09-24, hosted production site). A composition root binds it
      *  to `rescanThemes` over its own `RouteDeps.themes` array. */
     readonly onReplaced?: () => void | Promise<void>;
     /** The process-wide `sha256 -> {absPath, size}` map a file-tree `pack()` fills as it walks a

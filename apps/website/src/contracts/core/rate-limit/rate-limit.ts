@@ -190,7 +190,7 @@ export function createRateLimiter(
  * Keeps Tovu's request-facing port and Express trust-proxy fallback policy.
  * The socket peer is the trust boundary: only an explicitly trusted immediate peer may supply
  * the first forwarded hop. Otherwise use Express's req.ip, which honors X-Forwarded-For only
- * according to inbound/shared/trust-proxy.ts (Fly's edge hop, TOVU_TRUST_PROXY, or none).
+ * according to inbound/shared/trust-proxy.ts (a recognized platform edge hop, TOVU_TRUST_PROXY, or none).
  * The structural source avoids importing Express's full socket type into domain callers.
  * @param req - Request's socket, headers and framework-resolved IP.
  * @param trustedProxies - Explicit peers allowed to supply the first forwarded hop.

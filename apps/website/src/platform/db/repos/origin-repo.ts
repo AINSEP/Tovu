@@ -167,10 +167,10 @@ function sameOrigin(row: Row, origin: VerifiedOrigin): boolean {
  * (`features/origin/__tests__/repo.contract.test.ts`) protects "a re-run of the boot seed can never
  * clobber a real registered origin", and that assertion stands unchanged: the dev seed still never
  * overwrites anything. What this function adds is the one authority that IS allowed to correct the
- * row — whoever can set this deployment's process environment (on Fly, `fly secrets set` /
- * the workflow's non-secret env inputs to the Fly plugin), which is strictly more privileged than an admin-UI login and can already deploy
+ * row — whoever can set this deployment's process environment (the host's secret store /
+ * the deploy workflow's non-secret env inputs to the hosting plugin), which is strictly more privileged than an admin-UI login and can already deploy
  * arbitrary code. Without a correcting writer, production's `http://localhost:3000` row — durably
- * persisted by Fly's first boot and immortal under find-or-create — could never be fixed without a
+ * persisted by the first production boot and immortal under find-or-create — could never be fixed without a
  * hand-written migration against the live DB.
  *
  * WRITES THE ORIGIN COLUMNS ONLY. `redirect_allowlist_json` and `egress_allowlist_json` are left

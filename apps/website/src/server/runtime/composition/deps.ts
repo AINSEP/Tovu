@@ -459,7 +459,7 @@ export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: s
  * `hydrateContentDbFromSeed()` copies this into {@link defaultContentDbPath} once, on a site's first
  * boot where `content.db` does not exist yet, and never again — an existing `content.db` is
  * production data, and overwriting it on a later redeploy is unrecoverable data loss. Living under
- * `content/`, not `sites/`, is what lets it survive the Fly plugin's generated volume mount over
+ * `content/`, not `sites/`, is what lets it survive a hosting plugin's generated volume mount over
  * `/workspace/Tovu/sites`: that mount shadows the ENTIRE image `sites/` tree at runtime, so anything
  * shipped there for a fresh volume to read would be invisible the moment the mount takes effect.
  *
@@ -979,7 +979,7 @@ async function resolveWorkspaceIdOverride(kernel: ContentKernel, overrides?: Par
 /**
  * 2026-09-03 production incident recovery hook — opt-in ONLY: a no-op on every ordinary boot,
  * because it does nothing at all unless the operator has explicitly set `TOVU_ADMIN_RESET_PASSWORD`
- * (e.g. as a Fly secret) for this one deploy. That opt-in-via-env-var gate is what makes it safe to
+ * (e.g. as a host secret) for this one deploy. That opt-in-via-env-var gate is what makes it safe to
  * wire into every boot unconditionally, the same reasoning `hydrateContentDbIfNeeded` above follows
  * for its own presence-not-contents gate.
  *
@@ -1495,7 +1495,7 @@ async function composeSiteRouteDeps(
   // `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`.
   //   - `TOVU_PUBLIC_URL` names a real public https origin -> register it, correcting an existing
   //     dev-capability row in place. This is what finally lets production's sitemap.xml emit
-  //     absolute URLs, and what heals the `http://localhost:3000` row Fly's first boot persisted.
+  //     absolute URLs, and what heals the `http://localhost:3000` row the first production boot persisted.
   //   - nothing configured, local mode -> the dev seed below, byte-for-byte unchanged.
   //   - nothing configured, production mode -> write NOTHING. ADR-040 §2 fails closed on an absent
   //     origin; the unconditional seed is what poisoned prod in the first place, and its
@@ -1864,7 +1864,7 @@ async function composeSiteRouteDeps(
   // local/dev mode this still defaults to `true` (unchanged from before this fix) — a developer
   // with no `TOVU_SITE_KEY` set must keep booting via the generated-file fallback. In
   // production, the file fallback resolves against the container's own ephemeral rootfs (`Dockerfile`'s
-  // `USER node` -> `homedir()` is `/home/node`, not the mounted Fly volume) — a missing var there
+  // `USER node` -> `homedir()` is `/home/node`, not the mounted data volume) — a missing var there
   // used to boot fine and silently mint a fresh, throwaway site key on every redeploy. The boot-time
   // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsSiteKey`) is
   // the primary fix — it refuses to boot before this line is ever reached — this is defense in
@@ -1925,10 +1925,10 @@ async function composeSiteRouteDeps(
   // `allowFileAutoGenerate: false` still fully honors. It DOES contradict ADR-058 §9's "leaked
   // backup alone is not enough" framing: that defense assumed the site key lives only in the live
   // process's environment, never on disk beside `content.db`. Once a generated key file exists on
-  // the same Fly volume as the database it protects, someone who obtains a volume snapshot/backup
+  // the same data volume as the database it protects, someone who obtains a volume snapshot/backup
   // gets both — the ciphertext AND the key that opens it. This is an ACCEPTED, DOCUMENTED cost of
   // this change, not an oversight: it trades some of ADR-058's original defense-in-depth for the
-  // ability to run without `fly secrets set` at all. See the historical Security durability report
+  // ability to run without a host `secrets set` at all. See the historical Security durability report
   // dated 2026-09-09 for the full tradeoff writeup.
   // site-key plan §A3a: `sources` is threaded in UNCONDITIONALLY (both modes) — safe and
   // behavior-preserving in production, since `siteKeySourcesList`'s production branch is exactly

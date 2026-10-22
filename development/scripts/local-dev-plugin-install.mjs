@@ -3,7 +3,7 @@
  * are opt-in per server: `TOVU_PLUGIN_LOCAL_INSTALL=1`, read by `sitePluginLocalInstallEnabled` in
  * `apps/website/src/features/plugin-runtime/install.ts`. Owner, 2026-10-05: on for local dev. So
  * `npm run dev` (`dev.mjs`) and `npm run desktop` (`dev-desktop.mjs`) both pass it to the server
- * child. Production (Fly) and the packaged desktop app never run these scripts, so they stay off
+ * child. Hosted production and the packaged desktop app never run these scripts, so they stay off
  * unless their own environment sets it.
  */
 
