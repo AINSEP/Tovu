@@ -341,7 +341,8 @@ test("partial cross-volume copy failure keeps nested-default paths and bytes int
     const filesystem: typeof fs = { ...fs, renameSync: (from, target) => {
       if (String(from) === dir && String(target) === to) throw Object.assign(new Error("cross-volume"), { code: "EXDEV" });
       fs.renameSync(from, target);
-    }, cpSync: (_source, target) => { fs.writeFileSync(path.join(String(target), "partial"), "bytes"); throw new Error("copy failed"); } };
+    // Jini 03c49210 copies per top-level entry (target = <to>/<entry>), so the partial bytes land beside it in the reserved root.
+    }, cpSync: (_source, target) => { fs.writeFileSync(path.join(path.dirname(String(target)), "partial"), "bytes"); throw new Error("copy failed"); } };
     await assert.rejects(moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true,
       relocateDirectory: (required, options) => moveDirectoryVerified(required, { ...options, filesystem }),
     }), /copy failed/);
