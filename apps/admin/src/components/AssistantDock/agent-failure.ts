@@ -1,5 +1,6 @@
 /** Compatibility copy of the proposed @jini-ai/chat/core failure API; see the Jini patch. */
-import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers } from "@jini-ai/chat/core";
+import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
+import { isAbortError } from "@jini-ai/ui/panel-kit";
 
 export interface AgentFailureHint {
   readonly category: "auth" | "unsupported-client";
@@ -124,6 +125,14 @@ function failureEvent(failure: AgentFailure): AgentEvent {
   return { kind: "ext", name: AGENT_FAILURE_EVENT, data: failure };
 }
 
+/** A start the operator stopped stays a rejection: Jini's run stream already dropped that turn on purpose. */
+function stoppedStart({ error, input }: { error: unknown; input: StartRunInput }, _optional = {}): boolean {
+  return isAbortError({ error }) || input.cancelSignal?.aborted === true || input.signal?.aborted === true;
+}
+
+/** No daemon run exists for a refused start; Jini treats an empty id as "nothing to stop or follow". */
+const NO_RUN_ID = "";
+
 function redactedError(error: unknown): Error {
   return new Error(redactAgentFailure({ text: error instanceof Error ? error.message : String(error) }, {}));
 }
@@ -171,7 +180,11 @@ export function withAgentFailureSurface({ transport }: { transport: ChatTranspor
       catch (error) {
         const safe = redactedError(error);
         sink.onError(safe);
-        throw safe;
+        if (stoppedStart({ error, input }, {})) throw safe;
+        // A refused start (e.g. `POST /api/runs` → 500) resolves instead of rejecting: Jini removes a
+        // rejected turn from the transcript, which silently dropped the operator's message. Resolved,
+        // the turn stays with its failed reply carrying the error `sink.onError` just reported.
+        return { runId: NO_RUN_ID };
       }
     },
     async reattachRun(runId, handlers, options) {

@@ -64,11 +64,11 @@ it("retains a structured error when the completion only carries a generic status
     reason: "Error: API key not valid.", details: "Error: API key not valid." } });
 });
 
-it("redacts rejected starts before either handlers or the caller can render them", async () => {
+it("redacts refused starts before the handlers render them, and keeps the turn by resolving with no run", async () => {
   const h = harness();
   const transport = withAgentFailureSurface({ transport: { ...h.transport,
     async startRun() { throw new Error("Error: rejected Bearer opaque-secret"); } } }, {});
-  await expect(transport.startRun({ history: [], signal: new AbortController().signal }, h.sink)).rejects.toThrow("Error: rejected Bearer [REDACTED]");
+  await expect(transport.startRun({ history: [], signal: new AbortController().signal }, h.sink)).resolves.toEqual({ runId: "" });
   expect(h.errors).toEqual(["Error: rejected Bearer [REDACTED]"]);
   expect(h.seen).toEqual([{ kind: "ext", name: AGENT_FAILURE_EVENT, data: {
     reason: "Error: rejected Bearer [REDACTED]", details: "Error: rejected Bearer [REDACTED]" } }]);
@@ -87,8 +87,20 @@ it.each([new Error("Error: password=secret"), "Error: password=secret"])("redact
 it("redacts a rejected non-Error start", async () => {
   const h = harness();
   const transport = withAgentFailureSurface({ transport: { ...h.transport, async startRun() { throw "Error: token=secret"; } } });
-  await expect(transport.startRun({ history: [], signal: new AbortController().signal }, h.sink)).rejects.toThrow("Error: token=[REDACTED]");
+  await expect(transport.startRun({ history: [], signal: new AbortController().signal }, h.sink)).resolves.toEqual({ runId: "" });
   expect(h.errors).toEqual(["Error: token=[REDACTED]"]);
+});
+
+const stopped = () => { const controller = new AbortController(); controller.abort(); return controller.signal; };
+it.each([
+  { name: "an AbortError", failure: new DOMException("The queued turn was stopped.", "AbortError"), input: { signal: new AbortController().signal } },
+  { name: "a cancelled start", failure: new Error("Error: token=secret"), input: { signal: new AbortController().signal, cancelSignal: stopped() } },
+  { name: "a detached start", failure: new Error("Error: token=secret"), input: { signal: stopped(), cancelSignal: new AbortController().signal } },
+])("a start the operator stopped still rejects, redacted: $name", async ({ failure, input }) => {
+  const h = harness();
+  const transport = withAgentFailureSurface({ transport: { ...h.transport, async startRun() { throw failure; } } });
+  await expect(transport.startRun({ history: [], ...input }, h.sink)).rejects.toThrow(failure instanceof DOMException ? failure.message : "Error: token=[REDACTED]");
+  expect(h.errors).toHaveLength(1);
 });
 
 it("keeps the selected agent through an eventless checkpoint and does not duplicate a final error", async () => {
