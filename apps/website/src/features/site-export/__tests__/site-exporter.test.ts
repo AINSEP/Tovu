@@ -358,7 +358,9 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   //   +1  2026-09-27: the seed gained a `kind: "page"` Blog row at /blog (seed.ts's `page-blog`),
   //       the target of the default theme's "Read the blog"/"All posts" links.
   //   +1  2026-09-28: /feed.xml (RSS), another always-mounted well-known route.
-  // 19 - 7 + 1 + 1 + 1 = 15. Asserting the actual path LIST, not a bare count, so the next drift is legible
+  //   +1  2026-10-22 (Bug C): the default theme's Blog list is paged (6 per page) and the seed has
+  //       more than 6 posts, so its "Older posts" link's /blog/page/2 is discovered and written.
+  // 19 - 7 + 1 + 1 + 1 + 1 = 16. Asserting the actual path LIST, not a bare count, so the next drift is legible
   // instead of a mystery integer.
   assert.deepEqual(
     report.routes.succeeded.map((r) => r.path).sort(),
@@ -366,6 +368,7 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
       "/",
       "/about",
       "/blog",
+      "/blog/page/2",
       "/feed.xml",
       "/how-plugins-work",
       "/how-themes-work",
