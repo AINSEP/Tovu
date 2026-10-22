@@ -37,7 +37,7 @@ import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDe
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON, set } from "./site-title-write.js";
-import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from "./admin-interface.js";
+import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
 import type { AssistantAgentInventory } from "#src/assistant/agents";
 
@@ -75,8 +75,19 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
   ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"),
   ...CHAT_EXECUTION_KEYS.map(key => ({ namespace: "core.execution", key, reason: "Changes your chat agent, model or thinking effort for the next turn" })),
   { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, reason: "Changes your Agent plugins mode (Auto / Ask first / Off)" },
+  { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, reason: "Lets the assistant control your own Chrome browser, including sites you are logged into (Claude in Chrome)" },
   ...FORM_ROUTING_SETTINGS,
 ];
+
+/** Personal grants in `core.interface` that a saved approval must never cover. Agent plugins
+ * opt-in belongs to the person: a saved plugin grant must never let prompt injection silently flip
+ * Ask first to Auto (or clear its override). Claude in Chrome likewise: the assistant must not
+ * silently grant itself control of the owner's real, logged-in Chrome.
+ * @complexity O(1). */
+const ALWAYS_ASK_INTERFACE_KEYS: ReadonlySet<string> = new Set([CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY]);
+function isAlwaysAskInterfaceSetting({ namespace, key }: { namespace: string; key: string }, _options = {}): boolean {
+  return namespace === ADMIN_INTERFACE_NAMESPACE && ALWAYS_ASK_INTERFACE_KEYS.has(key);
+}
 
 /** Wires the generic cms tools to the host's authenticated card transport and title validator.
  * Card parameters carry only a decision, never replacement setting coordinates or values.
@@ -95,10 +106,8 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
       const request = { ctx, toolId, namespace, key, scope, value };
       const selectionSnapshot = await prepareChatExecutionWrite({ deps: routeDeps, request });
-      // Agent plugins opt-in belongs to the person. Always ask: a saved plugin grant must
-      // never let prompt injection silently flip Ask first to Auto (or clear its override).
-      const isAgentPlugins = namespace === ADMIN_INTERFACE_NAMESPACE && key === CHAT_AGENT_PLUGINS_KEY;
-      const alwaysAsk = isAgentPlugins || namespace === FORMS_NAMESPACE || selectionSnapshot !== null;
+      // Personal grants always ask; see `ALWAYS_ASK_INTERFACE_KEYS` for why.
+      const alwaysAsk = isAlwaysAskInterfaceSetting({ namespace, key }) || namespace === FORMS_NAMESPACE || selectionSnapshot !== null;
       // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
       // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
       const handler = approvalToolHandler({ surfaces,

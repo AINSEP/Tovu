@@ -1307,7 +1307,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const subagentsEnabled = nativeCapabilities.subagents;
     // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
     const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled }, { getDef: getAgentDef });
+      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef });
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
     await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
@@ -1343,6 +1343,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
       // id that was persisted and the id handed to the CLI can never drift apart.
       ...sessionBinding.sessionFields,
+      // Claude in Chrome: `chromeIntegration` (+ its MCP server on the allow-list) for a supporting
+      // runtime, nothing otherwise. Every deny above still applies; see `assistant-runtime-guidance.ts`.
+      ...runtimeLaunch.runOptions,
     }) }))));
   }
 };

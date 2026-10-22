@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools, runtimeSupportsSubagents } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools, runtimeSupportsSubagents, runtimeSupportsChromeIntegration } from "@jini-ai/agent-runtime";
 
 import { listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
 import { createLiveModelDiscovery } from "../live-model-cache.js";
@@ -118,15 +118,18 @@ test("listAssistantAgents' supportsTools exactly matches each def's own runtimeS
   }
 });
 
-test("listAssistantAgents' supportsSubagents exactly matches each def's own runtimeSupportsSubagents() result", async () => {
+test("listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers", async () => {
   const agents = await listAssistantAgents();
   for (const def of AGENT_DEFS) {
     const agent = agents.find((candidate) => candidate.id === def.id);
     assert.ok(agent, `expected an agent list entry for def '${def.id}'`);
     assert.equal(agent.supportsSubagents, runtimeSupportsSubagents({ def }), def.id);
+    assert.equal(agent.supportsClaudeInChrome, runtimeSupportsChromeIntegration({ def }), def.id);
   }
   assert.equal(agents.find((candidate) => candidate.id === "claude")?.supportsSubagents, true);
   assert.equal(agents.find((candidate) => candidate.id === "aider")?.supportsSubagents, false);
+  assert.equal(agents.find((candidate) => candidate.id === "claude")?.supportsClaudeInChrome, true);
+  assert.equal(agents.find((candidate) => candidate.id === "codex")?.supportsClaudeInChrome, false);
 });
 
 test("listAssistantAgents never returns an agent with an empty id/name", async () => {
