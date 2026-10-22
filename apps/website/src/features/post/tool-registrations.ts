@@ -88,6 +88,9 @@ import {
   PostVersionConflictError,
   restorePostForward,
   type PostKind,
+  type PublicPostKind,
+  type PublicPostRecord,
+  isPublicPost,
   type PostRecord,
   type PostRepoPort,
   type PostStatus,
@@ -298,7 +301,7 @@ const POST_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule({ domainPrefix: "CONTENT_POST", error: ForbiddenError }),
 ];
 
-function requirePostKind(input: Record<string, unknown>): PostKind {
+function requirePostKind(input: Record<string, unknown>): PublicPostKind {
   const value = input.kind;
   if (value !== "post" && value !== "page") {
     // `ToolInputError`, not a bare `Error` — see `toModelFacingUpdateError`'s doc a few lines up
@@ -780,14 +783,15 @@ function mergeUpdatePatch(required: { patch: PostUpdatePatch; existing: PostReco
 }
 
 /**
- * Reads the row content_post_update edits. A missing row is not-found; so is a non-page for kind "page".
+ * Reads the post/page content_post_update edits. Templates and missing rows are not-found;
+ * so is a non-page for kind "page".
  * @throws {PostNotFoundError} `post '<id>' was not found` / `page '<id>' was not found`.
  * @complexity O(1) — one repo read.
  */
-async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string; kind: PostKind }): Promise<PostRecord> {
+async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string; kind: PostKind }, _options: Record<string, never> = {}): Promise<PublicPostRecord> {
   const { routeDeps, id, kind } = required;
   const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-  if (!existing) throw new PostNotFoundError(`post '${id}' was not found`);
+  if (!isPublicPost(existing)) throw new PostNotFoundError(`post '${id}' was not found`);
   if (kind === "page" && existing.kind !== "page") {
     // Kind mismatch treated identically to not-found — mirrors pages/update.ts exactly
     // (see agent-tools.ts's disclosed asymmetry; kind:"post" carries no such guard,
@@ -802,7 +806,7 @@ async function loadUpdateTarget(required: { routeDeps: PostToolDeps; id: string;
  * @throws {ToolInputError} Listing the valid templates.
  * @complexity O(t) for t templates; one theme read only when a filename is sent.
  */
-async function assertTemplateAvailable(required: { routeDeps: PostToolDeps; templateChoice: string | null | undefined; kind: PostKind }): Promise<void> {
+async function assertTemplateAvailable(required: { routeDeps: PostToolDeps; templateChoice: string | null | undefined; kind: PublicPostKind }): Promise<void> {
   const { routeDeps, templateChoice, kind } = required;
   if (typeof templateChoice !== "string" || templateChoice === "") return;
   const availableTemplates = await readPostTemplateOptions({ deps: routeDeps, kind });

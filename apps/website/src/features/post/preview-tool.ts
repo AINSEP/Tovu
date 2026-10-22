@@ -5,7 +5,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type De
 import { type JsonObject } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord, type PostRepoPort } from "./post.js";
+import { getAdminPostByIdOrSlug, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 

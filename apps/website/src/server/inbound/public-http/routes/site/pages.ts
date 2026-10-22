@@ -7,9 +7,10 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { collectCoverMediaRefs } from "#src/features/post/cover-image";
 import {
+  createPublicPostReader,
   getPublishedPostBySlug,
   findPublishedPostById,
   findPublishedPostBySlug,
@@ -446,7 +447,7 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       entryRepo: deps.entryRepo,
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
-      postRepo: deps.postRepo,
+      postRepo: createPublicPostReader({ repo: deps.postRepo }),
       mediaContentTypeStore: deps.mediaContentTypeStore,
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
@@ -842,7 +843,7 @@ export async function finishStaticTierDocument(
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
-      postRepo: deps.postRepo,
+      postRepo: createPublicPostReader({ repo: deps.postRepo }),
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
       mediaContentTypeStore: deps.mediaContentTypeStore,
@@ -1393,7 +1394,7 @@ export async function resolveHtmlFormatContentMarkers(
       const nestedResolved = await resolveHtmlPageEmbeds({
         deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
           entryRepo: deps.entryRepo,
-          postRepo: deps.postRepo,
+          postRepo: createPublicPostReader({ repo: deps.postRepo }),
           mediaRepo: deps.mediaRepo,
           transformRepo: deps.transformDefinitionRepo,
           mediaContentTypeStore: deps.mediaContentTypeStore,
@@ -1596,7 +1597,7 @@ export async function renderViaTemplate(
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
-      postRepo: deps.postRepo,
+      postRepo: createPublicPostReader({ repo: deps.postRepo }),
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
       mediaContentTypeStore: deps.mediaContentTypeStore,

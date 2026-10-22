@@ -16,18 +16,18 @@ import { type SlugChangeCapture } from '@jini-ai/cms/routing';
 export type PostStatus = "draft" | "published";
 
 /**
- * Discriminates the two admin-facing lenses over the same bespoke `post` table
- * (see `INFO.md`): a `"post"` is a blog-style entry, a `"page"` is a standalone
- * document (About, Contact, …). Same record shape, same repo, same editor —
- * `kind` only changes which admin list surfaces a row and how it's created.
- * Fixed at creation; v1 has no post<->page conversion path.
+ * Storage kinds sharing the bespoke `posts` table. A post is a blog-style entry; a page is a
+ * standalone document (About, Contact, …). They share their record shape, repository and editor,
+ * with separate admin lists. Email templates share storage through the Pages HTML store but
+ * belong only to mail authoring; public, theme, SEO and widget readers accept PublicPostKind.
+ * Fixed at creation; v1 has no kind-conversion path.
  */
 export type PostKind = "post" | "page" | "email-template";
 export type PublicPostKind = Exclude<PostKind, "email-template">;
 
 /**
  * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a
- * {@link PostKind}: a template is stored as an `"html"`-format row through the Pages HTML store, the
+ * public post/page: a template is stored as an `"html"`-format row through the Pages HTML store, the
  * same storage a bespoke Page uses, but it is never a post or a page — no admin list, no public URL.
  * Every reader that filters on `kind === "post"`/`"page"` therefore never sees one, and
  * {@link updatePost} refuses one as not-found, which is what keeps a template a `"draft"` forever:
@@ -184,6 +184,50 @@ export interface PostRecord {
   author?: string | null;
   /** Explicit opt-in to showing the byline; legacy rows default to false. */
   showAuthor?: boolean;
+}
+
+/** A post/page eligible for content readers; publication and trash checks remain separate. */
+export interface PublicPostRecord extends PostRecord { kind: PublicPostKind }
+
+/** Kind-filtered storage view; callers retain ownership of publication and trash visibility. */
+export interface PublicPostReaderPort {
+  findById(required: { workspaceId: UUID; id: UUID }, optional?: Record<string, never>): Promise<PublicPostRecord | null>;
+  findBySlug(required: { workspaceId: UUID; slug: string }, optional?: Record<string, never>): Promise<PublicPostRecord | null>;
+  list(required: { workspaceId: UUID }, optional?: Record<string, never>): Promise<PublicPostRecord[]>;
+}
+
+/**
+ * Narrows stored rows at content-reader boundaries, including accidentally published templates.
+ * The scalar signature supports TypeScript's predicate and Array.filter contracts.
+ * @complexity O(1) time and space; pure, with no errors or effects.
+ */
+export function isPublicPost(post: PostRecord | null | undefined): post is PublicPostRecord {
+  return post?.kind === "post" || post?.kind === "page";
+}
+
+/**
+ * Binds kind-filtered reads without changing raw storage or copying its write lifecycle.
+ * Drafts and trash remain visible to readers that own their own liveness rules (SEO/widgets).
+ * Repository errors propagate; complete records are retained for CAS and revision writes.
+ * @complexity O(1) wiring/lookups beyond repo costs; list adds O(n) time/space for n rows.
+ * @example createPublicPostReader({ repo: postRepo }).findById({ workspaceId, id });
+ */
+export function createPublicPostReader(
+  { repo }: { repo: Pick<PostRepoPort, "findById" | "findBySlug" | "list"> },
+  _options: Record<string, never> = {},
+): PublicPostReaderPort {
+  return {
+    findById: async (input: Parameters<PostRepoPort["findById"]>[0], _options: Record<string, never> = {}): Promise<PublicPostRecord | null> => {
+      const post = await repo.findById(input);
+      return isPublicPost(post) ? post : null;
+    },
+    findBySlug: async (input: Parameters<PostRepoPort["findBySlug"]>[0], _options: Record<string, never> = {}): Promise<PublicPostRecord | null> => {
+      const post = await repo.findBySlug(input);
+      return isPublicPost(post) ? post : null;
+    },
+    list: async (input: Parameters<PostRepoPort["list"]>[0], _options: Record<string, never> = {}): Promise<PublicPostRecord[]> =>
+      (await repo.list(input)).filter(isPublicPost),
+  };
 }
 
 /**
@@ -1428,7 +1472,7 @@ async function resolveCreateSlug(
 export async function createPost(
   required: CreatePostRequired,
   _optional: CreatePostOptional = {}
-): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+): Promise<{ post: PublicPostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
   const scheduleFields = presentScheduleFields({
@@ -1458,7 +1502,7 @@ export async function createPost(
   // would risk the pair disagreeing by a tick and misrepresenting "created" as happening after
   // "last updated" on the very row that just created it.
   const now = clockNowIso({ clock: deps.clock });
-  const post: PostRecord = {
+  const post: PublicPostRecord = {
     id: input.id,
     workspaceId: input.workspaceId,
     title,
@@ -1712,12 +1756,12 @@ async function persistUpdatedPost(
  * would violate AC-14).
  */
 function buildUpdatedPost(
-  existing: PostRecord,
+  existing: PublicPostRecord,
   input: UpdatePostInput,
   fields: { title: string; slug: string },
   ext: JsonObject | undefined,
   now: string
-): PostRecord {
+): PublicPostRecord {
   const { ext: _priorExt, publishAt: _priorPublishAt, featuredMediaId: _priorFeatured, ...carriedOver } = existing;
   return {
     ...carriedOver,
@@ -1870,10 +1914,10 @@ function withCoverPresentation(required: { ext: JsonObject | undefined; hideCove
 async function unchangedLiveRow(
   required: { repo: PostRepoPort; input: UpdatePostInput; post: PostRecord },
   _optional: Record<string, never> = {}
-): Promise<PostRecord | null> {
+): Promise<PublicPostRecord | null> {
   const { repo, input, post } = required;
   const current = await repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!current || isTrashed(current)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  if (!isPublicPost(current) || isTrashed(current)) throw new PostNotFoundError(`post '${input.id}' was not found`);
   assertExpectedVersion(current, input.expectedVersion);
   return isDeepStrictEqual(savedPostContent(current), savedPostContent(post)) ? current : null;
 }
@@ -1887,7 +1931,7 @@ async function unchangedLiveRow(
 export async function updatePost(
   required: UpdatePostRequired,
   _optional: UpdatePostOptional = {}
-): Promise<{ post: PostRecord; revisionId: string | null; previousRevisionId: string | null }> {
+): Promise<{ post: PublicPostRecord; revisionId: string | null; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
@@ -1895,7 +1939,7 @@ export async function updatePost(
   // editing it; there is no edit-through-the-trash path.
   // An email template shares this table but is not a post (EMAIL_TEMPLATE_KIND's own doc): not-found
   // here is what keeps one from ever being published.
-  if (!existing || isTrashed(existing) || (existing.kind as string) === EMAIL_TEMPLATE_KIND) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  if (!isPublicPost(existing) || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
   assertExpectedVersion(existing, input.expectedVersion);
 
   const fields = validateUpdatePostInput(input, existing);
@@ -2199,19 +2243,19 @@ export interface ListPostsRequired {
 export async function listAdminPosts(
   required: ListPostsRequired,
   _optional: GetPostOptional = {}
-): Promise<{ posts: PostRecord[] }> {
+): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.kind === "post" && !isTrashed(post)) };
+  return { posts: posts.filter((post): post is PublicPostRecord => post.kind === "post" && !isTrashed(post)) };
 }
 
 /** List published posts for the public site. */
 export async function listPublishedPosts(
   required: ListPostsRequired,
   optional: GetPostOptional = {}
-): Promise<{ posts: PostRecord[] }> {
+): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
   const nowIso = optional.nowIso ?? currentIso();
-  return { posts: posts.filter((post) => post.kind !== EMAIL_TEMPLATE_KIND && isLiveAt(post, nowIso)) };
+  return { posts: posts.filter((post): post is PublicPostRecord => isPublicPost(post) && isLiveAt(post, nowIso)) };
 }
 
 export interface ListPublishedPostPreviewsRequired {
@@ -2230,46 +2274,46 @@ export interface ListPublishedPostPreviewsRequired {
 export async function listPublishedPostPreviews(
   required: ListPublishedPostPreviewsRequired,
   _optional: GetPostOptional = {}
-): Promise<{ posts: PostRecord[] }> {
+): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.listPublishedPreviews({
     workspaceId: required.input.workspaceId,
     limit: required.input.limit,
     offset: required.input.offset ?? 0,
     nowIso: _optional.nowIso ?? currentIso(),
   });
-  return { posts };
+  return { posts: posts.filter(isPublicPost) };
 }
 
 /** List all pages (`kind: "page"`) in a workspace for admin views (drafts included). */
 export async function listAdminPages(
   required: ListPostsRequired,
   _optional: GetPostOptional = {}
-): Promise<{ posts: PostRecord[] }> {
+): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.kind === "page" && !isTrashed(post)) };
+  return { posts: posts.filter((post): post is PublicPostRecord => post.kind === "page" && !isTrashed(post)) };
 }
 
 export async function getAdminPostById(
   required: GetPostByIdRequired,
   _optional: GetPostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PublicPostRecord }> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
   // A trashed row 404s identically to a missing one — no existence leak, matching the
   // kind-mismatch rule `pages/get-by-id.ts` already applies.
-  if (!post || post.kind === EMAIL_TEMPLATE_KIND || isTrashed(post)) throw new PostNotFoundError(`post '${id}' was not found`);
+  if (!isPublicPost(post) || isTrashed(post)) throw new PostNotFoundError(`post '${id}' was not found`);
   return { post };
 }
 
 export async function getPublishedPostBySlug(
   required: GetPostBySlugRequired,
   _optional: GetPostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PublicPostRecord }> {
   const { workspaceId } = required.input;
   const slug = required.input.slug.trim().toLowerCase();
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
   // A scheduled row 404s exactly like a draft until its time passes — no existence leak.
-  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
+  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };
@@ -2297,10 +2341,10 @@ export async function getPublishedPostBySlug(
 export async function findPublishedPostById(
   required: GetPostByIdRequired,
   _optional: GetPostOptional = {}
-): Promise<PostRecord | null> {
+): Promise<PublicPostRecord | null> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
-  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 
@@ -2318,10 +2362,10 @@ export async function findPublishedPostById(
 export async function findPublishedPostBySlug(
   required: GetPostBySlugRequired,
   _optional: GetPostOptional = {}
-): Promise<PostRecord | null> {
+): Promise<PublicPostRecord | null> {
   const { workspaceId, slug } = required.input;
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!post || post.kind === EMAIL_TEMPLATE_KIND || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 
@@ -2349,11 +2393,11 @@ export async function findPublishedPostBySlug(
 export async function getAdminPostByIdOrSlug(
   required: GetPostByIdOrSlugRequired,
   _optional: GetPostOptional = {}
-): Promise<{ post: PostRecord }> {
+): Promise<{ post: PublicPostRecord }> {
   const { workspaceId, idOrSlug } = required.input;
   const bySlug = await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() });
   const post = bySlug ?? (await required.deps.repo.findById({ workspaceId, id: idOrSlug }));
-  if (!post || post.kind === EMAIL_TEMPLATE_KIND || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
+  if (!isPublicPost(post) || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
   return { post };
 }
 

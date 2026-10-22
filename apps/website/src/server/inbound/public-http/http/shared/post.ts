@@ -1,9 +1,10 @@
-import type { PostRecord } from "#src/features/post/index";
+import { isPublicPost, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { postAuthorForDisplay } from "#src/features/post/author";
 import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
 
 /**
- * Maps a post record into the richer admin-facing DTO shape.
+ * Maps a post/page record into the richer admin-facing DTO shape.
+ * @throws PostNotFoundError for storage-only kinds such as email templates.
  *
  * SPEC-005 REQ-11 (T022): `ext` is spread in only when the record actually carries one, so an
  * entry with no contributing plugin serializes with no `ext` key at all (AC-14) and every
@@ -18,6 +19,8 @@ import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
  * one is a genuine data-integrity violation this function should fail loudly on, not paper over.
  */
 export function toHeadlessPost(post: PostRecord): AdminPost {
+  // Raw storage callers must not serialize a mail template through the content API.
+  if (!isPublicPost(post)) throw new PostNotFoundError(`post '${post.id}' was not found`);
   const base = {
     id: post.id,
     workspaceId: post.workspaceId,
@@ -52,9 +55,11 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
 }
 
 /**
- * Maps a post record into the narrower public content DTO shape.
+ * Maps a post/page record into the narrower public content DTO shape.
+ * @throws PostNotFoundError for storage-only kinds such as email templates.
  */
 export function toHeadlessContentPost(post: PostRecord): ContentPost {
+  if (!isPublicPost(post)) throw new PostNotFoundError(`post '${post.id}' was not found`);
   return {
     id: post.id,
     kind: post.kind,

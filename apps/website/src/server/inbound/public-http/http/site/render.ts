@@ -7,7 +7,7 @@ import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSe
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import type { PostRecord } from "#src/features/post/post";
+import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/slug";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";

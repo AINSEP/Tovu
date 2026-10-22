@@ -37,7 +37,7 @@ import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/co
 import { registerContentType } from "#src/features/content-types/index";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
-import { isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/index.js";
+import { createPublicPostReader, isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/index.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
@@ -117,7 +117,7 @@ export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps, _optional: Record<
     entryRepo: routeDeps.entryRepo,
     contentTypeRepo: routeDeps.contentTypeRepo,
     entryRefsRepo: routeDeps.entryRefsRepo,
-    postRepo: routeDeps.postRepo,
+    postRepo: createPublicPostReader({ repo: routeDeps.postRepo }),
     forgetRemovedPost: routeDeps.forgetRemovedPost,
     changeSets: routeDeps.changeSets,
     beforeSaveHook: routeDeps.pluginBeforeSaveHook,

@@ -9,7 +9,7 @@ import type {
 } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import {
-  extractPlainTextFromHtml, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
+  createPublicPostReader, extractPlainTextFromHtml, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,
 } from "../post/index.js";
 import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefinitionRepoPort } from "../media/index.js";
@@ -28,15 +28,17 @@ export {
   type GetSeoSettingsDeps, type SeoSettingsWriteDeps, type SeoSettingsPatch, type SetSeoSettingsInput,
 } from "./settings.js";
 
-/** Bind the host row owner without projecting away content fields needed by CAS/revisions.
+/** Bind the host post/page reader without projecting away content fields needed by CAS/revisions.
+ * Email templates remain solely with their authoring owner, even if incorrectly marked published.
  * @example createSeoPostPort({ postRepo }, {})
  * @complexity O(1) wiring; reads/writes retain the host repository's costs and errors.
  */
 export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _optional: Record<string, never> = {}): SeoPostListPort & SeoPostWritePort {
+  const reader = createPublicPostReader({ repo: postRepo });
   return {
     // Call through the receiver so prototype methods keep `this` and fault-injection remains live.
-    findById: (input) => postRepo.findById(input),
-    list: (input) => postRepo.list(input),
+    findById: reader.findById,
+    list: reader.list,
     extractPlainText: ({ html }) => extractPlainTextFromHtml(html),
     isTrashed: ({ post }) => isTrashed(post),
     transaction: ({ fn }) => postRepo.transaction(fn),
