@@ -1277,7 +1277,8 @@ test("propose-credential: a secret field is refused as a pre-fill hint, so a sec
   );
   await assert.rejects(
     () => call(proposeTool, { input: { target: "s3-compatible", owner: "octo" }, emitSurface: async () => {} }),
-    (err: unknown) => err instanceof ToolInputError && err.message === "'owner' is not a credential field of s3-compatible. It takes: endpoint, region, bucket, accessKeyId, secretAccessKey, publicUrl."
+    // The field list tracks the shipped s3-compatible plugin, which gained mediaBucket/mediaKeyPrefix in 4a675744.
+    (err: unknown) => err instanceof ToolInputError && err.message === "'owner' is not a credential field of s3-compatible. It takes: endpoint, region, bucket, accessKeyId, secretAccessKey, publicUrl, mediaBucket, mediaKeyPrefix."
   );
   assert.equal(surfaceExchanges.size(), 0, "nothing is raised for a refused call");
 });
