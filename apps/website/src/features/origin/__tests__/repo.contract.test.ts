@@ -85,7 +85,7 @@ const DEV_CAPABILITY_ROW = createVerifiedOrigin({
   source: "dev-capability",
 });
 
-function configuredOrigin(host = "tovu.fly.dev") {
+function configuredOrigin(host = "tovu.example-host.dev") {
   return createVerifiedOrigin({
     scheme: "https",
     host,

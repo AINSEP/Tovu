@@ -106,10 +106,10 @@ function publishRow(target: string, url: string, reachable: boolean): PublishHis
 test("known hosting addresses are workspace scoped, credential-free HTTPS URLs from current peers and latest successful target publishes", async () => {
   const calls: unknown[] = [];
   const deps = {
-    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async (input: unknown) => { calls.push(input); return [savedPeer("https://app.fly.dev"), savedPeer("http://private.local"), savedPeer("https://user:secret@leak.com")]; } },
+    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async (input: unknown) => { calls.push(input); return [savedPeer("https://app.example-host.dev"), savedPeer("http://private.local"), savedPeer("https://user:secret@leak.com")]; } },
     publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("netlify", "https://new.netlify.app", true), publishRow("netlify", "https://old.netlify.app", true), publishRow("s3", "https://unverified.com", false)]; } },
   };
-  assert.deepEqual(await listSavedHostingHosts(deps), ["app.fly.dev", "new.netlify.app"]);
+  assert.deepEqual(await listSavedHostingHosts(deps), ["app.example-host.dev", "new.netlify.app"]);
   assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws", limit: 100 }]);
 });
 test("an unconfirmed upload cannot erase the last confirmed hosting address", async () => {
