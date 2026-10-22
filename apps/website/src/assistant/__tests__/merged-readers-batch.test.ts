@@ -20,6 +20,7 @@ import { InMemoryPostRepo } from "../../features/post/index.js";
 import { buildPostRecord } from "../../features/post/__tests__/post-record.fixture.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
 import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
+import { isNeverInTrash } from "../../features/redirects/__tests__/remove-redirect-double.js";
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { peerFixture } from "../../server/runtime/composition/__tests__/peer-site-reads.fixture.js";
 import type { ToolContributor, DerivedToolContributor } from "../index.js";
@@ -67,6 +68,7 @@ async function harness() {
     workspaceId: WORKSPACE, clock: { nowMs: () => Date.parse(NOW) }, idGen: { newId: () => `id-${++sequence}` },
     postRepo, newsletterCampaignRepo, newsletterReady: Promise.resolve(),
     redirectRepo: new InMemoryRedirectRepo({ seed: redirects }),
+    redirectsWriteDeps: { isInTrash: isNeverInTrash },
     entryRepo: new InMemoryEntryRepo(), contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(), widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     outbox: { enqueue: async () => undefined },

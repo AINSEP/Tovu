@@ -214,12 +214,22 @@ test("send() maps a 422 validation_error to a non-retryable failure with the pro
   assert.deepEqual(result, { ok: false, retryable: false, errorCode: "validation_error", message: "Invalid `to` field" });
 });
 
-test("send() maps a 429 rate_limit_exceeded to a retryable failure", async () => {
+test("send() maps a 429 rate_limit_exceeded to the shared throttling result", async () => {
   const http = new FakeHttpClient([
     { status: 429, headers: {}, bodyText: JSON.stringify({ statusCode: 429, name: "rate_limit_exceeded", message: "Too many requests" }) },
   ]);
   const result = await (await makeAdapter(http)).send(makeMessage(), SEND_OPTIONS);
-  assert.deepEqual(result, { ok: false, retryable: true, errorCode: "rate_limit_exceeded", message: "Too many requests" });
+  assert.deepEqual(result, { ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "Too many requests (rate_limit_exceeded)" });
+  assert.equal(http.calls.length, 1, "a throttled request is deferred by the caller, never retried inside the adapter");
+});
+
+test("send() preserves Retry-After on the shared throttling result", async () => {
+  const http = new FakeHttpClient([
+    { status: 429, headers: { "retry-after": "2" }, bodyText: '{"name":"rate_limit_exceeded","message":"Too many requests"}' },
+  ]);
+  const result = await (await makeAdapter(http)).send(makeMessage(), SEND_OPTIONS);
+  assert.deepEqual(result, { ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "Too many requests (rate_limit_exceeded)", retryAfterMs: 2000 });
+  assert.equal(http.calls.length, 1);
 });
 
 test("send() maps a 500 to a retryable failure, and a 401 to a non-retryable one", async () => {

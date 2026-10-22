@@ -141,6 +141,7 @@ const SERVER_EVIDENCE: Record<string, string> = {
   deployment: `${ROUTES}/system/deployment-overview.ts`,
   observability: `${ROUTES}/system/observability-status.ts`,
   settings: `${ROUTES}/settings/get-effective.ts`,
+  consent: `${ROUTES}/consent/routes.ts`,
   // `trash/list.ts` checks `TRASH_READ_PERMISSION`; the literal lives where that constant is defined.
   trash: "../../../../website/src/features/trash/permissions.ts",
   seo: `${ROUTES}/seo/get-settings.ts`,
@@ -164,7 +165,7 @@ describe("panel permission ids match the server's checks", () => {
     "%s declares only ids its server route checks",
     (panelId, permissions) => {
       const source = readFileSync(resolve(here, SERVER_EVIDENCE[panelId] ?? ""), "utf8");
-      for (const permission of permissions) expect(source).toContain(`"${permission}"`);
+      for (const permission of permissions) expect(source).toMatch(new RegExp(`["']${permission.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`));
     },
   );
 });

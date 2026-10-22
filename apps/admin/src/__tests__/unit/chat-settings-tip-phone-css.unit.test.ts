@@ -30,7 +30,7 @@ const MEDIA = "(pointer: coarse), (max-width: 640px)";
 
 it.each([
   ".jini-dialog .jini-chat-settings-legend .info-tip-icon[role=\"button\"]",
-  ".jini-dialog .jini-chat-settings-row > .info-tip .info-tip-icon[role=\"button\"]",
+  ".jini-dialog .jini-chat-settings-label-row > .info-tip .info-tip-icon[role=\"button\"]",
 ])("lifts the 44px phone floor off %s", (selector) => {
   expect(declarationsIn(MEDIA, selector)).toEqual({ "min-width": "0", "min-height": "0" });
 });

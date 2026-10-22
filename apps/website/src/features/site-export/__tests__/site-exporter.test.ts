@@ -203,9 +203,10 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
 /**
  * The static-export marker header is public: anyone can send it to the LIVE server. Honoring it is
  * harmless for that one visitor (they just don't get the bubble), but the widget-less body must never
- * be stored by a shared cache under the plain URL — every page response is otherwise `public,
- * max-age=60` with no `Vary`, so one crafted request would strip the widget from every visitor behind
- * that cache for minutes. Covers each of the four handlers that resolve the switch.
+ * be stored by a shared cache under the plain URL — ordinary pages without live comments are
+ * `public, max-age=60` with no `Vary`, so one crafted request would strip the widget from every
+ * visitor behind that cache for minutes. Live comment surfaces already require private/no-store
+ * so moderation takes effect on the next request. Covers all four handlers that resolve the switch.
  */
 test("live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control", async (t) => {
   useSiteChatBuild({ test: t, ready: true });
@@ -217,13 +218,19 @@ test("live site: a request carrying the static-export marker gets no widget AND 
   const slugRoute = (await listPublishedSlugPaths(deps))[0];
   assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
 
-  for (const route of ["/", slugRoute, "/products", "/products/widget-mug"]) {
+  for (const { route, comments, liveCacheControl } of [
+    { route: "/", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+    { route: slugRoute, comments: true, liveCacheControl: "private, no-store" },
+    { route: "/products", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+    { route: "/products/widget-mug", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+  ]) {
     const live = await fetch(`${baseUrl}${route}`);
     const liveHtml = await live.text();
     assert.match(liveHtml, /data-jini-chat-loader data-widget="react"/, `${route}: live must ship the selected widget's launcher`);
     assert.match(liveHtml, /src="\/site-chat\/site-assistant-loader\.js"/, `${route}: live must ship the lazy loader`);
     assert.doesNotMatch(liveHtml, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, `${route}: widget assets load on demand`);
-    assert.match(live.headers.get("cache-control") ?? "", /^public/, `${route}: an ordinary live response stays publicly cacheable`);
+    assert.equal(liveHtml.includes("data-comments-surface"), comments, `${route}: the fixture must exercise its declared comment surface`);
+    assert.equal(live.headers.get("cache-control"), liveCacheControl, `${route}: live comments stay private; other live pages stay publicly cacheable`);
 
     const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
     assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);

@@ -513,7 +513,7 @@ test("analytics-ingest: per-request forwarders get the minimised hit after the b
     forwarders: async ({ request }) => {
       requests.push(request);
       return [
-        { id: "broken", context: { workspaceId: "ws", mode: "live" }, forwarder: { forward: async () => { throw new Error("vendor down"); } } },
+        { id: "broken", context: { workspaceId: "ws", mode: "live" }, forwarder: { forward: async () => { throw new Error("vendor down: secret-token-123"); } } },
         { id: "vendor", context: { workspaceId: "ws", mode: "live" }, forwarder: { forward: async ({ hit }) => { forwarded.push(hit); resolveForwarded(); return { status: "ok", value: undefined }; } } },
       ];
     },
@@ -528,7 +528,8 @@ test("analytics-ingest: per-request forwarders get the minimised hit after the b
   assert.equal("sessionId" in (forwarded[0] as object), false, "vendors never receive the session id");
   assert.equal("region" in (forwarded[0] as object), false);
   await new Promise((r) => setImmediate(r));
-  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]) === "[analytics] forward to 'broken' threw: vendor down"));
+  assert.ok(warn.mock.calls.some((call) => String(call.arguments[0]) === "[analytics] forward to 'broken' threw: forwarder threw"));
+  assert.equal(JSON.stringify(warn.mock.calls).includes("secret-token-123"), false, "vendor exceptions must not leak credentials into logs");
 });
 
 test("analytics-ingest: no forwarders (consent denied or sink \"local\") keeps the built-in-only path", async (t) => {

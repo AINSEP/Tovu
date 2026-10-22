@@ -4,13 +4,16 @@
  * same block as their `dictionary` prop. Engine terms (Global Privacy Control, opt-in/opt-out, CSS,
  * URL, px) stay in English where the locale commonly uses them.
  */
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { COMMON_I18N } from "../../lib/i18n-common";
+
 export const CONSENT_DICT: Record<string, Record<string, string>> = {
   es: {
     "Administration": "Administración",
     "Cookie Consent": "Consentimiento de cookies",
     "The banner visitors see, and what waits for their choice.": "El banner que ven los visitantes y lo que espera su elección.",
     "Overview": "Resumen",
-    "Banner": "Banner",
+    "Banner": "Báner",
     "Look & Position": "Aspecto y posición",
     "Rules": "Reglas",
     "Publish": "Publicar",
@@ -95,7 +98,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Cookie Consent": "Persetujuan Cookie",
     "The banner visitors see, and what waits for their choice.": "Banner yang dilihat pengunjung, dan apa yang menunggu pilihan mereka.",
     "Overview": "Ringkasan",
-    "Banner": "Banner",
+    "Banner": "Spanduk",
     "Look & Position": "Tampilan & Posisi",
     "Rules": "Aturan",
     "Publish": "Terbitkan",
@@ -164,7 +167,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Text": "Teks",
     "Border": "Garis tepi",
     "Corner radius (px)": "Radius sudut (px)",
-    "Padding (px)": "Padding (px)",
+    "Padding (px)": "Jarak dalam (px)",
     "Text size (px)": "Ukuran teks (px)",
     "Max width (px)": "Lebar maks. (px)",
     "Default": "Bawaan",
@@ -180,7 +183,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Cookie Consent": "Cookie-Einwilligung",
     "The banner visitors see, and what waits for their choice.": "Das Banner, das Besucher sehen, und was auf ihre Wahl wartet.",
     "Overview": "Übersicht",
-    "Banner": "Banner",
+    "Banner": "Cookie-Banner",
     "Look & Position": "Aussehen & Position",
     "Rules": "Regeln",
     "Publish": "Veröffentlichen",
@@ -213,7 +216,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Saving…": "Wird gespeichert…",
     "Couldn't save. Your edits are still here.": "Speichern fehlgeschlagen. Deine Änderungen sind noch da.",
     "Draft saved. Not live yet.": "Entwurf gespeichert. Noch nicht live.",
-    "Live.": "Live.",
+    "Live.": "Veröffentlicht.",
     "Not published yet.": "Noch nicht veröffentlicht.",
     "Couldn't save.": "Speichern fehlgeschlagen.",
     "Couldn't load cookie consent.": "Cookie-Einwilligung konnte nicht geladen werden.",
@@ -240,7 +243,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Policy version": "Richtlinienversion",
     "Change the policy version to ask visitors to choose again.": "Ändere die Richtlinienversion, um Besucher erneut zu fragen.",
     "Look & position": "Aussehen & Position",
-    "Position": "Position",
+    "Position": "Platzierung",
     "Bottom bar": "Leiste unten",
     "Bottom left": "Unten links",
     "Bottom right": "Unten rechts",
@@ -435,7 +438,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Cookie Consent": "Consentimento de cookies",
     "The banner visitors see, and what waits for their choice.": "O banner que os visitantes veem e o que aguarda a escolha deles.",
     "Overview": "Visão geral",
-    "Banner": "Banner",
+    "Banner": "Banner de cookies",
     "Look & Position": "Aparência e posição",
     "Rules": "Regras",
     "Publish": "Publicar",
@@ -1175,7 +1178,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Policy version": "Version de la politique",
     "Change the policy version to ask visitors to choose again.": "Changez la version de la politique pour redemander aux visiteurs.",
     "Look & position": "Apparence et position",
-    "Position": "Position",
+    "Position": "Emplacement",
     "Bottom bar": "Barre en bas",
     "Bottom left": "En bas à gauche",
     "Bottom right": "En bas à droite",
@@ -1455,7 +1458,7 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Cookie Consent": "Consenso ai cookie",
     "The banner visitors see, and what waits for their choice.": "Il banner che vedono i visitatori e ciò che attende la loro scelta.",
     "Overview": "Panoramica",
-    "Banner": "Banner",
+    "Banner": "Banner dei cookie",
     "Look & Position": "Aspetto e posizione",
     "Rules": "Regole",
     "Publish": "Pubblica",
@@ -1791,3 +1794,6 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "ডেস্কটপ",
   },
 };
+
+/** Owner-bound translator; exposes its dictionary for locale-block consumers and translation audits. */
+export const translate = createDictionaryTranslator({ featureDictionary: CONSENT_DICT }, { commonDictionary: COMMON_I18N });

@@ -51,12 +51,12 @@ test("initSite completes both atomic JSON writes when directory fsync throws EPE
   const { dir, workspace } = fixture({ t });
   const { filesystem, calls } = directorySyncFailure({ code: "EPERM" });
 
-  const result = await initSite({ dir, name: "Directory EPERM Site" }, { workspace, filesystem });
+  const result = await initSite({ dir, name: "Directory EPERM Site" }, { workspace, filesystem, detectTimeZone: () => "Asia/Tokyo" });
 
   assert.equal(result.dir, dir);
   assert.match(result.siteId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")), {
-    name: "Directory EPERM Site", domain: null, port: null,
+    name: "Directory EPERM Site", domain: null, port: null, timezone: "Asia/Tokyo",
   });
   const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"));
   const { template } = readTemplate({ templateId: "starter" });

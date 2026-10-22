@@ -211,7 +211,7 @@ no `limit` means 6). Older posts still exist at their own URLs, but no list link
 the list pages. So whenever you build or convert a theme's blog/news/archive list (or a home page
 that lists posts):
 
-1. Check how many posts the site has: `content_post_list` (it returns at most 200 per call; if it
+1. Check how many posts the site has: `content_read.content_post` (it returns at most 200 per call; if it
    returns the full 200, there are at least that many).
 2. If the count can exceed the marker's `limit` (assume it can on any site that is still
    publishing — a 24-post site is one post away), add `"paged":true` to the marker. The route then

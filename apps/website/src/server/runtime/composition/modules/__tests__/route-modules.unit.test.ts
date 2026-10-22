@@ -64,6 +64,7 @@ const CASES: readonly ModuleCase[] = [
       `PATCH ${W}/agent-plugins/:pluginId`,
       `GET ${W}/agent-plugins/:pluginId/files`,
       `POST ${W}/agent-plugins/install/zip`,
+      `POST ${W}/agent-plugins/:pluginId/update/zip`,
       `GET ${W}/agent-plugins/:pluginId/memory`,
       `PUT ${W}/agent-plugins/:pluginId/memory`,
       // Plugin-owned admin surfaces: the three session-gated admin routes, then the PUBLIC files

@@ -89,6 +89,7 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'site-inspection': 'Inspection reads the live server and process configuration.',
   'post-preview': 'Preview renders through the live server and installed code.',
   analytics: 'Analytics describes the running site.',
+  search: 'Search uses the active site index and its installed provider; peer composition supplies no search capability.',
   'site-evidence': 'Evidence capture reads the live server.',
   'media-video-view': 'The contributor captures the active attachment reader at installation.',
   recovery: 'Recovery status uses the process operation lock and live in-memory site status; restore-point lists remain available in database.',

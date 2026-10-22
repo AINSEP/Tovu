@@ -39,18 +39,15 @@ function mcpDeps() {
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring, notifyExternalMcpRosterChanged: async () => {} };
 }
 
-async function withInstalled<T>(fn: (env: { dir: string; layout: ReturnType<typeof resolveAgentPluginLayout>; oldDigest: string }) => Promise<T>): Promise<T> {
+async function withInstalled<T>(fn: (env: { dir: string; layout: ReturnType<typeof resolveAgentPluginLayout>; oldDigest: string; archive: Buffer }) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "agent-tool-update-"));
-  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
-  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  // Every operation receives this layout explicitly; a fixture must not change another test's env.
   try {
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: dir } });
     const archive = await packageZip("1.0.0");
     const { plugin } = await installUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner" }, { layout });
-    return await fn({ dir, layout, oldDigest: plugin.archiveDigest });
+    return await fn({ dir, layout, oldDigest: plugin.archiveDigest, archive });
   } finally {
-    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
-    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
   }
 }
@@ -105,9 +102,14 @@ test("agent_plugins_update: a newer zip updates the plugin, keeps it enabled, an
 });
 
 test("agent_plugins_update: the installed bytes again report nothing changed", async () => {
-  await withInstalled(async ({ dir, layout, oldDigest }) => {
+  await withInstalled(async ({ dir, layout, oldDigest, archive }) => {
     const tool = updateTool({ agentPluginLayout: layout, ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) });
-    const result = await tool.handler(context({ source: { kind: "zip", path: await zipOnDisk(dir, "1.0.0") }, pluginId: PLUGIN, expectedOldDigest: oldDigest }), {}) as Record<string, unknown>;
+    // Reuse the installed bytes: rebuilding a ZIP reads the wall clock for entry timestamps,
+    // so even the same manifest can acquire a different digest when a batch crosses a second.
+    const file = path.join(dir, "installed-again.zip");
+    await writeFile(file, archive);
+    assert.equal(sha(archive), oldDigest);
+    const result = await tool.handler(context({ source: { kind: "zip", path: file }, pluginId: PLUGIN, expectedOldDigest: oldDigest }), {}) as Record<string, unknown>;
     assert.equal(result.updated, false);
     assert.equal(result.alreadyInstalled, true);
     assert.deepEqual(result.plugin, { id: PLUGIN, version: "1.0.0" });

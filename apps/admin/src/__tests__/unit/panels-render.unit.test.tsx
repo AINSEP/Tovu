@@ -13,6 +13,7 @@ import { PageEditor, Pages } from "../../features/pages";
 import { Members } from "../../features/members";
 import { Comments } from "../../features/comments";
 import { Analytics } from "../../features/analytics";
+import { CookieConsent } from "../../features/consent";
 import { ModulePanel } from "../../integrations/jini-admin/ModulePanel";
 import { Media } from "../../features/media";
 import { Menus, MenuEditor } from "../../features/menus";
@@ -78,9 +79,10 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // as nav-less redirects, so bookmarks remain valid without duplicate navigation entries.
   // Design System has no placeholder or tab; its retained route redirects to Appearance.
   // 49 as of 2026-10-18: Library (private documents) sits beside Media.
-  it("has 49 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(49);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(49);
+  // 50 as of 2026-10-21: Cookie Consent sits beside Settings.
+  it("has 50 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(50);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(50);
   });
 });
 
@@ -151,6 +153,7 @@ const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["source-control", SourceControl],
   ["access-tokens", Security],
   ["settings", SettingsUi],
+  ["consent", CookieConsent],
   ["admin-ui", AdminUi],
   ["providers", Providers],
   // The nav-less `/appearance` alias for the SITE-themes screen (ADR-063) — its render has no
