@@ -1,3 +1,4 @@
+import { exampleRegistry } from "#src/features/source-control/__tests__/fixtures/example-provider";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -144,7 +145,7 @@ export function parityDeps(mods: ParityModules, ctx: ParityContext) {
     media: { ...base, repo: new mods.mediaRepo.SqlMediaProviderCredentialRepo(kernel) },
     custom: { ...base, repo: new mods.customRepo.SqlCustomCredentialSetRepo(kernel) },
     vendor: { ...base, repo: new mods.vendorRepo.SqlVendorCredentialSetRepo(kernel) },
-    source: { ...base, repo: new mods.sourceRepo.SqlSourceControlCredentialSetRepo(kernel) },
+    source: { ...base, loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }), repo: new mods.sourceRepo.SqlSourceControlCredentialSetRepo(kernel) },
     peer: { ...base, repo: new mods.peerRepo.SqlPublishContentPeerRepo(kernel) },
     mcp: { ...base, repo: new mods.mcpRepo.SqlExternalMcpServerRepo(kernel) },
     destination: new mods.destination.SealedDatabaseDestinationStore({ ...base, repo: new mods.destinationRepo.DatabaseDestinationRepo(kernel) }),
@@ -252,7 +253,7 @@ export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext):
     media: { ...base, repo: new MediaProviderCredentialVaultRepo({ vault }) },
     custom: { ...base, repo: new CustomCredentialVaultRepo({ vault }) },
     vendor: { ...base, repo: new InMemoryVendorCredentialSetRepo({ vault }) },
-    source: { ...base, repo: new InMemorySourceControlCredentialSetRepo({ vault }) },
+    source: { ...base, loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }), repo: new InMemorySourceControlCredentialSetRepo({ vault }) },
     peer: { ...base, repo: new VaultPublishContentPeerRepo({ vault }) },
     destination: new SealedDatabaseDestinationStore({ sealer: base.sealer, keyring: base.keyring as never, repo: vault as never }),
   } as ParityDeps;
@@ -342,18 +343,18 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["vendor.11.list"] = await outcome(() => mods.publish.listPublishCredentials(d.vendor, { workspaceId: ws }));
   }
   if (run("source")) {
-    const created = await outcome(() => mods.source.createSourceControlCredential(d.source, { workspaceId: ws, label: "Second GH",
-      connection: { providerId: "github", token: "ghp-second-token-1234567890", username: "second" }, isDefault: true }));
+    const created = await outcome(() => mods.source.createSourceControlCredential({ deps: d.source, input: { workspaceId: ws, label: "Second GH",
+      connection: { providerId: "github", token: "ghp-second-token-1234567890", username: "second" }, isDefault: true } }));
     t["source.1.create-default"] = created;
     const id = "ok" in created ? (created.ok as { id: string }).id : "missing";
     t["source.2.resolve-default"] = await outcome(() => mods.source.resolveDefaultForSourceControl(d.source, { workspaceId: ws, providerId: "github" }));
-    t["source.3.rotate"] = await outcome(() => mods.source.updateSourceControlCredential(d.source, { workspaceId: ws, id,
-      connection: { providerId: "github", token: "ghp-rotated-token-1234567890" } }));
+    t["source.3.rotate"] = await outcome(() => mods.source.updateSourceControlCredential({ deps: d.source, input: { workspaceId: ws, id,
+      connection: { providerId: "github", token: "ghp-rotated-token-1234567890" } } }));
     t["source.4.describe"] = await outcome(() => mods.source.describeCredential(d.source, { workspaceId: ws, id }));
     t["source.5.delete-default"] = await outcome(() => mods.source.deleteSourceControlCredential(d.source, { workspaceId: ws, id }));
     t["source.6.resolve-promoted"] = await outcome(() => mods.source.resolveDefaultForSourceControl(d.source, { workspaceId: ws, providerId: "github" }));
-    t["source.7.label-collision"] = await outcome(() => mods.source.createSourceControlCredential(d.source, { workspaceId: ws, label: "GitHub",
-      connection: { providerId: "github", token: "ghp-colliding-token-1234567890" } }));
+    t["source.7.label-collision"] = await outcome(() => mods.source.createSourceControlCredential({ deps: d.source, input: { workspaceId: ws, label: "GitHub",
+      connection: { providerId: "github", token: "ghp-colliding-token-1234567890" } } }));
     t["source.8.list"] = await outcome(() => mods.source.listSourceControlCredentials(d.source, { workspaceId: ws }));
   }
   if (run("custom")) {

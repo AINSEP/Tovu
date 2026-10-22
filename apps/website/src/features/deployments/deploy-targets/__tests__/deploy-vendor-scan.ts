@@ -19,8 +19,18 @@ import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../../..");
 export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-baseline.json");
 
+/** Phase 1 adds the source-control owner and its admin adapter to the existing ratchet. */
+export const SOURCE_CONTROL_ROOTS = [
+  'apps/website/src/features/source-control/',
+  'apps/admin/src/features/source-control/',
+  'apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts',
+  'apps/website/src/contracts/core/tool-metadata/source-control.ts',
+  'apps/website/src/server/runtime/composition/app.ts',
+] as const;
+
 /** The core surfaces the plan's T7 and T10 boundaries name. Directory entries end in `/`. */
 export const SCAN_ROOTS: readonly string[] = [
+  ...SOURCE_CONTROL_ROOTS,
   "apps/website/src/features/deployments/",
   // Vendor extraction phase 4: platform env names and labels belong in shipped declarations.
   "apps/website/src/contracts/core/host-signals.ts",
@@ -58,7 +68,9 @@ export const SCAN_ROOTS: readonly string[] = [
 ];
 
 /** One rule per vendor, matched case-insensitively on code and string text only. */
-const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
+const RULES: ReadonlyArray<{ id: string; pattern: RegExp; roots?: readonly string[] }> = [
+  // Source-control vendor words are forbidden in this extracted slice; other phases retain their ratchets.
+  { id: 'source-control', pattern: /github|gitlab|bitbucket/gi, roots: SOURCE_CONTROL_ROOTS },
   // The dormant deployment provider moved unregistered; its implementation cannot return to core.
   { id: "github-deployment", pattern: /createGitHubDeploymentProvider|GITHUB_DEPLOYMENT_PROVIDER_ID|mapGitHubDeploymentStatus/gi },
   { id: "netlify", pattern: /netlify/gi },
@@ -108,9 +120,10 @@ export function listSourceFiles(entry: string): string[] {
 }
 
 /** Per-vendor hit counts in already comment-stripped text; vendors with no hit are omitted. */
-export function countDeployVendors(text: string): Record<string, number> {
+export function countDeployVendors(text: string, { file }: { file?: string } = {}): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const rule of RULES) {
+    if (file && rule.roots && !rule.roots.some(root => file.startsWith(root))) continue;
     const hits = text.match(rule.pattern)?.length ?? 0;
     if (hits > 0) counts[rule.id] = hits;
   }
@@ -125,7 +138,7 @@ export function scanDeployVendorsRaw(): Counts {
     for (const file of listSourceFiles(root)) {
       const text = fs.readFileSync(file, "utf8");
       if (!ANY_RULE.test(text)) continue;
-      const counts = countDeployVendors(stripComments(file, text));
+      const counts = countDeployVendors(stripComments(file, text), { file: path.relative(REPO_ROOT, file).split(path.sep).join("/") });
       if (Object.keys(counts).length > 0) found[path.relative(REPO_ROOT, file).split(path.sep).join("/")] = counts;
     }
   }

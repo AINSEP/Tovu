@@ -79,7 +79,7 @@ export function SourceControl(props: SourceControlProps) {
       label: t({ locale: locale, key: "Providers" }),
       icon: <SourceControlIcon size={16} />,
       handle: "source-control-tab-providers",
-      handleLabel: "Switch to the Providers tab — connect GitHub, GitLab, or Bitbucket so Tovu can read (and later push to) your repositories",
+      handleLabel: "Switch to the Providers tab — connect a plugin-provided source control host so Tovu can read (and later push to) your repositories",
     },
   ];
 

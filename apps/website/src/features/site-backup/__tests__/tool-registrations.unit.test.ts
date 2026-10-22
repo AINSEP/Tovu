@@ -241,8 +241,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     /** Saves a GitHub connection the way chat's "Connect GitHub" form does (`source_control_propose_credential`). */
     seedConnection: (label = "GitHub backup") =>
       createSourceControlCredential(
-        { ...writeDeps, repo: sourceControlRepo, loadSourceControlProviders: githubFromSource, fetchFn: (async () => new Response("{}", { status: 401 })) as typeof fetch },
-        { workspaceId: WORKSPACE_ID, label, connection: { providerId: "github", token: TOKEN } }
+        { deps: { ...writeDeps, repo: sourceControlRepo, loadSourceControlProviders: githubFromSource, fetchFn: (async () => new Response("{}", { status: 401 })) as typeof fetch }, input: { workspaceId: WORKSPACE_ID, label, connection: { providerId: "github", token: TOKEN } } }
       ),
   };
 }

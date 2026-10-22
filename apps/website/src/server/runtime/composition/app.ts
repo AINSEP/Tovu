@@ -84,7 +84,7 @@ import { executionModeFromEnv } from "#src/features/deployments/publish-credenti
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
-import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { loadBundledSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
@@ -1625,10 +1625,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
-    // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
+    // Hermetic the same way: every bundled source-control declaration — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
-      loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "github") }),
+      loadBundledSourceControlProviderRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     // And the bundled plugins' own key cards — see `routes/types.ts`'s `loadPluginCredentialCards` doc.
     loadPluginCredentialCards: () =>
       loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }) }),
@@ -2099,7 +2099,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
   // header for why this doesn't split trigger/read the way `publish-site.ts` does.
   registerAdminPublishCredentialsRoutes(app, routeDeps);
-  // Admin Source Control page: CRUD over saved GitHub/GitLab/Bitbucket identity connections
+  // Admin Source Control page: CRUD over saved plugin-provided source-control identities
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
   registerAdminSourceControlCredentialsRoutes(app, routeDeps);

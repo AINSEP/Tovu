@@ -5,7 +5,7 @@ import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/vault-adapter.js";
-import { buildSourceControlProvider, type LoadSourceControlProviders } from "./provider-registry.js";
+import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
   SourceControlCredentialSetRecord,
@@ -19,15 +19,6 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens. */
 
 const MAX_LABEL_LENGTH = 200;
-const PROVIDER_IDS: ReadonlySet<SourceControlProviderId> = new Set(["github", "gitlab", "bitbucket"]);
-
-/** Type-predicate wrapper around `PROVIDER_IDS.has()` — `Set<T>.has()` alone does not narrow its
- *  argument's static type, so `validateConnection` below would otherwise see `providerId` as a
- *  plain `string` even after the runtime membership check. */
-export function isSourceControlProviderId(value: string): value is SourceControlProviderId {
-  return PROVIDER_IDS.has(value as SourceControlProviderId);
-}
-
 export class SourceControlCredentialValidationError extends Error {}
 
 /** A `(workspaceId, providerId, label)` collision — the route maps this to `409 DUPLICATE_LABEL`. */
@@ -61,8 +52,8 @@ function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCred
  * `null` (no account label learned) rather than failing the save.
  *
  * The host-specific read lives in the plugin that provides the host (`provider-module.ts`'s
- * `readAccountLabel`; the bundled `github` plugin reads `GET /user` -> `login`). A host no enabled
- * plugin provides (gitlab and bitbucket today) yields `null` with no request made.
+ * `readAccountLabel`; each provider owns its account identity read). A host no enabled
+ * plugin provides yields `null` with no request made.
  *
  * @complexity One registry load plus at most one bounded HTTP request.
  */
@@ -140,7 +131,7 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   fetchFn?: typeof fetch;
   /** `RouteDeps.observability`: the identity probe is one outbound span. */
   observability?: ObservabilityPort;
-  /** Optional account-label discovery for write-only clients; composition supplies the boot-bound providers. */
+  /** Loaded provider declarations govern admission and optional account-label discovery. */
   loadSourceControlProviders?: LoadSourceControlProviders;
 }
 
@@ -175,33 +166,70 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
   return raw;
 }
 
-/**
- * Validates a caller-supplied `connection` against its own provider's required shape. Never throws
- * a raw shape error — every rejection is a {@link SourceControlCredentialValidationError}.
- *
- * @complexity O(1) — fixed-shape field reads, no iteration.
- */
-function isEmptyTokenPatch(raw: unknown): boolean {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
-  const token = (raw as Record<string, unknown>).token;
+/** Blank/omitted canonical tokens preserve the envelope after connection-shape validation. */
+function isEmptyTokenPatch({ value }: { value: Record<string, unknown> }, _options = {}): boolean {
+  const token = value.token;
   return token === '' || token === undefined;
 }
-/** A token-only host can move without opening the secret. Bitbucket needs a new paired
- * connection when entering its group, so an envelope-only move cannot invent its username.
- * @throws SourceControlCredentialValidationError for unsupported/incompatible providers.
- * @complexity O(1) time/space; fixed provider catalog, no I/O. */
-function preservedProvider({ raw, existing }: { raw: unknown; existing: SourceControlProviderId }, _options = {}): SourceControlProviderId {
+
+/** Reject malformed connection shapes before either rotation or envelope preservation. */
+function connectionObject({ raw }: { raw: unknown }, _options = {}): Record<string, unknown> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new SourceControlCredentialValidationError('connection must be an object');
+  }
+  return raw as Record<string, unknown>;
+}
+
+/** Forms and vault payloads use `token`; accept a declared form name at the store boundary too.
+ * An explicitly supplied canonical value takes precedence, including blank/invalid values. */
+function canonicalConnection({ value, descriptor }: { value: Record<string, unknown>; descriptor?: SourceControlProviderDescriptor }, _options = {}): Record<string, unknown> {
+  if (value.token !== undefined) return value;
+  const tokenField = descriptor?.credential?.tokenField ?? 'token';
+  return { ...value, token: value[tokenField] };
+}
+
+/** Normalize alternate form names before deciding whether this is a rotation. Ordinary metadata
+ * patches and canonical-token patches need no registry lookup, keeping opaque saved rows editable.
+ * @complexity O(k) input keys plus at most one registry load for provider-specific fields. */
+async function normalizeConnectionPatch({ raw, existing, registry }: {
+  raw: unknown; existing: SourceControlProviderId; registry: () => Promise<SourceControlProviderRegistry>;
+}, _options = {}): Promise<Record<string, unknown> | undefined> {
+  if (raw === undefined) return undefined;
+  const value = connectionObject({ raw });
+  if (value.token !== undefined || Object.keys(value).every(key => key === 'providerId' || key === 'token')) return value;
+  const providerId = value.providerId ?? existing;
+  const loaded = await registry();
+  const descriptor = typeof providerId === 'string' ? loaded.get(providerId)?.descriptor : undefined;
+  return canonicalConnection({ value, descriptor });
+}
+/** A token-only host can move without opening the secret. Entering a host with required
+ * paired fields needs a new connection; an envelope-only move cannot invent those fields.
+ * Saved, unlisted ids may keep their envelope and metadata without loading plugin code. */
+async function preservedProvider({ raw, existing, registry }: {
+  raw: unknown; existing: SourceControlProviderId; registry: () => Promise<SourceControlProviderRegistry>;
+}, _options = {}): Promise<SourceControlProviderId> {
   if (raw === undefined) return existing;
   const providerId = (raw as Record<string, unknown>).providerId;
-  if (providerId === undefined) return existing;
-  if (typeof providerId !== "string" || !isSourceControlProviderId(providerId)) {
-    throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
-  }
-  if (providerId === "bitbucket" && existing !== providerId) {
-    throw new SourceControlCredentialValidationError("moving to bitbucket requires a new token and username");
-  }
-  return providerId;
+  if (providerId === undefined || providerId === existing) return existing;
+  const descriptor = requireProvider({ providerId, registry: await registry() });
+  const paired = descriptor.credential?.fields.find(field => field.required && field.name !== descriptor.credential!.tokenField);
+  if (paired) throw new SourceControlCredentialValidationError(`moving to ${descriptor.id} requires a new token and ${paired.name}`);
+  return descriptor.id;
 }
+
+/** Only loaded providers admit new connections; stored ids are never checked against this list. */
+function requireProvider({ providerId, registry }: { providerId: unknown; registry: SourceControlProviderRegistry }, _options = {}): SourceControlProviderDescriptor {
+  const loaded = typeof providerId === 'string' ? registry.get(providerId) : undefined;
+  if (!loaded) throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${registry.list().map(provider => provider.descriptor.id).join(', ')}`);
+  return loaded.descriptor;
+}
+
+/** Write-only callers without a provider port cannot introduce a new credential/provider. */
+async function credentialRegistry({ deps, workspaceId }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID }, _options = {}): Promise<SourceControlProviderRegistry> {
+  if (!deps.loadSourceControlProviders) return { list: () => [], get: () => undefined, refusals: [] };
+  return deps.loadSourceControlProviders(workspaceId);
+}
+
 function normalizeStoredToken({ value }: { value: unknown }): string {
   try { return normalizeCredentialToken({ value }); }
   catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
@@ -211,24 +239,39 @@ function assertPlainField(required: { value: string; field: string }): void {
   catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
 }
 
-function validateConnection(raw: unknown): SourceControlConnectionInput {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new SourceControlCredentialValidationError("connection must be an object");
-  }
-  const value = raw as Record<string, unknown>;
-  const providerId = value.providerId;
-  if (typeof providerId !== "string" || !isSourceControlProviderId(providerId)) {
-    throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
-  }
+/** Validate declared fields before sealing. Authentication pairs stay in one ciphertext blob.
+ * Only declared fields are accepted on new writes; existing saved payloads remain opaque.
+ * @complexity O(f) time/space, f bounded by the existing credential-form parser (10 fields). */
+function validateConnection({ raw, registry }: { raw: unknown; registry: SourceControlProviderRegistry }, _options = {}): SourceControlConnectionInput {
+  const value = connectionObject({ raw });
+  const descriptor = requireProvider({ providerId: value.providerId, registry });
+  const canonical = canonicalConnection({ value, descriptor });
+  const token = normalizeStoredToken({ value: canonical.token });
+  return { ...collectDeclaredFields({ value, descriptor }), providerId: descriptor.id, token };
+}
 
-  const token = normalizeStoredToken({ value: value.token });
-  if (providerId !== "bitbucket") return { providerId, token };
+/** Collect only the provider's additional declared fields; the primary secret is stored as `token`.
+ * Authentication pairs stay in the same ciphertext blob. @complexity O(f) time/space, f <= 10. */
+function collectDeclaredFields({ value, descriptor }: { value: Record<string, unknown>; descriptor: SourceControlProviderDescriptor }, _options = {}): Record<string, string> {
+  const tokenField = descriptor.credential?.tokenField ?? 'token';
+  const fields: Record<string, string> = {};
+  for (const field of descriptor.credential?.fields ?? []) {
+    if (field.name === tokenField) continue;
+    const validated = validateDeclaredField({ value: value[field.name], field, providerId: descriptor.id });
+    if (validated !== undefined) fields[field.name] = validated;
+  }
+  return fields;
+}
 
-  // Bitbucket authenticates the (token, username) pair, not the token alone — see `types.ts`'s
-  // `BitbucketSourceControlConnectionInput` doc.
-  const username = requireNonEmptyString(value.username, "username", providerId);
-  assertPlainField({ value: username, field: "username" });
-  return { providerId, token, username };
+/** Non-secret metadata uses the existing credential-free admission check; secrets use token admission. */
+function validateDeclaredField({ value, field, providerId }: {
+  value: unknown; field: import('./credential-form.js').SourceControlCredentialField; providerId: string;
+}, _options = {}): string | undefined {
+  if (value === undefined && !field.required) return undefined;
+  const text = requireNonEmptyString(value, field.name, providerId);
+  if (field.secret) return normalizeStoredToken({ value: text });
+  assertPlainField({ value: text, field: field.name });
+  return text;
 }
 
 /** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
@@ -247,13 +290,16 @@ export interface CreateSourceControlCredentialInput {
   isDefault?: unknown;
 }
 
-/** Validate and make the secret durable before probing; probe failures never undo a save. */
+/** Validate the loaded declaration, then make the secret durable before identity discovery.
+ * @param required Explicit store ports and create input. @returns A summary with no secret fields.
+ * @throws {SourceControlCredentialValidationError} Invalid or unavailable provider/fields.
+ * Probe failures never undo a save; Jini owns sealing, hints and atomic defaults. */
 export async function createSourceControlCredential(
-  deps: SourceControlCredentialWriteDeps,
-  input: CreateSourceControlCredentialInput
+  { deps, input }: { deps: SourceControlCredentialWriteDeps; input: CreateSourceControlCredentialInput },
+  _options = {},
 ): Promise<SourceControlCredentialSummary> {
   const label = validateLabel(input.label);
-  const connection = validateConnection(input.connection);
+  const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   const isDefault = optionalBoolean(input.isDefault, "isDefault") === true;
   const id = deps.idGen.newId();
   const summary = await saveConnection({ deps, input: { ...credentialScope({ workspaceId: input.workspaceId, kind: "source-control", id }),
@@ -302,10 +348,13 @@ export interface UpdateSourceControlCredentialInput {
   isDefault?: unknown;
 }
 
-/** Omitted/blank tokens keep the envelope; explicit rotations reset and re-probe the label. */
+/** Omitted/blank tokens keep the envelope; explicit rotations reset and re-probe the label.
+ * @param required Explicit store ports and update input. @returns A summary with no secret fields.
+ * @throws {SourceControlCredentialValidationError} Invalid or unavailable destination/fields.
+ * Metadata updates for an unchanged opaque id need neither a provider nor decryption. */
 export async function updateSourceControlCredential(
-  deps: SourceControlCredentialWriteDeps,
-  input: UpdateSourceControlCredentialInput
+  { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
+  _options = {},
 ): Promise<SourceControlCredentialSummary> {
   const existing = await deps.repo.findById(input);
   if (!existing) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
@@ -313,14 +362,15 @@ export async function updateSourceControlCredential(
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const row = await deps.repo.vault!.find(input);
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
-  if (input.connection !== undefined && !isEmptyTokenPatch(input.connection)) {
-    const connection = validateConnection(input.connection);
+  const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
+  if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
+    const connection = validateConnection({ raw: patch, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
     const summary = await saveConnection({ deps, input: { ...credentialScope({ ...input, kind: "source-control" }), id: input.id,
       expectedRevision: row.revision, provider: connection.providerId, label, payload: { ...connection }, hintToken: connection.token,
       meta: { ...row.meta, accountLabel: null }, ...(requestedDefault === true ? { isDefault: true } : {}) } });
     return probeSavedConnection({ deps, summary, connection });
   }
-  const provider = preservedProvider({ raw: input.connection, existing: existing.providerId });
+  const provider = await preservedProvider({ raw: patch, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   // Omitting payload retains ciphertext/hints without a key; Jini owns both groups' defaults.
   const summary = await saveConnection({ deps, input: { ...credentialScope({ ...input, kind: "source-control" }), id: input.id,
     expectedRevision: row.revision, provider, label,
@@ -350,13 +400,11 @@ export async function resolveDefaultForSourceControl(
 ): Promise<{ id: UUID; label: string; connection: SourceControlConnectionInput } | null> {
   try {
     const resolved = await vault(deps).findDefault({ ...credentialScope({ workspaceId: input.workspaceId, kind: "source-control" }), provider: input.providerId });
-    if (resolved && !resolved.payload) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
     if (!resolved) return null;
-    const connection = validateConnection({ ...resolved.payload, providerId: resolved.summary.provider });
-    // A username sealed beside a GitHub/GitLab token is still returned, as before the vault
-    // (parity finding R3); validation alone keeps it only for Bitbucket.
-    const stored = resolved.payload?.username;
-    return { id: resolved.summary.id, label: resolved.summary.label,
-      connection: typeof stored === "string" && !("username" in connection) ? Object.assign(connection, { username: stored }) : connection };
+    if (!resolved.payload) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+    // Reading a saved connection never requires its plugin or reinterprets its paired fields.
+    const connection = { ...resolved.payload, providerId: resolved.summary.provider,
+      token: normalizeStoredToken({ value: resolved.payload.token }) } as SourceControlConnectionInput;
+    return { id: resolved.summary.id, label: resolved.summary.label, connection };
   } catch { throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }

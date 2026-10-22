@@ -27,11 +27,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  *
  * `source-control.credentials.write`-gated on every verb, NOT `system.publish` — the permission
  * `publish-credentials.ts` uses for its own structurally-identical route. Reusing `system.publish`
- * here would be wrong semantics: this page connects a source-control IDENTITY (GitHub/GitLab/
- * Bitbucket), which is not a publish target and never triggers a publish (see
- * `apps/admin/src/features/source-control/SourceControl.tsx`'s own header for that scope
- * boundary — GitLab/Bitbucket aren't deploy targets at all, and this is scoped to connecting an
- * identity only, no commit history, sync, or versioning). A saved connection's existence and label
+ * here would be wrong semantics: this page connects a plugin-provided source-control IDENTITY,
+ * which is separate from a publish target and never triggers a publish. The saved identity
+ * carries authentication only, with no commit history, sync, or versioning. A saved connection's existence and label
  * are themselves operationally sensitive (which external accounts this workspace can reach with a
  * write-scoped credential) — the same "gate the read same as the write" reasoning
  * `publish-credentials.ts`'s own header gives for its single-permission-on-every-verb shape, which
@@ -159,12 +157,12 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const credential = await createSourceControlCredential(writeDeps, {
+      const credential = await createSourceControlCredential({ deps: writeDeps, input: {
         workspaceId: deps.workspaceId,
         label: body.label,
         connection: body.connection,
         isDefault: body.isDefault,
-      });
+      } });
       res.status(201).json({ credential });
     } catch (err) {
       sendStoreError(res, err);
@@ -175,13 +173,13 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const credential = await updateSourceControlCredential(writeDeps, {
+      const credential = await updateSourceControlCredential({ deps: writeDeps, input: {
         workspaceId: deps.workspaceId,
         id: req.params.id,
         ...(body.label !== undefined ? { label: body.label } : {}),
         ...(body.connection !== undefined ? { connection: body.connection } : {}),
         ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
-      });
+      } });
       res.status(200).json({ credential });
     } catch (err) {
       sendStoreError(res, err);

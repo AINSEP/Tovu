@@ -5,7 +5,7 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 export const toolMetadata = {
   "source_control_execute_commit": {
     search: {
-      keywords: "commit my site to a git repository push the site code export to repo commit changes github gitlab",
+      keywords: "commit my site to a git repository push the site code export to repo commit changes",
     },
     approval: { class: 'publish', confirmation: 'policy', rule: 'export-commit' },
   },
@@ -13,9 +13,9 @@ export const toolMetadata = {
   // Connection-status questions distinguish source-control capabilities from deployment operations.
   "source_control_get_capabilities": {
     search: {
-      keywords: "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
+      keywords: "git source control connected ready can I commit repository credentials setup",
       queries: [
-        "Is GitHub connected for source control?", "Is git set up for this site yet?", "Which repository host is connected?", "Are my source control credentials ready?",
+        "Is a repository host connected for source control?", "Is git set up for this site yet?", "Which repository host is connected?", "Are my source control credentials ready?",
       ],
     },
     approval: { class: 'read', confirmation: 'direct' },

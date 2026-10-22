@@ -121,6 +121,17 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 });
 
 describe("buildSourceControlConnectionInput", () => {
+  it("normalizes a non-default declared token name to the canonical wire token", () => {
+    const info = sourceControlProviderInfoFromDescriptor({ id: "example-access", label: "Example Access", credential: {
+      tokenField: "accessToken", fields: [
+        { name: "accessToken", label: "Access token", secret: true, required: true },
+        { name: "username", label: "Username", required: true },
+      ],
+    } });
+    const connection = buildSourceControlConnectionInput({ providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, info.fields);
+    expect(connection).toEqual({ providerId: "example-access", token: " selected-secret ", username: "operator" });
+  });
+
   it("omits declared fields that have no value in the form", () => {
     expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: {} }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
   });

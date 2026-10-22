@@ -26,7 +26,7 @@ import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
-import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
+import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
@@ -293,7 +293,6 @@ async function resolveHostConnection(deps: SiteBackupToolDeps, providers: readon
   const repo = deps.sourceControlCredentialSetRepo;
   if (!repo) return null;
   for (const provider of providers) {
-    if (!isSourceControlProviderId(provider.id)) continue;
     const lookup = await findHostConnection({ deps, repo, provider, providerId: provider.id });
     if (!lookup.ok) return lookup;
     if (lookup.found && (requested === undefined || requested === lookup.found.label)) return hostCredential({ found: lookup.found, provider });

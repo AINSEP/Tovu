@@ -18,7 +18,6 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
 import { buildSourceControlProviders, buildSourceControlProviderForApi, type LoadedSourceControlProvider, type SourceControlProviderRegistry, buildLoadedSourceControlProvider, findReservedPath, isUnderWorkflowPath, loadSourceControlProviderRegistry, noSourceControlProviderMessage, parseSourceControlProvidersFile, pickSourceControlProviderForApi, SOURCE_CONTROL_PROVIDERS_FILENAME } from "../provider-registry.js";
 import type { SourceControlProvider } from "../provider-module.js";
-import { GITHUB_PACKAGE_ROOT } from "./fixtures/github-from-source.js";
 
 /**
  * @file `provider-registry.ts` — the seam that lets an Agent Plugin add a git host. Loading a module
@@ -183,11 +182,11 @@ test("parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a 
 
 test("reservedPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
   const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
-  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths: [".github", "ci/hooks"] }]));
+  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths: [".example-ci", "ci/hooks"] }]));
   assert.ok(parsed.ok);
-  assert.deepEqual(parsed.descriptors[0]?.reservedPaths, [".github", "ci/hooks"]);
+  assert.deepEqual(parsed.descriptors[0]?.reservedPaths, [".example-ci", "ci/hooks"]);
   const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
-  assert.deepEqual(provider.reservedPaths, [".github", "ci/hooks"]);
+  assert.deepEqual(provider.reservedPaths, [".example-ci", "ci/hooks"]);
 
   const noneDeclared = parseSourceControlProvidersFile(descriptorJson([entry]));
   assert.ok(noneDeclared.ok);
@@ -200,11 +199,11 @@ test("reservedPaths: parsed from the descriptor, carried on the built provider, 
 });
 
 test("findReservedPath matches the folder itself or anything under it, case-insensitively, and nothing that merely shares a prefix", () => {
-  assert.equal(findReservedPath(".github", [".github"]), ".github");
-  assert.equal(findReservedPath(".GitHub/workflows", [".github"]), ".github");
-  assert.equal(findReservedPath(".github-backup", [".github"]), undefined);
-  assert.equal(findReservedPath("site/.github", [".github"]), undefined);
-  assert.equal(findReservedPath(".github", undefined), undefined);
+  assert.equal(findReservedPath(".example-ci", [".example-ci"]), ".example-ci");
+  assert.equal(findReservedPath(".Example-ci/workflows", [".example-ci"]), ".example-ci");
+  assert.equal(findReservedPath(".example-ci-backup", [".example-ci"]), undefined);
+  assert.equal(findReservedPath("site/.example-ci", [".example-ci"]), undefined);
+  assert.equal(findReservedPath(".example-ci", undefined), undefined);
 });
 
 test("workflowPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
@@ -225,20 +224,15 @@ test("workflowPaths: parsed from the descriptor, carried on the built provider, 
   }
 });
 
-test("the bundled github plugin declares .github/workflows as its workflow path", async () => {
-  const parsed = parseSourceControlProvidersFile(await readFile(path.join(GITHUB_PACKAGE_ROOT, SOURCE_CONTROL_PROVIDERS_FILENAME), "utf8"));
-  assert.ok(parsed.ok);
-  assert.deepEqual(parsed.descriptors.find((descriptor) => descriptor.id === "github")?.workflowPaths, [".github/workflows"]);
-});
 
 test("isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively", () => {
-  const github = [".github/workflows"];
-  assert.equal(isUnderWorkflowPath(".github/workflows/example-host-deploy.yml", github), true);
-  assert.equal(isUnderWorkflowPath("example-host.toml", github), false);
-  assert.equal(isUnderWorkflowPath(".github/workflow/example-host-deploy.yml", github), false, "singular 'workflow' is not the real directory GitHub reads");
-  assert.equal(isUnderWorkflowPath("sub/.github/workflows/example-host-deploy.yml", github), false, "a nested .github is not the repo-root one GitHub Actions reads");
-  assert.equal(isUnderWorkflowPath(".GitHub/workflows/example-host-deploy.yml", github), false, "GitHub reads only the exact spelling");
-  assert.equal(isUnderWorkflowPath(".github/workflows/example-host-deploy.yml", undefined), false, "a host that declares none flags nothing");
+  const exampleProvider = [".example-ci/workflows"];
+  assert.equal(isUnderWorkflowPath(".example-ci/workflows/example-host-deploy.yml", exampleProvider), true);
+  assert.equal(isUnderWorkflowPath("example-host.toml", exampleProvider), false);
+  assert.equal(isUnderWorkflowPath(".example-ci/workflow/example-host-deploy.yml", exampleProvider), false, "singular 'workflow' is not the real directory Example Git reads");
+  assert.equal(isUnderWorkflowPath("sub/.example-ci/workflows/example-host-deploy.yml", exampleProvider), false, "a nested .example-ci is not the repo-root one Example Git Actions reads");
+  assert.equal(isUnderWorkflowPath(".Example-ci/workflows/example-host-deploy.yml", exampleProvider), false, "Example Git reads only the exact spelling");
+  assert.equal(isUnderWorkflowPath(".example-ci/workflows/example-host-deploy.yml", undefined), false, "a host that declares none flags nothing");
 });
 
 test("a module whose validateTarget is not a function is refused", async () => {
@@ -257,11 +251,11 @@ test("a module whose validateTarget is not a function is refused", async () => {
 });
 
 test("pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why", () => {
-  const github = { apiOrigin: "https://api.github.com" } as SourceControlProvider;
+  const exampleProvider = { apiOrigin: "https://api.example-ci.com" } as SourceControlProvider;
   const other = { apiOrigin: "https://git.example.test" } as SourceControlProvider;
-  assert.deepEqual(pickSourceControlProviderForApi([github, other], "https://api.github.com/repos"), { ok: true, provider: github });
+  assert.deepEqual(pickSourceControlProviderForApi([exampleProvider, other], "https://api.example-ci.com/repos"), { ok: true, provider: exampleProvider });
   assert.deepEqual(pickSourceControlProviderForApi([other], "https://self-hosted.test/api"), { ok: true, provider: other });
-  assert.deepEqual(pickSourceControlProviderForApi([github, other], "https://nope.test"), { ok: false, message: "No enabled Agent Plugin provides source control for https://nope.test." });
+  assert.deepEqual(pickSourceControlProviderForApi([exampleProvider, other], "https://nope.test"), { ok: false, message: "No enabled Agent Plugin provides source control for https://nope.test." });
   assert.deepEqual(pickSourceControlProviderForApi([], "https://nope.test", "custom why"), { ok: false, message: "custom why" });
   assert.equal(
     noSourceControlProviderMessage({}),
@@ -297,4 +291,76 @@ test("provider builders load the requested workspace, forward HTTP, select by or
   assert.deepEqual(await buildSourceControlProviderForApi({ load: empty, workspaceId: WORKSPACE_ID, httpClient, baseUrl: "https://alpha.test" }), {
     ok: false, message: "No enabled Agent Plugin provides source control: the 'plugin-alpha' Agent Plugin is switched off. To switch it back on, open the admin's Add-Ons > Agent Plugins screen and turn on 'plugin-alpha'.", refusals,
   });
+});
+
+test('bundled sources aggregate neutral providers in source order and refuse every duplicate claimant', async () => {
+  const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
+  const { exampleRegistry } = await import('./fixtures/example-provider.js');
+  const a = exampleRegistry({ ids: ['example-a', 'example-shared'] });
+  const b = exampleRegistry({ ids: ['example-b', 'example-shared'] });
+  const requests: unknown[] = [];
+  const registry = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/content/agent-plugins' }, {
+    sources: required => { requests.push(required); return [{ pluginId: 'a', packageRoot: '/product/a' }, { pluginId: 'b', packageRoot: '/product/b' }]; },
+    load: async plugin => ({ ...(plugin.pluginId === 'a' ? a : b), refusals: plugin.pluginId === 'a' ? ['example-invalid: malformed declaration'] : [] }),
+  });
+  assert.deepEqual(requests, [{ sourceRoot: '/product/content/agent-plugins', filename: SOURCE_CONTROL_PROVIDERS_FILENAME }]);
+  assert.deepEqual(registry.list().map(provider => provider.descriptor.id), ['example-a', 'example-b']);
+  assert.equal(registry.get('example-shared'), undefined);
+  assert.equal(registry.get('example-b')?.descriptor.id, 'example-b');
+  assert.deepEqual(registry.refusals, ['example-invalid: malformed declaration', "source-control provider 'example-shared' was not loaded: declared more than once"]);
+});
+
+test('missing bundled sources and empty payloads never prevent boot or load executable code', async () => {
+  const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
+  const missing = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/missing/product/root' });
+  assert.deepEqual(missing.list(), []);
+  assert.equal(missing.get('example-git'), undefined);
+  assert.deepEqual(missing.refusals, ['bundled source-control provider sources could not be read']);
+  let loads = 0;
+  const empty = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/root' }, {
+    sources: () => [], load: async () => { loads++; throw new Error('an empty payload executes no code'); },
+  });
+  assert.deepEqual(empty.list(), []);
+  assert.deepEqual(empty.refusals, []);
+  assert.equal(loads, 0);
+});
+
+test('a rejected package load refuses only that package and never logs exception details', async () => {
+  const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
+  const { exampleRegistry } = await import('./fixtures/example-provider.js');
+  const requested: string[] = [];
+  const registry = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/root' }, {
+    sources: () => ['unreadable', 'healthy', 'missing-module'].map(pluginId => ({ pluginId, packageRoot: `/product/${pluginId}` })),
+    load: async plugin => {
+      requested.push(plugin.pluginId);
+      if (plugin.pluginId !== 'healthy') throw new Error('/private/token=do-not-log\nforged log entry');
+      return exampleRegistry({ probe: false, ids: ['example-healthy'] });
+    },
+  });
+  assert.deepEqual(requested, ['unreadable', 'healthy', 'missing-module']);
+  assert.deepEqual(registry.list().map(provider => provider.descriptor.id), ['example-healthy']);
+  assert.equal(registry.get('example-healthy')?.pluginId, 'example-healthy');
+  assert.deepEqual(registry.refusals, [
+    "source-control provider package 'unreadable' was not loaded: package could not be read or imported",
+    "source-control provider package 'missing-module' was not loaded: package could not be read or imported",
+  ]);
+  assert.doesNotMatch(JSON.stringify(registry.refusals), /do-not-log|private|forged/);
+});
+
+test('bundled malformed data drops only its package, while valid sources remain available', async () => {
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
+  const sourceRoot = await mkdtemp(path.join(tmpdir(), 'tovu-bundled-source-control-'));
+  try {
+    for (const name of ['example-good', 'example-bad', 'example-missing', 'example-not-package']) await mkdir(path.join(sourceRoot, name));
+    for (const name of ['example-good', 'example-bad', 'example-missing']) await writeFile(path.join(sourceRoot, name, 'plugin.json'), '{}');
+    await writeFile(path.join(sourceRoot, 'example-bad', SOURCE_CONTROL_PROVIDERS_FILENAME), '{broken');
+    await writeFile(path.join(sourceRoot, 'example-not-package', SOURCE_CONTROL_PROVIDERS_FILENAME), '{broken');
+    await writeFile(path.join(sourceRoot, 'example-good', SOURCE_CONTROL_PROVIDERS_FILENAME), descriptorJson([{ id: 'example-git', label: 'Example Git', apiOrigin: 'https://git.example.test', module: 'provider.mjs' }]));
+    await writeFile(path.join(sourceRoot, 'example-good', 'provider.mjs'), FIXTURE_MODULE);
+    const registry = await loadBundledSourceControlProviderRegistry({ sourceRoot });
+    assert.deepEqual(registry.list().map(provider => provider.descriptor.id), ['example-git']);
+    assert.equal(registry.refusals.length, 1);
+    assert.match(registry.refusals[0]!, /example-bad/);
+  } finally { await forceRemove(sourceRoot); }
 });

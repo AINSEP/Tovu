@@ -31,7 +31,7 @@ test("comment stripping: vendor names in prose never count; ids, hosts and origi
     'const url = "https://api.vercel.com/v2/user"; // netlify',
     'const host = "demo.pages.dev" + ".s3.amazonaws.com";',
   ].join("\n");
-  assert.deepEqual(countDeployVendors(stripComments("probe.ts", source)), { "github-pages": 1, vercel: 1, cloudflare: 1, "s3-compatible": 1 });
+  assert.deepEqual(countDeployVendors(stripComments("probe.ts", source)), { "source-control": 1, "github-pages": 1, vercel: 1, cloudflare: 1, "s3-compatible": 1 });
 });
 
 test("no new deploy-vendor names in core (ratchet: the baseline only shrinks)", () => {
@@ -102,5 +102,15 @@ test("the extracted declaration consumers remain inside the vendor boundary", ()
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/object-storage/"));
   assert.ok(SCAN_ROOTS.includes("apps/website/src/features/site-backup/share-hosting.ts"));
   assert.ok(SCAN_ROOTS.includes("apps/website/src/server/runtime/composition/domain-dns-adapters.ts"));
-  assert.deepEqual(countDeployVendors('const provider = createGitHubDeploymentProvider();'), { "github-deployment": 1 });
+  assert.deepEqual(countDeployVendors('const provider = createGitHubDeploymentProvider();'), { "source-control": 1, "github-deployment": 1 });
+});
+
+// This extends the deployed boundary; source-control does not get a parallel scanner.
+test('source-control declarations, core consumers and admin forms remain vendor-free', () => {
+  for (const root of ['apps/website/src/features/source-control/', 'apps/admin/src/features/source-control/',
+    'apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts']) assert.ok(SCAN_ROOTS.includes(root));
+  assert.deepEqual(countDeployVendors('const providerId = "gitlab"; const peer = "bitbucket";', { file: 'apps/website/src/features/source-control/store.ts' }), { 'source-control': 2 });
+  assert.deepEqual(countDeployVendors('const providerId = "github";', { file: 'apps/website/src/other-phase.ts' }), {});
+  const current = scanDeployVendors();
+  assert.deepEqual(Object.entries(current).filter(([file]) => file.includes('/source-control/')), []);
 });
