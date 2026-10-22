@@ -10,6 +10,7 @@
       "displayName": "Vercel",
       "summary": "Puts your website online on Vercel. The assistant shows you a preview first.",
       "id": "tovu/vercel",
+      "seededEnabled": true,
       "provides": [
         "deploy-target:vercel"
       ]

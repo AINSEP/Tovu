@@ -10,6 +10,7 @@
       "displayName": "Railway",
       "summary": "Writes the settings file for running the Tovu server on Railway. You follow its notes to finish the deploy.",
       "id": "tovu/railway",
+      "seededEnabled": true,
       "provides": [
         "deploy-config:railway"
       ]

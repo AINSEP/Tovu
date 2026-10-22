@@ -9,6 +9,7 @@
     "tovu": {
       "summary": "Sends your site's emails, like sign-in links and form notifications, through Resend.",
       "id": "tovu/resend",
+      "seededEnabled": true,
       "provides": [
         "outbound-mail"
       ]

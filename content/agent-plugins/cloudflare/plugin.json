@@ -10,6 +10,7 @@
       "displayName": "Cloudflare",
       "summary": "Publish static exports with Workers or Pages and review apex/www domain changes before applying them.",
       "id": "tovu/cloudflare",
+      "seededEnabled": true,
       "provides": [
         "deploy-target:cloudflare-workers",
         "deploy-target:cloudflare-pages",

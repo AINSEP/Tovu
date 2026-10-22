@@ -269,7 +269,7 @@ export const MIGRATIONS_NOTE =
  * the same reasoning extends to app/volume names here — quoting the two unquoted YAML sinks at
  * render time was considered instead of widening this check, but every renderer's own exact-string
  * golden test already pins the CURRENT unquoted rendering for a safe name (e.g.
- * `bundled-deploy-config-render.unit.test.ts`'s `name: acme-app`), so unconditionally quoting would change
+ * `content/agent-plugins/render/deploy-configs/__tests__/render.test.mjs`'s `name: acme-app`), so unconditionally quoting would change
  * output for every already-safe app/volume name, not just unsafe ones — a real caller-visible
  * behavior change this task's own instructions rule out. Widening the reject-list here instead never
  * changes what an already-accepted value renders as; it only ever accepts fewer values, which is

@@ -11,3 +11,8 @@ behaviours generically; the vendor detail lives here.
 - **Credential label.** `Tovu Mail — Resend API` is the v1 label shape core's `defaultCredentialLabel`
   reproduces for v2 descriptors without one.
 - **Feedback inbox.** Resend webhook events are recorded under `providerId: "resend"`.
+
+## Why this plugin is seeded enabled (moved from core `bundled-catalog.ts`)
+`resend` hosts a mail adapter (`mail-adapter-registry.ts`), moved out of core 2026-09-29: with it off,
+a site that saved that provider's key would silently stop sending mail. It opts in with
+`extensions.tovu.seededEnabled: true` in its own `plugin.json` (2026-10-22).
