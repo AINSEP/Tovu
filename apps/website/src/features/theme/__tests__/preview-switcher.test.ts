@@ -81,3 +81,29 @@ test("banner script isolates controls and offsets fixed chrome and body without 
   assert.match(html, /overflow-x:auto/);
   assert.match(html, /bodyString="<\/body>"/);
 });
+
+test("a workspace whose ledger never registered the setting reads as disabled", async () => {
+  const { InMemorySettingsRepo } = await import("@jini-ai/core/settings");
+  const { readPreviewSwitcher } = await import("../preview-switcher.js");
+  assert.deepEqual(await readPreviewSwitcher({ settingsRepo: new InMemorySettingsRepo(), workspaceId: "ws", themes, activeThemeId: "one" }),
+    { enabled: false, themes: [], position: "top" });
+});
+
+test("navigation rewriting leaves rel-less links, hrefless and fragment anchors and unparseable URLs alone; origin-less pages canonicalize to a path", () => {
+  const html = '<!doctype html><html><head><link href="/feed.xml"><link rel="alternate canonical" href="/old"><meta name="googlebot" content="index"><meta name="description" content="d"></head><body><a name="top">Top</a><a href="#top">Jump</a><a href="http://[broken">Broken</a><a href="/theme-assets/x.css">Asset</a><a href="/blog?theme=one&amp;p=2">Blog</a></body></html>';
+  const out = decoratePreviewPage({ html, config, activeThemeId: "one", currentThemeId: "two", path: "/about?theme=two&x=1", preview: true, delivery: "static" });
+  assert.match(out, /<link href="\/feed.xml">/, "a link without rel is kept");
+  assert.doesNotMatch(out, /href="\/old"/, "a canonical among several rel tokens is replaced");
+  assert.doesNotMatch(out, /name="googlebot"/, "a googlebot override is dropped in a static preview");
+  assert.match(out, /name="description"/, "other meta tags are kept");
+  assert.match(out, /<a name="top">Top<\/a>/);
+  assert.match(out, /<a href="#top">Jump<\/a>/);
+  assert.match(out, /<a href="http:\/\/\[broken">Broken<\/a>/);
+  assert.match(out, /<a href="\/theme-assets\/x.css">Asset<\/a>/);
+  assert.match(out, /<a href="\/_themes\/two\/blog\?p=2">Blog<\/a>/);
+  assert.match(out, /<link rel="canonical" href="\/about\?x=1">/, "no origin: a path-only canonical without the theme query");
+  const live = decoratePreviewPage({ html, config, activeThemeId: "one", currentThemeId: "one", path: "/", preview: false, delivery: "live" });
+  assert.match(live, /name="googlebot"/, "robots overrides stay outside a static preview");
+  assert.doesNotMatch(live, /noindex/);
+  assert.match(live, /<a href="\/blog\?theme=one&amp;p=2">Blog<\/a>/, "live delivery never rewrites navigation");
+});
