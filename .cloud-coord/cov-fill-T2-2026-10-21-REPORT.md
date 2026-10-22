@@ -25,7 +25,7 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - deployments/tool-registrations 100/95.7/100 · seo/index 95.9/100/80 · seo/settings B96.8 · post/template-options B85.7 · webhooks/seal-aad-invariant B97.9 · webhooks/tool-registrations 99.7/86/93.5 · webhooks/repo.memory 98.6/94.6/97 · widgets/deps B90.9/F69 · widgets/publish-content 95/84.6/80.8 · publish-content seed-hash, backstop-service, planner, peer-transport, gated-hooks (all → 100).
 - cli/commands/adopt.ts (in-process 0 → 100; its old tests only spawn a subprocess) · contracts/core/scheduled-publish.ts F16.7 · agent-plugins/switch-on-saved-token 94/95/86 · plugin-runtime/install-consent 67/100/33 · plugin-runtime/built-ins/word-count F66.7 (all → 100).
 - agent-plugins/federate-mcp 99.45/83.2/100 · plugin-runtime/tool-registrations 94.1/81.4/85 → 100 (L894 is the declaration line, a tsx artifact). Partial: connect-tool B103/104, install-tool B90/91, install-upload B134/136, lifecycle B59/65 F45/46, executable-tools/register B46/48, agent-plugins/tool-registrations 988/999 130/144 51/52.
-- S5 results: SEE_S5
+- widgets/tool-registrations B99.2 · publish-credentials/store 99.1/97.3/100 · publish-content/push-plan 100/70/85.7 · raw-file-contributor 100/96.4/96.8 (all → 100).
 
 ## Improved, still below 100 (after L/B/F, reason)
 - theme-files 100/99.04/100: the `parent === probe` filesystem-root break (Windows only) and the readdir→lstat vanish race. Both are guards, kept.
@@ -37,7 +37,7 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - widgets/media-html 100/98.3/100: a non-text `<style>` child after parse5, and a non-element/non-text node after sanitize. Believed unreachable, kept.
 - assistant: agents.ts B76/79 · render-ui-tool B29/30 (the schema-rejected guard; the message is built internally) · mcp-federation/bootstrap (2 branches) · cli/program.ts 241/244 23/27 21/22 (one anonymous action; could not be located because of the line-number mapping).
 - access-token-tool 291/296 76/89 · external-mcp-vault 106/112 F11/15 (fail-closed policy callbacks no public path reaches) · live-model-cache (required fail-closed `discover` default).
-- Not started (no time left), from the before CSVs: publish-content apply-loop, export-bundle, peers, publish-tool B81/106, repo-handler, raw-row-contributor; static-publish/adapter; site-export site-exporter, theme-preview-manifest; post post.ts, publish-content, repo.ts, tool-registrations; site-evidence/collect-page-evidence L84 F53; site-inspection/tool-registrations B76; trash/adapters/directory (fs error arms → needs an fs port); source-control/* (credential-setup F58); recovery and skills tool-registrations; assistant/tool-registrations, mcp-federation/reload-adapter; src/index.ts (needs a `bootSite(ports)` extraction); cli/main.ts (process entry).
+- Not started (no time left), from the before CSVs: publish-content apply-loop, export-bundle, peers, publish-tool B81/106, repo-handler, raw-row-contributor; agent-plugins connect-tool L276 null arm (unreachable: a blank key is refused at L331 first), install-tool L229, install-upload removeFailedPublication L365-366, register L112/L160 invariants; static-publish/adapter; site-export site-exporter, theme-preview-manifest; post post.ts, publish-content, repo.ts, tool-registrations; site-evidence/collect-page-evidence L84 F53; site-inspection/tool-registrations B76; trash/adapters/directory (fs error arms → needs an fs port); source-control/* (credential-setup F58); recovery and skills tool-registrations; assistant/tool-registrations, mcp-federation/reload-adapter; src/index.ts (needs a `bootSite(ports)` extraction); cli/main.ts (process entry).
 - Owner decisions, unchanged: agent-permission-mode.ts:36 arm; theme/validation/structure.ts duplicate issue; provider-kit adapter; external-mcp-revocation mapping; post featured-image `mock.module` test; forms/publish-content `state.notify ?? undefined` (only reachable if NOTIFY becomes "local", OQ2).
 - Listed, not forced: blob-store.s3.ts (reachable only from the S3 integration test); platform/db migrations 0002/0012/index/legacy-sqlite (index `pinned()` throw needs a migrations-dir export; history is not edited); webhooks/secret-scan-guard.ts (no edit by rule).
 
@@ -50,7 +50,6 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - agent-plugins/federate-mcp.ts: `planAgentPluginMcpFederation(input, options = {})` takes an optional `classifyTrust` port. The ~L220 drift-guard skip is unreachable with today's rule (stdio is skipped first), and its doc comment says it is deliberate, so it was kept and made testable.
 - agent-plugins/install-upload.ts: an update overload returns `UpdatedUploadedAgentPlugin` (enabled and warnings required). install-tool.ts drops the never-taken `?? null`/`?? []` fallbacks (dead code: Jini's `UpdateAgentPluginResult` always carries both; why comment added).
 - agent-plugins/lifecycle.ts: `unboundSiteAgentPluginLayout` exported, so the L177 forWorkspace throw is tested directly.
-- SEE_S5_REFACTOR
 
 ## Pre-existing regression fixed
 - 172b9652: backstop-preview.test.ts now builds the PEM marker at runtime; the cov-T2 REPORT no longer quotes it. secret-scan-guard 18/18 pass, backstop-preview 8/8 pass.
@@ -72,4 +71,7 @@ Branch `cloud/cov-fill-T2-2026-10-21` (Tovu; Jini branch created, untouched) fro
 - An update with no mcpProvisioning port is refused. For an ENABLED plugin, the old package stays live but the plugin ends up DISABLED. Is that intended? Not pinned by a test.
 
 ## Complexity
-eslint (development/sonarjs config, `complexity` 10 + `sonarjs/cognitive-complexity` 10) on every touched source file gives 0 errors: deployments/tool-registrations, publish-agent-tools, theme-watcher, theme-files, entry-list-render, trash-item-tool, federate-mcp, install-tool, install-upload, lifecycle SEE_S5_CX. Warnings remain only on unchanged lines.
+eslint (development/sonarjs config, `complexity` 10 + `sonarjs/cognitive-complexity` 10) on every touched source file gives 0 errors: deployments/tool-registrations, publish-agent-tools, theme-watcher, theme-files, entry-list-render, trash-item-tool, federate-mcp, install-tool, install-upload, lifecycle. Warnings remain only on unchanged lines.
+
+## Commits (Tovu `cloud/cov-fill-T2-2026-10-21`; Jini: local branch only, no changes)
+- Coordinator 172b9652 (PEM fix) + docs · S1 0ca997b5..295c0ff4 (13) · S2 464a4253..8e2c7d86 (18) · S3 96141865..0d66f0f3 (10) · S4 099f0903..f076f6d7 (8) · S5 419e0355 509dc14c 277bb626 5e1f6546 fdc0b1b6. package.json/lockfile restored, not committed. No node_modules or coverage output committed. No processes left running.
