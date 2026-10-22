@@ -480,6 +480,21 @@ function mapCardSelectors(
   return { input: { ...candidate.value, items }, notes };
 }
 
+/** The media card is list-only: a slug cannot be an id alias or a silently discarded filter.
+ * @returns Unchanged input when no unsupported slug filter is present.
+ * @throws ToolInputError listing the actual composed schema's properties and a recovery example.
+ * @complexity O(p) time/space for p accepted property names on refusal; no I/O.
+ */
+function normalizeMediaCardInput(
+  { input, inputSchema }: { input: Record<string, unknown>; inputSchema: Readonly<Record<string, unknown>> }, _options = {},
+): NormalizedToolInput {
+  if (Object.hasOwn(input, "slug")) {
+    const properties = (inputSchema.properties as Record<string, unknown> | undefined) ?? EMPTY_SCHEMA;
+    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ") || "none"}. This card lists media; it does not look up a slug. Call content_read.media_asset({}) and select the asset with the matching slug from the returned assets. For a peer site, retain its declared site selector.` });
+  }
+  return { input, notes: [] };
+}
+
 /** Adapt canonical card input back to the original handler ABI; aliases belong to the gate hook.
  * The direct handler also refuses collisions for callers that already own their execution gate.
  * @complexity O(k) time/space in supplied keys, plus the unchanged source handler cost.
@@ -488,6 +503,9 @@ function canonicalCardDispatch(
   { card, byId }: { card: ContentReadCard; byId: ReadonlyMap<string, ToolRegistration> }, _options = {},
 ) {
   const dispatch = cardDispatch({ card, byId });
+  if (card.resource === "media_asset") return { ...dispatch,
+    normalizeInput: ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizeMediaCardInput({ input, inputSchema: dispatch.inputSchema }),
+  };
   const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
   if (!idProperty || idProperty === "id") return { ...dispatch, normalizeInput: undefined };
   const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => mapCardSelectors({ input, from: idProperty, to: "id" });

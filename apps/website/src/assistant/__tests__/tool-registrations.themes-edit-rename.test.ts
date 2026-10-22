@@ -12,6 +12,7 @@ import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 
 import {
   contributeThemesTools,
@@ -97,6 +98,26 @@ function readFile(themesDir: string, relativePath: string): string {
 // ---------------------------------------------------------------------------
 // theme_edit_file
 // ---------------------------------------------------------------------------
+
+test("chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  try {
+    const registration = wired(deps, "theme_edit_file");
+    const deleted = await executeRegisteredTool({ registration, input: {
+      themeId: "plain", path: "styles.css", oldString: ".card{padding:0}\n", newString: "",
+    } });
+    assert.equal(deleted.status, "completed");
+    assert.equal(readFile(themesDir, "styles.css"), "body{padding:0}\n");
+    const blanked = await executeRegisteredTool({ registration, input: {
+      themeId: "plain", items: [{ path: "styles.css", oldString: "body{padding:0}", newString: " " }],
+    } });
+    assert.equal(blanked.status, "completed");
+    assert.equal((blanked.output as { succeeded: number }).succeeded, 1);
+    assert.equal(readFile(themesDir, "styles.css"), " \n", "whitespace is literal replacement text");
+  } finally {
+    fs.rmSync(themesDir, { recursive: true, force: true });
+  }
+});
 
 test("theme_edit_file: zero matches is refused, and the file is left untouched", async () => {
   const { deps, themesDir } = fakeRouteDeps();

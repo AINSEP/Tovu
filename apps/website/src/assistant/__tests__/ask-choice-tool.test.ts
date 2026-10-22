@@ -433,6 +433,45 @@ test('normalization: real flat mingjie choice succeeds and mixed select shapes f
   assert.match(ambiguous.error!, /Send either flat options or explicit select fields/);
 });
 
+test('chat-input regression: option id aliases accept descriptions and remain the actual answer values', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  for (const shape of ['legacy-flat', 'flat', 'singleSelect', 'multiSelect']) {
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+    const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+    const options = [{ id: 'publish', label: 'Publish now', description: 'Make the site available.' }, { label: 'Later', description: 'Keep working locally.' }];
+    const input = shape === 'legacy-flat' ? { title: 'Next step?', options }
+      : shape === 'flat' ? { question: 'Next step?', options }
+      : { title: 'Next step?', [shape]: { label: 'Choose', options } };
+    const before = structuredClone(input);
+    const pending = await executeRegisteredTool({ registration, input });
+    assert.equal(pending.status, 'completed');
+    assert.match(JSON.stringify(pending.output), /Publish now/);
+    assert.doesNotMatch(JSON.stringify(pending.output), /Make the site available|Keep working locally/);
+    const ticket = answerTicketFromResult(pending.output);
+    const params = shape === 'multiSelect' ? { selections: ['publish', 'Later'] } : { choice: 'publish' };
+    const answer = await executeRegisteredTool({ registration, input: { ...params, [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
+    assert.equal(answer.status, 'completed');
+    assert.deepEqual(answer.output, { submitted: true, ...params, note: "Tell the administrator what you understood from their answer, in plain language, before proceeding." });
+    assert.deepEqual(input, before);
+  }
+});
+
+test('chat-input regression: conflicting option ids fail before showing a form and unknown keys list accepted properties', async () => {
+  const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const registration = buildAskChoiceRegistrations(undefined, { surfaceExchanges })[0]!;
+  for (const value of ['publish', 'other']) {
+    const result = await executeRegisteredTool({ registration, input: { title: 'Next?', options: [{ id: 'publish', value, label: 'Publish' }] } });
+    assert.equal(result.errorKind, 'validation');
+    assert.match(result.error!, /Conflicting.*id.*value.*Send only.*value/);
+    assert.equal(surfaceExchanges.size(), 0);
+  }
+  const unknown = await executeRegisteredTool({ registration, input: { question: 'Next?', options: [{ label: 'Publish', invented: 'private-value' }] } });
+  assert.equal(unknown.errorKind, 'validation');
+  assert.match(unknown.error!, /Unknown input 'options\[0\].invented'.*Declared inputs:.*label.*value.*description/);
+  assert.doesNotMatch(unknown.error!, /private-value/);
+});
+
 test('normalization: fallback answer tickets survive the closed input schema and still bind answers', async () => {
   const { executeRegisteredTool } = await import('./fixtures/execute-registered-tool.js');
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });

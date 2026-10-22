@@ -443,6 +443,21 @@ function normalizePageRegionInput(
   return { input: { ...rest, regionId }, notes: [`${selector}→regionId`] };
 }
 
+/** A slug is a lookup key, not a page id. Refuse it before a store opens and show the lookup.
+ * Region aliases still pass through the existing domain normalizer.
+ * @returns Canonical input and value-free alias notes.
+ * @throws ToolInputError with accepted properties and an id-based example for slug calls.
+ * @complexity O(k) time/space in supplied keys for region aliases; otherwise O(1), no I/O.
+ */
+function normalizePageInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}) {
+  if (Object.hasOwn(input, "slug")) {
+    const properties = CATALOG_BY_ID.get(toolId)!.inputSchema!.properties as Record<string, unknown>;
+    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ")}; also site if listed in this tool's input schema. ${toolId} requires the page's id, not its slug. Call content_read.content_post({"kind":"page"}) and use the matching row's id. Example target: {"id":"<page id>"}; include this tool's other required fields and retain site when targeting another site.` });
+  }
+  if (toolId === "pages_write_region" || toolId === "pages_move_region") return normalizePageRegionInput({ input });
+  return { input, notes: [] };
+}
+
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     pages_read_html: async (ctx) => {
@@ -637,10 +652,9 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // would produce.
     handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
-    inputNormalizers: {
-      pages_write_region: normalizePageRegionInput,
-      pages_move_region: normalizePageRegionInput,
-    },
+    inputNormalizers: Object.fromEntries([...CATALOG_BY_ID.keys()].map(toolId => [toolId,
+      ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizePageInput({ input, toolId }),
+    ])),
   });
 }
 

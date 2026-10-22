@@ -195,6 +195,69 @@ const askChoiceMessages: AskChoiceMessages = {
   cancelled: "The administrator cancelled the form without answering. Do not assume any answer.",
 };
 
+/** Normalize Tovu chat option spellings before Jini's closed-schema gate. The installed choice
+ * renderer shows labels only, so option descriptions are accepted and dropped silently.
+ * Dual id/value spellings are refused even when equal, as with region ids.
+ * @returns A copied option, leaving malformed values for the shared parser to reject.
+ * @throws ToolInputError when id and value coexist.
+ * @complexity O(k) time/space in one option's keys; no I/O or caller mutation.
+ */
+function normalizeAskChoiceOption({ option }: { option: unknown }, _options = {}): unknown {
+  if (typeof option !== "object" || option === null || Array.isArray(option)) return option;
+  const record = option as Record<string, unknown>;
+  if (Object.hasOwn(record, "id") && Object.hasOwn(record, "value")) {
+    throw new ToolInputError({ message: "Conflicting option inputs 'id' and 'value'. Send only 'value'." });
+  }
+  const { id, description: _description, ...rest } = record;
+  if (Object.hasOwn(record, "id")) return { ...rest, value: id };
+  if (Object.hasOwn(record, "value")) return Object.hasOwn(record, "description") ? rest : option;
+  return { ...rest, value: record.label };
+}
+
+/** Apply the option alias to one select, retaining malformed shapes for ordinary validation.
+ * @complexity O(n) time/space in the select's option data; no effects.
+ */
+function normalizeAskChoiceSelect({ select }: { select: unknown }, _options = {}): unknown {
+  if (typeof select !== "object" || select === null || Array.isArray(select)) return select;
+  const record = select as Record<string, unknown>;
+  if (!Array.isArray(record.options)) return select;
+  const options = record.options.map(option => normalizeAskChoiceOption({ option }));
+  if (options.every((option, index) => option === (record.options as unknown[])[index])) return select;
+  return { ...record, options };
+}
+
+/** Keep the existing title/options alias separate from option spelling normalization.
+ * @throws ToolInputError for ambiguous flat/nested questions.
+ * @complexity O(k) time/space in the top-level keys; no effects.
+ */
+function normalizeLegacyAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  if (Object.hasOwn(input, "question") || !Object.hasOwn(input, "options")) return { input, notes: [] };
+  if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
+    throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
+  }
+  const { options, label, ...rest } = input;
+  return { input: { ...rest, singleSelect: { label: label ?? input.title, options } }, notes: ["options→singleSelect.options", "label/title→singleSelect.label"] };
+}
+
+/** Extend the existing domain hook, keeping question parsing and answer security in Jini.
+ * @returns Canonical input and value-free notes, with legacy title/options still supported.
+ * @throws ToolInputError for mixed questions or conflicting option selectors.
+ * @complexity O(n) time/space in supplied option data; no effects.
+ */
+function normalizeAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  const normalized = { ...input };
+  const notes: string[] = [];
+  for (const field of ["options", "singleSelect", "multiSelect"]) {
+    if (!Object.hasOwn(input, field)) continue;
+    const select = field === "options" ? { options: input.options } : input[field];
+    const mapped = normalizeAskChoiceSelect({ select });
+    normalized[field] = field === "options" ? (mapped as { options: unknown }).options : mapped;
+    if (mapped !== select) notes.push(`${field}: options normalized`);
+  }
+  const legacy = normalizeLegacyAskChoiceInput({ input: normalized });
+  return { input: legacy.input, notes: [...notes, ...legacy.notes] };
+}
+
 /** Adapt the host's expiry-aware exchange port; Jini owns the choice lifecycle. */
 function askChoiceExchanges({ surfaces }: { surfaces: AssistantSurfaceDeps }, _options = {}): AskChoiceExchangeStore {
   return {
@@ -277,14 +340,7 @@ export function buildAskChoiceRegistrations(
     catalog: CATALOG_BY_ID,
     handlers,
     inputNormalizers: {
-      [ASK_CHOICE_TOOL_ID]: ({ input }) => {
-        if (Object.hasOwn(input, "question") || !Object.hasOwn(input, "options")) return { input, notes: [] };
-        if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
-          throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
-        }
-        const { options, label, ...rest } = input;
-        return { input: { ...rest, singleSelect: { label: label ?? input.title, options } }, notes: ["options→singleSelect.options", "label/title→singleSelect.label"] };
-      },
+      [ASK_CHOICE_TOOL_ID]: normalizeAskChoiceInput,
     },
     derivedRisk: askChoiceDerivedRisk,
   }).map(registration => ({ ...registration, invocationSchema: tool.invocationSchema }));

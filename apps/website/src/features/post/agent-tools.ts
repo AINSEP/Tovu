@@ -827,7 +827,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         fields: {
           type: "array",
           items: { type: "string", enum: POST_LIST_FIELDS },
-          description: "Return only these keys per row, plus id (always included). An empty array returns ids only. Overrides includeBody.",
+          description: "Return only these keys per row, plus id (always included). A comma-separated string is also accepted. An empty array returns ids only. Overrides includeBody.",
         },
         limit: {
           type: "integer",

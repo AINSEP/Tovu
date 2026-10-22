@@ -604,16 +604,16 @@ type PostListField = (typeof POST_LIST_FIELDS)[number];
 
 /**
  * Reads optional projection keys from tool input; omitted keys retain the legacy row shape.
- * @param input - Listing input with an optional fields array.
+ * @param input - Listing input with an optional fields array or comma-separated string.
  * @returns Supported keys, or undefined when projection was not requested.
- * @throws {ToolInputError} If fields is not an array of supported names.
+ * @throws {ToolInputError} If fields contains unsupported names or has the wrong shape.
  * @complexity O(f) in requested fields; the allowed vocabulary has a fixed size.
  */
-function optionalPostListFields(input: Record<string, unknown>): PostListField[] | undefined {
-  const fields = input.fields;
+function optionalPostListFields({ input }: { input: Record<string, unknown> }, _options = {}): PostListField[] | undefined {
+  const fields = typeof input.fields === "string" ? input.fields.split(",").map(field => field.trim()) : input.fields;
   if (fields === undefined) return undefined;
   if (!Array.isArray(fields) || !fields.every((field) => POST_LIST_FIELDS.includes(field))) {
-    throw new ToolInputError({ message: "content_post_list: fields must be an array of supported field names." });
+    throw new ToolInputError({ message: `content_post_list: fields must be an array or comma-separated string of supported field names. Supported names: ${POST_LIST_FIELDS.join(", ")}. Example: {"kind":"page","fields":["title","slug"]}.` });
   }
   return fields as PostListField[];
 }
@@ -928,7 +928,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const includeBody = optionalBoolean({ input: input, key: "includeBody" }) === true;
       const query = optionalString({ input: input, key: "query" })?.toLowerCase();
       const status = optionalPostStatus(input);
-      const fields = optionalPostListFields(input);
+      const fields = optionalPostListFields({ input });
       const { posts: allPosts } =
         kind === "post"
           ? await listAdminPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } })

@@ -1,5 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
-import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
@@ -97,11 +97,34 @@ export const fsFilesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   [FS_READ_FILE_TOOL_ID, "none"],
 ]);
 
+/** Require the caller to choose a filesystem scope; never guess a root from an empty call.
+ * @returns The supplied non-empty root, for the existing resolver and authorization gate.
+ * @throws ToolInputError with the allowed roots and a complete listing example.
+ * @complexity O(1), no effects.
+ */
+function requireFsRootInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}): string {
+  if (typeof input.root !== "string" || input.root.length === 0) {
+    throw new ToolInputError({ message: `${toolId}: 'root' (non-empty string) is required. Choose one of: ${FS_ROOT_IDS.join(", ")}. Example: fs_list_files({"root":"repo"}); fs_read_file({"root":"repo","path":"README.md"}).` });
+  }
+  return input.root;
+}
+
+/** `find` has no equivalent in this full-file reader: explain how to read the text instead.
+ * @throws ToolInputError before policy or filesystem I/O when find is supplied.
+ * @complexity O(1); returns the caller input unchanged when no correction is needed.
+ */
+function normalizeFsReadInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  if (Object.hasOwn(input, "find")) {
+    throw new ToolInputError({ message: `Unknown input 'find'. Accepted properties: root, path (both required); also site if listed in this tool's input schema. fs_read_file returns full file content and has no text-search parameter. Send fs_read_file({"root":"repo","path":"development/docs/themes/themes-guide.md"}) and search the returned content.` });
+  }
+  return { input, notes: [] };
+}
+
 export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [FS_LIST_FILES_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      const root = requireString({ input: input, key: "root" });
+      const root = requireFsRootInput({ input, toolId: FS_LIST_FILES_TOOL_ID });
       const relativePath = optionalString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
@@ -117,7 +140,7 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
 
     [FS_READ_FILE_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      const root = requireString({ input: input, key: "root" });
+      const root = requireFsRootInput({ input, toolId: FS_READ_FILE_TOOL_ID });
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
@@ -134,6 +157,7 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
     catalogModule: "features/fs-files/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers,
+    inputNormalizers: { [FS_READ_FILE_TOOL_ID]: normalizeFsReadInput },
     derivedRisk: fsFilesDerivedRisk,
   });
 }
