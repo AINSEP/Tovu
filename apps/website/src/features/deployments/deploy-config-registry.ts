@@ -183,7 +183,7 @@ function isPlainObject(value: unknown): value is Readonly<Record<string, unknown
 }
 
 /** Repo-relative declaration paths never escape to another drive or parent directory. */
-export function isContainedDeployConfigPath({ value }: { readonly value: unknown }, _optional = {}): value is string {
+export function isContainedDeployConfigPath({ value }: { readonly value: unknown }, _optional = {}): boolean {
   return typeof value === "string" && value.length <= 512 && /^[a-zA-Z0-9_./-]+$/.test(value)
     && !value.split("/").some(segment => segment === ".." || segment === "." || segment === "");
 }

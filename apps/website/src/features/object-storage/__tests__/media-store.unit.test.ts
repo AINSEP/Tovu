@@ -21,7 +21,7 @@ import type { LoadedObjectStoreRegistry, ObjectStoreHost, TovuObjectStoreProvide
  * not assumed.
  */
 
-const EXAMPLE_PROVIDER_ID = "example-store";
+const EXAMPLE_PROVIDER_ID = "example_store";
 const declaration = {
   providerId: EXAMPLE_PROVIDER_ID, selector: "example",
   settings: { bucket: "TOVU_EXAMPLE_BUCKET", keyPrefix: "TOVU_EXAMPLE_KEY_PREFIX" },
@@ -238,7 +238,7 @@ test("createMediaBlobStore: env local writes ws/{ws}/blobs/{sh}/{sha} under uplo
   assert.equal(await legacy.exists({ storageKey: KEY }), false);
 });
 
-test("createMediaBlobStore: env example resolves example-store from the bundled registry with the env credential, never the site ports", async () => {
+test("createMediaBlobStore: env example resolves example_store from the bundled registry with the env credential, never the site ports", async () => {
   const store = memoryStore();
   const provider = recordingProvider(store);
   const { ports, calls } = fakePorts({ loadBundledRegistry: async () => registryWith([{ id: EXAMPLE_PROVIDER_ID, provider }]) });
@@ -257,12 +257,12 @@ test("createMediaBlobStore: env example resolves example-store from the bundled 
   assert.deepEqual({ ...calls, credential: calls.credential.length }, { factory: 1, bundled: 1, site: 0, setting: 0, credential: 0 });
 });
 
-test("createMediaBlobStore: env example without example-store in the bundled registry rejects, listing the registry's refusals", async (t) => {
+test("createMediaBlobStore: env example without example_store in the bundled registry rejects, listing the registry's refusals", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports } = fakePorts({ loadBundledRegistry: async () => registryWith([], ["bad manifest in 'x'", "import failed in 'y'"]) });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: FULL_ENV, ports });
   await assert.rejects(blobStore.exists({ storageKey: KEY }), {
-    message: "Media storage provider 'example-store' is not available (bad manifest in 'x'; import failed in 'y').",
+    message: "Media storage provider 'example_store' is not available (bad manifest in 'x'; import failed in 'y').",
   });
   assert.deepEqual(await filesUnder(uploadsDir), []);
 });
@@ -270,7 +270,7 @@ test("createMediaBlobStore: env example without example-store in the bundled reg
 test("createMediaBlobStore: an unavailable provider with no refusals says so without an empty parenthesis", async () => {
   const { ports } = fakePorts({ loadBundledRegistry: async () => registryWith([]) });
   const { blobStore } = createMediaBlobStore({ uploadsDir: "/nonexistent", env: FULL_ENV, ports });
-  await assert.rejects(blobStore.exists({ storageKey: KEY }), { message: "Media storage provider 'example-store' is not available." });
+  await assert.rejects(blobStore.exists({ storageKey: KEY }), { message: "Media storage provider 'example_store' is not available." });
 });
 
 // ---------------------------------------------------------------------------
@@ -329,23 +329,23 @@ async function assertEveryCallRejects(uploadsDir: string, blobStore: ReturnType<
 
 test("createMediaBlobStore: a remote setting with no saved connection rejects every call and never falls back to local", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
-  const { ports, calls } = fakePorts({ readSetting: async () => "example-store", resolveSharedCredential: async () => undefined });
+  const { ports, calls } = fakePorts({ readSetting: async () => "example_store", resolveSharedCredential: async () => undefined });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example-store' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.");
   // A failed resolution is retried per call, so connecting later takes effect without a restart of the view.
   assert.equal(calls.credential.length, MEDIA_CALLS.length);
-  assert.deepEqual(calls.credential[0], { providerId: "example-store" });
+  assert.deepEqual(calls.credential[0], { providerId: "example_store" });
   assert.equal(calls.site, 0);
 });
 
 test("createMediaBlobStore: a connection without mediaBucket is refused — the public publish bucket is never used", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports, calls } = fakePorts({
-    readSetting: async () => "example-store",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { accessKeyId: "AK", region: "us-east-1", bucket: "public-site" }, secret: "s" }),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example-store' needs the connection's 'mediaBucket' field (a private bucket) — the publish bucket is public and is never used for media.");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' needs the connection's 'mediaBucket' field (a private bucket) — the publish bucket is public and is never used for media.");
   assert.equal(calls.site, 0);
 });
 
@@ -353,11 +353,11 @@ test("createMediaBlobStore: a mediaBucket naming the public publish bucket (afte
   const uploadsDir = await tempUploadsDir(t);
   for (const [bucket, mediaBucket] of [["public-site", "public-site"], ["public-site", " Public-Site "], [" PUBLIC-site", "public-site"]] as const) {
     const { ports, calls } = fakePorts({
-      readSetting: async () => "example-store",
+      readSetting: async () => "example_store",
       resolveSharedCredential: async () => ({ fields: { accessKeyId: "AK", region: "us-east-1", bucket, mediaBucket }, secret: "s" }),
     });
     const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-    await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example-store' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.");
+    await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.");
     assert.equal(calls.site, 0, "the provider is never created against the public bucket");
   }
 });
@@ -365,7 +365,7 @@ test("createMediaBlobStore: a mediaBucket naming the public publish bucket (afte
 test("createMediaBlobStore: a whitespace-only mediaBucket counts as absent", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports } = fakePorts({
-    readSetting: async () => "example-store",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { mediaBucket: "   " }, secret: "s" }),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
@@ -387,12 +387,12 @@ test("createMediaBlobStore: a provider refusing its configuration rejects every 
   const uploadsDir = await tempUploadsDir(t);
   const refusing: TovuObjectStoreProvider = { create: () => providerRejected({ code: "not_configured", message: "missing: credential.fields.region" }) };
   const { ports } = fakePorts({
-    readSetting: async () => "example-store",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { mediaBucket: "private-media" }, secret: "s" }),
-    loadSiteRegistry: async () => registryWith([{ id: "example-store", provider: refusing }]),
+    loadSiteRegistry: async () => registryWith([{ id: "example_store", provider: refusing }]),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage provider 'example-store' refused its configuration: missing: credential.fields.region");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage provider 'example_store' refused its configuration: missing: credential.fields.region");
 });
 
 test("createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket (trimmed), keyPrefix: mediaKeyPrefix} plus the whole credential", async (t) => {
@@ -401,9 +401,9 @@ test("createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket 
   const provider = recordingProvider(store);
   const credential = { fields: { accessKeyId: "AK", region: "us-east-1", bucket: "public-site", mediaBucket: " private-media ", mediaKeyPrefix: "media/" }, secret: "examplecr3t" };
   const { ports, calls } = fakePorts({
-    readSetting: async () => "example-store",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => credential,
-    loadSiteRegistry: async () => registryWith([{ id: "example-store", provider }]),
+    loadSiteRegistry: async () => registryWith([{ id: "example_store", provider }]),
   });
   const { blobStore, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir, env: {}, ports });
   assert.equal(mediaIsRemoteByEnv, false, "only the env override marks media remote at boot");
@@ -427,7 +427,7 @@ test("createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env over
   assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: FULL_ENV, ports: envEXAMPLE.ports }).isMediaRemote(), true);
   assert.deepEqual([envLocal.calls.setting, envEXAMPLE.calls.setting], [0, 0], "an env choice never reads the setting");
 
-  for (const [setting, remote] of [["example-store", true], ["", false], ["local", false]] as const) {
+  for (const [setting, remote] of [["example_store", true], ["", false], ["local", false]] as const) {
     const { ports, calls } = fakePorts({ readSetting: async () => setting });
     const { isMediaRemote, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: "/unused", env: {}, ports });
     assert.equal(mediaIsRemoteByEnv, false);

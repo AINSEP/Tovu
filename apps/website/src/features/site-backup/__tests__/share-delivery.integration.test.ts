@@ -129,7 +129,7 @@ test("no delivery returns a private ZIP download and a clear link-setup message"
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 1000 }) as { url: string | null; downloadUrl: string; message: string };
   assert.equal(result.url, null);
   assert.match(result.downloadUrl, /\/site-shares\/[0-9a-f-]+\/download$/);
-  assert.match(result.message, /Download zip only.*deployed Tovu.*object storage-compatible/);
+  assert.match(result.message, /Download zip only.*deployed Tovu.*S3-compatible/);
 });
 
 test("peer deletion treats only 404 as already absent and never sends an invalid artifact path", async () => {

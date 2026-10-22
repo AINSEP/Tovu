@@ -113,9 +113,9 @@ test("known hosting addresses are workspace scoped, credential-free HTTPS URLs f
   const calls: unknown[] = [];
   const deps = {
     workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async (input: unknown) => { calls.push(input); return [savedPeer("https://app.example-host.dev"), savedPeer("http://private.local"), savedPeer("https://user:secret@leak.com")]; } },
-    publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("example-host", "https://new.example.test", true), publishRow("example-host", "https://old.example.test", true), publishRow("example-store", "https://unverified.com", false)]; } },
+    publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("example-host", "https://new.example-host.dev", true), publishRow("example-host", "https://old.example-host.dev", true), publishRow("example-store", "https://unverified.com", false)]; } },
   };
-  assert.deepEqual(await listSavedHostingHosts(deps), ["app.example-host.dev", "new.example.test"]);
+  assert.deepEqual(await listSavedHostingHosts(deps), ["app.example-host.dev", "new.example-host.dev"]);
   assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws", limit: 100 }]);
 });
 test("an unconfirmed upload cannot erase the last confirmed hosting address", async () => {
