@@ -138,7 +138,7 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
       readAssistantCliPermissions: async () => settings,
     }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
     assert.equal(input.nativeCapabilities?.[key], false);
-    assert.deepEqual(input.nativeCapabilities, { ...settings.capabilities, userMcp: false }, 'in-app MCP isolation preserves unrelated owner choices');
+    assert.deepEqual(input.nativeCapabilities, settings.capabilities, 'the launch preserves every owner capability choice');
     assert.equal(input.env?.PATH, key === 'loginEnvironment' ? undefined : '/test/login-shell');
     assert.equal(input.settingSources === undefined, key !== 'userSettings');
     const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { options: input });

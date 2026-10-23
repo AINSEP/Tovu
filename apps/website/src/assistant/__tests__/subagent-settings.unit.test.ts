@@ -21,8 +21,8 @@ function cliRequired(answers: { snapshot?: Effective | Error; legacy?: Effective
 }
 const userLayer = (value: NonNullable<Effective>["value"]): Effective => ({ value, sourceLayer: "user", defVersion: 1 });
 
-test("a valid owner snapshot is returned as stored", async () => {
-  const stored = assistantCliPermissions({ enabled: true, capabilities: { web: false } });
+for (const userMcp of [false, true]) test(`a valid owner snapshot preserves personal MCP ${userMcp}`, async () => {
+  const stored = assistantCliPermissions({ enabled: true, capabilities: { web: false, userMcp } });
   assert.deepEqual(await readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: stored.enabled, capabilities: { ...stored.capabilities } }) })), stored);
 });
 
@@ -37,8 +37,11 @@ test("a snapshot with a null value inherits the legacy boolean", async () => {
   assert.deepEqual(result, DENIED);
 });
 
-test("no snapshot and no legacy value defaults full CLI access ON", async () => {
-  assert.deepEqual(await readAssistantCliPermissions(cliRequired({})), assistantCliPermissions({ enabled: true }));
+test("no snapshot and no legacy value defaults full CLI access ON with personal MCP OFF", async () => {
+  const settings = await readAssistantCliPermissions(cliRequired({}));
+  assert.equal(settings.enabled, true);
+  assert.equal(settings.capabilities.userMcp, false);
+  assert.equal(settings.capabilities.shell, true);
 });
 
 for (const [name, value] of [

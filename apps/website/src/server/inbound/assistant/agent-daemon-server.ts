@@ -1310,10 +1310,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
         settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
       : assistantCliPermissions({ enabled: false });
-    const { capabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
+    const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
       settings }, { hostSignals });
-    // In-app chat uses only Tovu's staged MCP catalog, even when the owner grants CLI parity.
-    const nativeCapabilities = { ...capabilities, userMcp: false };
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
     // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
     if (isOwner) {

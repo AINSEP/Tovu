@@ -183,7 +183,7 @@ test("one full-access grant controls native tools on every CLI while preserving 
 });
 
 test("delegation guidance follows the subagent capability without claiming full CLI access", () => {
-  const overlay = buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true }).capabilities });
+  const overlay = buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }).capabilities });
   for (const phrase of ["Native agents/subagents/Task are available", "not Tovu catalog tools"]) assert.ok(overlay.includes(phrase), phrase);
   assert.doesNotMatch(overlay, /Full CLI access is ON|haiku|sonnet|Avoid fork|Disabled native capabilities/);
 });
@@ -197,7 +197,7 @@ test("shell OFF with subagents ON names the disabled capabilities without denyin
 });
 
 test("disabled subagents do not claim independently enabled workflows are unavailable", () => {
-  const capabilities = assistantCliPermissions({ enabled: true, capabilities: { subagents: false } }).capabilities;
+  const capabilities = assistantCliPermissions({ enabled: true, capabilities: { subagents: false, userMcp: true } }).capabilities;
   const overlay = buildAssistantSubagentsOverlay({ capabilities });
   assert.match(overlay, /Native agents\/subagents\/Task are unavailable/);
   assert.match(overlay, /Disabled native capabilities for this chat: Subagents\/Task\./);

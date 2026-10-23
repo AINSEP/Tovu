@@ -370,7 +370,7 @@ test("onStarted registers the conversation synchronously while instruction refre
   }
 });
 
-test("fresh and resumed in-app launches isolate MCP and disclose changed native permissions", async () => {
+for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app launches honor user MCP ${String(userMcp)} and disclose native permissions`, async () => {
   const capabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
@@ -391,7 +391,9 @@ test("fresh and resumed in-app launches isolate MCP and disclose changed native 
         routeDeps: { ...fixture.bindings.routeDeps, agentSessions: first.agentSessions,
           ownerPrincipalId: Promise.resolve("daemon-test-principal"), toolAttemptAuditSink: { append: async () => {} } },
         assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
-        readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: { shell: !resumed } }),
+        readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: {
+          shell: !resumed, ...(userMcp === undefined ? {} : { userMcp }),
+        } }),
         agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => {
           launched = { ...required, ...optional };
           await Promise.resolve();
@@ -403,7 +405,7 @@ test("fresh and resumed in-app launches isolate MCP and disclose changed native 
     assert.ok(launched);
     assert.equal(launched.nativeToolAccess, true);
     assert.equal(launched.cliParity, true);
-    assert.equal(launched.nativeCapabilities?.userMcp, false);
+    assert.equal(launched.nativeCapabilities?.userMcp, userMcp === true);
     assert.equal(launched.nativeCapabilities?.shell, !resumed);
     assert.equal(launched.resumeSessionId, resumed ? "unused-session-id" : undefined);
     const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, {
@@ -411,13 +413,13 @@ test("fresh and resumed in-app launches isolate MCP and disclose changed native 
         ...(launched.resumeSessionId ? { resumeSessionId: launched.resumeSessionId } : {}),
         ...(launched.newSessionId ? { newSessionId: launched.newSessionId } : {}) },
     });
-    assert.ok(args.includes("--strict-mcp-config"), "full CLI parity must still isolate inherited MCP");
+    assert.equal(args.includes("--strict-mcp-config"), userMcp !== true, "only an explicit user MCP grant permits inherited MCP");
     assert.equal(args.includes("--resume"), resumed);
     assert.equal(args[args.indexOf("--mcp-config") + 1], "/staged/tovu-mcp.json");
     assert.equal(args.includes("Bash"), resumed, "shell choice must reach actual CLI arguments");
     assert.doesNotMatch(overlay, /Full CLI access is ON/);
     assert.match(overlay, /Native agents\/subagents\/Task are available/);
-    assert.match(overlay, /Your MCP servers/);
+    assert.equal(overlay.includes("Your MCP servers"), userMcp !== true);
     assert.equal(overlay.includes("Bash/shell"), resumed);
     assert.equal(capabilitiesContext.getStore(), undefined);
     await fixture.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: true }, { sessionRef: "unused-session-id" });
