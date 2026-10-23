@@ -1,5 +1,5 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import type { AdminMailStatus } from "../../lib/api";
 import { adminHref } from "../../lib/router";
@@ -75,7 +75,7 @@ function KeyField(props: { provider: MailProviderConfiguration; field: MailProvi
           value={controller.drafts[provider.id]?.[key] ?? ""}
           placeholder={placeholder}
           onChange={(event) => controller.setDraftField(provider.id, key, event.target.value)}
-          {...agentHandle({ handle: `email-provider-${provider.id}-${field.key}` }, { role: "field", label: `${provider.label} ${field.label}` })}
+          {...agentHandle({ handle: `email-provider-${provider.id}-${agentHandleSegment({ value: field.key })}` }, { role: "field", label: `${provider.label} ${field.label}` })}
         />
         {secret ? (
           <button type="button" className="btn-secondary" aria-pressed={shown} onClick={() => controller.toggleReveal(provider.id)}>
