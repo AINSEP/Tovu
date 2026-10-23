@@ -18,6 +18,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
     <Section
       id="templates"
       title={t({ locale, key: "Templates" })}
+      hideTitle
       actions={(
         <button type="button" onClick={() => void controller.create()} disabled={controller.creating}
           {...agentHandle({ handle: "email-templates-new" }, { role: "button", label: "Create a new email template" })}>

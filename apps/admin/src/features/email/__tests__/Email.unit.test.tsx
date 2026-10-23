@@ -37,7 +37,7 @@ describe("Email", () => {
 
   it.each([
     ["overview", ["Status"], []], ["provider", ["Provider"], []],
-    ["sender", ["Sender"], []], ["templates", ["Templates"], ["Templates"]],
+    ["sender", ["Sender"], []], ["templates", ["Templates"], []],
     ["activity", ["Recent sends"], []],
     ["unknown", ["Status"], []],
   ])("opens the %s tab from the URL, with no heading that repeats the tab or segment", (tabId, names, headings) => {

@@ -123,6 +123,17 @@ describe("Email tab components", () => {
   });
 
   it.each([
+    ["no_sender", "Set a From address first."],
+    ["requirements_failed", "The provider answered with an error. 502 from the provider"],
+  ] as const)("says the %s DNS state once, adding the server's detail only when the line lacks it", async (state, text) => {
+    const api = createEmailFake();
+    api.readDns.mockResolvedValue({ ...DNS, state, dns: undefined, message: state === "no_sender" ? "Set the site's sender address first." : "502 from the provider" });
+    function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" part="dns" />; }
+    render(<Harness />);
+    expect(await screen.findByText(text)).toHaveClass("jini-field-hint");
+  });
+
+  it.each([
     ["accepted", "Accepted by the provider for ada@example.com."], ["captured", "Kept on this machine — nothing was sent."],
     ["redirected", "Test mode sent it to test@example.com instead."], ["failed", "Not sent. Refused"], ["unknown", "Not sent. Refused"],
   ] as const)("renders %s test-send copy", (outcome, text) => {

@@ -40,6 +40,9 @@ const STATE_LINE: Record<MailDnsStatus["state"], string> = {
   check_failed: "The records are known, but the check couldn't run.",
 };
 
+/** States whose line already says what the server's `message` says — showing both repeated it. */
+const LINE_SAYS_IT_ALL: ReadonlySet<MailDnsStatus["state"]> = new Set(["no_sender", "no_provider", "verification_unavailable"]);
+
 function SenderForm(props: { controller: EmailSenderController; locale: string }) {
   const { controller, locale } = props;
   const state = controller.saveState;
@@ -131,7 +134,7 @@ function DnsBody(props: { status: MailDnsStatus; locale: string }) {
           <p className="jini-field-hint">{t({ locale, key: "Checked {when}" }).replace("{when}", when(dns.checkedAt, locale))}</p>
         </>
       ) : (
-        <p className="jini-field-hint">{[t({ locale, key: STATE_LINE[status.state] || "No DNS check yet." }), status.message].filter(Boolean).join(" ")}</p>
+        <p className="jini-field-hint">{[t({ locale, key: STATE_LINE[status.state] || "No DNS check yet." }), LINE_SAYS_IT_ALL.has(status.state) ? undefined : status.message].filter(Boolean).join(" ")}</p>
       )}
     </>
   );
