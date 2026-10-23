@@ -1059,6 +1059,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     nav: {
       label: "Cookie Consent",
       group: "Administration",
+      // Owner, 2026-10-22: consent needs a thorough end-to-end test pass before it reads as finished
+      // (see development/todos.md), so it carries the same reachable `soon` badge as Email.
+      soon: true,
+      soonPreviewable: true,
       icon: '<circle cx="9" cy="9" r="6.5"/><circle cx="7" cy="7.5" r="0.9"/><circle cx="11" cy="10.5" r="0.9"/><circle cx="7.5" cy="11.5" r="0.6"/>',
     },
   },
