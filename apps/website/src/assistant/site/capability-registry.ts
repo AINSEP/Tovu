@@ -169,7 +169,8 @@ export interface SiteCapabilityRegistry {
  * for every tool call the model makes during that turn.
  *
  * Build the visitor-only executor. Policy ports opt into T1; omitting them is the literal-registry
- * rollback and preserves standalone adapter compatibility. Ask remains non-executable until T3.
+ * rollback and preserves standalone adapter compatibility. Ask requires the visitor-only return
+ * channel; headless adapters continue to refuse it rather than waiting on an invisible prompt.
  * @complexity O(1) construction for the seven reviewed contracts; invocation adds policy/limiter I/O.
  * @example createSiteCapabilityRegistry(contentDeps, { siteGuide, visitorExecution });
  */

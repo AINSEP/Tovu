@@ -9,6 +9,7 @@ import { clearSiteAssistantState, enqueuePageAction, loadSiteAssistantState, sav
 import { extractPageActions, splitPageActions, type NavigateAction, type NonNavigateAction } from "./client-directives";
 import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
 import { readSiteChatOpen, useSiteAssistantActivation, useSiteAssistantComparison, useSiteAssistantSurface } from "./SiteAssistantActivation.hooks";
+import { useSiteToolConfirmation } from "./SiteToolConfirmation.hooks";
 
 /**
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
@@ -117,7 +118,8 @@ export function SiteAssistantWidget() {
   const { toggleOpen } = useSiteAssistantActivation({ root, open, setOpen });
   // Stable across renders for the same reason `AssistantDock`'s transport is memoized: rebuilding
   // it would drop any run this widget has in flight.
-  const transport = useMemo(() => createSiteAssistantTransport(), []);
+  const toolConfirmation = useSiteToolConfirmation({});
+  const transport = useMemo(() => createSiteAssistantTransport({}, { onToolConfirmation: toolConfirmation.receive }), [toolConfirmation.receive]);
 
   // `ChatPane` owns its transcript internally and only takes `initialMessages` at mount — the same
   // constraint `AssistantDock.tsx`'s conversation switcher documents (`key={chats.paneKey}`). There
@@ -176,8 +178,9 @@ export function SiteAssistantWidget() {
     // `ChatPane` instance will hand out its own new message ids regardless — clearing the guard set
     // just avoids holding references to ids that can never recur.
     setPendingProposal(null);
+    toolConfirmation.receive({ directive: null });
     processedMessageIdsRef.current = new Set();
-  }, []);
+  }, [toolConfirmation.receive]);
 
   const handleMessagesChange = useCallback((messages: ChatMessage[]) => {
     setHasMessages(messages.length > 0);
@@ -254,7 +257,16 @@ export function SiteAssistantWidget() {
           {/* SPEC-046 D-1: rendered below ChatPane, not injected into its message list — ChatPane is
               used unmodified (this file's own header), so a proposal is a sibling strip inside the
               panel rather than a message-list entry. */}
-          {pendingProposal ? (
+          {toolConfirmation.pending ? (
+            <div className="tovu-site-assistant__proposal" role="group" aria-label={toolConfirmation.pending.title}>
+              <span className="tovu-site-assistant__proposal-label" role="status">
+                {toolConfirmation.pending.title} {toolConfirmation.pending.summary}
+              </span>
+              <button type="button" className="tovu-site-assistant__proposal-go" onClick={() => toolConfirmation.decide({ allow: true })}>Allow</button>
+              <button ref={toolConfirmation.cancelRef} type="button" className="tovu-site-assistant__proposal-go" onClick={() => toolConfirmation.decide({ allow: false })}>Cancel</button>
+            </div>
+          ) : null}
+          {!toolConfirmation.pending && pendingProposal ? (
             <div className="tovu-site-assistant__proposal">
               <span className="tovu-site-assistant__proposal-label">Go to “{pendingProposal.navigate.target.title}”?</span>
               <button type="button" className="tovu-site-assistant__proposal-go" onClick={handleProposalClick}>
