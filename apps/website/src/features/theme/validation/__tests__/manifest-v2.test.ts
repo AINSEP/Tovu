@@ -32,3 +32,18 @@ test("validateManifestV2: a raw manifest with no apiVersion field at all is also
   assert.ok(found, JSON.stringify(missingVersion));
   assert.equal(found!.message, "theme.json: apiVersion must be exactly 2, got undefined");
 });
+
+test('validateManifestV2: fontStylesheets accepts HTTPS and local paths, including explicit opt-out', () => {
+  for (const fontStylesheets of [[], ['https://fonts.example.test/site.css?a=1&b=2', '/fonts/site.css']]) {
+    assert.deepEqual(validateManifestV2({ raw: { apiVersion: 2, id: 't', name: 'T', version: '1.0.0', fontStylesheets } }), []);
+  }
+});
+
+test('validateManifestV2: fontStylesheets rejects non-arrays and any malformed entry', () => {
+  for (const fontStylesheets of [null, 'https://fonts.example.test/site.css', {}, [42], ['http://fonts.example.test/site.css'],
+    ['//fonts.example.test/site.css'], ['fonts/site.css'], ['https://'], ['https://fonts.example.test/site.css', '/\\remote.test/site.css'],
+    ['/fonts/site.css', 'javascript:alert(1)'], ['/fonts/site.css', '/ /remote.test/site.css']]) {
+    const issues = validateManifestV2({ raw: { apiVersion: 2, id: 't', name: 'T', version: '1.0.0', fontStylesheets } });
+    assert.deepEqual(issues.map(issue => issue.ruleId), ['v2-font-stylesheets'], JSON.stringify(fontStylesheets));
+  }
+});

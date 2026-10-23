@@ -144,12 +144,13 @@ export interface ThemeManifest {
   build?: ThemeBuildInfo;
   description?: string;
   /**
-   * Optional Google Fonts family specs the page shell loads for this theme,
-   * e.g. "Fraunces:opsz,wght@9..144,400;9..144,600". Spike-only convenience;
+   * Legacy font family specs resolved through the shipped URL template for older manifests.
    * SPEC-004 CSS sanitization forbids external font @import in theme CSS, so
    * fonts live in the manifest, not the stylesheet.
    */
   fonts?: string[];
+  /** HTTPS stylesheet URLs or root-relative paths, in link order. An empty list disables fonts. */
+  fontStylesheets?: string[];
   /**
    * SPEC-043/ADR-047 §2a — the region keys (e.g. `["header","footer"]`) this theme declares for
    * widget placement, the same way it already declares templates/slots. Additive, optional field:
@@ -761,6 +762,7 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     build: parseThemeBuildInfo(raw.build),
     description: parseOptionalString(raw.description),
     fonts: parseOptionalStringArray(raw.fonts),
+    fontStylesheets: parseOptionalStringArray(raw.fontStylesheets),
     regions: parseOptionalStringArray(raw.regions),
     // Publisher-authored flags must never disable template lint: the allowlist is the boundary
     // between authored templates and the worker. Liquid and Handlebars both enforce it;

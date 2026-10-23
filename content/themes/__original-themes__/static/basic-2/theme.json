@@ -42,5 +42,8 @@
         "minimal": "footer-minimal.html"
       }
     }
-  }
+  },
+  "fontStylesheets": [
+    "https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+  ]
 }

@@ -99,6 +99,7 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "tags",
   "tokens",
   "fonts",
+  "fontStylesheets",
   "renderer",
   "partials",
   "regions",
@@ -135,6 +136,7 @@ const V2_FIELDS_READ_BY_LOADER: ReadonlySet<string> = new Set([
   "build",
   "description",
   "fonts",
+  "fontStylesheets",
   "regions",
   "templates",
   "templateFor",
@@ -232,6 +234,22 @@ function checkTier(value: unknown): ThemeValidationIssue[] {
   return [
     { ruleId: "v2-tier", message: `theme.json: unrecognized tier ${JSON.stringify(value)} — expected one of ${[...V2_TIERS].join(", ")}` },
   ];
+}
+
+/** Accept HTTPS stylesheet URLs and local root-relative paths; never protocol-relative hosts.
+ * @complexity O(b) URL bytes; no I/O. */
+function isFontStylesheet({ value }: { value: unknown }, _optional = {}): boolean {
+  if (typeof value !== "string" || /[\s\\]/.test(value)) return false;
+  if (value.startsWith("/")) return !value.startsWith("//");
+  return /^https:\/\//i.test(value) && URL.canParse(value);
+}
+
+/** Reject the entire declaration when any entry is malformed; empty arrays disable fonts.
+ * @complexity O(b) total stylesheet URL bytes; no I/O or mutation. */
+function checkFontStylesheets({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
+  if (value === undefined) return [];
+  if (Array.isArray(value) && value.every(entry => isFontStylesheet({ value: entry }))) return [];
+  return [{ ruleId: "v2-font-stylesheets", message: "theme.json: fontStylesheets must be an array of HTTPS URLs or root-relative paths" }];
 }
 
 /**
@@ -421,6 +439,7 @@ export function validateManifestV2(
   issues.push(...checkName(raw.name));
   issues.push(...checkVersionField(raw.version));
   issues.push(...checkTier(raw.tier));
+  issues.push(...checkFontStylesheets({ value: raw.fontStylesheets }));
   // The runtime parser owns this contract too: schema acceptance must never hide loader rejection.
   try {
     parseTemplateFor({ value: raw.templateFor, templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined });

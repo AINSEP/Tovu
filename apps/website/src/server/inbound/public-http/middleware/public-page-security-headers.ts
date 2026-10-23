@@ -1,6 +1,7 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import { PUBLIC_PAGE_SECURITY_HEADERS, type SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import type { SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import { publicPageSecurityHeaders as defaultSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 
 /**
  * @file Baseline security headers for every public response (build-vs-borrow-verified 2026-09-28
@@ -40,10 +41,11 @@ function isAdminPath(path: string): boolean {
  *
  * @complexity O(1).
  */
-export function createPublicPageSecurityHeaders(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS) {
-  const entries = Object.entries(headers);
+export function createPublicPageSecurityHeaders(headers?: SecurityHeaderSet) {
+  let entries: [string, string][] | undefined;
   return function publicPageSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
     if (!isAdminPath(req.path)) {
+      entries ??= Object.entries(headers ?? defaultSecurityHeaders({}));
       for (const [name, value] of entries) res.setHeader(name, value);
     }
     next();

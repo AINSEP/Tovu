@@ -9,21 +9,39 @@
 
 export type SecurityHeaderSet = Readonly<Record<string, string>>;
 
-export const PUBLIC_PAGE_CSP_REPORT_ONLY = [
-  "default-src 'self'",
-  "img-src 'self' data: https:",
-  "media-src 'self' https:",
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
-  "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
-  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-].join("; ");
+/** Shipped theme resource data, shared by live headers and static exports. */
+export interface PublicThemeResources {
+  readonly scripts: readonly string[];
+  readonly styles: readonly string[];
+  readonly fonts: readonly string[];
+  readonly fontPreconnects: Readonly<Record<string, readonly { readonly url: string; readonly crossorigin?: boolean }[]>>;
+  readonly legacyFontStylesheetTemplate?: string;
+}
 
-export const PUBLIC_PAGE_SECURITY_HEADERS: SecurityHeaderSet = Object.freeze({
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Content-Security-Policy-Report-Only": PUBLIC_PAGE_CSP_REPORT_ONLY,
-});
+/**
+ * Format Tovu's report-only policy using declared theme origins; this never creates an enforced CSP.
+ * @param required Theme-owned resource origins. Embed hosts remain an owner-approved core exception.
+ * @returns The same header set for live pages, publishing and static exports. No I/O or mutation.
+ * @complexity O(r) declared resource URLs; URL parsing rejects malformed data.
+ */
+export function createPublicPageSecurityHeaderSet({ resources }: { resources: PublicThemeResources }, _optional = {}): SecurityHeaderSet {
+  const origins = (urls: readonly string[]) => [...new Set(urls.map(url => new URL(url).origin))].join(' ');
+  const csp = [
+    "default-src 'self'",
+    "img-src 'self' data: https:",
+    "media-src 'self' https:",
+    `script-src 'self' 'unsafe-inline' ${origins(resources.scripts)}`.trimEnd(),
+    `style-src 'self' 'unsafe-inline' ${origins(resources.styles)}`.trimEnd(),
+    `font-src 'self' data: ${origins(resources.fonts)}`.trimEnd(),
+    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join("; ");
+
+  return Object.freeze({
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy-Report-Only": csp,
+  });
+}
