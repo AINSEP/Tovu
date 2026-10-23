@@ -40,6 +40,64 @@ test('live HTML is gated and static export returns 409 without changing the live
   assert.equal(config.policyVersion, `${f.config.policyVersion}:${f.revisionId}`);
 });
 
+test('live conditional requests cannot reuse ungated HTML unless consent is off', async t => {
+  const f = await publicFixture({ t });
+  const state = await f.store.read({});
+  assert.ok(state?.published);
+  const published = state.published;
+  const disabledStore = { ...f.store, read: async () => ({ ...state, published: {
+    ...published, config: { ...(published.config as object), enabled: false },
+  } }) };
+  f.deps.consentStore = disabledStore;
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  const modified = 'Wed, 21 Oct 2026 12:00:00 GMT';
+  app.get('/', (_req, res) => res.set({
+    'Cache-Control': 'public, max-age=60, stale-while-revalidate=300', 'Last-Modified': modified,
+  }).type('html').send(original));
+  const base = await startTestServer(app, t);
+  const ungated = await fetch(base);
+  assert.equal(ungated.status, 200);
+  assert.equal(await ungated.text(), original);
+  const etag = ungated.headers.get('etag');
+  assert.ok(etag, 'use the actual ETag generated for the ungated page');
+  const validators: Record<string, string>[] = [
+    { 'if-none-match': '*' },
+    { 'if-none-match': etag },
+    { 'if-modified-since': modified },
+  ];
+  for (const policy of ['off', 'on', 'unavailable'] as const) {
+    f.deps.consentStore = policy === 'off' ? disabledStore : policy === 'on' ? f.store : {
+      ...f.store, read: async () => { throw new Error('policy unavailable'); },
+    };
+    for (const method of ['GET', 'HEAD']) {
+      for (const headers of validators) {
+        // Default fetch adds no-cache with validators, which would hide Express's 304 behavior.
+        const response = await fetch(base, { method, headers, cache: 'no-cache' });
+        const html = await response.text();
+        assert.equal(response.status, policy === 'off' ? 304 : 200, `${policy} ${method} ${JSON.stringify(headers)}`);
+        if (policy === 'off') {
+          assert.equal(response.headers.get('etag'), etag);
+          assert.equal(response.headers.get('cache-control'), 'public, max-age=60, stale-while-revalidate=300');
+        } else {
+          assert.equal(response.headers.get('cache-control'), 'private, no-store');
+          assert.equal(response.headers.get('etag'), null);
+          if (method === 'GET') {
+            const dom = new JSDOM(html);
+            try {
+              const document = dom.window.document;
+              assert.ok(document.querySelector('#jini-consent'));
+              assert.equal(document.querySelector('template[data-jini-consent-script]')?.innerHTML, '<script>window.optional=1</script>');
+              assert.ok(![...document.querySelectorAll('script')].some(script => script.textContent === 'window.optional=1'));
+            } finally { dom.window.close(); }
+          }
+        }
+        if (method === 'HEAD' || policy === 'off') assert.equal(html, '');
+      }
+    }
+  }
+});
+
 test('bootstrap or policy-store failure never returns ungated active HTML', async t => {
   const f = await publicFixture({ t });
   const failing = { ...f.store, read: async () => { throw new Error('sensitive persisted location'); } };

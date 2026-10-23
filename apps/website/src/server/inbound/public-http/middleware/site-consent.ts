@@ -107,11 +107,26 @@ async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}
 export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): void {
   // A sub-app so `next("router")` can skip every consent route and the HTML gate at once.
   const consentApp = express();
-  consentApp.use((req, _res, next) => {
-    if (!isStaticExportRequest(req)) return next();
-    isDefaultOnlyConsent({ deps }).then(skip => (skip ? next("router") : next()), () => next());
+  const ports = createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {});
+  consentApp.use(async (req, _res, next) => {
+    if (isStaticExportRequest(req)) {
+      isDefaultOnlyConsent({ deps }).then(skip => (skip ? next("router") : next()), () => next());
+      return;
+    }
+    // Pages only: assets (/x.css, /x.png) keep their 304s and skip the policy read.
+    if ((req.method === "GET" || req.method === "HEAD") && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path)) {
+      let enabled = true;
+      try { enabled = (await ports.config.get({})).enabled; }
+      catch { /* A failed policy read must not permit reuse of ungated HTML. */ }
+      if (enabled) {
+        // Renderers validate pre-consent bytes; a 304 would bypass the engine's HTML rewrite.
+        delete req.headers["if-none-match"];
+        delete req.headers["if-modified-since"];
+      }
+    }
+    next();
   });
-  registerConsentHttp({ app: consentApp, ports: createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {}) }, {
+  registerConsentHttp({ app: consentApp, ports }, {
     necessaryScripts: TOVU_NECESSARY_SCRIPTS,
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
