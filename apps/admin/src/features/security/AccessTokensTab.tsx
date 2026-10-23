@@ -5,6 +5,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { adminHref } from "../../lib/router";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminPublishTargetField } from "../../lib/api";
@@ -192,7 +193,7 @@ function HostingPluginsHint({ controller }: { controller: AccessTokensController
   if (controller.query || !["all", "hosting"].includes(controller.category) || controller.groups?.some((group) => group.info.category === "hosting")) return null;
   return <div className="empty-state">
     <p>{controller.t("Enable a hosting plugin to manage its access tokens.")}</p>
-    <a href="/admin/addons/agent-plugins">{controller.t("Plugins")}</a>
+    <a href={adminHref("/addons/agent-plugins")}>{controller.t("Plugins")}</a>
   </div>;
 }
 

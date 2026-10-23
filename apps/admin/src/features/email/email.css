@@ -95,7 +95,7 @@
    heading and the gaps do the grouping. Beats `.settings-ui-section .jini-settings-section-card`
    (styles.css) by one class. Inputs, buttons and the DNS record boxes keep their borders. */
 .email-sections .jini-settings-section-card.email-card { padding: 0; border: 0; border-radius: 0; background: none; }
-.email-providers .email-provider { padding: 0; border: 0; border-radius: 0; }
+.email-sections .email-provider { padding: 0; border: 0; border-radius: 0; }
 
 /* Duplicate titles (owner, 2026-10-22): a section whose heading repeated its tab or segment drops it
    (`Section`'s `hideTitle`). With no heading, the shared section's 14px top margin left an empty band

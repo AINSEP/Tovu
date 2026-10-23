@@ -6,6 +6,7 @@ import type { OtherCredentialStoreInfo } from "./rules";
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
 const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
+    "Enable a hosting plugin to manage its access tokens.": "Enable a hosting plugin to manage its access tokens.", Plugins: "Plugins",
     "Works for": "Works for",
     "Copy keys from another project…": "Copy keys from another project…",
     "Source project": "Source project", "Choose a project": "Choose a project", "Loading projects…": "Loading projects…",
@@ -47,6 +48,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Your credentials need their original site key — use the card above.",
   },
   es: {
+    "Enable a hosting plugin to manage its access tokens.": "Activa un plugin de alojamiento para gestionar sus tokens de acceso.", Plugins: "Plugins",
     "Works for": "Compatible con",
     "Copy keys from another project…": "Copiar claves de otro proyecto…",
     "Source project": "Proyecto de origen",
@@ -109,6 +111,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Tus credenciales necesitan su clave del sitio original; usa la tarjeta de arriba.",
   },
   de: {
+    "Enable a hosting plugin to manage its access tokens.": "Aktiviere ein Hosting-Plugin, um seine Zugriffstoken zu verwalten.", Plugins: "Plugins",
     "Works for": "Geeignet für",
     "Copy keys from another project…": "Schlüssel aus einem anderen Projekt kopieren…",
     "Source project": "Quellprojekt",
@@ -171,6 +174,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Ihre Zugangsdaten benötigen den ursprünglichen Website-Schlüssel – verwenden Sie die Karte oben.",
   },
   fr: {
+    "Enable a hosting plugin to manage its access tokens.": "Activez un plugin d’hébergement pour gérer ses jetons d’accès.", Plugins: "Plugins",
     "Works for": "Compatible avec",
     "Copy keys from another project…": "Copier les clés d’un autre projet…",
     "Source project": "Projet source",
@@ -233,6 +237,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Vos identifiants nécessitent leur clé du site d'origine ; utilisez la carte ci-dessus.",
   },
   it: {
+    "Enable a hosting plugin to manage its access tokens.": "Attiva un plugin di hosting per gestirne i token di accesso.", Plugins: "Plugin",
     "Works for": "Compatibile con",
     "Copy keys from another project…": "Copia chiavi da un altro progetto…",
     "Source project": "Progetto di origine",
@@ -295,6 +300,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Le tue credenziali richiedono la chiave del sito originale: usa la scheda sopra.",
   },
   "pt-BR": {
+    "Enable a hosting plugin to manage its access tokens.": "Ative um plugin de hospedagem para gerenciar seus tokens de acesso.", Plugins: "Plugins",
     "Works for": "Compatível com",
     "Copy keys from another project…": "Copiar chaves de outro projeto…",
     "Source project": "Projeto de origem",
@@ -357,6 +363,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Suas credenciais precisam da chave do site original; use o cartão acima.",
   },
   pl: {
+    "Enable a hosting plugin to manage its access tokens.": "Włącz wtyczkę hostingu, aby zarządzać jej tokenami dostępu.", Plugins: "Wtyczki",
     "Works for": "Działa z",
     "Copy keys from another project…": "Kopiuj klucze z innego projektu…",
     "Source project": "Projekt źródłowy",
@@ -419,6 +426,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Twoje dane uwierzytelniające wymagają oryginalnego klucza witryny — użyj karty powyżej.",
   },
   hu: {
+    "Enable a hosting plugin to manage its access tokens.": "Kapcsolj be egy tárhely-bővítményt a hozzáférési tokenjei kezeléséhez.", Plugins: "Bővítmények",
     "Works for": "Használható ehhez",
     "Copy keys from another project…": "Kulcsok másolása másik projektből…",
     "Source project": "Forrásprojekt",
@@ -481,6 +489,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "A hitelesítő adatokhoz az eredeti webhelykulcs kell — használja a fenti kártyát.",
   },
   tr: {
+    "Enable a hosting plugin to manage its access tokens.": "Erişim belirteçlerini yönetmek için bir barındırma eklentisini etkinleştirin.", Plugins: "Eklentiler",
     "Works for": "Şunlarla çalışır",
     "Copy keys from another project…": "Başka bir projeden anahtarları kopyala…",
     "Source project": "Kaynak proje",
@@ -581,6 +590,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Kimlik bilgileriniz için özgün site anahtarı gerekiyor; yukarıdaki kartı kullanın.",
   },
   ru: {
+    "Enable a hosting plugin to manage its access tokens.": "Включите плагин хостинга, чтобы управлять его токенами доступа.", Plugins: "Плагины",
     "Works for": "Подходит для",
     "Copy keys from another project…": "Копировать ключи из другого проекта…",
     "Source project": "Исходный проект",
@@ -681,6 +691,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Для ваших учётных данных нужен исходный ключ сайта — используйте карточку выше.",
   },
   uk: {
+    "Enable a hosting plugin to manage its access tokens.": "Увімкніть плагін хостингу, щоб керувати його токенами доступу.", Plugins: "Плагіни",
     "Works for": "Підходить для",
     "Copy keys from another project…": "Копіювати ключі з іншого проєкту…",
     "Source project": "Вихідний проєкт",
@@ -781,6 +792,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Для ваших облікових даних потрібен початковий ключ сайту — скористайтеся карткою вище.",
   },
   id: {
+    "Enable a hosting plugin to manage its access tokens.": "Aktifkan plugin hosting untuk mengelola token aksesnya.", Plugins: "Plugin",
     "Works for": "Berfungsi untuk",
     "Copy keys from another project…": "Salin kunci dari proyek lain…",
     "Source project": "Proyek sumber",
@@ -881,6 +893,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "Kredensial Anda memerlukan kunci situs aslinya; gunakan kartu di atas.",
   },
   ar: {
+    "Enable a hosting plugin to manage its access tokens.": "فعّل إضافة استضافة لإدارة رموز الوصول الخاصة بها.", Plugins: "الإضافات",
     "Works for": "يعمل مع",
     "Copy keys from another project…": "نسخ المفاتيح من مشروع آخر…",
     "Source project": "المشروع المصدر",
@@ -981,6 +994,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "تحتاج بيانات اعتمادك إلى مفتاح الموقع الأصلي — استخدم البطاقة أعلاه.",
   },
   fa: {
+    "Enable a hosting plugin to manage its access tokens.": "برای مدیریت توکن‌های دسترسی آن، یک افزونهٔ میزبانی را فعال کنید.", Plugins: "افزونه‌ها",
     "Works for": "قابل استفاده برای",
     "Copy keys from another project…": "کپی کلیدها از پروژه‌ای دیگر…",
     "Source project": "پروژه مبدأ",
@@ -1081,6 +1095,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "اطلاعات ورود شما به کلید اصلی سایت نیاز دارد؛ از کارت بالا استفاده کنید.",
   },
   hi: {
+    "Enable a hosting plugin to manage its access tokens.": "इसके एक्सेस टोकन प्रबंधित करने के लिए कोई होस्टिंग प्लगइन चालू करें।", Plugins: "प्लगइन",
     "Works for": "इनके लिए",
     "Copy keys from another project…": "दूसरे प्रोजेक्ट से कुंजियाँ कॉपी करें…",
     "Source project": "स्रोत प्रोजेक्ट",
@@ -1181,6 +1196,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "आपकी सहेजी गई क्रेडेंशियल को मूल साइट कुंजी चाहिए — ऊपर दिए कार्ड का उपयोग करें।",
   },
   bn: {
+    "Enable a hosting plugin to manage its access tokens.": "এর অ্যাক্সেস টোকেন পরিচালনা করতে একটি হোস্টিং প্লাগইন চালু করুন।", Plugins: "প্লাগইন",
     "Works for": "এগুলোর জন্য",
     "Copy keys from another project…": "অন্য প্রকল্প থেকে কী কপি করুন…",
     "Source project": "উৎস প্রকল্প",
@@ -1281,6 +1297,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "আপনার পরিচয়পত্রের জন্য মূল সাইট কী দরকার — উপরের কার্ড ব্যবহার করুন।",
   },
   ur: {
+    "Enable a hosting plugin to manage its access tokens.": "اس کے رسائی ٹوکن منظم کرنے کے لیے ہوسٹنگ پلگ ان فعال کریں۔", Plugins: "پلگ انز",
     "Works for": "ان کے لیے",
     "Copy keys from another project…": "دوسرے پروجیکٹ سے کلیدیں کاپی کریں…",
     "Source project": "ماخذ پروجیکٹ",
@@ -1381,6 +1398,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "آپ کی اسناد کو سائٹ کی اصل کلید چاہیے — اوپر والا کارڈ استعمال کریں۔",
   },
   ja: {
+    "Enable a hosting plugin to manage its access tokens.": "アクセストークンを管理するには、ホスティングプラグインを有効にしてください。", Plugins: "プラグイン",
     "Works for": "対応先",
     "Copy keys from another project…": "別のプロジェクトからキーをコピー…",
     "Source project": "コピー元プロジェクト",
@@ -1481,6 +1499,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "保存済み認証情報には元のサイトキーが必要です。上のカードを使用してください。",
   },
   ko: {
+    "Enable a hosting plugin to manage its access tokens.": "액세스 토큰을 관리하려면 호스팅 플러그인을 활성화하세요.", Plugins: "플러그인",
     "Works for": "호환 대상",
     "Copy keys from another project…": "다른 프로젝트에서 키 복사…",
     "Source project": "원본 프로젝트",
@@ -1581,6 +1600,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "저장된 자격 증명에 원래 사이트 키가 필요합니다. 위의 카드를 사용하세요.",
   },
   th: {
+    "Enable a hosting plugin to manage its access tokens.": "เปิดใช้ปลั๊กอินโฮสติ้งเพื่อจัดการโทเค็นการเข้าถึง", Plugins: "ปลั๊กอิน",
     "Works for": "ใช้งานกับ",
     "Copy keys from another project…": "คัดลอกคีย์จากโปรเจกต์อื่น…",
     "Source project": "โปรเจกต์ต้นทาง",
@@ -1681,6 +1701,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "ข้อมูลรับรองของคุณต้องใช้คีย์เว็บไซต์เดิม ใช้การ์ดด้านบน",
   },
   "zh-CN": {
+    "Enable a hosting plugin to manage its access tokens.": "启用托管插件以管理其访问令牌。", Plugins: "插件",
     "Works for": "适用于",
     "Copy keys from another project…": "从另一个项目复制密钥…",
     "Source project": "源项目",
@@ -1781,6 +1802,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Your credentials need their original site key — use the card above.": "您的凭据需要原来的站点密钥；请使用上方卡片。",
   },
   "zh-TW": {
+    "Enable a hosting plugin to manage its access tokens.": "啟用託管外掛程式以管理其存取權杖。", Plugins: "外掛程式",
     "Works for": "適用於",
     "Copy keys from another project…": "從另一個專案複製金鑰…",
     "Source project": "來源專案",
