@@ -88,3 +88,10 @@
 /* Segmented pill (owner, 2026-10-22): one section of Overview / Provider / Sender & DNS at a time.
    The pill's look is the gear menu's `.jini-chat-settings-segmented` (styles/assistant.css). */
 .email-segments { display: flex; min-width: 0; }
+
+/* Flat panels (owner, 2026-10-22: "take the card outlines off in Email subtabs"). The tab bar and the
+   segmented pill already frame each section, so it sits on the page: no border, fill or inset — the
+   heading and the gaps do the grouping. Beats `.settings-ui-section .jini-settings-section-card`
+   (styles.css) by one class. Inputs, buttons and the DNS record boxes keep their borders. */
+.email-sections .jini-settings-section-card.email-card { padding: 0; border: 0; border-radius: 0; background: none; }
+.email-providers .email-provider { padding: 0; border: 0; border-radius: 0; }
