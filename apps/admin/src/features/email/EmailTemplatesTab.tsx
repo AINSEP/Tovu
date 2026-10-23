@@ -27,7 +27,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
       )}
     >
       <p className="jini-field-hint">{t({ locale, key: "HTML emails with {{fields}} filled in when they send. You or the assistant can edit them." })}</p>
-      {controller.error ? <div className="notice error" role="alert">{controller.error}</div> : null}
+      {controller.error ? <div className="notice error" role="alert">{t({ locale, key: controller.error })}</div> : null}
       <Loaded view={controller.view} locale={locale}>
         {({ templates }) => (
           <DataTable

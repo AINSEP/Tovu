@@ -107,7 +107,7 @@ export function EmailOverviewTab(props: { controller: EmailOverviewController; l
             <span className="jini-field-hint">{line.text}</span>
           </div>
         ) : null}
-        {test.kind === "error" ? <p className="jini-field-error" role="alert">{test.message}</p> : null}
+        {test.kind === "error" ? <p className="jini-field-error" role="alert">{t({ locale, key: test.message })}</p> : null}
         <p className="jini-field-hint">{t({ locale, key: "A test proves the provider accepts mail. It doesn't prove it arrives." })}</p>
       </Section>
     </>

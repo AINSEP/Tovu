@@ -66,7 +66,7 @@ function Preview(props: { controller: EmailTemplateEditorController; locale: str
         {pending ? <span className="jini-field-hint" role="status">{t({ locale, key: "Updating…" })}</span> : null}
       </div>
       {data ? <p className="email-template-subject"><span className="jini-field-label">{t({ locale, key: "Subject" })}</span> {data.subject}</p> : null}
-      {error ? <p className="jini-field-error" role="alert">{error}</p> : null}
+      {error ? <p className="jini-field-error" role="alert">{t({ locale, key: error })}</p> : null}
       <div className="email-template-frame">
         {data ? (
           <iframe

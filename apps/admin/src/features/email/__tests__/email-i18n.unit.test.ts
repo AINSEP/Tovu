@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "../../../lib/i18n-common";
-import { EMAIL_DICT } from "../email-i18n";
+import { EMAIL_DICT, t } from "../email-i18n";
+import { EMAIL_TAB_LOCALES, EMAIL_TAB_ROWS } from "../email-tabs-i18n";
 
 /** @file `EMAIL_DICT` parity: the same 21 locales, the same keys in each, no empties, no COMMON repeats. */
 describe("EMAIL_DICT", () => {
@@ -19,6 +20,35 @@ describe("EMAIL_DICT", () => {
         expect(value.length, `${locale} ${key}`).toBeGreaterThan(0);
         expect(COMMON_I18N[locale]?.[key], `${locale} repeats COMMON ${key}`).toBeUndefined();
       }
+    }
+  });
+
+  it("includes every wired-tab row in every locale with its placeholders intact", () => {
+    expect([...EMAIL_TAB_LOCALES].sort()).toEqual([...locales].sort());
+    expect(new Set(EMAIL_TAB_ROWS.map(([key]) => key)).size).toBe(EMAIL_TAB_ROWS.length);
+    for (const [key, values] of EMAIL_TAB_ROWS) {
+      expect(values).toHaveLength(21);
+      const tokens = [...key.matchAll(/\{\{?\w+\}?\}/g)].map(([token]) => token).sort();
+      for (const [index, locale] of EMAIL_TAB_LOCALES.entries()) {
+        const translated = t({ locale, key });
+        expect(translated, `${locale}: ${key}`).toBe(values[index]);
+        expect(translated.trim(), `${locale}: ${key}`).not.toBe("");
+        expect([...translated.matchAll(/\{\{?\w+\}?\}/g)].map(([token]) => token).sort(), `${locale}: ${key}`).toEqual(tokens);
+      }
+    }
+  });
+
+  it("removes the old placeholder copy in all locales", () => {
+    const obsolete = [
+      "Coming next", "Switching providers and saving keys here.", "Editing the sender name and address here.",
+      "The records your domain needs, with a live check.", "Send a test message and see the provider's answer.",
+      "Whether sign-in links, confirmations and form notifications can send.",
+      "HTML email templates you or the assistant edit like Pages, with a live preview.",
+      "Recent sends, failures, bounces and blocked addresses.", "Some mail cannot be sent. See Provider and Sender below.",
+      "Installed providers", "No sender warnings reported.",
+    ];
+    for (const locale of locales) {
+      for (const key of obsolete) expect(EMAIL_DICT[locale]?.[key], `${locale}: ${key}`).toBeUndefined();
     }
   });
 });
