@@ -77,6 +77,8 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
   };
   const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId }) => {
     await ready();
+    // Finish the first-boot unconfigured write before persisting the owner's selection.
+    await resolved.ready;
     await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } });
     // Only after the write succeeded: a switch must reach the very next send and status read.
     resolved.invalidate();
