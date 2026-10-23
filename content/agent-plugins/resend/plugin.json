@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["resend.com", "HttpApiMailerAdapter"],
       "summary": "Sends your site's emails through Resend, and lets the assistant manage your Resend account: domains, broadcasts and contacts.",
       "id": "tovu/resend",
       "provides": [

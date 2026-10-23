@@ -47,6 +47,7 @@
   ],
   "extensions": {
     "tovu": {
+      "vendorAliases": ["higgsfield"],
       "summary": "Makes AI images with Higgsfield and saves them to your Media library. You sign in to Higgsfield once in your browser.",
       "mcpServers": {
         "higgsfield": {

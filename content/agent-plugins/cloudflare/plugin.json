@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["pages.dev", "workers.dev"],
       "displayName": "Cloudflare",
       "summary": "Publish static exports with Workers or Pages and review apex/www domain changes before applying them.",
       "id": "tovu/cloudflare",

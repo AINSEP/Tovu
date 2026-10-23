@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["github_pat_"],
       "displayName": "GitHub",
       "summary": "Lets the assistant save your site's files to GitHub, run builds there, and back up your whole site.",
       "id": "tovu/github",
