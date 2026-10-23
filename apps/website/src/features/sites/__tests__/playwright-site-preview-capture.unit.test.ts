@@ -134,6 +134,50 @@ test("with no injected launcher the adapter launches Chromium from the host modu
   assert.equal(calls.at(-1), "browser-close");
 });
 
+test("default preview capture falls back to system Chrome with the same loopback flags", async t => {
+  const { launcher, calls } = fakeLauncher();
+  const launches: Array<{ headless?: boolean; args?: readonly string[]; channel?: string }> = [];
+  t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium: {
+    async launch(options: { headless?: boolean; args?: readonly string[]; channel?: string } = {}) {
+      launches.push(options);
+      if (options.channel !== "chrome") throw new Error("downloaded Chromium absent");
+      return launcher.launch({ headless: options.headless ?? true, args: [...(options.args ?? [])] });
+    },
+  } }));
+  const port = createPlaywrightSitePreviewCapture({}, {
+    resize: async () => Buffer.from("jpeg"), log: () => assert.fail("fallback must produce a thumbnail"),
+  });
+  t.after(() => port.close());
+
+  assert.equal((await port.capture({ url: "https://localhost:3101/" }))?.toString(), "jpeg");
+  assert.deepEqual(launches, [
+    { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] },
+    { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"], channel: "chrome" },
+  ]);
+  assert.ok(calls.includes("goto:https://localhost:3101/:load:15000"));
+  assert.ok(calls.includes("context-close"));
+  await port.close();
+  assert.equal(calls.at(-1), "browser-close");
+});
+
+test("default preview capture returns a placeholder when neither browser can launch", async t => {
+  const launches: Array<{ channel?: string } | undefined> = [];
+  t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium: {
+    async launch(options?: { channel?: string }) {
+      launches.push(options);
+      throw new Error("no browser installed");
+    },
+  } }));
+  const logs: string[] = [];
+  const port = createPlaywrightSitePreviewCapture({}, { log: message => logs.push(message) });
+  t.after(() => port.close());
+
+  assert.equal(await port.capture({ url: "https://localhost:3101/" }), null);
+  assert.deepEqual(launches.map(options => options?.channel), [undefined, "chrome"]);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0]!, /no browser installed/);
+});
+
 test("a host with no desktop render bridge configured captures through headless Chromium", async () => {
   const { launcher, calls } = fakeLauncher();
   const port = createSitePreviewCaptureForHost({}, { env: {}, loadLauncher: async () => launcher, resize: async () => Buffer.from("jpeg") });

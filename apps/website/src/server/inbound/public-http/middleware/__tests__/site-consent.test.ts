@@ -73,6 +73,53 @@ test('live and audit gates retain only their active theme scripts across overlap
   }
 });
 
+test('page requests scan each loaded theme once; a switch serves that theme and a reload re-scans', async t => {
+  const f = await publicFixture({ t });
+  const scans: string[] = [];
+  f.deps.themes = ['first', 'second'].map(id => ({
+    manifest: { id, apiVersion: 2 }, status: 'valid',
+    pages: { get index() { scans.push(id); return '<script src="../scripts/nav.js"></script>'; } },
+    partials: {}, liquidTemplates: {}, handlebarsTemplates: {},
+  } as DiscoveredTheme));
+  const activate = (activeThemeId: string) => f.deps.presentationRepo.save({
+    workspaceId: f.deps.workspaceId, activeThemeId, updatedAt: '2026-10-23T00:00:00Z',
+  });
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body>' +
+    '<script src="/theme-assets/first/scripts/nav.js"></script>' +
+    '<script src="/theme-assets/second/scripts/nav.js"></script>' +
+    '<script src="/theme-assets/first/scripts/updated.js"></script></body></html>'));
+  const base = await startTestServer(app, t);
+  const servedScripts = async () => {
+    const response = await fetch(base);
+    assert.equal(response.status, 200);
+    const dom = new JSDOM(await response.text());
+    try { return [...dom.window.document.querySelectorAll('script[src]')].map(script => script.getAttribute('src')); }
+    finally { dom.window.close(); }
+  };
+  await activate('first');
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/nav.js']);
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/nav.js']);
+  assert.deepEqual(scans, ['first'], 'a cache hit must skip reading and parsing the render sources');
+  await activate('second');
+  assert.deepEqual(await servedScripts(), ['/theme-assets/second/scripts/nav.js']);
+  await activate('first');
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/nav.js']);
+  assert.deepEqual(scans, ['first', 'second'], 'switching back reuses the unchanged theme\'s scan');
+  // The loader replaces the object even when the manifest id/version did not change.
+  f.deps.themes[0] = { ...f.deps.themes[0], pages: {
+    get index() { scans.push('reloaded'); return '<script src="../scripts/updated.js"></script>'; },
+  } };
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/updated.js']);
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/updated.js']);
+  assert.deepEqual(scans, ['first', 'second', 'reloaded']);
+  await activate('none');
+  assert.deepEqual(await servedScripts(), []);
+  await activate('first');
+  assert.deepEqual(await servedScripts(), ['/theme-assets/first/scripts/updated.js']);
+  assert.deepEqual(scans, ['first', 'second', 'reloaded']);
+});
+
 test('live HTML is gated and static export returns 409 without changing the live delivery mode', async t => {
   const f = await publicFixture({ t }); const app = express();
   applySiteConsent({ app, deps: f.deps });

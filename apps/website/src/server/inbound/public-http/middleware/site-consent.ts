@@ -16,6 +16,7 @@ import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/feat
 import { findPublishedPostBySlug } from "#src/features/post/index";
 import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import { resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/active-theme";
+import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { rewriteAssetPaths } from "#src/features/theme/static-asset-contract";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -44,6 +45,11 @@ export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max:
 /** Tovu's own essential inline scripts; active-theme sources are added separately by exact URL. */
 export const TOVU_NECESSARY_SCRIPTS = [{ content: FORM_RANGE_READOUT_JS }] as const;
 
+// Keyed by the loaded theme object: every reload path (rescanThemes, a file write's loadTheme
+// swap) replaces the object rather than editing its sources, so an edit or a theme switch misses
+// this cache, and a replaced theme's entry is garbage-collected with it.
+const themeScriptCache = new WeakMap<DiscoveredTheme, NonNullable<ConsentGateOptions['necessaryScripts']>>();
+
 /** Keep the public origin pinned except for loopback aliases on the same scheme and port.
  * Only Host identifies this request; X-Forwarded-Host must never widen consent's origin check.
  * Invalid request hosts retain the configured origin. Configuration errors still propagate.
@@ -63,10 +69,21 @@ export function resolveSiteConsentOrigin({ request }: { request: Request }, _opt
  * renderer's asset rewrite. No manifest consent opt-out exists. Remote and other-theme sources
  * never become necessary; URL normalization also excludes paths escaping the theme directory.
  * @throws Repository errors while resolving the active theme.
- * @complexity O(t + h) time/O(h) space: t discovered themes, h bytes in this theme's render sources. */
+ * @complexity O(t) on a cache hit; O(t + h) time/O(h) space on change:
+ * t discovered themes, h bytes in this theme's render sources. */
 export async function resolveSiteConsentNecessaryScripts({ deps }: { deps: Pick<RouteDeps, 'presentationRepo' | 'workspaceId' | 'themes'> }, _options = {}): Promise<NonNullable<ConsentGateOptions['necessaryScripts']>> {
   const theme = resolveActiveTheme(deps, await resolveActiveThemeId(deps));
   if (!theme || theme === NO_THEME_ID) return [...TOVU_NECESSARY_SCRIPTS];
+  const cached = themeScriptCache.get(theme);
+  if (cached) return cached;
+  const scripts = scanThemeNecessaryScripts({ theme });
+  themeScriptCache.set(theme, scripts);
+  return scripts;
+}
+
+/** Parse one loaded theme revision; only exact, contained asset URLs receive exemptions.
+ * @complexity O(h) time/O(h) space in loaded render-source bytes; no I/O. */
+function scanThemeNecessaryScripts({ theme }: { theme: DiscoveredTheme }, _options = {}): NonNullable<ConsentGateOptions['necessaryScripts']> {
   const sources = [...Object.values(theme.pages), ...Object.values(theme.partials),
     ...Object.values(theme.liquidTemplates), ...Object.values(theme.handlebarsTemplates)].join('\n');
   const nodes: DefaultTreeAdapterMap['childNode'][] = [...parseFragment(rewriteAssetPaths(sources, theme.manifest.id, theme.manifest.apiVersion)).childNodes];
