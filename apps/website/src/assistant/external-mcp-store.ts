@@ -100,11 +100,14 @@ export type ExternalMcpOAuthGrant = (typeof EXTERNAL_MCP_OAUTH_GRANTS)[number];
 /** Raised when operator-supplied input cannot be stored. Carries `field` so a route can point the
  *  form at the offending input rather than rejecting the whole submission opaquely. */
 export class ExternalMcpValidationError extends Error {
+  readonly field: string;
+
   constructor(
     message: string,
-    readonly field: string,
+    field: string,
   ) {
     super(message);
+    this.field = field;
     this.name = "ExternalMcpValidationError";
   }
 }

@@ -10,6 +10,7 @@ import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
 import { MAX_INBOUND_LINE_BYTES, REVEAL_COMMANDS, resolveUserDataDir, revealPath, serveMcpOverStdio } from '../bin/mcp-bridge.ts';
+import { handleSitesMcpRequest } from './sites-mcp-server.ts';
 
 test('bridge directory resolution trims inputs, gives argv precedence and rejects missing configuration', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-bridge-config-'));
@@ -79,18 +80,24 @@ test('a request whose handler throws is logged and dropped, and the bridge keeps
   let received = '';
   output.setEncoding('utf8');
   output.on('data', (chunk: string) => { received += chunk; });
-  serveMcpOverStdio({ input, output, context: { projectsPath: '/unused', revealPath: async () => undefined } });
+  serveMcpOverStdio({ input, output, context: { projectsPath: '/unused', revealPath: async () => undefined } }, {
+    handleRequest: async (message, context) => {
+      if (message?.id === 1) throw new Error('fixture handler failure');
+      return handleSitesMcpRequest(message, context);
+    },
+  });
 
-  // An inherited Object.prototype name reaches the method table and throws when invoked unbound —
-  // the one input that makes a handler throw today (see the coordinator report).
-  input.write('{"jsonrpc":"2.0","id":1,"method":"hasOwnProperty"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n');
+  // An inherited Object.prototype name used to reach the method table and throw when invoked
+  // unbound; the own-property guard now refuses it. Inject a failure to exercise queue recovery.
+  input.write('{"jsonrpc":"2.0","id":1,"method":"initialize"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n');
   await new Promise<void>((resolve) => setImmediate(resolve));
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   const responses = received.trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(responses.map((response) => response.id), [2]);
+  assert.ok(responses[0].result.tools.some((tool: { name: string }) => tool.name === 'add_site_pointer'));
   assert.equal(diagnostics.length, 1);
-  assert.match(diagnostics[0]!, /failed to handle 'hasOwnProperty': /);
+  assert.match(diagnostics[0]!, /failed to handle 'initialize': fixture handler failure/);
 });
 
 test('stdio drops oversized unfinished input, recovers framing and ignores blank lines and notifications', async (t) => {

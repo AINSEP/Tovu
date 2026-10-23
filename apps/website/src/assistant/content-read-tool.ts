@@ -347,8 +347,9 @@ function lookupInList(required: { resource: string; listToolId: string; lookup: 
       if (!Array.isArray(items)) {
         throw new Error(`content-read-tool.ts: '${listToolId}' result has no '${source.itemsKey}' array — the ${cardId} lookup is out of date`);
       }
-      filtered[source.itemsKey] = items.filter((item) => valueAtPath(item, source.idPath) === id);
-      matches += filtered[source.itemsKey].length;
+      const matchingItems = items.filter((item) => valueAtPath(item, source.idPath) === id);
+      filtered[source.itemsKey] = matchingItems;
+      matches += matchingItems.length;
     }
     if (matches > 0) return filtered;
 
