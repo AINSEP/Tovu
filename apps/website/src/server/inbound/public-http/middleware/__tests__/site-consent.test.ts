@@ -16,6 +16,9 @@ import { bindSiteConsentService } from '#src/server/runtime/composition/site-con
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
+import type { DiscoveredTheme } from '#src/features/theme/index';
+import { siteConsentPorts } from '#src/server/runtime/composition/site-consent';
+import { consentDryRun } from '#src/features/consent/readiness';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
@@ -24,6 +27,51 @@ async function publicFixture({ t }: { t: import('node:test').TestContext }, _opt
   const deps = createRouteDeps(); deps.consentStore = f.store;
   return { ...f, deps, revisionId: saved.revision.id };
 }
+
+test('live and audit gates retain only their active theme scripts across overlapping requests', async t => {
+  const f = await publicFixture({ t });
+  f.deps.themes = ['first', 'second'].map(id => ({
+    manifest: { id, apiVersion: 2 }, status: 'valid',
+    pages: { index: '<script src="../scripts/nav.js"></script>' },
+    partials: {}, liquidTemplates: {}, handlebarsTemplates: {},
+  } as DiscoveredTheme));
+  const activate = (activeThemeId: string) => f.deps.presentationRepo.save({
+    workspaceId: f.deps.workspaceId, activeThemeId, updatedAt: '2026-10-23T00:00:00Z',
+  });
+  await activate('first');
+  let started!: () => void, release!: () => void;
+  const pending = new Promise<void>(resolve => { started = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  t.after(() => release());
+  const html = '<html><head></head><body><script src="/theme-assets/first/scripts/nav.js"></script>' +
+    '<script src="/theme-assets/second/scripts/nav.js"></script><script src="https://tracker.example/track.js"></script></body></html>';
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get('/:page', async (req, res) => {
+    if (req.params.page === 'held') { started(); await held; }
+    res.type('html').send(html);
+  });
+  const base = await startTestServer(app, t);
+  const firstResponse = fetch(`${base}/held`);
+  await pending;
+  await activate('second');
+  const secondHtml = await (await fetch(`${base}/next`)).text();
+  release();
+  const firstHtml = await (await firstResponse).text();
+  const audit = siteConsentPorts({ deps: f.deps });
+  const dryRun = consentDryRun({ html, config: f.config, necessaryScripts: await audit.necessaryScripts({}) });
+  assert.ok(dryRun.gatedHtml);
+  for (const [body, active, other] of [[firstHtml, 'first', 'second'], [secondHtml, 'second', 'first'],
+    [dryRun.gatedHtml, 'second', 'first']]) {
+    const dom = new JSDOM(body);
+    try {
+      const document = dom.window.document;
+      assert.ok(document.querySelector(`script[src="/theme-assets/${active}/scripts/nav.js"]`));
+      assert.equal(document.querySelector(`script[src="/theme-assets/${other}/scripts/nav.js"]`), null);
+      assert.equal(document.querySelector('script[src="https://tracker.example/track.js"]'), null);
+      assert.equal(document.querySelectorAll('template[data-jini-consent-script]').length, 2);
+    } finally { dom.window.close(); }
+  }
+});
 
 test('live HTML is gated and static export returns 409 without changing the live delivery mode', async t => {
   const f = await publicFixture({ t }); const app = express();
