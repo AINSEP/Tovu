@@ -224,7 +224,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
-import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -566,8 +566,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
-    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1175,6 +1173,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
   const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
+  // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
+  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
+    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
@@ -1339,6 +1343,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteConsentReady,
     consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel(taxonomyDb), workspaceId })),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).

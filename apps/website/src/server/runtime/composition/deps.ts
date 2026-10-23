@@ -4,7 +4,7 @@ import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
-import { bindSiteConsentService } from './site-consent.js';
+import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
@@ -263,7 +263,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
-import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -1374,8 +1374,6 @@ async function composeSiteRouteDeps(
     .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // `core.mail.provider`/`testMode` (`features/settings/mail-provider.ts`): explicit provider per lane.
     .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
-    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -2210,6 +2208,15 @@ async function composeSiteRouteDeps(
   const siteAppBootWork = new Set<Promise<void>>();
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  let resolveRouteDeps!: (deps: RouteDeps) => void;
+  const routeDepsBuilt = new Promise<RouteDeps>(resolve => { resolveRouteDeps = resolve; });
+  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
+    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  }, {
+    ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
+  });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory,
     workspaceId: workspaceId,
@@ -2359,6 +2366,7 @@ async function composeSiteRouteDeps(
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
@@ -2737,6 +2745,7 @@ async function composeSiteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
+  resolveRouteDeps(routeDeps);
 
   // Owner decision 6 (2026-09-21): the widgets the retired "delete permanently" rung left behind
   // (payload status `purged`/`trash`) go into the Trash, once — idempotent, so every later boot finds

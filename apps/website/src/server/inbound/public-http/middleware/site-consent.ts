@@ -9,7 +9,7 @@ import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
-import { createSiteConsentConfig, type SiteConsentAutoEnablePort } from "#src/features/consent/settings";
+import { createSiteConsentConfig } from "#src/features/consent/settings";
 import { findPublishedPostBySlug } from "#src/features/post/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -32,9 +32,6 @@ import { resolvePublicOrigin } from "../routes/oauth/public-origin.js";
 /** Top-level, non-portable site folder holding one immutable proof file per visitor choice. */
 export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
 
-/** Sites created on or after this instant count as new: without an owner choice they show the banner. */
-export const CONSENT_LAUNCH_ISO = "2026-10-20T00:00:00.000Z";
-
 /** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
 export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max: 20, burst: 5 };
 
@@ -47,17 +44,6 @@ const atomicWrite: ConsentAtomicWriter = async ({ filePath, data }, { createPare
   writeJsonFileAtomic({ filePath, data }, { mode, refuseSymlink });
 };
 
-/** `.site-meta.json`'s `createdAt`; unreadable metadata counts as an existing site (stays off).
- * @complexity O(1), one small file read. */
-async function siteCreatedAfterLaunch({ siteDir }: { siteDir: string }, _options = {}): Promise<boolean> {
-  try {
-    const meta = JSON.parse(await fs.readFile(path.join(siteDir, ".site-meta.json"), "utf8")) as { createdAt?: unknown };
-    return typeof meta.createdAt === "string" && Date.parse(meta.createdAt) >= Date.parse(CONSENT_LAUNCH_ISO);
-  } catch {
-    return false;
-  }
-}
-
 /** A local single-segment link (/privacy) must name a published page; https links are trusted.
  * @complexity O(1), one indexed slug lookup. */
 export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRepo" | "workspaceId"> }, _optional = {}) {
@@ -66,15 +52,6 @@ export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRe
     const slug = /^\/([a-z0-9-]+)\/?$/.exec(url)?.[1];
     if (!slug) return false;
     return (await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } })) !== null;
-  };
-}
-
-/** The new-site rule's inputs, read once per site process (creation time never changes).
- * @complexity O(1). */
-export function createSiteConsentAutoEnable({ deps }: { deps: Pick<RouteDeps, "siteBinding"> }, _optional = {}): SiteConsentAutoEnablePort {
-  let isNew: Promise<boolean> | undefined;
-  return {
-    isNewLiveSite: () => (isNew ??= siteCreatedAfterLaunch({ siteDir: deps.siteBinding.dir })),
   };
 }
 
@@ -93,10 +70,10 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
   });
   return {
     config: { get: async () => {
-      await deps.siteTitleReady;
+      await deps.siteConsentReady;
       const state = await deps.consentStore?.read({});
       // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
-      if (!state?.published) return withSiteConsentDefaultCss({ config: await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }, { autoEnable: createSiteConsentAutoEnable({ deps }) }).get({}) });
+      if (!state?.published) return withSiteConsentDefaultCss({ config: await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({}) });
       const config = withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published.config }) });
       if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
       // Receipts name an immutable configuration; changing a published revision requires a new choice.

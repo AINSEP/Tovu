@@ -62,3 +62,11 @@ Node receipt storage remains Jini's immutable file adapter, with 180-day expiry 
 capacity/eviction behavior. A database receipt adapter and Worker/D1 lifecycle are phase 2, not a
 parallel forms submission store. No Jini sources were changed. Tests are supplied for the HTTP,
 tool, storage and public delivery boundaries; this dispatch prohibits running them locally.
+
+Consent defaults ON for every site; explicit owner ON/OFF and published snapshots take precedence.
+`siteConsentReady` follows title preservation and owner seeding; definition registration gates readiness.
+It reuses an existing Privacy Policy Page or creates a published, editable HTML Page transactionally.
+Only an empty legacy privacy URL (including saved whitespace) is filled through Jini settings; a saved URL ends this bootstrap.
+Existing draft, scheduled, or trashed policies are preserved; `PRIVACY_PAGE_MISSING` still blocks publication.
+Generated copy uses the site title and owner email, highlighting missing contact for the owner to edit.
+Content failures are logged and retried next open; the in-memory test composition skips content creation.

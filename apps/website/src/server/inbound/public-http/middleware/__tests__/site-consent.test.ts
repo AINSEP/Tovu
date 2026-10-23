@@ -11,8 +11,10 @@ import { registerConsentHttp } from '@jini-ai/cms/consent/express';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
+import { applySiteConsent, CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentPorts } from '../site-consent.js';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
+import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
+import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
@@ -139,31 +141,53 @@ test('a missing or malformed receipt in opt-out mode still denies optional categ
   }
 });
 
-test('auto-enable treats only a site stamped at or after launch as new and reads the stamp once; the privacy check stays for publishing', async t => {
-  const deps = createRouteDeps();
-  const siteFor = async (meta: string | null) => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-auto-'));
-    t.after(() => fs.rm(dir, { recursive: true, force: true }));
-    if (meta !== null) await fs.writeFile(path.join(dir, '.site-meta.json'), meta);
-    return createSiteConsentAutoEnable({ deps: { ...deps, siteBinding: { ...deps.siteBinding, dir } } });
-  };
-  const launched = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
-  assert.equal(await launched.isNewLiveSite({}), true);
-  const older = await siteFor(JSON.stringify({ createdAt: '2026-01-01T00:00:00.000Z' }));
-  assert.equal(await older.isNewLiveSite({}), false);
-  assert.equal(await (await siteFor(JSON.stringify({ createdAt: 20261021 }))).isNewLiveSite({}), false);
-  assert.equal(await (await siteFor('{not json')).isNewLiveSite({}), false);
-  const missing = await siteFor(null);
-  assert.equal(await missing.isNewLiveSite({}), false);
-
-  const memo = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
-  const first = memo.isNewLiveSite({});
-  assert.equal(memo.isNewLiveSite({}), first, 'the stamp is read once per port');
-
-  const privacyPageExists = createPrivacyPageCheck({ deps });
+test('the publishing privacy check still rejects missing local Pages', async () => {
+  const privacyPageExists = createPrivacyPageCheck({ deps: { workspaceId: 'site-a', postRepo: { findBySlug: async () => null } } as never });
   assert.equal(await privacyPageExists({ url: 'https://example.com/privacy' }), true);
   assert.equal(await privacyPageExists({ url: '/Not A Slug' }), false);
   assert.equal(await privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+});
+
+test('ordinary no-choice delivery awaits defaults, shows banner and privacy anchor; explicit OFF wins', async t => {
+  const settingsRepo = new InMemorySettingsRepo(); let id = 0;
+  const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
+  const ids = { newId: () => `setting-${++id}` };
+  const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
+  const authorize = async () => ({ allowed: true as const, reason: 'test owner' });
+  await ensureSiteConsentDefinitions({ settingsRepo, clock, ids, principals }, { systemPrincipalId: 'system' });
+  const write = async (key: string, value: string | boolean) => set({ deps: { repo: settingsRepo, clock, ids, principals, authorize },
+    input: { namespace: SITE_CONSENT_NAMESPACE, key, value, scope: 'workspace', workspaceId: 'site-a', callerPrincipalId: 'owner' } });
+  let release!: () => void;
+  const siteConsentReady = new Promise<void>(resolve => { release = resolve; });
+  const deps = { workspaceId: 'site-a', settingsRepo, clock, siteConsentReady,
+    siteBinding: { dir: '/unused-consent-test' }, consentStore: { read: async () => null } } as never;
+  const ports = createSiteConsentPorts({ deps });
+  let settled = false;
+  const config = ports.config.get({}).then(value => { settled = true; return value; });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
+  await write('privacyPolicyUrl', '/privacy'); release();
+  assert.equal((await config).enabled, true);
+  const app = express(); applySiteConsent({ app, deps });
+  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  app.get('/', (_req, res) => res.type('html').send(original));
+  const base = await startTestServer(app, t);
+  const dom = new JSDOM(await (await fetch(base)).text());
+  try {
+    assert.ok(dom.window.document.querySelector('#jini-consent'));
+    assert.ok(dom.window.document.querySelector('#jini-consent a[href="/privacy"]'));
+    assert.ok(dom.window.document.querySelector('template[data-jini-consent-script]'));
+  } finally { dom.window.close(); }
+  assert.equal((await fetch(base, { headers: { 'x-tovu-static-export': '1' } })).status, 409);
+  await write('enabled', false);
+  assert.equal(await (await fetch(base)).text(), original);
+});
+
+test('consent readiness rejection propagates before any policy read', async () => {
+  const failure = new Error('privacy creation failed');
+  const siteConsentReady = Promise.reject(failure);
+  const deps = { siteConsentReady, siteBinding: { dir: '/unused-consent-test' }, clock: { nowMs: () => 0 },
+    consentStore: { read: async () => assert.fail('must wait for defaults') } } as never;
+  await assert.rejects(createSiteConsentPorts({ deps }).config.get({}), error => error === failure);
 });
 
 test('a published policy with an empty Custom CSS is served with the default style; the owner\'s own CSS wins', async t => {

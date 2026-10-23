@@ -1016,6 +1016,8 @@ export interface AnalyticsDeps {
    * while that workspace's pin is pending (REQ-07).
    */
   siteTitleReady: Promise<void>;
+  /** Consent definitions and initial privacy content, after title preservation and owner seeding. */
+  siteConsentReady: Promise<void>;
   /**
    * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
    * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.

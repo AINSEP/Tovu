@@ -9,8 +9,8 @@ const ENUM_VALUES: Partial<Record<keyof SiteConsentSettings, readonly string[]>>
 export const SITE_CONSENT_OFF: SiteConsentSettings = { ...SITE_CONSENT_DEFAULTS, enabled: false };
 
 /** The ledger's `enabled` default stays OFF: its default layer only means "no owner choice yet",
- * which {@link resolveSiteConsentActivation} turns into on (new site) or off (site created before
- * consent shipped). Keeping it unchanged also means no boot-time rewrite of existing sites' ledgers. */
+ * which {@link resolveSiteConsentActivation} turns into the product default (on) for all sites.
+ * Keeping it unchanged also means no boot-time rewrite of existing sites' enabled ledgers. */
 const LEDGER_DEFAULTS: SiteConsentSettings = SITE_CONSENT_OFF;
 
 /** The shared registrar owns legacy scalar definitions and their ledger revisions.
@@ -26,26 +26,22 @@ export async function ensureSiteConsentDefinitions(required: EnsureSettingDefini
 
 /** Consent owns readiness, without extending WebMCP's failure chain.
  * The shared boot chain serializes ledger writes on the site's single connection.
- * Consumers await this promise; the HTTP owner reports failure and serves denied HTML.
- * @complexity O(1), calls the existing settings registrar once after other settings finish. */
-export function createSiteConsentReadiness(required: EnsureSettingDefinitionsDeps, { after, systemPrincipalId }: { after: Promise<void>; systemPrincipalId: string }): Promise<void> {
-  const ready = after.then(() => ensureSiteConsentDefinitions(required, { systemPrincipalId }));
+ * Definition failures block readiness; CMS defaults failures are reported and retried next open.
+ * @complexity Registration is O(1); injected CMS defaults inherit their workspace scan cost. */
+export function createSiteConsentReadiness({ after, systemPrincipalId, ...required }: EnsureSettingDefinitionsDeps & { after: Promise<void>; systemPrincipalId: string }, { ensurePrivacyDefaults }: { ensurePrivacyDefaults?: () => Promise<void> } = {}): Promise<void> {
+  // Visitor cookie consent's `core.consent.*` definitions; registration never writes an owner choice.
+  const ready = after.then(() => ensureSiteConsentDefinitions(required, { systemPrincipalId })).then(async () => {
+    // An optional content repair must not prevent the owner opening consent settings to fix it.
+    try { await ensurePrivacyDefaults?.(); }
+    catch (error) { console.error(`[consent] privacy defaults failed: ${error instanceof Error ? error.message : ''}`); }
+  });
   // Attach a rejection observer now; a request may arrive long after registration fails.
   void ready.catch(() => undefined);
   return ready;
 }
 
-/** Owner rollout rules: sites created before consent shipped are never switched on silently
- * (2026-10-19); a new live site shows the banner by default, with no privacy page or other step
- * needed first (2026-10-22). */
-export interface SiteConsentAutoEnablePort {
-  /** True only for a site created after consent shipped and served live (not static export). */
-  isNewLiveSite(required: Record<string, never>, optional?: Record<string, never>): Promise<boolean>;
-}
-
-export type SiteConsentWaitingFor = 'new-live-site';
-/** `owner`: an explicit on/off choice; `automatic`: the new-site rule; `default`: no choice yet. */
-export type SiteConsentActivation = { enabled: boolean; source: 'owner' | 'automatic' | 'default'; waitingFor: SiteConsentWaitingFor | null };
+/** Explicit owner on/off overrides the default for every site. */
+export type SiteConsentActivation = { enabled: boolean };
 
 type Deps = { settingsRepo: SettingsRepoPort; workspaceId: string };
 
@@ -54,25 +50,17 @@ async function readSetting({ settingsRepo, workspaceId }: Deps, key: keyof SiteC
   return getEffective({ repo: settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
 }
 
-/** A site without an explicit owner choice: new sites get the default (on); older sites stay off.
- * The privacy link is not a precondition: the banner shows without it, and publishing an edited
- * policy still requires one (validation.ts). @complexity O(1), one metadata read per site process. */
-async function automaticActivation(autoEnable: SiteConsentAutoEnablePort): Promise<SiteConsentActivation> {
-  if (!await autoEnable.isNewLiveSite({})) return { enabled: false, source: 'default', waitingFor: 'new-live-site' };
-  return { enabled: SITE_CONSENT_DEFAULTS.enabled, source: 'automatic', waitingFor: null };
-}
-
-/** Resolve whether consent applies, honoring an explicit owner choice over the new-site rule.
+/** Resolve whether consent applies, honoring an explicit owner choice over the product default.
+ * The privacy link is not a precondition for activation; publishing still requires one (validation.ts).
  * @throws Error when the stored flag is not a boolean (never guesses on or off).
- * @complexity O(1), at most two ledger reads and one page lookup. */
-export async function resolveSiteConsentActivation(deps: Deps, { autoEnable }: { autoEnable?: SiteConsentAutoEnablePort } = {}): Promise<SiteConsentActivation> {
+ * @complexity O(1), one ledger read. */
+export async function resolveSiteConsentActivation(deps: Deps, _options = {}): Promise<SiteConsentActivation> {
   const enabled = await readSetting(deps, 'enabled');
   if (enabled !== null && enabled.sourceLayer !== 'default') {
     if (typeof enabled.value !== 'boolean') throw new Error('Invalid cookie consent setting: enabled.');
-    return { enabled: enabled.value, source: 'owner', waitingFor: null };
+    return { enabled: enabled.value };
   }
-  if (!autoEnable) return { enabled: enabled?.value === true, source: 'default', waitingFor: null };
-  return automaticActivation(autoEnable);
+  return { enabled: SITE_CONSENT_DEFAULTS.enabled };
 }
 
 /** Read every non-flag value with type and length checks. @complexity O(1), twelve ledger reads. */
@@ -87,13 +75,13 @@ async function readValues(deps: Deps): Promise<Omit<SiteConsentSettings, 'enable
   return Object.fromEntries(entries) as Omit<SiteConsentSettings, 'enabled'>;
 }
 
-/** Bind workspace settings to the mechanism. Missing definitions read as OFF.
+/** Bind workspace settings to the mechanism. Missing definitions use the product default.
  * Malformed values throw rather than bypass an enabled policy. @complexity O(1), thirteen reads. */
-export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, { autoEnable }: { autoEnable?: SiteConsentAutoEnablePort } = {}) {
+export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, _options = {}) {
   return {
     async get(_input: Record<string, never> = {}, _optional = {}): Promise<SiteConsentSettings> {
       // Disabling remains a working rollback even if another consent setting is malformed.
-      const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId }, { autoEnable });
+      const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId });
       if (!activation.enabled) return { ...SITE_CONSENT_OFF };
       const values = await readValues({ settingsRepo, workspaceId });
       if (!SITE_CONSENT_REGION_MODES.includes(values.regionMode)) throw new Error('Choose automatic, opt-in, or opt-out cookie consent region mode.');
@@ -107,7 +95,7 @@ export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, { a
 /** Authoring reads retain saved copy even while consent is disabled; public rollback still uses get().
  * @example readSiteConsentAuthoringSettings({ settingsRepo, workspaceId })
  * @complexity O(1), one bounded set of existing ledger reads; performs no writes. */
-export async function readSiteConsentAuthoringSettings(deps: Deps, { autoEnable }: { autoEnable?: SiteConsentAutoEnablePort } = {}): Promise<SiteConsentSettings> {
-  const activation = await resolveSiteConsentActivation(deps, { autoEnable });
+export async function readSiteConsentAuthoringSettings(deps: Deps, _options = {}): Promise<SiteConsentSettings> {
+  const activation = await resolveSiteConsentActivation(deps);
   return { ...await readValues(deps), enabled: activation.enabled };
 }
