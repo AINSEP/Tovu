@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
+import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
 import { t } from "./email-i18n";
 import type { LoadView } from "./hooks/email-load.hooks";
@@ -28,6 +29,23 @@ export function Section(props: { id: string; title: string; actions?: ReactNode;
         {props.children}
       </div>
     </section>
+  );
+}
+
+/**
+ * One section of a tab at a time, picked with the gear menu's segmented pill (owner, 2026-10-22:
+ * "reduce the cognitive load" — Overview and Provider stacked every card). Reuses
+ * `ChatSettingsSegmented` (real radios sharing `name`, so arrow keys move between segments); the
+ * `radiogroup` wrapper names the group. The caller owns the choice (the page keeps it in `?p=`).
+ */
+export function Segments(props: { name: string; label: string; items: readonly { key: string; label: string }[]; active: string; onSelect: (key: string) => void }) {
+  return (
+    <div className="email-segments" role="radiogroup" aria-label={props.label}>
+      <ChatSettingsSegmented
+        name={props.name}
+        items={props.items.map((item) => ({ key: item.key, label: item.label, checked: item.key === props.active, change: () => props.onSelect(item.key) }))}
+      />
+    </div>
   );
 }
 

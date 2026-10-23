@@ -7,7 +7,8 @@ import type { EmailOverviewController } from "./hooks/use-email-overview.hooks";
 
 /**
  * @file Overview's **What uses email** and **Send test email** sections (Status stays in
- * `Email.tsx`). A test result says exactly what happened — accepted by the provider, kept
+ * `Email.tsx`). The page shows one at a time (`part`, from its segmented pill); with no `part`
+ * both render, as a standalone mount would want. A test result says exactly what happened — accepted by the provider, kept
  * locally, redirected, or failed — never "delivered".
  */
 
@@ -75,41 +76,55 @@ export function testResultLine(result: MailTestSendResult, locale: string): { to
   }
 }
 
-export function EmailOverviewTab(props: { controller: EmailOverviewController; locale: string }) {
+export function EmailOverviewTab(props: { controller: EmailOverviewController; locale: string; part?: "uses" | "test" | undefined }) {
+  const { controller, locale, part } = props;
+  return (
+    <>
+      {part === "test" ? null : <UsesSection controller={controller} locale={locale} />}
+      {part === "uses" ? null : <TestSection controller={controller} locale={locale} />}
+    </>
+  );
+}
+
+function UsesSection(props: { controller: EmailOverviewController; locale: string }) {
+  const { controller, locale } = props;
+  return (
+    <Section id="uses" title={t({ locale, key: "What uses email" })}>
+      <Loaded view={controller.uses} locale={locale} retry={controller.reloadUses}>
+        {(report) => (report.uses.length === 0
+          ? <p className="jini-field-hint">{t({ locale, key: "Nothing on this site sends email yet." })}</p>
+          : <ul className="email-list">{report.uses.map((row) => <UseRow key={row.use} row={row} locale={locale} />)}</ul>)}
+      </Loaded>
+    </Section>
+  );
+}
+
+function TestSection(props: { controller: EmailOverviewController; locale: string }) {
   const { controller, locale } = props;
   const test = controller.test;
   const line = test.kind === "done" ? testResultLine(test.result, locale) : null;
   return (
-    <>
-      <Section id="uses" title={t({ locale, key: "What uses email" })}>
-        <Loaded view={controller.uses} locale={locale} retry={controller.reloadUses}>
-          {(report) => (report.uses.length === 0
-            ? <p className="jini-field-hint">{t({ locale, key: "Nothing on this site sends email yet." })}</p>
-            : <ul className="email-list">{report.uses.map((row) => <UseRow key={row.use} row={row} locale={locale} />)}</ul>)}
-        </Loaded>
-      </Section>
-      <Section id="test" title={t({ locale, key: "Send test email" })}>
-        <form className="email-test-form" onSubmit={(event) => { event.preventDefault(); void controller.sendTest(); }}>
-          <div className="jini-field email-field">
-            <label className="jini-field-label" htmlFor="email-test-to">{t({ locale, key: "To" })}</label>
-            <input id="email-test-to" className="jini-input" type="email" value={controller.to} onChange={(e) => controller.setTo(e.target.value)}
-              placeholder={t({ locale, key: "Your account address" })} {...agentHandle({ handle: "email-test-to" }, { role: "field", label: "Test email recipient" })} />
-          </div>
-          <div className="email-row">
-            <button type="submit" disabled={test.kind === "sending"} {...agentHandle({ handle: "email-test-send" }, { role: "button", label: "Send a test email" })}>
-              {test.kind === "sending" ? t({ locale, key: "Sending…" }) : t({ locale, key: "Send test" })}
-            </button>
-          </div>
-        </form>
-        {line && test.kind === "done" ? (
-          <div className="email-row" role="status">
-            <Chip tone={line.tone}>{when(test.result.at, locale)}</Chip>
-            <span className="jini-field-hint">{line.text}</span>
-          </div>
-        ) : null}
-        {test.kind === "error" ? <p className="jini-field-error" role="alert">{t({ locale, key: test.message })}</p> : null}
-        <p className="jini-field-hint">{t({ locale, key: "A test proves the provider accepts mail. It doesn't prove it arrives." })}</p>
-      </Section>
-    </>
+    <Section id="test" title={t({ locale, key: "Send test email" })}>
+      <form className="email-test-form" onSubmit={(event) => { event.preventDefault(); void controller.sendTest(); }}>
+        <div className="jini-field email-field">
+          <label className="jini-field-label" htmlFor="email-test-to">{t({ locale, key: "To" })}</label>
+          <input id="email-test-to" className="jini-input" type="email" value={controller.to} onChange={(e) => controller.setTo(e.target.value)}
+            placeholder={t({ locale, key: "Your account address" })} {...agentHandle({ handle: "email-test-to" }, { role: "field", label: "Test email recipient" })} />
+        </div>
+        <div className="email-row">
+          <button type="submit" disabled={test.kind === "sending"} {...agentHandle({ handle: "email-test-send" }, { role: "button", label: "Send a test email" })}>
+            {test.kind === "sending" ? t({ locale, key: "Sending…" }) : t({ locale, key: "Send test" })}
+          </button>
+        </div>
+      </form>
+      {line && test.kind === "done" ? (
+        <div className="email-row" role="status">
+          <Chip tone={line.tone}>{when(test.result.at, locale)}</Chip>
+          <span className="jini-field-hint">{line.text}</span>
+        </div>
+      ) : null}
+      {test.kind === "error" ? <p className="jini-field-error" role="alert">{t({ locale, key: test.message })}</p> : null}
+      <p className="jini-field-hint">{t({ locale, key: "A test proves the provider accepts mail. It doesn't prove it arrives." })}</p>
+    </Section>
   );
 }

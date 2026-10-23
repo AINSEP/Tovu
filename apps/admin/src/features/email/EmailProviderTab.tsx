@@ -5,7 +5,7 @@ import type { AdminMailStatus } from "../../lib/api";
 import { adminHref } from "../../lib/router";
 import { t } from "./email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "./email-api";
-import { Chip, Loaded, Section, when, type Tone } from "./EmailParts";
+import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
 import { isFullyActive, type EmailProviderController } from "./hooks/use-email-provider.hooks";
 
 /**
@@ -13,6 +13,11 @@ import { isFullyActive, type EmailProviderController } from "./hooks/use-email-p
  * installed provider with its own declared key fields, **Save key** (saves or replaces the key,
  * does not switch) and **Use this provider** (switches both lanes, after a confirmation that says
  * so). No vendor branches: labels, fields and help links all come from the provider's data.
+ *
+ * With more than one provider, a segmented pill (one segment per installed provider, from the
+ * same list) shows one card at a time (owner, 2026-10-22: every card stacked was too much). The
+ * page keeps the choice in `?p=<provider id>`; with none, or an id no longer installed, the
+ * active provider's card shows.
  */
 
 const LANE_STATE: Record<string, { tone: Tone; label: string }> = {
@@ -157,7 +162,41 @@ function ProviderCard(props: CardProps) {
   );
 }
 
-export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string }) {
+/**
+ * The card to show: `selectedId` when installed, else the provider sending all mail, else one
+ * sending some, else the first. Pure.
+ */
+export function shownProviderId(providers: readonly MailProviderConfiguration[], selectedId: string | null | undefined): string | undefined {
+  const pick = providers.find((p) => p.id === selectedId) ?? providers.find(isFullyActive) ?? providers.find((p) => p.lanes.length > 0) ?? providers[0];
+  return pick?.id;
+}
+
+/**
+ * A segment's name: the provider's label without a trailing "(…)" aside — "Console (local
+ * development, sends nothing)" reads as "Console"; the card keeps the full label. Pure.
+ */
+export function segmentLabel(label: string): string {
+  return label.replace(/\s*\([^()]*\)\s*$/, "") || label;
+}
+
+function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+  const { providers, controller, locale } = props;
+  const shownId = shownProviderId(providers, props.selectedId);
+  const shown = providers.length > 1 ? providers.filter((p) => p.id === shownId) : providers;
+  return (
+    <>
+      {providers.length > 1 ? (
+        <Segments name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId ?? ""} onSelect={(id) => props.onSelect?.(id)}
+          items={providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) }))} />
+      ) : null}
+      <ul className="email-list email-providers">
+        {shown.map((provider) => <ProviderCard key={provider.id} provider={provider} controller={controller} locale={locale} />)}
+      </ul>
+    </>
+  );
+}
+
+export function EmailProviderTab(props: { controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
   const { controller, locale } = props;
   const pending = controller.pendingSwitch;
   return (
@@ -172,9 +211,7 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
                 <a href={adminHref("/agent-plugins")}>{t({ locale, key: "Manage agent plugins" })}</a>
               </p>
             ) : (
-              <ul className="email-list email-providers">
-                {report.providers.map((provider) => <ProviderCard key={provider.id} provider={provider} controller={controller} locale={locale} />)}
-              </ul>
+              <ProviderCards providers={report.providers} controller={controller} locale={locale} selectedId={props.selectedId} onSelect={props.onSelect} />
             )}
             {report.refusals.length > 0 ? (
               <>

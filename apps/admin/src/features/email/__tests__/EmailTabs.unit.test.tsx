@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
 import type { MailTestSendResult } from "../email-api";
-import { EmailProviderTab } from "../EmailProviderTab";
+import { EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
 import { EmailSenderTab } from "../EmailSenderTab";
 import { EmailOverviewTab } from "../EmailOverviewTab";
 import { EmailActivityTab } from "../EmailActivityTab";
@@ -57,6 +57,41 @@ describe("Email tab components", () => {
     expect(dialog).toHaveTextContent("All email — sign-in links, confirmations, notifications and newsletters — will send with Hosted Mail.");
     await userEvent.click(within(dialog).getByRole("button", { name: "Switch" }));
     expect(controller.confirmSwitch).toHaveBeenCalledOnce();
+  });
+
+  it("shows one provider card at a time behind a segment per installed provider, defaulting to the active one", async () => {
+    const controller = createTabHooks().provider({});
+    const smtp = { ...PROVIDER, id: "smtp", label: "SMTP server" };
+    const local = { ...PROVIDER, id: "local", label: "Console (local development, sends nothing)", hosted: false };
+    const hosted = { ...PROVIDER, id: "hosted", label: "Hosted Mail", lanes: ["transactional", "bulk"] as const, selectable: true };
+    controller.view = { kind: "loaded", data: { setting: { transactional: "hosted", bulk: "hosted" }, providers: [smtp, local, hosted], refusals: [] } };
+    const onSelect = vi.fn();
+    const { rerender } = render(<EmailProviderTab controller={controller} status={null} locale="en" onSelect={onSelect} />);
+    const group = screen.getByRole("radiogroup", { name: "Provider" });
+    expect(within(group).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["SMTP server", "Console", "Hosted Mail"]);
+    expect(screen.getByRole("radio", { name: "Hosted Mail" })).toBeChecked();
+    expect(Array.from(document.querySelectorAll(".email-provider .email-provider-name"), (name) => name.textContent)).toEqual(["Hosted Mail"]);
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Console" }));
+    expect(onSelect).toHaveBeenCalledWith("local");
+    rerender(<EmailProviderTab controller={controller} status={null} locale="en" selectedId="local" onSelect={onSelect} />);
+    expect(screen.getByRole("radio", { name: "Console" })).toBeChecked();
+    expect(screen.getByText("Console (local development, sends nothing)")).toBeInTheDocument();
+    expect(screen.queryByText("Active")).toBeNull();
+  });
+
+  it("picks the shown provider and its segment name without vendor branches", () => {
+    const a = { ...PROVIDER, id: "a" };
+    const b = { ...PROVIDER, id: "b", lanes: ["transactional"] as const };
+    const c = { ...PROVIDER, id: "c", lanes: ["transactional", "bulk"] as const };
+    expect(shownProviderId([a, b, c], "a")).toBe("a");
+    expect(shownProviderId([a, b, c], "gone")).toBe("c");
+    expect(shownProviderId([a, b], null)).toBe("b");
+    expect(shownProviderId([a], undefined)).toBe("a");
+    expect(shownProviderId([], "a")).toBeUndefined();
+    expect(segmentLabel("Console (local development, sends nothing)")).toBe("Console");
+    expect(segmentLabel("SMTP server")).toBe("SMTP server");
+    expect(segmentLabel("(odd)")).toBe("(odd)");
   });
 
   it("shows DNS expected/observed values, treats unknown separately from mismatch, and saves sender explicitly", async () => {

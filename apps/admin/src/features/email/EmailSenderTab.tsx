@@ -8,7 +8,8 @@ import type { EmailSenderController } from "./hooks/use-email-sender.hooks";
 /**
  * @file The Sender & DNS tab: the From name and address (saved settings; the next email uses
  * them), then the sender domain's DNS records with copy buttons and **Check again**. "Unknown" is
- * never shown as a failure; the provider's own verdict is shown apart from the DNS answers.
+ * never shown as a failure; the provider's own verdict is shown apart from the DNS answers. The page
+ * shows one card at a time (`part`, from its segmented pill); with no `part` both render.
  */
 
 const RECORD_STATUS: Record<MailDnsRecordStatus, { tone: Tone; label: string }> = {
@@ -160,22 +161,29 @@ function DnsSection(props: { controller: EmailSenderController; locale: string }
   );
 }
 
-export function EmailSenderTab(props: { controller: EmailSenderController; warnings?: readonly string[]; locale: string }) {
+function SenderSection(props: { controller: EmailSenderController; warnings?: readonly string[] | undefined; locale: string }) {
   const { controller, locale } = props;
   return (
+    <Section id="sender" title={t({ locale, key: "Sender" })}>
+      {(props.warnings ?? []).map((warning) => (
+        <div key={warning} className="email-row">
+          <Chip tone="warning">{t({ locale, key: "Needs attention" })}</Chip>
+          <span className="jini-field-hint">{t({ locale, key: SENDER_WARNING[warning] ?? warning })}</span>
+        </div>
+      ))}
+      <Loaded view={controller.sender} locale={locale}>
+        {() => <SenderForm controller={controller} locale={locale} />}
+      </Loaded>
+    </Section>
+  );
+}
+
+export function EmailSenderTab(props: { controller: EmailSenderController; warnings?: readonly string[]; locale: string; part?: "sender" | "dns" | undefined }) {
+  const { controller, locale, part } = props;
+  return (
     <>
-      <Section id="sender" title={t({ locale, key: "Sender" })}>
-        {(props.warnings ?? []).map((warning) => (
-          <div key={warning} className="email-row">
-            <Chip tone="warning">{t({ locale, key: "Needs attention" })}</Chip>
-            <span className="jini-field-hint">{t({ locale, key: SENDER_WARNING[warning] ?? warning })}</span>
-          </div>
-        ))}
-        <Loaded view={controller.sender} locale={locale}>
-          {() => <SenderForm controller={controller} locale={locale} />}
-        </Loaded>
-      </Section>
-      <DnsSection controller={controller} locale={locale} />
+      {part === "dns" ? null : <SenderSection controller={controller} warnings={props.warnings} locale={locale} />}
+      {part === "sender" ? null : <DnsSection controller={controller} locale={locale} />}
     </>
   );
 }

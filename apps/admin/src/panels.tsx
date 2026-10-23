@@ -1101,7 +1101,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // A template's editor is a full page like a Page's (owner, 2026-10-22): `/email/templates/:id`.
     render: (ctx) => (ctx.view === "email-template-editor"
       ? <EmailTemplateEditor key={ctx.params.templateId} id={ctx.params.templateId} />
-      : <Email tabId={ctx.query.get("tab")} />),
+      : <Email tabId={ctx.query.get("tab")} part={ctx.query.get("p")} />),
     routes: [{ pattern: "/templates/:templateId", view: "email-template-editor" }],
     nav: {
       label: "Email",

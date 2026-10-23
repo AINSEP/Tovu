@@ -84,3 +84,7 @@
    turned a disabled bare (filled) button here — "Use this provider", "Send test" while sending —
    into a borderless label. Restores the global `button:disabled` neutral fill (0,3,1 beats 0,2,1). */
 .email-sections button:not([class]):disabled { background: var(--surface-3); color: var(--muted); }
+
+/* Segmented pill (owner, 2026-10-22): one section of Overview / Provider / Sender & DNS at a time.
+   The pill's look is the gear menu's `.jini-chat-settings-segmented` (styles/assistant.css). */
+.email-segments { display: flex; min-width: 0; }

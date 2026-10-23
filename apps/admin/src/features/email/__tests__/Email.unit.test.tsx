@@ -9,10 +9,10 @@ import { createTabHooks } from "./email-controller.test-helpers";
 vi.mock("../../../admin-themes/use-admin-theme.hooks", () => ({ useAdminThemeBoundary: () => ({}) }));
 
 /** @file Tab controllers are injected fakes: navigation and status tests make no mail requests. */
-function renderEmail(required: { view: EmailStatusView; tabId?: string; overrides?: Partial<EmailController> }, _optional = {}) {
+function renderEmail(required: { view: EmailStatusView; tabId?: string; part?: string; overrides?: Partial<EmailController> }, _optional = {}) {
   const controller: EmailController = { view: required.view, locale: "en", retry: vi.fn(), ...required.overrides };
   const tabHooks = createTabHooks();
-  return { ...render(<Email tabId={required.tabId} useEmailHook={() => controller} tabHooks={tabHooks} />), tabHooks };
+  return { ...render(<Email tabId={required.tabId} part={required.part} useEmailHook={() => controller} tabHooks={tabHooks} />), tabHooks };
 }
 const sectionTitles = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
 const originalUrl = window.location.href;
@@ -25,16 +25,18 @@ describe("Email", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Email" })).toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Overview", "Provider", "Sender & DNS", "Templates", "Activity"]);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
-    expect(sectionTitles()).toEqual(["Status", "What uses email", "Send test email"]);
+    expect(sectionTitles()).toEqual(["Status"]);
+    expect(screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["Status", "What uses email", "Send test email"]);
+    expect(screen.getByRole("radio", { name: "Status" })).toBeChecked();
     expect(tabHooks.overview).toHaveBeenCalledOnce();
     for (const key of ["provider", "sender", "templates", "activity"] as const) expect(tabHooks[key]).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["overview", ["Status", "What uses email", "Send test email"]], ["provider", ["Provider"]],
-    ["sender", ["Sender", "DNS"]], ["templates", ["Templates"]],
+    ["overview", ["Status"]], ["provider", ["Provider"]],
+    ["sender", ["Sender"]], ["templates", ["Templates"]],
     ["activity", ["Recent sends", "Blocked addresses", "Bounce and spam reports"]],
-    ["unknown", ["Status", "What uses email", "Send test email"]],
+    ["unknown", ["Status"]],
   ])("opens the %s tab from the URL", (tabId, titles) => {
     renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: tabId as string });
     expect(sectionTitles()).toEqual(titles);
@@ -48,6 +50,25 @@ describe("Email", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Sender & DNS" }));
     expect(window.location.pathname).toBe("/admin/email");
     expect(window.location.search).toBe("?tab=sender");
+    expect(window.history.length).toBe(length);
+  });
+
+  it.each([
+    ["overview", "uses", ["What uses email"]], ["overview", "test", ["Send test email"]], ["overview", "nope", ["Status"]],
+    ["sender", "dns", ["DNS"]], ["sender", "nope", ["Sender"]],
+  ])("opens the %s tab's %s section from ?p=", (tabId, part, titles) => {
+    renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId, part });
+    expect(sectionTitles()).toEqual(titles);
+    expect(screen.getByRole("radio", { name: titles[0] })).toBeChecked();
+  });
+
+  it("picking a section keeps the tab and writes ?p= without adding history", async () => {
+    window.history.replaceState(null, "", "/admin/email?tab=overview");
+    const length = window.history.length;
+    renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: "overview" });
+    expect(screen.getByRole("radiogroup", { name: "Overview" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Send test email" }));
+    expect(window.location.search).toBe("?tab=overview&p=test");
     expect(window.history.length).toBe(length);
   });
 
