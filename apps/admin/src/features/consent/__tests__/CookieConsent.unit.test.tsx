@@ -5,6 +5,7 @@ import { navigate } from '@/lib/router';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';
 import { CookieConsent } from '../CookieConsent';
 import type { ConsentRevisionsPort } from '../settings.hooks';
+import { SUGGESTED_CONSENT_CSS } from '../rules';
 import { CONSENT_CONFIG, conflict, consentSnapshot, fakeConsentPort, revision, saved } from './consent-fixtures';
 
 vi.mock('@/lib/router', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/router')>()), navigate: vi.fn() }));
@@ -208,5 +209,27 @@ describe('CookieConsent: draft first', () => {
   it('edits the draft config, not the live one', async () => {
     renderPage(fakeConsentPort({ get: () => Promise.resolve(consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, title: 'Draft title' }) })) }));
     expect(await screen.findByLabelText('Banner title')).toHaveValue('Draft title');
+  });
+});
+
+describe('CookieConsent: suggested style', () => {
+  it('fills an empty Custom CSS field with the suggested style and autosaves it as a draft', async () => {
+    const saveDraft = vi.fn<ConsentRevisionsPort['saveDraft']>(() => Promise.resolve(saved('d2')));
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), saveDraft }), 'look');
+    fireEvent.click(await screen.findByRole('button', { name: 'Use suggested style' }));
+    expect(screen.getByLabelText('Custom CSS')).toHaveValue(SUGGESTED_CONSENT_CSS);
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ customCss: SUGGESTED_CONSENT_CSS }) })));
+    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
+  });
+
+  it('is not offered over existing Custom CSS, and not on Banner', async () => {
+    const own = consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, customCss: '#jini-consent { padding: 12px; }' }), published: revision('p1') });
+    const { unmount } = renderPage(fakeConsentPort({ get: () => Promise.resolve(own) }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue('#jini-consent { padding: 12px; }');
+    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
+    unmount();
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft) }), 'banner');
+    expect(await screen.findByRole('group', { name: 'Banner text' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
   });
 });

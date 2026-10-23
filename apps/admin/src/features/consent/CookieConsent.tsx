@@ -5,7 +5,7 @@ import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
-import { consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
+import { canSuggestConsentCss, consentStatusKey, resolveConsentTabId, SUGGESTED_CONSENT_CSS, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
 import { useConsentPage, useConsentPreview, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
 import "./consent-settings.css";
@@ -66,6 +66,26 @@ function Notices({ page, t }: { page: ConsentPageController; t: Translate }) {
   );
 }
 
+/** Offers Tovu's suggested banner style into an empty Custom CSS field (never over the owner's
+ * own CSS). Like any edit it only autosaves a draft; the live banner changes on Publish. */
+function SuggestedStyle({ page, t, disabled }: { page: ConsentPageController; t: Translate; disabled: boolean }) {
+  if (!canSuggestConsentCss({ customCss: page.value?.customCss })) return null;
+  return (
+    <div className="consent-css-suggestion">
+      <p>{t("Start from a rounded card with roomy padding.")}</p>
+      <button
+        type="button"
+        className="btn-secondary"
+        disabled={disabled}
+        onClick={() => page.onChange({ patch: { customCss: SUGGESTED_CONSENT_CSS } })}
+        {...agentHandle({ handle: "consent-use-suggested-css" }, { role: "button", label: "Fill the empty Custom CSS field with the suggested cookie banner style" })}
+      >
+        {t("Use suggested style")}
+      </button>
+    </div>
+  );
+}
+
 function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
   const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, delays?.previewMs === undefined ? {} : { delayMs: delays.previewMs });
   const value = page.value!;
@@ -87,7 +107,10 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   }
   return (
     <div className="consent-editor consent-editor-with-preview">
-      <div className="card">{tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}</div>
+      <div className="card">
+        {tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
+        {tab === "look" && <SuggestedStyle page={page} t={translation.t} disabled={fields.disabled} />}
+      </div>
       <div className="card consent-preview-pane">
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
         <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />

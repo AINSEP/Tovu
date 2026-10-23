@@ -59,3 +59,25 @@ export function canPublishConsent(
 ): boolean {
   return settled && hasUnpublished && !publishing && problems.length === 0 && (saveState === 'saved' || saveState === 'idle');
 }
+
+/** Tovu's suggested first-visit banner look, offered on Look & Position. It uses only the engine's
+ * allowlisted selectors and properties (Jini rejects var(), alpha colors and action-specific
+ * selectors), so it sets shape and spacing but never colors: the banner keeps following the site
+ * theme in light and dark. Phones keep the engine's full-width sheet, whose square corners win. */
+export const SUGGESTED_CONSENT_CSS = `/* Suggested style: a rounded card with roomy padding. Edit it, or clear it for the plain look. */
+#jini-consent {
+  border-radius: 16px;
+  padding: 24px;
+}
+#jini-consent button {
+  border-radius: 10px;
+}
+#jini-consent a {
+  border-radius: 8px;
+}
+`;
+
+/** The suggestion only ever fills an empty field: an owner's own Custom CSS is never replaced. */
+export function canSuggestConsentCss({ customCss }: { customCss: string | undefined }, _optional = {}): boolean {
+  return (customCss ?? '').trim() === '';
+}
