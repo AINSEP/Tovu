@@ -58,18 +58,13 @@ export function plainUpdateError({ message }: { message: string }, _optionalArgs
 
 const AUTO_OFF = 'Automatic updates are off.';
 
-/** What the operator reads for each outcome; `ready` reuses the existing prompt instead. */
-export function updateCheckNotice(
-  { outcome, currentVersion, isPackaged, automaticUpdates, errorMessage = '' }: {
-    outcome: UpdateCheckOutcome; currentVersion: string; isPackaged: boolean; automaticUpdates: boolean; errorMessage?: string;
+function versionUpdateNotice(
+  { outcome, currentVersion, automaticUpdates }: {
+    outcome: Extract<UpdateCheckOutcome, { kind: 'up-to-date' | 'downloading' | 'available' }>;
+    currentVersion: string; automaticUpdates: boolean;
   },
-  _optionalArgs = {},
-): UpdateNotice | null {
+): UpdateNotice {
   switch (outcome.kind) {
-    case 'ready': return null;
-    case 'unavailable': return isPackaged
-      ? { type: 'info', message: 'Updates are off for this copy of Tovu', detail: `Reason: ${outcome.reason}.` }
-      : { type: 'info', message: 'Updates only work in the installed app', detail: `This is a development copy of Tovu (${currentVersion}).` };
     case 'up-to-date': return {
       type: 'info', message: `You’re up to date (${outcome.version})`,
       detail: automaticUpdates ? 'This is the newest version of Tovu.' : `This is the newest version of Tovu. ${AUTO_OFF}`,
@@ -82,7 +77,23 @@ export function updateCheckNotice(
       type: 'info', message: `Tovu ${outcome.version} is available`,
       detail: `You have ${currentVersion}. ${AUTO_OFF} Turn on Settings › Automatically update Tovu to download and install it.`,
     };
+  }
+}
+
+/** What the operator reads for each outcome; `ready` reuses the existing prompt instead. */
+export function updateCheckNotice(
+  { outcome, currentVersion, isPackaged, automaticUpdates, errorMessage = '' }: {
+    outcome: UpdateCheckOutcome; currentVersion: string; isPackaged: boolean; automaticUpdates: boolean; errorMessage?: string;
+  },
+  _optionalArgs = {},
+): UpdateNotice | null {
+  switch (outcome.kind) {
+    case 'ready': return null;
+    case 'unavailable': return isPackaged
+      ? { type: 'info', message: 'Updates are off for this copy of Tovu', detail: `Reason: ${outcome.reason}.` }
+      : { type: 'info', message: 'Updates only work in the installed app', detail: `This is a development copy of Tovu (${currentVersion}).` };
     case 'error': return { type: 'error', message: 'Couldn’t check for updates', detail: plainUpdateError({ message: errorMessage }) };
+    default: return versionUpdateNotice({ outcome, currentVersion, automaticUpdates });
   }
 }
 
@@ -105,6 +116,20 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
     return outcome;
   }
 
+  function reportCheckResult({ result, automatic }: {
+    result: Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>; automatic: boolean;
+  }): UpdateCheckOutcome {
+    const version = result?.updateInfo?.version;
+    if (!result?.isUpdateAvailable || !version) return report({ kind: 'up-to-date', version: deps.currentVersion() });
+    if (!automatic) return report({ kind: 'available', version });
+    // The controller's own listener prompts when this finishes; only a failure needs saying here.
+    result.downloadPromise?.catch((error: unknown) => {
+      deps.log({ message: `update download failed: ${messageOf(error)}` });
+      deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: plainUpdateError({ message: messageOf(error) }) });
+    });
+    return report({ kind: 'downloading', version });
+  }
+
   async function run(): Promise<UpdateCheckOutcome> {
     const skip = deps.skipReason();
     if (skip !== null) return report({ kind: 'unavailable', reason: skip });
@@ -122,15 +147,7 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
         updater.autoInstallOnAppQuit = false;
       }
       const result = await updater.checkForUpdates();
-      const version = result?.updateInfo?.version;
-      if (!result?.isUpdateAvailable || !version) return report({ kind: 'up-to-date', version: deps.currentVersion() });
-      if (!automatic) return report({ kind: 'available', version });
-      // The controller's own listener prompts when this finishes; only a failure needs saying here.
-      result.downloadPromise?.catch((error: unknown) => {
-        deps.log({ message: `update download failed: ${messageOf(error)}` });
-        deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: plainUpdateError({ message: messageOf(error) }) });
-      });
-      return report({ kind: 'downloading', version });
+      return reportCheckResult({ result, automatic });
     } catch (error) {
       deps.log({ message: `update check failed: ${messageOf(error)}` });
       return report({ kind: 'error' }, messageOf(error));
