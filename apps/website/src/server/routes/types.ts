@@ -1456,6 +1456,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   federatedMcpPresetRegistry: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
   /** One lifecycle per boot, sharing the layout used by requests and backup sources. */
   agentPluginLifecycle: import("#src/features/agent-plugins/lifecycle").TovuAgentPluginLifecycle;
+  /** Site-bound toggle also clears mail selections owned by a disabled plugin. */
+  setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
   skillLayout: import("#src/features/skills/layout").SkillLayout;
   /**
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder

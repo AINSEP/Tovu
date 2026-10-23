@@ -3,10 +3,12 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
-import type { MailCapturePort, MailSendLedgerPort } from "@jini-ai/platform/mail";
+import type { MailCapturePort, MailSendLedgerPort, MailProviderSetting } from "@jini-ai/platform/mail";
+import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { SetAgentPluginEnabledInput } from "#src/features/agent-plugins/set-enabled";
 
 import { createSettingsPrincipalLookup, set } from "#src/features/settings/index";
-import { ensureMailProviderSettings, readMailProviderSetting } from "#src/features/settings/mail-provider";
+import { ensureMailProviderSettings, readMailProviderSetting, writeMailProviderSetting } from "#src/features/settings/mail-provider";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -148,3 +150,93 @@ test("production binding settings and credential-store failures fail closed thro
   another.required.resolve.customCredentialRepo = Object.assign(Object.create(another.required.resolve.customCredentialRepo), { listByWorkspace: async () => { throw new Error("store unavailable"); } });
   await assert.rejects(createSiteMailer(another.required).describeProviders(), /store unavailable/);
 });
+
+const PLUGIN_TOGGLE: SetAgentPluginEnabledInput = {
+  workspaceId: WS, pluginId: "mail-package", enabled: false, actor: "owner",
+  agentPluginLayout: { root: "unused", workspacesDir: "unused", forWorkspace: () => { throw new Error("the injected toggle owns activation"); } },
+};
+
+/** Provider ids deliberately differ from their owning plugin's id. */
+function mailAdapters(): ReturnType<MailAdapterRegistry["list"]> {
+  return [["mail-package", "first_adapter"], ["mail-package", "second_adapter"], ["other-package", "other_adapter"], ["mail-package", "smtp"], ["mail-package", "console"]].map(([pluginId, id]) => ({
+    pluginId: pluginId!, descriptor: { id: id!, label: id!, module: "a.mjs", credentialLabel: `${id} key` },
+    module: { create: () => { throw new Error("no credential is saved"); } },
+  }));
+}
+
+for (const [before, expected] of [
+  [{ transactional: "first_adapter", bulk: "second_adapter" }, { transactional: null, bulk: null }],
+  [{ transactional: "first_adapter", bulk: "other_adapter" }, { transactional: null, bulk: "other_adapter" }],
+  [{ transactional: "smtp", bulk: "second_adapter" }, { transactional: "smtp", bulk: null }],
+  [{ transactional: "console", bulk: "other_adapter" }, { transactional: "console", bulk: "other_adapter" }],
+  [{ transactional: "smtp", bulk: "console" }, { transactional: "smtp", bulk: "console" }],
+  [{ transactional: null, bulk: null }, { transactional: null, bulk: null }],
+] satisfies [MailProviderSetting, MailProviderSetting][]) {
+  test(`disable clears only owned selections and is idempotent: ${JSON.stringify(before)}`, async () => {
+    const { required, release, settingsRepo } = await rig();
+    release(); await required.settingsReady;
+    await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
+    let active = true;
+    required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => mailAdapters().filter(adapter => active || adapter.pluginId !== PLUGIN_TOGGLE.pluginId) });
+    const calls: SetAgentPluginEnabledInput[] = [];
+    let writes = 0;
+    required.settings.authorize = async () => { writes++; return { allowed: true, reason: "test" }; };
+    const site = createSiteMailer(required, { setAgentPluginEnabled: async (input) => {
+      calls.push(input); active = input.enabled;
+      return { pluginId: input.pluginId, enabled: input.enabled, warnings: [] };
+    } });
+    await site.ready;
+    await site.status();
+    await site.setAgentPluginEnabled(PLUGIN_TOGGLE);
+    assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), expected);
+    assert.equal(writes, JSON.stringify(before) === JSON.stringify(expected) ? 0 : 1);
+    const writesAfterDisable = writes;
+    await site.setAgentPluginEnabled(PLUGIN_TOGGLE);
+    assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), expected);
+    assert.equal(writes, writesAfterDisable, "repeat disable adds no settings write");
+    assert.deepEqual(calls, [PLUGIN_TOGGLE, PLUGIN_TOGGLE]);
+    assert.deepEqual((await site.status()).lanes.map(lane => lane.providerId), [expected.transactional, expected.bulk]);
+  });
+}
+
+test("enabling or a rejected disable leaves lane selections untouched", async () => {
+  const { required, release, settingsRepo } = await rig(); release(); await required.settingsReady;
+  const before = { transactional: "first_adapter", bulk: "second_adapter" };
+  await writeMailProviderSetting({ deps: { ...required.settings.deps, repo: settingsRepo, authorize: required.settings.authorize }, workspaceId: WS, callerPrincipalId: "owner", value: before });
+  required.resolve.loadMailAdapters = async () => ({ refusals: [], list: mailAdapters });
+  const site = createSiteMailer(required, { setAgentPluginEnabled: async (input) => {
+    if (!input.enabled) throw new Error("activation refused");
+    return { pluginId: input.pluginId, enabled: true, warnings: [] };
+  } });
+  await site.ready;
+  await site.setAgentPluginEnabled({ ...PLUGIN_TOGGLE, enabled: true });
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), before);
+  await assert.rejects(site.setAgentPluginEnabled(PLUGIN_TOGGLE), /activation refused/);
+  assert.deepEqual(await readMailProviderSetting({ settingsRepo, workspaceId: WS }), before);
+});
+
+for (const mode of ["local", "production"] as const) {
+  test(`disable returns mail to the existing unconfigured policy in ${mode}`, async () => {
+    const { required, release, lines } = await rig(); release(); await required.settingsReady;
+    required.resolve.mode = mode;
+    let active = true;
+    required.resolve.loadMailAdapters = async () => ({ refusals: [], list: () => active ? mailAdapters() : [] });
+    const site = createSiteMailer(required, { setAgentPluginEnabled: async (input) => {
+      active = input.enabled;
+      return { pluginId: input.pluginId, enabled: input.enabled, warnings: [] };
+    } });
+    await site.ready;
+    await site.selectProvider({ id: "first_adapter", principalId: "owner" });
+    await site.status();
+    await site.setAgentPluginEnabled(PLUGIN_TOGGLE);
+    assert.equal((await site.status()).state, "unconfigured");
+    const result = await site.mailer.send(MESSAGE, OPTIONS);
+    if (mode === "local") {
+      assert.equal(result.ok, true);
+      assert.match(lines.at(-1)!, /\[mail:console\]/);
+    } else {
+      assert.equal(result.ok, false);
+      assert.equal(!result.ok && result.errorCode, "MAIL_UNCONFIGURED");
+    }
+  });
+}

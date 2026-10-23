@@ -2,6 +2,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import type { AdminMailStatus } from "../../lib/api";
+import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "./email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "./email-api";
 import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
@@ -18,8 +19,8 @@ import { isFullyActive, type EmailProviderController } from "./hooks/use-email-p
 
 const LANE_STATE: Record<string, { tone: Tone; label: string }> = {
   ready: { tone: "ok", label: "Ready" },
-  unconfigured: { tone: "warning", label: "Not set up" },
-  unknown_provider: { tone: "warning", label: "Not installed" },
+  unconfigured: { tone: "warning", label: "Not set" },
+  unknown_provider: { tone: "warning", label: "Not set" },
   missing_credential: { tone: "warning", label: "Key not saved" },
   local_only: { tone: "neutral", label: "No external delivery" },
 };
@@ -192,10 +193,10 @@ function AddProvider(props: { controller: EmailProviderController; locale: strin
       {controller.choices === null && !controller.addError ? <p className="jini-field-hint" role="status">{t({ locale, key: "Loading…" })}</p> : (
         <ul className="email-list">
           {controller.choices?.map((plugin) => <li key={plugin.pluginId} className="email-row">
-            <span className="email-provider-name">{plugin.displayName ?? plugin.pluginId}</span>
+            <span className="email-provider-name">{agentPluginDisplayName(plugin)}</span>
             <span className="jini-field-hint">{plugin.summary ?? plugin.description}</span>
             <button type="button" disabled={controller.adding !== null} onClick={() => void controller.addProvider({ pluginId: plugin.pluginId }).then(select)}
-              {...agentHandle({ handle: `email-add-provider-${plugin.pluginId}` }, { role: "button", label: `Add ${plugin.displayName ?? plugin.pluginId} as an email provider` })}>
+              {...agentHandle({ handle: `email-add-provider-${plugin.pluginId}` }, { role: "button", label: `Add ${agentPluginDisplayName(plugin)} as an email provider` })}>
               {t({ locale, key: controller.adding === plugin.pluginId ? "Adding…" : "Add" })}
             </button>
           </li>)}

@@ -227,6 +227,32 @@ describe("Email tab components", () => {
 });
 
 describe("adding provider segments", () => {
+  it.each([
+    ["Package Mail Title", "Package Mail Title"],
+    [null, "Mail Plugin"],
+    ["   ", "Mail Plugin"],
+  ])("uses the Plugins page display name in the Add list (%s)", (displayName, expected) => {
+    const controller = createTabHooks().provider({});
+    controller.choices = [{ ...MAIL_PLUGIN, displayName }];
+    render(<EmailProviderTab controller={controller} status={null} locale="en" selectedId={ADD_PROVIDER_PART} />);
+    expect(screen.getByText(expected)).toHaveClass("email-provider-name");
+    expect(screen.queryByText(MAIL_PLUGIN.pluginId)).toBeNull();
+    expect(screen.getByRole("button", { name: "Add" })).toHaveAttribute("data-agent-element", `email-add-provider-${MAIL_PLUGIN.pluginId}`);
+  });
+
+  it.each(["en", "es"])("labels unavailable and unset lanes as Not set (%s)", (locale) => {
+    const controller = createTabHooks().provider({});
+    const status = { mailDeliveryAvailable: false, state: "unconfigured" as const, lanes: [
+      { lane: "transactional" as const, providerId: "disabled-adapter", state: "unknown_provider" as const },
+      { lane: "bulk" as const, providerId: null, state: "unconfigured" as const },
+    ] };
+    render(<EmailProviderTab controller={controller} status={status} locale={locale} selectedId={CAPABILITIES_PART} />);
+    expect(screen.getAllByText(t({ locale, key: "Not set" }))).toHaveLength(2);
+    expect(screen.queryByText(t({ locale, key: "Not installed" }))).toBeNull();
+    expect(screen.getByText(t({ locale, key: "Transactional mail" }))).toBeInTheDocument();
+    expect(screen.getByText(t({ locale, key: "Bulk mail" }))).toBeInTheDocument();
+  });
+
   it("adds a provider through the injected ports, selects its key card and preserves drafts across segments", async () => {
     const api = createEmailFake();
     api.listAgentPlugins.mockResolvedValue({ agentPlugins: [MAIL_PLUGIN] });

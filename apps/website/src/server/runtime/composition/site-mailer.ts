@@ -3,10 +3,12 @@ import { createMailPurposeGateProbe } from "#src/platform/mail/purpose-gate-prob
 import { createMailTestSendLimiter, type MailTestSendDeps } from "#src/features/mail-status/test-send";
 import type { AuthorizeFn, SettingsRepoPort, SetValueRequired } from "@jini-ai/core/settings";
 import type { MailCapturePort, MailSendLedgerPort, MailSuppressionRepoPort } from "@jini-ai/platform/mail";
+import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 
 import { readMailProviderSetting, readMailTestMode, writeMailProviderSetting } from "#src/features/settings/mail-provider";
 import { createMailPolicyWrapper } from "../boot/mail-delivery-policy.js";
 import { createResolvedMailer, type ResolvedMailer, type ResolveMailerDeps } from "../boot/resolve-mailer.js";
+import { loadMailProviderCatalog } from "../boot/mail-provider-catalog.js";
 
 /**
  * @file Composition glue for the site mailer: the explicit `core.mail.provider` setting port, the
@@ -29,6 +31,7 @@ export interface SiteMailerRequired {
 }
 
 export interface SiteMailer extends ResolvedMailer {
+  setAgentPluginEnabled: typeof setAgentPluginEnabled;
   operations: Pick<MailTestSendDeps, "mailTestMode" | "mailTestProvider" | "mailTestRequests" | "mailTestSendLimiter" | "mailSenderIdentity"> & {
     mailLaneReady: ResolvedMailer["laneReady"];
     mailSenderDomainVerification: ResolvedMailer["senderDomainVerification"];
@@ -43,10 +46,35 @@ export interface SiteMailer extends ResolvedMailer {
  * Builds the lane-routed, policy-wrapped site mailer.
  * @complexity O(1); see `resolve-mailer.ts` for per-send costs.
  */
-export function createSiteMailer(required: SiteMailerRequired, options: { durableOutboxReady?: (capabilityName: string) => boolean } = {}): SiteMailer {
+export function createSiteMailer(required: SiteMailerRequired, options: { durableOutboxReady?: (capabilityName: string) => boolean; setAgentPluginEnabled?: typeof setAgentPluginEnabled } = {}): SiteMailer {
   const { resolve, settings, delivery } = required;
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
+  /** Clear only this plugin's selected lanes through the settings owner; failures propagate.
+   * @complexity O(p) provider ids, two lane checks and at most one settings write. */
+  const clearPluginSelection = async ({ providerIds, principalId }: { providerIds: ReadonlySet<string>; principalId: string }): Promise<void> => {
+    await ready();
+    const setting = await readMailProviderSetting({ settingsRepo: settings.repo, workspaceId });
+    if (!setting) return;
+    const value = {
+      transactional: providerIds.has(setting.transactional ?? "") ? null : setting.transactional,
+      bulk: providerIds.has(setting.bulk ?? "") ? null : setting.bulk,
+    };
+    if (value.transactional === setting.transactional && value.bulk === setting.bulk) return;
+    await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value });
+  };
+  /** Bind the plugin toggle to this site's mail settings, using plugin ownership rather than ids.
+   * @complexity O(a) loaded adapters; one lifecycle write and at most one settings write. */
+  const setPluginEnabled: typeof setAgentPluginEnabled = async (input, _optional = {}) => {
+    // MOVE: Capture ownership while the plugin is active; disabling removes its executable adapters.
+    const providers = input.enabled ? [] : (await loadMailProviderCatalog(resolve)).registry.list();
+    const providerIds = new Set(providers.filter(provider => provider.pluginId === input.pluginId).map(provider => provider.id));
+    const written = await (options.setAgentPluginEnabled ?? setAgentPluginEnabled)(input);
+    try {
+      if (!written.enabled && providerIds.size > 0) await clearPluginSelection({ providerIds, principalId: input.actor });
+    } finally { resolved.invalidate(); }
+    return written;
+  };
   const selectProvider: SiteMailer["selectProvider"] = async ({ id, principalId }) => {
     await ready();
     await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: settings.authorize }, workspaceId, callerPrincipalId: principalId, value: { transactional: id, bulk: id } });
@@ -80,5 +108,5 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     }),
     mailPurposeGate: createMailPurposeGateProbe({ mode: resolve.mode, durableOutboxReady: options.durableOutboxReady ?? (() => false) }),
   };
-  return { ...resolved, selectProvider, operations };
+  return { ...resolved, setAgentPluginEnabled: setPluginEnabled, selectProvider, operations };
 }
