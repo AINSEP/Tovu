@@ -72,6 +72,17 @@ describe("useEmailTemplateEditor", () => {
     expect(result.current.savedAt).toBe(TEMPLATE.updatedAt);
   });
 
+  it("adopts the server's normalized HTML after a save, so the editor is clean again", async () => {
+    const api = createEmailFake();
+    api.saveTemplateHtml.mockImplementation(async (input) => ({ ...TEMPLATE, html: input.html.trimEnd(), version: input.expectedVersion + 1 }));
+    const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
+    await waitFor(() => expect(result.current.html).toBe(TEMPLATE.html));
+    act(() => result.current.setHtml("<p>Edited</p>\n"));
+    await act(() => result.current.save());
+    expect(result.current.html).toBe("<p>Edited</p>");
+    expect(result.current.dirty).toBe(false);
+  });
+
   it.each(["save", "rename"])("keeps edits and shows copy-before-reload advice for a 409 on %s", async (operation) => {
     const api = createEmailFake();
     api.saveTemplateHtml.mockRejectedValue(new ApiError("Concurrent edit", 409, "CONCURRENT_EDIT"));

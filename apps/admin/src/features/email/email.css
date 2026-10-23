@@ -49,6 +49,9 @@
   border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; font: inherit;
 }
 .email-template-name:hover { border-color: var(--border); }
+/* `.page-header .page-title { margin: 0 }` (0,2,0, later sheet) beat the inset above, so the name sat 7px right
+   of the breadcrumb. Padding + the 1px border, pulled back so the text lines up. */
+.page-header .page-title.email-template-name { margin-inline-start: -7px; }
 .email-template-name:focus-visible { outline: 2px solid var(--focus-ring, var(--primary)); outline-offset: 1px; }
 .email-template-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: 10px; }
 .email-template-fields legend { padding-inline: var(--space-1); }
@@ -68,3 +71,11 @@
   .email-dns-value { grid-template-columns: 1fr; gap: var(--space-1); }
   .email-template-frame { height: 28rem; }
 }
+
+/* Chrome check 2026-10-22. `.jini-field-error` is only styled inside `.jini-page`/`.jini-dialog`
+   (jini-media.css), so here it rendered as plain 16px body text. Same recipe as there. */
+:is(.email-page, .email-template-page) .jini-field-error { margin: 0; font-size: var(--text-xs); color: var(--danger); }
+/* `settings.css`'s `.settings-ui-section button:disabled` clears the fill for Jini's cards, which
+   turned a disabled bare (filled) button here — "Use this provider", "Send test" while sending —
+   into a borderless label. Restores the global `button:disabled` neutral fill (0,3,1 beats 0,2,1). */
+.email-sections button:not([class]):disabled { background: var(--surface-3); color: var(--muted); }

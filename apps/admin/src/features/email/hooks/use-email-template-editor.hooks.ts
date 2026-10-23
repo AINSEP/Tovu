@@ -113,6 +113,9 @@ export function useEmailTemplateEditor(
     try {
       const saved = await api.saveTemplateHtml({ id: detail.id, html, expectedVersion: detail.version });
       setData(saved);
+      // The server stores its normalized copy (it trims the trailing newline), so adopt it unless the
+      // owner typed more while saving; otherwise `dirty` stayed true after every save.
+      setHtml((current) => (current === html ? saved.html : current));
       setSavedAt(saved.updatedAt);
     } catch (error) {
       setSaveError(saveFailureText(error));

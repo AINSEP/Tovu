@@ -70,7 +70,9 @@ function KeyField(props: { provider: MailProviderConfiguration; field: MailProvi
           id={id}
           className="jini-input"
           type={inputType(field, shown)}
-          autoComplete="off"
+          // `new-password`, not `off`, on the key: Chrome ignores `off` and silently filled the admin
+          // sign-in into these fields (see `security/AccessTokensTab.tsx`'s token input).
+          autoComplete={secret ? "new-password" : "off"}
           spellCheck={false}
           value={controller.drafts[provider.id]?.[key] ?? ""}
           placeholder={placeholder}
