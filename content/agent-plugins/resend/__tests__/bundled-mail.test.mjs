@@ -22,8 +22,7 @@ import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features
 import { seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 
 /**
- * @file The bundled `resend` Agent Plugin: a valid package, seeded ENABLED so a site that already
- * sends through Resend keeps sending after upgrade, and its adapter behaving exactly as the core
+ * @file The bundled `resend` Agent Plugin: a valid package, installed but disabled until explicitly enabled, and its adapter behaving exactly as the core
  * `HttpApiMailerAdapter` it replaced (these cases are that adapter's own unit tests, moved). Every
  * send goes to a fake `HttpClientPort`, never the network.
  */
@@ -79,13 +78,17 @@ async function withAgentPluginsDir(fn) {
   }
 }
 
-test("seeded by the real seeder, resend is ENABLED with no user action and the registry loads it from the installed digest", async () => {
+test("seeded by the real seeder, resend stays disabled until explicit enable loads its installed adapter", async () => {
   await withAgentPluginsDir(async (layout) => {
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "resend")?.status, "seeded");
 
     const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
-    assert.equal(activations.plugins.resend?.enabled, true, "a site configured for Resend must keep sending with zero user action");
+    assert.equal(activations.plugins.resend?.enabled, false);
+    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const disabled = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
+    assert.deepEqual(disabled.list(), []);
+    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: "resend", enabled: true, actor: "test:operator" });
 
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
@@ -365,4 +368,15 @@ test("send() uses timeoutMs from options when specified", async () => {
   const http = new FakeHttpClient();
   await (await makeAdapter(http)).send(makeMessage(), { ...SEND_OPTIONS, timeoutMs: 2500 });
   assert.equal(http.calls[0].timeoutMs, 2500);
+});
+
+
+test("the bundled descriptor owns the Resend key-card contract", async () => {
+  const registry = await loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: PACKAGE_ROOT });
+  assert.deepEqual(registry.list()[0].descriptor.credentialCard, {
+    title: "Connect Resend",
+    intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
+    helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys",
+    keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com",
+  });
 });

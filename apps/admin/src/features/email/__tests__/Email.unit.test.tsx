@@ -140,3 +140,15 @@ describe("Email", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Resumen", "Proveedor", "Remitente y DNS", "Plantillas", "Actividad"]);
   });
 });
+
+describe("provider segment URLs", () => {
+  it.each([
+    { label: "+ Add provider", part: "_add-provider", nextLabel: "Capabilities", nextPart: "_capabilities" },
+    { label: "Capabilities", part: "_capabilities", nextLabel: "+ Add provider", nextPart: "_add-provider" },
+  ])("keeps the $label provider segment in the URL", async ({ label, part, nextLabel, nextPart }) => {
+    renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: "provider", part });
+    expect(screen.getByRole("radio", { name: label })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: nextLabel }));
+    expect(window.location.search).toBe(`?tab=provider&p=${nextPart}`);
+  });
+});

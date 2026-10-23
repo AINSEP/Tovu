@@ -537,6 +537,12 @@ function GettingItOnlineCard({
   credentialsController: PublishCredentialsController;
   t: Translate;
 }) {
+  if (publishController.targets?.length === 0 && !publishController.targetsError) {
+    return <div className="empty-state">
+      <p>{translate("Enable a hosting plugin to publish this site.")}</p>
+      <a href="/admin/addons/agent-plugins">{translate("Plugins")}</a>
+    </div>;
+  }
   const selectedTargetId = publishController.target;
 
   // One `Set` lookup per render, not a `.find()` inside the `.map()` below — keeps the connected

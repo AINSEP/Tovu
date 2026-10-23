@@ -46,6 +46,9 @@ test("a saved SMTP row without username is incomplete in the configuration DTO",
   const catalog = await loadMailProviderCatalog({ workspaceId: "ws", customCredentialRepo: new InMemoryCustomCredentialSetRepo(), sealer: {} as SecretSealerPort, httpClient: {} as HttpClientPort, loadMailAdapters: async () => registry() });
   const report = describeMailProviders({ catalog, records: [{ id: "smtp-key", label: MAIL_SMTP_CREDENTIAL_LABEL, updatedAt: "2026-10-22T00:00:00Z" }] as never, setting: { transactional: "smtp", bulk: "smtp" } });
   const smtp = report.providers.find(p => p.id === "smtp")!;
+  assert.equal(smtp.pluginId, undefined);
+  assert.equal(report.providers.find(p => p.id === "declared")?.pluginId, "p");
+  assert.equal(report.providers.find(p => p.id === "keyless")?.pluginId, "p");
   assert.equal(smtp.credential.saved, false); assert.equal(smtp.selectable, false);
   assert.equal(smtp.refusal, `has no complete saved credential "${MAIL_SMTP_CREDENTIAL_LABEL}" under Access Tokens (category "ops")`);
 });

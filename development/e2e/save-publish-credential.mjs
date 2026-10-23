@@ -40,6 +40,14 @@ await page.getByRole("button", { name: /sign in/i }).click();
 await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });
 log("logged in");
 
+// Use the authenticated browser's cookies, including Secure cookies on loopback.
+await page.evaluate(async (pluginId) => {
+  const response = await fetch(`/api/admin/v1/workspaces/workspace-local/agent-plugins/${encodeURIComponent(pluginId)}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: true }),
+  });
+  if (!response.ok) throw new Error(`Host activation failed: ${response.status}`);
+}, PROVIDER);
+
 // Real paths, base `/admin/` (lib/router.ts) — no hash routing.
 await page.goto(`${BASE}/admin/deployment`, { waitUntil: "domcontentloaded" });
 await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });

@@ -14,7 +14,7 @@ import { MAIL_CREDENTIAL_CATEGORY, type MailProviderCatalog } from "./mail-provi
  * still decrypts the key before it lets a provider send, so a saved-but-unreadable key is caught there.
  */
 
-type CatalogEntry = { id: string; provider: MailProviderModule; origin: "core" | "plugin" };
+type CatalogEntry = { pluginId?: string; id: string; provider: MailProviderModule; origin: "core" | "plugin" };
 
 /** Lanes `id` currently sends for. @complexity O(1). */
 function lanesFor({ setting, id }: { setting: MailProviderSetting; id: string }, _options: Record<string, never> = {}): ("transactional" | "bulk")[] {
@@ -50,6 +50,7 @@ function describeOne(required: { catalog: MailProviderCatalog; entry: CatalogEnt
   const { feedback, domainVerification, rateLimit } = provider.capabilities;
   return {
     id: entry.id, label: provider.label, origin: entry.origin, hosted: provider.capabilities.hosted, lanes: lanesFor({ setting: setting, id: entry.id }),
+    ...(entry.pluginId ? { pluginId: entry.pluginId } : {}),
     capabilities: { feedback, domainVerification, ...(rateLimit ? { rateLimit: { perSecond: rateLimit.perSecond, burst: rateLimit.burst } } : {}) },
     credential, selectable: refusal === undefined, ...(refusal ? { refusal } : {}), setup: catalog.setupFor({ id: entry.id }),
   };

@@ -10,8 +10,8 @@ description: Send the site's email through Resend, and manage the Resend account
 This plugin does two separate jobs. Keep them apart.
 
 1. **The site's own email** (sign-in links, form notifications, newsletters). The adapter ships in
-   this plugin and Tovu runs it only because Tovu shipped it. When no Resend key is saved, Tovu falls
-   back to an SMTP server if one is saved, and otherwise sends nothing (mail is only logged).
+   this opt-in plugin. Enable it first in Email → Provider → + Add provider, then save its key.
+   Choose “Use this provider” to switch delivery; enabling or saving alone never switches mail.
 2. **The Resend account** (domains, broadcasts, contacts, segments, topics, templates, logs, usage).
    This goes through Resend's own hosted MCP server, `https://mcp.resend.com/mcp`. Its tools appear
    as `mcp__resend__<name>`, for example `mcp__resend__list-domains`.

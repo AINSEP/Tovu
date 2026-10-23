@@ -262,7 +262,7 @@ test("fly-server.md never tells the assistant to handle a secret value itself", 
   assert.match(skill, /You cannot do this step/i);
 });
 
-test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds enabled", async () => {
+test("Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds disabled", async () => {
   const { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../apps/website/src/features/agent-plugins/bundled-catalog.ts");
   const manifest = JSON.parse(await readPackageFile("plugin.json"));
   assert.equal(manifest.extensions.tovu.id, "tovu/fly");
@@ -275,5 +275,5 @@ test("Fly owns ops, config and FlyV1 scheme with no static publish target, and s
   assert.ok(packed.files.includes("deploy-configs/fly.mjs"));
   assert.ok(packed.files.includes("tovu-credential-schemes.json"));
   assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
-  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("fly"), true);
+  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("fly"), false);
 });

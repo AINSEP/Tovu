@@ -99,7 +99,7 @@
 
 /* Duplicate titles (owner, 2026-10-22): a section whose heading repeated its tab or segment drops it
    (`Section`'s `hideTitle`). With no heading, the shared section's 14px top margin left an empty band
-   under the tab bar on Provider, the one tab without a segmented pill — the tab bar's gap is enough. */
+   under the tab bar; Provider now has a segmented pill too, so the existing gaps are enough. */
 .email-sections > .email-section-untitled:first-child { margin-top: 0; }
 
 /* Control widths (owner, 2026-10-22: "no reason this needs to be as wide as it is"). Each control is

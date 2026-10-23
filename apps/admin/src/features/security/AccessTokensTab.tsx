@@ -171,6 +171,7 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
     <>
       <AccessTokensSearch controller={controller} otherController={otherController} />
       <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
+      <HostingPluginsHint controller={controller} />
       <div className="access-tokens-tier">
         {merged.length === 0 && !controller.query ? <div className="empty-state"><p>{controller.t("Not connected")}</p></div> : null}
         {merged.map((entry) =>
@@ -184,6 +185,15 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
       <AddCustomCredentialDialog ref={addCustomDialogRef} controller={controller} t={controller.t} />
     </>
   );
+}
+
+/** The hosting filter can be empty while source-control groups still exist. */
+function HostingPluginsHint({ controller }: { controller: AccessTokensController }) {
+  if (controller.query || !["all", "hosting"].includes(controller.category) || controller.groups?.some((group) => group.info.category === "hosting")) return null;
+  return <div className="empty-state">
+    <p>{controller.t("Enable a hosting plugin to manage its access tokens.")}</p>
+    <a href="/admin/addons/agent-plugins">{controller.t("Plugins")}</a>
+  </div>;
 }
 
 /** The `All / Source control / Hosting / Media / AI / Ops` filter row, PLUS the "Add custom

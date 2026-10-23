@@ -387,6 +387,14 @@ describe("StaticSiteTab — build export action", () => {
 });
 
 describe("StaticSiteTab — provider picker shows one provider's fields at a time", () => {
+  it("links to Plugins after an empty host catalog loads, while keeping export available", () => {
+    renderTab({ publishController: { targets: [] } });
+    expect(screen.getByText("Enable a hosting plugin to publish this site.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Plugins" })).toHaveAttribute("href", "/admin/addons/agent-plugins");
+    expect(screen.queryByRole("tab", { name: "GitHub Pages" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Build static export" })).toBeInTheDocument();
+  });
+
   it("defaults to GitHub Pages: shows owner/repo/branch fields and no teamId field", () => {
     renderTab();
     expect(screen.getByRole("tab", { name: "GitHub Pages" })).toHaveAttribute("aria-selected", "true");

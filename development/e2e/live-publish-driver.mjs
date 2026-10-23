@@ -66,6 +66,14 @@ await page.getByRole("button", { name: /sign in/i }).click();
 await page.locator(".admin-layout").waitFor({ state: "visible", timeout: 20_000 });
 log("authenticated shell mounted");
 
+// Use the authenticated browser's cookies, including Secure cookies on loopback.
+await page.evaluate(async (pluginId) => {
+  const response = await fetch(`/api/admin/v1/workspaces/workspace-local/agent-plugins/${encodeURIComponent(pluginId)}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: true }),
+  });
+  if (!response.ok) throw new Error(`Host activation failed: ${response.status}`);
+}, "github-pages");
+
 log("opening the assistant dock");
 await page.locator(".chat-fab").click();
 await page.locator(".admin-chat-dock.is-open").waitFor({ state: "visible", timeout: 15_000 });

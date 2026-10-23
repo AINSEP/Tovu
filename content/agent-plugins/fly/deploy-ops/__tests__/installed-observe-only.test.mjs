@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { forceRemove } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
 import { resolveAgentPluginLayout } from "../../../../../apps/website/src/features/agent-plugins/layout.ts";
 import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { agentPluginActivations } from "../../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
 import { loadDeployOpsRegistry } from "../../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
 
 // Moved from core deploy-ops/__tests__/installed-deploy-verb.test.ts ("... and fly stays observe-only"):
@@ -21,6 +22,7 @@ test("seeded from this build, the installed fly adapter stays observe-only", asy
   try {
     const layout = resolveAgentPluginLayout();
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: "fly", enabled: true, actor: "test:operator" }, { origin: "bundled" });
     const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     assert.equal(typeof registry.get("fly")?.module.status, "function");

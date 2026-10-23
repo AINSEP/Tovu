@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
 import type { MailTestSendResult } from "../email-api";
-import { EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
+import { ADD_PROVIDER_PART, CAPABILITIES_PART, EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
 import { EmailSenderTab } from "../EmailSenderTab";
 import { EmailOverviewTab } from "../EmailOverviewTab";
 import { EmailActivityTab } from "../EmailActivityTab";
@@ -12,7 +13,7 @@ import { useEmailProvider } from "../hooks/use-email-provider.hooks";
 import { useEmailSender } from "../hooks/use-email-sender.hooks";
 import { useEmailActivity } from "../hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
-import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, TEMPLATE } from "./email.test-helpers";
+import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, MAIL_PLUGIN, TEMPLATE } from "./email.test-helpers";
 import { t } from "../email-i18n";
 
 /** @file User actions reach injected ports; provider declarations and DNS verdicts stay truthful. */
@@ -42,7 +43,7 @@ describe("Email tab components", () => {
 
   it("renders only declared key fields, hides secrets, saves without switching and disables an unselectable provider", async () => {
     const api = createEmailFake();
-    function Harness() { return <EmailProviderTab controller={useEmailProvider({ api })} status={null} locale="en" />; }
+    function Harness() { return <EmailProviderTab controller={useEmailProvider({ api, pluginApi: api })} status={null} locale="en" />; }
     render(<Harness />);
     const key = await screen.findByLabelText("Access key");
     expect(key).toHaveAttribute("type", "password");
@@ -92,7 +93,7 @@ describe("Email tab components", () => {
     const onSelect = vi.fn();
     const { rerender } = render(<EmailProviderTab controller={controller} status={null} locale="en" onSelect={onSelect} />);
     const group = screen.getByRole("radiogroup", { name: "Provider" });
-    expect(within(group).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["SMTP server", "Console", "Hosted Mail"]);
+    expect(within(group).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["SMTP server", "Console", "Hosted Mail", "+ Add provider", "Capabilities"]);
     expect(screen.getByRole("radio", { name: "Hosted Mail" })).toBeChecked();
     expect(Array.from(document.querySelectorAll(".email-provider .email-provider-name"), (name) => name.textContent)).toEqual(["Hosted Mail"]);
     expect(screen.getByText("Active")).toBeInTheDocument();
@@ -222,5 +223,67 @@ describe("Email tab components", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Move to trash" }));
     expect(controller.setPendingTrash).toHaveBeenCalledWith(TEMPLATE);
     expect(controller.confirmTrash).not.toHaveBeenCalled();
+  });
+});
+
+describe("adding provider segments", () => {
+  it("adds a provider through the injected ports, selects its key card and preserves drafts across segments", async () => {
+    const api = createEmailFake();
+    api.listAgentPlugins.mockResolvedValue({ agentPlugins: [MAIL_PLUGIN] });
+    function Harness() {
+      const controller = useEmailProvider({ api, pluginApi: api });
+      const [selected, setSelected] = useState<string | null>(null);
+      return <EmailProviderTab controller={controller} status={null} locale="en" selectedId={selected} onSelect={setSelected} />;
+    }
+    render(<Harness />);
+    await userEvent.type(await screen.findByLabelText("Access key"), "keep-draft");
+    await userEvent.click(screen.getByRole("radio", { name: "+ Add provider" }));
+    expect(await screen.findByText("Example Mail")).toBeInTheDocument();
+    expect(screen.getByText("Send site email.")).toBeInTheDocument();
+    expect(api.setAgentPluginEnabled).not.toHaveBeenCalled();
+    api.listProviders.mockResolvedValue({ setting: { transactional: null, bulk: null }, providers: [PROVIDER, { ...PROVIDER, id: "added-adapter", label: "Added Mail", pluginId: MAIL_PLUGIN.pluginId }], refusals: [] });
+    expect(screen.getByRole("button", { name: "Add" })).toHaveAttribute("data-agent-element", "email-add-provider-mail-plugin");
+    api.setAgentPluginEnabled.mockResolvedValue({ agentPlugin: { ...MAIL_PLUGIN, enabled: true }, warnings: ["Restart the assistant.", "Connect the plugin account."] });
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(await screen.findByRole("radio", { name: "Added Mail" })).toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("Restart the assistant. Connect the plugin account.");
+    expect(screen.getByLabelText("Access key")).toHaveValue("");
+    await userEvent.click(screen.getByRole("radio", { name: "Hosted Mail" }));
+    expect(screen.getByLabelText("Access key")).toHaveValue("keep-draft");
+    expect(api.activateProvider).not.toHaveBeenCalled();
+  });
+
+  it("renders empty, many, adding and inline retry states in the Add segment", async () => {
+    const controller = createTabHooks().provider({});
+    const { rerender } = render(<EmailProviderTab controller={controller} status={null} locale="en" selectedId={ADD_PROVIDER_PART} />);
+    expect(screen.getByText("No more email providers to add.")).toBeInTheDocument();
+    controller.choices = [MAIL_PLUGIN, { ...MAIL_PLUGIN, pluginId: "second", displayName: "Second" }];
+    controller.adding = MAIL_PLUGIN.pluginId;
+    rerender(<EmailProviderTab controller={controller} status={null} locale="en" selectedId={ADD_PROVIDER_PART} />);
+    expect(screen.getByRole("button", { name: "Adding…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+    controller.adding = null;
+    controller.addError = "Permission refused";
+    rerender(<EmailProviderTab controller={controller} status={null} locale="en" selectedId={ADD_PROVIDER_PART} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Permission refused");
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("data-agent-element", "email-add-provider-retry");
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(controller.retryAdd).toHaveBeenCalledOnce();
+  });
+
+  it("shows lane facts only in the final Capabilities segment and falls back for disabled-provider links", () => {
+    const controller = createTabHooks().provider({});
+    controller.view = { kind: "loaded", data: { providers: [PROVIDER], refusals: [], setting: { transactional: PROVIDER.id, bulk: PROVIDER.id } } };
+    const status = { mailDeliveryAvailable: true, state: "ready" as const, lanes: [{ lane: "transactional" as const, providerId: PROVIDER.id, state: "ready" as const }, { lane: "bulk" as const, providerId: PROVIDER.id, state: "ready" as const }] };
+    const { rerender } = render(<EmailProviderTab controller={controller} status={status} locale="en" selectedId="disabled-provider" />);
+    expect(screen.getByRole("radio", { name: "Hosted Mail" })).toBeChecked();
+    expect(screen.queryByText("Transactional mail")).toBeNull();
+    expect(screen.getByLabelText("Access key")).toBeInTheDocument();
+    rerender(<EmailProviderTab controller={controller} status={status} locale="en" selectedId={CAPABILITIES_PART} />);
+    expect(screen.getByText("Transactional mail")).toBeInTheDocument();
+    expect(screen.getByText("Bulk mail")).toBeInTheDocument();
+    expect(screen.getAllByText("Ready")).toHaveLength(2);
+    expect(screen.queryByLabelText("Access key")).toBeNull();
+    expect(screen.getAllByRole("radio").at(-1)).toHaveAccessibleName("Capabilities");
   });
 });

@@ -119,6 +119,10 @@ function sendUpdatedRow(
     warnings,
     agentPlugin: {
       pluginId: candidate.pluginId,
+      id: candidate.id,
+      provides: candidate.provides,
+      displayName: candidate.displayName ?? null,
+      summary: candidate.summary ?? null,
       version: candidate.version ?? null,
       description: candidate.description ?? null,
       keywords: candidate.keywords,

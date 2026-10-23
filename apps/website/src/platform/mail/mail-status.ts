@@ -51,6 +51,7 @@ export interface MailProviderSetup {
 
 /** The safe configuration DTO: credential presence only, never a secret or a username. */
 export interface MailProviderConfiguration {
+  readonly pluginId?: string;
   readonly id: string;
   readonly label: string;
   readonly origin: "core" | "plugin";

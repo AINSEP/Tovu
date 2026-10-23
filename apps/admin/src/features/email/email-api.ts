@@ -29,6 +29,7 @@ export interface MailProviderField {
 }
 
 export interface MailProviderConfiguration {
+  pluginId?: string;
   id: string;
   label: string;
   origin: "core" | "plugin";

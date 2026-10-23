@@ -99,9 +99,8 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
   });
 });
 
-/** Seeded enabled, sorted; each hosting plugin split out of `deploy` (2026-10-12) joins this list,
- *  and `deploy` itself left it when it was retired (Phase B7). `ui-ux-design` joined 2026-10-14. */
-const SEEDED_ENABLED = ["cloudflare", "fly", "github", "github-pages", "how-tovu-works", "netlify", "railway", "render", "resend", "s3-compatible", "site-import", "tovu-theme", "ui-ux-design", "vercel"];
+/** Seeded enabled, sorted; hosting plugins are opt-in (owner, 2026-10-22). */
+const SEEDED_ENABLED = ["github", "how-tovu-works", "site-import", "tovu-theme", "ui-ux-design"];
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
@@ -114,7 +113,7 @@ test("every bundled plugin not seeded enabled, supabase included, is listed as s
     assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), SEEDED_ENABLED);
     // google-workspace (2026-10-20) ships disabled until its products and sign-in are reviewed.
     // meilisearch (2026-10-21) ships disabled: a vendor receives site content only after the owner opts in.
-    assert.deepEqual([...bundledIds].sort(), ["composio", "google-workspace", "higgsfield-media", "jev", "meilisearch", "site-compliance", "supabase"]);
+    assert.deepEqual([...bundledIds].sort(), ["cloudflare", "composio", "fly", "github-pages", "google-workspace", "higgsfield-media", "jev", "meilisearch", "netlify", "railway", "render", "resend", "s3-compatible", "site-compliance", "supabase", "vercel"]);
     for (const expected of ["supabase", "google-workspace"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
 
     const listed = await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));

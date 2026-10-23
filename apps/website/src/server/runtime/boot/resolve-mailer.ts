@@ -24,7 +24,6 @@ import { createTtlCache, MAIL_STATUS_TTL_MS } from "./mail-status-cache.js";
 import {
   createProviderMailer,
   credentialFailureReason,
-  detectEffectiveMailProvider,
   loadMailProviderCatalog,
   MAIL_CREDENTIAL_CATEGORY,
   MAIL_SMTP_CREDENTIAL_LABEL,
@@ -37,19 +36,15 @@ export { MAIL_SMTP_CREDENTIAL_LABEL } from "./mail-provider-catalog.js";
 export type { MailStatusReport } from "#src/platform/mail/mail-status";
 
 /**
- * @file Boot-time `MailerPort` selection — owner decision, 2026-08-31: build both a hosted-API
- * and an SMTP adapter, default to the hosted API, and never let an unconfigured mailer fail
- * silently. 2026-09-29: hosted-API providers moved out of core into Agent Plugins.
+ * @file Boot-time `MailerPort` selection. Hosted-API providers live in Agent Plugins; SMTP and
+ * Console are built-ins. An unconfigured mailer never fails silently.
  *
  * **Explicit selection (email provider contract v1, 2026-10-21).** The provider is no longer "the
  * first plugin whose credential resolves, then SMTP, then Console". Each delivery lane reads the
  * site setting `core.mail.provider` = `{transactional, bulk}` (`features/settings/mail-provider.ts`)
  * and looks the id up in the keyed provider catalog (`mail-provider-catalog.ts`: Jini's `smtp` and
- * `console` built-ins plus plugin providers). FIRST BOOT: while the setting was never stored, the old
- * chain runs once and its pick is written through Jini `initialMailProviderSetting` (console/none →
- * `null` = `unconfigured`), so a live site never silently switches provider. A mail credential whose
- * plugin is not installed yet (first boot after an upgrade) defers that write, so the next send
- * retries instead of pinning `unconfigured`. After that, only the setting decides.
+ * `console` built-ins plus plugin providers). An absent selection initializes as unconfigured;
+ * saved credentials never select a delivery provider or enable its plugin.
  *
  * An `unconfigured` lane logs to the console in `local` mode and refuses (`MAIL_UNCONFIGURED`,
  * non-retryable) in `production`. A configured provider that is not installed or has no usable
@@ -136,7 +131,7 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
 export interface ResolvedMailer {
   /** Safe to use immediately; each send awaits its lane's resolution. */
   mailer: MailerPort;
-  /** Resolves once the boot-time migration + transactional resolution settle (a test seam). */
+  /** Resolves once the initial setting + transactional resolution settle (a test seam). */
   ready: Promise<void>;
   /** Refreshes unresolved configuration and awaits the current driver without sending. */
   settle: () => Promise<void>;
@@ -234,7 +229,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   };
   const inFlight = new Map<string, Promise<MailerPort>>();
   const warned = new Set<string>();
-  let migration: Promise<MailProviderSetting> | undefined;
+  let initialization: Promise<MailProviderSetting> | undefined;
   let lastTransactional: MailerPort | undefined;
 
   const warnOnce = (key: string, message: string): void => {
@@ -243,21 +238,18 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     try { warn(message); } catch { /* MailerPort must not throw across the boundary (ADR-024 §3). */ }
   };
 
-  const migrate = async (): Promise<MailProviderSetting> => {
-    const catalog = await loadMailProviderCatalog(deps);
-    const detected = await detectEffectiveMailProvider({ deps, catalog }).catch(() => ({ providerId: null, pending: true, reasons: [] }));
-    const setting = initialMailProviderSetting({}, { effectiveProviderId: detected.providerId, registry: catalog.registry });
-    if (detected.pending) return setting;
-    await deps.providerSetting.write(setting).catch((err: unknown) =>
-      warnOnce("migration", "[mail] the mail provider setting could not be saved; retrying on the next send"));
+  const initialize = async (): Promise<MailProviderSetting> => {
+    const setting = initialMailProviderSetting({});
+    await deps.providerSetting.write(setting).catch(() =>
+      warnOnce("initialization", "[mail] the mail provider setting could not be saved; retrying on the next send"));
     return setting;
   };
 
   const currentSetting = async (): Promise<MailProviderSetting> => {
     const stored = await deps.providerSetting.read();
     if (stored) return stored;
-    migration ??= migrate().finally(() => { migration = undefined; });
-    return migration;
+    initialization ??= initialize().finally(() => { initialization = undefined; });
+    return initialization;
   };
 
   const consoleMailer = async (catalog: MailProviderCatalog): Promise<MailerPort> => {

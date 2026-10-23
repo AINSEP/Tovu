@@ -15,7 +15,7 @@ export function redactAdminRunContextRef({ contextRef }: { contextRef: string },
     // signal so the model can offer the card without inferring a paste from placeholder prose.
     // Only the CURRENT prompt's redaction is a paste signal: history (e.g. a DKIM record from an
     // earlier turn) is still sanitized above, but flagging it put "The user tried to share a
-    // credential" on an unrelated message like "https://resend.com/ I really like it".
+    // credential" on an unrelated message like "https://example.com/ I really like it".
     if (redaction.secretRedacted && field === "prompt") safe.secretRedacted = true;
   }
   return JSON.stringify(safe);

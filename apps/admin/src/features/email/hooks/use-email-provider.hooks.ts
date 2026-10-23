@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { api as pluginsApi, type AdminAgentPlugin } from "../../../lib/api";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
@@ -13,6 +15,12 @@ import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 export type ProviderNotice = { providerId: string; tone: "ok" | "error"; text: string } | null;
 
 export interface EmailProviderController {
+  choices: AdminAgentPlugin[] | null;
+  adding: string | null;
+  addError: string | null;
+  addWarning: string | null;
+  retryAdd: () => Promise<string | undefined>;
+  addProvider: (required: { pluginId: string }) => Promise<string | undefined>;
   view: LoadView<MailProviderConfigurationReport>;
   reload: () => void;
   drafts: Record<string, MailProviderCredentialInput>;
@@ -26,6 +34,53 @@ export interface EmailProviderController {
   pendingSwitch: MailProviderConfiguration | null;
   askSwitch: (provider: MailProviderConfiguration | null) => void;
   confirmSwitch: () => Promise<void>;
+}
+
+/** Email orchestration only; the Plugins API owns activation and trust checks. */
+type PluginApi = Pick<typeof pluginsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
+function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Promise<MailProviderConfigurationReport> }, _optional = {}) {
+  const { pluginApi, refresh } = required;
+  const [choices, setChoices] = useState<AdminAgentPlugin[] | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addWarning, setAddWarning] = useState<string | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const locked = useRef(false);
+  const lastPlugin = useRef<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    pluginApi.listAgentPlugins().then(({ agentPlugins }) => {
+      if (live) setChoices(agentPlugins.filter((p) => !p.enabled && p.provides?.includes("outbound-mail")));
+    }, (error: unknown) => { if (live) setAddError(errorMessage(error)); });
+    return () => { live = false; };
+  }, [pluginApi, attempt]);
+  const addProvider = useCallback(async ({ pluginId }: { pluginId: string }, _optional = {}) => {
+    if (locked.current) return;
+    locked.current = true;
+    lastPlugin.current = pluginId;
+    setAdding(pluginId);
+    setAddError(null);
+    setAddWarning(null);
+    try {
+      const { warnings } = await pluginApi.setAgentPluginEnabled(pluginId, { enabled: true });
+      setAddWarning(warnings?.join(" ") || null);
+      const report = await refresh();
+      const provider = report.providers.find((p) => p.pluginId === pluginId);
+      if (!provider) throw new Error(report.refusals.filter((reason) => reason.includes(`from '${pluginId}'`)).join("; ") || "The plugin did not load an email provider.");
+      setChoices((rows) => rows?.filter((p) => p.pluginId !== pluginId) ?? null);
+      return provider.id;
+    } catch (error) {
+      setAddError(error instanceof Error ? error.message : errorMessage(error));
+    } finally {
+      locked.current = false;
+      setAdding(null);
+    }
+  }, [pluginApi, refresh]);
+  const retryAdd = useCallback(async () => {
+    if (lastPlugin.current) return addProvider({ pluginId: lastPlugin.current });
+    setAddError(null); setAttempt((n) => n + 1);
+  }, [addProvider]);
+  return useMemo(() => ({ choices, adding, addError, addWarning, retryAdd, addProvider }), [choices, adding, addError, addWarning, retryAdd, addProvider]);
 }
 
 /** Whether a provider already sends both lanes (nothing left to switch). Pure. */
@@ -47,11 +102,13 @@ export function credentialBody(draft: MailProviderCredentialInput | undefined): 
  * @param required.api - the Email API port; a fake in tests.
  * @param optional.onChanged - called after a save or switch so the page's status re-reads.
  */
-export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders" | "saveProviderKey" | "activateProvider"> }, optional: { onChanged?: () => void } = {}): EmailProviderController {
+export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders" | "saveProviderKey" | "activateProvider">; pluginApi: PluginApi }, optional: { onChanged?: () => void } = {}): EmailProviderController {
   const { api } = required;
   const { onChanged } = optional;
   const load = useCallback(() => api.listProviders(), [api]);
-  const { view, reload } = useLoad({ load });
+  const { view, reload, setData } = useLoad({ load });
+  const refresh = useCallback(async () => { const report = await api.listProviders(); setData(report); return report; }, [api, setData]);
+  const additions = useProviderChoices({ pluginApi: required.pluginApi, refresh });
   const [drafts, setDrafts] = useState<Record<string, MailProviderCredentialInput>>({});
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -105,11 +162,11 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   }, [api, pendingSwitch, reload, onChanged]);
 
   return useMemo(() => ({
-    view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, askSwitch: setPendingSwitch, confirmSwitch,
-  }), [view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, confirmSwitch]);
+    ...additions, view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, askSwitch: setPendingSwitch, confirmSwitch,
+  }), [additions, view, reload, drafts, setDraftField, revealed, toggleReveal, busyId, notice, saveKey, pendingSwitch, confirmSwitch]);
 }
 
 /** The real API port. */
 export function useWiredEmailProvider(optional: { onChanged?: () => void } = {}): EmailProviderController {
-  return useEmailProvider({ api: emailApi }, optional);
+  return useEmailProvider({ api: emailApi, pluginApi: pluginsApi }, optional);
 }

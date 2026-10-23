@@ -197,7 +197,7 @@ type ScreenshotBudget = { run<T>(required: { work: () => Promise<T> }): Promise<
 /**
  * A stable frame first (`animations: "disabled"` waits for finite animations to end); if Playwright's
  * own timeout fires on that, the page was still animating (WebGL heroes, endless transitions, e.g.
- * resend.com), so the frame on screen is captured as it is, with a note, instead of failing the call.
+ * a provider dashboard), so the frame on screen is captured as it is, with a note, instead of failing the call.
  * Only Playwright's `TimeoutError` falls back: a closed page or a budget timeout still fails.
  * @complexity O(1) beyond the screenshots.
  */

@@ -22,7 +22,7 @@ import {
 import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/node";
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
-import { carryDeployDisabled, carryCloudflareActivation } from "./deploy-split-activation.js";
+import { carryCloudflareActivation } from "./deploy-split-activation.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
@@ -95,15 +95,14 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   const policy: AgentPluginLifecycleOptional = {
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
     onEvent: ({ event, message }) => console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message),
-    // Layout first, then the deploy split's carry of an operator's "Deploy Online off" — before the
-    // seeder switches the new host plugins on (`deploy-split-activation.ts`). `owner` is bound below;
-    // this runs only at seed time, after it exists.
+    // Layout first, then preserve explicit Cloudflare rename decisions before seeding.
+    // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
+    // `owner` is bound below; this runs only at seed time, after it exists.
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
       const migration = await migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
         const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner };
         await carryCloudflareActivation(required);
-        await carryDeployDisabled(required);
       }
       return migration;
     },

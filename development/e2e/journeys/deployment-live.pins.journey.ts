@@ -9,7 +9,7 @@ import { expect } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
 import { DEFAULT_ADMIN_USERNAME } from "../support/bug-pin-auth.js";
 import { DEFAULT_ADMIN_PASSWORD } from "../support/bug-pin-auth.js";
-import { loginAsAdmin } from "../support/bug-pin-auth.js";
+import { loginAsAdmin, pinSessionRequest } from "../support/bug-pin-auth.js";
 import { waitForAgentDaemon } from "../support/bug-pin-daemon.js";
 
 // Preserve the retired configs' effective Chromium viewport (Desktop Chrome or browser default).
@@ -148,6 +148,9 @@ test.describe("live-publish-e2e: a real, click-through GitHub Pages publish thro
   test.beforeEach(async ({ page }) => {
     await waitForAgentDaemon();
     await loginAsAdmin(page);
+    // This migrated journey uses a fresh isolated site, not the retired config's snapshot.
+    const activation = await pinSessionRequest({ page, url: "/api/admin/v1/workspaces/workspace-local/agent-plugins/github-pages", method: "PATCH", data: { enabled: true } });
+    expect(activation.ok, "github-pages: explicit host activation").toBe(true);
   });
 
   test("resolves the correct account, does not fall back to guessing/prompting, publishes for real, reports the truth, and is recorded", async ({ page, request, baseURL }) => {

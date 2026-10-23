@@ -2,22 +2,18 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import type { AdminMailStatus } from "../../lib/api";
-import { adminHref } from "../../lib/router";
 import { t } from "./email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "./email-api";
 import { Chip, Loaded, Section, Segments, when, type Tone } from "./EmailParts";
 import { isFullyActive, type EmailProviderController } from "./hooks/use-email-provider.hooks";
 
 /**
- * @file The Provider tab: what sends each lane now (from the status read), then one card per
- * installed provider with its own declared key fields, **Save key** (saves or replaces the key,
- * does not switch) and **Use this provider** (switches both lanes, after a confirmation that says
- * so). No vendor branches: labels, fields and help links all come from the provider's data.
- *
- * With more than one provider, a segmented pill (one segment per installed provider, from the
- * same list) shows one card at a time (owner, 2026-10-22: every card stacked was too much). The
- * page keeps the choice in `?p=<provider id>`; with none, or an id no longer installed, the
- * active provider's card shows.
+ * @file One provider card at a time (owner, 2026-10-22: every card stacked was too much).
+ * Drafts survive URL segment changes. Save key does not switch delivery; Use this provider
+ * switches both lanes after confirmation. No vendor branches: labels, fields and help links
+ * all come from the provider's data. Unknown links fall back to the active, then first provider.
+ * `_add-provider` lists disabled email plugins and enables through the Plugins API.
+ * `_capabilities` is the final segment and shows the existing lane readiness rows.
  */
 
 const LANE_STATE: Record<string, { tone: Tone; label: string }> = {
@@ -180,18 +176,48 @@ export function segmentLabel(label: string): string {
   return label.replace(/\s*\([^()]*\)\s*$/, "") || label;
 }
 
-function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
-  const { providers, controller, locale } = props;
-  const shownId = shownProviderId(providers, props.selectedId);
-  const shown = providers.length > 1 ? providers.filter((p) => p.id === shownId) : providers;
+export const ADD_PROVIDER_PART = "_add-provider";
+export const CAPABILITIES_PART = "_capabilities";
+
+function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: ((id: string) => void) | undefined }) {
+  const { controller, locale } = props;
+  const select = (id: string | undefined) => { if (id) props.onSelect?.(id); };
   return (
     <>
-      {providers.length > 1 ? (
-        <Segments name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId ?? ""} onSelect={(id) => props.onSelect?.(id)}
-          items={providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) }))} />
-      ) : null}
+      {controller.addError ? <div className="email-row" role="alert">
+        <span className="jini-field-error">{t({ locale, key: controller.addError })}</span>
+        <button type="button" className="btn-secondary" disabled={controller.adding !== null} onClick={() => void controller.retryAdd().then(select)}
+          {...agentHandle({ handle: "email-add-provider-retry" }, { role: "button", label: "Retry adding an email provider" })}>{t({ locale, key: "Retry" })}</button>
+      </div> : null}
+      {controller.choices === null && !controller.addError ? <p className="jini-field-hint" role="status">{t({ locale, key: "Loading…" })}</p> : (
+        <ul className="email-list">
+          {controller.choices?.map((plugin) => <li key={plugin.pluginId} className="email-row">
+            <span className="email-provider-name">{plugin.displayName ?? plugin.pluginId}</span>
+            <span className="jini-field-hint">{plugin.summary ?? plugin.description}</span>
+            <button type="button" disabled={controller.adding !== null} onClick={() => void controller.addProvider({ pluginId: plugin.pluginId }).then(select)}
+              {...agentHandle({ handle: `email-add-provider-${plugin.pluginId}` }, { role: "button", label: `Add ${plugin.displayName ?? plugin.pluginId} as an email provider` })}>
+              {t({ locale, key: controller.adding === plugin.pluginId ? "Adding…" : "Add" })}
+            </button>
+          </li>)}
+          {controller.choices?.length === 0 && !controller.addError ? <li className="jini-field-hint">{t({ locale, key: "No more email providers to add." })}</li> : null}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null | undefined; onSelect?: ((id: string) => void) | undefined }) {
+  const { providers, controller, locale } = props;
+  const shownId = props.selectedId === ADD_PROVIDER_PART || props.selectedId === CAPABILITIES_PART ? props.selectedId : shownProviderId(providers, props.selectedId) ?? ADD_PROVIDER_PART;
+  const items = [...providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) })),
+    { key: ADD_PROVIDER_PART, label: t({ locale, key: "+ Add provider" }) }, { key: CAPABILITIES_PART, label: t({ locale, key: "Capabilities" }) }];
+  return (
+    <>
+      <Segments name="email-provider-pick" label={t({ locale, key: "Provider" })} active={shownId} onSelect={(id) => props.onSelect?.(id)} items={items} />
+      {shownId === CAPABILITIES_PART ? <Lanes status={props.status} providers={providers} locale={locale} /> : null}
+      {shownId === ADD_PROVIDER_PART ? <AddProvider controller={controller} locale={locale} onSelect={props.onSelect} /> : null}
       <ul className="email-list email-providers">
-        {shown.map((provider) => <ProviderCard key={provider.id} provider={provider} controller={controller} locale={locale} />)}
+        {providers.filter((p) => p.id === shownId).map((provider) => <ProviderCard key={provider.id} provider={provider} controller={controller} locale={locale} />)}
       </ul>
     </>
   );
@@ -202,18 +228,11 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
   const pending = controller.pendingSwitch;
   return (
     <Section id="provider" title={t({ locale, key: "Provider" })} hideTitle>
+      {controller.addWarning ? <p className="jini-field-hint" role="status">{controller.addWarning}</p> : null}
       <Loaded view={controller.view} locale={locale} retry={controller.reload}>
         {(report) => (
           <>
-            <Lanes status={props.status} providers={report.providers} locale={locale} />
-            {report.providers.length === 0 ? (
-              <p className="jini-field-hint">
-                {t({ locale, key: "No mail providers are installed." })}{" "}
-                <a href={adminHref("/agent-plugins")}>{t({ locale, key: "Manage agent plugins" })}</a>
-              </p>
-            ) : (
-              <ProviderCards providers={report.providers} controller={controller} locale={locale} selectedId={props.selectedId} onSelect={props.onSelect} />
-            )}
+            <ProviderCards providers={report.providers} controller={controller} status={props.status} locale={locale} selectedId={props.selectedId} onSelect={props.onSelect} />
             {report.refusals.length > 0 ? (
               <>
                 <h3 className="jini-field-label email-subhead">{t({ locale, key: "Not loaded" })}</h3>

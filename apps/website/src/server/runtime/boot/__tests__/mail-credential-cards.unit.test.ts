@@ -26,17 +26,20 @@ import { describeMailProviders } from "../mail-provider-configuration.js";
 /**
  * @file Plugin-declared mail key cards: a v2 mail descriptor's `credentialCard` becomes a
  * `PluginCredentialCard` filed under the adapter's own credential label, and `credential_save`
- * `{kind:"plugin-provider"}` saves the key there. Runs the bundled plugins' real descriptors.
+ * `{kind:"plugin-provider"}` saves the key there. Uses injected descriptors.
  */
 
-const SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 const WORKSPACE_ID = "ws-mail-card";
 const PRINCIPAL_ID = "owner";
 const RESEND_LABEL = "Tovu Mail — Resend API";
 
-const bundledCards = () => loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: SOURCE_ROOT }) });
+const fixtureCard = { title: "Connect Resend", intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).", helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys", keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com" };
+const bundledCards = () => loadMailCredentialCards({ loadMailAdapters: async () => ({ refusals: [], list: () => [{
+  pluginId: "resend", descriptor: { id: "resend", label: "Resend", module: "fake.mjs", credentialLabel: RESEND_LABEL, credentialCard: fixtureCard },
+  module: { create: () => { throw new Error("must not send"); } },
+}] }) });
 
-test("the bundled resend descriptor declares its key card, filed under its credential label", async () => {
+test("an injected descriptor projects its key card under its credential label", async () => {
   const cards = await bundledCards();
   assert.deepEqual(cards.find(card => card.providerId === "resend"), {
     pluginId: "resend",

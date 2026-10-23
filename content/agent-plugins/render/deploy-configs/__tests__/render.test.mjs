@@ -181,7 +181,7 @@ test("renderRenderYaml: a normal appName/volumeName still renders byte-identical
 });
 
 
-test("render is a seeded-enabled config-only package with its descriptor, module and skill packed", async () => {
+test("render is a seeded-disabled config-only package with its descriptor, module and skill packed", async () => {
   const { readFile } = await import("node:fs/promises");
   const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../../apps/website/src/features/agent-plugins/lifecycle.ts");
   const { loadDeployConfigGeneratorsFromSource } = await import("../../../../../apps/website/src/features/deployments/deploy-config-registry.ts");
@@ -199,5 +199,5 @@ test("render is a seeded-enabled config-only package with its descriptor, module
   for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/render.mjs", "skills/render/SKILL.md"]) assert.ok(packed.files.includes(file), file);
   assert.ok(!packed.files.includes("tovu-deploy-ops.json"));
   assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
-  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("render"), true);
+  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("render"), false);
 });
