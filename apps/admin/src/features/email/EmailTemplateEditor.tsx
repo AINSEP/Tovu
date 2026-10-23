@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import "@jini-ai/ui/settings-dialog.css";
 
@@ -8,7 +9,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { DEVICE_PREVIEW_WIDTHS } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import { adminHref } from "../../lib/router";
+import { ADMIN_BASE, adminHref } from "../../lib/router";
 import { t as pageEditorT } from "../pages/page-editor-i18n";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { t } from "./email-i18n";
@@ -195,9 +196,31 @@ function Actions(props: { controller: EmailTemplateEditorController; locale: str
   );
 }
 
-/** Warns before leaving with unsaved HTML, and saves on Cmd/Ctrl+S. */
-function useEditorKeys(controller: EmailTemplateEditorController): void {
+/** Whether an anchor replaces this editor through the admin SPA. Pure; other windows stay usable. */
+function leavesEditor({ anchor, location }: { anchor: HTMLAnchorElement | null; location: Location }, _options = {}): boolean {
+  if (!anchor || anchor.hasAttribute("download")) return false;
+  if (anchor.target && anchor.target !== "_self") return false;
+  const url = new URL(anchor.href, location.href);
+  const adminPath = url.pathname === ADMIN_BASE || url.pathname.startsWith(`${ADMIN_BASE}/`);
+  const routeChanged = url.pathname !== location.pathname || url.search !== location.search;
+  return url.origin === location.origin && adminPath && routeChanged;
+}
+
+/** Only a plain click replaces this tab; modified clicks leave its working copy alive. */
+function isPlainNavigationClick({ event }: { event: MouseEvent }, _options = {}): boolean {
+  return event.button === 0 && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+}
+
+/** Reuse Pages' guard for unload and in-app links; also save on Cmd/Ctrl+S. Removes all listeners. */
+function useEditorKeys(
+  { controller, locale }: { controller: EmailTemplateEditorController; locale: string },
+  { host = window, documentHost = document }: { host?: Window; documentHost?: Document } = {},
+): void {
   const { dirty, save } = controller;
+  const { confirmLeave } = useDirtyGuard(
+    { current: dirty, original: controller.view.kind === "loaded" ? false : null },
+    { host, translate: (key) => t({ locale, key }) },
+  );
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
@@ -205,11 +228,22 @@ function useEditorKeys(controller: EmailTemplateEditorController): void {
         void save();
       }
     };
-    const onLeave = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("beforeunload", onLeave);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("beforeunload", onLeave); };
-  }, [dirty, save]);
+    host.addEventListener("keydown", onKey);
+    return () => host.removeEventListener("keydown", onKey);
+  }, [host, save]);
+  useEffect(() => {
+    const onNavigate = (event: MouseEvent) => {
+      if (!isPlainNavigationClick({ event })) return;
+      const anchor = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!leavesEditor({ anchor, location: host.location })) return;
+      if (confirmLeave()) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    // MOVE: Capture covers sidebar anchors outside this page before the shared SPA interceptor.
+    documentHost.addEventListener("click", onNavigate, true);
+    return () => documentHost.removeEventListener("click", onNavigate, true);
+  }, [confirmLeave, host, documentHost]);
 }
 
 /** The locale prop when a test passes one, else the operator's. */
@@ -233,7 +267,7 @@ export function EmailTemplateEditor(props: { id: string; useEditorHook?: (requir
   const controller = useEditor({ id: props.id });
   const locale = useEditorLocale(props.locale);
   const view = useEmailTemplateView();
-  useEditorKeys(controller);
+  useEditorKeys({ controller, locale });
   return (
     <div className="page content-editor-page email-template-page">
       <Header controller={controller} locale={locale} />

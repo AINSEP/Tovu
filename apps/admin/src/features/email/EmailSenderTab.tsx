@@ -29,7 +29,7 @@ const PROVIDER_VERDICT: Record<string, { tone: Tone; label: string }> = {
   not_found: { tone: "warning", label: "Not added at the provider yet" },
 };
 
-/** Why there is no record table, in plain words; the server's `message` adds detail. */
+/** Why there is no record table, in plain words. */
 const STATE_LINE: Record<MailDnsStatus["state"], string> = {
   checked: "",
   no_sender: "Set a From address first.",

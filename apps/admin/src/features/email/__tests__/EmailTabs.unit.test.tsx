@@ -13,9 +13,33 @@ import { useEmailSender } from "../hooks/use-email-sender.hooks";
 import { useEmailActivity } from "../hooks/use-email-activity.hooks";
 import { createTabHooks } from "./email-controller.test-helpers";
 import { ACTIVITY, AT, BLOCK, createEmailFake, DNS, PLAN, PROVIDER, TEMPLATE } from "./email.test-helpers";
+import { t } from "../email-i18n";
 
 /** @file User actions reach injected ports; provider declarations and DNS verdicts stay truthful. */
 describe("Email tab components", () => {
+  it.each(["en", "es"])("maps missing credentials to plain localized copy without server detail (%s)", (locale) => {
+    const controller = createTabHooks().provider({});
+    controller.view = { kind: "loaded", data: {
+      setting: { transactional: null, bulk: null }, refusals: [],
+      providers: [{ ...PROVIDER, refusal: 'has no complete saved credential "Tovu Mail — SMTP Server" under Access Tokens (category "ops")' }],
+    } };
+    render(<EmailProviderTab controller={controller} status={null} locale={locale} />);
+    expect(screen.getByText(t({ locale, key: "Add this provider's key first." }))).toBeInTheDocument();
+    expect(screen.queryByText(/Access Tokens|category|complete saved credential/)).toBeNull();
+    expect(screen.getByRole("button", { name: t({ locale, key: "Use this provider" }) })).toBeDisabled();
+  });
+
+  it.each(["en", "es"])("shows the no-sender DNS instruction once (%s)", (locale) => {
+    const controller = createTabHooks().sender({});
+    controller.dns = { kind: "loaded", data: {
+      state: "no_sender", senderDomain: null, providerId: null, providerVerification: null,
+      message: "Set the site's sender address first; its domain is the one that needs mail DNS records.",
+    } };
+    render(<EmailSenderTab controller={controller} locale={locale} />);
+    expect(screen.getAllByText(t({ locale, key: "Set a From address first." }))).toHaveLength(1);
+    expect(screen.queryByText(/Set the site's sender address first/)).toBeNull();
+  });
+
   it("renders only declared key fields, hides secrets, saves without switching and disables an unselectable provider", async () => {
     const api = createEmailFake();
     function Harness() { return <EmailProviderTab controller={useEmailProvider({ api })} status={null} locale="en" />; }

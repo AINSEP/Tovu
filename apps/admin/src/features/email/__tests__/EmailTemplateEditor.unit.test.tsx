@@ -5,11 +5,79 @@ import { EmailTemplateEditor } from "../EmailTemplateEditor";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 import { createEditorController } from "./email-controller.test-helpers";
 import { TEMPLATE } from "./email.test-helpers";
+import { installInternalLinkInterceptor } from "../../../lib/router";
 
 vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
 
 /** @file Editor controls, sandbox and browser unload/keyboard guards through the controller seam. */
 describe("EmailTemplateEditor", () => {
+  it.each(["back", "back icon", "sidebar"])("confirms %s navigation through Pages' dirty guard before the SPA changes routes", (source) => {
+    const previous = window.location.href;
+    window.history.replaceState(null, "", `/admin/email/templates/${TEMPLATE.id}`);
+    const stop = installInternalLinkInterceptor();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const controller = createEditorController({ overrides: { dirty: true, html: "<p>Keep my edits</p>" } });
+    const { unmount } = render(<>
+      <nav><a href="/admin/pages">Pages sidebar</a></nav>
+      <EmailTemplateEditor id={TEMPLATE.id} useEditorHook={() => controller} locale="en" />
+    </>);
+    try {
+      fireEvent.click(screen.getByRole("tab", { name: "HTML" }));
+      const link = screen.getByRole("link", { name: source === "sidebar" ? "Pages sidebar" : "Back: Templates" });
+      const target = source === "back icon" ? link.firstElementChild! : link;
+      fireEvent.click(target);
+      expect(confirm).toHaveBeenCalledExactlyOnceWith("You have unsaved changes. Leave without saving?");
+      expect(window.location.pathname).toBe(`/admin/email/templates/${TEMPLATE.id}`);
+      expect(screen.getByLabelText("Template HTML")).toHaveValue("<p>Keep my edits</p>");
+      confirm.mockReturnValue(true);
+      fireEvent.click(target);
+      expect(confirm).toHaveBeenCalledTimes(2);
+      expect(window.location.pathname + window.location.search).toBe(source === "sidebar" ? "/admin/pages" : "/admin/email?tab=templates");
+      unmount();
+      confirm.mockClear();
+      fireEvent.click(document.body);
+      expect(confirm).not.toHaveBeenCalled();
+    } finally {
+      unmount(); stop(); confirm.mockRestore();
+      window.history.replaceState(null, "", previous);
+    }
+  });
+
+  it("does not prompt on clean navigation after save", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    let controller = createEditorController({ overrides: { dirty: true } });
+    const useEditorHook = () => controller;
+    const { rerender, unmount } = render(<EmailTemplateEditor id={TEMPLATE.id} useEditorHook={useEditorHook} locale="en" />);
+    controller = { ...controller, dirty: false, savedAt: TEMPLATE.updatedAt };
+    rerender(<EmailTemplateEditor id={TEMPLATE.id} useEditorHook={useEditorHook} locale="en" />);
+    const link = screen.getByRole("link", { name: "Back: Templates" });
+    link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    try { fireEvent.click(link); expect(confirm).not.toHaveBeenCalled(); }
+    finally { unmount(); confirm.mockRestore(); }
+  });
+
+  it.each([
+    { event: { ctrlKey: true } }, { event: { metaKey: true } },
+    { event: { shiftKey: true } }, { event: { altKey: true } },
+    { event: { button: 1 } }, { target: "_blank" }, { download: true },
+    { href: "https://example.com/admin/pages" }, { href: "#preview" },
+  ])("keeps other-tab, download and external navigation outside the SPA guard (%j)", (options) => {
+    const previous = window.location.href;
+    window.history.replaceState(null, "", `/admin/email/templates/${TEMPLATE.id}`);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const controller = createEditorController({ overrides: { dirty: true } });
+    const { unmount } = render(<>
+      <a href={"href" in options ? options.href : "/admin/pages"} target={"target" in options ? options.target : undefined} download={"download" in options ? options.download : undefined}>Other destination</a>
+      <EmailTemplateEditor id={TEMPLATE.id} useEditorHook={() => controller} locale="en" />
+    </>);
+    const link = screen.getByRole("link", { name: "Other destination" });
+    link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    try {
+      fireEvent.click(link, "event" in options ? options.event : {});
+      expect(confirm).not.toHaveBeenCalled();
+    } finally { unmount(); confirm.mockRestore(); window.history.replaceState(null, "", previous); }
+  });
+
   it("guards unsaved HTML, removes the guard after save, and cleans up on unmount", () => {
     let controller = createEditorController();
     const useEditorHook = () => controller;

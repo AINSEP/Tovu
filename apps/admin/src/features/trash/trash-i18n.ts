@@ -36,6 +36,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  */
 export const TRASH_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Email template": "Plantilla de correo",
     "The Tovu API did not respond. Try refreshing the Trash.": "La API de Tovu no respondió. Prueba a actualizar la papelera.",
     "Select every item shown": "Seleccionar todos los elementos visibles",
     'Select "{title}"': 'Seleccionar "{title}"',
@@ -91,6 +92,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "no se pudo eliminar permanentemente",
   },
   id: {
+    "Email template": "Templat email",
     "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu tidak merespons. Coba muat ulang Sampah.",
     "Select every item shown": "Pilih semua item yang ditampilkan",
     'Select "{title}"': 'Pilih "{title}"',
@@ -146,6 +148,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "gagal menghapus permanen",
   },
   de: {
+    "Email template": "E-Mail-Vorlage",
     "The Tovu API did not respond. Try refreshing the Trash.": "Die Tovu-API hat nicht geantwortet. Versuche, den Papierkorb zu aktualisieren.",
     "Select every item shown": "Alle angezeigten Elemente auswählen",
     'Select "{title}"': '„{title}“ auswählen',
@@ -201,6 +204,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "Endgültiges Löschen fehlgeschlagen",
   },
   "zh-CN": {
+    "Email template": "邮件模板",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API 未响应。请尝试刷新回收站。",
     "Select every item shown": "选择所有已显示的项目",
     'Select "{title}"': '选择"{title}"',
@@ -256,6 +260,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "永久删除失败",
   },
   "zh-TW": {
+    "Email template": "電子郵件範本",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API 未回應。請嘗試重新整理資源回收筒。",
     "Select every item shown": "選擇所有已顯示的項目",
     'Select "{title}"': '選擇「{title}」',
@@ -311,6 +316,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "永久刪除失敗",
   },
   "pt-BR": {
+    "Email template": "Modelo de email",
     "The Tovu API did not respond. Try refreshing the Trash.": "A API do Tovu não respondeu. Tente atualizar a Lixeira.",
     "Select every item shown": "Selecionar todos os itens exibidos",
     'Select "{title}"': 'Selecionar "{title}"',
@@ -366,6 +372,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "falha ao excluir permanentemente",
   },
   ru: {
+    "Email template": "Шаблон письма",
     "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu не ответил. Попробуйте обновить корзину.",
     "Select every item shown": "Выбрать все показанные элементы",
     'Select "{title}"': "Выбрать «{title}»",
@@ -421,6 +428,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "не удалось удалить навсегда",
   },
   fa: {
+    "Email template": "قالب ایمیل",
     "The Tovu API did not respond. Try refreshing the Trash.": "API تووو پاسخ نداد. زباله‌دان را تازه‌سازی کنید.",
     "Select every item shown": "انتخاب همه موارد نمایش‌داده‌شده",
     'Select "{title}"': "انتخاب «{title}»",
@@ -476,6 +484,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "حذف دائمی ناموفق بود",
   },
   ar: {
+    "Email template": "قالب بريد إلكتروني",
     "The Tovu API did not respond. Try refreshing the Trash.": "لم تستجب واجهة Tovu البرمجية. جرّب تحديث سلة المهملات.",
     "Select every item shown": "تحديد كل العناصر المعروضة",
     'Select "{title}"': 'تحديد "{title}"',
@@ -536,6 +545,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "تعذّر الحذف النهائي",
   },
   ja: {
+    "Email template": "メールテンプレート",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API が応答しませんでした。ゴミ箱を再読み込みしてください。",
     "Select every item shown": "表示されているすべての項目を選択",
     'Select "{title}"': "「{title}」を選択",
@@ -591,6 +601,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "完全に削除できませんでした",
   },
   ko: {
+    "Email template": "이메일 템플릿",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API가 응답하지 않았습니다. 휴지통을 새로고침해 보세요.",
     "Select every item shown": "표시된 모든 항목 선택",
     'Select "{title}"': '"{title}" 선택',
@@ -646,6 +657,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "영구 삭제하지 못했습니다",
   },
   pl: {
+    "Email template": "Szablon e-mail",
     "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu nie odpowiedziało. Spróbuj odświeżyć Kosz.",
     "Select every item shown": "Zaznacz wszystkie widoczne elementy",
     'Select "{title}"': 'Zaznacz "{title}"',
@@ -701,6 +713,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "nie udało się trwale usunąć",
   },
   hu: {
+    "Email template": "E-mail-sablon",
     "The Tovu API did not respond. Try refreshing the Trash.": "A Tovu API nem válaszolt. Próbálja meg frissíteni a Kukát.",
     "Select every item shown": "Az összes megjelenített elem kijelölése",
     'Select "{title}"': '„{title}” kijelölése',
@@ -756,6 +769,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "a végleges törlés sikertelen",
   },
   fr: {
+    "Email template": "Modèle d’e-mail",
     "The Tovu API did not respond. Try refreshing the Trash.": "L’API Tovu n’a pas répondu. Essayez d’actualiser la corbeille.",
     "Select every item shown": "Sélectionner tous les éléments affichés",
     'Select "{title}"': "Sélectionner « {title} »",
@@ -811,6 +825,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "échec de la suppression définitive",
   },
   uk: {
+    "Email template": "Шаблон листа",
     "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu не відповів. Спробуйте оновити кошик.",
     "Select every item shown": "Вибрати всі показані елементи",
     'Select "{title}"': "Вибрати «{title}»",
@@ -866,6 +881,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "не вдалося видалити назавжди",
   },
   tr: {
+    "Email template": "E-posta şablonu",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API yanıt vermedi. Çöp kutusunu yenilemeyi deneyin.",
     "Select every item shown": "Görüntülenen tüm öğeleri seç",
     'Select "{title}"': '"{title}" öğesini seç',
@@ -921,6 +937,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "kalıcı olarak silme başarısız oldu",
   },
   th: {
+    "Email template": "เทมเพลตอีเมล",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API ไม่ตอบสนอง ลองรีเฟรชถังขยะ",
     "Select every item shown": "เลือกรายการที่แสดงทั้งหมด",
     'Select "{title}"': 'เลือก "{title}"',
@@ -976,6 +993,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "ลบอย่างถาวรไม่สำเร็จ",
   },
   it: {
+    "Email template": "Modello email",
     "The Tovu API did not respond. Try refreshing the Trash.": "L’API di Tovu non ha risposto. Prova ad aggiornare il Cestino.",
     "Select every item shown": "Seleziona tutti gli elementi visualizzati",
     'Select "{title}"': 'Seleziona "{title}"',
@@ -1031,6 +1049,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "impossibile eliminare definitivamente",
   },
   hi: {
+    "Email template": "ईमेल टेम्पलेट",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API ने जवाब नहीं दिया। ट्रैश को रीफ़्रेश करके देखें।",
     "Select every item shown": "दिखाए गए सभी आइटम चुनें",
     'Select "{title}"': 'चुनें "{title}"',
@@ -1086,6 +1105,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "स्थायी रूप से हटाया नहीं जा सका",
   },
   ur: {
+    "Email template": "ای میل ٹیمپلیٹ",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API نے جواب نہیں دیا۔ ردی کی ٹوکری کو ریفریش کریں۔",
     "Select every item shown": "دکھائے گئے تمام آئٹمز منتخب کریں",
     'Select "{title}"': '"{title}" منتخب کریں',
@@ -1141,6 +1161,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "مستقل طور پر حذف نہیں ہو سکا",
   },
   bn: {
+    "Email template": "ইমেইল টেমপ্লেট",
     "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API সাড়া দেয়নি। ট্র্যাশ রিফ্রেশ করে দেখুন।",
     "Select every item shown": "প্রদর্শিত সব আইটেম নির্বাচন করুন",
     'Select "{title}"': '"{title}" নির্বাচন করুন',

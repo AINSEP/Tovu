@@ -164,6 +164,27 @@ export type TrashRegistry = ReadonlyMap<TrashEntityType, TrashEntry>;
 export function buildTrashRegistry(): TrashRegistry {
   return new Map<TrashEntityType, TrashEntry>([
     [
+      "email-template",
+      {
+        entityType: "email-template",
+        label: "Email template",
+        permission: "pages.edit_html",
+        table: "posts",
+        idColumn: "id",
+        workspaceColumn: "workspace_id",
+        // MOVE: Templates share Pages storage, but must never trash a page or article by id.
+        scope: { column: "kind", equals: "email-template" },
+        marker: { kind: "timestamp", column: "deleted_at" },
+        versionColumn: "version",
+        touchColumn: "updated_at",
+        display: { title: "posts.title" },
+        purgeFirst: [
+          { table: "post_revisions", parentIdColumn: "post_id" },
+          { table: "post_search_document", parentIdColumn: "post_id" },
+        ],
+      },
+    ],
+    [
       "member",
       {
         entityType: "member",

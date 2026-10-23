@@ -95,7 +95,7 @@ const templateId = (req: Request) => String(req.params.templateId);
  * - `GET    …/email-templates/:templateId` (`content.read`) -> detail
  * - `PUT    …/email-templates/:templateId/html` (`pages.edit_html`) `{ html, expectedVersion? }` -> detail
  * - `PATCH  …/email-templates/:templateId` (`pages.edit_html`) `{ name, expectedVersion? }` -> detail (rename; trash is the
- *   generic `POST …/trash/items {type: "post", id}`, a template being a `posts` row)
+ *   generic `POST …/trash/items {type: "email-template", id}` on the scoped Trash registration)
  * - `POST   …/email-templates/:templateId/render` (`admin.forms.manage`) `{ values? }` -> `{ subject, html, text, missingFields }`
  */
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = (app, deps) => {

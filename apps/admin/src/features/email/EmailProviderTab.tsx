@@ -133,7 +133,8 @@ function ProviderSwitch({ provider, controller, locale }: CardProps) {
   if (isFullyActive(provider)) return null;
   return (
     <>
-      {provider.selectable || !provider.refusal ? null : <span className="jini-field-hint">{provider.refusal}</span>}
+      {/* MOVE: Credential presence is structured state; refusal text contains server internals. */}
+      {provider.selectable || !provider.refusal ? null : <span className="jini-field-hint">{t({ locale, key: provider.credential.required && !provider.credential.saved ? "Add this provider's key first." : "Not set up" })}</span>}
       <div className="email-row">
         <button type="button" disabled={controller.busyId === provider.id || !provider.selectable} onClick={() => controller.askSwitch(provider)}
           {...agentHandle({ handle: `email-provider-${provider.id}-use` }, { role: "button", label: `Send all mail with ${provider.label}` })}>

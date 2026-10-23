@@ -58,6 +58,7 @@ export function coverageLine(locale: string): string {
  *  the server already dropped the rows this operator may not see. @complexity O(1). */
 export function entityTypeLabel(locale: string, entityType: string): string {
   const known: Record<string, string> = {
+    "email-template": "Email template",
     post: "Post",
     comment: "Comment",
     media: "Media",

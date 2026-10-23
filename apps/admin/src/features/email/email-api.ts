@@ -258,8 +258,8 @@ export const emailApi = {
     send<EmailTemplateDetail>("PATCH", `${TEMPLATES}/${enc(id)}`, { name, expectedVersion }),
   previewTemplate: ({ html, values, mode }: { html: string; values: Record<string, string>; mode: "admin" | "sent" }) =>
     send<EmailTemplatePreview>("POST", `${TEMPLATES}/preview`, { html, values, mode }),
-  /** A template is a `posts` row, so the generic Trash move takes it (restorable from Trash). */
-  trashTemplate: ({ id }: { id: string }) => send<{ ok: true }>("POST", `/workspaces/${WORKSPACE_ID}/trash/items`, { type: "post", id }),
+  /** Move through the scoped template registration; Trash owns marker, index and restore. */
+  trashTemplate: ({ id }: { id: string }, _options = {}) => send<{ ok: true }>("POST", `/workspaces/${WORKSPACE_ID}/trash/items`, { type: "email-template", id }),
 
   readSender: () =>
     authenticatedAdminRequest<{ data: { key: string; value: unknown }[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/settings/effective?namespace=core.mail` }),

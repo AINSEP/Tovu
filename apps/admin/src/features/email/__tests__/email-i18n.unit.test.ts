@@ -8,6 +8,15 @@ import { EMAIL_TAB_LOCALES, EMAIL_TAB_ROWS } from "../email-tabs-i18n";
 describe("EMAIL_DICT", () => {
   const locales = Object.keys(EMAIL_DICT);
 
+  it("translates the missing-key and unsaved-navigation instructions in all 21 locales", () => {
+    for (const locale of locales) {
+      for (const key of ["Add this provider's key first.", "You have unsaved changes. Leave without saving?"]) {
+        expect(EMAIL_DICT[locale]?.[key], `${locale}: ${key}`).toBeTruthy();
+        expect(t({ locale, key })).not.toBe(key);
+      }
+    }
+  });
+
   it("covers the same 21 locales as every other feature dictionary", () => {
     expect([...locales].sort()).toEqual(["ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it", "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW"].sort());
   });
