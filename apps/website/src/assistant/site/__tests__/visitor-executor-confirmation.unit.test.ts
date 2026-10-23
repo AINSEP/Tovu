@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorExecutionPorts } from "../visitor-executor.js";
+import { VISITOR_TOOL_PRESENTATION } from "../visitor-tool-presentation.js";
 import { parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
 import type { ToolConfirmationDirective } from "../visitor-confirmations.js";
 import { confirmationFixture } from "./visitor-confirmations.fixture.js";
@@ -22,7 +23,8 @@ function fixture() {
     confirmation: { ...f.confirmations, emit: directive => { f.directives.push(directive); onPrompt(directive); } },
     budgets: { charge: async () => true }, clock: f.clock, ids: { newId: () => "attempt" }, workspaceId: "w", runId: "run", ip: "ip",
     sink: { append: async event => { events.push(event); } }, signal: f.abort.signal, reportError: error => { errors.push(error); } };
-  const capabilities = [{ name: "list_categories", visitorOfferable: true as const, execute: async ({ input }: { input: unknown }) => { calls++; return { result: input }; } }];
+  const capabilities = [{ name: "list_categories", visitorOfferable: true as const, ...VISITOR_TOOL_PRESENTATION.list_categories,
+    execute: async ({ input }: { input: unknown }) => { calls++; return { result: input }; } }];
   const executor = createVisitorExecutor({ capabilities }, { ports });
   const prompt = () => new Promise<ToolConfirmationDirective>(resolve => { onPrompt = resolve; });
   return { ...f, ports, executor, capabilities, prompt, events, errors, calls: () => calls,
