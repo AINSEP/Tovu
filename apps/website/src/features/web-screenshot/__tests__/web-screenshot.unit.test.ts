@@ -161,7 +161,7 @@ test("waitMs is passed through as the settle time", async () => {
   assert.equal(capture.requests[0]!.settleMs, 3000);
 });
 
-test("queueing: one capture at a time, in call order; callers beyond the waiting limit are refused as busy", async () => {
+test("queueing: four callers wait in FIFO order with only one capture at a time", async () => {
   const order: string[] = [];
   const releases: Array<() => void> = [];
   let running = 0;
@@ -175,17 +175,16 @@ test("queueing: one capture at a time, in call order; callers beyond the waiting
     return shotFor(request);
   });
   const events: WebScreenshotEvent[] = [];
-  const service = createWebScreenshotService({ ports: ports(capture, events) }, { maxWaiting: 2 });
+  const service = createWebScreenshotService({ ports: ports(capture, events) });
   const call = (n: number) => service.screenshot({ input: readWebScreenshotInput({ url: `https://example.com/${n}` }) });
-  const calls = [call(1), call(2), call(3)];
-  await assert.rejects(call(4), /another screenshot is already being taken/);
-  assert.equal(events.at(-1)?.outcome, "busy");
-  for (let index = 0; index < 3; index += 1) {
+  const calls = [call(1), call(2), call(3), call(4)];
+  for (let index = 0; index < 4; index += 1) {
     while (releases.length === 0) await new Promise((resolve) => setImmediate(resolve));
     releases.shift()!();
   }
   await Promise.all(calls);
-  assert.deepEqual(order, ["start https://example.com/1", "end https://example.com/1", "start https://example.com/2", "end https://example.com/2", "start https://example.com/3", "end https://example.com/3"]);
+  assert.deepEqual(order, [1, 2, 3, 4].flatMap(n => [`start https://example.com/${n}`, `end https://example.com/${n}`]));
+  assert.ok(events.every(event => event.outcome !== 'busy'));
 });
 
 test("a failed capture does not block the queue for the next caller", async () => {
@@ -245,11 +244,13 @@ test("an aborted call that is still waiting in the queue never starts a capture"
   const first = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/1" }) });
   const controller = new AbortController();
   const second = service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/2" }) }, { signal: controller.signal });
+  // MOVE: observe rejection before aborting and yielding, so node:test never sees an unhandled rejection.
+  const secondRejected = assert.rejects(second, { name: "AbortError" });
   controller.abort();
   while (!release) await new Promise((resolve) => setImmediate(resolve));
   release();
   await first;
-  await assert.rejects(second, { name: "AbortError" });
+  await secondRejected;
   assert.equal(capture.requests.length, 1);
 });
 
@@ -379,28 +380,44 @@ test("the service refuses an off-origin site path even when a caller bypasses in
   assert.deepEqual(capture.requests, []);
 });
 
-test("the own-site queue limit rejects excess callers with an own-site busy event", async () => {
+test("an own-site queue wait expires after sixty seconds without starting a capture", async () => {
   let release!: () => void;
   let started!: () => void;
   const entered = new Promise<void>(resolve => { started = resolve; });
+  let first = true;
   const capture = fakeCapture(async request => {
-    started();
-    await new Promise<void>(resolve => { release = resolve; });
+    if (first) {
+      first = false;
+      started();
+      await new Promise<void>(resolve => { release = resolve; });
+    }
     return shotFor(request);
   });
   const events: WebScreenshotEvent[] = [];
-  const service = createWebScreenshotService({ ports: ports(capture, events) }, { maxWaiting: 0 });
+  const timeouts: Array<() => void> = [];
+  let cancelled = 0;
+  const service = createWebScreenshotService({ ports: { ...ports(capture, events), scheduleQueueTimeout: ({ delayMs, onTimeout }) => {
+    assert.equal(delayMs, 60_000);
+    timeouts.push(onTimeout);
+    return () => { cancelled++; };
+  } } });
   const call = { input: readWebScreenshotInput({ sitePath: "/" }),
     openOwnSite: async () => ({ origin: "http://127.0.0.1:53142", close: async () => {} }) };
   const pending = service.screenshot(call);
   await entered;
   try {
-    await assert.rejects(service.screenshot(call), /another screenshot is already being taken/);
+    const expired = assert.rejects(service.screenshot(call), /waited 60000 ms.*queue.*retry/i);
+    timeouts.at(-1)!();
+    await expired;
     assert.deepEqual(events, [{ target: "site", origin: "own-site", viewport: "desktop", outcome: "busy", durationMs: 0 }]);
+    assert.equal(capture.requests.length, 1);
   } finally {
     release();
     await pending;
   }
+  await service.screenshot({ ...call, openOwnSite: async () => ({ origin: 'http://127.0.0.1:53142', close: async () => {} }) });
+  assert.equal(capture.requests.length, 2, 'expired waiter must never capture later');
+  assert.equal(cancelled, 3, 'every queue timer must be cleared');
 });
 
 test('input option validation preserves precedence, integer bounds and explicit false', () => {

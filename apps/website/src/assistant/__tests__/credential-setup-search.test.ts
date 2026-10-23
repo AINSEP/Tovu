@@ -20,7 +20,7 @@ const contributions = {
 
 const cases: Record<string, string[]> = {
   credential_save: JSON.parse(readFileSync(new URL("./fixtures/credential-setup-search.json", import.meta.url), "utf8")).map((c: { query: string }) => c.query),
-  deployment_ops_set_secret: ["set STRIPE_KEY on my app"],
+  deployment_ops_set_secret: ["set API_KEY on my app"],
   media_list_providers: ['which image generation providers are configured', 'list video generation providers', 'which AI image provider can I use', 'is my Replicate image provider configured'],
 };
 for (const [id, queries] of Object.entries(cases)) test(`t10 ${id} ranks top 3 for credential setup requests`, async () => {

@@ -39,7 +39,7 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
     assert.equal((DOC2QUERY[id] ?? []).length >= 4, true, `missing questions for ${id}`);
     for (const query of DOC2QUERY[id]!) assert.equal(catalog.search({ query }, { limit: 3 }).some(hit => hit.id === id), true, `${id}: ${query}: ${JSON.stringify(catalog.search({ query }, { limit: 3 }).map(h => h.id))}`);
   }
-  const hits = catalog.search({ query: "is my fly app up" }, { limit: 100 }).map(h => h.id);
+  const hits = catalog.search({ query: "is my hosted app up" }, { limit: 100 }).map(h => h.id);
   assert.equal(hits.includes("deployment_ops_status"), true);
   const withoutOps = createToolRegistry({});
   for (const registration of registrations) if (!registration.descriptor.id.startsWith("deployment_ops_")) withoutOps.register(registration);

@@ -109,7 +109,7 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "Social links",
     "Link {n}",
     "Platform",
-    "e.g. GitHub",
+    "e.g. a project link",
     "URL",
     "https://…",
     "Remove",

@@ -521,6 +521,20 @@ type ThemeReadSelection =
   | { mode: "window"; startLine: number; lineCount: number }
   | { mode: "find"; find: string; context: number; startLine: number; lineCount?: number };
 
+/** Clamp oversized integer context at the gate, preserving invalid values for normal validation.
+ * @returns Unchanged input or a copy with a per-item normalization note; performs no I/O.
+ * @complexity O(k) for copying k fields only when clamping.
+ */
+function normalizeThemeReadInput(
+  { input }: { input: Readonly<Record<string, unknown>> },
+  _options: Record<string, never> = {},
+) {
+  const context = input.context;
+  if (typeof context !== 'number' || !Number.isInteger(context) || context <= 20) return { input, notes: [] };
+  // MOVE: a generous context request should still read the file within the published item budget.
+  return { input: { ...input, context: 20 }, notes: ['context clamped to 20 (maximum)'] };
+}
+
 /**
  * Reads an optional integer selector from tool input and enforces its published bounds.
  * @param input - Raw tool input.
@@ -1121,6 +1135,7 @@ export function buildThemesRegistrations(
     catalog: CATALOG_BY_ID,
     handlers: syncedHandlers,
     derivedRisk: themesDerivedRisk,
+    inputNormalizers: { theme_read_file: normalizeThemeReadInput },
   });
 }
 

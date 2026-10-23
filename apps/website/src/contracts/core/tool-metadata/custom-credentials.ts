@@ -14,16 +14,16 @@ export const toolMetadata = {
   "credential_save": {
     search: {
       keywords: "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form " +
-        "image generation video media provider openai repository backup git github gitlab source control commits " +
-        "static publish hosting storage s3 bucket registrar dns third-party stripe mailchimp fly flyio fly.io " +
+        "image generation video media provider openai repository backup git source control commits " +
+        "static publish hosting storage bucket registrar dns third-party " +
         "plugin personal access token pat fallback",
       queries: [
         "Save a new API credential through a secure human form.",
-        "Set up my Fly.io account with a Fly API token before deploying an app.",
+        "Set up my hosting account with a hosting API token before deploying an app.",
         "Add a provider token so this site can use my hosting account.",
         "Rotate the token on an existing saved account without changing the username.",
         "Connect an image or video generation provider with an API key.",
-        "Save a GitHub or GitLab source control credential for commits and site backups.",
+        "Save a source control credential for a repository host for commits and site backups.",
         "Connect a static publishing host or object storage account.",
         "Use personal access token sign-in when a plugin OAuth connection cannot start.",
       ],
@@ -38,13 +38,13 @@ export const toolMetadata = {
       keywords: "credential credentials token tokens api key keys secret secrets saved connected account accounts " +
         "provider providers registrar registrars dns domain domains hosting host deployment deploy deployments " +
         "third-party thirdparty external outside service services vendor vendors inventory what do i have " +
-        "do i have list existing configured connections name.com flyio fly.io",
+        "do i have list existing configured connections",
       queries: [
         "List my API keys and show my saved API keys.",
         "What tokens do I have saved? List my tokens.",
         "What credentials do I have saved?",
-        "Do I have an API key or token saved for name.com?",
-        "What did I save for fly.io — is there already a token for that?",
+        "Do I have an API key or token saved for my registrar?",
+        "What did I save for my hosting provider — is there already a token for that?",
         "What third-party accounts or providers are connected to this site?",
         "Before I use curl for this, is there already a saved credential I should use instead?",
       ],
@@ -59,8 +59,8 @@ export const toolMetadata = {
       queries: [
         "Call an external service API with a saved API token, keeping authentication on the server.",
         "Send an authenticated HTTP request using credentials already stored for the service.",
-        "Can you call the name.com API using my saved credential instead of curl?",
-        "Make a request to my fly.io account using the token I already saved.",
+        "Can you call the registrar API using my saved credential instead of curl?",
+        "Make a request to my hosting provider account using the token I already saved.",
         "I need to hit a third-party API with my saved credential — can you do that instead of shelling out?",
         "Can you check my domain's DNS records using the registrar credential I saved?",
         "Use my saved deployment provider token to make an authenticated request to their API.",
@@ -80,9 +80,9 @@ export const toolMetadata = {
       keywords: "verify verifying valid invalid expired revoked revoke working works work test testing check checking " +
         "credential token api key secret still good bad broken status health healthy alive dead stale current",
       queries: [
-        "Is my fly.io token still valid?",
+        "Is my hosting provider token still valid?",
         "Can you check if this saved API key still works?",
-        "Has my name.com credential expired or been revoked?",
+        "Has my registrar credential expired or been revoked?",
         "Test whether this saved token is still good before I rely on it.",
         "Why did my last request through a saved credential fail — is the credential itself the problem?",
       ],

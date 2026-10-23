@@ -7,6 +7,7 @@ import { applyHighlight, clearHighlight, findTargetElement, scrollToElement } fr
 import type { PageAction } from './client-directives';
 import { installSiteChatComparisonSend } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
+import { createVanillaToolConfirmation } from './vanilla-tool-confirmation';
 
 /** Binds the existing product adapters; Jini owns the DOM widget and conversation state. */
 export function createSiteVanillaArgs({ element }: { element: HTMLElement }, options: {
@@ -17,7 +18,8 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
   const document = options.document ?? window.document;
   const assign = options.assign ?? (({ path }: { path: string }) => window.location.assign(path));
   const { t } = createSiteChatI18n({ document });
-  return { element, document, transport: createSiteAssistantTransport(), agentId: 'site-assistant',
+  const showConfirmation = createVanillaToolConfirmation({ element, document });
+  return { element, document, transport: createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation }), agentId: 'site-assistant',
     suggestions: [t('What can I find on this site?'), t('Show me the latest posts')],
     directiveEventName: 'client_directive', ids: () => crypto.randomUUID(), createAbortController: () => new AbortController(),
     session: {

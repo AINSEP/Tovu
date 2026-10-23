@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -24,6 +25,8 @@ function assertPublicSecurityHeaders(res: Response, label: string): void {
   assert.equal(res.headers.get("x-content-type-options"), "nosniff", label);
   assert.equal(res.headers.get("referrer-policy"), "strict-origin-when-cross-origin", label);
   const csp = res.headers.get("content-security-policy-report-only") ?? "";
+  const golden = JSON.parse(readFileSync(new URL("../../../../../contracts/core/__tests__/fixtures/public-security-headers.json", import.meta.url), "utf8"));
+  assert.equal(csp, golden["Content-Security-Policy-Report-Only"], `${label}: unchanged CSP bytes`);
   assert.match(csp, /(^|; )default-src 'self'(;|$)/, label);
   assert.match(csp, /(^|; )object-src 'none'(;|$)/, label);
   assert.match(csp, /(^|; )base-uri 'self'(;|$)/, label);

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -44,6 +45,8 @@ test("the static header files carry exactly what the live server sends on a publ
   await deps.seoReady;
   const baseUrl = await startTestServer(createApp(deps), t);
   const live = await liveHeaders(await fetch(`${baseUrl}/`), LIVE_HEADER_NAMES);
+  const golden = JSON.parse(readFileSync(new URL("../../../contracts/core/__tests__/fixtures/public-security-headers.json", import.meta.url), "utf8"));
+  assert.deepEqual(live, Object.fromEntries(Object.entries(golden).map(([key, value]) => [key.toLowerCase(), value])));
   for (const name of LIVE_HEADER_NAMES) assert.notEqual(live[name], "", `live server must send ${name}`);
 
   assert.deepEqual(parseHeadersFile(renderHeadersFile()), live);

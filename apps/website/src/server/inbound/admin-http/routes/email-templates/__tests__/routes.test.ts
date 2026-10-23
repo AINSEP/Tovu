@@ -102,9 +102,10 @@ test("trash between a successful lookup and real Pages store access returns not-
   const base = createRouteDeps();
   let race = false;
   let trashedId: string | undefined;
-  // Override only the shared storage so boot's authorized principal reaches the liveness guard.
-  const r = await boot(t, { override: { postRepo: base.postRepo, pagesHtmlStore: (scope, _options = {}) => {
-    const store = base.pagesHtmlStore(scope);
+  // MOVE: keep the caller's allowedKinds so setup can create an email template through Pages storage.
+  // Only the read is intercepted: boot's authorized principal must reach the real liveness guard.
+  const r = await boot(t, { override: { postRepo: base.postRepo, pagesHtmlStore: (scope, options = {}) => {
+    const store = base.pagesHtmlStore(scope, options);
     return { ...store, read: async () => {
       if (race) {
         const row = await base.postRepo.findById({ workspaceId: WS, id: scope.postId });

@@ -9,6 +9,7 @@ import { discoverAllBuiltInThemes } from "../index.js";
 import { buildThemesRegistrations } from "../tool-registrations.js";
 import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { getThemesAgentToolCatalog } from "../agent-tools.js";
+import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 
 function fixture(t: test.TestContext, content: string | Buffer, allow = true, names: { themeId?: string; filePath?: string } = {}) {
   const themeId = names.themeId ?? "plain";
@@ -310,7 +311,6 @@ test("t02: numeric bounds and find length/types are validated with ToolInputErro
     [{ lineCount: 1.5 }, "theme_read_file: lineCount must be an integer from 1 to 2000."],
     [{ lineCount: null }, "theme_read_file: lineCount must be an integer from 1 to 2000."],
     [{ context: -1 }, "theme_read_file: context must be an integer from 0 to 20."],
-    [{ context: 21 }, "theme_read_file: context must be an integer from 0 to 20."],
     [{ context: 1.5 }, "theme_read_file: context must be an integer from 0 to 20."],
     [{ find: "x".repeat(201) }, "theme_read_file: find must be a string of at most 200 characters."],
     [{ find: 3 }, "theme_read_file: find must be a string of at most 200 characters."],
@@ -319,6 +319,34 @@ test("t02: numeric bounds and find length/types are validated with ToolInputErro
       read(input),
       (error: unknown) => error instanceof ToolInputError && error.message === message,
     );
+});
+
+test('find context above twenty is clamped with a note on only that batch item', async t => {
+  const lines = Array.from({ length: 70 }, (_, i) => i === 35 ? 'function attachDeckViewer' : `line ${i + 1}`);
+  const { registration } = fixture(t, lines.join('\n'));
+  const batched = applyBatchInputs({ registrations: [registration] })[0]!;
+  const input = { themeId: 'plain', path: 'sample.txt', items: [
+    { find: 'function attachDeckViewer', context: 25 },
+    { find: 'function attachDeckViewer', context: 20 },
+    { find: 'function attachDeckViewer', context: -1 },
+    { find: 'function attachDeckViewer', context: 25.5 },
+  ] };
+  const execution = await executeRegisteredTool({ registration: batched, input }, { principalId: 'owner' });
+  assert.ok('output' in execution);
+  const output = execution.output as BatchResult;
+  assert.deepEqual(output.results.map(item => item.ok), [true, true, false, false]);
+  const first = output.results[0]!;
+  const second = output.results[1]!;
+  assert.ok(first.ok && second.ok);
+  const clamped = first.result as { content: string; normalizationNotes: string[] };
+  const unchanged = second.result as { content: string; normalizationNotes?: string[] };
+  assert.equal(clamped.content, unchanged.content);
+  assert.equal(clamped.content.trimEnd().split('\n').length, 41);
+  assert.ok(clamped.normalizationNotes.some(note => /context.*clamp.*20/i.test(note)));
+  assert.equal(unchanged.normalizationNotes, undefined);
+  assert.equal(input.items[0]!.context, 25);
+  const schema = registration.descriptor.inputSchema as { properties: { context: { description: string } } };
+  assert.match(schema.properties.context.description, /20/);
 });
 
 test("t02: ranged reads still enforce permission, containment and the 1 MB file limit", async (t) => {

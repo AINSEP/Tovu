@@ -10,7 +10,7 @@ import {
   VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE,
   type VisitorToolConfigureInput, type VisitorToolsPort, type VisitorToolsView, type VisitorToolView,
 } from "@/lib/visitor-tools";
-import { VisitorToolsPanel } from "../VisitorToolsPanel";
+import { VisitorToolsPanel, visitorToolDefaultLimitsText } from "../VisitorToolsPanel";
 import { useVisitorTools } from "../hooks/use-visitor-tools.hooks";
 import { t as translate } from "../ai-assistant-i18n";
 
@@ -81,6 +81,20 @@ describe("VisitorToolsPanel", () => {
     expect(await screen.findByText("List categories")).toBeTruthy();
     expect(screen.getByText("Lets visitors see your post categories.")).toBeTruthy();
     expect(fake.writes).toEqual([]);
+  });
+
+  it("explains that Ask first waits for the visitor's own click in chat", async () => {
+    mount(fakePort().port);
+    await screen.findByText("Tool list_posts");
+    const tip = screen.getByRole("button", { name: "About visitor tools" });
+    await userEvent.click(tip);
+    const descriptionId = tip.getAttribute("aria-describedby")!;
+    expect(document.getElementById(descriptionId)?.textContent).toBe("Auto runs it. Ask first waits for the visitor to click Allow in chat before running. Off hides it.");
+  });
+
+  it("formats the budget hint with present or unavailable defaults", () => {
+    expect(visitorToolDefaultLimitsText({ defaults: DEFAULTS, t })).toBe("Default: 30 per visitor/hour, 1000 per site/day.");
+    expect(visitorToolDefaultLimitsText({ t })).toBe("Default:  per visitor/hour,  per site/day.");
   });
 
   it("lists each tool with its description and current mode, and uses no <select>", async () => {

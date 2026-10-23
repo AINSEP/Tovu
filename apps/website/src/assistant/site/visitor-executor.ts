@@ -6,6 +6,8 @@ import { EMPTY_VISITOR_TOOL_POLICY, resolveVisitorToolChoice, VISITOR_TOOL_CALLS
 import type { ClientDirective } from "./client-directives.js";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
 import type { VisitorToolPresentation } from "../../contracts/site-assistant/visitor-tools-management.js";
+import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-confirmations.js";
+import { createVisitorConfirmationGate, VisitorPlanRefused } from "./visitor-confirmation-gate.js";
 
 export interface VisitorCapabilityContract extends VisitorToolPresentation {
   readonly name: string;
@@ -17,6 +19,9 @@ export interface VisitorExecutionPorts {
   readonly initialPolicy: VisitorToolPolicy | null;
   /** Re-read at each invocation, including Off changes during a running model turn. */
   readonly readPolicy: () => Promise<VisitorToolPolicy | null>;
+  /** Value-row revision from the settings owner; required to execute Ask, optional for legacy Auto. */
+  readonly readSnapshot?: () => Promise<{ policy: VisitorToolPolicy | null; revision: string }>;
+  readonly confirmation?: VisitorConfirmations & { readonly emit: (directive: ToolConfirmationDirective) => void };
   readonly budgets: VisitorToolBudgets;
   readonly ip: string;
   readonly workspaceId: string;
@@ -48,36 +53,9 @@ export interface VisitorExecutor {
  */
 export function createVisitorExecutor({ capabilities }: { capabilities: readonly VisitorCapabilityContract[] }, { ports }: { ports?: VisitorExecutionPorts } = {}): VisitorExecutor {
   const registry = createToolRegistry({});
-  for (const capability of capabilities) {
-    if (capability.visitorOfferable !== true) continue;
-    registry.register({
-      descriptor: { id: capability.name, readOnly: true, timeoutMs: 10_000 },
-      policy: { authorize: async () => {
-        if (!ports) return "allow";
-        try {
-          const policy = await ports.readPolicy();
-          if (!policy) return "deny";
-          const choice = resolveVisitorToolChoice({ policy, toolId: capability.name });
-          if (choice.mode !== "auto") return "deny";
-          return await ports.budgets.charge({ workspaceId: ports.workspaceId, toolId: capability.name, ip: ports.ip, limits: choice.limits }) ? "allow" : "deny";
-        } catch (error) {
-          ports.reportError(error);
-          return "deny";
-        }
-      } },
-      handler: async ({ input, signal }) => {
-        try {
-          return await capability.execute({ input });
-        } catch (error) {
-          // Jini returns a message string. Preserve the original stack server-side, while a
-          // disconnected caller's aborted work needs no operational error report.
-          if (!signal.aborted) ports?.reportError(error);
-          throw error;
-        }
-      },
-    });
-  }
-  const executor = createToolExecutor({ registry }, { now: ports?.clock.nowMs.bind(ports.clock) });
+  const confirmation = ports ? createVisitorConfirmationGate({ ports, resume: args => executor.resumeConfirmation(args) }) : undefined;
+  registerCapabilities({ capabilities, registry, ports, confirmation });
+  const executor = createToolExecutor({ registry }, { now: ports?.clock.nowMs.bind(ports.clock), delegate: confirmation?.delegate });
   const runId = ports?.runId ?? "visitor-turn";
   const signal = ports?.signal;
   let attempts = 0;
@@ -103,21 +81,22 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
     async availableToolNames(_required: Record<string, never>, _options = {}): Promise<readonly string[]> {
       const policy = ports ? await ports.readPolicy() : EMPTY_VISITOR_TOOL_POLICY;
       if (!policy) return [];
-      return registry.list({}).filter(tool => resolveVisitorToolChoice({ policy, toolId: tool.id }).mode === "auto").map(tool => tool.id);
+      return registry.list({}).filter(tool => visitorModeAdvertised({ policy, toolId: tool.id, ports })).map(tool => tool.id);
     },
     /** Eligibility and the upgrade grant are independent. Used for model advertisement too. */
     isAdvertised({ toolId }: { toolId: string }, _options = {}): boolean {
       const policy = ports ? ports.initialPolicy : EMPTY_VISITOR_TOOL_POLICY;
-      return registry.has({ toolId }) && policy !== null && resolveVisitorToolChoice({ policy, toolId }).mode === "auto";
+      return registry.has({ toolId }) && policy !== null && visitorModeAdvertised({ policy, toolId, ports });
     },
     /** Normalize all gate failures to the same safe status; the route owns error presentation. */
     async invoke({ name, input, caller }: { name: string; input: unknown; caller: string }, _options = {}) {
       try {
         const toolId = caller === "anonymous-visitor" && registry.has({ toolId: name }) ? name : "unavailable";
         const outcome = await audited.execute({ principal: { id: "anonymous-visitor" }, run: { id: runId }, toolId,
-          input }, { signal });
+          input: structuredClone(input) }, { signal });
+        confirmation?.forget({ executionId: outcome.executionId });
         // Caller classes are transport-owned. A forged class never reaches a public handler.
-        if (outcome.status === "denied" || outcome.status === "cancelled") return { kind: "refused" as const, reason: VISITOR_TOOL_REFUSAL };
+        if (isVisitorRefusal({ outcome })) return { kind: "refused" as const, reason: VISITOR_TOOL_REFUSAL };
         if (outcome.status !== "completed") return { kind: "error" as const, error: outcome.error ?? outcome.status };
         const output = outcome.output as { result: unknown; directive?: ClientDirective };
         return { kind: "ok" as const, result: output.result, directive: output.directive };
@@ -127,4 +106,62 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
       }
     },
   };
+}
+
+/** Install only reviewed contracts; the policy/handler closures retain their existing owners.
+ * @complexity O(t) registrations for the fixed visitor catalog.
+ */
+function registerCapabilities({ capabilities, registry, ports, confirmation }: {
+  capabilities: readonly VisitorCapabilityContract[]; registry: ReturnType<typeof createToolRegistry>;
+  ports?: VisitorExecutionPorts; confirmation?: ReturnType<typeof createVisitorConfirmationGate>;
+}, _options = {}): void {
+  for (const capability of capabilities) {
+    if (capability.visitorOfferable !== true) continue;
+    const ask = ports?.initialPolicy != null && resolveVisitorToolChoice({ policy: ports.initialPolicy, toolId: capability.name }).mode === "ask";
+    registry.register({
+      descriptor: { id: capability.name, readOnly: true, timeoutMs: 10_000, requiresConfirmation: ask },
+      policy: { authorize: async () => {
+        if (!ports) return "allow";
+        try {
+          const policy = await ports.readPolicy();
+          if (!policy) return "deny";
+          const choice = resolveVisitorToolChoice({ policy, toolId: capability.name });
+          if (!visitorModeAllowed({ mode: choice.mode, ask, hasChannel: Boolean(ports.confirmation && ports.readSnapshot) })) return "deny";
+          return await ports.budgets.charge({ workspaceId: ports.workspaceId, toolId: capability.name, ip: ports.ip, limits: choice.limits }) ? "allow" : "deny";
+        } catch (error) {
+          ports.reportError(error);
+          return "deny";
+        }
+      } },
+      handler: async ({ input, signal, executionId }) => {
+        try {
+          if (ask) await confirmation!.assertApproved({ executionId, input });
+          return await capability.execute({ input });
+        } catch (error) {
+          // Jini returns a message string. Preserve the original stack server-side, while a
+          // disconnected caller's aborted work needs no operational error report.
+          if (!signal.aborted && !(error instanceof VisitorPlanRefused)) ports?.reportError(error);
+          throw error;
+        }
+      },
+    });
+  }
+}
+
+/** An Auto snapshot cannot silently acquire Ask permission mid-turn; a fresh turn advertises it. */
+function visitorModeAllowed({ mode, ask, hasChannel }: { mode: string; ask: boolean; hasChannel: boolean }, _options = {}): boolean {
+  if (mode === "off") return false;
+  if (ask) return mode === "ask" && hasChannel;
+  return mode === "auto";
+}
+
+/** Without a human return path Ask keeps the fail-closed rollback behaviour. */
+function visitorModeAdvertised({ policy, toolId, ports }: { policy: VisitorToolPolicy; toolId: string; ports?: VisitorExecutionPorts }, _options = {}): boolean {
+  const mode = resolveVisitorToolChoice({ policy, toolId }).mode;
+  return mode === "auto" || (mode === "ask" && Boolean(ports?.confirmation && ports.readSnapshot));
+}
+
+/** Decline, expiry and revoked plans share the same non-disclosing visitor result. */
+function isVisitorRefusal({ outcome }: { outcome: ToolExecutionResult }, _options = {}): boolean {
+  return ["denied", "cancelled", "confirmation-denied"].includes(outcome.status) || outcome.error === VISITOR_TOOL_REFUSAL;
 }

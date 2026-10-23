@@ -53,7 +53,7 @@ export function VisitorToolsPanel({ t, useVisitorToolsHook = useWiredVisitorTool
     <div className="visitor-tools">
       <p className="visitor-tools-intro">
         {t("What the assistant can do for visitors.")}
-        <InfoTip label={t("Auto runs it. Ask first asks the visitor (not live yet, so it acts as Off). Off hides it.")}
+        <InfoTip label={t("Auto runs it. Ask first waits for the visitor to click Allow in chat before running. Off hides it.")}
           triggerLabel={t("About visitor tools")} agentHandle="ai-assistant-visitor-tools-info" />
       </p>
       <Notices controller={controller} t={t} />
@@ -152,15 +152,19 @@ function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolVi
           {controller.busyToolId === tool.id ? t("Saving…") : t("Save")}
         </button>
         {limits.invalid ? <span id={errorId} className="visitor-tool-limit-error" role="alert">{t("Use a whole number, 1 or more.")}</span> : null}
-        {!limits.invalid ? <VisitorToolLimitsHint controller={controller} t={t} /> : null}
+        {!limits.invalid ? (
+          <span className="visitor-tool-limit-hint">
+            {visitorToolDefaultLimitsText({ defaults: controller.view?.defaults, t })}
+          </span>
+        ) : null}
       </div>
     </details>
   );
 }
 
-function VisitorToolLimitsHint({ controller, t }: { controller: VisitorToolsController; t: (key: string) => string }) {
-  return <span className="visitor-tool-limit-hint">
-    {t("Default: {ip} per visitor/hour, {site} per site/day.")
-      .replace("{ip}", String(controller.view?.defaults.perIpPerHour ?? "")).replace("{site}", String(controller.view?.defaults.perSitePerDay ?? ""))}
-  </span>;
+/** Format the default budget hint independently of the interactive limits editor. */
+export function visitorToolDefaultLimitsText({ defaults, t }: { defaults?: VisitorToolView["limits"]; t: (key: string) => string }, _options = {}): string {
+  return t("Default: {ip} per visitor/hour, {site} per site/day.")
+    .replace("{ip}", String(defaults?.perIpPerHour ?? ""))
+    .replace("{site}", String(defaults?.perSitePerDay ?? ""));
 }

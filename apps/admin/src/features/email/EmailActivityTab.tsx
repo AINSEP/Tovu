@@ -51,13 +51,13 @@ const FEEDBACK_STATE: Record<MailFeedbackProviderSetup["state"], { tone: Tone; l
 
 function LoadMore<T>(props: { list: PagedList<T>; locale: string; handle: string }) {
   const { list, locale } = props;
-  if (list.view.kind !== "loaded" || !list.view.data.nextCursor) return list.moreError ? <p className="jini-field-error">{list.moreError}</p> : null;
+  if (list.view.kind !== "loaded" || !list.view.data.nextCursor) return list.moreError ? <p className="jini-field-error">{t({ locale, key: list.moreError })}</p> : null;
   return (
     <div className="email-row">
       <button type="button" className="btn-secondary" disabled={list.loadingMore} onClick={() => void list.loadMore()} {...agentHandle({ handle: props.handle }, { role: "button", label: "Load more rows" })}>
         {list.loadingMore ? t({ locale, key: "Loading…" }) : t({ locale, key: "Load more" })}
       </button>
-      {list.moreError ? <span className="jini-field-error">{list.moreError}</span> : null}
+      {list.moreError ? <span className="jini-field-error">{t({ locale, key: list.moreError })}</span> : null}
     </div>
   );
 }
@@ -234,7 +234,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
                       <div className="email-row">
                         <span className="jini-field-label">{t({ locale, key: "Webhook URL" })}</span>
                         <code className="email-break">{provider.webhookUrl}</code>
-                        <CopyButton text={provider.webhookUrl} label={`${provider.label} webhook URL`} locale={locale} handle={`email-feedback-${provider.providerId}-copy`} />
+                        <CopyButton text={provider.webhookUrl} label={t({ locale, key: "{provider} webhook URL" }).replace("{provider}", provider.label)} locale={locale} handle={`email-feedback-${provider.providerId}-copy`} />
                       </div>
                     ) : <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
                   ) : null}

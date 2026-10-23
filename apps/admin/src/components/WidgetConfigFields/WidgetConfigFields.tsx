@@ -119,7 +119,7 @@ function SocialLinksConfigFields(props: {
             id={`widget-social-platform-${i}`}
             value={link.platform}
             onChange={(e) => updateLink(i, { platform: e.target.value })}
-            placeholder={t("e.g. GitHub")}
+            placeholder={t("e.g. a project link")}
             {...(base ? agentHandle({ handle: `${base}-link-${i}-platform` }, { role: "field", label: `Link ${i + 1} platform` }) : {})}
           />
           <label htmlFor={`widget-social-url-${i}`}>{t("URL")}</label>

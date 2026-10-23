@@ -2,6 +2,54 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 import type { ToolMetadata } from '@jini-ai/core';
 import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
 import { DOC2QUERY } from "./tool-search-doc2query.js";
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { bundledContributionSources } from '../features/agent-plugins/bundled-contribution-sources.js';
+import { resolveProductRoot } from '../platform/site-dir/product-root.js';
+
+/**
+ * Read search-only words from shipped manifests, including disabled plugins. Installed packages
+ * cannot contribute here: this root follows the existing bundled contribution trust boundary.
+ * Missing or malformed optional metadata contributes nothing; no plugin code is executed.
+ * @param required Product-owned bundled root.
+ * @param optional Source enumeration and text-reader ports for failure-path tests.
+ * @returns Tool vocabulary only, with no authority over registration, approval or callbacks.
+ * @complexity O(p + k) for p manifests and k keyword entries; one read per manifest.
+ */
+export function readBundledToolKeywords(required: { sourceRoot: string }, optional: {
+  sources?: typeof bundledContributionSources;
+  readText?: (file: string) => string;
+} = {}): Record<string, string> {
+  const keywords: Record<string, string> = Object.create(null);
+  let sources: ReturnType<typeof bundledContributionSources>;
+  try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: 'plugin.json' }); }
+  catch { return keywords; }
+  for (const source of sources) {
+    try {
+      const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
+      const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
+      appendToolKeywords({ keywords, declaration: manifest?.extensions?.tovu?.toolKeywords });
+    } catch { /* Optional search data never prevents tool catalog construction. */ }
+  }
+  return keywords;
+}
+
+/** Ignore non-string values and unknown tool ids; metadata can enrich only existing native tools.
+ * @complexity O(k) declared entries, without I/O. */
+function appendToolKeywords({ keywords, declaration }: { keywords: Record<string, string>; declaration: unknown }, _optional = {}): void {
+  if (typeof declaration !== 'object' || declaration === null || Array.isArray(declaration)) return;
+  for (const [id, words] of Object.entries(declaration)) {
+    if (!Object.hasOwn(nativeToolMetadata.byId, id) || typeof words !== 'string' || !words.trim()) continue;
+    keywords[id] = [keywords[id], words.trim()].filter(Boolean).join(' ');
+  }
+}
+
+let bundledKeywords: Record<string, string> | undefined;
+
+/** Load optional bundled vocabulary only when search needs it. @complexity O(p + k) once. */
+function bundledToolKeywords(_required: Record<string, never>, _optional: Record<string, never> = {}): Record<string, string> {
+  return bundledKeywords ??= readBundledToolKeywords({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins') });
+}
 /**
  * @file Operator vocabulary for tool search — the words a human uses that a tool's own description
  * does not contain.
@@ -26,7 +74,19 @@ import { DOC2QUERY } from "./tool-search-doc2query.js";
  * these as a bag of terms). Include plurals AND singulars explicitly: the index uses FTS5's default
  * `unicode61` tokenizer, which does not stem, so "image" and "images" are different tokens.
  */
-export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = nativeToolMetadata.keywords;
+let searchKeywords: Readonly<Record<string, string>> | undefined;
+
+/** Merge search-only declarations on first use. Optional manifest failures contribute no words.
+ * @complexity O(p + k) manifests and keyword entries once, then O(1). */
+export function toolSearchKeywords(_required: Record<string, never>, _optional: Record<string, never> = {}): Readonly<Record<string, string>> {
+  if (searchKeywords) return searchKeywords;
+  const bundled = bundledToolKeywords({});
+  searchKeywords = Object.fromEntries(
+    [...new Set([...Object.keys(nativeToolMetadata.keywords), ...Object.keys(bundled)])]
+      .map(id => [id, [nativeToolMetadata.keywords[id], bundled[id]].filter(Boolean).join(' ')]),
+  );
+  return searchKeywords;
+}
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by
  *  both halves of the fold/strip pair below so the two can never disagree about the boundary.
@@ -37,7 +97,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = nativeTool
  *  itself would draw, so `stripSearchKeywords` cuts a card's description in exactly the right place
  *  without either file having to know the other's marker text separately. */
 export const KEYWORD_MARKER = " — also known as: ";
-const searchEnricher = createSearchEnricher({ marker: KEYWORD_MARKER, keywords: TOOL_SEARCH_KEYWORDS, questions: DOC2QUERY });
+let enricher: ReturnType<typeof createSearchEnricher> | undefined;
+
+/** Defer vocabulary I/O until search first uses the shared fold/strip implementation. */
+function searchEnricher(_required: Record<string, never>, _optional: Record<string, never> = {}): ReturnType<typeof createSearchEnricher> {
+  return enricher ??= createSearchEnricher({ marker: KEYWORD_MARKER, keywords: toolSearchKeywords({}), questions: DOC2QUERY });
+}
 
 /**
  * Folds a tool's keywords into the text that gets INDEXED.
@@ -62,8 +127,13 @@ export function indexedDescriptionFor(
 ): string {
   // Keywords supply operator nouns; doc2query adds verbs and question phrasing that distinguish
   // sibling tools. Both sit behind KEYWORD_MARKER so callers see only authored descriptions.
-  return searchEnricher.indexedDescription({ id: toolId, description,
-    ...(options.metadata ? { metadata: options.metadata } : {}),
+  return searchEnricher({}).indexedDescription({ id: toolId, description,
+    // Registered metadata takes precedence in Jini's enricher. Add the same declared words there
+    // without mutating the registration or projecting plugin data into approval policy.
+    ...(options.metadata ? { metadata: { ...options.metadata, search: {
+      ...options.metadata.search,
+      keywords: [options.metadata.search?.keywords ?? nativeToolMetadata.keywords[toolId], bundledToolKeywords({})[toolId]].filter(Boolean).join(' '),
+    } } } : {}),
   }, { includeDoc2query: options.includeDoc2query ?? true });
 }
 
@@ -75,5 +145,5 @@ export function indexedDescriptionFor(
  * no search vocabulary. Demo-only tools are excluded from operator-language enrichment.
  */
 export function stripSearchKeywords(indexed: string): string {
-  return searchEnricher.authoredDescription({ description: indexed });
+  return searchEnricher({}).authoredDescription({ description: indexed });
 }

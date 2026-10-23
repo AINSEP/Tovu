@@ -1,0 +1,25 @@
+{
+  "scripts": [
+    "https://cdn.jsdelivr.net"
+  ],
+  "styles": [
+    "https://cdn.jsdelivr.net",
+    "https://fonts.googleapis.com"
+  ],
+  "fonts": [
+    "https://cdn.jsdelivr.net",
+    "https://fonts.gstatic.com"
+  ],
+  "fontPreconnects": {
+    "https://fonts.googleapis.com": [
+      {
+        "url": "https://fonts.googleapis.com"
+      },
+      {
+        "url": "https://fonts.gstatic.com",
+        "crossorigin": true
+      }
+    ]
+  },
+  "legacyFontStylesheetTemplate": "https://fonts.googleapis.com/css2?{families}&display=swap"
+}

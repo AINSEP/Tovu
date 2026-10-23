@@ -35,7 +35,7 @@ export const toolMetadata = {
     search: {
       keywords: "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
       queries: [
-        "Is there a plugin for deploying to fly.io?",
+        "Is there a plugin for deploying to my hosting provider?",
         "What agent plugins do I have installed?",
         "Do we already have something installed that handles GDPR or cookie consent?",
         "Find a plugin that can help with accessibility review.",

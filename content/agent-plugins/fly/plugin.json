@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["FLY_", "fly.io", "flyctl", "fly.toml", "machines.dev", "flyv1"],
       "displayName": "Fly.io",
       "summary": "Puts the Tovu server itself online on Fly.io.",
       "hostSignals": [
@@ -40,7 +41,21 @@
           ],
           "baseUrl": "https://api.fly.io"
         }
-      ]
+      ],
+      "toolKeywords": {
+        "credential_save": "fly flyio fly.io fly api token hosting account",
+        "custom_credential_list": "flyio fly.io",
+        "custom_credential_make_request": "fly.io",
+        "custom_credential_verify": "fly.io",
+        "deployment_ops_deploy": "fly",
+        "deployment_ops_list_secrets": "fly",
+        "deployment_ops_list_targets": "fly",
+        "deployment_ops_logs": "fly",
+        "deployment_ops_set_secret": "fly",
+        "deployment_ops_status": "fly fly.io",
+        "deployment_ops_unset_secret": "fly",
+        "search_agent_plugin_local": "fly.io"
+      }
     }
   },
   "keywords": [

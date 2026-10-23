@@ -4,6 +4,14 @@ import { runPublicSiteGuide } from "../public-site-guide.js";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { createVisitorToolBudgets } from "#src/assistant/site/visitor-tool-budgets";
 import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings";
+import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
+import { readVisitorToolsSnapshot } from "#src/features/settings/visitor-tools-write";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { randomBytes } from "node:crypto";
+import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
 import {
@@ -555,6 +563,12 @@ async function runSiteAssistantPreflight(
 }
 
 export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
+  const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
+    exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: createTimeoutScheduler({}),
+      // This generator is cryptographic; the site's ordinary IDs can be time ordered.
+      idGenerator: { newId: () => randomBytes(16).toString("base64url") }, defaultChannel: "visitor-tool-confirmation" },
+    { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS }) });
+  const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
   const resolution = resolveSiteAssistantMode(env);
   // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
   const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
@@ -581,6 +595,18 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
     },
 
     registerRoutes: (app: Express) => {
+      registerSiteAssistantConfirm({ app, ports: {
+        confirmations, limiter: confirmLimiter,
+        enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== "off" && await isPublicAssistantEnabled(
+          { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        allowsOrigin: async ({ origin }) => {
+          const target = normalizeOriginCandidate({ rawUrl: origin });
+          if (!target) return false;
+          const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
+          return isSameOrigin({ target, canonical });
+        },
+        reportError: error => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
+      } });
       // The app's public JSON parser runs before this module. Handle its errors here, before the
       // generic size/error middleware, so oversized/malformed visitor requests also get safe ids.
       const handleBodyError: ErrorRequestHandler = (error, _req, res, next) => {
@@ -645,6 +671,11 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
         const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
           initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
+          readSnapshot: async () => {
+            const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId });
+            return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
+          },
+          confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse(res, "client_directive", directive); } },
           ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: deps.idGen.newId(), clock: deps.clock,
           ids: deps.idGen, sink: deps.toolAttemptAuditSink, signal: abort.signal,
           reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
@@ -669,8 +700,9 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
          * SPEC-046 REQ-4: an `outcome.directive`, when present, is written to the stream as its own
          * `client_directive` frame — a side channel from the `content` returned to the model on the
          * very same line below. This is what keeps the "no tool_use/tool_result echoed" privacy
-         * property intact: the client never sees `call.name`, `call.input`, or the raw tool result,
-         * only the resolved directive a page-action capability chose to emit.
+         * property intact: the client never receives `call.input`, only a bounded, sanitized summary
+         * or the resolved page-action directive. T3's visitor delegate separately emits that summary
+         * while held; its challenge is human-only and never part of this model-facing return value.
          */
         const executeTool = async (call: ByokToolCall): Promise<ByokToolResult> => {
           const input = (call.input ?? {}) as Record<string, unknown>;

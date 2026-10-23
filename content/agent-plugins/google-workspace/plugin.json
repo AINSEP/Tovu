@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["google-sheets", "docs.google.com", "sheets.googleapis.com", "drive.googleapis.com", "gmail"],
       "displayName": "Google Workspace",
       "summary": "Sign in with Google once, then let Tovu work with the spreadsheets you choose or create.",
       "id": "tovu/google-workspace",

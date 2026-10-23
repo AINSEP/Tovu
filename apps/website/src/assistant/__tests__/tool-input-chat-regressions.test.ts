@@ -91,12 +91,32 @@ test('chat-input regression: media slug is not silently treated as an id or disc
   assert.ok(registration);
   const result = await executeRegisteredTool({ registration, input: { slug: 'tovu-promo-01' } });
   assert.equal(result.errorKind, 'validation');
-  assert.match(result.error!, /Unknown input 'slug'.*Accepted properties: site/);
+  assert.match(result.error!, /Unknown input 'slug'.*Accepted properties:.*site.*id/);
   assert.match(result.error!, /content_read\.media_asset\(\{\}\).*matching slug.*returned assets/);
   assert.deepEqual(inputs, []);
   const listed = await executeRegisteredTool({ registration, input: { site: 'peer' } });
   assert.equal(listed.status, 'completed');
   assert.deepEqual(inputs, [{ site: 'peer' }]);
+});
+
+test('chat-input regression: media lookup retains the peer site selector and refuses conflicting aliases', async () => {
+  const inputs: unknown[] = [];
+  const [registration] = deriveContentReadRegistrations([{
+    ...recordingRegistration({ id: 'media_list_assets', schema: { type: 'object', additionalProperties: false, properties: { site: { type: 'string' } } }, inputs }),
+    handler: async (ctx) => { inputs.push(ctx.input); return { media: [{ id: 'peer-asset', title: 'Peer photo' }, { id: 'other' }] }; },
+  }]);
+  assert.ok(registration);
+  const selected = await executeRegisteredTool({ registration, input: { id: 'peer-asset', site: 'peer' } });
+  assert.equal(selected.status, 'completed');
+  assert.deepEqual(selected.output, { media: [{ id: 'peer-asset', title: 'Peer photo' }] });
+  assert.deepEqual(inputs, [{ site: 'peer' }], 'only the selector is removed before the original scoped reader');
+  const conflicted = await executeRegisteredTool({ registration, input: { id: 'peer-asset', mediaId: 'other', site: 'peer' } });
+  assert.equal(conflicted.errorKind, 'validation');
+  assert.match(conflicted.error!, /Conflicting inputs/);
+  const slug = await executeRegisteredTool({ registration, input: { slug: 'photo', site: 'peer' } });
+  assert.match(slug.error!, /Unknown input 'slug'.*Accepted properties:.*site.*id/);
+  assert.match(slug.error!, /peer site.*site selector/);
+  assert.equal(inputs.length, 1);
 });
 
 test('chat-input regression: page slugs require a real id, with the tool properties and a recovery example', async () => {

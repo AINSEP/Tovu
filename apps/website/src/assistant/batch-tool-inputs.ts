@@ -7,6 +7,15 @@ export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BA
  *  seo_set_entry_overrides, 14 theme_trash_file single calls in one chat). */
 const ROW_LEVEL_MAX_ITEMS = 100;
 
+/** Explicit opt-ins for read tools whose alternative selectors leave no top-level required field.
+ * MOVE: published Jini classifies these as list reads; settings alone cannot enable their wrapper.
+ * Video previews can each return 8 MiB, so both expensive readers stay capped at eight items.
+ */
+export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
+  { toolId: "media_view_video", maxItems: 8 },
+  { toolId: "web_screenshot_page", maxItems: 8 },
+];
+
 /** Per-tool batch settings over the default `{ toolId }` entry. Batching itself is default-on in
  *  Jini; this list only raises or lowers a cap or adds item defaults/validation. */
 export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
@@ -107,13 +116,20 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "deployment_ops_wait", reason: "waits on one deploy; a batch would chain long waits" },
 ];
 
-/** Every batchable tool in this registration list, after {@link BATCH_OPT_OUT} and with
- *  {@link BATCH_TOOL_SETTINGS} merged. @complexity O(r) for r registrations. */
+/** Resolve default eligibility/settings plus {@link BATCHABLE_TOOLS}' explicit opt-ins.
+ * @param required.registrations - The assembled registrations, before batch wrapping.
+ * @returns Only tools present in the registration list, without mutating registrations.
+ * @example resolveBatchableTools({ registrations });
+ * @complexity O(r) time and space for r registrations; no I/O.
+ */
 export function resolveBatchableTools(
   { registrations }: { registrations: readonly ToolRegistration[] },
   _optional: Record<string, never> = {},
 ): BatchableTool[] {
-  return defaultBatchableTools({ registrations }, { optOut: BATCH_OPT_OUT, settings: BATCH_TOOL_SETTINGS });
+  const toolsById = new Map(defaultBatchableTools({ registrations }, { optOut: BATCH_OPT_OUT, settings: BATCH_TOOL_SETTINGS })
+    .map(tool => [tool.toolId, tool]));
+  for (const tool of BATCHABLE_TOOLS) toolsById.set(tool.toolId, tool);
+  return registrations.flatMap(registration => toolsById.get(registration.descriptor.id) ?? []);
 }
 
 /** Apply the shared batch wrapper; batching and per-item normalization belong to Jini.

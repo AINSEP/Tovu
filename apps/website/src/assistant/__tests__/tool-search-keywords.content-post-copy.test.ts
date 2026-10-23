@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
-import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
+import { toolSearchKeywords } from "../tool-search-keywords.js";
 
 /**
  * @file Historical regression rationale (literal vocabulary pins now replaced by the real copy query).
@@ -22,14 +22,14 @@ import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 
 test("the retired content_post_duplicate key is gone — a keyword entry for a tool that no longer exists is unreachable vocabulary", () => {
   assert.equal(
-    TOOL_SEARCH_KEYWORDS["content_post_duplicate"],
+    toolSearchKeywords({})["content_post_duplicate"],
     undefined,
     "content_post_duplicate was folded into content_duplicate; its keyword entry must not linger",
   );
 });
 
 test("content_duplicate's keywords name every resource it actually supports, so 'copy that form' reaches it", () => {
-  const keywords = TOOL_SEARCH_KEYWORDS["content_duplicate"]!;
+  const keywords = toolSearchKeywords({})["content_duplicate"]!;
   for (const resource of ["post", "page", "form", "media"]) {
     assert.match(keywords, new RegExp(`\\b${resource}\\b`), `expected content_duplicate's keywords to mention '${resource}'`);
   }

@@ -43,7 +43,7 @@ export function Loaded<T>(props: { view: LoadView<T>; locale: string; retry?: ()
   return (
     <div className="email-row" role="alert">
       <Chip tone="warning">{t({ locale, key: "Couldn't load" })}</Chip>
-      <span className="jini-field-hint">{view.message}</span>
+      <span className="jini-field-hint">{t({ locale, key: view.message })}</span>
       {props.retry ? <button type="button" className="btn-secondary" onClick={props.retry}>{t({ locale, key: "Retry" })}</button> : null}
     </div>
   );

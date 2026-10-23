@@ -7,9 +7,10 @@ import { postPublicPath } from "#src/platform/routing/adapter";
  *
  * REQ-4 asks for ONE typed event, a discriminated union by `kind`, so a future consumer (an
  * `ui_surface` MCP-UI resource — REQ-7, not built here; the public allowlist ships empty per SPEC-046
- * §8) is an added union member, not a new transport. `ClientDirective` below is that union; only
- * `page_action` has a real producer today (`navigate`/`scroll_to`/`highlight` — spec §4's first
- * consumers).
+ * §8) is an added union member, not a new transport. `ClientDirective` below is that union;
+ * `page_action` serves `navigate`/`scroll_to`/`highlight` (spec §4's first consumers). T3 adds
+ * `tool_confirmation` on the same channel, produced only by the server's visitor executor delegate,
+ * with its single-use challenge kept out of model context and tool results.
  *
  * ## REQ-6 — why this file is the only place a path gets constructed
  *
@@ -88,6 +89,8 @@ export type PageAction =
  */
 export type ClientDirective =
   | { readonly kind: "page_action"; readonly action: PageAction }
+  /** Human-only capability: never include this ID in tool results, model history or text. */
+  | { readonly kind: "tool_confirmation"; readonly challengeId: string; readonly title: string; readonly summary: string }
   | { readonly kind: "ui_surface"; readonly toolId: string; readonly resource: unknown };
 
 /**

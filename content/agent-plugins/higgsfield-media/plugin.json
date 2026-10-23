@@ -47,6 +47,7 @@
   ],
   "extensions": {
     "tovu": {
+      "vendorAliases": ["higgsfield"],
       "summary": "Makes AI images with Higgsfield and saves them to your Media library. You sign in to Higgsfield once in your browser.",
       "mcpServers": {
         "higgsfield": {
@@ -76,7 +77,11 @@
           "permissions": "Model discovery and job status can be read. Generation tools require a separate write grant and use the models and credits available on your account. Review the permissions on the sign-in page.",
           "baseUrl": "https://mcp.higgsfield.ai"
         }
-      ]
+      ],
+      "toolKeywords": {
+        "external_mcp_list": "higgsfield",
+        "external_mcp_save": "higgsfield"
+      }
     }
   }
 }

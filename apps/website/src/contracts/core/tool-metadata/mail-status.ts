@@ -17,7 +17,7 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "mail_set_provider": {
-    // Vendor-neutral on purpose: core names no hosted mail provider (no-mail-vendor-in-core.boundary.test.ts);
+    // Vendor-neutral on purpose: core names no hosted mail provider (no-vendor-in-core.boundary.test.ts);
     // a provider's own name and setup know-how ship in its agent plugin (content/agent-plugins/<vendor>/).
     search: {
       keywords: "email mail provider switch change choose smtp hosted api sending service configure set up",

@@ -15,7 +15,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { publishStaticSite, readStaticPublishConfig, toDeployFile, publishOutputDir as computePublishOutputDir } from "../adapter.js";
 import type { HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
-import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 
 /**
  * @file `static-publish/adapter.ts` unit tests: a missing token fails cleanly without leaking; the
@@ -277,11 +277,11 @@ test("publishStaticSite: every target gets the live security headers as data, an
   ];
   for (const config of configs) {
     const input = await publishInputFor(config);
-    assert.deepEqual(input.responseHeaders, PUBLIC_PAGE_SECURITY_HEADERS, config.target);
+    assert.deepEqual(input.responseHeaders, publicPageSecurityHeaders({}), config.target);
     assert.deepEqual(input.files.filter((f) => f.file === "_headers" || f.file === "vercel.json"), [], config.target);
     for (const page of ["index.html", "404.html"]) {
       const html = String(input.files.find((f) => f.file === page)?.data ?? "");
-      assert.ok(html.includes(`<meta name="referrer" content="${PUBLIC_PAGE_SECURITY_HEADERS["Referrer-Policy"]}">`), `${config.target} ${page}`);
+      assert.ok(html.includes(`<meta name="referrer" content="${publicPageSecurityHeaders({})["Referrer-Policy"]}">`), `${config.target} ${page}`);
     }
   }
 });

@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["render.com", "render.yaml", "onrender.com", "RENDER_API_KEY"],
       "displayName": "Render",
       "summary": "Writes the settings file for running the Tovu server on Render. You follow its notes to finish the deploy.",
       "id": "tovu/render",

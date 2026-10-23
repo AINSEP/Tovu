@@ -185,7 +185,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
       key: "env",
       label: t("Environment variables (KEY=VALUE)"),
       kind: "textarea",
-      placeholder: t("GITHUB_TOKEN=…  (leave blank to keep the stored values)"),
+      placeholder: t("API_TOKEN=…  (leave blank to keep the stored values)"),
     });
   }
 
@@ -215,7 +215,7 @@ function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceField
       key: "accessTokenEnvName",
       label: t("Access token environment variable"),
       kind: "text",
-      placeholder: t("the variable the command reads its token from, e.g. GITHUB_TOKEN"),
+      placeholder: t("the variable the command reads its token from, e.g. API_TOKEN"),
     });
   }
   return specs;

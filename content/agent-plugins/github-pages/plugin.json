@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["github_pages", "github pages", "githubpages", "github.io"],
       "displayName": "GitHub Pages",
       "summary": "Puts your website online on GitHub Pages. The assistant shows you a preview first.",
       "id": "tovu/github-pages",

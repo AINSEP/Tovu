@@ -846,7 +846,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
         id="security-add-custom-additional-hosts"
         rows={2}
         value={value}
-        placeholder="https://api.machines.dev"
+        placeholder="https://secondary-api.example.test"
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle({ handle: "security-access-tokens-add-custom-additional-hosts" }, {
           role: "field",
@@ -854,7 +854,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
         })}
       />
       <p className="field-hint">
-        {translate("Optional — some providers use more than one API host for the same account (e.g. fly.io's api.fly.io and api.machines.dev). One per line, or comma-separated.")}
+        {translate("Optional — some providers use more than one API host for the same account (e.g. api.example.test and secondary-api.example.test). One per line, or comma-separated.")}
       </p>
       {invalid.length > 0 ? <p className="field-error">{translate("Each additional host must be a valid http:// or https:// URL.")}</p> : null}
     </div>
@@ -900,7 +900,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             type="text"
             value={form.name}
             onChange={(e) => controller.setCustomAddField({ name: e.target.value })}
-            {...agentHandle({ handle: "security-access-tokens-add-custom-name" }, { role: "field", label: "This custom provider's display name, e.g. name.com" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-name" }, { role: "field", label: "This custom provider's display name, e.g. a registrar" })}
           />
           <p className="field-hint">{translate("A short label so you can tell this apart from your other saved credentials.")}</p>
         </div>

@@ -19,7 +19,7 @@
     "system_read_server_logs": "server errors logs console crash crashed exception stack trace warnings what went wrong failed broken debug terminal output 500",
     "taxonomy_get_assigned_terms": "which tags categories does this post have assigned terms show tags of page",
     "media_list_providers": "image generation provider video generation which ai image provider configured set up api key openai replicate available list providers images videos",
-    "credential_save": "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form image generation video media provider openai repository backup git github gitlab source control commits static publish hosting storage s3 bucket registrar dns third-party stripe mailchimp fly flyio fly.io plugin personal access token pat fallback",
+    "credential_save": "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form image generation video media provider openai repository backup git source control commits static publish hosting storage bucket registrar dns third-party plugin personal access token pat fallback",
     "identity_policy_list_permissions": "policy permissions permission rows grants resource constraints role access privileges what can role do inspect list read",
     "sites_list": "local sites computer clients registry list folders serving active current queued pending restart switching disabled",
     "publish_content_disconnect": "disconnect publishing live site connected destination stop computer forget grant undo connection",
@@ -33,14 +33,14 @@
     "custom_credential_delete": "delete remove erase permanently saved custom provider credential credentials api key keys token tokens",
     "deployment_delete_provider_credential": "delete remove erase permanently saved publish publishing host hosting deployment provider credential credentials token tokens",
     "source_control_delete_credential": "delete remove erase permanently saved source control git repository credential credentials api key keys token tokens",
-    "deployment_ops_status": "deploy deployment status is my app up running healthy fly fly.io machines github actions workflow run build ci passed failed",
-    "deployment_ops_logs": "logs log output error why did deploy fail build failed crash fly github actions",
+    "deployment_ops_status": "deploy deployment status is my app up running healthy machines actions workflow run build ci passed failed",
+    "deployment_ops_logs": "logs log output error why did deploy fail build failed crash actions",
     "deployment_ops_wait": "wait until deployed finished done poll check again in a minute",
-    "deployment_ops_list_targets": "list my fly apps which apps do I have deployments",
-    "deployment_ops_deploy": "deploy now redeploy ship release roll out push the server app to production start a deploy fly github actions workflow dispatch latest commit main",
-    "deployment_ops_list_secrets": "list secrets environment variables env vars which secrets are set on my app server host fly names digests",
-    "deployment_ops_set_secret": "set secret STRIPE_KEY on my app add environment variable env var copy site key to host server rename secret copy secret fly stage",
-    "deployment_ops_unset_secret": "unset secret remove delete environment variable env var old secret from host server app fly",
+    "deployment_ops_list_targets": "list my apps which apps do I have deployments",
+    "deployment_ops_deploy": "deploy now redeploy ship release roll out push the server app to production start a deploy actions workflow dispatch latest commit main",
+    "deployment_ops_list_secrets": "list secrets environment variables env vars which secrets are set on my app server host names digests",
+    "deployment_ops_set_secret": "set secret API_KEY on my app add environment variable env var copy site key to host server rename secret copy secret stage",
+    "deployment_ops_unset_secret": "unset secret remove delete environment variable env var old secret from host server app",
     "domain_lookup_dns": "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
     "domain_check_dns": "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
     "domain_tls_status": "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
@@ -63,7 +63,7 @@
     "media_promote_chat_attachment": "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
     "media_view_video": "video videos clip clips movie movies watch see view look describe cat content frames stills screenshot timestamps duration audio attachment attached media library motion movement sequence interval intervals spacing gap gaps every seconds start count sampling sheet sheets grid tiles contact skim overview zoom",
     "media_import_local_file": "upload import add local file files computer disk downloads desktop folder folders video videos image images photo photos to media library my mac hero mp4 logo theme",
-    "media_import_from_url": "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
+    "media_import_from_url": "url urls link links address addresses href http https web internet online remote external elsewhere cdn bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
     "webhooks_list_subscriptions": "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
     "webhooks_create_subscription": "webhook webhooks endpoint callback integration connect notify subscribe outgoing form submission submitted fires",
     "webhooks_delete_subscription": "webhook webhooks endpoint remove delete disconnect integration",
@@ -71,8 +71,8 @@
     "webhooks_get_deliveries": "webhook webhooks delivery deliveries fired sent failed failure retry retries attempts log history",
     "external_mcp_probe_connection": "probe hosted remote endpoint live reachability advertised tools external mcp server connection test working check diagnose",
     "external_mcp_get_admissions": "external mcp admissions admitted refused missing configured tools live roster assistant running actual allowlisted blocked failures",
-    "external_mcp_list": "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai higgsfield",
-    "external_mcp_save": "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai higgsfield update edit change existing",
+    "external_mcp_list": "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai",
+    "external_mcp_save": "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai update edit change existing",
     "external_mcp_test_connection": "test check connection working works verify diagnose troubleshoot external tool server integration mcp",
     "external_mcp_oauth_connect": "connect sign in log in authorize authorization oauth account link external tool server integration mcp",
     "external_mcp_oauth_poll_device": "check status finished done connected ready oauth device code sign in external tool server mcp waiting",
@@ -245,7 +245,7 @@
     "agent_plugins_install": "agent plugin plugins install add upload attachment zip folder bundled bundledId ui-ux-design package agent-plugins plugin.json upgrade replace version",
     "agent_plugins_update": "agent plugin update upgrade replace zip folder version digest",
     "plugins_install": "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",
-    "skills_install": "skill skills install add new github repo repository url agent skill SKILL.md from github",
+    "skills_install": "skill skills install add new repo repository url agent skill SKILL.md from",
     "search_agent_plugin_local": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
     "search_components": "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
     "describe_component": "component props properties schema fields interactive ui widget render rendering",
@@ -263,10 +263,10 @@
     "deployment_get_export_status": "progress done finished check static site build",
     "deployment_get_dockerfile": "docker container read view current build file",
     "deployment_set_dockerfile": "docker container write edit update change build file",
-    "source_control_get_capabilities": "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
-    "source_control_execute_commit": "commit my site to a git repository push the site code export to repo commit changes github gitlab",
-    "site_backup_plan": "backup back up save copy snapshot archive keep safe my site database content github repository private repo",
-    "site_backup_push": "backup back up save copy snapshot archive site database github repository confirm push",
+    "source_control_get_capabilities": "git source control connected ready can I commit repository credentials setup",
+    "source_control_execute_commit": "commit my site to a git repository push the site code export to repo commit changes",
+    "site_backup_plan": "backup back up save copy snapshot archive keep safe my site database content repository private repo",
+    "site_backup_push": "backup back up save copy snapshot archive site database repository confirm push",
     "site_get_profile": "site overview summary snapshot everything about the site inventory status",
     "site_describe_capabilities": "describe_site_capabilities capabilities capability capable what can this site do features abilities possible available tools admin screens content types",
     "site_collect_page_evidence": "evidence audit check compliance verify rendered really does prove tracking consent",
@@ -285,13 +285,13 @@
     "publish_content_connect": "changes live go live",
     "publish_content_plan_pull": "pull download bring back sync from live copy live content down to local get changes from live site",
     "publish_content_execute_pull": "apply pull overwrite local with live confirm sync",
-    "custom_credential_list": "credential credentials token tokens api key keys secret secrets saved connected account accounts provider providers registrar registrars dns domain domains hosting host deployment deploy deployments third-party thirdparty external outside service services vendor vendors inventory what do i have do i have list existing configured connections name.com flyio fly.io",
+    "custom_credential_list": "credential credentials token tokens api key keys secret secrets saved connected account accounts provider providers registrar registrars dns domain domains hosting host deployment deploy deployments third-party thirdparty external outside service services vendor vendors inventory what do i have do i have list existing configured connections",
     "custom_credential_verify": "verify verifying valid invalid expired revoked revoke working works work test testing check checking credential token api key secret still good bad broken status health healthy alive dead stale current",
     "custom_credential_make_request": "call calling request requests curl wget http https api endpoint third-party thirdparty external outside service services vendor provider dns registrar hosting deployment domain credential credentials token tokens use using saved fetch send get post put patch delete hit query invoke run execute",
     "custom_credential_set_username": "credential username set add fix repair update change login sign in basic auth account name saved api key token 401 unauthorized broken not working",
     "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
     "web_screenshot_page": "screenshot screenshots screen capture captures snapshot picture image see look looks looking like view visual visually appearance layout design style styling render rendered rendering page pages webpage website websites site url link compare comparison parity side-by-side match matches mobile tablet desktop responsive viewport existing competitor reference import copy",
-    "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference render rendered javascript js spa softr wix webflow xhr json data cookie screenshot",
+    "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference render rendered javascript js spa xhr json data cookie screenshot",
     "theme_duplicate": "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
     "comments_get_comment": "comment single details read approved spam trash id version",
     "taxonomy_get_term": "term tag category details parent taxonomy id read one",
@@ -338,11 +338,15 @@
     "mail_remove_suppression": "email unblock remove suppression allow email again bounced complained do not send list",
     "mail_get_feedback_setup": "email feedback webhook bounces complaints delivery events signing secret setup provider reports",
     "search_query": "search find site content posts pages full text query results lookup",
-    "search_status": "search index status health provider indexed pending failed backend builtin meilisearch",
+    "search_status": "search index status health provider indexed pending failed backend builtin",
     "search_reindex": "search reindex rebuild refresh index full backfill",
-    "search_set_provider": "search provider switch change backend meilisearch builtin engine",
+    "search_set_provider": "search provider switch change backend builtin engine",
     "comments_get_provider": "comments provider built-in active readiness pending",
-    "comments_set_provider": "comments provider select switch disable built-in"
+    "comments_set_provider": "comments provider select switch disable built-in",
+    "visitor_tools_list": "visitor public assistant tools list modes limits permissions anonymous chatbot",
+    "visitor_tool_configure": "visitor public assistant tools enable disable auto ask off mode limits rate budget",
+    "visitor_tool_save": "visitor tool create update saved request api endpoint",
+    "visitor_tool_delete": "visitor tool delete remove saved request permanently"
   },
   "queries": {
     "media_replace_file": [
@@ -439,11 +443,11 @@
     ],
     "credential_save": [
       "Save a new API credential through a secure human form.",
-      "Set up my Fly.io account with a Fly API token before deploying an app.",
+      "Set up my hosting account with a hosting API token before deploying an app.",
       "Add a provider token so this site can use my hosting account.",
       "Rotate the token on an existing saved account without changing the username.",
       "Connect an image or video generation provider with an API key.",
-      "Save a GitHub or GitLab source control credential for commits and site backups.",
+      "Save a source control credential for a repository host for commits and site backups.",
       "Connect a static publishing host or object storage account.",
       "Use personal access token sign-in when a plugin OAuth connection cannot start."
     ],
@@ -461,7 +465,7 @@
       "Which hosting and domain changes would a publish make?"
     ],
     "source_control_get_capabilities": [
-      "Is GitHub connected for source control?",
+      "Is a repository host connected for source control?",
       "Is git set up for this site yet?",
       "Which repository host is connected?",
       "Are my source control credentials ready?"
@@ -482,8 +486,8 @@
       "Show me a snapshot of the site's pages, theme and settings."
     ],
     "site_backup_plan": [
-      "Can you back up my site to a private GitHub repository?",
-      "Save a backup of my site in GitHub.",
+      "Can you back up my site to a private git repository?",
+      "Save a backup of my site in a repository.",
       "Plan a site backup without changing remote files.",
       "Archive my content and database into a repository."
     ],
@@ -586,14 +590,14 @@
       "Permanently remove my source control API key."
     ],
     "deployment_ops_status": [
-      "Is my Fly app healthy?",
-      "Is my Fly app up?",
-      "Did the GitHub Actions workflow build pass?",
+      "Is my hosted app healthy?",
+      "Is my hosted app up?",
+      "Did the deployment workflow build pass?",
       "Show deployment status for my running app."
     ],
     "deployment_ops_logs": [
-      "Why did the GitHub Actions deploy fail?",
-      "Show the error logs from my Fly app.",
+      "Why did the deployment workflow fail?",
+      "Show the error logs from my hosted app.",
       "What failed steps explain the build error?",
       "Read deployment logs for this crash."
     ],
@@ -604,31 +608,31 @@
       "Wait for the deployment to finish."
     ],
     "deployment_ops_list_targets": [
-      "List my Fly apps.",
-      "Which apps do I have on Fly?",
+      "List my hosted apps.",
+      "Which apps do I have on my host?",
       "Show available deployment targets.",
-      "What Fly apps can you inspect?"
+      "What hosted apps can you inspect?"
     ],
     "deployment_ops_deploy": [
       "Deploy the server now.",
       "Redeploy my app to production.",
-      "Ship the latest commit on main to Fly.",
-      "Start a deploy through GitHub Actions."
+      "Ship the latest commit on main to the host.",
+      "Start a deploy through deployment workflow."
     ],
     "deployment_ops_list_secrets": [
-      "Which secrets are set on my Fly app?",
+      "Which secrets are set on my hosted app?",
       "List the environment variables on the server.",
       "Is TOVU_SITE_KEY set in production?",
       "Show my app's secrets."
     ],
     "deployment_ops_set_secret": [
-      "Set TOVU_SITE_KEY on Fly from my site key.",
+      "Set TOVU_SITE_KEY on my host from my site key.",
       "Copy the site key to the production server.",
       "Add a secret to my hosted app.",
-      "Copy one secret to a new name on Fly."
+      "Copy one secret to a new name on the host."
     ],
     "deployment_ops_unset_secret": [
-      "Remove the old secret from Fly.",
+      "Remove the old secret from the host.",
       "Unset an environment variable on my server.",
       "Delete the OLD_API_KEY secret from production.",
       "Remove a secret from my hosted app."
@@ -1412,7 +1416,7 @@
       "Can you toggle this plugin off?"
     ],
     "search_agent_plugin_local": [
-      "Is there a plugin for deploying to fly.io?",
+      "Is there a plugin for deploying to my hosting provider?",
       "What agent plugins do I have installed?",
       "Do we already have something installed that handles GDPR or cookie consent?",
       "Find a plugin that can help with accessibility review.",
@@ -1804,23 +1808,23 @@
       "List my API keys and show my saved API keys.",
       "What tokens do I have saved? List my tokens.",
       "What credentials do I have saved?",
-      "Do I have an API key or token saved for name.com?",
-      "What did I save for fly.io — is there already a token for that?",
+      "Do I have an API key or token saved for my registrar?",
+      "What did I save for my hosting provider — is there already a token for that?",
       "What third-party accounts or providers are connected to this site?",
       "Before I use curl for this, is there already a saved credential I should use instead?"
     ],
     "custom_credential_verify": [
-      "Is my fly.io token still valid?",
+      "Is my hosting provider token still valid?",
       "Can you check if this saved API key still works?",
-      "Has my name.com credential expired or been revoked?",
+      "Has my registrar credential expired or been revoked?",
       "Test whether this saved token is still good before I rely on it.",
       "Why did my last request through a saved credential fail — is the credential itself the problem?"
     ],
     "custom_credential_make_request": [
       "Call an external service API with a saved API token, keeping authentication on the server.",
       "Send an authenticated HTTP request using credentials already stored for the service.",
-      "Can you call the name.com API using my saved credential instead of curl?",
-      "Make a request to my fly.io account using the token I already saved.",
+      "Can you call the registrar API using my saved credential instead of curl?",
+      "Make a request to my hosting provider account using the token I already saved.",
       "I need to hit a third-party API with my saved credential — can you do that instead of shelling out?",
       "Can you check my domain's DNS records using the registrar credential I saved?",
       "Use my saved deployment provider token to make an authenticated request to their API."
@@ -1855,7 +1859,7 @@
     ],
     "web_fetch_page": [
       "Fetch a web page.",
-      "Read the JavaScript-rendered content and data of a Softr or SPA website.",
+      "Read the JavaScript-rendered content and data of a SPA website.",
       "Read a website.",
       "Open this URL and tell me what it says.",
       "Turn this existing website into pages and posts.",
@@ -1993,6 +1997,21 @@
     ],
     "comments_set_provider": [
       "Switch my comments provider."
+    ],
+    "visitor_tools_list": [
+      "What can visitors do in chat?",
+      "List visitor tools and limits."
+    ],
+    "visitor_tool_configure": [
+      "Turn off visitor search.",
+      "Raise the visitor tool limit.",
+      "Set visitor tools to Ask first."
+    ],
+    "visitor_tool_save": [
+      "Create a visitor tool."
+    ],
+    "visitor_tool_delete": [
+      "Delete a created visitor tool."
     ]
   },
   "approvals": {
@@ -3551,6 +3570,22 @@
     "comments_set_provider": {
       "class": "escalation",
       "confirmation": "plan"
+    },
+    "visitor_tools_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "visitor_tool_configure": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "visitor_tool_save": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "visitor_tool_delete": {
+      "class": "read",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3606,7 +3641,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "secretForms": {
     "credential_save": {
@@ -3699,7 +3735,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3759,7 +3796,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

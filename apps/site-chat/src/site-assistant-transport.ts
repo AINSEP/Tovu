@@ -30,6 +30,7 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
+import { parseToolConfirmation, type ToolConfirmation } from "./tool-confirmation";
 
 const CHAT_URL = "/api/site-assistant/chat";
 /** Silence (no bytes at all) this long ends the turn with a visible error instead of an endless
@@ -168,10 +169,24 @@ async function pumpServerSentEvents(
 const activeRuns = new Map<string, AbortController>();
 
 export interface SiteAssistantTransportOptions {
+  /** Live UI only: challenges never enter events, persisted messages or provider history. */
+  readonly onToolConfirmation?: (required: { directive: ToolConfirmation | null }, optional?: Record<string, never>) => void;
   /** Defaults to the global `fetch`, resolved per call. */
   readonly fetch?: typeof fetch;
   /** Defaults to {@link IDLE_TIMEOUT_MS}. */
   readonly idleTimeoutMs?: number;
+}
+
+/** Consume the human-only envelope even when malformed or late. It must never fall through into
+ * transcript events, session persistence or a later provider history.
+ */
+function consumeToolConfirmation({ data, settled, receive }: {
+  data: unknown; settled: boolean; receive: SiteAssistantTransportOptions['onToolConfirmation'];
+}, _options = {}): boolean {
+  if (!data || typeof data !== 'object' || (data as { kind?: unknown }).kind !== 'tool_confirmation') return false;
+  const directive = parseToolConfirmation({ value: data });
+  if (directive && !settled) receive?.({ directive });
+  return true;
 }
 
 /**
@@ -218,6 +233,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
         if (settled) return;
         if (expectReply && !failed && !replied) fail(NO_REPLY_REASON);
         settled = true;
+        options.onToolConfirmation?.({ directive: null });
         clearTimeout(idleTimer);
         activeRuns.delete(runId);
         handlers.onDone(collected);
@@ -254,6 +270,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
               void (data as ChatFrameEnd); // reason is server telemetry only; nothing here branches on it.
               finish();
             } else if (event === "client_directive") {
+              if (consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation })) return;
               const ev: AgentEvent = { kind: "ext", name: CLIENT_DIRECTIVE_EXT_NAME, data };
               // A page action alone (e.g. "take me there") is a real answer, not an empty reply.
               replied = true;

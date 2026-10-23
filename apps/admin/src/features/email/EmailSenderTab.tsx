@@ -83,11 +83,11 @@ function Records(props: { dns: NonNullable<MailDnsStatus["dns"]>; locale: string
             <dl className="email-dns-values">
               <div className="email-dns-value">
                 <dt className="jini-field-label">{t({ locale, key: "Host" })}</dt>
-                <dd><code>{record.host}</code><CopyButton text={record.host} label={`${record.type} host`} locale={locale} handle={`email-dns-${index}-copy-host`} /></dd>
+                <dd><code>{record.host}</code><CopyButton text={record.host} label={t({ locale, key: "{type} host" }).replace("{type}", record.type)} locale={locale} handle={`email-dns-${index}-copy-host`} /></dd>
               </div>
               <div className="email-dns-value">
                 <dt className="jini-field-label">{t({ locale, key: "Value" })}</dt>
-                <dd><code>{record.expected}</code><CopyButton text={record.expected} label={`${record.type} value`} locale={locale} handle={`email-dns-${index}-copy-value`} /></dd>
+                <dd><code>{record.expected}</code><CopyButton text={record.expected} label={t({ locale, key: "{type} value" }).replace("{type}", record.type)} locale={locale} handle={`email-dns-${index}-copy-value`} /></dd>
               </div>
               {record.status === "Mismatch" && record.observed.length > 0 ? (
                 <div className="email-dns-value">
@@ -155,7 +155,7 @@ function DnsSection(props: { controller: EmailSenderController; locale: string }
       <Loaded view={controller.dns} locale={locale}>
         {(status) => <DnsBody status={status} locale={locale} />}
       </Loaded>
-      {controller.checkError ? <p className="jini-field-error" role="alert">{controller.checkError}</p> : null}
+      {controller.checkError ? <p className="jini-field-error" role="alert">{t({ locale, key: controller.checkError })}</p> : null}
     </Section>
   );
 }

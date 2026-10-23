@@ -252,7 +252,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
     "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +
     "— the segment of the failing tool's own id between 'mcp__' and the next '__' (e.g. " +
-    "'higgsfield' from 'mcp__higgsfield__generate_video') — to show the administrator an in-chat " +
+    "'example' from 'mcp__example__generate_video') — to show the administrator an in-chat " +
     "reconnect notice naming that server; if you ever forget that exact name, " +
     "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
     "other registered tool. It blocks until they acknowledge it. Once they say they have " +

@@ -64,12 +64,12 @@ export function AddAgentPluginPanel({ controller: c, handleBase = "agent-plugin-
         <AgentPluginUploadActions controller={c} handleBase={handleBase} />
       </InstallTabOption>
 
-      {!c.updating ? <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a GitHub repository or a .zip link.")}>
+      {!c.updating ? <InstallTabOption heading={t("From a URL")} badge={t("Coming soon")} hint={t("Install from a repository or a .zip link.")}>
         <InstallTabFieldRow
           inputId="agent-plugin-add-url"
           type="url"
           disabled
-          placeholder="https://github.com/owner/plugin"
+          placeholder="https://example.test/owner/plugin"
           inputProps={{ "aria-label": t("Plugin URL"), ...agentHandle({ handle: `${handleBase}-url` }, { role: "field", label: t("Plugin URL") }) }}
           actionProps={agentHandle({ handle: `${handleBase}-from-url` }, { role: "button", label: t("Add from URL") })}
           action={{ label: t("Add from URL"), disabled: true }}
