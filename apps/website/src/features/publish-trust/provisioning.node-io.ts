@@ -13,7 +13,7 @@ import type { ProvisioningFileIo } from "./provisioning.js";
 
 /**
  * The absolute base every repo-relative committed-config path (`PUBLISH_TRUST_CONFIG_PATH`,
- * `DEPLOY_CONFIG_CANDIDATE_PATHS`) resolves against.
+ * the declared deploy-config candidate paths) resolves against.
  *
  * `process.cwd()` IS the repo root for the two cases this feature was originally built against: a
  * plain `tovu serve` run from the repo root, and the deployed container, whose `Dockerfile` sets

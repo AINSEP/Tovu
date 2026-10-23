@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
-import { TOOL_SEARCH_KEYWORDS } from "#src/assistant/tool-search-keywords";
+import { toolSearchKeywords } from "#src/assistant/tool-search-keywords";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 test("first-party catalog registers both install families and forwards the scoped attachment reader", async () => {
@@ -27,7 +27,7 @@ test("first-party catalog registers both install families and forwards the scope
         .find(entry => entry.descriptor.id === id);
       assert.ok(registration);
       assert.equal(contribution.risk.get(id), "mutates-durable-state");
-      assert.match(TOOL_SEARCH_KEYWORDS[id]!, /attachment/);
+      assert.match(toolSearchKeywords({})[id]!, /attachment/);
       await assert.rejects(() => registration.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "accepted" }, input: { source: { kind: "zip", attachmentRef: "attachment:12345678" } }, signal: new AbortController().signal }, {}));
     }
     assert.equal(reads, 2);

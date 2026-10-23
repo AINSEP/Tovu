@@ -3,12 +3,21 @@ import { test } from "../support/bug-pin-fixtures.js";
 import { PUBLIC_URL as PIN_PUBLIC_URL } from "../support/bug-pin-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
-import { loginAsAdmin } from "../support/bug-pin-auth.js";
+import { loginAsAdmin, pinSessionRequest } from "../support/bug-pin-auth.js";
 import { waitForAgentDaemon } from "../support/bug-pin-daemon.js";
 
 // Preserve the retired configs' effective Chromium viewport (Desktop Chrome or browser default).
 // Nested test.use and explicit resizes still win.
 test.use({ viewport: { width: 1280, height: 720 } });
+
+// Hosts are opt-in; these journeys exercise their real forms after explicit activation.
+test.beforeEach(async ({ page }) => {
+  await loginAsAdmin(page);
+  for (const pluginId of ["github-pages"]) {
+    const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+    expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+  }
+});
 
 // Migrated from agent-page-control-live-verification.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: agent-page-control-live-verification", () => {

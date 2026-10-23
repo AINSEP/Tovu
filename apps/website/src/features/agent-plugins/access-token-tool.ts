@@ -1,3 +1,4 @@
+import { findPluginCredentialCard, type PluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
 import { resolveOperatorLocale, type OperatorLocaleDeps } from './operator-locale.js';
@@ -65,6 +66,7 @@ export interface AgentPluginAccessTokenToolDeps
     Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
 }
 
 
@@ -264,7 +266,7 @@ export async function saveAgentPluginToken(
   optional: ToolExecutionOptions = {},
 ): Promise<SetAccessTokenResult> {
   const input = requireInputRecord({ input: ctx.input });
-  const card = defineSecretCardTool<{ target: TokenAuthTarget; principalId: string; locale: string }, SetAccessTokenResult, SetAccessTokenResult>({
+  const card = defineSecretCardTool<{ target: TokenAuthTarget; principalId: string; locale: string; credentialCard?: PluginCredentialCard }, SetAccessTokenResult, SetAccessTokenResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async ({ ctx }) => {
       if (Object.keys(input).some((key) => key !== "pluginId")) {
@@ -278,9 +280,10 @@ export async function saveAgentPluginToken(
       const target = await resolveTarget(routeDeps, pluginId, ctx.principal.id, { signal: ctx.signal });
       await requireTargetRow(routeDeps, target);
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      return { target, principalId: ctx.principal.id, locale };
+      const credentialCard = await findPluginCredentialCard({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId, saveKind: "agent-plugin-token", target: pluginId });
+      return { target, principalId: ctx.principal.id, locale, credentialCard };
     },
-    form: ({ prep }) => buildAgentPluginAccessTokenForm({ pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tovuTokenAuth.helpUrl }),
+    form: ({ prep }) => buildAgentPluginAccessTokenForm({ pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tovuTokenAuth.helpUrl, credentialCard: prep.credentialCard }),
     save: ({ values, prep, signal }) => saveSubmittedAccessToken({ values, routeDeps, ...prep, signal }),
     result: ({ prep, run }) => accessTokenResult({ run, locale: prep.locale }),
     outcome: ({ prep, run }) => {

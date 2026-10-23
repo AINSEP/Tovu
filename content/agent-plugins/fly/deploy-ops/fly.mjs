@@ -28,16 +28,20 @@ async function status(ctx, { target }) {
   const machines = response.json; const state = overall(machines);
   return { platform: "fly", target, state, summary: `${machines.length} machines: ${state}`, items: machines.slice(0, 500).map(m => ({ id: text(m.id), state: text(m.state), detail: text(`region=${text(m.region)}; image=${text(imageRef(m))}; checks=${(m.checks ?? []).map(c => `${text(c.name)}:${text(c.status)}`).join(",")}; updated_at=${text(m.updated_at)}`) })), checkedAt: ctx.nowIso() };
 }
+function flyLogOrigin({ entry }, _options = {}) {
+  return { ...(entry.timestamp || entry.at ? { at: text(entry.timestamp ?? entry.at) } : {}), ...(entry.instance || entry.source ? { source: text(entry.instance ?? entry.source) } : {}) };
+}
+function flyLogLine({ entry }, _options = {}) {
+  if (typeof entry === "string") return { message: text(entry) };
+  return { ...flyLogOrigin({ entry }), ...(entry.level ? { level: text(entry.level) } : {}), message: text(entry.message ?? entry.msg ?? "") };
+}
 /** HTTP logs endpoint not verified live. Accept array, logs wrapper, JSON lines or plain log text. */
 async function logs(ctx, { target, limit }) {
   const response = await ctx.get(`https://api.fly.io/api/v1/apps/${app(ctx, target)}/logs`);
   let entries = Array.isArray(response.json) ? response.json : response.json?.logs;
   if (!Array.isArray(entries)) entries = response.text.split(/\r?\n/).filter(Boolean).map(line => { try { return JSON.parse(line); } catch { return { message: line }; } });
   if (entries.some(entry => entry === null || (typeof entry !== "string" && (typeof entry !== "object" || Array.isArray(entry))))) ctx.fail("Log response contains an invalid entry.");
-  const lines = entries.slice(0, limit).map(entry => {
-    if (typeof entry === "string") return { message: text(entry) };
-    return { ...(entry.timestamp || entry.at ? { at: text(entry.timestamp ?? entry.at) } : {}), ...(entry.instance || entry.source ? { source: text(entry.instance ?? entry.source) } : {}), ...(entry.level ? { level: text(entry.level) } : {}), message: text(entry.message ?? entry.msg ?? "") };
-  });
+  const lines = entries.slice(0, limit).map(entry => flyLogLine({ entry }));
   return { platform: "fly", target, lines, truncated: response.truncated === true || entries.length > limit || entries.some(e => String(typeof e === "string" ? e : e.message ?? e.msg ?? "").length > 2000) };
 }
 /** List apps in personal (default) or the explicitly supplied organization. No credential is exposed. */

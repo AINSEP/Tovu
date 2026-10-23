@@ -38,6 +38,15 @@ function parseExt(rawExt: string): JsonObject | undefined {
   return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
+function readPostAttribution({ row }: { row: PostRow }, _options: Record<string, never> = {}) {
+  return {
+    createdByPrincipalId: row.created_by_principal_id ?? null,
+    createdAt: row.created_at ?? null,
+    author: row.author ?? null,
+    showAuthor: toBool(row.show_author) ?? false,
+  };
+}
+
 /** SQL nullable metadata and boolean representations normalized at the row boundary. */
 function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, never> = {}) {
   return {
@@ -46,10 +55,7 @@ function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, ne
     templateChoice: row.template_choice ?? null,
     overridesThemePage: toBool(row.overrides_theme_page),
     memberAccessJson: row.member_access_json ?? null,
-    createdByPrincipalId: row.created_by_principal_id ?? null,
-    createdAt: row.created_at ?? null,
-    author: row.author ?? null,
-    showAuthor: toBool(row.show_author) ?? false,
+    ...readPostAttribution({ row }),
   };
 }
 
@@ -89,15 +95,8 @@ export function toRecord(row: PostRow): PostRecord {
   };
 }
 
-/** Persist nullable metadata, including restore markers and insert-only attribution. */
-function writePostMetadata({ record }: { record: PostRecord }, _options: Record<string, never> = {}) {
+function writePostAccessAndAttribution({ record }: { record: PostRecord }, _options: Record<string, never> = {}) {
   return {
-    seo_ext_json: record.seoExtJson ?? null,
-    // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
-    // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
-    // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
-    deleted_at: record.deletedAt ?? null,
-    template_choice: record.templateChoice ?? null,
     // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
     // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
     // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
@@ -113,6 +112,28 @@ function writePostMetadata({ record }: { record: PostRecord }, _options: Record<
     // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
     created_by_principal_id: record.createdByPrincipalId ?? null,
     created_at: record.createdAt ?? null,
+  };
+}
+
+/** Persist nullable metadata, including restore markers and insert-only attribution. */
+function writePostMetadata({ record }: { record: PostRecord }, _options: Record<string, never> = {}) {
+  return {
+    seo_ext_json: record.seoExtJson ?? null,
+    // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
+    // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
+    // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
+    deleted_at: record.deletedAt ?? null,
+    template_choice: record.templateChoice ?? null,
+    ...writePostAccessAndAttribution({ record }),
+  };
+}
+
+function writePostPublication({ record }: { record: PostRecord }, _options: Record<string, never> = {}) {
+  return {
+    publish_at: record.publishAt ?? null,
+    featured_media_id: record.featuredMediaId ?? null,
+    author: record.author ?? null,
+    show_author: record.showAuthor ?? false,
   };
 }
 
@@ -149,10 +170,7 @@ export function toRow(record: PostRecord) {
     updated_at: record.updatedAt,
     version: record.version,
     ...writePostMetadata({ record }),
-    publish_at: record.publishAt ?? null,
-    featured_media_id: record.featuredMediaId ?? null,
-    author: record.author ?? null,
-    show_author: record.showAuthor ?? false,
+    ...writePostPublication({ record }),
     ext: JSON.stringify(record.ext ?? {}),
   } satisfies Insertable<ContentDatabase["posts"]>;
 }

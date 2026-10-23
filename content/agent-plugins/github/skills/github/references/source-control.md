@@ -43,15 +43,14 @@ This surprises people and is worth stating flatly.
 
 - `custom_credential_*` reads the **Access Tokens** page's *Add custom provider* table. That is
   where a credential labelled `github` lives.
-- `source_control_*` reads a **separate** table, connected on the admin's **Source Control** page.
+- `source_control_*` reads a **separate** table, connected with `credential_save {kind:"plugin-provider",target:"github-source-control"}`.
 
 A workspace can have one and not the other. **A saved `github` custom credential does not make
 `source_control_execute_commit` work**, and a connected Source Control provider does not give
 `custom_credential_make_request` a label to use.
 
 So: call `source_control_get_capabilities` before you promise a human anything about committing an
-export. And never ask a human to paste a token into chat to bridge the gap — point them at the
-admin page that saves it encrypted, which is exactly what that page is for.
+export. And never ask a human to paste a token into chat to bridge the gap — open the plugin’s source-control card, which saves it encrypted through that owner.
 
 ---
 

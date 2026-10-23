@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, type SiteConsentAutoEnablePort } from '../settings.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
@@ -73,7 +73,7 @@ test('a policy version beyond 128 characters is refused even within the general 
   await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Cookie consent policy version must contain 1–128 characters.' });
 });
 
-test('settings stay OFF by default, use the existing ledger and isolate site choices', async () => {
+test('all sites default ON through the existing ledger and isolate explicit site choices', async () => {
   const { deps, settingsRepo, write } = await ledger();
   const before = await settingsRepo.maxRevisionSeq();
   await ensureSiteConsentDefinitions(deps, { systemPrincipalId: 'system-test' });
@@ -89,6 +89,7 @@ test('settings stay OFF by default, use the existing ledger and isolate site cho
 test('WebMCP bootstrap does not own or register public consent settings', async () => {
   const { deps, settingsRepo, write } = await ledger({ register: false });
   await ensureSettingsUiTabDefinitions(deps, { systemPrincipalId: 'system-test' });
+  assert.equal(await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', workspaceId: null }), null);
   assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
   await assert.rejects(write('enabled', true));
 });
@@ -101,7 +102,7 @@ test('invalid enabled copy fails visibly, but disabling remains a safe rollback'
   await write('policyVersion', '1'); await write('message', 'x'.repeat(2001));
   await assert.rejects(config.get({}), { message: 'Cookie consent setting message exceeds 2000 characters.' });
   await write('enabled', false);
-  assert.deepEqual(await config.get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await config.get({}), SITE_CONSENT_OFF);
 });
 
 test('request ports ignore region headers until configured and parse malformed cookies without throwing', async () => {
@@ -151,7 +152,7 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   const { deps, settingsRepo, write } = await ledger({ register: false });
   let release!: () => void;
   const after = new Promise<void>(resolve => { release = resolve; });
-  const ready = createSiteConsentReadiness(deps, { after, systemPrincipalId: 'system-test' });
+  const ready = createSiteConsentReadiness({ ...deps, after, systemPrincipalId: 'system-test' });
   assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
   release(); await ready;
   await write('enabled', true);
@@ -164,62 +165,33 @@ test('consent has independent readiness after the shared ledger boot and cannot 
       throw new Error('Consent registration failure');
     }
   }
-  const failed = createSiteConsentReadiness({ ...fresh.deps, settingsRepo: new FailingSettingsRepo() }, { after: webmcp, systemPrincipalId: 'system-test' });
+  const failed = createSiteConsentReadiness({ ...fresh.deps, settingsRepo: new FailingSettingsRepo(), after: webmcp, systemPrincipalId: 'system-test' }, {
+    ensurePrivacyDefaults: async () => assert.fail('definition registration must remain the gate'),
+  });
   await assert.rejects(failed, { message: 'Consent registration failure' });
   await webmcp;
 });
 
-test('an omitted or explicitly undefined auto-enable port preserves the default OFF result', async () => {
-  const { settingsRepo } = await ledger();
-  const required = { settingsRepo, workspaceId: 'site-a' };
-  assert.deepEqual(await createSiteConsentConfig(required).get(), SITE_CONSENT_DEFAULTS);
-  assert.deepEqual(await createSiteConsentConfig(required, { autoEnable: undefined }).get(), SITE_CONSENT_DEFAULTS);
-});
-
-test('automatic consent stays OFF until the new live site has a valid published privacy link', async () => {
-  const cases = [
-    { live: false, url: '/privacy', exists: true, pageCalls: [] },
-    { live: true, url: '', exists: true, pageCalls: [] },
-    { live: true, url: 42, exists: true, pageCalls: [] },
-    { live: true, url: 'http://example.test/privacy', exists: true, pageCalls: [] },
-    { live: true, url: '/privacy', exists: false, pageCalls: ['/privacy'] },
-  ];
-  for (const scenario of cases) {
-    const { settingsRepo } = await ledger();
-    await persistUnchecked(settingsRepo, 'privacyPolicyUrl', scenario.url);
-    const pageCalls: string[] = [];
-    const autoEnable: SiteConsentAutoEnablePort = {
-      isNewLiveSite: async () => scenario.live,
-      privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return scenario.exists; },
-    };
-    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), SITE_CONSENT_DEFAULTS);
-    assert.deepEqual(pageCalls, scenario.pageCalls);
+test('all no-choice sites default ON, including missing definitions', async () => {
+  for (const register of [false, true]) {
+    const { settingsRepo } = await ledger({ register });
+    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), SITE_CONSENT_DEFAULTS);
+    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: true, source: 'default' });
   }
 });
 
-test('a new live site automatically enables consent after its linked privacy page exists', async () => {
-  const { settingsRepo, write } = await ledger();
-  await write('privacyPolicyUrl', '/privacy');
-  const pageCalls: string[] = [];
-  const autoEnable: SiteConsentAutoEnablePort = {
-    isNewLiveSite: async () => true,
-    privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return true; },
-  };
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
-    ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy',
-  });
-  assert.deepEqual(pageCalls, ['/privacy']);
+test('the ledger default stays distinguishable from an explicit owner choice', async () => {
+  const { settingsRepo } = await ledger();
+  const definition = await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', workspaceId: null });
+  assert.equal(definition?.defaultValue, false);
 });
 
-test('an explicit owner choice bypasses automatic eligibility and page lookups', async () => {
+test('explicit owner ON and OFF win over the product default', async () => {
   for (const enabled of [false, true]) {
     const { settingsRepo, write } = await ledger();
     await write('enabled', enabled);
-    const autoEnable: SiteConsentAutoEnablePort = {
-      isNewLiveSite: async (): Promise<boolean> => { assert.fail('owner choice must bypass eligibility'); },
-      privacyPageExists: async (): Promise<boolean> => { assert.fail('owner choice must bypass page lookup'); },
-    };
-    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
+    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled, source: 'owner' });
+    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), {
       ...SITE_CONSENT_DEFAULTS, enabled,
     });
   }
@@ -246,4 +218,36 @@ test('policy versions reject whitespace and preserve exactly 128 characters with
   const settings = await config.get();
   assert.equal(settings.policyVersion, version);
   assert.equal(settings.message.length, 2000);
+});
+
+test('readiness registers definitions before privacy creation and awaits its completion', async () => {
+  const { deps, settingsRepo } = await ledger({ register: false });
+  let start!: () => void, finish!: () => void;
+  const after = new Promise<void>(resolve => { start = resolve; });
+  const contentReady = new Promise<void>(resolve => { finish = resolve; });
+  let called = false, settled = false;
+  const ready = createSiteConsentReadiness({ ...deps, after, systemPrincipalId: 'system-test' }, { ensurePrivacyDefaults: async () => {
+    assert.ok(await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'privacyPolicyUrl', workspaceId: null }));
+    called = true; await contentReady;
+  } });
+  void ready.then(() => { settled = true; });
+  assert.equal(called, false); start();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(called, true); assert.equal(settled, false);
+  finish(); await ready; assert.equal(settled, true);
+});
+
+test('privacy bootstrap failure is reported without blocking consent and retries on next open', async (t) => {
+  const { deps } = await ledger();
+  const failure = new Error('privacy bootstrap failed');
+  const logged: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
+  let attempts = 0;
+  const options = { ensurePrivacyDefaults: async () => { if (++attempts === 1) throw failure; } };
+  await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
+  assert.deepEqual(logged, [['[consent] privacy defaults failed: privacy bootstrap failed']]);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: 'site-a' }).get(), SITE_CONSENT_DEFAULTS);
+  await createSiteConsentReadiness({ ...deps, after: Promise.resolve(), systemPrincipalId: 'system-test' }, options);
+  assert.equal(attempts, 2);
+  assert.equal(logged.length, 1);
 });

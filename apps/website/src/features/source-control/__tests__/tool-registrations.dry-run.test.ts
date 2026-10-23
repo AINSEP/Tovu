@@ -1,3 +1,4 @@
+import { exampleRegistry } from "./fixtures/example-provider.js";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -64,6 +65,7 @@ function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteB
   const base = createRouteDeps();
   return {
     ...base,
+    loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["example-git"] }),
     sourceControlExportRootDir: exportRootDir,
     exportSiteBound: options.exportSiteBound,
     gitAdapter: options.gitAdapter,
@@ -71,10 +73,9 @@ function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteB
   };
 }
 
-async function seedGithubCredential(deps: SourceControlToolDeps, token = "ghp_fake_token_never_real"): Promise<void> {
+async function seedExampleGitCredential(deps: SourceControlToolDeps, token = "fixture_fake_token_never_real"): Promise<void> {
   await createSourceControlCredential(
-    { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "Test", connection: { providerId: "github", token } }
+    { deps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["example-git", "example-token", "example-paired"] }) }, input: { workspaceId: deps.workspaceId, label: "Test", connection: { providerId: "example-git", token } } }
   );
 }
 
@@ -102,13 +103,13 @@ test("source_control_execute_commit dryRun:true previews the export without comm
   const gitAdapterCalls = { count: 0 };
   const captured: { outputDir: string | null } = { outputDir: null };
   const deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(gitAdapterCalls), exportSiteBound: fakeExportSiteBound(captured) });
-  await seedGithubCredential(deps);
+  await seedExampleGitCredential(deps);
   const executeCommit = buildExecuteCommitTool(deps);
 
   const emitted: unknown[] = [];
   const result = (await call(
     executeCommit,
-    { provider: "github", owner: "octo", repo: "my-site", commitMessage: "content update", dryRun: true },
+    { provider: "example-git", owner: "octo", repo: "my-site", commitMessage: "content update", dryRun: true },
     async (s) => void emitted.push(s)
   )) as { dryRun: boolean; committed: boolean; fileCount: number; totalBytes: number; paths: string[]; credentialConfigured: boolean };
 
@@ -124,7 +125,7 @@ test("source_control_execute_commit dryRun:true previews the export without comm
   assert.equal(existsSync(captured.outputDir!), false, "the temp export dir must be cleaned up after a dry run preview");
 });
 
-test("source_control_execute_commit dryRun:true reports credentialConfigured:false honestly when no GitHub credential is saved, still without a dialog", async () => {
+test("source_control_execute_commit dryRun:true reports credentialConfigured:false honestly when no Example Git credential is saved, still without a dialog", async () => {
   const gitAdapterCalls = { count: 0 };
   const captured: { outputDir: string | null } = { outputDir: null };
   const deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(gitAdapterCalls), exportSiteBound: fakeExportSiteBound(captured) });
@@ -133,7 +134,7 @@ test("source_control_execute_commit dryRun:true reports credentialConfigured:fal
   const emitted: unknown[] = [];
   const result = (await call(
     executeCommit,
-    { provider: "github", owner: "octo", repo: "my-site", commitMessage: "content update", dryRun: true },
+    { provider: "example-git", owner: "octo", repo: "my-site", commitMessage: "content update", dryRun: true },
     async (s) => void emitted.push(s)
   )) as { dryRun: boolean; credentialConfigured: boolean };
 
@@ -158,7 +159,7 @@ for (const kind of ["throw", "route", "asset"] as const) {
     const deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(gitCalls), exportSiteBound });
     const emitted: unknown[] = [];
     const result = await call(buildExecuteCommitTool(deps), {
-      provider: "github", owner: "octo", repo: "site", commitMessage: "preview", dryRun: true,
+      provider: "example-git", owner: "octo", repo: "site", commitMessage: "preview", dryRun: true,
     }, async surface => { emitted.push(surface); }) as Record<string, unknown>;
     assert.equal(result.code, "EXPORT_FAILED");
     assert.equal(result.dryRun, true);

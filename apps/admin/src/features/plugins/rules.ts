@@ -412,7 +412,7 @@ export function agentPluginDisplayName(plugin: { pluginId: string; displayName?:
  */
 const AGENT_PLUGIN_GLYPH_VOCABULARY: ReadonlyArray<readonly [AgentPluginGlyphKind, readonly string[]]> = [
   ["compliance", ["compliance", "privacy", "gdpr", "ccpa", "cpra", "consent", "security", "audit", "wcag", "accessibility"]],
-  ["deploy", ["deploy", "deployment", "hosting", "release", "ship", "production", "ci", "fly"]],
+  ["deploy", ["deploy", "deployment", "hosting", "release", "ship", "production", "ci"]],
   ["design", ["design", "ui", "ux", "uiux", "theme", "brand", "visual"]],
   ["integration", ["mcp", "integration", "connector", "webhook", "api"]],
   ["content", ["docs", "documentation", "content", "writing", "copy", "blog"]],

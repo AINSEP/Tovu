@@ -104,7 +104,10 @@ function toItemRow(item: ChangeSetItemRecord): Insertable<ChangeSetItemsTable> {
 }
 
 export class SqlChangeSetRepo implements ChangeSetRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /** Header + items + (when supplied) the outbox event land as one atomic transaction — never a
    * partial write (ADR-046 Phase 1's "transaction participation" requirement, and BR-04's

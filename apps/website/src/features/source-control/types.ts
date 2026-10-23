@@ -4,59 +4,17 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";
 
-/**
- * @file Domain types for named, workspace-scoped source-control identity connections
- * (`source_control_credential_sets`, `src/platform/db/schema.sqlite.ts`). Structurally mirrors
- * `features/deployments/publish-credentials/types.ts` — see that file's own header for the design
- * this one copies verbatim — but is its OWN closed provider union, deliberately not reusing
- * `PublishProviderId`: that type is a deploy-target id by design (aliased to
- * `AdminStaticPublishTargetId` so the two can never drift), and none of GitLab, Bitbucket, or a
- * *source* GitHub account is a static-publish target. See `src/platform/db/schema.sqlite.ts`'s
- * `sourceControlCredentialSets` doc comment for the full "why a second table, not a wider union"
- * reasoning.
- *
- * Purpose:
- * This page connects an IDENTITY, not a publish target — no commit history, sync, or versioning
- * lives here (see the admin `SourceControl.tsx` page's own header for that scope boundary). A saved
- * connection's `SourceControlConnectionInput` therefore carries only what authenticates the account
- * (a token, plus Bitbucket's paired username) — never a repository, owner, or branch, which are
- * per-operation choices a future git-operating caller would supply, not properties of the saved
- * credential.
- *
- * Architectural role:
- * Domain types only — no I/O, no sealer/keyring dependency. `store.ts` is the one place a
- * `SourceControlConnectionInput` is validated, serialized, and sealed; `repo.memory.ts`/
- * `../../db/sqlite/source-control-credential-repo.sqlite.ts` are the two
- * `SourceControlCredentialSetRepoPort` adapters (ADR-006 rule-of-two).
- */
+/** Source-control identities are separate from deploy targets: they carry authentication,
+ * never a repository, owner or branch. The store seals the complete connection as one blob.
+ * Provider ids and saved fields remain opaque when their plugin is absent. */
+export type SourceControlProviderId = string;
 
-export type SourceControlProviderId = "github" | "gitlab" | "bitbucket";
-
-export interface GitHubSourceControlConnectionInput {
-  readonly providerId: "github";
+/** New writes follow the provider's existing credential declaration; persisted fields survive reads. */
+export interface SourceControlConnectionInput {
+  readonly providerId: SourceControlProviderId;
   readonly token: string;
+  readonly [field: string]: string;
 }
-
-export interface GitLabSourceControlConnectionInput {
-  readonly providerId: "gitlab";
-  readonly token: string;
-}
-
-/** Bitbucket authenticates the pair, not the token alone — same citation
- *  `apps/admin/src/features/source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS` gives. */
-export interface BitbucketSourceControlConnectionInput {
-  readonly providerId: "bitbucket";
-  readonly token: string;
-  readonly username: string;
-}
-
-/** Closed discriminated union — see this file's header. This whole object is what gets serialized
- *  to JSON and sealed as ONE ciphertext blob per credential set (never per-field columns — see
- *  `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` header for why). */
-export type SourceControlConnectionInput =
-  | GitHubSourceControlConnectionInput
-  | GitLabSourceControlConnectionInput
-  | BitbucketSourceControlConnectionInput;
 
 /** A `source_control_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
  *  `SealedSecret` — nothing in this feature decrypts it yet; see this file's header on the
@@ -71,10 +29,7 @@ export interface SourceControlCredentialSetRecord {
   /** At most one `TRUE` per `(workspaceId, providerId)`, maintained by `store.ts`'s write path —
    *  see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets.isDefault` doc. */
   readonly isDefault: boolean;
-  /** Migration `0044` (2026-08-16) — the verified GitHub `login`, held in the clear (never sealed) —
-   *  see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets.accountLabel` doc for the full reasoning.
-   *  `null` for `gitlab`/`bitbucket` connections (no reviewed identity extractor exists for either
-   *  yet) and for a `github` connection whose save-time identity probe failed or timed out. */
+  /** Verified account label, or null when no provider identity probe succeeds. */
   readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;

@@ -21,7 +21,7 @@ function decodeHtmlEntities(text: string): string {
   return text.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
     if (entity[0] !== "#") {
       const name = entity.toLowerCase();
-      return Object.hasOwn(HTML_NAMED_ENTITIES, name) ? HTML_NAMED_ENTITIES[name] : match;
+      return (Object.hasOwn(HTML_NAMED_ENTITIES, name) ? HTML_NAMED_ENTITIES[name] : undefined) ?? match;
     }
     const codePoint = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
     // Stored prose may contain an invalid reference. Preserve it instead of throwing or creating
@@ -64,12 +64,14 @@ function stripPostDetailHeader(html: string): string {
   let rest = html;
   for (let open = POST_DETAIL_HEADER_OPEN.exec(rest); open; open = POST_DETAIL_HEADER_OPEN.exec(rest)) {
     const contentStart = open.index + open[0].length;
-    if (!open[3].split(/[\t\n\f\r ]+/).includes("post-detail-header")) {
+    // Groups 1 (tag) and 3 (class value) are not optional, so a match always fills them.
+    const [, tag = "", , classValue = ""] = open;
+    if (!classValue.split(/[\t\n\f\r ]+/).includes("post-detail-header")) {
       kept += rest.slice(0, contentStart);
       rest = rest.slice(contentStart);
       continue;
     }
-    const end = findBalancedCloseEnd(rest, open[1], contentStart);
+    const end = findBalancedCloseEnd(rest, tag, contentStart);
     kept += end === -1 ? rest.slice(0, contentStart) : `${rest.slice(0, open.index)} `;
     rest = rest.slice(end === -1 ? contentStart : end);
   }

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import path from "node:path";
 import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -12,18 +11,15 @@ import {
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
-import { loadMailAdapterRegistryFromSource, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { createResolvedMailer, parseSmtpEndpoint, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `createResolvedMailer` — explicit per-lane selection from `core.mail.provider`, the
- * first-boot migration that replays the old plugin -> SMTP -> console chain once, and the
- * production refusal of unconfigured lanes. No test in this file sends a real email or makes a live API call: the
- * plugin branch runs the bundled `resend` plugin's real adapter (read from its source directory)
- * over a fake `HttpClientPort`, and the SMTP branch an injected fake transport factory (never the
- * real `createNodemailerSmtpTransport`).
+ * initialization as unconfigured and production refusal. Plugin modules and SMTP transports
+ * are injected fakes; no real plugin source or network is used.
  */
 
 const WORKSPACE = "ws-1";
@@ -31,14 +27,21 @@ const WORKSPACE = "ws-1";
 /** The label sites already saved their Resend key under; it now lives in the plugin's descriptor. */
 const MAIL_HTTP_API_CREDENTIAL_LABEL = "Tovu Mail — Resend API";
 
-const RESEND_PLUGIN_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/resend");
-
-let bundledRegistry: Promise<MailAdapterRegistry> | undefined;
-
-/** The bundled `resend` plugin's registry, as an enabled, seeded install would load it. */
-function loadBundledMailAdapters(): Promise<MailAdapterRegistry> {
-  bundledRegistry ??= loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: RESEND_PLUGIN_ROOT });
-  return bundledRegistry;
+/** Synthetic provider uses the same injected HTTP port as any plugin adapter. */
+async function loadBundledMailAdapters(): Promise<MailAdapterRegistry> {
+  return { refusals: [], list: () => [{ pluginId: "fixture-mail", descriptor: {
+    schemaVersion: 2, id: "resend", label: "Resend", module: "fake.mjs", credentialLabel: MAIL_HTTP_API_CREDENTIAL_LABEL, credentialKeys: ["token"], feedback: false,
+  }, module: {
+    id: "resend", capabilities: { hosted: true, feedback: false, domainVerification: false },
+    create: ({ credential, kit }: { credential: { token: string }; kit: { httpClient: HttpClientPort } }) => ({
+      capabilities: () => ({ driver: "resend", supportsIdempotencyKey: true, supportsWebhookFeedback: true, maxBatchSize: 100, supportsAttachments: true }),
+      send: async () => {
+        await kit.httpClient.send({ method: "POST", url: "https://mail.example/send", idleTimeoutMs: 1000, headers: { Authorization: `Bearer ${credential.token}` } });
+        return { ok: true, providerMessageId: "fixture-id", acceptedAt: "2026-10-22T00:00:00Z" };
+      },
+      sendBatch: async () => [],
+    }),
+  } as never }] };
 }
 
 const EMPTY_REGISTRY: MailAdapterRegistry = { list: () => [], refusals: [] };
@@ -147,30 +150,44 @@ test("parseSmtpEndpoint: explicit 465/443 are secure, 587 and other ports are no
   assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com"), { host: "smtp.example.com", port: 443, secure: true });
 });
 
-test("first boot with a saved hosted-API key: the old chain's pick (resend) is written for both lanes and delivers", async () => {
+test("first boot with a saved hosted-API key stays unconfigured without calling the provider", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await saveResendKey(credentialDeps);
   const httpClient = new FakeHttpClient();
   const providerSetting = memorySetting();
   const { mailer, ready } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, httpClient, providerSetting }));
   await ready;
-  assert.deepEqual(providerSetting.writes, [{ transactional: "resend", bulk: "resend" }]);
-  assert.equal(mailer.capabilities().driver, "resend");
-  assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
-  assert.equal(httpClient.calls[0]!.headers.Authorization, "Bearer re_live_key");
+  assert.deepEqual(providerSetting.writes, [{ transactional: null, bulk: null }]);
+  assert.equal(mailer.capabilities().driver, "console");
+  const sent = await mailer.send(MESSAGE, OPTIONS);
+  assert.equal(!sent.ok && sent.errorCode, "MAIL_UNCONFIGURED");
+  assert.equal(httpClient.calls.length, 0);
 });
 
-test("first boot with only an SMTP key: smtp is written, and the transport gets the parsed endpoint", async () => {
+test("first boot with a saved SMTP key stays unconfigured and never constructs a transport", async () => {
+  const credentials = makeCredentialWriteDeps();
+  await saveSmtpKey(credentials);
+  const providerSetting = memorySetting();
+  const { mailer, ready } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentials.repo, sealer: credentials.sealer, providerSetting,
+    createSmtpTransport: () => assert.fail("a saved key cannot select SMTP"),
+  }));
+  await ready;
+  assert.deepEqual(providerSetting.value, { transactional: null, bulk: null });
+  const result = await mailer.send(MESSAGE, OPTIONS);
+  assert.equal(!result.ok && result.errorCode, "MAIL_UNCONFIGURED");
+});
+
+test("an explicit SMTP selection uses the saved key and parsed endpoint", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await saveSmtpKey(credentialDeps);
   let captured: unknown;
-  const providerSetting = memorySetting();
+  const providerSetting = memorySetting({ transactional: "smtp", bulk: "smtp" });
   const { mailer, ready } = createResolvedMailer(makeResolveDeps({
     customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting, loadMailAdapters: async () => EMPTY_REGISTRY,
     createSmtpTransport: (config) => { captured = config; return { sendMail: async () => ({ messageId: "smtp-1" }) }; },
   }));
   await ready;
-  assert.deepEqual(providerSetting.writes, [{ transactional: "smtp", bulk: "smtp" }]);
+  assert.deepEqual(providerSetting.writes, []);
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
   assert.deepEqual(captured, { host: "smtp.example.com", port: 465, secure: true, auth: { user: "mailer@example.com", pass: "app-password" } });
 });
@@ -207,7 +224,7 @@ test("local mode: an unconfigured lane logs through the console provider and suc
   assert.match(lines[0]!, /\[mail:console\] to=a@example.com/);
 });
 
-test("first boot after an upgrade: a mail key whose plugin is not installed yet is not pinned as unconfigured", async () => {
+test("installing a plugin after first boot never selects it through a saved key", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await saveResendKey(credentialDeps);
   const providerSetting = memorySetting();
@@ -217,10 +234,11 @@ test("first boot after an upgrade: a mail key whose plugin is not installed yet 
     loadMailAdapters: () => (installed ? loadBundledMailAdapters() : Promise.resolve(EMPTY_REGISTRY)),
   }));
   await ready;
-  assert.deepEqual(providerSetting.writes, [], "nothing persisted while the key's plugin is missing");
+  assert.deepEqual(providerSetting.writes, [{ transactional: null, bulk: null }]);
   installed = true;
-  assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
-  assert.deepEqual(providerSetting.writes, [{ transactional: "resend", bulk: "resend" }]);
+  const sent = await mailer.send(MESSAGE, OPTIONS);
+  assert.equal(!sent.ok && sent.errorCode, "MAIL_UNCONFIGURED");
+  assert.deepEqual(providerSetting.value, { transactional: null, bulk: null });
 });
 
 test("after the setting exists, selection reads only it: a saved resend key does not override smtp", async () => {
@@ -242,6 +260,7 @@ test("after the setting exists, selection reads only it: a saved resend key does
   // The bulk lane routes to its own provider.
   await mailer.send(MESSAGE, { ...OPTIONS, purpose: "bulk" });
   assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0]!.headers.Authorization, "Bearer re_live_key");
   assert.deepEqual(providerSetting.writes, []);
 });
 
@@ -272,19 +291,20 @@ test("an unknown provider id reports the plugin refusals; a settings fault becom
 
   const broken = createResolvedMailer(makeResolveDeps({ providerSetting: { read: async () => { throw new Error("db down"); }, write: async () => {} } }));
   const refused = await broken.mailer.send(MESSAGE, OPTIONS);
-  assert.equal(!refused.ok && refused.message, "mail provider selection failed (db down)");
+  assert.equal(!refused.ok && refused.message, "Mail provider selection failed; check configuration.");
 });
 
-test("a failed migration write warns and still serves this send from the computed setting", async () => {
+test("a failed initialization write warns without leaking detail and leaves delivery unconfigured", async () => {
   const warnings: string[] = [];
   const credentialDeps = makeCredentialWriteDeps();
   await saveResendKey(credentialDeps);
   const { mailer } = createResolvedMailer(makeResolveDeps({
     customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer,
-    providerSetting: { read: async () => null, write: async () => { throw new Error("locked"); } },
+    providerSetting: { read: async () => null, write: async () => { throw new Error("locked (password=migration-secret)"); } },
   }, warnings));
-  assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true);
-  assert.match(warnings[0]!, /could not be saved \(locked\)/);
+  assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, false);
+  assert.equal(warnings[0], "[mail] the mail provider setting could not be saved; retrying on the next send");
+  assert.doesNotMatch(warnings.join("\n"), /locked|migration-secret/);
 });
 
 test("wrapProviderMailer decorates each resolved provider once", async () => {
@@ -402,7 +422,7 @@ test("a saved but undecryptable key for the selected provider refuses with the d
   assert.match(warnings[0]!, /saved but could not be decrypted/);
 });
 
-test("first boot: an undecryptable plugin key falls through to SMTP, as the old chain did", async () => {
+test("first boot: saved SMTP and undecryptable plugin keys cannot select delivery", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await saveResendKey(credentialDeps);
   await saveSmtpKey(credentialDeps);
@@ -412,16 +432,16 @@ test("first boot: an undecryptable plugin key falls through to SMTP, as the old 
   const providerSetting = memorySetting();
   const { ready } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting, createSmtpTransport: () => new NeverCalledSmtpTransport() }));
   await ready;
-  assert.deepEqual(providerSetting.writes, [{ transactional: "smtp", bulk: "smtp" }]);
+  assert.deepEqual(providerSetting.writes, [{ transactional: null, bulk: null }]);
 });
 
-test("first boot: a failing credential store defers the migration instead of pinning unconfigured", async () => {
+test("first boot: a failing credential store does not prevent unconfigured initialization", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   const failing = Object.assign(Object.create(credentialDeps.repo) as CustomCredentialSetRepoPort, { vault: credentialDeps.repo.vault, listByWorkspace: async () => { throw new Error("db locked"); } });
   const providerSetting = memorySetting();
   const { mailer, ready } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: failing, sealer: credentialDeps.sealer, providerSetting }));
   await ready;
-  assert.deepEqual(providerSetting.writes, []);
+  assert.deepEqual(providerSetting.writes, [{ transactional: null, bulk: null }]);
   const result = await mailer.send(MESSAGE, OPTIONS);
   assert.equal(!result.ok && result.errorCode, "MAIL_UNCONFIGURED");
 });
@@ -436,10 +456,10 @@ test("a plugin registry that cannot be listed is reported as a refusal", async (
   assert.match(warnings[1]!, /could not be listed \(eio\)/);
 });
 
-test("non-Error faults are reported by value; a throwing warn is swallowed; the default warn is console.warn", async (t) => {
+test("selection faults use safe copy; a throwing warn is swallowed; the default warn is console.warn", async (t) => {
   const broken = createResolvedMailer(makeResolveDeps({ providerSetting: { read: async () => { throw "nope"; }, write: async () => {} } }));
   const refused = await broken.mailer.send(MESSAGE, OPTIONS);
-  assert.equal(!refused.ok && refused.message, "mail provider selection failed (nope)");
+  assert.equal(!refused.ok && refused.message, "Mail provider selection failed; check configuration.");
 
   const failingWrite = createResolvedMailer(makeResolveDeps({ loadMailAdapters: async () => EMPTY_REGISTRY, providerSetting: { read: async () => null, write: async () => { throw "locked"; } }, warn: () => { throw new Error("log sink down"); } }));
   const result = await failingWrite.mailer.send(MESSAGE, OPTIONS);
@@ -498,7 +518,7 @@ test("status: a failed or rejected domain check raises no warning; a provider wi
   assert.equal(status.state, "degraded");
 });
 
-test("first boot: a keyless plugin is never the migrated pick, and a v1 plugin still counts by its key", async () => {
+test("first boot: neither a keyless nor a v1 plugin with a saved key selects delivery", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
   const keyless = memorySetting();
@@ -507,17 +527,18 @@ test("first boot: a keyless plugin is never the migrated pick, and a v1 plugin s
   const v1Registry: MailAdapterRegistry = { refusals: [], list: () => [{ pluginId: "fixture", descriptor: { id: "postal", label: "Postal", module: "a.mjs", credentialLabel: "Postal key" }, module: { create: () => FIXTURE_MAILER } as never }] };
   const v1 = memorySetting();
   await createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting: v1, loadMailAdapters: async () => v1Registry })).ready;
-  assert.deepEqual(v1.writes, [{ transactional: "postal", bulk: "postal" }]);
+  assert.deepEqual(v1.writes, [{ transactional: null, bulk: null }]);
 });
 
-test("first boot: a credential store throwing a non-Error is reported by value and defers the migration", async () => {
+test("a selected provider credential store throwing a non-Error is redacted", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   const failing = Object.assign(Object.create(credentialDeps.repo) as CustomCredentialSetRepoPort, { vault: credentialDeps.repo.vault, listByWorkspace: async () => { throw "eio"; } });
   const warnings: string[] = [];
   const providerSetting = memorySetting({ transactional: "smtp", bulk: null });
   const { mailer } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: failing, sealer: credentialDeps.sealer, providerSetting }, warnings));
   await mailer.send(MESSAGE, OPTIONS);
-  assert.match(warnings[0]!, /looking up the "Tovu Mail — SMTP Server" credential failed \(eio\)/);
+  assert.match(warnings[0]!, /the "Tovu Mail — SMTP Server" credential could not be read/);
+  assert.doesNotMatch(warnings[0]!, /eio/);
   // Status treats an unreadable key as missing rather than failing.
   const status = await createResolvedMailer(makeResolveDeps({ customCredentialRepo: failing, sealer: credentialDeps.sealer, providerSetting, readSenderEmail: async () => "news@example.com" })).status();
   assert.equal(status.lanes[0]!.state, "missing_credential");
@@ -570,5 +591,8 @@ test("domainRequirements: the active transactional provider's records for the se
   assert.equal(asked.length, 1, "only the configured case reaches the provider");
 
   answer = { status: "rejected", error: { code: "unauthorized", message: "bad key" } };
-  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), /the mail provider 'postal' could not list the DNS records example\.com needs \(bad key\)/);
+  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
+  // A provider that never settles must still allow mail_dns_status to return requirements_failed.
+  const stalled = fixtureRegistry({ capabilities: { hosted: true, feedback: false, domainVerification: true }, domainRequirements: () => new Promise(() => {}), domainStatus: async () => ({ status: "ok", value: { domain: "example.com", state: "verified" } }), create: () => FIXTURE_MAILER });
+  await assert.rejects(make({ loadMailAdapters: async () => stalled, domainRequirementsTimeoutMs: 1 }).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
 });

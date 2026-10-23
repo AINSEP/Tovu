@@ -399,8 +399,9 @@ async function requeuePendingSends(required: { deps: SendPipelineDeps; campaign:
     const rows = await deps.sendRepo.listByCampaign({ workspaceId: campaign.workspaceId, campaignId: campaign.id, afterId, limit: 1000 });
     const pendingIds = rows.filter((row) => row.status === "pending" && row.audienceSnapshotId === audienceSnapshotId).map((row) => row.id);
     await enqueueSendBatches({ deps, campaign, audienceSnapshotId, sendIds: pendingIds });
-    if (rows.length < 1000) return;
-    afterId = rows[rows.length - 1].id;
+    const last = rows.at(-1);
+    if (rows.length < 1000 || last === undefined) return;
+    afterId = last.id;
   }
 }
 

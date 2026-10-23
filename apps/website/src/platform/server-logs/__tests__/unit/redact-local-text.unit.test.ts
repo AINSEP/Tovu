@@ -29,7 +29,8 @@ test("credentials are still redacted alongside the home path", () => {
   assert.ok(out.endsWith("~/key.pem"));
 });
 
-test("without options the current process home is masked", () => {
-  const out = redactLocalText({ text: `${os.homedir()}/private/gate.ts` });
-  assert.ok(!out.includes(`${os.homedir()}/private/gate.ts`));
+test("without options the current process home is masked", (t) => {
+  t.mock.method(os, "homedir", () => "/srv/hermetic-user");
+  const out = redactLocalText({ text: "/srv/hermetic-user/private/gate.ts" });
+  assert.equal(out, "~/private/gate.ts");
 });

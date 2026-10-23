@@ -20,7 +20,7 @@ const contributions = {
 /**
  * @file Pins the actual INCIDENT this dispatch closes, not just `TOOL_SEARCH_KEYWORDS`'/`DOC2QUERY`'s
  * contents. As of 2026-09-01, `custom_credential_verify`/`custom_credential_make_request` had shipped
- * with ZERO entries in either map: the owner watched the assistant run an entire Fly.io + name.com
+ * with ZERO entries in either map: the owner watched the assistant run an entire Fly.io + registrar
  * DNS session through raw `curl` in Bash while `custom_credential_make_request` sat unused and
  * unfound, and a separate session had already told the owner `custom_credential_verify` "did not
  * exist" after searching for it, finding it only two hours later once pushed back on. Per team
@@ -72,8 +72,8 @@ test('credential queries discover executable ids in the full production catalog 
     ['what credentials do I have saved', 'content_read.custom_credential'],
     ['list my API keys', 'content_read.custom_credential'],
     ['what tokens do I have', 'content_read.custom_credential'],
-    ['do I have a name.com token', 'content_read.custom_credential'],
-    ['what did I save for fly.io', 'content_read.custom_credential'],
+    ['do I have a registrar token', 'content_read.custom_credential'],
+    ['what did I save for my hosting provider', 'content_read.custom_credential'],
     ['call an external API with my saved token', 'custom_credential_make_request'],
     ['make a request to an external service', 'custom_credential_make_request'],
     ['hit a third-party API with my saved credential', 'custom_credential_make_request'],
@@ -101,9 +101,9 @@ test("'list my API keys' and 'what tokens do I have' both find custom_credential
   }
 });
 
-test("'do I have a name.com token' and 'what did I save for fly.io' both find custom_credential_list", () => {
+test("'do I have a registrar token' and 'what did I save for my hosting provider' both find custom_credential_list", () => {
   const catalog = buildToolCatalogQuery(fakeRegistry());
-  for (const query of ["do I have a name.com token", "what did I save for fly.io"]) {
+  for (const query of ["do I have a registrar token", "what did I save for my hosting provider"]) {
     const hits = top3Ids(catalog, query);
     assert.ok(hits.includes("custom_credential_list"), `query "${query}": expected custom_credential_list in top-3; got ${hits.join(", ") || "(none)"}`);
   }

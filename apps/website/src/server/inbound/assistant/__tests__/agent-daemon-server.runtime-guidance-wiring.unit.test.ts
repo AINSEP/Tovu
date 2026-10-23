@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import test from "node:test";
 
 import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
-import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
+import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, SHORT_REPLY_GUIDANCE, DETAILED_REPLY_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { agentCapabilities, getAgentDef } from "@jini-ai/agent-runtime";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
 import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
@@ -18,8 +18,8 @@ import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from ".
 
 type Overlay = { systemOverlay(input: { agentId: string; turnIndex: number }): string };
 
-async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, owner = "daemon-test-principal", chromeProbed = true }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; owner?: string; chromeProbed?: boolean }) {
-  const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome };
+async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, replyLength = "normal", owner = "daemon-test-principal", chromeProbed = true }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; replyLength?: unknown; owner?: string; chromeProbed?: boolean }) {
+  const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome, replyLength };
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
   const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
@@ -58,6 +58,7 @@ test("the launch reads preferSubagents fresh for the launching person", async ()
   assert.deepEqual(reads, [
     { namespace: "core.interface", key: "preferSubagents", scopeContext },
     { namespace: "core.interface", key: "useClaudeInChrome", scopeContext },
+    { namespace: "core.interface", key: "replyLength", scopeContext },
   ]);
 });
 
@@ -120,4 +121,15 @@ test("Chrome ON for the owner on a CLI whose --help lacks --chrome: no flag, no 
   assert.equal(overlay.includes(CLAUDE_IN_CHROME_GUIDANCE), false);
   const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: launched });
   assert.equal(args.some(arg => arg === "--chrome" || arg === "--no-chrome" || arg.startsWith("mcp__claude-in-chrome")), false);
+});
+
+test("reply length reaches each run's actual overlay without leaking into the next run", async () => {
+  for (const agentId of ["claude", "codex"]) {
+    const input = { enabled: false, agentId, preferSubagents: false };
+    const normal = (await launchOverlay(input)).overlay;
+    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${normal}${SHORT_REPLY_GUIDANCE} `);
+    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${normal}${DETAILED_REPLY_GUIDANCE} `);
+    assert.equal((await launchOverlay({ ...input, replyLength: "normal" })).overlay, normal);
+    assert.equal((await launchOverlay({ ...input, replyLength: "invalid" })).overlay, normal);
+  }
 });

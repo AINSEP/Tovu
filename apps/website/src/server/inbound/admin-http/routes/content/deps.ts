@@ -105,6 +105,11 @@ export type ContentRouteDeps = Pick<
   | "transformDefinitionRepo"
   | "menuRepo"
   | "mediaContentTypeStore"
+  // Preview uses the public route's member-access resolver for post-list embeds. Its anonymous
+  // context never reads these ports, and admin authorization never grants visitor entitlements.
+  | "memberSessionRepo"
+  | "memberSubscriptionRepo"
+  | "memberTierRepo"
   // C5 (collections plan, 2026-09-23): `renderViaTemplate` now runs `finishStaticTierDocument`,
   // whose `TemplateRenderDeps` widened with `contentTypeRepo` for `resolveCollectionListsForRender`'s
   // content-type lookup. Same "this route needs the render pipeline's full dependency set" reasoning

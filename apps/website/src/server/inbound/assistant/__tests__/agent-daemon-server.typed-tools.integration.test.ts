@@ -140,8 +140,8 @@ async function launch({ t, host, principalId, policy = disabledPolicy }: {
   const { run } = await host.lifecycle.start({ contextRef: principalId });
   host.principals.set(run.id, principalId);
   host.policies.set(principalId, policy);
-  const entry = await host.deleteScope.fresh({ principalId, run: () => buildMcpJsonServerEntry({ runId: run.id, options: host.bridgeInjection },
-    { credential: host.bridgeInjection.credential!({ runId: run.id }) }) });
+  const entry = await host.deleteScope.fresh({ principalId, run: async () => buildMcpJsonServerEntry({ runId: run.id, options: host.bridgeInjection },
+    { credential: await host.bridgeInjection.credential!({ runId: run.id }) }) });
   const pair = stdioPair();
   const client = new Client({ name: "tovu-host-test", version: "1" });
   const errors: string[] = [];
@@ -180,6 +180,33 @@ test("host startup IDs reach a typed MCP call and the existing Tovu executor", {
   const forged = await bridge.client.callTool({ name: tool.name, arguments: { id: "x", runId: "other-run" } });
   assert.equal(forged.isError, true);
   assert.equal(host.invocations.length, 1);
+});
+
+test("startup publication prioritizes late theme tools within the budget and preserves remaining catalog order", { timeout: 5000 }, async t => {
+  const host = hostFixture();
+  for (let i = 0; i < 64; i++) host.registry.register(host.registration(`unrelated_${i}`));
+  const themeFileTools = ["theme_list_files", "theme_read_file", "theme_edit_file", "theme_write_file"];
+  for (const id of themeFileTools) host.registry.register(host.registration(id));
+
+  const bridge = await launch({ t, host, principalId: "editor" });
+  const startupIds: string[] = JSON.parse(bridge.entry.env.JINI_STARTUP_TOOL_IDS!);
+  const expectedIds = [...themeFileTools, ordinaryId, ...Array.from({ length: 64 }, (_, i) => `unrelated_${i}`)];
+  assert.deepEqual(startupIds, expectedIds);
+  assert.equal(new Set(startupIds).size, startupIds.length);
+  const publishedIds = bridge.tools.flatMap(tool => typeof tool.annotations?.title === "string" && startupIds.includes(tool.annotations.title)
+    ? [tool.annotations.title] : []);
+  assert.deepEqual(publishedIds, expectedIds.slice(0, 64));
+  for (const id of themeFileTools) assert.ok(bridge.typed(id));
+  assert.ok(bridge.typed("unrelated_58"));
+  assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_59"), false);
+  assert.equal(bridge.tools.some(tool => tool.annotations?.title === "unrelated_63"), false);
+  for (const id of ["workspace_delete", "collections_execute_cleanup", ...PERMANENT_DELETE_TOOLS.map(tool => tool.id)]) {
+    assert.equal(bridge.tools.some(tool => tool.annotations?.title === id), false, id);
+  }
+
+  const result = await bridge.client.callTool({ name: bridge.typed("theme_read_file").name, arguments: { id: "stylesheet" } });
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(host.invocations, [{ principalId: "editor", runId: bridge.run.id, input: { id: "stylesheet" } }]);
 });
 
 test("startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs", { timeout: 5000 }, async t => {

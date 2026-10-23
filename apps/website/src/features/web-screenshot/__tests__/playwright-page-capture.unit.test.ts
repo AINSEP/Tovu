@@ -22,13 +22,18 @@ interface FakeOptions {
   nullResponse?: boolean;
   scrollError?: Error;
   onGoto?: () => void;
+  /** Thrown by the Nth (0-based) screenshot call; later calls succeed. */
+  screenshotErrors?: unknown[];
+  onScreenshot?: (options: { timeout: number; animations: string }) => void;
+  onTitle?: () => void;
 }
 
-function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400, gotoError, nullResponse = false, scrollError, onGoto }: FakeOptions = {}) {
+function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400, gotoError, nullResponse = false, scrollError, onGoto, screenshotErrors = [], onScreenshot, onTitle }: FakeOptions = {}) {
   const events: string[] = [];
   const launches: CaptureLaunchOptions[] = [];
   const contexts: CaptureContextOptions[] = [];
-  const screenshots: Array<Parameters<CapturePage["screenshot"]>[0]> = [];
+  // `animations` widened to string: the adapter's current-frame fallback passes Playwright's "allow".
+  const screenshots: Array<Omit<Parameters<CapturePage["screenshot"]>[0], "animations"> & { animations: string }> = [];
   const browser: CaptureBrowser = {
     async newContext(options) {
       contexts.push(options);
@@ -61,9 +66,16 @@ function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400, 
               if (scrolling && scrollError) throw scrollError;
               return pageHeight;
             },
-            async title() { return "T".repeat(400); },
+            async title() { onTitle?.(); return "T".repeat(400); },
             url: () => current,
-            async screenshot(options) { screenshots.push(options); return Buffer.from("png"); },
+            async screenshot(options) {
+              screenshots.push(options);
+              onScreenshot?.(options);
+              const failure = screenshotErrors[screenshots.length - 1];
+              if (failure !== undefined) throw failure;
+              const mode: string = options.animations;
+              return Buffer.from(mode === "allow" ? "png-allow" : "png");
+            },
           };
           return page;
         },
@@ -415,4 +427,68 @@ test("a shared browser without screenshot support reports a safe failure and rel
   assert.equal(released, 1);
   assert.ok(fake.events.includes("context-close"));
   assert.deepEqual(fake.screenshots, []);
+});
+
+/** Playwright's own per-operation timeout error (`errors.TimeoutError`), structurally. */
+function playwrightTimeout(): Error {
+  return Object.assign(new Error("page.screenshot: Timeout 16000ms exceeded. waiting for animations to finish"), { name: "TimeoutError" });
+}
+
+test("a page still animating spends its stable budget, captures a fallback, and reads metadata inside the remaining budget", async (t) => {
+  let now = 0, titles = 0;
+  t.mock.method(Date, "now", () => now);
+  const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout()], onScreenshot: options => { now += options.animations === "disabled" ? options.timeout : 1_000; }, onTitle: () => { titles++; now += 100; } });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 20_000 });
+  const shot = await capture.capture(request());
+  await capture.close();
+  assert.equal(shot.png.toString(), "png-allow", "the fallback frame is what is returned");
+  assert.match(shot.note ?? "", /still animating/);
+  assert.equal(shot.status, 200);
+  assert.deepEqual(fake.screenshots.map((options) => options.animations), ["disabled", "allow"]);
+  assert.ok(fake.screenshots[0]!.timeout <= 20_000 - 4_000, "the stable-frame attempt leaves time for the current-frame fallback");
+  assert.equal(fake.screenshots[0]!.timeout, 16_000);
+  assert.equal(fake.screenshots[1]!.timeout, 4_000);
+  assert.equal(titles, 1);
+  assert.equal(now, 17_100);
+});
+
+test("a page that settles normally carries no note", async () => {
+  const fake = fakeBrowser();
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  const shot = await capture.capture(request());
+  await capture.close();
+  assert.equal(shot.note, undefined);
+  assert.equal(fake.screenshots.length, 1);
+});
+
+test("a screenshot error that is not a timeout is still a 'failed' capture (no fallback frame)", async () => {
+  const fake = fakeBrowser({ screenshotErrors: [new Error("Target page, context or browser has been closed")] });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  await assert.rejects(capture.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "failed");
+  await capture.close();
+  assert.equal(fake.screenshots.length, 1);
+});
+
+test("when the current-frame fallback also times out the capture is a 'timeout'", async () => {
+  const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout(), playwrightTimeout()] });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  await assert.rejects(capture.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "timeout");
+  await capture.close();
+  assert.equal(fake.screenshots.length, 2);
+});
+
+test("a non-timeout error from the current-frame fallback is still a 'failed' capture", async () => {
+  const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout(), new Error("Target page, context or browser has been closed")] });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  await assert.rejects(capture.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "failed");
+  await capture.close();
+});
+
+test("fallback exhausting the remaining deadline cannot start the metadata read", async (t) => {
+  let now = 0, titles = 0; t.mock.method(Date, "now", () => now);
+  const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout()], onScreenshot: options => { now += options.timeout; }, onTitle: () => { titles++; } });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 20_000 });
+  t.after(() => capture.close());
+  await assert.rejects(capture.capture(request()), (err: unknown) => err instanceof PageCaptureError && err.kind === "timeout");
+  assert.deepEqual(fake.screenshots.map(s => s.timeout), [16_000, 4_000]); assert.equal(titles, 0); assert.equal(now, 20_000);
 });

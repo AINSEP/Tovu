@@ -21,11 +21,6 @@ export type {
   StartDeploymentRunResult,
 } from "./ports.js";
 
-export { GITHUB_DEPLOYMENT_PROVIDER_ID, createGitHubDeploymentProvider, mapGitHubDeploymentStatus } from "./providers/github.js";
-
-// `sendPinned` is intentionally NOT re-exported here — it is an internal chokepoint, exported from
-// `./providers/github.ts` only so its own test can call it directly (see that file's doc comment).
-//
 // static-publish and publish-credentials expose their own nested public barrels. Folding their
 // exports into this barrel would give every unrelated consumer their full transitive dependencies.
 // .dependency-cruiser.mjs registers those barrels in EXTRA_TO_EXEMPT because its generated
@@ -72,6 +67,12 @@ export {
 } from "./deploy-config.js";
 export {
   DEPLOY_CONFIGS_FILENAME,
+  isContainedDeployConfigPath,
+  readBundledDeployConfigDescriptors,
+  readBundledDeployConfigCandidatePaths,
+  readBundledDeployWorkflowFile,
+  readBundledDeployWorkflowFiles,
+  loadDeployWorkflowFiles,
   loadDeployConfigGeneratorsFromSource,
   loadBundledDeployConfigGenerators,
   readBundledDeployConfigTargetIds,

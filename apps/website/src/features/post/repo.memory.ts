@@ -55,6 +55,14 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
   }
 
+  /** Same bounded kind-filtered contract as the SQL adapter. */
+  async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+    return this.rows.filter(row => row.workspaceId === required.workspaceId && row.kind === required.kind
+      && row.bodyFormat === "html" && row.bodyHtml !== null && !row.deletedAt)
+      .filter(row => !required.before || row.updatedAt < required.before.updatedAt || (row.updatedAt === required.before.updatedAt && row.id > required.before.id))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)).slice(0, required.limit);
+  }
+
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract (bounded,
    *  `kind: "post"`-filtered, newest display date first). Filter-sort-slice here is this in-memory
    *  adapter's own stand-in for a real bounded query — `repo.sqlite.ts`'s adapter is the one that
@@ -106,7 +114,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.record.workspaceId && row.id === required.record.id
     );
-    if (index === -1 || this.rows[index].version !== required.ifVersion) return { applied: false };
+    if (index === -1 || this.rows[index]?.version !== required.ifVersion) return { applied: false };
 
     this.rows[index] = required.record;
     return { applied: true };
@@ -129,10 +137,11 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.workspaceId && row.id === required.id
     );
-    if (index === -1) return;
+    const row = this.rows[index];
+    if (row === undefined) return;
 
     this.rows[index] = {
-      ...this.rows[index],
+      ...row,
       deletedAt: required.deletedAt,
       updatedAt: required.updatedAt,
       version: required.version,
@@ -189,7 +198,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const priorForPost = this.revisions.filter(
       (row) => row.workspaceId === input.workspaceId && row.postId === input.postId
     );
-    const previousId = priorForPost.length > 0 ? priorForPost[priorForPost.length - 1].id : null;
+    const previousId = priorForPost.at(-1)?.id ?? null;
 
     const id = randomUUID();
     const contentHash = createHash("sha256").update(JSON.stringify(input.stateJson)).digest("hex");

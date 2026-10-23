@@ -1,4 +1,5 @@
 import path from "node:path";
+import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import * as sourceControl from "@jini-ai/devops/source-control";
 
 import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
@@ -13,7 +14,7 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
 
 /**
  * @file Loads the git-host providers Agent Plugins contribute — the generic seam that lets a plugin
- * (the bundled `github` one today) add a source-control host without core naming one. Read by
+ * add a source-control host without core naming one. Read by
  * `source_control_*`, `site_backup_*`, `custom_credential_write_files` and the admin Source Control
  * credential form.
  *
@@ -106,6 +107,43 @@ export async function loadSourceControlProviderRegistry(ctx: { readonly workspac
 export async function loadSourceControlProviderRegistryFromSource(plugin: ProviderPackage, _optional: Record<string, never> = {}): Promise<SourceControlProviderRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: providerContribution });
   return toRegistry(load.items, load.refusals);
+}
+
+/** Read all product-owned sources lazily, following the existing bundled contribution loader.
+ * Missing/malformed packages refuse only themselves. No module executes during app construction.
+ * @param required Product payload root, never an operator-writable installation directory.
+ * @param optional Source enumeration/loading ports for hermetic tests.
+ * @returns Loaded providers and log-safe refusals, with ambiguous ids refused.
+ * @complexity O(p log p + n) time, O(p + n) space, plus category reads/imports for p packages and n providers. */
+export async function loadBundledSourceControlProviderRegistry(
+  required: { readonly sourceRoot: string },
+  optional: { sources?: typeof bundledContributionSources; load?: typeof loadSourceControlProviderRegistryFromSource } = {},
+): Promise<SourceControlProviderRegistry> {
+  let sources: readonly TrustedPluginPackage[];
+  try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }); }
+  catch { return toRegistry([], ['bundled source-control provider sources could not be read']); }
+  const providers = new Map<string, LoadedSourceControlProvider>();
+  const duplicates = new Set<string>();
+  const refusals: string[] = [];
+  for (const plugin of sources) {
+    let registry: SourceControlProviderRegistry;
+    try { registry = await (optional.load ?? loadSourceControlProviderRegistryFromSource)(plugin); }
+    catch {
+      // Import/read errors can contain paths or credentials; report only the product-owned id.
+      refusals.push(`source-control provider package '${plugin.pluginId}' was not loaded: package could not be read or imported`);
+      continue;
+    }
+    refusals.push(...registry.refusals);
+    for (const provider of registry.list()) {
+      if (providers.has(provider.descriptor.id)) duplicates.add(provider.descriptor.id);
+      providers.set(provider.descriptor.id, provider);
+    }
+  }
+  for (const id of duplicates) {
+    providers.delete(id);
+    refusals.push(`source-control provider '${id}' was not loaded: declared more than once`);
+  }
+  return toRegistry([...providers.values()], refusals);
 }
 
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */

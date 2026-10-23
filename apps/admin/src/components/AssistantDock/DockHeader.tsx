@@ -31,7 +31,7 @@ export interface DockHeaderProps {
   readonly conversationDelete: Pick<ReturnType<typeof useConfirmRequest>, "confirm">;
   readonly chatDisplay: ChatDisplayPreferencesController;
   readonly agentPlugins: ChatAgentPluginsController;
-  /** The gear's Use Claude in Chrome / Prefer subagents switches, each shown only where the runtime supports it. */
+  /** The gear's Reply length choice and runtime switches; switches need declared runtime support. */
   readonly runtime?: DockRuntimeSwitches & { saveFailed: boolean };
   /** Opens the advanced chat settings; absent when this admin may not open them. */
   readonly onMoreSettings: (() => void) | undefined;

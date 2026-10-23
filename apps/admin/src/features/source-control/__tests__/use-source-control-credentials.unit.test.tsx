@@ -41,6 +41,32 @@ function githubCredential(overrides: Partial<AdminSourceControlCredentialSummary
 }
 
 describe("useSourceControlCredentials", () => {
+  it("creates and rotates a provider with a non-default token name through canonical wire input", async () => {
+    const saved = githubCredential({ id: "example-access-1", providerId: "example-access" });
+    const rotated = { ...saved, updatedAt: "2026-10-22T12:00:00.000Z" };
+    const createCredential = vi.fn().mockResolvedValue(saved);
+    const updateCredential = vi.fn().mockResolvedValue(rotated);
+    const port = fakePort({
+      listCredentials: async () => ({ credentials: [] }), createCredential, updateCredential,
+      listProviders: async () => ({ providers: [{ id: "example-access", label: "Example Access", credential: {
+        tokenField: "accessToken", fields: [
+          { name: "accessToken", label: "Access token", required: true, secret: true },
+          { name: "username", label: "Username", required: true },
+        ],
+      } }], switchedOff: [] }),
+    });
+    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.rows).toBeDefined());
+    act(() => { result.current.setToken("example-access", "first-secret"); result.current.setField("example-access", "username", "operator"); });
+    await act(() => result.current.save("example-access"));
+    expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "example-access", token: "first-secret", username: "operator" } });
+    act(() => { result.current.setToken("example-access", "replacement-secret"); result.current.setField("example-access", "username", "new-operator"); });
+    await act(() => result.current.save("example-access"));
+    expect(updateCredential).toHaveBeenCalledWith(saved.id, { connection: { providerId: "example-access", token: "replacement-secret", username: "new-operator" } });
+    expect(result.current.rows![0]!.saved).toEqual(rotated);
+    expect(result.current.rows![0]!.token).toBe("");
+  });
+
   it("does not overwrite a confirmed replacement when the initial-read query refreshes later", async () => {
     let listed = githubCredential();
     const updated = githubCredential({ updatedAt: "2026-10-17T12:00:00.000Z" });

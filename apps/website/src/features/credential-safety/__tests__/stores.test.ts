@@ -1,3 +1,4 @@
+import { exampleRegistry } from "../../source-control/__tests__/fixtures/example-provider.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHmac } from 'node:crypto';
@@ -22,7 +23,6 @@ function cryptoDeps() {
   let sequence = 0;
   return { keyring, sealer: new AesGcmSecretSealer(keyring), clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' }, idGen: { newId: () => `credential-${++sequence}` } };
 }
-const noProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
 const registry: DeployTargetRegistry = {
   list: () => [registry.get('fixture-host')!], refusals: [],
   get: id => id === 'fixture-host' ? {
@@ -61,12 +61,12 @@ function customHarness(): Harness {
   };
 }
 function sourceHarness(): Harness {
-  const deps = { ...cryptoDeps(), repo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: noProviders };
+  const deps = { ...cryptoDeps(), repo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }) };
   let id: string | undefined;
   return {
     save: async token => {
       const connection = { providerId: 'github', token };
-      const result = id ? await updateSourceControlCredential(deps, { workspaceId, id, connection }) : await createSourceControlCredential(deps, { workspaceId, label: 'Fixture', connection });
+      const result = id ? await updateSourceControlCredential({ deps: deps, input: { workspaceId, id, connection } }) : await createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection } });
       id = result.id; return result;
     },
     read: async () => (await resolveDefaultForSourceControl(deps, { workspaceId, providerId: 'github' }))?.connection.token,
@@ -157,17 +157,21 @@ test('stdio JSON env preserves embedded newlines, edge spaces, Unicode and punct
   const target = configs[0]?.target;
   assert.equal(target?.kind === 'stdio' && Buffer.from(target.env.PRIVATE_VALUE ?? '').equals(Buffer.from(value)), true, 'multiline env is lossless');
 });
-test('source-control validates before even loading a probe and probes only the durably saved token', async () => {
-  const repo = new InMemorySourceControlCredentialSetRepo(); let probes = 0;
-  const deps = { ...cryptoDeps(), repo, loadSourceControlProviders: async () => {
-    probes++;
-    assert.equal((await repo.listByWorkspace({ workspaceId })).length, 1, 'save must be durable before probe');
-    return noProviders();
-  } };
-  await assert.rejects(createSourceControlCredential(deps, { workspaceId, label: 'Fixture', connection: { providerId: 'github', token: 'x'.repeat(8193) } }), exactError(CREDENTIAL_MESSAGES.limit));
+test('source-control checks declarations before sealing and probes only a durable token', async () => {
+  const repo = new InMemorySourceControlCredentialSetRepo(); let probes = 0; let declarations = 0;
+  const registry = exampleRegistry({ ids: ['example-git'] });
+  const deps = { ...cryptoDeps(), repo,
+    loadSourceControlProviders: async () => { declarations++; return registry; },
+    fetchFn: async () => {
+      probes++;
+      assert.equal((await repo.listByWorkspace({ workspaceId })).length, 1, 'save must be durable before probe');
+      return Response.json({ account: 'fixture' });
+    },
+  };
+  await assert.rejects(createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection: { providerId: 'example-git', token: 'x'.repeat(8193) } } }), exactError(CREDENTIAL_MESSAGES.limit));
   assert.equal(probes, 0);
-  const summary = await createSourceControlCredential(deps, { workspaceId, label: 'Fixture', connection: { providerId: 'github', token: 'accepted-credential-a9F2' } });
-  assert.equal(probes, 1); assert.equal(summary.connection, 'saved');
+  const summary = await createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection: { providerId: 'example-git', token: 'accepted-credential-a9F2' } } });
+  assert.equal(declarations, 3); assert.equal(probes, 1); assert.equal(summary.connection, 'connected');
 });
 
 test('plaintext labels and URL credentials are refused by the stores, with value-free errors', async () => {
@@ -181,8 +185,8 @@ test('plaintext labels and URL credentials are refused by the stores, with value
   for (const patch of [{ label: secretLabel }, { url: 'https://example.test?token=never-echo' }, { args: '--token=never-echo' }, { args: '--api-key never-echo' }]) {
     await assert.rejects(saveExternalMcpServer(external, { workspaceId, serverId: 'metadata', transport: 'streamable_http', authMode: 'static_env', enabled: true, command: '', args: '', url: 'https://example.test/mcp', accessToken: 'safe-key-a9F2', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', ...patch }), exactError(CREDENTIAL_MESSAGES.plain));
   }
-  const source = { ...cryptoDeps(), repo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: noProviders };
-  await assert.rejects(createSourceControlCredential(source, { workspaceId, label: secretLabel, connection: { providerId: 'github', token: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
+  const source = { ...cryptoDeps(), repo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["github"] }) };
+  await assert.rejects(createSourceControlCredential({ deps: source, input: { workspaceId, label: secretLabel, connection: { providerId: 'github', token: 'safe-key-a9F2' } } }), exactError(CREDENTIAL_MESSAGES.plain));
   const publish = { ...cryptoDeps(), repo: new InMemoryVendorCredentialSetRepo({}), loadDeployTargets: async () => registry };
   await assert.rejects(createPublishCredential(publish, { workspaceId, label: secretLabel, connection: { providerId: 'fixture-host', apiKey: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
   const media = { ...cryptoDeps(), repo: new InMemoryMediaProviderCredentialRepo() };

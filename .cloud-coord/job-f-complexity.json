@@ -1,0 +1,3404 @@
+{
+  "persona": "Refactor(Execution): Refactor persona loaded for behavior-preserving complexity reduction.",
+  "branch": "codex/nonui-2026-10-22",
+  "baselineHead": "79f0b5e8ae75cc752f1312645c3a23c1fdafe13e",
+  "summary": {
+    "listedWarnings": 153,
+    "statusCounts": {
+      "skipped-lizard-misread": 123,
+      "refactored": 18,
+      "excluded-applied-migration": 3,
+      "excluded-do-not-touch": 3,
+      "missing-source": 6
+    },
+    "sourceFilesChanged": 14,
+    "testsRun": false,
+    "gitWrites": false,
+    "editableTargetFilesWithParserConfirmedCcnOver10": 0
+  },
+  "measurement": {
+    "old": "old is the CCN in the supplied lizard warning list.",
+    "estimated": "oldEstimatedCcn and newEstimatedCcn are measured with the installed TypeScript-aware ESLint complexity rule (including defaults and optional chains).",
+    "raw": "newLizardCcn is a raw fresh lizard score, or null when lizard did not recognize the function. It must not be confused with its per-function TypeScript-aware score.",
+    "limitations": "Raw lizard warnings remain for skipped misreads. This is not a claim that lizard output is empty."
+  },
+  "reuseDecision": {
+    "owners": "Retain each plugin and its injected host kit or Git Data client; retain the existing domain row mappers and backup policy. Extract private domain operations in their current owner only.",
+    "discovery": "Graph MCP tools were unavailable. Used direct source reads, rg references, installed TypeScript/ESLint/lizard and existing test sources. Canonical architecture chapters 13/14 and governance index were read from /Users/la/Programming/Tovu/ADS-memory because those documents are absent from this clone.",
+    "boundaries": "No new dependencies, modules, cross-plugin imports or generic platform owners. Existing public signatures preserved."
+  },
+  "validation": {
+    "syntax": "node --check passed for all nine edited plugin modules; TypeScript-aware parsing passed for all 14 edited files.",
+    "complexity": "All functions in 127 existing files from the supplied list were checked. Only the excluded migrations and mail-adapter-registry retain parser-confirmed CCN >10.",
+    "comments": "No original comment line is absent from the edited files (ignoring indentation).",
+    "typecheck": {
+      "baselineDiagnostics": 342,
+      "currentDiagnostics": 342,
+      "newDiagnostics": [],
+      "diagnosticsInEditedFiles": []
+    },
+    "behavior": "No tests run. Behavior preservation is reviewed statically; the runner must verify it."
+  },
+  "filesChanged": [
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "change": "Extract run selection and validation plus step/annotation log handling; retain request cap, line cap, truncation and failure texts.",
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "change": "Extract deployment creation/reupload, ready-state rejection, public-link check, transport error, alias handling and protection headers; retain retries and protection checks.",
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
+      "change": "Extract required-file uploads and terminal deployment rejection; retain unknown-hash skip and call order.",
+      "testsToRun": [
+        "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "change": "Extract commit/ref writes, Pages-site readiness, poll-response parsing and build state; retain all network sequencing and polling why comments.",
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "change": "Extract rate-limit classification, directory grouping/resolution and cached tree loading; retain retry timing, incomplete-list fallback and file mode security checks.",
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "change": "Extract private-repository refusal and parent-tree lookup; retain privacy and push checks before backup writes.",
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "change": "Extract branch fallback and unchanged-tree comparison; retain commit/ref sequence and non-force writes.",
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
+      "change": "Extract log origin and line projection; retain field order, fallback values, bounds and truncation.",
+      "testsToRun": [
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/backup-service.ts",
+      "change": "Extract existing caller/dependency/default push wait precedence.",
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/share-file-policy.ts",
+      "change": "Separate runtime exclusions from suspicious path-part refusal; retain patterns, package exemption and exact refusal text.",
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/publish-history-repo.ts",
+      "change": "Extract contiguous location and deployment SQL fields; retain column order, null defaults and serialization.",
+      "testsToRun": [
+        "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+        "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "change": "Extract contiguous attribution, access and publication mappings; retain nullable and tri-state values and all why comments.",
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "change": "Extract saved-post presentation fields from the unchanged no-op comparison snapshot.",
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/post.noop-save.test.ts",
+        "apps/website/src/features/post/__tests__/post.concurrent-save.test.ts"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/google-workspace/ui/dom.mjs",
+      "change": "Extract focused-control matching; retain focus snapshot, content replacement and fallback control order.",
+      "testsToRun": [
+        "content/agent-plugins/google-workspace/__tests__/dom.frame.test.mjs",
+        "content/agent-plugins/google-workspace/__tests__/ui-views.unit.test.mjs"
+      ]
+    }
+  ],
+  "refactoredFunctions": [
+    {
+      "file": "apps/website/src/platform/db/repos/publish-history-repo.ts",
+      "line": 61,
+      "name": "toValues",
+      "old": 18,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 77,
+        "end": 93
+      },
+      "testsToRun": [
+        "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+        "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 42,
+      "name": "readPostMetadata",
+      "old": 17,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 51,
+        "end": 60
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 93,
+      "name": "writePostMetadata",
+      "old": 15,
+      "status": "refactored",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 5,
+      "newLizardCcn": 7,
+      "newLizardFunctionRange": {
+        "start": 119,
+        "end": 129
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 129,
+      "name": "toRow",
+      "old": 13,
+      "status": "refactored",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 5,
+      "newLizardFunctionRange": {
+        "start": 150,
+        "end": 176
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "line": 1771,
+      "name": "savedPostContent",
+      "old": 17,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 1780,
+        "end": 1793
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/post.noop-save.test.ts",
+        "apps/website/src/features/post/__tests__/post.concurrent-save.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/share-file-policy.ts",
+      "line": 9,
+      "name": "excludedSharePath",
+      "old": 31,
+      "status": "refactored",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 3,
+      "newLizardFunctionRange": {
+        "start": 34,
+        "end": 49
+      },
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/backup-service.ts",
+      "line": 720,
+      "name": "pushSiteBackup",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 8,
+      "newLizardFunctionRange": {
+        "start": 724,
+        "end": 746
+      },
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "line": 118,
+      "name": "publish",
+      "old": 15,
+      "status": "refactored",
+      "oldEstimatedCcn": 19,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 7,
+      "newLizardFunctionRange": {
+        "start": 118,
+        "end": 147
+      },
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "line": 367,
+      "name": "pollGitHubPagesBuild",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 14,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 8,
+      "newLizardFunctionRange": {
+        "start": 408,
+        "end": 426
+      },
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "line": 143,
+      "name": "publish",
+      "old": 18,
+      "status": "refactored",
+      "oldEstimatedCcn": 24,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 145,
+        "end": 165
+      },
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "line": 262,
+      "name": "uploadVercelFile",
+      "old": 14,
+      "status": "refactored",
+      "oldEstimatedCcn": 18,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
+      "line": 32,
+      "name": "logs",
+      "old": 13,
+      "status": "refactored",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 39,
+        "end": 53
+      },
+      "testsToRun": [
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
+      "line": 84,
+      "name": "publish",
+      "old": 16,
+      "status": "refactored",
+      "oldEstimatedCcn": 17,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 84,
+        "end": 114
+      },
+      "testsToRun": [
+        "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "line": 44,
+      "name": "logs",
+      "old": 28,
+      "status": "refactored",
+      "oldEstimatedCcn": 20,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "line": 83,
+      "name": "checkRepository",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 12,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 98,
+        "end": 116
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "line": 342,
+      "name": "commitSite",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 352,
+        "end": 395
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "line": 118,
+      "name": "retryDelayMs",
+      "old": 14,
+      "status": "refactored",
+      "oldEstimatedCcn": 14,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 10,
+      "newLizardFunctionRange": {
+        "start": 123,
+        "end": 134
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/google-workspace/ui/dom.mjs",
+      "line": 105,
+      "name": "show",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 110,
+        "end": 118
+      },
+      "testsToRun": [
+        "content/agent-plugins/google-workspace/__tests__/dom.frame.test.mjs",
+        "content/agent-plugins/google-workspace/__tests__/ui-views.unit.test.mjs"
+      ]
+    }
+  ],
+  "additionalRefactoredFunctions": [
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "isVercelProtectedResponse",
+      "oldEstimatedCcn": 13,
+      "newEstimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "vercelError",
+      "oldEstimatedCcn": 12,
+      "newEstimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "deploymentUrlCandidates",
+      "oldEstimatedCcn": 15,
+      "newEstimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "readRun",
+      "oldEstimatedCcn": 13,
+      "newEstimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "name": "readBranchTip",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "checkFileExistence",
+      "oldEstimatedCcn": 13,
+      "newEstimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "readFileModes",
+      "oldEstimatedCcn": 15,
+      "newEstimatedCcn": 9,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    }
+  ],
+  "newHelpers": [
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "invalidJob",
+      "estimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "selectWorkflowRun",
+      "estimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "addFailedStepLines",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "annotationMessage",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "addAnnotationLine",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "name": "addAnnotationLines",
+      "estimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "protectionHeaders",
+      "estimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "createUploadedVercelDeployment",
+      "estimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "readyVercelDeployment",
+      "estimatedCcn": 9,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "publicVercelLink",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "vercelUploadTransportError",
+      "estimatedCcn": 10,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "vercelErrorField",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "appendDeploymentAlias",
+      "estimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "name": "appendDeploymentAliases",
+      "estimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
+      "name": "uploadRequiredNetlifyFiles",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
+      "name": "readyNetlifyDeploy",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "name": "pushGitHubPagesFiles",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "name": "prepareGitHubPagesSite",
+      "estimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "name": "readPagesBuildResponse",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "name": "pagesBuildState",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "isGitHubRateLimited",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "groupWriteFilesByDirectory",
+      "estimatedCcn": 4,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "resolveDirectoryFileStates",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "readModeTree",
+      "estimatedCcn": 7,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "name": "isModeDirectory",
+      "estimatedCcn": 4,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "name": "checkBackupPrivacy",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "name": "readBackupParentTree",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "name": "siteCommitBranch",
+      "estimatedCcn": 3,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "name": "unchangedSiteTree",
+      "estimatedCcn": 3,
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
+      "name": "flyLogOrigin",
+      "estimatedCcn": 8,
+      "testsToRun": [
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
+      "name": "flyLogLine",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/backup-service.ts",
+      "name": "pushWaitBudget",
+      "estimatedCcn": 4,
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/share-file-policy.ts",
+      "name": "excludedRuntimeSharePath",
+      "estimatedCcn": 3,
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/share-file-policy.ts",
+      "name": "suspiciousSharePart",
+      "estimatedCcn": 4,
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/publish-history-repo.ts",
+      "name": "publishLocationValues",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+        "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/publish-history-repo.ts",
+      "name": "publishDeploymentValues",
+      "estimatedCcn": 5,
+      "testsToRun": [
+        "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+        "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "name": "readPostAttribution",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "name": "writePostAccessAndAttribution",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "name": "writePostPublication",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "name": "savedPostPresentation",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/post.noop-save.test.ts",
+        "apps/website/src/features/post/__tests__/post.concurrent-save.test.ts"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/google-workspace/ui/dom.mjs",
+      "name": "matchesFocusKey",
+      "estimatedCcn": 6,
+      "testsToRun": [
+        "content/agent-plugins/google-workspace/__tests__/dom.frame.test.mjs",
+        "content/agent-plugins/google-workspace/__tests__/ui-views.unit.test.mjs"
+      ]
+    }
+  ],
+  "warningInventory": [
+    {
+      "file": "apps/website/src/assistant/mcp-federation/bootstrap.ts",
+      "line": 155,
+      "name": "resolveFederationAttachInputs",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 155,
+        "end": 174
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/assistant/execution-credential-store.ts",
+      "line": 59,
+      "name": "executionMetadata",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 59,
+        "end": 64
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/assistant/tool-approval-policy.ts",
+      "line": 101,
+      "name": "descriptionActionClass",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 101,
+        "end": 110
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/assistant/live-model-cache.ts",
+      "line": 73,
+      "name": "getLiveClaudeModels",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 73,
+        "end": 88
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/assistant/mcp-ui-tool-calls-route.ts",
+      "line": 134,
+      "name": "respondToExecutionResult",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 134,
+        "end": 183
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/contracts/core/assistant-native-fallbacks.ts",
+      "line": 6,
+      "name": "isHostedAssistantRuntime",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 6,
+        "end": 20
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/platform/server-logs/log-file.ts",
+      "line": 139,
+      "name": "readLogFileTail",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 139,
+        "end": 151
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/publish-history-repo.ts",
+      "line": 61,
+      "name": "toValues",
+      "old": 18,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 77,
+        "end": 93
+      },
+      "testsToRun": [
+        "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+        "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/change-set-repo.ts",
+      "line": 44,
+      "name": "toRecord",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 44,
+        "end": 59
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/platform/db/repos/change-set-repo.ts",
+      "line": 75,
+      "name": "toRow",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 75,
+        "end": 88
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts",
+      "line": 41,
+      "name": "up",
+      "old": 12,
+      "status": "excluded-applied-migration",
+      "oldEstimatedCcn": 13,
+      "newEstimatedCcn": 13,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 41,
+        "end": 62
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts",
+      "line": 180,
+      "name": "up",
+      "old": 16,
+      "status": "excluded-applied-migration",
+      "oldEstimatedCcn": 16,
+      "newEstimatedCcn": 16,
+      "newLizardCcn": 16,
+      "newLizardFunctionRange": {
+        "start": 180,
+        "end": 208
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/platform/db/migrations/0012_secrets_vault.ts",
+      "line": 108,
+      "name": "freeLabel",
+      "old": 26,
+      "status": "excluded-applied-migration",
+      "oldEstimatedCcn": 4,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 26,
+      "newLizardFunctionRange": {
+        "start": 108,
+        "end": 161
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/features/post/tool-registrations.ts",
+      "line": 1340,
+      "name": "duplicatePostOrPage",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 1340,
+        "end": 1459
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 42,
+      "name": "readPostMetadata",
+      "old": 17,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 51,
+        "end": 60
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 93,
+      "name": "writePostMetadata",
+      "old": 15,
+      "status": "refactored",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 5,
+      "newLizardCcn": 7,
+      "newLizardFunctionRange": {
+        "start": 119,
+        "end": 129
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/repo.rows.ts",
+      "line": 129,
+      "name": "toRow",
+      "old": 13,
+      "status": "refactored",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 5,
+      "newLizardFunctionRange": {
+        "start": 150,
+        "end": 176
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+        "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+        "apps/website/src/features/post/__tests__/repo.author.test.ts",
+        "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+        "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+        "apps/website/src/features/post/__tests__/post.restore-forward.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "line": 673,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": 7,
+      "newLizardFunctionRange": {
+        "start": 740,
+        "end": 759
+      },
+      "testsToRun": [],
+      "note": "Line 673 is the actor member type in RemovePostFn, not a runtime function; lizard continues through line 1728."
+    },
+    {
+      "file": "apps/website/src/features/post/post.ts",
+      "line": 1771,
+      "name": "savedPostContent",
+      "old": 17,
+      "status": "refactored",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 1780,
+        "end": 1793
+      },
+      "testsToRun": [
+        "apps/website/src/features/post/__tests__/post.noop-save.test.ts",
+        "apps/website/src/features/post/__tests__/post.concurrent-save.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/media-generation/tool-registrations.ts",
+      "line": 339,
+      "name": "isShapeRejection",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 1,
+      "newEstimatedCcn": 1,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 339,
+        "end": 403
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/site-backup/share-file-policy.ts",
+      "line": 9,
+      "name": "excludedSharePath",
+      "old": 31,
+      "status": "refactored",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 3,
+      "newLizardFunctionRange": {
+        "start": 34,
+        "end": 49
+      },
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/site-backup/backup-service.ts",
+      "line": 720,
+      "name": "pushSiteBackup",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 8,
+      "newLizardFunctionRange": {
+        "start": 724,
+        "end": 746
+      },
+      "testsToRun": [
+        "apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts",
+        "apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts"
+      ]
+    },
+    {
+      "file": "apps/website/src/features/publish-content/ui/criteria.ts",
+      "line": 93,
+      "name": "applyPublishCriteria",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 93,
+        "end": 128
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/tool-registrations.ts",
+      "line": 251,
+      "name": "buildPublishContentRegistrations",
+      "old": 21,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 3,
+      "newEstimatedCcn": 3,
+      "newLizardCcn": 21,
+      "newLizardFunctionRange": {
+        "start": 251,
+        "end": 424
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/tool-registrations.ts",
+      "line": 478,
+      "name": "selectPullPeer",
+      "old": 31,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 31,
+      "newLizardFunctionRange": {
+        "start": 478,
+        "end": 558
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/publish-tool.ts",
+      "line": 31,
+      "name": "readReport",
+      "old": 15,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 15,
+      "newLizardFunctionRange": {
+        "start": 31,
+        "end": 49
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/publish-tool.ts",
+      "line": 15,
+      "name": "readCriteria",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 15,
+        "end": 184
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+      "line": 76,
+      "name": "isProtectedRawComponent",
+      "old": 15,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 15,
+      "newLizardFunctionRange": {
+        "start": 76,
+        "end": 81
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+      "line": 41,
+      "name": "check",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 41,
+        "end": 52
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/repo-handler.ts",
+      "line": 247,
+      "name": "apply",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 247,
+        "end": 322
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/disconnect-tool.ts",
+      "line": 34,
+      "name": "publish_content_disconnect",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 34,
+        "end": 47
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/report-labels.ts",
+      "line": 61,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 61,
+        "end": 67
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+      "line": 92,
+      "name": "packSelected",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 92,
+        "end": 106
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/publish-content/planner.ts",
+      "line": 474,
+      "name": "planImport",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 474,
+        "end": 533
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/site-inspection/live-url.ts",
+      "line": 51,
+      "name": "configuredLiveOrigins",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 51,
+        "end": 71
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/trash/table-adapter.ts",
+      "line": 228,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 97,
+        "end": 97
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/trash/table-adapter.ts",
+      "line": 268,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 97,
+        "end": 97
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/trash/table-adapter.ts",
+      "line": 307,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 97,
+        "end": 97
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/trash/move-to-trash.ts",
+      "line": 133,
+      "name": "trashLiveSnapshot",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 133,
+        "end": 155
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/media-import/tool-registrations.ts",
+      "line": 285,
+      "name": "fn",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 285,
+        "end": 302
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/custom-credentials/tool-registrations.ts",
+      "line": 869,
+      "name": "outcome",
+      "old": 21,
+      "status": "excluded-do-not-touch",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 21,
+      "newLizardFunctionRange": {
+        "start": 869,
+        "end": 978
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/features/custom-credentials/credential-copy-tool.ts",
+      "line": 110,
+      "name": "keyFields",
+      "old": 12,
+      "status": "excluded-do-not-touch",
+      "oldEstimatedCcn": 2,
+      "newEstimatedCcn": 2,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 110,
+        "end": 173
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/features/consent/readiness.ts",
+      "line": 18,
+      "name": "inventoryItem",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 18,
+        "end": 33
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/source-control/tool-registrations.ts",
+      "line": 118,
+      "name": "requireKnownHost",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 118,
+        "end": 317
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/migration/migrate-theme.ts",
+      "line": 170,
+      "name": "rewriteStaticAssetHtml",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 1,
+      "newEstimatedCcn": 1,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 170,
+        "end": 316
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/active-theme.ts",
+      "line": 148,
+      "name": "resolveActiveTheme",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 148,
+        "end": 200
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/tool-registrations.ts",
+      "line": 536,
+      "name": "themeReadSelection",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 536,
+        "end": 564
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/handlebars-allowlist.ts",
+      "line": 271,
+      "name": "handleMustacheStatement",
+      "old": 18,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 18,
+      "newLizardFunctionRange": {
+        "start": 271,
+        "end": 359
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/static-render.ts",
+      "line": 953,
+      "name": "renderStaticPage",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 953,
+        "end": 999
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/preview-refresh.ts",
+      "line": 13,
+      "name": "validatePreviewPath",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 13,
+        "end": 35
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/theme/preview-switcher-html.ts",
+      "line": 65,
+      "name": "rewriteNavigation",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 65,
+        "end": 78
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/taxonomy/html-render.ts",
+      "line": 10,
+      "name": "renderHtmlTaxonomy",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 10,
+        "end": 38
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/members/repo.rows.ts",
+      "line": 92,
+      "name": "toMemberTierRow",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 92,
+        "end": 110
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/agent-plugins/tool-registrations.ts",
+      "line": 908,
+      "name": "sEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID",
+      "old": 22,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 22,
+      "newLizardFunctionRange": {
+        "start": 908,
+        "end": 1059
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/agent-plugins/mail-adapter-registry.ts",
+      "line": 197,
+      "name": "parseDescriptorV2",
+      "old": 12,
+      "status": "excluded-do-not-touch",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 11,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 197,
+        "end": 210
+      },
+      "testsToRun": [],
+      "note": "Explicitly excluded by dispatch; left unchanged."
+    },
+    {
+      "file": "apps/website/src/features/agent-plugins/layout.ts",
+      "line": 60,
+      "name": "resolveAgentPluginLayout",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 60,
+        "end": 112
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/agent-plugins/connect-tool.ts",
+      "line": 425,
+      "name": "connectDeclaredApiConnectionOrRefuse",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 425,
+        "end": 463
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/skills/layout.ts",
+      "line": 71,
+      "name": "resolveSkillLayout",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 71,
+        "end": 90
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/newsletter/send-pipeline.ts",
+      "line": 226,
+      "name": "dispatchRow",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 226,
+        "end": 288
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/webhooks/site-key-ensure.ts",
+      "line": 218,
+      "name": "ensureSiteKey",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 218,
+        "end": 253
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/webhooks/site-key-ensure.ts",
+      "line": 537,
+      "name": "resolveInstallSources",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 537,
+        "end": 543
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/external-mcp/tool-registrations.ts",
+      "line": 307,
+      "name": "buildSaveExternalMcpServerInputFromFormParams",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 307,
+        "end": 359
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/external-mcp/tool-registrations.ts",
+      "line": 359,
+      "name": "saveSubmittedExternalMcpConfiguration",
+      "old": 31,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 5,
+      "newEstimatedCcn": 5,
+      "newLizardCcn": 31,
+      "newLizardFunctionRange": {
+        "start": 359,
+        "end": 540
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/external-mcp/save-form.ts",
+      "line": 71,
+      "name": "mergeExternalMcpSavePrefill",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 71,
+        "end": 109
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/plugin-runtime/built-ins/content-analyzer/analyze-content.ts",
+      "line": 248,
+      "name": "checkContentLength",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 3,
+      "newEstimatedCcn": 3,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 248,
+        "end": 294
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/deployments/static-publish/credentials.ts",
+      "line": 137,
+      "name": "readFields",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 5,
+      "newEstimatedCcn": 5,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 137,
+        "end": 167
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/features/deployments/publish-agent-tools.ts",
+      "line": 839,
+      "name": "saveProposeCredential",
+      "old": 39,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 39,
+      "newLizardFunctionRange": {
+        "start": 839,
+        "end": 1045
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/boot/resolve-mailer.ts",
+      "line": 229,
+      "name": "resolveProvider",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 4,
+      "newEstimatedCcn": 4,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 229,
+        "end": 279
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts",
+      "line": 195,
+      "name": "bindDaemonSupervisor",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 195,
+        "end": 251
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
+      "line": 248,
+      "name": "recoverySettings",
+      "old": 15,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 15,
+      "newLizardFunctionRange": {
+        "start": 248,
+        "end": 253
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
+      "line": 279,
+      "name": "createAssistantRunFinalizer",
+      "old": 18,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 18,
+      "newLizardFunctionRange": {
+        "start": 279,
+        "end": 503
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+      "line": 329,
+      "name": "translateAgentEventToAgUi",
+      "old": 65,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 65,
+      "newLizardFunctionRange": {
+        "start": 329,
+        "end": 783
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/runtime/composition/permanent-delete-deps.ts",
+      "line": 189,
+      "name": "prepare",
+      "old": 20,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 20,
+      "newLizardFunctionRange": {
+        "start": 189,
+        "end": 250
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/assistant/durable-run-routes.ts",
+      "line": 33,
+      "name": "start",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 33,
+        "end": 42
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+      "line": 1121,
+      "name": "resolveSessionBinding",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 1121,
+        "end": 1211
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+      "line": 940,
+      "name": "onStarted",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 940,
+        "end": 1354
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/shared/post.ts",
+      "line": 20,
+      "name": "toHeadlessPost",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 20,
+        "end": 57
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/site/worker-sandbox.ts",
+      "line": 133,
+      "name": "renderInWorkerSandbox",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 133,
+        "end": 159
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/site/bare-page.ts",
+      "line": 129,
+      "name": "renderBareEntryDocument",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 129,
+        "end": 145
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/http/site/render.ts",
+      "line": 434,
+      "name": "isPlainRelativeImageSrc",
+      "old": 422,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 2,
+      "newEstimatedCcn": 2,
+      "newLizardCcn": 422,
+      "newLizardFunctionRange": {
+        "start": 434,
+        "end": 3758
+      },
+      "testsToRun": [],
+      "note": "One-line predicate ends at line 436; lizard incorrectly includes source through line 3758. TypeScript-aware CCN is 2."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+      "line": 14,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 14,
+        "end": 33
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+      "line": 1760,
+      "name": "resolveMediaAssetMetadataForRender",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 1760,
+        "end": 1813
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/public-http/routes/members/sign-in.ts",
+      "line": 54,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 54,
+        "end": 106
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/http/media.ts",
+      "line": 88,
+      "name": "toAdminMediaResponse",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 88,
+        "end": 133
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts",
+      "line": 63,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 24,
+        "end": 24
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts",
+      "line": 93,
+      "name": "resolvePreviewBodyOverrides",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 93,
+        "end": 121
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts",
+      "line": 131,
+      "name": "renderPostPreview",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 131,
+        "end": 203
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
+      "line": 184,
+      "name": "captureInverse",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 184,
+        "end": 211
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts",
+      "line": 11,
+      "name": "(anonymous)",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 11,
+        "end": 74
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts",
+      "line": 26,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 26,
+        "end": 73
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/plugins/preview.ts",
+      "line": 102,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 90,
+        "end": 90
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts",
+      "line": 45,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 45,
+        "end": 90
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/capabilities.ts",
+      "line": 34,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 52,
+        "end": 52
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/blob-get.ts",
+      "line": 72,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 72,
+        "end": 124
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/sites/site-previews.ts",
+      "line": 59,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 59,
+        "end": 76
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/sites/local-sites.ts",
+      "line": 28,
+      "name": "return",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 28,
+        "end": 42
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+      "line": 292,
+      "name": "registerAdminSitesRoutes",
+      "old": 15,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 15,
+      "newLizardFunctionRange": {
+        "start": 292,
+        "end": 438
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
+      "line": 241,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 241,
+        "end": 316
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
+      "line": 341,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 241,
+        "end": 316
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/redirects/hits.ts",
+      "line": 11,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 11,
+        "end": 49
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/redirects/update.ts",
+      "line": 16,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 16,
+        "end": 63
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/users/remove-policy-permission.ts",
+      "line": 64,
+      "name": "execute",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 64,
+        "end": 81
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/menus/get-by-id.ts",
+      "line": 11,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 11,
+        "end": 51
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts",
+      "line": 16,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 16,
+        "end": 57
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts",
+      "line": 11,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 11,
+        "end": 50
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/pages/delete.ts",
+      "line": 33,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 33,
+        "end": 133
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts",
+      "line": 42,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 42,
+        "end": 85
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/themes/preview.ts",
+      "line": 100,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 57,
+        "end": 57
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/presentation/get.ts",
+      "line": 57,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 113,
+        "end": 113
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/widgets/region-mutate-placements.ts",
+      "line": 42,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 42,
+        "end": 84
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/widgets/update.ts",
+      "line": 9,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 9,
+        "end": 42
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/media/list.ts",
+      "line": 14,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 44,
+        "end": 44
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/routes/media/update.ts",
+      "line": 95,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 22,
+        "end": 22
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+      "line": 225,
+      "name": "requirePublishTrustMiddleware",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 225,
+        "end": 335
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/cli/commands/export.ts",
+      "line": 58,
+      "name": "printExportReport",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 58,
+        "end": 94
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/cli/commands/export.ts",
+      "line": 114,
+      "name": "runExportCommand",
+      "old": 15,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 15,
+      "newLizardFunctionRange": {
+        "start": 114,
+        "end": 177
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js",
+      "line": 8419,
+      "name": "slatAngleDegrees",
+      "old": 11,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js",
+      "line": 8190,
+      "name": "hostOf2",
+      "old": 7,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js",
+      "line": 1896,
+      "name": "nameProblem",
+      "old": 18,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js",
+      "line": 11580,
+      "name": "runDeltas",
+      "old": 11,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/tovu-theme/scripts/vendor/kuinetic.all.js",
+      "line": 12146,
+      "name": "trackProgress",
+      "old": 13,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/website/src/sites/tovu-dev/themes/static/basic-2/scripts/vendor/motion.js",
+      "line": 1,
+      "name": "i",
+      "old": 22,
+      "status": "missing-source",
+      "oldEstimatedCcn": null,
+      "newEstimatedCcn": null,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [],
+      "note": "Path does not exist in this clone; one supplied entry (hostOf2) is CCN 7 and was not over the requested limit."
+    },
+    {
+      "file": "apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts",
+      "line": 75,
+      "name": "toItem",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 75,
+        "end": 122
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts",
+      "line": 128,
+      "name": "describeStoredCredentials",
+      "old": 37,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 37,
+      "newLizardFunctionRange": {
+        "start": 128,
+        "end": 413
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/posts/hooks/post-editor-state.rules.ts",
+      "line": 54,
+      "name": "loadedPostForm",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 54,
+        "end": 80
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+      "line": 569,
+      "name": "replaceCustomCredential",
+      "old": 13,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 13,
+      "newLizardFunctionRange": {
+        "start": 569,
+        "end": 597
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+      "line": 599,
+      "name": "replaceToken",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 599,
+        "end": 633
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts",
+      "line": 160,
+      "name": "save",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 12,
+      "newLizardFunctionRange": {
+        "start": 160,
+        "end": 183
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts",
+      "line": 37,
+      "name": "createFakeSourceControlCredentialsPort",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 37,
+        "end": 57
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
+      "line": 132,
+      "name": "useTermPicker",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 132,
+        "end": 246
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts",
+      "line": 149,
+      "name": "useStaticPublish",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 149,
+        "end": 372
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts",
+      "line": 22,
+      "name": "createFakePublishCredentialsPort",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 22,
+        "end": 45
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/users/hooks/users-dependencies.hooks.ts",
+      "line": 84,
+      "name": "createFakeUsersPort",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 84,
+        "end": 171
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts",
+      "line": 257,
+      "name": "(anonymous)",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 5,
+      "newLizardFunctionRange": {
+        "start": 80,
+        "end": 84
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/ai-assistant/rules.ts",
+      "line": 118,
+      "name": "hydrateVisitorCredentialConfig",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 118,
+        "end": 133
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/features/media/rules.ts",
+      "line": 335,
+      "name": "parseMediaHtmlAttributes",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 10,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 335,
+        "end": 383
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/components/WidgetConfigFields/media-content-rules.ts",
+      "line": 115,
+      "name": "readMediaContent",
+      "old": 11,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 11,
+      "newLizardFunctionRange": {
+        "start": 115,
+        "end": 139
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/hooks/admin-execution-credential-dependencies.hooks.ts",
+      "line": 50,
+      "name": "createFakeAdminExecutionCredentialPort",
+      "old": 14,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 3,
+      "newEstimatedCcn": 3,
+      "newLizardCcn": 14,
+      "newLizardFunctionRange": {
+        "start": 50,
+        "end": 90
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/lib/api.ts",
+      "line": 3773,
+      "name": "(anonymous)",
+      "old": 12,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 1,
+      "newLizardFunctionRange": {
+        "start": 2414,
+        "end": 2414
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "apps/admin/src/lib/settings-tabs.ts",
+      "line": 276,
+      "name": "savePrivacy",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 276,
+        "end": 304
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "line": 118,
+      "name": "publish",
+      "old": 15,
+      "status": "refactored",
+      "oldEstimatedCcn": 19,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 7,
+      "newLizardFunctionRange": {
+        "start": 118,
+        "end": 147
+      },
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github-pages/targets/github-pages.mjs",
+      "line": 367,
+      "name": "pollGitHubPagesBuild",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 14,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 8,
+      "newLizardFunctionRange": {
+        "start": 408,
+        "end": 426
+      },
+      "testsToRun": [
+        "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/s3-compatible/targets/s3-compatible.mjs",
+      "line": 244,
+      "name": "uploadOne",
+      "old": 17,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 9,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 17,
+      "newLizardFunctionRange": {
+        "start": 244,
+        "end": 320
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "content/agent-plugins/s3-compatible/targets/s3-compatible.mjs",
+      "line": 476,
+      "name": "classifyManifestWriteResponse",
+      "old": 32,
+      "status": "skipped-lizard-misread",
+      "oldEstimatedCcn": 8,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 32,
+      "newLizardFunctionRange": {
+        "start": 476,
+        "end": 665
+      },
+      "testsToRun": [],
+      "note": "TypeScript-aware per-function CCN is at most 10. Lizard overcounts nullish operators, counts nested callbacks in their parent, or reads beyond function boundaries."
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "line": 143,
+      "name": "publish",
+      "old": 18,
+      "status": "refactored",
+      "oldEstimatedCcn": 24,
+      "newEstimatedCcn": 8,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 145,
+        "end": 165
+      },
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
+      "line": 262,
+      "name": "uploadVercelFile",
+      "old": 14,
+      "status": "refactored",
+      "oldEstimatedCcn": 18,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [
+        "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/fly/deploy-ops/fly.mjs",
+      "line": 32,
+      "name": "logs",
+      "old": 13,
+      "status": "refactored",
+      "oldEstimatedCcn": 7,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": 6,
+      "newLizardFunctionRange": {
+        "start": 39,
+        "end": 53
+      },
+      "testsToRun": [
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+        "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
+      "line": 84,
+      "name": "publish",
+      "old": 16,
+      "status": "refactored",
+      "oldEstimatedCcn": 17,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 84,
+        "end": 114
+      },
+      "testsToRun": [
+        "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
+      "line": 44,
+      "name": "logs",
+      "old": 28,
+      "status": "refactored",
+      "oldEstimatedCcn": 20,
+      "newEstimatedCcn": 7,
+      "newLizardCcn": null,
+      "newLizardFunctionRange": null,
+      "testsToRun": [
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+        "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/backup-push.mjs",
+      "line": 83,
+      "name": "checkRepository",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 12,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 98,
+        "end": 116
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "line": 342,
+      "name": "commitSite",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 11,
+      "newEstimatedCcn": 9,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 352,
+        "end": 395
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/github/source-control/write-files.mjs",
+      "line": 118,
+      "name": "retryDelayMs",
+      "old": 14,
+      "status": "refactored",
+      "oldEstimatedCcn": 14,
+      "newEstimatedCcn": 10,
+      "newLizardCcn": 10,
+      "newLizardFunctionRange": {
+        "start": 123,
+        "end": 134
+      },
+      "testsToRun": [
+        "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs"
+      ]
+    },
+    {
+      "file": "content/agent-plugins/google-workspace/ui/dom.mjs",
+      "line": 105,
+      "name": "show",
+      "old": 12,
+      "status": "refactored",
+      "oldEstimatedCcn": 6,
+      "newEstimatedCcn": 6,
+      "newLizardCcn": 9,
+      "newLizardFunctionRange": {
+        "start": 110,
+        "end": 118
+      },
+      "testsToRun": [
+        "content/agent-plugins/google-workspace/__tests__/dom.frame.test.mjs",
+        "content/agent-plugins/google-workspace/__tests__/ui-views.unit.test.mjs"
+      ]
+    }
+  ],
+  "runnerTestFiles": [
+    "apps/website/src/platform/db/repos/__tests__/publish-history-repo.test.ts",
+    "apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts",
+    "apps/website/src/features/post/__tests__/repo.rows.test.ts",
+    "apps/website/src/features/post/__tests__/L156-characterization.test.ts",
+    "apps/website/src/features/post/__tests__/repo.author.test.ts",
+    "apps/website/src/features/post/__tests__/repo.dialects.test.ts",
+    "apps/website/src/features/post/__tests__/post.authorship.test.ts",
+    "apps/website/src/features/post/__tests__/post.restore-forward.test.ts",
+    "apps/website/src/features/post/__tests__/post.noop-save.test.ts",
+    "apps/website/src/features/post/__tests__/post.concurrent-save.test.ts",
+    "apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts",
+    "apps/website/src/features/site-backup/__tests__/share-plugin-policy.integration.test.ts",
+    "apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts",
+    "apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts",
+    "content/agent-plugins/github-pages/targets/__tests__/github-pages.test.mjs",
+    "content/agent-plugins/vercel/targets/__tests__/vercel.test.mjs",
+    "content/agent-plugins/netlify/targets/__tests__/netlify.test.mjs",
+    "content/agent-plugins/fly/deploy-ops/__tests__/fly.test.mjs",
+    "content/agent-plugins/fly/deploy-ops/__tests__/fly-module.test.mjs",
+    "content/agent-plugins/github/deploy-ops/__tests__/github-actions.test.mjs",
+    "content/agent-plugins/github/deploy-ops/__tests__/github-actions-module.test.mjs",
+    "content/agent-plugins/github/source-control/__tests__/backup-push.test.mjs",
+    "content/agent-plugins/github/source-control/__tests__/commit-site.test.mjs",
+    "content/agent-plugins/github/source-control/__tests__/write-files.test.mjs",
+    "content/agent-plugins/google-workspace/__tests__/dom.frame.test.mjs",
+    "content/agent-plugins/google-workspace/__tests__/ui-views.unit.test.mjs"
+  ],
+  "remaining": {
+    "rawWarnings": "All original warning rows not labeled refactored remain in warningInventory with scores and reasons.",
+    "actualViolations": "Only excluded applied migrations and the protected parseDescriptorV2 function remain parser-confirmed over 10 within the listed files.",
+    "absentSources": "The two vendor paths account for six supplied warning rows and cannot be inspected in this clone.",
+    "nextAssignee": "Coordinator/TestRunner: commit and run runnerTestFiles; decide whether raw lizard nullish/callback counting should be an additional gate."
+  }
+}

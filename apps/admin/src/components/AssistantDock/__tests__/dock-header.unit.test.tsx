@@ -9,6 +9,7 @@ import { useDockHeaderTip } from "../DockHeaderTip.hooks";
 import { DockSettingsMenu } from "../DockSettingsMenu";
 import { activateDockMenuItem, dockSettingsMenuSections, shouldShowHeaderTip } from "../dock-header-rules";
 import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
+import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, visibleAssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /**
  * @file The dock header's gear menu and white icon tooltips (owner, 2026-10-11). Real hooks, real
@@ -24,6 +25,24 @@ function bubble() {
 }
 
 describe("dock header rules", () => {
+  it("offers all reply lengths for every runtime, with Normal selected and only the selected preference patched", () => {
+    const update = vi.fn();
+    const sections = dockSettingsMenuSections({ t: identity }, {
+      display: { preferences: DEFAULT_CHAT_DISPLAY, update: vi.fn() },
+      runtime: { preferences: DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, update, visible: visibleAssistantRuntimePreferences({ agent: undefined }) },
+    });
+    const replyLength = sections.find(section => section.key === "reply-length")!;
+    expect(replyLength.label).toBe("Reply length");
+    expect(replyLength.tooltip).toBe("How much the assistant writes back. Short: just the result and what needs you.");
+    expect(replyLength.items.map(({ label, role, checked }) => ({ label, role, checked }))).toEqual([
+      { label: "Short", role: "menuitemradio", checked: false },
+      { label: "Normal", role: "menuitemradio", checked: true },
+      { label: "Detailed", role: "menuitemradio", checked: false },
+    ]);
+    for (const item of replyLength.items) item.onSelect?.();
+    expect(update.mock.calls).toEqual([[{ replyLength: "short" }], [{ replyLength: "normal" }], [{ replyLength: "detailed" }]]);
+  });
+
   it("shows the tip for a closed control, never for an open one or anything inside its menu", () => {
     const root = document.createElement("div");
     root.innerHTML = `<button id="closed" aria-expanded="false"></button>

@@ -1,9 +1,10 @@
-import type { PostRecord } from "#src/features/post/index";
+import { isPublicPost, PostNotFoundError, type PostRecord, type PublicPostRecord } from "#src/features/post/index";
 import { postAuthorForDisplay } from "#src/features/post/author";
 import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
 
 /**
- * Maps a post record into the richer admin-facing DTO shape.
+ * Maps a post/page record into the richer admin-facing DTO shape.
+ * @throws PostNotFoundError for storage-only kinds such as email templates.
  *
  * SPEC-005 REQ-11 (T022): `ext` is spread in only when the record actually carries one, so an
  * entry with no contributing plugin serializes with no `ext` key at all (AC-14) and every
@@ -17,7 +18,8 @@ import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
  * guarantees `bodyFormat: "html"` implies a non-null `bodyHtml`, so reaching this branch with a null
  * one is a genuine data-integrity violation this function should fail loudly on, not paper over.
  */
-export function toHeadlessPost(post: PostRecord): AdminPost {
+export function toHeadlessPost(record: PostRecord): AdminPost {
+  const post = requirePublicPost({ post: record });
   const base = {
     id: post.id,
     workspaceId: post.workspaceId,
@@ -52,9 +54,11 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
 }
 
 /**
- * Maps a post record into the narrower public content DTO shape.
+ * Maps a post/page record into the narrower public content DTO shape.
+ * @throws PostNotFoundError for storage-only kinds such as email templates.
  */
-export function toHeadlessContentPost(post: PostRecord): ContentPost {
+export function toHeadlessContentPost(record: PostRecord): ContentPost {
+  const post = requirePublicPost({ post: record });
   return {
     id: post.id,
     kind: post.kind,
@@ -65,4 +69,10 @@ export function toHeadlessContentPost(post: PostRecord): ContentPost {
     author: postAuthorForDisplay({ post }),
     showAuthor: post.showAuthor ?? false,
   };
+}
+
+/** Raw storage callers must not serialize a mail template through either content DTO. */
+function requirePublicPost({ post }: { post: PostRecord }, _optional: Record<string, never> = {}): PublicPostRecord {
+  if (!isPublicPost(post)) throw new PostNotFoundError(`post '${post.id}' was not found`);
+  return post;
 }

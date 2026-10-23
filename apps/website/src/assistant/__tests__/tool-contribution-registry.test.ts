@@ -176,6 +176,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "content-stats",
     "analytics",
     "system-mail",
+    "system-mail-providers",
+    "system-mail-delivery",
     "system-server-logs",
     "identity-policy-list-permissions",
     "sites-list",
@@ -219,6 +221,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "newsletter",
     "newsletter-delivery",
     "pages",
+    // 2026-10-22 (round 2): raw-HTML email templates on Pages storage (`features/email-templates`).
+    "email-templates",
     "plugins",
     // 2026-10-05: confirmed installs, each its own domain beside the tools they feed.
     "plugins-install",
@@ -241,6 +245,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // domain composed in `server/runtime/composition/site-search-tools.ts` over `@jini-ai/search/tools`.
     "search",
     "settings",
+    "visitor-tools",
     "consent",
     "settings-ui-locales",
     // 2026-09-21: `site_backup_plan`/`site_backup_push` (`features/site-backup`).

@@ -81,7 +81,7 @@ test("createSiteRouteDeps composes the SQLite audit sink itself, over the SAME c
   }
 });
 
-test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbPath — the install-dir `serve` shape", async () => {
+test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbPath — the install-dir `serve` shape", async (t) => {
   const dir = mkTempDir("tovu-audit-sink-handle-");
   const handleDbPath = path.join(dir, "handle.db");
   const neverOpenedDbPath = path.join(dir, "never-opened.db");
@@ -104,6 +104,16 @@ test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbP
       false,
       "nothing may open the dbPath in this branch — a sink built from the path rather than the handle would create it",
     );
+    await Promise.allSettled(Object.entries(deps).filter(([key, value]) => key.endsWith("Ready") && value instanceof Promise).map(([, value]) => value));
+    const logs: unknown[][] = [];
+    t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+    handle.$client.close();
+    await assert.doesNotReject(deps.toolAttemptAuditSink.append({ ...APPENDED_EVENT, attemptId: "closed-handle" }));
+    const reported = logs.find(([tag, value]) => tag === "[tool-audit]" && (value as { code?: string })?.code === "tool_audit");
+    assert.ok(reported, "composition must route sink failures through the redacted error reporter");
+    const entry = reported[1] as { errorId: string; diagnostic: string };
+    assert.ok(entry.errorId);
+    assert.equal(typeof entry.diagnostic, "string");
   } finally {
     if (deps) {
       await Promise.allSettled(

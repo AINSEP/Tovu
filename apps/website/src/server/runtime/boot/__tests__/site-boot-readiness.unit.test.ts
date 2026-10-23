@@ -37,6 +37,7 @@ test("the readiness list is exactly the boot-time seeders both entrypoints await
     "settingsUiTabsReady",
     "analyticsSettingsReady",
     "siteTitleReady",
+    "siteConsentReady",
   ]);
 });
 
@@ -65,4 +66,14 @@ test("both top-level boot paths await the shared list instead of an inline copy"
     assert.ok(source.includes("awaitSiteBootReadiness({ deps })"), `${file} must await awaitSiteBootReadiness({ deps })`);
     assert.ok(!/Promise\.all\(\[\s*deps\.identityReady/.test(source), `${file} still carries an inline readiness Promise.all copy`);
   }
+});
+
+test('the daemon waits specifically for consent defaults after other seeders complete', async () => {
+  let release!: () => void;
+  const { deps, resolveAll } = deferredDeps(); resolveAll();
+  const waiting = { ...deps, siteConsentReady: new Promise<void>(resolve => { release = resolve; }) };
+  let settled = false;
+  const ready = awaitSiteBootReadiness({ deps: waiting }).then(() => { settled = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false); release(); await ready; assert.equal(settled, true);
 });

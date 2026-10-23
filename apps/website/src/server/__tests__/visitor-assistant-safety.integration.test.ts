@@ -71,6 +71,37 @@ test("visitorsafe: Gemini receives a 1024-token budget on the first request and 
   for (const body of requests) assert.equal((body.generationConfig as { maxOutputTokens?: number })?.maxOutputTokens, 1024);
 });
 
+for (const categoryNames of [[], ["Travel", "News"]]) {
+  test(`visitor category lookup uses the real site's taxonomy: ${categoryNames.length} categories`, async t => {
+    let continuation: Record<string, unknown> | undefined;
+    const f = await boot({ t, reply: (count, body) => {
+      if (count > 1) continuation = body;
+      return googleReply({ parts: count === 1
+        ? [{ functionCall: { name: "list_categories", args: {}, id: "categories" } }]
+        : [{ text: "Category answer" }] });
+    } });
+    const common = { status: "active", updatedAt: "2026-10-22", version: 1 };
+    await f.deps.taxonomyRepo.insert({ ...common, id: "topics", name: "Topics", hierarchical: true });
+    await f.deps.taxonomyRepo.insert({ ...common, id: "labels", name: "Labels", hierarchical: false });
+    for (const name of categoryNames) {
+      await f.deps.termRepo.insert({ ...common, id: `category-${name}`, name, taxonomyId: "topics", parentId: null });
+    }
+    await f.deps.termRepo.insert({ ...common, id: "tag", name: "Tag only", taxonomyId: "labels", parentId: null });
+    f.deps.postRepo = new InMemoryPostRepo([
+      buildPostRecord({ id: "post", workspaceId: f.deps.workspaceId, slug: "post", status: "published", kind: "post" }),
+      buildPostRecord({ id: "page", workspaceId: f.deps.workspaceId, slug: "page", status: "published", kind: "page" }),
+    ]);
+    const response = await post({ baseUrl: f.baseUrl, message: "What categories does this site have?" });
+    assert.equal(response.status, 200);
+    await response.text();
+    assert.ok(continuation, "the real category handler must send its result to the provider");
+    const contents = continuation.contents as { parts: { functionResponse?: { name: string; response: { content: string } } }[] }[];
+    const result = contents.flatMap(content => content.parts).find(part => part.functionResponse?.name === "list_categories");
+    assert.ok(result?.functionResponse);
+    assert.deepEqual(JSON.parse(result.functionResponse.response.content), [...categoryNames].sort());
+  });
+}
+
 test("visitorsafe: an empty Google response is a correlated provider error before end, not a silent success", async t => {
   let calls = 0;
   const f = await boot({ t, reply: () => {

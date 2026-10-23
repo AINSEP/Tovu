@@ -140,6 +140,7 @@ import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
+import { createUpdateCheckNow, registerUpdateCheckIpc } from "./src/update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
@@ -419,6 +420,8 @@ let quitPhase: QuitPhase = "idle";
 let autoUpdate: AutoUpdateController | null = null;
 let nativeAutoUpdater: import("./src/auto-update-controller.ts").AutoUpdateControllerDeps["updater"] | null = null;
 let autoUpdaterStarting = false;
+/** The version `autoUpdate` downloaded and prompted for; Check for updates… shows that prompt again. */
+let updateReadyVersion: string | null = null;
 
 /**
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
@@ -1456,13 +1459,7 @@ async function startAutoUpdater(): Promise<void> {
   if (autoUpdate || autoUpdaterStarting || !readAutomaticUpdates({ preferencePath: desktopPreferencesPath() })) return;
   autoUpdaterStarting = true;
   try {
-    const skip = updaterSkipReason({
-      isPackaged: app.isPackaged,
-      windowsStore: process.windowsStore === true,
-      platform: process.platform,
-      disabledByEnv: process.env.TOVU_DESKTOP_DISABLE_UPDATER === "1",
-      selftest: SELFTEST,
-    });
+    const skip = currentUpdaterSkipReason();
     if (skip !== null) {
       console.log(`[tovu-desktop] auto-update off: ${skip}`);
       return;
@@ -1471,13 +1468,17 @@ async function startAutoUpdater(): Promise<void> {
     // The operator may turn updates off while the lazy import is resolving.
     if (!readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }) || quitPhase !== "idle") return;
     nativeAutoUpdater = autoUpdater;
+    updateReadyVersion = null;
     autoUpdate = createAutoUpdateController({
       updater: autoUpdater,
       platform: process.platform,
       pid: process.pid,
       presenceDir: presenceDirPath(app.getPath("userData")),
       now: Date.now,
-      promptUpdateReady,
+      promptUpdateReady: (version) => {
+        updateReadyVersion = version;
+        return promptUpdateReady(version);
+      },
       explainOthersOpen,
       quit: () => app.quit(),
       log: (message) => console.log(`[tovu-desktop] ${message}`),
@@ -1487,6 +1488,44 @@ async function startAutoUpdater(): Promise<void> {
     autoUpdaterStarting = false;
   }
 }
+
+function currentUpdaterSkipReason(): string | null {
+  return updaterSkipReason({
+    isPackaged: app.isPackaged,
+    windowsStore: process.windowsStore === true,
+    platform: process.platform,
+    disabledByEnv: process.env.TOVU_DESKTOP_DISABLE_UPDATER === "1",
+    selftest: SELFTEST,
+  });
+}
+
+/**
+ * Settings › Check for updates…, from any open copy: the check runs in this process, through the
+ * native updater the controller listens to — see `update-check-now.ts`.
+ */
+const updateCheck = createUpdateCheckNow({
+  isPackaged: app.isPackaged,
+  currentVersion: () => app.getVersion(),
+  skipReason: currentUpdaterSkipReason,
+  automaticUpdates: () => readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }),
+  readyVersion: () => (autoUpdate ? updateReadyVersion : null),
+  async loadUpdater() {
+    // With updates on, the controller must be listening before a download can start.
+    if (readAutomaticUpdates({ preferencePath: desktopPreferencesPath() })) await startAutoUpdater();
+    const { autoUpdater } = (await import("electron-updater")).default;
+    nativeAutoUpdater ??= autoUpdater;
+    return autoUpdater;
+  },
+  async showReadyPrompt({ version }) {
+    if (await promptUpdateReady(version)) autoUpdate?.requestRestart();
+  },
+  notify({ type, message, detail }) {
+    const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const options = { type, message, detail, buttons: ["OK"] };
+    void (parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options));
+  },
+  log: ({ message }) => console.log(`[tovu-desktop] ${message}`),
+});
 
 function desktopPreferencesPath(): string {
   return path.join(app.getPath("userData"), "desktop-preferences.json");
@@ -1794,6 +1833,7 @@ app
         sweep: () => sweepSitePreviewsOnBoot(sitesCtx.projectsPath),
       });
       registerAppVersionIpc({ ipcMain, app });
+      registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow });
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.

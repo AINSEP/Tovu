@@ -1,3 +1,4 @@
+import { exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -50,36 +51,37 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `src-cred-${(counter += 1)}` },
+    loadSourceControlProviders: exampleProvidersWithoutProbe,
     ...overrides,
   };
 }
 
 test("resolveDefaultForSourceControl decrypts the provider's default connection, never an id-specific one", async () => {
   const deps = makeDeps();
-  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "github", token: "ghp_real_secret" } });
-  const second = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Work", connection: { providerId: "github", token: "ghp_work_secret" }, isDefault: true });
+  await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "example-git", token: "fixture_real_secret" } } });
+  const second = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Work", connection: { providerId: "example-git", token: "fixture_work_secret" }, isDefault: true } });
 
-  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Newest", connection: { providerId: "github", token: "ghp_newest_non_default" } });
-  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" });
+  await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Newest", connection: { providerId: "example-git", token: "fixture_newest_non_default" } } });
+  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" });
   assert.ok(resolved);
   assert.equal(resolved.id, second.id);
   assert.equal(resolved.label, "Work");
-  assert.deepEqual(resolved.connection, { providerId: "github", token: "ghp_work_secret" });
+  assert.deepEqual(resolved.connection, { providerId: "example-git", token: "fixture_work_secret" });
 });
 
 test("resolveDefaultForSourceControl returns null (never throws) when the provider has no default, even with rows for OTHER providers", async () => {
   const deps = makeDeps();
-  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "GL", connection: { providerId: "gitlab", token: "glpat_secret" } });
+  await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "GL", connection: { providerId: "example-token", token: "fixture_secret" } } });
 
-  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }), null);
+  assert.equal(await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-git" }), null);
 });
 
 test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather than silently returning null", async () => {
   const deps = makeDeps();
-  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "github", token: "ghp_real_secret" } });
+  await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "Personal", connection: { providerId: "example-git", token: "fixture_real_secret" } } });
 
   const wrongKeyDeps = { ...deps, sealer: new AesGcmSecretSealer(new InMemoryKeyring()) };
-  await assert.rejects(() => resolveDefaultForSourceControl(wrongKeyDeps, { workspaceId: WORKSPACE, providerId: "github" }));
+  await assert.rejects(() => resolveDefaultForSourceControl(wrongKeyDeps, { workspaceId: WORKSPACE, providerId: "example-git" }));
 });
 
 /**
@@ -95,28 +97,28 @@ test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather 
  */
 test("resolveDefaultForSourceControl converts a decrypt failure (missing site key) into the typed SourceControlCredentialSecretStoreUnconfiguredError, never a raw Error", async () => {
   const workingDeps = makeDeps();
-  await createSourceControlCredential(workingDeps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github", token: "t" } });
+  await createSourceControlCredential({ deps: workingDeps, input: { workspaceId: WORKSPACE, label: "x", connection: { providerId: "example-git", token: "t" } } });
 
   // Same saved row, but a keyring that cannot derive the key to open it — simulates the live scenario:
   // the row already exists, the CURRENT process just has no site key.
   const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
 
   await assert.rejects(
-    () => resolveDefaultForSourceControl(brokenDeps, { workspaceId: WORKSPACE, providerId: "github" }),
+    () => resolveDefaultForSourceControl(brokenDeps, { workspaceId: WORKSPACE, providerId: "example-git" }),
     SourceControlCredentialSecretStoreUnconfiguredError
   );
 });
 
-test("resolveDefaultForSourceControl round-trips a bitbucket connection's paired username, not just the token", async () => {
+test("resolveDefaultForSourceControl round-trips a example-paired connection's paired username, not just the token", async () => {
   const deps = makeDeps();
-  await createSourceControlCredential(deps, {
+  await createSourceControlCredential({ deps: deps, input: {
     workspaceId: WORKSPACE,
     label: "BB",
-    connection: { providerId: "bitbucket", token: "bb_app_password", username: "octocat" },
-  });
+    connection: { providerId: "example-paired", token: "paired-password", username: "octocat" },
+  } });
 
-  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "bitbucket" });
-  assert.deepEqual(resolved?.connection, { providerId: "bitbucket", token: "bb_app_password", username: "octocat" });
+  const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "example-paired" });
+  assert.deepEqual(resolved?.connection, { providerId: "example-paired", token: "paired-password", username: "octocat" });
 });
 
 /**
@@ -126,19 +128,19 @@ test("resolveDefaultForSourceControl round-trips a bitbucket connection's paired
  */
 test("resolveDefaultForSourceControl refuses a same-key ciphertext transplanted from another id, workspace or provider", async () => {
   const deps = makeDeps();
-  const create = (workspaceId: string, providerId: "github" | "gitlab", token: string) =>
-    createSourceControlCredential(deps, { workspaceId, label: token, connection: { providerId, token }, isDefault: true });
-  const source = await create(WORKSPACE, "github", "ghp_source_secret");
-  const sameScopeOtherId = await create(WORKSPACE, "github", "ghp_other_id_secret");
-  const otherWorkspace = await create("ws-other", "github", "ghp_other_ws_secret");
-  const otherProvider = await create(WORKSPACE, "gitlab", "glpat_other_provider_secret");
+  const create = (workspaceId: string, providerId: "example-git" | "example-token", token: string) =>
+    createSourceControlCredential({ deps: deps, input: { workspaceId, label: token, connection: { providerId, token }, isDefault: true } });
+  const source = await create(WORKSPACE, "example-git", "fixture_source_secret");
+  const sameScopeOtherId = await create(WORKSPACE, "example-git", "fixture_other_id_secret");
+  const otherWorkspace = await create("ws-other", "example-git", "fixture_other_ws_secret");
+  const otherProvider = await create(WORKSPACE, "example-token", "fixture_other_provider_secret");
   const sourceRecord = await deps.repo.findById({ workspaceId: WORKSPACE, id: source.id });
   assert.ok(sourceRecord);
 
   for (const [label, target, providerId] of [
-    ["another id, same workspace and provider", { workspaceId: WORKSPACE, id: sameScopeOtherId.id }, "github"],
-    ["another workspace", { workspaceId: "ws-other", id: otherWorkspace.id }, "github"],
-    ["another provider", { workspaceId: WORKSPACE, id: otherProvider.id }, "gitlab"],
+    ["another id, same workspace and provider", { workspaceId: WORKSPACE, id: sameScopeOtherId.id }, "example-git"],
+    ["another workspace", { workspaceId: "ws-other", id: otherWorkspace.id }, "example-git"],
+    ["another provider", { workspaceId: WORKSPACE, id: otherProvider.id }, "example-token"],
   ] as const) {
     const record = await deps.repo.findById(target);
     assert.ok(record, label);

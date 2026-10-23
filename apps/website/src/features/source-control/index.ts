@@ -3,9 +3,6 @@
  * `features/deployments/publish-credentials/index.ts`).
  */
 export type {
-  BitbucketSourceControlConnectionInput,
-  GitHubSourceControlConnectionInput,
-  GitLabSourceControlConnectionInput,
   SourceControlConnectionInput,
   SourceControlCredentialSetRecord,
   SourceControlCredentialSetRepoPort,

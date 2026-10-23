@@ -36,6 +36,7 @@ export const SITE_BOOT_READINESS_KEYS = [
   "settingsUiTabsReady",
   "analyticsSettingsReady",
   "siteTitleReady",
+  "siteConsentReady",
 ] as const;
 
 export type SiteBootReadinessDeps = { readonly [K in (typeof SITE_BOOT_READINESS_KEYS)[number]]: Promise<unknown> };

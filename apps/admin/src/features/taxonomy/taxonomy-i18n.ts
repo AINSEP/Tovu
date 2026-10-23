@@ -1247,6 +1247,33 @@ const TERM_PICKER_ADD_I18N: Record<string, Record<string, string>> = {
 };
 mergeDictionaryTranslations(TAXONOMY_DICT, TERM_PICKER_ADD_I18N);
 
+// 2026-10-22: a long row of the box folds behind "See more" / "Show less", with a search box once
+// a taxonomy has more than 100 terms (`TermPicker.tsx`'s `TermChecklist`).
+const TERM_PICKER_REVEAL_I18N: Record<string, Record<string, string>> = {
+  "es": { "See more": "Ver más", "Show less": "Ver menos", "Search terms": "Buscar términos" },
+  "id": { "See more": "Lihat lainnya", "Show less": "Tampilkan lebih sedikit", "Search terms": "Cari istilah" },
+  "de": { "See more": "Mehr anzeigen", "Show less": "Weniger anzeigen", "Search terms": "Begriffe suchen" },
+  "zh-CN": { "See more": "查看更多", "Show less": "收起", "Search terms": "搜索术语" },
+  "zh-TW": { "See more": "查看更多", "Show less": "收合", "Search terms": "搜尋詞彙" },
+  "pt-BR": { "See more": "Ver mais", "Show less": "Ver menos", "Search terms": "Buscar termos" },
+  "ru": { "See more": "Показать ещё", "Show less": "Свернуть", "Search terms": "Поиск терминов" },
+  "fa": { "See more": "بیشتر ببینید", "Show less": "نمایش کمتر", "Search terms": "جستجوی اصطلاحات" },
+  "ar": { "See more": "عرض المزيد", "Show less": "عرض أقل", "Search terms": "البحث في المصطلحات" },
+  "ja": { "See more": "もっと見る", "Show less": "表示を減らす", "Search terms": "用語を検索" },
+  "ko": { "See more": "더 보기", "Show less": "간략히 보기", "Search terms": "용어 검색" },
+  "pl": { "See more": "Pokaż więcej", "Show less": "Pokaż mniej", "Search terms": "Szukaj terminów" },
+  "hu": { "See more": "Több megjelenítése", "Show less": "Kevesebb megjelenítése", "Search terms": "Kifejezések keresése" },
+  "fr": { "See more": "Voir plus", "Show less": "Voir moins", "Search terms": "Rechercher des termes" },
+  "uk": { "See more": "Показати більше", "Show less": "Згорнути", "Search terms": "Пошук термінів" },
+  "tr": { "See more": "Daha fazla gör", "Show less": "Daha az göster", "Search terms": "Terim ara" },
+  "th": { "See more": "ดูเพิ่มเติม", "Show less": "แสดงน้อยลง", "Search terms": "ค้นหาคำศัพท์" },
+  "it": { "See more": "Mostra altro", "Show less": "Mostra meno", "Search terms": "Cerca termini" },
+  "hi": { "See more": "और देखें", "Show less": "कम दिखाएँ", "Search terms": "टर्म खोजें" },
+  "ur": { "See more": "مزید دیکھیں", "Show less": "کم دکھائیں", "Search terms": "ٹرمز تلاش کریں" },
+  "bn": { "See more": "আরও দেখুন", "Show less": "কম দেখান", "Search terms": "টার্ম খুঁজুন" },
+};
+mergeDictionaryTranslations(TAXONOMY_DICT, TERM_PICKER_REVEAL_I18N);
+
 /** `TAXONOMY_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.

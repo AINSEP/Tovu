@@ -113,6 +113,7 @@ export const sqlitePostSearch: PostSearchDialect = {
       sql`post_search_fts MATCH ${query.terms.join(" OR ")}`,
       sql`p.workspace_id = ${query.workspaceId}`,
       sql`p.deleted_at IS NULL`,
+      sql`p.kind IN ('post', 'page')`,
     ];
     if (query.kind !== undefined) filters.push(sql`p.kind = ${query.kind}`);
     if (query.status !== undefined) filters.push(sql`p.status = ${query.status}`);

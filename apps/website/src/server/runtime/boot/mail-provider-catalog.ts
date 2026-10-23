@@ -17,6 +17,8 @@ import {
 import type { PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
+import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";
+import type { MailProviderSetup } from "#src/platform/mail/mail-status";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
@@ -44,8 +46,16 @@ export const MAIL_CREDENTIAL_CATEGORY = "ops";
 /** Exact `custom_credential_sets.label` an operator must use for the SMTP provider. */
 export const MAIL_SMTP_CREDENTIAL_LABEL = "Tovu Mail — SMTP Server";
 
-/** Every mail credential label starts with this; used to spot a key whose plugin is not loaded yet. */
-const MAIL_CREDENTIAL_LABEL_PREFIX = "Tovu Mail — ";
+/**
+ * The SMTP protocol's setup form (core: SMTP is a protocol, not a vendor — owner decision
+ * 2026-10-22). A vendor's SMTP host/port preset belongs in that vendor's plugin. `baseUrl` packs
+ * `host:port` behind an `https://` prefix — see `resolve-mailer.ts`'s header for the encoding.
+ */
+export const SMTP_PROVIDER_SETUP: MailProviderSetup = { fields: [
+  { key: "baseUrl", label: "SMTP server", type: "url", required: true, placeholder: "https://smtp.example.com:465", help: "Host and port after https://. Ports 465 and 443 use implicit TLS; any other port uses STARTTLS." },
+  { key: "username", label: "Username", type: "text", required: true },
+  { key: "token", label: "Password", type: "secret", required: true },
+] };
 
 export interface MailProviderCatalogDeps {
   workspaceId: UUID;
@@ -70,6 +80,8 @@ export interface MailProviderCatalog {
   credentialLabelFor(required: { id: string }): string | undefined;
   /** Plugin adapters/providers that were not loaded, and why (log-safe). */
   readonly refusals: readonly string[];
+  /** The provider's declarative setup form; no fields for one that needs no saved key. */
+  setupFor(required: { id: string }): MailProviderSetup;
 }
 
 function builtins(deps: MailProviderCatalogDeps): MailProviderModule[] {
@@ -101,12 +113,15 @@ export async function loadMailProviderCatalog(deps: MailProviderCatalogDeps, _op
   const adapters = await loadAdapters(deps);
   const { accepted, refusals } = contributeMailProviders({ registry, adapters });
   const labels = new Map<string, string>([["smtp", MAIL_SMTP_CREDENTIAL_LABEL]]);
+  const setups = new Map<string, MailProviderSetup>([["smtp", SMTP_PROVIDER_SETUP]]);
   for (const adapter of adapters.list()) {
     // Only providers that read a credential get a label; label presence is "needs a saved key".
-    const needsKey = (adapter.descriptor.credentialKeys ?? ["token"]).length > 0;
-    if (accepted.includes(adapter.descriptor.id) && needsKey) labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
+    const keys = adapter.descriptor.credentialKeys ?? ["token"];
+    if (!accepted.includes(adapter.descriptor.id) || keys.length === 0) continue;
+    labels.set(adapter.descriptor.id, adapter.descriptor.credentialLabel);
+    setups.set(adapter.descriptor.id, adapter.descriptor.setup ?? defaultMailProviderSetup({ credentialKeys: keys }));
   }
-  return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id) };
+  return { registry, pluginIds: accepted, refusals, credentialLabelFor: ({ id }) => labels.get(id), setupFor: ({ id }) => setups.get(id) ?? { fields: [] } };
 }
 
 /**
@@ -119,8 +134,8 @@ export async function loadMailCredentialCards(
   required: Pick<MailProviderCatalogDeps, "loadMailAdapters">,
   _optional: Record<string, never> = {}
 ): Promise<readonly PluginCredentialCard[]> {
-  return (await loadAdapters(required)).list().flatMap(({ descriptor }) => descriptor.credentialCard
-    ? [{ providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
+  return (await loadAdapters(required)).list().flatMap(({ descriptor, pluginId }) => descriptor.credentialCard
+    ? [{ pluginId, providerId: descriptor.id, label: descriptor.credentialLabel, category: MAIL_CREDENTIAL_CATEGORY, ...descriptor.credentialCard }]
     : []);
 }
 
@@ -144,12 +159,13 @@ export async function resolveMailCredential(
   return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
 }
 
-/** A log-safe reason a credential lookup threw. */
-export function credentialFailureReason(required: { label: string; err: unknown }, _optional: Record<string, never> = {}): string {
+/** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */
+export function credentialFailureReason(required: { label: string; err: unknown }, optional: { log?: (line: string, error: unknown) => void } = {}): string {
   const { label, err } = required;
+  try { (optional.log ?? console.error)("[mail] credential lookup failed", err); } catch { /* Diagnostics cannot replace the caller-safe refusal. */ }
   return err instanceof CustomCredentialSecretStoreUnconfiguredError
-    ? `the "${label}" credential is saved but could not be decrypted (${err.message})`
-    : `looking up the "${label}" credential failed (${err instanceof Error ? err.message : String(err)})`;
+    ? `the "${label}" credential is saved but could not be decrypted`
+    : `the "${label}" credential could not be read`;
 }
 
 /**
@@ -164,53 +180,4 @@ export function createProviderMailer(
   const { deps, provider, credential } = required;
   const httpClient = deps.httpClient as unknown as JiniHttpClientPort;
   return toTovuMailer({ mailer: provider.create({ credential, kit: { httpClient } }) });
-}
-
-export interface EffectiveProviderDetection {
-  /** What the pre-2026-10-21 implicit chain would pick: first plugin with a working key, then SMTP. */
-  readonly providerId: string | null;
-  /** True when a mail credential exists that no loaded provider claims (its plugin is not installed
-   *  yet, e.g. first boot after an upgrade): the result must not be persisted. */
-  readonly pending: boolean;
-  readonly reasons: readonly string[];
-}
-
-/** One chain step: the id when its credential resolves, else null plus any failure reason. */
-async function tryProvider(
-  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog; id: string; label: string; reasons: string[] }
-): Promise<string | null> {
-  try {
-    return (await resolveMailCredential(required)) ? required.id : null;
-  } catch (err) {
-    required.reasons.push(credentialFailureReason({ label: required.label, err }));
-    return null;
-  }
-}
-
-/** Whether a saved mail credential belongs to no loaded provider. @complexity O(c) credentials. */
-async function hasUnclaimedMailCredential(required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog }): Promise<boolean> {
-  const { deps, catalog } = required;
-  const claimed = new Set([...catalog.pluginIds, "smtp"].map((id) => catalog.credentialLabelFor({ id })));
-  const records = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  return records.some((record) => record.label.startsWith(MAIL_CREDENTIAL_LABEL_PREFIX) && !claimed.has(record.label));
-}
-
-/**
- * Replays the old implicit selection once, for the first-boot migration only: each plugin provider's
- * credential in registry order, then SMTP. A decrypt failure falls through, as it always did.
- * @complexity O(a) credential lookups.
- */
-export async function detectEffectiveMailProvider(
-  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog },
-  _optional: Record<string, never> = {}
-): Promise<EffectiveProviderDetection> {
-  const reasons: string[] = [];
-  for (const id of [...required.catalog.pluginIds, "smtp"]) {
-    // The old chain only ever picked a provider by its saved key; a keyless plugin was never a pick.
-    const label = required.catalog.credentialLabelFor({ id });
-    if (label === undefined) continue;
-    const found = await tryProvider({ ...required, id, label, reasons });
-    if (found) return { providerId: found, pending: false, reasons };
-  }
-  return { providerId: null, pending: await hasUnclaimedMailCredential(required), reasons };
 }

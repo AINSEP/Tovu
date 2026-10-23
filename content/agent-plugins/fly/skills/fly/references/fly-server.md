@@ -133,7 +133,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 **Never** put a token, key, or password into a `custom_credential_make_request` call, a file you
 write, a commit message, or your reply. If a secret value has to exist, the operator types it —
-into GitHub's secret form, or into `credential_save { kind: "api", target: "fly.io" }`'s masked field (use the exact saved credential label as target).
+into GitHub's secret form, or into `credential_save { kind: "plugin-provider", target: "fly" }`'s masked field for a new credential (rotate an existing row with kind `api` and its exact saved label as target).
 
 ### Rule 4 — provision `TOVU_SITE_KEY` before the first deploy.
 

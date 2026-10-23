@@ -6,7 +6,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { disconnectDestination, PublishTrustConnectError } from "../publish-trust/connect.js";
 import { disconnectAndForgetDestination } from "./connect-destination.js";
-import { defaultProvisioning, defaultFindCandidate, type PublishContentToolDeps } from "./tool-registrations.js";
+import { defaultProvisioning, type PublishContentToolDeps } from "./tool-registrations.js";
 
 /** Only the ports the admin disconnect handler uses; no HTTP handshake or secret decryption. */
 export type Deps = Pick<PublishContentToolDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "publishContentPeerRepo" | "siteAssistantSecretKeyring" | "publishTrustProvisioning" | "findPublishCandidate">;
@@ -37,7 +37,7 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
         const removed = await disconnectAndForgetDestination({ repo: deps.publishContentPeerRepo, clock: deps.clock, idGen: deps.idGen,
           reverseGrant: () => disconnectDestination({ keyring: deps.siteAssistantSecretKeyring, provisioning: deps.publishTrustProvisioning ?? defaultProvisioning(), workspaceId: deps.workspaceId }),
         }, { workspaceId: deps.workspaceId });
-        return { connected: false, site: null, candidateUrl: removed.site?.baseUrl ?? await (deps.findPublishCandidate ?? defaultFindCandidate)(),
+        return { connected: false, site: null, candidateUrl: removed.site?.baseUrl ?? await (deps.findPublishCandidate ?? (async () => null))(),
           message: removed.site ? `This computer no longer publishes to ${removed.site.label}.` : "This computer was not publishing anywhere.",
           nextStep: removed.changed ? removed.target?.nextStep ?? null : null };
       } catch (error) {

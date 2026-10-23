@@ -2,7 +2,18 @@
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
 import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
-import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps } from "../../../assistant/runtime-preferences.js";
+import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-preferences.js";
+
+/** Reply guidance; Normal deliberately contributes no text to the existing overlay. */
+export const SHORT_REPLY_GUIDANCE = "Lead with the result in 1–3 lines, then only decisions, approvals, failures or unverified items needing the person; retain the Tool gap line and anything flagged as needing the person, and omit step narration, recaps and change lists unless asked.";
+export const DETAILED_REPLY_GUIDANCE = "Explain the cause, what changed and where, what was checked and what was not.";
+
+/** The selected reply instruction, or no addition for Normal. Pure, O(1). */
+export function buildReplyLengthGuidance({ replyLength }: { replyLength: AssistantRuntimeGuidanceInput["replyLength"] | undefined }, _options = {}): string {
+  if (replyLength === "short") return SHORT_REPLY_GUIDANCE;
+  if (replyLength === "detailed") return DETAILED_REPLY_GUIDANCE;
+  return "";
+}
 
 /** Exact delegation guidance (owner decision 2026-10-21). */
 export const PREFER_SUBAGENTS_GUIDANCE =
@@ -63,6 +74,7 @@ export function buildClaudeInChromeRunOptions(
 export interface AssistantRuntimeGuidanceInput {
   preferSubagents: boolean;
   claudeInChrome: boolean;
+  replyLength: AssistantRuntimePreferences["replyLength"];
 }
 
 /** Spread verbatim into `AgentExecutor.run()`'s optional arguments. */
@@ -78,6 +90,7 @@ export function buildAssistantRuntimeGuidance({ input }: { input: AssistantRunti
   return [
     buildPreferSubagentsGuidance({ effective: input?.preferSubagents === true }),
     input?.claudeInChrome === true ? CLAUDE_IN_CHROME_GUIDANCE : "",
+    buildReplyLengthGuidance({ replyLength: input?.replyLength }),
   ].filter(text => text !== "").map(text => `${text} `).join("");
 }
 
@@ -142,7 +155,7 @@ export async function resolveAssistantRuntimeLaunch(
   const runtimeSupportsChrome = agentSupportsChromeIntegration({ agentId }, lookup) && await probeChrome?.({ agentId }) === true;
   const claudeInChrome = resolveClaudeInChromeEffective({ useClaudeInChrome: preferences.useClaudeInChrome, runtimeSupportsChrome, isOwner });
   return {
-    guidance: { preferSubagents: resolvePreferSubagentsEffective({ preferSubagents: preferences.preferSubagents, runtimeSupportsSubagents, subagentsEnabled }), claudeInChrome },
+    guidance: { preferSubagents: resolvePreferSubagentsEffective({ preferSubagents: preferences.preferSubagents, runtimeSupportsSubagents, subagentsEnabled }), claudeInChrome, replyLength: preferences.replyLength },
     runOptions: buildClaudeInChromeRunOptions({ runtimeSupportsChrome, effective: claudeInChrome }),
   };
 }

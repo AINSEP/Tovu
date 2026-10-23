@@ -58,7 +58,7 @@ test('readiness preserves receipt failure evidence, page status, metadata and re
     assert.deepEqual(result.blockingProblems.map(problem => problem.code), ['RECEIPT_STORAGE_UNAVAILABLE', 'PAGE_UNAVAILABLE']);
     assert.equal(result.truncated, page.truncated);
     assert.equal(result.enabled, false);
-    assert.equal(result.placement, 'bottom-bar');
+    assert.equal(result.placement, 'bottom-right');
     assert.equal(result.regionMode, 'opt-in');
     assert.equal(result.delivery, 'live');
     assert.equal(result.staticSupported, false);

@@ -63,6 +63,8 @@ declares one `apiVersion` and gets exactly one of these two layouts throughout.
 | `pages` | no | Documentation only; nothing reads it. Fine to keep in sync for authoring convenience, harmless if you don't. |
 | `fonts` | no | **Inert for `static` tier.** Only consumed by `pageShell()`, which a static theme's own complete `<head>` never reaches. If the source needs a web font, `<link>` or self-host it directly in each page's own `<head>` — don't rely on this field. |
 
+| `fontStylesheets` | no | Array of absolute HTTPS stylesheet URLs or root-relative paths, in link order. `[]` disables font loading, including legacy `fonts`; absent uses the shipped legacy URL template for any `fonts` list. Preconnects follow stylesheet origins, so local stylesheets make no legacy-provider connection. Like `fonts`, this only affects `pageShell()`; static themes link fonts in their own `<head>`. |
+
 ## `publishedPages` — the default-unpublished trap
 
 Absent, or present but missing an id: that page is **unpublished** — `GET /<id>` falls through

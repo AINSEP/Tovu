@@ -97,6 +97,8 @@ export interface ByokProviderTurnInput {
   readonly getToolSnapshot?: ProviderToolTurnOptions["getToolSnapshot"];
   /** Value-free strict-prefer diagnostics; unsupported schemas still use host validation. */
   readonly onSchemaFallback?: ProviderToolTurnOptions["onSchemaFallback"];
+  /** Audit and phrase refusals for calls absent from the advertised snapshot; never executes them. */
+  readonly onUnexposedToolCall?: ProviderToolTurnOptions["onUnexposedToolCall"];
   readonly executeTool: ByokToolExecutor;
   readonly onEvent: (event: ByokTurnEvent) => void;
   readonly signal?: AbortSignal;
@@ -171,8 +173,9 @@ export interface ByokProviderTurnResult {
  * coercion is proportional to path count and depth. Reference expansion is bounded by the hop cap.
  */
 export async function runByokProviderTurn(input: ByokProviderTurnInput, _optional = {}): Promise<ByokProviderTurnResult> {
-  const { baseUrl, maxTokens, maxToolTurns, signal, getToolSnapshot, onSchemaFallback, ...required } = input;
+  const { baseUrl, maxTokens, maxToolTurns, signal, getToolSnapshot, onSchemaFallback, onUnexposedToolCall, ...required } = input;
   return runProviderToolTurn({ ...required, adapters: providerTurnAdapters }, {
+    ...(onUnexposedToolCall !== undefined ? { onUnexposedToolCall } : {}),
     ...(getToolSnapshot !== undefined ? { getToolSnapshot } : {}),
     ...(onSchemaFallback !== undefined ? { onSchemaFallback } : {}),
     ...(baseUrl !== undefined ? { baseUrl } : {}),

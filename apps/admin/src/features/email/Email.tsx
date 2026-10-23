@@ -1,28 +1,47 @@
-import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import "@jini-ai/ui/settings-dialog.css";
+import type { ReactNode } from "react";
 
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import type { AdminMailStatus } from "../../lib/api";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { adminHref, navigate } from "../../lib/router";
+import { navigate } from "../../lib/router";
 import { t } from "./email-i18n";
+import { EmailActivityTab } from "./EmailActivityTab";
+import { EmailOverviewTab } from "./EmailOverviewTab";
+import { Chip, Section, Segments, type Tone } from "./EmailParts";
+import { EmailProviderTab } from "./EmailProviderTab";
+import { EmailSenderTab } from "./EmailSenderTab";
+import { EmailTemplatesTab } from "./EmailTemplatesTab";
 import { emailSummary, useWiredEmail, type EmailController, type EmailStatusView, type EmailSummary } from "./hooks/use-email.hooks";
+import { useWiredEmailActivity, type EmailActivityController } from "./hooks/use-email-activity.hooks";
+import { useWiredEmailOverview, type EmailOverviewController } from "./hooks/use-email-overview.hooks";
+import { useWiredEmailProvider, type EmailProviderController } from "./hooks/use-email-provider.hooks";
+import { useWiredEmailSender, type EmailSenderController } from "./hooks/use-email-sender.hooks";
+import { useWiredEmailTemplates, type EmailTemplatesController } from "./hooks/use-email-templates.hooks";
+// The segmented pill's look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
+import "../../styles/assistant.css";
 import "./email.css";
 
 /**
  * @file The Email screen — markup only; state lives in `hooks/use-email.hooks.ts`.
  *
- * Phase 1 of `ADS-memory/reports/2026-10-22-email-page-design-codex.md`: configuration diagnostics
- * from the existing mail-status read. Every section keeps its place; the ones whose data has no
- * server contract yet (DNS records, test send, uses, templates, activity) say "Coming next" instead
- * of showing made-up rows. No provider-name branches: everything shown comes from the status payload.
+ * Design: `ADS-memory/reports/2026-10-22-email-page-design-codex.md` (+ its "Owner decisions").
+ * Phase 1 was the status read; round 2 (2026-10-22) wires every tab to its own routes, each tab's
+ * state in its own hook (`hooks/use-email-*.hooks.ts`), mounted only while that tab shows so the
+ * page does not fire every read at once. No provider-name branches: everything shown comes from the
+ * server's data. A template's editor is its own page (`EmailTemplateEditor.tsx`).
  *
  * Tabs (`/admin/email?tab=overview|provider|sender|templates|activity`) use the shared `TabBar`, the
  * same as Admin UI and Cookie Consent: the URL owns the selection, so a reload or a link (the mail
  * banner's "Set up email" opens `?tab=provider`) lands on that tab.
+ *
+ * Inside Overview, Provider, Sender & DNS and Activity, a segmented pill shows one section at a time
+ * (owner, 2026-10-22: the stacked cards were too much to take in). The URL owns that choice too, as
+ * `?p=`: an Overview section, a provider id, `sender`/`dns`, or an Activity section. A missing or
+ * unknown `p` falls back to the first section (Provider: the active provider — see
+ * `EmailProviderTab.tsx`).
  */
 
 const TAB_IDS = ["overview", "provider", "sender", "templates", "activity"] as const;
@@ -35,7 +54,26 @@ const TAB_LABELS: Record<EmailTabId, string> = {
   activity: "Activity",
 };
 
-type Tone = "ok" | "warning" | "neutral";
+const OVERVIEW_PARTS = ["status", "uses", "test"] as const;
+type OverviewPart = (typeof OVERVIEW_PARTS)[number];
+const OVERVIEW_PART_LABELS: Record<OverviewPart, string> = { status: "Status", uses: "What uses email", test: "Send test email" };
+const SENDER_PARTS = ["sender", "dns"] as const;
+type SenderPart = (typeof SENDER_PARTS)[number];
+const SENDER_PART_LABELS: Record<SenderPart, string> = { sender: "Sender", dns: "DNS" };
+const ACTIVITY_PARTS = ["sends", "blocked", "reports"] as const;
+type ActivityPart = (typeof ACTIVITY_PARTS)[number];
+const ACTIVITY_PART_LABELS: Record<ActivityPart, string> = { sends: "Recent sends", blocked: "Blocked addresses", reports: "Bounce and spam reports" };
+
+/** `p` when it names one of `parts`, else the first. Pure. */
+function pickPart<T extends string>(parts: readonly T[], part: string | null | undefined): T {
+  return parts.find((id) => id === part) ?? parts[0]!;
+}
+
+/** A segmented pill over fixed parts, labelled through the dictionary. */
+function PartSegments<T extends string>(props: { name: string; label: string; labels: Record<T, string>; active: T; locale: string; onSelect: (part: string) => void }) {
+  const items = (Object.keys(props.labels) as T[]).map((key) => ({ key, label: t({ locale: props.locale, key: props.labels[key] }) }));
+  return <Segments name={props.name} label={props.label} items={items} active={props.active} onSelect={props.onSelect} />;
+}
 
 const SUMMARY: Record<EmailSummary, { tone: Tone; chip: string; line: string }> = {
   not_set_up: {
@@ -48,50 +86,9 @@ const SUMMARY: Record<EmailSummary, { tone: Tone; chip: string; line: string }> 
     chip: "No external delivery",
     line: "Mail is only written to the server log. Nothing is sent.",
   },
-  needs_attention: { tone: "warning", chip: "Needs attention", line: "Some mail cannot be sent. See Provider and Sender below." },
+  needs_attention: { tone: "warning", chip: "Needs attention", line: "Some mail cannot be sent. Check the Provider and Sender & DNS tabs." },
   configured: { tone: "ok", chip: "Configured", line: "A provider is selected and its key is saved." },
 };
-
-const LANE_STATE: Record<string, { tone: Tone; label: string }> = {
-  ready: { tone: "ok", label: "Ready" },
-  unconfigured: { tone: "warning", label: "Not set up" },
-  unknown_provider: { tone: "warning", label: "Not installed" },
-  missing_credential: { tone: "warning", label: "Key not saved" },
-  local_only: { tone: "neutral", label: "No external delivery" },
-};
-
-const LANE_LABEL = { transactional: "Transactional mail", bulk: "Bulk mail" } as const;
-
-const SENDER_WARNING = {
-  sender_unknown: "No sender address is set.",
-  sender_unverified: "The provider has not verified the sender's domain.",
-} as const;
-
-function Chip(props: { tone: Tone; children: ReactNode }) {
-  return <span className={`status status-${props.tone}`}>{props.children}</span>;
-}
-
-/** One titled card; `id` doubles as the in-page anchor within its tab. */
-function Section(props: { id: string; title: string; children: ReactNode }) {
-  return (
-    <section id={props.id} className="jini-settings-section email-section" aria-labelledby={`email-${props.id}-title`}>
-      <div className="jini-settings-section-card email-card">
-        <h2 className="jini-byok-card-title" id={`email-${props.id}-title`}>{props.title}</h2>
-        {props.children}
-      </div>
-    </section>
-  );
-}
-
-/** The honest placeholder for a section whose data does not exist yet. */
-function ComingNext(props: { locale: string; text: string }) {
-  return (
-    <p className="email-coming-next">
-      <Chip tone="neutral">{t({ locale: props.locale, key: "Coming next" })}</Chip>
-      <span className="jini-field-hint">{t({ locale: props.locale, key: props.text })}</span>
-    </p>
-  );
-}
 
 function StatusBody(props: { view: EmailStatusView; locale: string; retry: () => void }) {
   const { view, locale } = props;
@@ -119,101 +116,86 @@ function StatusBody(props: { view: EmailStatusView; locale: string; retry: () =>
   );
 }
 
-function providerLabel(status: AdminMailStatus, id: string | null, locale: string): string {
-  if (id === null) return t({ locale, key: "None" });
-  return status.providers?.find((provider) => provider.id === id)?.label ?? id;
+/** Each tab's state hook — the DI seam a test fills with fakes. Mounted only while its tab shows. */
+export interface EmailTabHooks {
+  overview: () => EmailOverviewController;
+  provider: (optional: { onChanged?: () => void }) => EmailProviderController;
+  sender: (optional: { onChanged?: () => void }) => EmailSenderController;
+  templates: (optional: { newName?: string }) => EmailTemplatesController;
+  activity: () => EmailActivityController;
 }
 
-function ProviderBody(props: { status: AdminMailStatus; locale: string }) {
-  const { status, locale } = props;
-  const providers = status.providers ?? [];
-  const active = new Set((status.lanes ?? []).map((lane) => lane.providerId));
+const WIRED_TAB_HOOKS: EmailTabHooks = {
+  overview: useWiredEmailOverview,
+  provider: useWiredEmailProvider,
+  sender: useWiredEmailSender,
+  templates: useWiredEmailTemplates,
+  activity: useWiredEmailActivity,
+};
+
+type PartProps = { hooks: EmailTabHooks; locale: string; part: string | null | undefined; onPart: (part: string) => void };
+
+/** Overview's hook stays mounted across its segments, so the uses read and a typed test address survive a switch. */
+function OverviewTab(props: PartProps & { label: string; status: ReactNode }) {
+  const controller = props.hooks.overview();
+  const part = pickPart(OVERVIEW_PARTS, props.part);
   return (
     <>
-      {(status.lanes ?? []).length > 0 ? (
-        <dl className="email-facts">
-          {status.lanes!.map((lane) => {
-            const state = LANE_STATE[lane.state] ?? { tone: "neutral" as const, label: lane.state };
-            return (
-              <div key={lane.lane} className="email-fact">
-                <dt className="jini-field-label">{t({ locale, key: LANE_LABEL[lane.lane] })}</dt>
-                <dd>
-                  <span className="jini-field-hint">{providerLabel(status, lane.providerId, locale)}</span>
-                  <Chip tone={state.tone}>{t({ locale, key: state.label })}</Chip>
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      ) : null}
-      <h3 className="jini-field-label email-subhead">{t({ locale, key: "Installed providers" })}</h3>
-      {providers.length === 0 ? (
-        <p className="jini-field-hint">
-          {t({ locale, key: "No mail providers are installed." })}{" "}
-          <a href={adminHref("/agent-plugins")}>{t({ locale, key: "Manage agent plugins" })}</a>
-        </p>
-      ) : (
-        <ul className="email-list">
-          {providers.map((provider) => (
-            <li key={provider.id} className="email-row">
-              <span className="jini-field-hint">{provider.label}</span>
-              {active.has(provider.id) ? <Chip tone="ok">{t({ locale, key: "Active" })}</Chip> : null}
-              {provider.hosted ? null : <Chip tone="neutral">{t({ locale, key: "Local only" })}</Chip>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {(status.refusals ?? []).length > 0 ? (
-        <>
-          <h3 className="jini-field-label email-subhead">{t({ locale, key: "Not loaded" })}</h3>
-          <ul className="email-list">
-            {status.refusals!.map((reason) => <li key={reason} className="jini-field-hint">{reason}</li>)}
-          </ul>
-        </>
-      ) : null}
-      <ComingNext locale={locale} text="Switching providers and saving keys here." />
+      <PartSegments name="email-overview-part" label={props.label} labels={OVERVIEW_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      {part === "status" ? props.status : <EmailOverviewTab controller={controller} locale={props.locale} part={part} />}
     </>
   );
 }
-
-function SenderBody(props: { status: AdminMailStatus; locale: string }) {
-  const { status, locale } = props;
-  const warnings = status.warnings ?? [];
+function ProviderTab(props: PartProps & { status: EmailController }) {
+  const controller = props.hooks.provider({ onChanged: props.status.retry });
+  return (
+    <EmailProviderTab controller={controller} status={props.status.view.kind === "loaded" ? props.status.view.status : null} locale={props.locale}
+      selectedId={props.part} onSelect={props.onPart} />
+  );
+}
+function SenderTab(props: PartProps & { label: string; status: EmailController }) {
+  const controller = props.hooks.sender({ onChanged: props.status.retry });
+  const part = pickPart(SENDER_PARTS, props.part);
   return (
     <>
-      {warnings.length === 0 ? (
-        <p className="jini-field-hint">{t({ locale, key: "No sender warnings reported." })}</p>
-      ) : (
-        <ul className="email-list">
-          {warnings.map((warning) => (
-            <li key={warning} className="email-row">
-              <Chip tone="warning">{t({ locale, key: "Needs attention" })}</Chip>
-              <span className="jini-field-hint">{t({ locale, key: SENDER_WARNING[warning] })}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <ComingNext locale={locale} text="Editing the sender name and address here." />
+      <PartSegments name="email-sender-part" label={props.label} labels={SENDER_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <EmailSenderTab controller={controller} warnings={props.status.view.kind === "loaded" ? props.status.view.status.warnings ?? [] : []} locale={props.locale} part={part} />
+    </>
+  );
+}
+function TemplatesTab(props: { hooks: EmailTabHooks; locale: string }) {
+  return <EmailTemplatesTab controller={props.hooks.templates({ newName: t({ locale: props.locale, key: "Untitled email" }) })} locale={props.locale} />;
+}
+/** Activity's hook stays mounted across its segments, so filters, searches and loaded pages survive a switch. */
+function ActivityTab(props: PartProps & { label: string }) {
+  const controller = props.hooks.activity();
+  const part = pickPart(ACTIVITY_PARTS, props.part);
+  return (
+    <>
+      <PartSegments name="email-activity-part" label={props.label} labels={ACTIVITY_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <EmailActivityTab controller={controller} locale={props.locale} part={part} />
     </>
   );
 }
 
 /**
- * The Email screen. `tabId` is the `?tab=` query value; `useEmailHook` is the DI seam — a test
- * mounts it over a fake port.
+ * The Email screen. `tabId` is the `?tab=` query value and `part` the `?p=` one (the section shown
+ * inside that tab); `useEmailHook` and `tabHooks` are the DI seams — a test mounts them over fakes.
  */
-export function Email(props: { tabId?: string | null; useEmailHook?: () => EmailController } = {}) {
+export function Email(props: { tabId?: string | null; part?: string | null; useEmailHook?: () => EmailController; tabHooks?: Partial<EmailTabHooks> } = {}) {
   const controller = (props.useEmailHook ?? useWiredEmail)();
+  const hooks: EmailTabHooks = { ...WIRED_TAB_HOOKS, ...props.tabHooks };
   const { view, locale } = controller;
   const themeBoundary = useAdminThemeBoundary({}, {});
-  const loaded = view.kind === "loaded" ? view.status : null;
   const activeId = resolveActiveTabId({ tabId: props.tabId, validIds: TAB_IDS, defaultId: "overview" });
   const tabs: TabBarTab[] = TAB_IDS.map((id) => ({
     id, label: t({ locale, key: TAB_LABELS[id] }), handle: `email-tab-${id}`, handleLabel: `Switch to the ${TAB_LABELS[id]} tab of Email`,
   }));
-  // A tab whose data is the status read shows the read's own loading / 403 / error-with-Retry line
-  // until it loads, so landing on `?tab=provider` never shows an empty card.
-  const pending = <StatusBody view={view} locale={locale} retry={controller.retry} />;
+  const partProps: PartProps = {
+    hooks, locale, part: props.part,
+    onPart: (next) => navigate(`/email?tab=${activeId}&p=${encodeURIComponent(next)}`, { replace: true }),
+  };
+  const tabLabel = (id: EmailTabId) => t({ locale, key: TAB_LABELS[id] });
   return (
     <div className="page email-page">
       <div className="page-header">
@@ -236,43 +218,16 @@ export function Email(props: { tabId?: string | null; useEmailHook?: () => Email
           gives `.jini-settings-section-card` its white Classic panel (styles/settings.css). */}
       <div className="settings-ui-section settings-ui-section--page-flow email-sections" {...themeBoundary}>
         {activeId === "overview" ? (
-          <>
-            <Section id="status" title={t({ locale, key: "Status" })}>
+          <OverviewTab {...partProps} label={tabLabel("overview")} status={(
+            <Section id="status" title={t({ locale, key: "Status" })} hideTitle>
               <StatusBody view={view} locale={locale} retry={controller.retry} />
             </Section>
-            <Section id="uses" title={t({ locale, key: "What uses email" })}>
-              <ComingNext locale={locale} text="Whether sign-in links, confirmations and form notifications can send." />
-            </Section>
-            <Section id="test" title={t({ locale, key: "Send test email" })}>
-              <ComingNext locale={locale} text="Send a test message and see the provider's answer." />
-            </Section>
-          </>
+          )} />
         ) : null}
-        {activeId === "provider" ? (
-          <Section id="provider" title={t({ locale, key: "Provider" })}>
-            {loaded ? <ProviderBody status={loaded} locale={locale} /> : pending}
-          </Section>
-        ) : null}
-        {activeId === "sender" ? (
-          <>
-            <Section id="sender" title={t({ locale, key: "Sender" })}>
-              {loaded ? <SenderBody status={loaded} locale={locale} /> : pending}
-            </Section>
-            <Section id="dns" title={t({ locale, key: "DNS" })}>
-              <ComingNext locale={locale} text="The records your domain needs, with a live check." />
-            </Section>
-          </>
-        ) : null}
-        {activeId === "templates" ? (
-          <Section id="templates" title={t({ locale, key: "Templates" })}>
-            <ComingNext locale={locale} text="HTML email templates you or the assistant edit like Pages, with a live preview." />
-          </Section>
-        ) : null}
-        {activeId === "activity" ? (
-          <Section id="activity" title={t({ locale, key: "Activity" })}>
-            <ComingNext locale={locale} text="Recent sends, failures, bounces and blocked addresses." />
-          </Section>
-        ) : null}
+        {activeId === "provider" ? <ProviderTab {...partProps} status={controller} /> : null}
+        {activeId === "sender" ? <SenderTab {...partProps} label={tabLabel("sender")} status={controller} /> : null}
+        {activeId === "templates" ? <TemplatesTab hooks={hooks} locale={locale} /> : null}
+        {activeId === "activity" ? <ActivityTab {...partProps} label={tabLabel("activity")} /> : null}
       </div>
     </div>
   );

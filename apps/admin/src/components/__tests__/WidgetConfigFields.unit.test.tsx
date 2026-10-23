@@ -665,7 +665,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
       "Social links": "Enlaces-FAKE",
       "Link {n}": "Enlace-FAKE {n}",
       Platform: "Plataforma-FAKE",
-      "e.g. GitHub": "p.ej.-FAKE GitHub",
+      "e.g. a project link": "p.ej.-FAKE proyecto",
       URL: "URL-FAKE",
       Remove: "Quitar-FAKE",
       "Add link": "Añadir-FAKE",
@@ -678,7 +678,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
     expect(screen.getByText("Enlace-FAKE 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Plataforma-FAKE")).toBeInTheDocument();
     expect(screen.getByLabelText("URL-FAKE")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("p.ej.-FAKE GitHub")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("p.ej.-FAKE proyecto")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quitar-FAKE" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Añadir-FAKE" })).toBeInTheDocument();
     // None of the English source strings this locale should have replaced remain on screen.

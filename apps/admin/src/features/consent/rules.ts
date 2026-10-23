@@ -59,3 +59,20 @@ export function canPublishConsent(
 ): boolean {
   return settled && hasUnpublished && !publishing && problems.length === 0 && (saveState === 'saved' || saveState === 'idle');
 }
+
+/** "Reset to default" is offered only while the field differs from the site's default banner style
+ * (which the server pre-fills into an empty field and delivers when the field is empty). */
+export function canResetConsentCss({ customCss, defaultCss }: { customCss: string | undefined; defaultCss: string | undefined }, _optional = {}): boolean {
+  return Boolean(defaultCss) && (customCss ?? '') !== defaultCss;
+}
+
+/** The page width the Desktop preview lays out at. The engine's banner switches to its phone layout
+ * (a full-width sheet) at 480px and below, so a preview drawn at the pane's own ~400px width showed
+ * that phone sheet under the "Desktop" label instead of the corner card visitors see. */
+export const CONSENT_PREVIEW_DESKTOP_WIDTH = 1024;
+
+/** How far the desktop-width page is scaled down to fit the preview pane; never enlarged.
+ * An unmeasured (0) pane keeps 1. @complexity O(1). */
+export function consentPreviewScale({ paneWidth }: { paneWidth: number }, _optional = {}): number {
+  return paneWidth > 0 ? Math.min(1, paneWidth / CONSENT_PREVIEW_DESKTOP_WIDTH) : 1;
+}

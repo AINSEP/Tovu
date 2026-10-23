@@ -37,6 +37,8 @@ export const CHAT_AGENT_PLUGINS_KEY = "chatAgentPlugins";
  *  `true`. Read fresh per run by `assistant/runtime-preferences.ts`; mirrored by the admin's
  *  `components/AssistantDock/assistant-runtime-preferences.ts`. */
 export const PREFER_SUBAGENTS_KEY = "preferSubagents";
+/** Per-person reply verbosity; Normal preserves the existing prompt without extra guidance. */
+export const REPLY_LENGTH_KEY = "replyLength";
 /** Per-person (2026-10-21): let this person's Claude Code runs use Claude in Chrome (`--chrome`) —
  *  the operator's real, logged-in Chrome. Default `true` (owner, 2026-10-22: it should just work); it
  *  still applies only to the owner on a runtime whose CLI passes the `--chrome` probe, and Bash stays
@@ -56,7 +58,7 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 /**
  * Idempotently registers Tovu's admin interface and theme-accent definitions. Safe on every boot.
  *
- * @complexity O(1), ten definitions.
+ * @complexity O(1), eleven definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -72,6 +74,7 @@ export async function ensureAdminInterfaceSettingDefinitions(
       { key: CHAT_AGENT_PLUGINS_KEY, schema: { type: "enum", values: ["auto", "ask", "off"] }, defaultValue: "auto", scopes: PER_OPERATOR_SCOPES },
       { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
       { key: PREFER_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
+      { key: REPLY_LENGTH_KEY, schema: { type: "enum", values: ["short", "normal", "detailed"] }, defaultValue: "normal", scopes: PER_OPERATOR_SCOPES },
       { key: USE_CLAUDE_IN_CHROME_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: ADMIN_THEME_KEY, schema: { type: "string" }, defaultValue: "classic", scopes: PER_OPERATOR_SCOPES },
     ],

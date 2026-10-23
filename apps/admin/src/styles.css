@@ -173,6 +173,8 @@ input[type="checkbox"], input[type="radio"] {
 /* New-site admin password: the reveal toggle sits flush inside the input's right edge. */
 .site-admin-login-hint strong { color: var(--fg); font-weight: 600; }
 .site-admin-login-hint .info-tip { margin-left: 0.25rem; }
+/* One click selects the whole starter password for copying. */
+.site-admin-starter-password { font-family: var(--font-mono); user-select: all; }
 .site-admin-password-wrap { position: relative; display: flex; }
 .site-admin-password-wrap input { padding-right: 2.4rem; }
 .site-admin-password-toggle {
@@ -1147,30 +1149,27 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    rules). That is not a hierarchy step, it is a near-tie, and the stray UA margin is what reads as
    "nobody chose this".
 
-   The values are not invented either: they are `.theme-card h3`'s (L1814) — `--font-display` at
-   1.15rem — which is this admin's existing, working card-title idiom on its best-looking screen.
-   Reusing it makes a section title 18.4px against a 26.4px page title (a 1.43 step) and puts the
-   display face on both, so the two rhyme instead of competing.
+   Size and weight follow Jini's settings scale, the one Settings and Authentication use: 14px/600
+   section titles over 13px copy. An earlier 1.15rem/700 tier (borrowed from `.theme-card h3`) made
+   every card screen read as another app beside those two (owner, 2026-10-22: "it should all be the
+   same text"); it was first patched per screen, then fixed here once so every card screen follows.
+   The display face stays, so a card title still rhymes with `.page-title`, which keeps its size.
 
-   Additive and opt-in: only elements that take the class change, so no existing screen moves. */
+   Additive and opt-in: only elements that take the class change. */
 .card-title {
-  margin: 0 0 var(--space-3);
-  font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
-  letter-spacing: -0.005em; line-height: 1.3; color: var(--fg);
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600;
+  line-height: 1.3; color: var(--fg);
   text-wrap: balance;
 }
 /* A muted lead line directly under a `.card-title`, for the one sentence that says what the card
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
    measure instead of running the full width of a 1440px card. */
-.card-lead { margin: 0; font-size: var(--text-md); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
-/* Cookie Consent, Import & Export and Analytics sit beside Settings and Authentication, whose
-   sections use Jini's settings scale: 14px/600 titles over 13px copy. The larger `.card-title`/
-   `.card-lead` tier above, plus bare text inheriting 16px, made these three read as another app
-   (owner, 2026-10-22: "it should all be the same text"). Scoped so other card screens keep theirs. */
-:is(.consent-page, .import-export-page, .analytics-page) .card-title {
-  font-size: var(--text-base); font-weight: 600; letter-spacing: 0; margin-bottom: var(--space-2);
-}
-:is(.consent-page, .import-export-page, .analytics-page) :is(.card-lead, .card li, .notice) { font-size: var(--text-sm); }
+.card-lead { margin: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+/* Card copy and notices: bare paragraphs and list items inside a card, and every `.notice`, take
+   the same 13px as `.card-lead` instead of inheriting the 16px page text. `:where` keeps this at
+   zero specificity, so any class that sets its own size (hints, labels, empty states) still wins. */
+:where(.card p, .card li, .notice) { font-size: var(--text-sm); }
 /* Danger-zone card modifier (2026-08-31: the left-accent-border idiom this used to share with
    `.notice.error`/`.notice.warning` is retired everywhere in this app — owner's explicit call,
    "I don't like that idiom at all" — see the `.notice` rules below for the fuller reasoning).
@@ -1394,6 +1393,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   --jini-scroll-jump-right: 16px;
   --jini-scroll-jump-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
+/* Dark: Jini paints the pair `--jini-bg-elevated` (#171717 here, the page's own fill) with a muted
+   glyph at 0.85 opacity, so the buttons all but vanished. One surface step up, the strong hairline
+   and the secondary text colour make them read as raised controls, as in light. */
+:root[data-theme="dark"] .jini-scroll-jump__btn {
+  background: var(--surface-3); border-color: var(--border-strong); color: var(--fg-2); opacity: 1;
+}
+/* `MiddleTruncate` (@jini-ai/ui): head and tail are separate flex items, so with `nowrap` a space
+   right at the cut is trimmed off the end of the head or the start of the tail —
+   "Shot 9.41.02 PM.png" rendered "Shot 9.41.02PM.png". `pre` keeps it; file names carry no
+   newlines or runs of spaces for it to expose. */
+.jini-middle-truncate__head, .jini-middle-truncate__tail { white-space: pre; }
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
 /* The page's REAL width, as a named size container (2026-10-11, owner: "horrendous" with the side
    nav expanded and the dock open). Page layouts used to key their breakpoints on the VIEWPORT, but
@@ -2987,7 +2997,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-body { display: grid; grid-template-columns: minmax(16rem, 1.1fr) minmax(20rem, 1.4fr); gap: 1.2rem; align-items: start; }
 .settings-namespace-list { display: flex; flex-direction: column; gap: 1.2rem; }
 .settings-namespace-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; box-shadow: var(--shadow-sm); }
-.settings-namespace-group h2 { margin: 0 0 0.6rem; font-family: var(--font-display); font-size: 1rem; font-weight: 700; }
+/* Same 14px/600 as `.card-title`: Categories & Tags' group titles are card titles by another name. */
+.settings-namespace-group h2 { margin: 0 0 0.6rem; font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; }
 .settings-row-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .settings-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.4rem; border-radius: var(--r-sm); cursor: pointer; }
 .settings-row:hover { background: var(--surface-2); }
@@ -3233,6 +3244,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .term-picker-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
 .term-picker-add .jini-suggest-input { width: 18rem; max-width: 100%; }
 .term-picker-add .jini-suggest-input input { width: 100%; }
+/* A long row folds behind "See more" (owner, 2026-10-22) — the button is the shared `.link-button`
+   (blue `--link` text); past 100 terms a search box sits above the ticks, as wide as the add box. */
+.term-picker-search { width: 18rem; max-width: 100%; }
+.term-picker-more { font-size: var(--text-sm); }
 
 /* Jini `SuggestInput` (`@jini-ai/ui/admin-widgets`, 2026-10-10): a free-text input with our own
    suggestion list, replacing the native `<datalist>` whose dark macOS bubble and ▼ could not be
@@ -3381,7 +3396,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* --- Region 1: where you're going. Deliberately the quiet part. --- */
 .recovery-ceremony-summary { padding: var(--space-6) var(--space-6) var(--space-5); }
 .recovery-restore-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
-/* 1.75rem against the 26.4px page title and the 1.15rem `.card-title` used elsewhere — a real
+/* 1.75rem against the 26.4px page title and the 14px `.card-title` used elsewhere — a real
    step, not the near-tie `.card-title` produced here. The timestamp IS the fact this screen is
    about, so it gets the display face and the tightest tracking on the page. */
 .recovery-restore-title {
@@ -5488,7 +5503,9 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 .import-export-card .btn-secondary { margin-top: auto; align-self: flex-start; }
 /* Git backup: the one Import & Export card with its own flow, so it sits full-width under the grid
    (inside it, a full-row card would keep an empty fourth track beside the three link cards). */
-.import-export-card-wide { margin-top: var(--space-4); }
+/* `.page`'s own 24px gap already separates it from the grid; pulling back the difference leaves the
+   grid's 16px row gap, so the card reads as the grid's next row rather than a 40px-away section. */
+.import-export-card-wide { margin-top: calc(var(--space-4) - var(--space-6)); }
 .git-backup-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .git-backup-facts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-2); overflow-wrap: anywhere; }
 .git-backup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -5908,6 +5925,12 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
 :where(:root:not([data-admin-theme]), :root[data-admin-theme="classic"]) .media-providers-panel[data-theme="light"] {
   --jini-bg-panel: var(--surface);
   --jini-bg-elevated: var(--surface);
+}
+/* The panel's heading and each provider card's name are bare Jini `<h4>`/`<strong>` that rendered
+   16px/700 — a size above every other card title. Same 14px/600 as `.card-title` and Settings'
+   `.settings-ui-section h4`. */
+.media-providers-panel :is(.jini-section-head h4, .jini-media-provider-card-head > strong) {
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600; line-height: 1.3;
 }
 .deployment-action-reason { margin: 0; font-size: var(--text-xs); color: var(--muted); max-width: 60ch; }
 

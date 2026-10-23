@@ -1,3 +1,11 @@
+import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
+import { findCandidateDestination } from "#src/features/publish-trust/connect";
+import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/features/publish-trust/provisioning.node-io";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import type { LoadPluginCredentialCards } from "#src/features/custom-credentials/plugin-credential-card";
+import path from "node:path";
+import { resolveProductRoot } from "#src/platform/site-dir/index";
+import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
@@ -13,6 +21,8 @@ import type { AssistantToolContributions } from "#src/assistant/index";
 import { ToolInputError } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
+import { contributeMailProviderTools } from "#src/features/mail-status/provider-tool-registrations";
+import { contributeMailDeliveryTools } from "#src/features/mail-status/delivery-tool-registrations";
 import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
@@ -46,7 +56,7 @@ import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-p
 import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
-import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
+import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -58,6 +68,7 @@ import { probeExternalMcpServer } from "#src/server/runtime/services/external-mc
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -93,6 +104,7 @@ import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/deli
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
 import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
+import { contributeVisitorTools } from "#src/features/settings/visitor-tools-registrations";
 import { contributeUiLocalesTools } from "#src/features/settings/ui-locales-tool";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
@@ -344,6 +356,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
+  contributions.contributors.register({ contribution: contributeMailProviderTools() });
+  contributions.contributors.register({ contribution: contributeMailDeliveryTools() });
   contributions.contributors.register({ contribution: contributeServerLogsTools() });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
@@ -352,13 +366,13 @@ export function installFirstPartyToolContributors(
   // header for why the two halves use different wiring seams.
   contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
-  contributions.contributors.register({ contribution: contributePublishContentDisconnectTools() });
+  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
   // this plugin's account" tool any OAuth-authenticated Agent Plugin uses. Its access-token
   // fallback now uses credential_save with kind agent-plugin-token below. Static, same seam as `search_agent_plugin_local` above.
-  contributions.contributors.register({ contribution: contributeAgentPluginConnectTools() });
+  contributions.contributors.register({ contribution: { ...contributeAgentPluginConnectTools(), build: (deps, surfaces) => contributeAgentPluginConnectTools().build({ ...deps, loadPluginCredentialCards: createPluginCredentialCardsLoader({ agentPluginLayout: deps.agentPluginLayout, loadMailCards: deps.loadPluginCredentialCards ?? (async () => []) }) }, surfaces) } });
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
@@ -382,11 +396,13 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
   const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
+  const bundledPluginsRoot = path.join(resolveProductRoot(), "content", "agent-plugins");
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
+  const publicDnsResolver = createBundledPublicDnsResolver({ client: domainDnsHttpClient, sourceRoot: bundledPluginsRoot }, domainDnsDiagnostics);
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
-    resolver: createPublicDnsResolver(domainDnsHttpClient, domainDnsDiagnostics),
+    resolver: publicDnsResolver,
     probeTls: createTlsProbe(domainDnsHttpClient, domainDnsDiagnostics),
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
   }) }) });
@@ -408,6 +424,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
+  contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });
@@ -427,7 +444,7 @@ export function installFirstPartyToolContributors(
   // Publish dialog — see that feature's `tool-registrations.ts` header.
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
-  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => toPublishContentDeps(deps) }) });
+  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }) }) });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
@@ -440,6 +457,7 @@ export function installFirstPartyToolContributors(
   // switch. Builds nothing in a composition without `RouteDeps.siteSearch` (see `site-search-tools.ts`).
   contributions.contributors.register({ contribution: contributeSiteSearchTools() });
   contributions.contributors.register({ contribution: contributeSettingsTools() });
+  contributions.contributors.register({ contribution: contributeVisitorTools() });
   contributions.contributors.register({ contribution: contributeConsentTools() });
   contributions.contributors.register({ contribution: contributeUiLocalesTools() });
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
@@ -489,19 +507,34 @@ export function installFirstPartyToolContributors(
     domain: "credential-copy", risk: credentialCopyDerivedRisk,
     build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces }),
   } });
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
+  const committedRoot = resolveCommittedConfigRoot();
+  // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
+  // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: relative => path.join(committedRoot, relative) }, { candidatePaths });
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,
-    build: (routeDeps, surfaces) => {
-      const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
-      return buildCredentialSaveRegistrations({ adapters: {
-        apiCreate: api.create, apiRotate: api.rotate,
-        mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
-        sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
-        publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
-        agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
-        pluginProvider: api.pluginProvider,
-      } });
+    build: (originalDeps, surfaces) => {
+      const loadPluginCredentialCards = createPluginCredentialCardsLoader({ agentPluginLayout: originalDeps.agentPluginLayout, loadMailCards: originalDeps.loadPluginCredentialCards ?? (async () => []) });
+      const adaptersFor = (loadCards: LoadPluginCredentialCards) => {
+        const routeDeps = { ...originalDeps, loadPluginCredentialCards: loadCards };
+        const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
+        return {
+          apiCreate: api.create, apiRotate: api.rotate,
+          mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
+          sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
+          publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
+          agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
+          pluginProvider: api.pluginProvider,
+        } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
+      };
+      return buildCredentialSaveRegistrations({
+        adapters: adaptersFor(loadPluginCredentialCards),
+        loadPluginCredentialCards: () => loadPluginCredentialCards(originalDeps.workspaceId),
+        authorizePluginProvider: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'custom-credentials.write' }, { entityType: 'custom-credentials' }),
+        adaptersForCards: ({ cards }) => adaptersFor(async () => cards),
+      });
     },
   } });
   contributions.contributors.register({ contribution: contributeTaxonomyTools() });

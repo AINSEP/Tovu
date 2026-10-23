@@ -57,6 +57,8 @@ import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { dnsChangeAgentToolCatalog } from "../../features/domain-dns/dns-tools.js";
+import { mailDnsAgentToolCatalog } from "../../features/domain-dns/mail-dns-tools.js";
+import { emailTemplatesAgentToolCatalog } from "../../features/email-templates/agent-tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
@@ -96,6 +98,9 @@ import { mediaViewImageAgentToolCatalog } from "../../features/media/view-image-
 import { contentStatsAgentToolCatalog } from "../../features/post/content-stats-tool.js";
 import { analyticsAgentToolCatalog } from "../../features/analytics/agent-tools.js";
 import { mailStatusAgentToolCatalog } from "../../features/mail-status/agent-tools.js";
+import { mailProviderAgentToolCatalog } from "../../features/mail-status/provider-agent-tools.js";
+import { visitorToolsAgentCatalog } from "../../features/settings/visitor-tools-agent-tools.js";
+import { mailDeliveryAgentToolCatalog } from "../../features/mail-status/delivery-agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -202,6 +207,9 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
   analytics: analyticsAgentToolCatalog as unknown as AgentToolDefinition[],
   "system-mail": mailStatusAgentToolCatalog as unknown as AgentToolDefinition[],
+  "system-mail-providers": mailProviderAgentToolCatalog as unknown as AgentToolDefinition[],
+  "visitor-tools": visitorToolsAgentCatalog,
+  "system-mail-delivery": mailDeliveryAgentToolCatalog as unknown as AgentToolDefinition[],
   "post-preview": postPreviewAgentToolCatalog,
   "identity-policy-list-permissions": identityPolicyPermissionsCatalog as unknown as AgentToolDefinition[],
   "sites-list": sitesListCatalog as unknown as AgentToolDefinition[],
@@ -209,7 +217,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "theme-set-page-published": themePagePublishedCatalog as unknown as AgentToolDefinition[],
 
   "permanent-delete": permanentDeleteAgentToolCatalog,
-  "domain-dns": [...domainDnsAgentToolCatalog, ...dnsChangeAgentToolCatalog],
+  "domain-dns": [...domainDnsAgentToolCatalog, ...dnsChangeAgentToolCatalog, ...mailDnsAgentToolCatalog] as unknown as AgentToolDefinition[],
+  "email-templates": emailTemplatesAgentToolCatalog as unknown as AgentToolDefinition[],
   "content-types": contentTypesAgentToolCatalog,
   forms: formsAgentToolCatalog,
   identity: identityAgentToolCatalog,

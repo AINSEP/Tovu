@@ -1,3 +1,5 @@
+import { createSenderDomainVerification } from "./sender-domain-verification.js";
+import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
@@ -15,11 +17,13 @@ import {
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { MailerCapabilities, MailerPort, MailerSendResult } from "#src/platform/mail/index";
-import type { MailStatusReport } from "#src/platform/mail/mail-status";
+import type { MailProviderConfigurationReport, MailProviderError, MailStatusReport } from "#src/platform/mail/mail-status";
+import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
+import { describeMailProviders } from "./mail-provider-configuration.js";
+import { createTtlCache, MAIL_STATUS_TTL_MS } from "./mail-status-cache.js";
 import {
   createProviderMailer,
   credentialFailureReason,
-  detectEffectiveMailProvider,
   loadMailProviderCatalog,
   MAIL_CREDENTIAL_CATEGORY,
   MAIL_SMTP_CREDENTIAL_LABEL,
@@ -32,19 +36,15 @@ export { MAIL_SMTP_CREDENTIAL_LABEL } from "./mail-provider-catalog.js";
 export type { MailStatusReport } from "#src/platform/mail/mail-status";
 
 /**
- * @file Boot-time `MailerPort` selection — owner decision, 2026-08-31: build both a hosted-API
- * and an SMTP adapter, default to the hosted API, and never let an unconfigured mailer fail
- * silently. 2026-09-29: hosted-API providers moved out of core into Agent Plugins.
+ * @file Boot-time `MailerPort` selection. Hosted-API providers live in Agent Plugins; SMTP and
+ * Console are built-ins. An unconfigured mailer never fails silently.
  *
  * **Explicit selection (email provider contract v1, 2026-10-21).** The provider is no longer "the
  * first plugin whose credential resolves, then SMTP, then Console". Each delivery lane reads the
  * site setting `core.mail.provider` = `{transactional, bulk}` (`features/settings/mail-provider.ts`)
  * and looks the id up in the keyed provider catalog (`mail-provider-catalog.ts`: Jini's `smtp` and
- * `console` built-ins plus plugin providers). FIRST BOOT: while the setting was never stored, the old
- * chain runs once and its pick is written through Jini `initialMailProviderSetting` (console/none →
- * `null` = `unconfigured`), so a live site never silently switches provider. A mail credential whose
- * plugin is not installed yet (first boot after an upgrade) defers that write, so the next send
- * retries instead of pinning `unconfigured`. After that, only the setting decides.
+ * `console` built-ins plus plugin providers). An absent selection initializes as unconfigured;
+ * saved credentials never select a delivery provider or enable its plugin.
  *
  * An `unconfigured` lane logs to the console in `local` mode and refuses (`MAIL_UNCONFIGURED`,
  * non-retryable) in `production`. A configured provider that is not installed or has no usable
@@ -80,6 +80,18 @@ export type { MailStatusReport } from "#src/platform/mail/mail-status";
  * `MailerPort` whose `capabilities()` reports the last resolved transactional provider (console
  * until the first resolution settles) — a disclosed race. `send()`/`sendBatch()` do NOT share it:
  * both await their lane's resolution before delegating.
+ *
+ * **Live key replacement (email phase 2, 2026-10-22).** A resolved provider mailer is cached with a
+ * fingerprint of its credential row (id, vault revision, updatedAt — metadata, no decrypt). Every
+ * send compares it with the current row, so a key replaced through ANY path (the Access Tokens
+ * page, `credential_save`, the Email page) is used by the very next send; a deleted key re-resolves
+ * to "unavailable". `invalidate()` drops every cached mailer and the cached status outright (a
+ * provider switch, a key save through the Email page). A store fault while fingerprinting keeps
+ * the cached mailer rather than refusing mail it could still send.
+ *
+ * **Status.** `status()` is served from a short-TTL single-flight cache ({@link MAIL_STATUS_TTL_MS},
+ * injected clock), its independent reads run in parallel, and `{refresh: true}` rebuilds it. Each
+ * report carries `checkedAt` and the latest observed provider failure (`lastError`, read live).
  */
 
 /**
@@ -107,18 +119,30 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
   readSenderEmail?: () => Promise<string | undefined>;
   /** Injected for tests; defaults to `console.warn`. */
   warn?: (message: string) => void;
+  /** Status cache and `lastError` timestamps; defaults to `Date.now`. */
+  clock?: { nowMs(): number };
+  /** Status freshness window; defaults to {@link MAIL_STATUS_TTL_MS}. */
+  statusTtlMs?: number;
+  /** Provider DNS-requirements deadline; defaults to five seconds. */
+  domainRequirementsTimeoutMs?: number;
 }
 
 
 export interface ResolvedMailer {
   /** Safe to use immediately; each send awaits its lane's resolution. */
   mailer: MailerPort;
-  /** Resolves once the boot-time migration + transactional resolution settle (a test seam). */
+  /** Resolves once the initial setting + transactional resolution settle (a test seam). */
   ready: Promise<void>;
   /** Refreshes unresolved configuration and awaits the current driver without sending. */
   settle: () => Promise<void>;
-  /** Fresh status for the admin route, the banner and `system_get_mail_status`. */
-  status: () => Promise<MailStatusReport>;
+  /** Status for the admin route, the banner and `system_get_mail_status`; cached briefly, `refresh` rebuilds. */
+  status: (optional?: { refresh?: boolean }) => Promise<MailStatusReport>;
+  /** The safe per-provider configuration DTO (`mail-provider-configuration.ts`). Never a secret. */
+  describeProviders: () => Promise<MailProviderConfigurationReport>;
+  /** Drops cached provider mailers and the cached status; the next send and read resolve fresh. */
+  invalidate: () => void;
+  laneReady: (required: { lane: MailDeliveryLane }) => Promise<boolean>;
+  senderDomainVerification: SenderDomainVerificationPort;
   /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
   checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
   /**
@@ -132,6 +156,31 @@ export interface ResolvedMailer {
 }
 
 export type MailProviderCheck = { ok: true; label: string } | { ok: false; reason: string };
+
+/** A cached provider mailer and the credential row it was built from (`label` undefined = keyless). */
+type ResolvedEntry = { mailer: MailerPort; label?: string; fingerprint: string };
+
+/** Records a provider failure for `lastError`. */
+type RecordError = (error: Omit<MailProviderError, "at">) => void;
+
+/** Identifies one saved credential version without decrypting it. */
+function rowFingerprint(record: CustomCredentialSetRecord | undefined): string {
+  return record ? `${record.id}:${record.vaultRecord?.revision ?? ""}:${record.updatedAt}` : "absent";
+}
+
+/** Records the failures a provider itself reports, for status `lastError`. Results pass through unchanged. */
+function observeFailures(required: { mailer: MailerPort; providerId: string; record: RecordError }): MailerPort {
+  const { mailer, providerId, record } = required;
+  const seen = (result: MailerSendResult): MailerSendResult => {
+    if (!result.ok) record({ providerId, source: "send", code: result.errorCode, message: result.message });
+    return result;
+  };
+  return {
+    capabilities: () => mailer.capabilities(),
+    send: async (message, options) => seen(await mailer.send(message, options)),
+    sendBatch: async (messages, options) => (await mailer.sendBatch(messages, options)).map(seen),
+  };
+}
 
 /** A provider's credential, or why it has none. */
 type CredentialLookup = { credential: MailAdapterCredential; reason?: undefined } | { credential?: undefined; reason: string };
@@ -166,10 +215,21 @@ function unconfiguredMessage(lane: MailDeliveryLane): string {
 export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const warn = deps.warn ?? ((message: string) => console.warn(message));
   const wrap = deps.wrapProviderMailer ?? (({ mailer }) => mailer);
-  const resolved = new Map<string, MailerPort>();
+  const resolved = new Map<string, ResolvedEntry>();
+  let generation = 0;
+  const nowMs = () => (deps.clock ?? { nowMs: () => Date.now() }).nowMs();
+  let lastError: MailProviderError | undefined;
+  const recordError: RecordError = ({ providerId, source }) => {
+    lastError = { providerId, source, message: source === "send" ? "The provider did not confirm acceptance. Check provider configuration." : "The provider configuration check could not complete.", at: new Date(nowMs()).toISOString() };
+  };
+  const fingerprintFor = async (label: string | undefined): Promise<string> => {
+    if (label === undefined) return "";
+    const records = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+    return rowFingerprint(records.find((row) => row.label === label));
+  };
   const inFlight = new Map<string, Promise<MailerPort>>();
   const warned = new Set<string>();
-  let migration: Promise<MailProviderSetting> | undefined;
+  let initialization: Promise<MailProviderSetting> | undefined;
   let lastTransactional: MailerPort | undefined;
 
   const warnOnce = (key: string, message: string): void => {
@@ -178,33 +238,30 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     try { warn(message); } catch { /* MailerPort must not throw across the boundary (ADR-024 §3). */ }
   };
 
-  const migrate = async (): Promise<MailProviderSetting> => {
-    const catalog = await loadMailProviderCatalog(deps);
-    const detected = await detectEffectiveMailProvider({ deps, catalog }).catch(() => ({ providerId: null, pending: true, reasons: [] }));
-    const setting = initialMailProviderSetting({}, { effectiveProviderId: detected.providerId, registry: catalog.registry });
-    if (detected.pending) return setting;
-    await deps.providerSetting.write(setting).catch((err: unknown) =>
-      warnOnce("migration", `[mail] the mail provider setting could not be saved (${err instanceof Error ? err.message : String(err)}); retrying on the next send`));
+  const initialize = async (): Promise<MailProviderSetting> => {
+    const setting = initialMailProviderSetting({});
+    await deps.providerSetting.write(setting).catch(() =>
+      warnOnce("initialization", "[mail] the mail provider setting could not be saved; retrying on the next send"));
     return setting;
   };
 
   const currentSetting = async (): Promise<MailProviderSetting> => {
     const stored = await deps.providerSetting.read();
     if (stored) return stored;
-    migration ??= migrate().finally(() => { migration = undefined; });
-    return migration;
+    initialization ??= initialize().finally(() => { initialization = undefined; });
+    return initialization;
   };
 
   const consoleMailer = async (catalog: MailProviderCatalog): Promise<MailerPort> => {
     const provider = catalog.registry.get({ id: "console" })!.provider;
     const mailer = wrap({ providerId: "console", provider, mailer: createProviderMailer({ deps, provider, credential: { token: "" } }) });
-    resolved.set("console", mailer);
+    resolved.set("console", { mailer, fingerprint: "" });
     return mailer;
   };
 
   /** Local mode keeps working through the console; production refuses. */
   const fallback = async (required: { catalog: MailProviderCatalog; errorCode: string; message: string }): Promise<MailerPort> => {
-    if (deps.mode !== "production") return resolved.get("console") ?? consoleMailer(required.catalog);
+    if (deps.mode !== "production") return resolved.get("console")?.mailer ?? consoleMailer(required.catalog);
     warnOnce(required.errorCode + required.message, required.message);
     return refusingMailer(required);
   };
@@ -226,16 +283,23 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     return label === undefined ? Promise.resolve({ credential: { token: "" } }) : credentialOrReason(catalog, id, label);
   };
 
-  const resolveProvider = async (id: string): Promise<MailerPort> => {
+  const resolveProvider = async (id: string, startedIn: number): Promise<MailerPort> => {
     const catalog = await loadMailProviderCatalog(deps);
     const entry = catalog.registry.get({ id });
     const unavailable = (detail: string) => fallback({ catalog, errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `[mail] the selected mail provider '${id}' ${detail}, so outbound mail is NOT being sent` });
     if (!entry) return unavailable(`is not installed${catalog.refusals.length > 0 ? ` (${catalog.refusals.join("; ")})` : ""}`);
+    // Fingerprint BEFORE reading the key: a rotation racing this read then re-resolves next send.
+    // An unreadable store leaves the key lookup below to report why; "unknown" re-resolves once it reads.
+    const label = catalog.credentialLabelFor({ id });
+    const fingerprint = await fingerprintFor(label).catch(() => "unknown");
     const found = await providerCredential(catalog, id);
     if (!found.credential) return unavailable(found.reason);
     const credential = found.credential;
-    const mailer = wrap({ providerId: id, provider: entry.provider, mailer: createProviderMailer({ deps, provider: entry.provider, credential }) });
-    resolved.set(id, mailer);
+    const latest = await fingerprintFor(label).catch(() => fingerprint);
+    if (latest !== fingerprint) return resolveProvider(id, generation);
+    const observed = observeFailures({ mailer: createProviderMailer({ deps, provider: entry.provider, credential }), providerId: id, record: recordError });
+    const mailer = wrap({ providerId: id, provider: entry.provider, mailer: observed });
+    if (startedIn === generation) resolved.set(id, { mailer, fingerprint, ...(label === undefined ? {} : { label }) });
     return mailer;
   };
 
@@ -243,23 +307,36 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const resolveOnce = (id: string): Promise<MailerPort> => {
     const existing = inFlight.get(id);
     if (existing) return existing;
-    const started = resolveProvider(id).finally(() => inFlight.delete(id));
+    const startedIn = generation;
+    const started = resolveProvider(id, startedIn).then((mailer) => startedIn === generation ? mailer : resolveOnce(id))
+      .finally(() => { if (inFlight.get(id) === started) inFlight.delete(id); });
     inFlight.set(id, started);
     return started;
+  };
+
+  /** The cached mailer while its credential row is unchanged; otherwise a fresh resolution. */
+  const currentMailer = async (id: string): Promise<MailerPort> => {
+    const entry = resolved.get(id);
+    if (!entry) return resolveOnce(id);
+    if (entry.label === undefined) return entry.mailer;
+    const fingerprint = await fingerprintFor(entry.label).catch(() => entry.fingerprint);
+    if (fingerprint === entry.fingerprint) return entry.mailer;
+    if (resolved.get(id) === entry) resolved.delete(id);
+    return resolveOnce(id);
   };
 
   const mailerForLane = async (lane: MailDeliveryLane): Promise<MailerPort> => {
     const id = (await currentSetting())[lane];
     const mailer = id === null
       ? await fallback({ catalog: await loadMailProviderCatalog(deps), errorCode: "MAIL_UNCONFIGURED", message: unconfiguredMessage(lane) })
-      : resolved.get(id) ?? await resolveOnce(id);
+      : await currentMailer(id);
     if (lane === "transactional") lastTransactional = mailer;
     return mailer;
   };
 
   /** Never rejects: a settings or catalog fault becomes a refusal, not a throw across the port. */
   const forLane = (lane: MailDeliveryLane): Promise<MailerPort> =>
-    mailerForLane(lane).catch((err: unknown) => refusingMailer({ errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `mail provider selection failed (${err instanceof Error ? err.message : String(err)})` }));
+    mailerForLane(lane).catch((err: unknown) => refusingMailer({ errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: "Mail provider selection failed; check configuration." }));
 
   const ready = forLane("transactional").then(() => undefined);
 
@@ -272,7 +349,33 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     sendBatch: async (messages, options) => (await forLane(laneForPurpose({ purpose: options.purpose }))).sendBatch(messages, options),
   };
 
-  const status = (): Promise<MailStatusReport> => computeStatusReport({ deps, setting: currentSetting });
+  // The resolver owns provider selection and credential resolution for both status and DNS.
+  const senderDomainVerification = createSenderDomainVerification({
+    workspaceId: deps.workspaceId, httpClient: deps.httpClient,
+    findProvider: async ({ id }) => (await loadMailProviderCatalog(deps)).registry.get({ id })?.provider,
+    resolveCredential: async ({ id }) => resolveMailCredential({ deps, catalog: await loadMailProviderCatalog(deps), id }),
+    readProviderId: async () => (await currentSetting()).transactional,
+    readSenderEmail: async () => deps.readSenderEmail ? deps.readSenderEmail() : undefined,
+  });
+  const statusCache = createTtlCache({
+    load: () => computeStatusReport({ deps, setting: currentSetting, recordError, nowMs, senderDomainVerification }),
+    ttlMs: deps.statusTtlMs ?? MAIL_STATUS_TTL_MS, nowMs,
+  }, { minRefreshIntervalMs: 5_000 });
+  const status = async (optional: { refresh?: boolean } = {}): Promise<MailStatusReport> => {
+    const report = await statusCache.get(optional);
+    return lastError ? { ...report, lastError } : report;
+  };
+  const describeProviders = async (): Promise<MailProviderConfigurationReport> => {
+    const [setting, catalog, records] = await Promise.all([currentSetting(), loadMailProviderCatalog(deps), deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId })]);
+    return describeMailProviders({ catalog, records, setting });
+  };
+  const invalidate = (): void => {
+    generation += 1;
+    inFlight.clear();
+    resolved.clear();
+    lastTransactional = undefined;
+    statusCache.invalidate();
+  };
   const checkProvider = async ({ id }: { id: string }): Promise<MailProviderCheck> => {
     const catalog = await loadMailProviderCatalog(deps);
     const provider = catalog.registry.get({ id })?.provider;
@@ -288,9 +391,9 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const provider = id === null ? undefined : catalog.registry.get({ id })?.provider;
     if (!domain || !provider?.capabilities.domainVerification) return null;
     const { credential } = await providerCredential(catalog, id!);
-    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }) : null;
+    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }, { timeoutMs: deps.domainRequirementsTimeoutMs }) : null;
   };
-  return { mailer, ready, settle: async () => { await forLane("transactional"); }, status, checkProvider, domainRequirements };
+  return { senderDomainVerification, laneReady: async ({ lane }) => (await forLane(lane)).capabilities().driver !== "console", mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
 }
 
 /** The configured sender's domain, lower-cased; undefined when unset or unreadable. */
@@ -307,54 +410,56 @@ function callContext(deps: ResolveMailerDeps, credential: MailAdapterCredential)
 
 /** One provider call; a provider-reported failure becomes a caller-safe error. @complexity One call. */
 async function requestDomainRequirements(
-  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string }
+  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string },
+  optional: { timeoutMs?: number } = {},
 ): Promise<DomainRequirement> {
   const { ctx, providerId, provider, domain } = required;
   // `domainVerification` is true exactly when the module implements domainRequirements (registry-validated).
-  const result = await provider.domainRequirements!(ctx, { domain });
-  if (result.status === "ok") return result.value;
-  throw new Error(`the mail provider '${providerId}' could not list the DNS records ${domain} needs (${result.error.message})`);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error("The mail provider could not list its required DNS records.")), optional.timeoutMs ?? 5_000);
+  });
+  try {
+    const result = await Promise.race([provider.domainRequirements!(ctx, { domain }), timeout]);
+    if (result.status === "ok") return result.value;
+    throw new Error("The mail provider could not list its required DNS records.");
+  } finally { clearTimeout(timer); }
 }
 
-/** Lane providers whose credential resolves. @complexity O(lanes) lookups. */
-async function credentialedProviders(required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; setting: MailProviderSetting }): Promise<Set<string>> {
-  const { deps, catalog, setting } = required;
-  const ids = new Set([setting.transactional, setting.bulk].filter((id): id is string => id !== null));
-  const found = new Set<string>();
-  for (const id of ids) {
-    const credential = await resolveMailCredential({ deps, catalog, id }).catch(() => null);
-    if (credential) found.add(id);
-  }
-  return found;
+/** Lane providers' credentials, looked up in parallel; a failed lookup is recorded and counts as none. @complexity O(lanes) lookups. */
+async function laneCredentials(
+  required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; setting: MailProviderSetting; recordError: RecordError }
+): Promise<Map<string, MailAdapterCredential>> {
+  const { deps, catalog, setting, recordError } = required;
+  const ids = [...new Set([setting.transactional, setting.bulk].filter((id): id is string => id !== null))];
+  const lookup = (id: string) => resolveMailCredential({ deps, catalog, id }).catch((err: unknown) => {
+    // Only a provider with a label reaches the store, so the label is defined whenever this throws.
+    recordError({ providerId: id, source: "check", message: credentialFailureReason({ label: catalog.credentialLabelFor({ id })!, err }) });
+    return null;
+  });
+  const found = await Promise.all(ids.map(async (id) => [id, await lookup(id)] as const));
+  return new Map(found.filter((pair): pair is readonly [string, MailAdapterCredential] => pair[1] !== null));
 }
 
-/**
- * The sender domain's state at the transactional provider: `null` = no sender configured
- * (`sender_unknown`); undefined = the provider cannot verify domains or the check failed.
- * @complexity At most one provider call.
- */
-async function senderDomainState(
-  required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; providerId: string | null; credentialed: Set<string> }
-): Promise<MailDomainState | null | undefined> {
-  const { deps, catalog, providerId } = required;
-  const domain = await readSenderDomain(deps);
-  if (!domain) return null;
-  const provider = providerId === null ? undefined : catalog.registry.get({ id: providerId })?.provider;
-  if (!provider?.domainStatus || !required.credentialed.has(providerId!)) return undefined;
-  const credential = await resolveMailCredential({ deps, catalog, id: providerId! });
-  const result = await provider.domainStatus(callContext(deps, credential!), { domain }).catch(() => undefined);
-  return result?.status === "ok" ? result.value.state : undefined;
-}
-
-async function computeStatusReport(required: { deps: ResolveMailerDeps; setting: () => Promise<MailProviderSetting> }): Promise<MailStatusReport> {
-  const { deps } = required;
-  const [setting, catalog] = await Promise.all([required.setting(), loadMailProviderCatalog(deps)]);
-  const credentialed = await credentialedProviders({ deps, catalog, setting });
-  const domainState = await senderDomainState({ deps, catalog, providerId: setting.transactional, credentialed });
+async function computeStatusReport(
+  required: { deps: ResolveMailerDeps; setting: () => Promise<MailProviderSetting>; recordError: RecordError; nowMs: () => number; senderDomainVerification: SenderDomainVerificationPort }
+): Promise<MailStatusReport> {
+  const { deps, recordError } = required;
+  const checkedAt = new Date(required.nowMs()).toISOString();
+  const records = deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId }).catch((err: unknown) => {
+    recordError({ providerId: null, source: "check", message: `the saved mail credentials could not be listed (${err instanceof Error ? err.message : String(err)})` });
+    return [] as CustomCredentialSetRecord[];
+  });
+  // Independent reads run together; only the domain check waits, for the transactional key.
+  const [setting, catalog, rows, domain] = await Promise.all([required.setting(), loadMailProviderCatalog(deps), records, readSenderDomain(deps)]);
+  const credentials = await laneCredentials({ deps, catalog, setting, recordError });
+  const verdict = await required.senderDomainVerification();
+  const domainState = verdict.state === "no_sender" ? null : ["verified", "pending", "failed", "not_found"].includes(verdict.state) ? verdict.state as MailDomainState : undefined;
+  if (verdict.state === "unknown") recordError({ providerId: verdict.providerId, source: "check", message: "Provider domain check unavailable." });
   const status = computeMailStatus(
-    { setting, registry: catalog.registry, hasCredential: (id) => credentialed.has(id) },
+    { setting, registry: catalog.registry, hasCredential: (id) => credentials.has(id) },
     domainState === undefined ? {} : { senderDomainState: domainState },
   );
-  const providers = catalog.registry.list().map((entry) => ({ id: entry.id, label: entry.provider.label, hosted: entry.provider.capabilities.hosted, origin: entry.origin }));
-  return { ...status, providers, refusals: catalog.refusals };
+  const { providers } = describeMailProviders({ catalog, records: rows, setting });
+  return { ...status, providers, refusals: catalog.refusals, checkedAt };
 }

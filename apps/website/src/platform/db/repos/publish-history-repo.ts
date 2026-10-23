@@ -57,6 +57,22 @@ function providerFields(
   };
 }
 
+function publishLocationValues({ entry }: { entry: PublishHistoryEntry }, _options = {}) {
+  return {
+    owner: entry.owner ?? null,
+    repo: entry.repo ?? null,
+    base_path: entry.basePath ?? null,
+  };
+}
+
+function publishDeploymentValues({ entry }: { entry: PublishHistoryEntry }, _options = {}) {
+  return {
+    deployment_id: entry.deploymentId ?? null,
+    commit_sha: entry.commitSha ?? null,
+    branch: entry.branch ?? null,
+  };
+}
+
 /** @complexity O(1). */
 function toValues(workspaceId: UUID, entry: PublishHistoryEntry): Insertable<PublishHistoryTable> {
   return {
@@ -70,12 +86,8 @@ function toValues(workspaceId: UUID, entry: PublishHistoryEntry): Insertable<Pub
     credential_id: entry.credentialId ?? null,
     config_fields_json: entry.configFields === undefined ? null : JSON.stringify(entry.configFields),
     published_at: entry.publishedAt,
-    owner: entry.owner ?? null,
-    repo: entry.repo ?? null,
-    base_path: entry.basePath ?? null,
-    deployment_id: entry.deploymentId ?? null,
-    commit_sha: entry.commitSha ?? null,
-    branch: entry.branch ?? null,
+    ...publishLocationValues({ entry }),
+    ...publishDeploymentValues({ entry }),
     triggered_by: entry.triggeredBy,
   };
 }

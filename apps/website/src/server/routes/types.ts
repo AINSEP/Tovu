@@ -498,6 +498,8 @@ export interface CredentialsDeps {
   siteBackupHttpClient?: HttpClientPort;
   /** Deploy observation requests must not follow vendor redirects, even to another public host. */
   deployOpsHttpClient?: HttpClientPort;
+  /** Deploy-config owner supplies this workflow; ops plugins never import each other. */
+  loadDeployWorkflowFiles?: (input: { workspaceId: string }) => Promise<readonly string[]>;
   /**
    * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
    * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink
@@ -647,8 +649,9 @@ export interface MembersDeps {
   settleMailer?: () => Promise<void>;
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
-  mailStatus?: () => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
-  /** Provider selection for `mail_set_provider` (`server/runtime/composition/site-mailer.ts`). Absent: the tool refuses. */
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
+   *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
   mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
   /** The active transactional provider's DNS records for the configured sender domain
    *  (`resolve-mailer.ts`'s `domainRequirements`), read by `dns_plan`/`dns_verify` `include: ["mail"]`.
@@ -657,6 +660,21 @@ export interface MembersDeps {
   /** The site's system-email From resolver (`platform/mail/sender-identity.ts`), shared by member
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
+  /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
+  mailSenderDomainVerification?: import("#src/platform/mail/sender-domain-verification").SenderDomainVerificationPort;
+  /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
+  mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
+  /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
+  mailTestProvider?: () => Promise<string | null>;
+  mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
+  mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
+  mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
+  /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
+  mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;
+  /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
+  mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
+  /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
+  mailSuppressionAdmin?: import("#src/features/mail/suppression-admin.repo").MailSuppressionAdminRepo;
 }
 
 /**
@@ -878,6 +896,8 @@ export interface SettingsDeps {
    * SQLite root. The 2 admin assistant-settings routes await this before reading `settingsRepo`.
    */
   assistantSettingsReady: Promise<void>;
+  /** One management owner for page and chat; absent roots fail closed. */
+  visitorToolsManagement?: import("#src/contracts/site-assistant/visitor-tools-management").VisitorToolsManagementPort;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
@@ -996,6 +1016,8 @@ export interface AnalyticsDeps {
    * while that workspace's pin is pending (REQ-07).
    */
   siteTitleReady: Promise<void>;
+  /** Consent definitions and initial privacy content, after title preservation and owner seeding. */
+  siteConsentReady: Promise<void>;
   /**
    * Bug D: the site's zone for rendered post dates (`core.site.timezone`, `features/settings/site-timezone.ts`).
    * Optional so hand-built test deps keep compiling; absent renders UTC, the pre-fix behavior.
@@ -1434,6 +1456,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   federatedMcpPresetRegistry: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
   /** One lifecycle per boot, sharing the layout used by requests and backup sources. */
   agentPluginLifecycle: import("#src/features/agent-plugins/lifecycle").TovuAgentPluginLifecycle;
+  /** Site-bound toggle also clears mail selections owned by a disabled plugin. */
+  setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
   skillLayout: import("#src/features/skills/layout").SkillLayout;
   /**
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
@@ -1570,7 +1594,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
-  /** Fresh installed-plugin trust gates in production; bundled source in the hermetic root. */
+  /** Fresh installed-plugin trust gates in production; server/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/deploy-ops/types").DeployOpsRegistry>;
   /**
    * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),
@@ -1581,9 +1605,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   loadSourceControlProviders: LoadSourceControlProviders;
   /**
    * The key cards installed plugins declare for their own providers (`plugin-credential-card.ts`),
-   * opened by `credential_save` `{kind:"plugin-provider"}`. Mail plugins only today
-   * (`mail-provider-catalog.ts`'s `loadMailCredentialCards`). `server/deps.ts` reads the installed,
-   * activated plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
+   * opened by `credential_save` `{kind:"plugin-provider"}`. The boot binding supplies mail cards;
+   * credential-save composition merges active trusted manifest cards through
+   * `composition/plugin-credential-cards.ts`, keeping each domain’s existing save owner.
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**

@@ -22,6 +22,7 @@ import test from "node:test";
 import {
   assertClosureComplete,
   declaredDependencies,
+  stagePayloadFiles,
   diskBytes,
   findPackageDir,
   hasNativeBinaryMagic,
@@ -37,6 +38,27 @@ import {
   strippableReason,
   stripNonRuntimeFiles,
 } from "./stage-payload-lib.ts";
+
+test("desktop payload ships the Fly host-signal declaration as unchanged plain data", t => {
+  const repoRoot = tempDir();
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const sourceManifest = fs.readFileSync(new URL("../../../content/agent-plugins/fly/plugin.json", import.meta.url), "utf8");
+  for (const relative of ["dist/content/agent-plugins/fly", "apps/admin/dist", "apps/site-chat/dist"]) {
+    fs.mkdirSync(path.join(repoRoot, relative), { recursive: true });
+  }
+  fs.writeFileSync(path.join(repoRoot, "package.json"), '{"name":"example-payload"}');
+  fs.writeFileSync(path.join(repoRoot, "dist/content/agent-plugins/fly/plugin.json"), sourceManifest);
+  const outDir = path.join(repoRoot, "staged");
+  fs.mkdirSync(outDir);
+  stagePayloadFiles({ repoRoot, outDir });
+  const staged = fs.readFileSync(path.join(outDir, "dist/content/agent-plugins/fly/plugin.json"), "utf8");
+  assert.equal(staged, sourceManifest);
+  assert.deepEqual(JSON.parse(staged).extensions.tovu.hostSignals, [
+    { env: "FLY_APP_NAME", facts: { hosted: true, trustProxyHops: 1, nativeToolsRestricted: true }, label: "Fly.io (FLY_APP_NAME)" },
+    { env: "FLY_MACHINE_ID", facts: { nativeToolsRestricted: true } },
+    { env: "FLY_ALLOC_ID", facts: { nativeToolsRestricted: true } },
+  ]);
+});
 
 function tempDir() {
   return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-stage-payload-lib-")));

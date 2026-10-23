@@ -126,7 +126,7 @@ test("dns_verify authorizes with deployments.publish, saves the binding and repo
     hostname: "www.example.com", zone: "example.com", status: "propagated", attempt: 0, startedAt: new Date(T0).toISOString(), nextCheckAt: null,
     delegation: { state: "delegated", reason: "example.com is delegated to ns1.dns.test." }, nameservers: NS, records: undefined, untrusted: true,
   });
-  assert.deepEqual(result.records, [{ type: "A", name: "www.example.com", value: "203.0.113.10", state: "propagated", byNameserver: [{ nameserver: "ns1.dns.test", state: "propagated", answers: ["203.0.113.10"] }] }]);
+  assert.deepEqual(result.records, [{ type: "A", name: "www.example.com", value: "203.0.113.10", state: "propagated", status: "Matches", byNameserver: [{ nameserver: "ns1.dns.test", state: "propagated", answers: ["203.0.113.10"] }] }]);
   assert.equal(h.bindings.rows.get("www.example.com")?.status, "propagated");
 });
 
@@ -165,7 +165,7 @@ test("one domain-dns contributor builds the diagnostics and the DNS change tools
   });
   assert.equal(contributor.domain, "domain-dns");
   const ids = contributor.build({} as never, {} as never).map(registration => registration.descriptor.id);
-  assert.deepEqual(ids, ["domain_lookup_dns", "domain_check_dns", "domain_tls_status", "dns_plan", "dns_instructions", "dns_verify"]);
+  assert.deepEqual(ids, ["domain_lookup_dns", "domain_check_dns", "domain_tls_status", "dns_plan", "dns_instructions", "dns_verify", "mail_dns_status", "mail_dns_verify"]);
   assert.deepEqual([...contributor.risk.keys()], ids);
 });
 

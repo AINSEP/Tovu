@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PostRecord } from "#src/features/post/index";
+import { PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { toHeadlessPost, toHeadlessContentPost } from "../post.js";
 
 const post: PostRecord = {
@@ -66,4 +66,11 @@ test("scheduling and featured-media fields appear on the admin DTO only when set
   const plain = toHeadlessPost({ ...post, publishAt: null, featuredMediaId: null } as PostRecord);
   assert.equal("publishAt" in plain, false);
   assert.equal("featuredMediaId" in plain, false);
+});
+
+
+test("both headless DTOs refuse storage-only email templates", () => {
+  const template: PostRecord = { ...post, kind: "email-template", bodyFormat: "html", bodyHtml: "<p>private</p>" };
+  assert.throws(() => toHeadlessPost(template), PostNotFoundError);
+  assert.throws(() => toHeadlessContentPost(template), PostNotFoundError);
 });

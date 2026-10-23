@@ -82,7 +82,7 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
         kind: "string",
         name: "label",
         label: "Label",
-        hint: "A short display name, e.g. 'github' or 'name.com'. Must be unique in this workspace.",
+        hint: "A short display name, e.g. 'repository' or 'registrar'. Must be unique in this workspace.",
         required: true,
         ...(prefill.label !== undefined ? { value: prefill.label } : {}),
       },
@@ -90,7 +90,7 @@ export function buildCreateForm(spec: { prefill: CreateCredentialPrefill; provid
         kind: "string",
         name: "baseUrl",
         label: "Base URL",
-        hint: "The provider's API base URL, e.g. 'https://api.github.com'.",
+        hint: "The provider's API base URL, e.g. 'https://api.example.test'.",
         required: true,
         ...(prefill.baseUrl !== undefined ? { value: prefill.baseUrl } : {}),
       },
@@ -138,7 +138,7 @@ const CATALOG_CATEGORIES: ReadonlySet<string> = new Set(["hosting", "source-cont
  * and source-control catalog, so its hosts are offered only for a hosting/source-control credential
  * (by category, or by a prefilled/suggested target in the catalog). Otherwise only targets the
  * prefill names are offered, and a credential with none — e.g. a mail API key — gets no picker at
- * all instead of every deploy host (2026-10-22, a Resend key listed vercel, netlify, s3…). An absent
+ * all instead of every deploy host (2026-10-22, a mail key listed vercel, netlify, s3…). An absent
  * field saves as `worksFor: []`, the same as an empty selection.
  *
  * @complexity O(p + w) in the provider and target counts.

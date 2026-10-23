@@ -1,14 +1,22 @@
 import { assistantCliPermissions, type AssistantCliPermissions } from "../headless/assistant-subagents-policy.js";
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
 /** Product policy shared by the site daemon and Electron host. No I/O or framework imports. */
-export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Use Bash or direct file edits only when no Tovu tool can do the job. When you do, say in one line: `Tool gap: <what you needed> — no Tovu tool for it.`';
+export const TOOLS_FIRST_RULE = 'Use Tovu tools first. Before any Bash or direct file read/edit/write of site files (themes, content, config), call search_tools describing the job; if no candidate fits, retry with different phrasing or a higher limit. Only if those searches find no suitable Tovu tool may you use native fallbacks. Only after those searches, report the fallback in one line: `Tool gap: <what you needed> — no Tovu tool for it.` Include the queries you searched in <what you needed>.';
 
-/** Hosted signals override every owner opt-in, including legacy permission-mode overrides. */
+/** Hosted signals override every owner opt-in, including legacy permission-mode overrides.
+ * The host injects validated platform facts; absent facts retain the core baseline without I/O.
+ * @param required Environment snapshot containing the product's own host policy switches.
+ * @param optional Matched shipped facts, resolved at the host boundary before policy evaluation.
+ * @returns Whether native assistant tools must remain restricted. @complexity O(1).
+ * @example isHostedAssistantRuntime({ env }, { hostSignals });
+ */
 export function isHostedAssistantRuntime(required: {
   env: Readonly<Record<string, string | undefined>>;
-}, _optional: Record<string, never> = {}): boolean {
+}, optional: HostSignalOptions = {}): boolean {
   const env = required.env;
+  const hostSignals = optional.hostSignals ?? evaluateHostSignals({ env, declaration: CORE_HOST_SIGNAL_FALLBACK });
   return env.TOVU_RUNTIME_MODE === 'production' || env.TOVU_HOSTED === '1' || env.TOVU_HOSTED === 'true' ||
-    !!(env.FLY_APP_NAME || env.FLY_MACHINE_ID || env.FLY_ALLOC_ID) ||
+    hostSignals.nativeToolsRestricted === true ||
     /^https?:\/\/(?:[^/]+\.)?tovu\.dev(?::\d+)?(?:\/|$)/i.test(env.TOVU_PUBLIC_URL ?? '');
 }
 
@@ -29,12 +37,13 @@ export function fullCliEnvLock(required: {
 
 /** One fresh owner grant governs every CLI capability. Missing local settings default ON;
  * failed reads supply false. Request/contextRef fields never participate. Pure, O(1).
+ * Platform facts are injected with the same snapshot used for permission-mode policy.
  */
 export function resolveFullCliAccess(required: {
   isOwner: boolean; setting?: boolean | undefined; env: Readonly<Record<string, string | undefined>>;
-}, _optional: Record<string, never> = {}): boolean {
+}, optional: HostSignalOptions = {}): boolean {
   const env = required.env;
-  return required.isOwner && required.setting !== false && !isHostedAssistantRuntime({ env }, {}) &&
+  return required.isOwner && required.setting !== false && !isHostedAssistantRuntime({ env }, optional) &&
     fullCliEnvLock({ env }, {}) === undefined;
 }
 
@@ -43,12 +52,13 @@ export const resolveAssistantNativeFallbacks = resolveFullCliAccess;
 
 /** Apply the structural owner/host gate before projecting any persisted per-capability choice.
  * The master is a default, not a second veto: individual toggles can be turned back on below it.
+ * The host supplies matched facts so the projection shares the launch's host decision.
  * @complexity O(1), a fixed number of permissions. No I/O.
  */
 export function resolveAssistantCliPermissions(required: {
   isOwner: boolean; env: Readonly<Record<string, string | undefined>>; settings: AssistantCliPermissions;
-}, _optional = {}): AssistantCliPermissions {
-  if (!resolveFullCliAccess({ isOwner: required.isOwner, env: required.env }, {})) return assistantCliPermissions({ enabled: false });
+}, optional: HostSignalOptions = {}): AssistantCliPermissions {
+  if (!resolveFullCliAccess({ isOwner: required.isOwner, env: required.env }, optional)) return assistantCliPermissions({ enabled: false });
   return assistantCliPermissions(required.settings);
 }
 

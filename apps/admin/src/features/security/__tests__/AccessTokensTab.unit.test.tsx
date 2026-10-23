@@ -82,6 +82,12 @@ function makeOtherCredentials(overrides: Partial<OtherCredentialsController> = {
 }
 
 describe("AccessTokensTab search box", () => {
+  it("links to Plugins when the Hosting filter has no providers", () => {
+    render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens({ category: "hosting" })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    expect(screen.getByText("Enable a hosting plugin to manage its access tokens.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Plugins" })).toHaveAttribute("href", "/admin/addons/agent-plugins");
+  });
+
   it("saves and clears Works for with the token and required account fields left blank", async () => {
     const user = userEvent.setup();
     let saved: AdminPublishCredentialSummary = {

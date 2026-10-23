@@ -65,7 +65,7 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" }, { withSampleContent: true });
     seedSourceExtras(source.dir);
     const sourceConfigPath = path.join(source.dir, "config.json");
-    const sourceConfig = JSON.stringify({ name: "Original Client Site", domain: "example.com", port: 8080 });
+    const sourceConfig = JSON.stringify({ name: "Original Client Site", domain: "example.com", port: 8080, timezone: "America/Los_Angeles" });
     fs.writeFileSync(sourceConfigPath, sourceConfig);
     const themeAssets = {
       "static/basic/templates/partials/audit.html": "<aside>owner-edited nested template</aside>",
@@ -92,6 +92,7 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     assert.equal(config.name, "Client B Copy");
     assert.equal(config.domain, null, "a duplicate must not silently inherit the source's custom domain");
     assert.equal(config.port, null, "a duplicate must not silently inherit the source's fixed port");
+    assert.equal(config.timezone, "America/Los_Angeles", "copied content must keep the source's local dates");
     assert.equal(fs.readFileSync(sourceConfigPath, "utf8"), sourceConfig, "the source's configured domain and port must remain untouched");
 
     // The known upload really made it across, with its real bytes.

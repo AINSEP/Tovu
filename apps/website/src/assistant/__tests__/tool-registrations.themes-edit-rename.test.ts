@@ -12,6 +12,7 @@ import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 
 import {
   contributeThemesTools,
@@ -97,6 +98,27 @@ function readFile(themesDir: string, relativePath: string): string {
 // ---------------------------------------------------------------------------
 // theme_edit_file
 // ---------------------------------------------------------------------------
+
+test("chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  try {
+    const registration = wired(deps, "theme_edit_file");
+    const deleted = await executeRegisteredTool({ registration, input: {
+      themeId: "plain", path: "styles.css", oldString: ".card{padding:0}\n", newString: "",
+    } });
+    assert.equal(deleted.status, "completed");
+    assert.equal(readFile(themesDir, "styles.css"), "body{padding:0}\n");
+    const blanked = await executeRegisteredTool({ registration, input: {
+      // Whitespace is literal, but leaving only whitespace requires whole-file deletion intent.
+      themeId: "plain", items: [{ path: "styles.css", oldString: "body{padding:0}", newString: " ", intent: "delete" }],
+    } });
+    assert.equal(blanked.status, "completed");
+    assert.equal((blanked.output as { succeeded: number }).succeeded, 1);
+    assert.equal(readFile(themesDir, "styles.css"), " \n", "whitespace is literal replacement text");
+  } finally {
+    fs.rmSync(themesDir, { recursive: true, force: true });
+  }
+});
 
 test("theme_edit_file: zero matches is refused, and the file is left untouched", async () => {
   const { deps, themesDir } = fakeRouteDeps();
@@ -291,4 +313,34 @@ test('theme_edit_file: an empty replacement deletes the exact match', async () =
   const result = await wired(deps, 'theme_edit_file').handler(executionContext({ themeId: 'plain', path: 'styles.css', oldString: '.card{padding:0}\n', newString: '' }));
   assert.equal((result as { occurrencesReplaced: number }).occurrencesReplaced, 1);
   assert.equal(readFile(themesDir, 'styles.css'), 'body{padding:0}\n');
+});
+
+test("theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = readFile(themesDir, "styles.css");
+  await assert.rejects(
+    () => wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before, newString: "" })),
+    /would leave 'styles\.css' empty.*intent: 'delete'/
+  );
+  // Whitespace-only is still "empty" for a stylesheet: everything meaningful is gone.
+  await assert.rejects(
+    () => wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before.trimEnd(), newString: " " })),
+    /would leave 'styles\.css' empty/
+  );
+  assert.equal(readFile(themesDir, "styles.css"), before);
+});
+
+test("theme_edit_file: intent 'delete' confirms emptying the whole file", async () => {
+  const { deps, themesDir } = fakeRouteDeps();
+  const before = readFile(themesDir, "styles.css");
+  const result = await wired(deps, "theme_edit_file").handler(executionContext({ themeId: "plain", path: "styles.css", oldString: before, newString: "", intent: "delete" }));
+  assert.equal((result as { bytesWritten: number }).bytesWritten, 0);
+  assert.equal(readFile(themesDir, "styles.css"), "");
+});
+
+test("theme_edit_file: the schema documents intent 'delete' and empty-string deletion", async () => {
+  const { deps } = fakeRouteDeps();
+  const schema = wired(deps, "theme_edit_file").descriptor.inputSchema as { properties: Record<string, { enum?: string[]; description?: string }> };
+  assert.deepEqual(schema.properties.intent?.enum, ["delete"]);
+  assert.match(schema.properties.newString?.description ?? "", /empty string/i);
 });

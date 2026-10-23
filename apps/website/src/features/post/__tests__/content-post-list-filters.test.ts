@@ -2,6 +2,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
+import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
+import { POST_LIST_FIELDS } from "../agent-tools.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -204,7 +207,7 @@ test("t02: list publishes the optional query, real status enum and exact project
   };
   assert.equal(schema.properties.query?.type, "string");
   assert.deepEqual(schema.properties.status?.enum, ["draft", "published"]);
-  assert.deepEqual(schema.properties.fields?.items, {
+  assert.deepEqual(schema.properties.fields?.anyOf, [{ type: "array", items: {
     type: "string",
     enum: [
       "id",
@@ -225,20 +228,36 @@ test("t02: list publishes the optional query, real status enum and exact project
       "author",
       "showAuthor",
     ],
-  });
+  } }, { type: "string" }]);
   assert.deepEqual(schema.required, ["kind"]);
 });
 
 test("t02: invalid status and projection inputs refuse with ToolInputError", async () => {
   for (const [input, message] of [
     [{ status: "scheduled" }, "'status' must be exactly 'draft' or 'published'"],
-    [{ fields: "title" }, "content_post_list: fields must be an array of supported field names."],
-    [{ fields: ["bodyJson"] }, "content_post_list: fields must be an array of supported field names."],
-    [{ fields: [null] }, "content_post_list: fields must be an array of supported field names."],
+    ...[["bodyJson"], [null], ["template"], "title,template", "title,", "", 42].map(fields => [
+      { fields },
+      `content_post_list: fields must be an array or comma-separated string of supported field names. Supported names: ${POST_LIST_FIELDS.join(", ")}. Example: {"kind":"page","fields":["title","slug"]}.`,
+    ] as const),
   ] as const) {
     await assert.rejects(
       list(input),
       (error: unknown) => error instanceof ToolInputError && error.message === message,
     );
   }
+});
+
+test("chat-input regression: comma-separated fields project the same rows through the merged read card", async () => {
+  const registration = fixture();
+  const [card] = deriveContentReadRegistrations([
+    registration,
+    { ...registration, descriptor: { ...registration.descriptor, id: "content_post_get" } },
+  ]);
+  assert.ok(card);
+  const input = { kind: "page", fields: " title, slug, title " };
+  const result = await executeRegisteredTool({ registration: card, input });
+  assert.equal(result.status, "completed");
+  assert.deepEqual(result.output, { posts: [{ id: "one", title: "Welcome", slug: "welcome" }], total: 1, hasMore: false });
+  assert.equal(input.fields, " title, slug, title ");
+  assert.deepEqual(await list({ fields: "title" }), await list({ fields: ["title"] }));
 });

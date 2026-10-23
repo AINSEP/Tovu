@@ -1,4 +1,5 @@
-import { PUBLIC_PAGE_SECURITY_HEADERS, type SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import type { SecurityHeaderSet } from "#src/contracts/core/public-page-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /**
@@ -26,7 +27,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 
 
 /** The `_headers` file format some static hosts read: a path pattern, then two-space-indented `Name: value` lines. */
-export function renderHeadersFile(headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
+export function renderHeadersFile(headers: SecurityHeaderSet = publicPageSecurityHeaders({})): string {
   const lines = Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`);
   return `/*\n${lines.join("\n")}\n`;
 }
@@ -40,7 +41,7 @@ const HEAD_OPEN_TAG = /<head(\s[^>]*)?>/i;
  *
  * @complexity O(n) in the length of `html` (one regex scan).
  */
-export function withSecurityMeta(html: string, headers: SecurityHeaderSet = PUBLIC_PAGE_SECURITY_HEADERS): string {
+export function withSecurityMeta(html: string, headers: SecurityHeaderSet = publicPageSecurityHeaders({})): string {
   const referrerPolicy = headers["Referrer-Policy"];
   if (referrerPolicy === undefined) return html;
   return html.replace(HEAD_OPEN_TAG, (tag) => `${tag}<meta name="referrer" content="${escapeHtml(referrerPolicy)}">`);

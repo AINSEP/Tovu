@@ -58,7 +58,9 @@ const destinationKinds = createTovuVaultKinds({ policy: {
 
 export class SealedDatabaseDestinationStore implements DatabaseDestinationStorePort {
   private readonly vault: SecretsVaultService;
-  constructor(private readonly deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort }, _options = {}) {
+  private readonly deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort };
+  constructor(deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort }, _options = {}) {
+    this.deps = deps;
     this.vault = new SecretsVaultService({ ...deps, metaParsers: destinationKinds.metaParsers,
       now: () => new Date().toISOString(), newId: () => 'vault:["database-destination",null]',
       authorize: async ({ context }) => {

@@ -14,6 +14,7 @@ import {
   CHAT_TOOL_CALLS_KEY,
   ensureAdminInterfaceSettingDefinitions,
   PREFER_SUBAGENTS_KEY,
+  REPLY_LENGTH_KEY,
   USE_CLAUDE_IN_CHROME_KEY,
 } from "../admin-interface.js";
 
@@ -177,4 +178,32 @@ test("assistant runtime preference: useClaudeInChrome is a per-person boolean de
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
   assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext }),
     { value: true, sourceLayer: "default", defVersion: 1 });
+});
+
+test("reply length defaults to Normal, validates its enum and persists independently per person", async () => {
+  const { settingsRepo } = await registeredLedger();
+  assert.equal(REPLY_LENGTH_KEY, "replyLength");
+  const def = await definition(settingsRepo, REPLY_LENGTH_KEY);
+  assert.ok(def);
+  assert.deepEqual(def.schema, { type: "enum", values: ["short", "normal", "detailed"] });
+  assert.equal(def.defaultValue, "normal");
+  assert.equal(def.scopes, PER_OPERATOR);
+  const read = (principalId: string) => getEffective({ repo: settingsRepo }, {
+    namespace: ADMIN_INTERFACE_NAMESPACE, key: REPLY_LENGTH_KEY, scopeContext: { workspaceId: "workspace-1", principalId },
+  });
+  assert.equal((await read("alice"))?.value, "normal");
+  const deps = { repo: settingsRepo, clock, ids, authorize: async () => ({ allowed: true, reason: "test" }), principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } };
+  const input = { namespace: ADMIN_INTERFACE_NAMESPACE, key: REPLY_LENGTH_KEY, scope: "user" as const, workspaceId: "workspace-1", principalId: "alice", callerPrincipalId: "alice", authWorkspaceId: "workspace-1", value: "short" };
+  await set({ deps, input });
+  await set({ deps, input: { ...input, principalId: "bob", callerPrincipalId: "bob", value: "detailed" } });
+  assert.equal((await read("alice"))?.value, "short");
+  assert.equal((await read("bob"))?.value, "detailed");
+  assert.equal((await read("charlie"))?.value, "normal");
+  for (const value of ["verbose", "SHORT", true, 1, null]) {
+    await assert.rejects(set({ deps, input: { ...input, value } }));
+    assert.equal((await read("alice"))?.value, "short");
+  }
+  await set({ deps, input: { ...input, value: "normal" } });
+  assert.equal((await read("alice"))?.value, "normal");
+  assert.equal((await read("bob"))?.value, "detailed");
 });

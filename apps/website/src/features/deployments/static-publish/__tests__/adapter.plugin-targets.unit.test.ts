@@ -8,7 +8,7 @@ import test from "node:test";
 
 import type { DeployTarget } from "@jini-ai/devops/deploy";
 
-import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type {
   DeployHostKit,
@@ -103,7 +103,7 @@ test("a registry-known target is built by its plugin module, gets responseHeader
   assert.equal(seen.workspaceId, createRouteDeps().workspaceId);
   assert.equal(seen.context?.credential.token, "tok");
   assert.equal(seen.context?.kit, kit);
-  assert.deepEqual(seen.input?.responseHeaders, PUBLIC_PAGE_SECURITY_HEADERS);
+  assert.deepEqual(seen.input?.responseHeaders, publicPageSecurityHeaders({}));
   assert.ok(seen.input?.files.some((file) => file.file === "index.html"));
   assert.deepEqual(seen.input?.files.filter((file) => file.file === "_headers" || file.file === "vercel.json"), []);
 });
@@ -230,7 +230,7 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
   assert.equal(createTarget, "production", "a publish updates the live address, not a preview");
   assert.ok(result.ok && result.url === "https://demo.vercel.app" && result.status === "ready", "the production alias is the reported link");
   assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
-  const rule = { source: "/(.*)", headers: Object.entries(PUBLIC_PAGE_SECURITY_HEADERS).map(([key, value]) => ({ key, value })) };
+  const rule = { source: "/(.*)", headers: Object.entries(publicPageSecurityHeaders({})).map(([key, value]) => ({ key, value })) };
   assert.ok(vercelJson !== undefined, "the publish must have posted a vercel.json");
   assert.deepEqual(JSON.parse(vercelJson), { headers: [rule] }, "vercel.json carries the live server's public-page header set on every path");
 });

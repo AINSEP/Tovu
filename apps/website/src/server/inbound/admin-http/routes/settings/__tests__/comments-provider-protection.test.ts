@@ -11,6 +11,7 @@ import { contributeSettingsTools, type SettingsToolDeps } from "#src/features/se
 import { clear, refuseCommentsProviderClear, refuseCommentsProviderReset, set } from "#src/features/settings/index";
 import { registerAdminSettingsClearRoute } from "../clear.js";
 import { registerAdminSettingsResetRoute } from "../reset.js";
+import { registerAdminSettingsSetRoute } from "../set.js";
 import type { SettingsRouteDeps } from "../deps.js";
 import { createTovuSettingsService } from "../shared.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
@@ -45,8 +46,9 @@ async function fixture() {
   const app = express();
   registerAdminSettingsClearRoute(app, deps);
   registerAdminSettingsResetRoute(app, deps);
+  registerAdminSettingsSetRoute(app, deps);
   return { settingsRepo, store, comments, deps,
-    async request(method: "delete" | "post", path: string, body: unknown) {
+    async request(method: "delete" | "post" | "put", path: string, body: unknown) {
       const { res, capture } = createCapturingResponse();
       res.locals.principal = { id: "settings-admin" };
       await extractRouteHandler(app, method, base + path)({ params: { workspaceId: WS }, body, query: {} }, res);
@@ -59,6 +61,15 @@ async function assertStillDisabled(f: Awaited<ReturnType<typeof fixture>>, befor
   assert.equal((await f.store.read({ siteId: WS })).providerId, null, "comments stay switched off");
   assert.equal(await f.settingsRepo.maxRevisionSeq(), before, "nothing reaches the ledger");
 }
+
+test("a generic provider write returns 403 and leaves comments disabled", async () => {
+  const f = await fixture();
+  const before = await f.settingsRepo.maxRevisionSeq();
+  const response = await f.request("put", "/value", { namespace: "core.comments", key: "provider", scope: "workspace", valueJson: "built-in" });
+  assert.equal(response.statusCode, 403);
+  assert.match(String((response.jsonBody as { error: string }).error), /comments_set_provider/);
+  await assertStillDisabled(f, before);
+});
 
 test("a settings-only principal cannot reactivate comments by clearing the provider over HTTP", async () => {
   const f = await fixture();

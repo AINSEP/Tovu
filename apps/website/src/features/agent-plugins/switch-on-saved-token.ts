@@ -62,7 +62,7 @@ async function defaultIsPluginOffByOperator(input: { workspaceId: string; agentP
   const activations = await readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
   if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
   const record = activations.plugins[input.pluginId];
-  return record.enabled === false && record.updatedBy !== SEED_ACTOR;
+  return record?.enabled === false && record.updatedBy !== SEED_ACTOR;
 }
 
 /**
@@ -76,7 +76,7 @@ async function defaultSwitchPluginOn(input: { workspaceId: string; agentPluginLa
   const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
   if (!Object.hasOwn(activations.plugins, input.pluginId)) return true;
   const record = activations.plugins[input.pluginId];
-  if (record.enabled) return true;
+  if (!record || record.enabled) return true;
   if (record.updatedBy !== SEED_ACTOR) return false;
   return (await enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId: input.pluginId, actor: SWITCH_ON_ACTOR })) !== "left-disabled-by-operator";
 }

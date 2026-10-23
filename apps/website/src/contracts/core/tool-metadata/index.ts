@@ -21,6 +21,7 @@ import { toolMetadata as forms } from './forms.js';
 import { toolMetadata as frontend_control } from './frontend-control.js';
 import { toolMetadata as fs_files } from './fs-files.js';
 import { toolMetadata as identity } from './identity.js';
+import { toolMetadata as email_templates } from './email-templates.js';
 import { toolMetadata as mail_status } from './mail-status.js';
 import { toolMetadata as media } from './media.js';
 import { toolMetadata as media_generation } from './media-generation.js';
@@ -39,6 +40,7 @@ import { toolMetadata as search } from './search.js';
 import { toolMetadata as seo } from './seo.js';
 import { toolMetadata as server_logs } from './server-logs.js';
 import { toolMetadata as settings } from './settings.js';
+import { toolMetadata as visitor_tools } from './visitor-tools.js';
 import { toolMetadata as site_backup } from './site-backup.js';
 import { toolMetadata as site_evidence } from './site-evidence.js';
 import { toolMetadata as site_guide } from './site-guide.js';
@@ -77,6 +79,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'deploy-ops', tools: deploy_ops },
   { domain: 'deployments', tools: deployments },
   { domain: 'domain-dns', tools: domain_dns },
+  { domain: 'email-templates', tools: email_templates },
   { domain: 'external-mcp', tools: external_mcp },
   { domain: 'entries', tools: entries },
   { domain: 'forms', tools: forms },
@@ -101,6 +104,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'seo', tools: seo },
   { domain: 'server-logs', tools: server_logs },
   { domain: 'settings', tools: settings },
+  { domain: 'visitor-tools', tools: visitor_tools },
   { domain: 'site-backup', tools: site_backup },
   { domain: 'site-evidence', tools: site_evidence },
   { domain: 'site-guide', tools: site_guide },

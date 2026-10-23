@@ -1,3 +1,4 @@
+import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -31,7 +32,6 @@ import {
 } from "./provider-registry.js";
 import type { RepositoryTargetValidator } from "./provider-module.js";
 import { proposeSourceControlCredential } from "./credential-setup.js";
-import { isSourceControlProviderId } from "./store.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
@@ -113,21 +113,24 @@ async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: str
  * `validateCommitTarget` still applies.
  *
  * @throws {ToolInputError} naming the hosts that do exist.
- * @complexity One registry load.
+ * @complexity One registry load and, for a saved-only id, one authorized metadata lookup.
  */
-async function requireKnownHost(deps: SourceControlToolDeps, providerId: string): Promise<{ label: string; validateTarget?: RepositoryTargetValidator }> {
+async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
+  deps: SourceControlToolDeps; providerId: string; authorizeSavedLookup: () => Promise<void>;
+}, _options = {}): Promise<{ label: string; validateTarget?: RepositoryTargetValidator }> {
   const registry = await providerLoader(deps)(deps.workspaceId);
   const loaded = registry.get(providerId);
   if (loaded !== undefined) return { label: loaded.descriptor.label, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
-  if (registry.switchedOff?.has(providerId) || isSourceControlProviderId(providerId)) return { label: providerId };
+  if (registry.switchedOff?.has(providerId)) return { label: providerId };
+  // Saved-only ids are opaque. Authorize before inspecting their existence (registry metadata is public).
+  await authorizeSavedLookup();
+  if (await findSavedDefault({ deps, providerId })) return { label: providerId };
   const hosts = registry.list().map((loaded) => `'${loaded.descriptor.id}'`);
   throw new ToolInputError({ message: `source_control_execute_commit: '${providerId}' is not a source control host. ${hosts.length > 0 ? `Hosts: ${hosts.join(", ")}` : "No turned-on Agent Plugin provides one"} (see source_control_get_capabilities).` });
 }
 
-/** The saved default credential for `providerId`, never decrypted; `null` for a host the credential
- *  store cannot hold. @complexity One repo read. */
-async function findSavedDefault(deps: SourceControlToolDeps, providerId: string) {
-  if (!isSourceControlProviderId(providerId)) return null;
+/** Saved default metadata for any opaque id, never decrypted; null when no default exists. */
+async function findSavedDefault({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _options = {}) {
   return deps.sourceControlCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId });
 }
 
@@ -167,7 +170,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_get_capabilities",
     description:
-      "Reports the source control hosts for this workspace — every host a turned-on Agent Plugin provides, every host a plugin declares but is switched off, and every host that has a saved connection — WITHOUT decrypting or exposing any credential. For each provider: providerId; label, apiOrigin (the API base URL a saved custom credential for that host points at) and maxFileBytes (the largest single file the host accepts in a push; absent when it declares none), when a plugin declares the host; whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that the host has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host; a credential for any other host can be saved and is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; call credential_save with kind source-control to open a human form, which saves it encrypted server-side and never shows it to you.",
+      "Reports the source control hosts for this workspace — every host a turned-on Agent Plugin provides, every host a plugin declares but is switched off, and every host that has a saved connection — WITHOUT decrypting or exposing any credential. For each provider: providerId; label, apiOrigin (the API base URL a saved custom credential for that host points at) and maxFileBytes (the largest single file the host accepts in a push; absent when it declares none), when a plugin declares the host; whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that the host has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host; a saved credential for an unavailable host is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; call credential_save with kind source-control to open a human form, which saves it encrypted server-side and never shows it to you.",
     sideEffects: "none",
     authorization: { permission: "source-control.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -214,6 +217,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  * composition root's wide RouteDeps type; route callers satisfy the narrower shape structurally.
  */
 export interface SourceControlToolDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
@@ -388,16 +392,17 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const raw = requireInputRecord({ input: ctx.input });
       const command = parseCommitCommand(raw);
 
-      const host = await requireKnownHost(deps, command.provider);
+      const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
+      const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
       const hostLabel = host.label;
       requireValidTarget(command, host.validateTarget);
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
+      await authorizeCommit();
 
       if (command.dryRun) {
         // Same "presence only" read `source_control_get_capabilities` and the real-commit path
         // below both rely on — never decrypts. No dialog: a dry run only previews what a real
         // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
-        const existing = await findSavedDefault(deps, command.provider);
+        const existing = await findSavedDefault({ deps, providerId: command.provider });
         const preview = await previewCommitExport({
           workspaceId: deps.workspaceId,
           sourceControlExportRootDir: deps.sourceControlExportRootDir,
@@ -407,7 +412,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           repo: command.repo,
           ...(command.branch !== undefined ? { branch: command.branch } : {}),
           commitMessage: command.commitMessage,
-        }, host.validateTarget);
+        }, { providerId: command.provider, validateTarget: host.validateTarget });
         if (!preview.ok) {
           return {
             dryRun: true,
@@ -437,7 +442,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
       // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
       // attention.
-      const existing = await findSavedDefault(deps, command.provider);
+      const existing = await findSavedDefault({ deps, providerId: command.provider });
       if (!existing) {
         return {
           committed: false,

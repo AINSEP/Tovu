@@ -133,7 +133,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   PublishContentToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
-  SettingsToolDeps &
+  SettingsToolDeps & import("../features/settings/visitor-tools-registrations.js").VisitorToolsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &

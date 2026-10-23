@@ -94,10 +94,7 @@ export function toCommitFile(entry: { outputFile: string; data: string | Buffer 
   return { path: entry.outputFile.split(path.sep).join("/"), data: entry.data };
 }
 
-/** The resolved credential {@link SourceControlCommitAdapter.commit} is called with — this feature's GitHub
- *  connection is `{providerId, token}` only (`types.ts`'s `GitHubSourceControlConnectionInput`), so
- *  this is simpler than `static-publish/adapter.ts`'s `ResolvedPublishCredential` (which carries
- *  provider-specific extra fields for four OTHER providers this feature does not have). */
+/** Commit operations receive only the resolved token; saved provider metadata stays in the vault. */
 export interface ResolvedSourceControlCredential {
   readonly token: string;
 }
@@ -191,12 +188,12 @@ export interface CommitSiteInput {
 
 /**
  * Each source-control export RUN gets its OWN directory under the site's `out/` (inside the
- * directory every other export/publish artifact already lives under) — `<parent>/github/<runId>`,
- * not merely `<parent>/github`. Exported (not merely internal) specifically so this per-run
+ * directory every other export/publish artifact already lives under) — `<parent>/providerId/<runId>`,
+ * not merely `<parent>/providerId`. Exported (not merely internal) specifically so this per-run
  * isolation is directly testable — this file's own copy of `static-publish/adapter.ts`'s identical
  * `publishOutputDir` fix, for the identical reason.
  *
- * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): a fixed `<parent>/github`
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): a fixed `<parent>/providerId`
  * directory meant this feature had NO concurrency guard at all — not even the process-local
  * single-flight `publish-run.ts` gives `static-publish/adapter.ts` — so two commits (the assistant's
  * confirmed `source_control_execute_commit` tool call firing twice, or overlapping with a future
@@ -217,8 +214,8 @@ export interface CommitSiteInput {
  * process env vars.
  * @complexity O(1) — fixed-shape path join, no I/O.
  */
-export function commitExportDir(parent: string, runId: string): string {
-  return path.join(parent, "github", runId);
+export function commitExportDir({ parent, providerId, runId }: { parent: string; providerId: string; runId: string }, _options = {}): string {
+  return path.join(parent, providerId, runId);
 }
 
 /** Best-effort cleanup of one run's isolated export directory (see {@link commitExportDir}'s own
@@ -327,8 +324,8 @@ type CommitExportResult = { ok: true; files: CommitFile[] } | { ok: false; code:
  * failures (both route AND asset failures — see the inline comment below). Split out for the same
  * one-guard-per-phase reason as {@link resolveCommitCredential}.
  */
-async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResult> {
-  const outputDir = commitExportDir(input.sourceControlExportRootDir, input.idGen.newId());
+async function exportForCommit({ input, providerId }: { input: CommitSiteInput; providerId: string }, _options = {}): Promise<CommitExportResult> {
+  const outputDir = commitExportDir({ parent: input.sourceControlExportRootDir, providerId, runId: input.idGen.newId() });
   let report: ExportReport;
   try {
     report = await input.exportSiteBound({ outputDir, clean: true });
@@ -373,11 +370,11 @@ export type PreviewCommitExportResult =
  * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) —
  *   no credential resolution, no `SourceControlCommitAdapter.commit()` call, ever.
  */
-export async function previewCommitExport(input: CommitSiteInput, validateTarget?: RepositoryTargetValidator): Promise<PreviewCommitExportResult> {
+export async function previewCommitExport(input: CommitSiteInput, { providerId = "preview", validateTarget }: { providerId?: string; validateTarget?: RepositoryTargetValidator } = {}): Promise<PreviewCommitExportResult> {
   const configError = validateCommitTarget(input, validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
-  const exportResult = await exportForCommit(input);
+  const exportResult = await exportForCommit({ input, providerId });
   if (!exportResult.ok) return exportResult;
 
   const sortedPaths = exportResult.files.map((file) => file.path).sort();
@@ -417,7 +414,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId, deps.providerId);
   if (!credentialResult.ok) return credentialResult;
 
-  const exportResult = await exportForCommit(input);
+  const exportResult = await exportForCommit({ input, providerId: deps.providerId });
   if (!exportResult.ok) return exportResult;
 
   const gitAdapter = deps.gitAdapter;

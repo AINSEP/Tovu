@@ -8,7 +8,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  * Purpose:
  * Deliberately separate from this directory's sibling `../types.ts`/`../ports.ts`
  * (`DeploymentProviderPort`/`DeploymentTargetRecord`) — that machinery promotes an EXISTING git
- * commit through a GitHub App (`../providers/github.ts`), continuous-deployment-shaped. This
+ * commit through a GitHub App (`content/agent-plugins/github/deployments/github.mjs`), continuous-deployment-shaped. This
  * feature does the opposite: it takes Tovu's own static export (`src/features/site-export`'s `exportSite`, bytes
  * this process just rendered, never a pre-existing commit) and hands the file set to a devops
  * `DeployTarget` — a one-shot "publish this exact file set" operation with no polling-run/webhook

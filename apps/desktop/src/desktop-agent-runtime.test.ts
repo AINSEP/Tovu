@@ -97,6 +97,21 @@ test("desktop turn access skips settings and login reads when the host denies fu
   assert.deepEqual(await resolveDesktopTurnAccess({ addressee: null, hostEnv: { TOVU_HOSTED: "1" } }), denied);
 });
 
+test("a desktop turn uses declared host facts while a packaged local runtime keeps CLI access", async () => {
+  const hostEnv = { NODE_ENV: "production", ELECTRON_RUN_AS_NODE: "1", TOVU_DESKTOP_OWNER_PID: "42" };
+  const denied = await resolveDesktopTurnAccess({ addressee: null, hostEnv,
+    hostSignals: { hosted: false, nativeToolsRestricted: true, labels: [] },
+  }, {
+    readFullCliAccess: async () => assert.fail("a declared restriction must precede settings"),
+    readLoginShellEnvironment: async () => assert.fail("a declared restriction must precede login reads"),
+  });
+  assert.equal(denied.nativeToolAccess, false);
+  const local = await resolveDesktopTurnAccess({ addressee: null, hostEnv,
+    hostSignals: { hosted: false, nativeToolsRestricted: false, labels: [] },
+  }, { readLoginShellEnvironment: async () => ({ PATH: "/local/bin" }) });
+  assert.equal(local.nativeToolAccess, true);
+});
+
 test("desktop turn access propagates a settings read failure without reading the login environment", async () => {
   const failure = new Error("settings unavailable");
   await assert.rejects(resolveDesktopTurnAccess({ addressee: null, hostEnv: {} }, {

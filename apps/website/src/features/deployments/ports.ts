@@ -4,7 +4,7 @@ import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord,
 
 /**
  * @file The provider-neutral deployment port — the seam every first-party adapter
- * (`./providers/github.ts`, and later others) implements once.
+ * (`content/agent-plugins/github/deployments/github.mjs`, and later others) implements once.
  *
  * Purpose:
  * Mirrors `features/plugins/lipay/ports.ts`'s `PaymentProvider` discipline, which this codebase
@@ -20,11 +20,11 @@ import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord,
  * per-request policy field on `HttpRequest`. It also has no field that can restrict which HOST a
  * request reaches (`devHostAllowlist` only exempts a host from the private-address check). So
  * origin pinning for a specific provider's API is the ADAPTER's responsibility, asserted through a
- * single chokepoint every outbound call is forced through — see `./providers/github.ts`'s
+ * single chokepoint every outbound call is forced through — see `content/agent-plugins/github/deployments/github.mjs`'s
  * `sendPinned`, the only function in that file allowed to call `ctx.httpClient.send`.
  *
  * Architectural role:
- * INTERFACES ONLY. `./providers/github.ts` is the first (and, this pass, only) implementation.
+ * INTERFACES ONLY. `content/agent-plugins/github/deployments/github.mjs` is the first (and, this pass, only) implementation.
  */
 
 export type DeploymentErrorCode =

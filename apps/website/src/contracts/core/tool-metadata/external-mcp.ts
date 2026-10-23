@@ -18,7 +18,7 @@ export const toolMetadata = {
   },
   "external_mcp_list": {
     search: {
-      keywords: "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai higgsfield",
+      keywords: "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai",
       queries: [
         "Which external MCP servers are configured and enabled?",
         "Show the status of my connected external MCP servers.",
@@ -61,7 +61,7 @@ export const toolMetadata = {
   },
   "external_mcp_save": {
     search: {
-      keywords: "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai higgsfield update edit change existing",
+      keywords: "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai update edit change existing",
       queries: [
         "Add an MCP server for a new integration.",
         "Configure an external MCP server with a credential form.",

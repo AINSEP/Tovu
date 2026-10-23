@@ -79,7 +79,6 @@ export {
   type SetValueRequired,
   type ClearValueRequired,
   type ResetNamespaceRequired,
-  resetNamespace,
   type RenameDefinitionRequired,
   renameDefinition,
   type RetypeDefinitionRequired,
@@ -94,7 +93,7 @@ export {
 
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
 // Not the package's `clear` either: neither may restore the comments provider's default behind its card.
-export { set, clear, refuseCommentsProviderClear, refuseCommentsProviderReset, COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON } from "./site-title-write.js";
+export { set, clear, resetNamespace, refuseDedicatedSettingClear, refuseDedicatedSettingReset, refuseCommentsProviderClear, refuseCommentsProviderReset, COMMENTS_PROVIDER_SETTING, COMMENTS_PROVIDER_WRITE_REASON } from "./site-title-write.js";
 // Renderers consume the title resolver through the settings public surface.
 export { resolveSiteTitle } from "./site-title.js";
 

@@ -1,3 +1,5 @@
+import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
 import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
@@ -109,6 +111,7 @@ function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string
  *  narrower than `InstalledAgentPlugin` (no version/keywords/skills: this tool cares only about
  *  what it can connect). */
 export interface ResolvedAgentPluginForConnect {
+  readonly credentialCards?: readonly PluginCredentialCard[];
   readonly servers: Readonly<Record<string, McpServerConfig>>;
 }
 
@@ -186,6 +189,7 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
  *  wiring anywhere a `RouteDeps`-shaped bag is already assembled. `externalMcpOAuth` is optional for
  *  the identical reason that file gives — checked at the top of the handler, fail-closed. */
 export interface AgentPluginConnectToolDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
@@ -331,14 +335,16 @@ export async function runAgentPluginConnect(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
+  const [server] = pending;
   // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
-  if (pending.length === 0) return { status: "connected" };
+  if (!server) return { status: "connected" };
   if (pending.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
-  const [server] = pending;
 
-  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth }, optional);
+  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+  const credentialCard = cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+  return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
@@ -350,10 +356,11 @@ async function waitAtMcpSignInCard(
     readonly pluginId: string;
     readonly server: PendingOAuthServer;
     readonly externalMcpOAuth: ExternalMcpOAuthService;
+    readonly credentialCard?: PluginCredentialCard;
   },
   optional: ToolExecutionOptions = {},
 ): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
-  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth } = input;
+  const { routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard } = input;
   const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
@@ -369,7 +376,7 @@ async function waitAtMcpSignInCard(
   try {
     await exchange.send({ emission: {
       channel: "mcp-ui",
-      payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) },
+      payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) },
     } });
 
     const connected = await waitForMcpConnection({ routeDeps, ctx, server });
@@ -429,8 +436,10 @@ async function connectDeclaredApiConnectionOrRefuse(
   pluginId: string,
   optional: ToolExecutionOptions,
 ): Promise<ApiConnectionConnectStatus> {
-  const declared: readonly DeclaredApiConnection[] = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
-  if (declared.length === 0) {
+  const apiConnections = routeDeps.apiConnections;
+  const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.host.listConnections({ pluginId }) : [];
+  const [connection] = declared;
+  if (!apiConnections || !connection) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
   }
   if (declared.length > 1) {
@@ -442,7 +451,7 @@ async function connectDeclaredApiConnectionOrRefuse(
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
     const result = await runApiConnectionConnect({
-      deps: routeDeps.apiConnections!, connection: declared[0], actorId: ctx.principal.id, signal: ctx.signal,
+      deps: apiConnections, connection, actorId: ctx.principal.id, signal: ctx.signal,
       pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
       showSignIn: async ({ signInUrl }) => {
         const emitSurface = optional.emitSurface;

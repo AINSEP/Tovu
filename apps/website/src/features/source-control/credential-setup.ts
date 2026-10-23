@@ -1,3 +1,4 @@
+import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
@@ -8,7 +9,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
 import { defineSecretCardTool, type SecretCardField, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { createSourceControlCredential, isSourceControlProviderId, type SourceControlCredentialWriteDeps } from './store.js';
+import { createSourceControlCredential, type SourceControlCredentialWriteDeps } from './store.js';
 import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 
@@ -16,6 +17,7 @@ import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
  * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the
  * installed-plugins default, so this module never reads a workspace it was not handed. */
 export interface SourceControlCredentialSetupDeps extends OperatorLocaleDeps {
+  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   workspaceId: string;
   authorize: AuthorizeFn;
   sourceControlCredentialSetRepo: SourceControlCredentialWriteDeps['repo'];
@@ -55,16 +57,17 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   // An ended run must not load plugins; the engine classifies abandonment without opening a card.
   const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders(deps.workspaceId);
   const descriptor = registry?.get(provider)?.descriptor;
-  if (!ctx.signal.aborted && (!isSourceControlProviderId(provider) || !descriptor?.credential)) {
+  if (!ctx.signal.aborted && !descriptor?.credential) {
     throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
   }
   const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
+  const pluginCard = ctx.signal.aborted ? undefined : await findPluginCredentialCard({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId, saveKind: 'source-control', target: provider });
   const card = defineSecretCardTool<{
     descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => ({
+    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
       title: `Connect ${prep.descriptor!.label}`,
       description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential',
@@ -74,12 +77,11 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
           return field.secret || field.name === prep.descriptor!.credential!.tokenField
             ? { ...base, secret: true, allowBlank: !field.required } : base;
         })],
-    }),
+    } }),
     // Saves only provider-declared fields through the admin POST's existing store function.
     // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
     save: ({ values, prep, signal }) => {
-      const connection: Record<string, unknown> = { providerId: prep.provider };
-      for (const field of prep.descriptor!.credential!.fields) connection[field.name] = values[field.name];
+      const connection = connectionFromForm({ descriptor: prep.descriptor!, values });
       const store = deps.sourceControlCredentialSetRepo;
       // The async seal can outlive the run; the existing store must not insert after abandonment.
       // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
@@ -104,12 +106,12 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         delete: input => store.delete(input),
         ...(store.updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => store.updateAccountLabel!(input) } : {}),
       };
-      return createSourceControlCredential({
+      return createSourceControlCredential({ deps: {
         repo, sealer: deps.siteAssistantSecretSealer,
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
         loadSourceControlProviders: deps.loadSourceControlProviders,
         ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}), observability: deps.observability,
-      }, { workspaceId: deps.workspaceId, label: values.label, connection });
+      }, input: { workspaceId: deps.workspaceId, label: values.label, connection } });
     },
     result: ({ prep, run }): ProposalResult => {
       const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
@@ -141,6 +143,19 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+/** Keep provider-defined names on the human form and canonical `token` on the store contract.
+ * Only declared fields cross the save boundary. @complexity O(f) time/space, f <= 10. */
+function connectionFromForm({ descriptor, values }: {
+  descriptor: SourceControlProviderDescriptor; values: Readonly<Record<string, unknown>>;
+}, _options = {}): Record<string, unknown> {
+  const connection: Record<string, unknown> = { providerId: descriptor.id };
+  for (const field of descriptor.credential!.fields) {
+    const name = field.name === descriptor.credential!.tokenField ? 'token' : field.name;
+    connection[name] = values[field.name];
+  }
+  return connection;
 }
 
 /** Validate only public model fields before authorization or plugin lookup. @complexity O(k) input keys. */

@@ -23,6 +23,7 @@ import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
 import { AdminSubagents } from "./AdminSubagents";
 import { AssistantToggleRow } from "./AssistantToggleRow";
 import { VisitorAssistantPanel } from "./VisitorAssistantPanel";
+import { VisitorAssistantTabs } from "./VisitorAssistantTabs";
 import { visitorKeyFooterLines } from "./rules";
 import "./ai-assistant.css";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
@@ -941,9 +942,13 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       // Status pill, then numbered steps (provider/key, widget, enable). See `VisitorAssistantPanel`.
       // Card-free like before (see `styles.css`'s `--page-flow` flattening block): one form on the
       // page's own background rather than a stack of boxes.
+      // Inner tabs (owner, 2026-10-22): "AI provider" is this panel unchanged; "Visitor tools" is the
+      // per-tool Auto | Ask first | Off list. See `VisitorAssistantTabs`.
       panel: (
-        <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm}
-          controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
+        <VisitorAssistantTabs t={t} providerPanel={
+          <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm}
+            controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
+        } />
       ),
     },
     {

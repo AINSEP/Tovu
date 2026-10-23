@@ -167,6 +167,7 @@ function renderOnboarding(pluginTokens: CreateSitePluginTokensController, useDat
     adminPasswordInputType: "password",
     adminPasswordRevealLabel: "Show password",
     toggleAdminPasswordVisibility: vi.fn(),
+    shownStarterPassword: null,
     setCreateName: vi.fn(),
     createNameError: null,
     createSite: vi.fn(),

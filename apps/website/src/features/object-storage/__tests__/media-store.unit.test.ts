@@ -10,7 +10,7 @@ import { LocalFsBlobStore } from "@jini-ai/cms/media/node";
 import { createObjectStoreRegistry, type ObjectStore, type ObjectStoreCreateInput } from "@jini-ai/core/object-store";
 import { providerOk, providerRejected } from "@jini-ai/core/provider-registry";
 
-import { createMediaBlobStore, MEDIA_OBJECT_STORE_ENV, readMediaStoreEnv, S3_OBJECT_STORE_ID, type MediaObjectStorePorts } from "../media-store.js";
+import { createMediaBlobStore as createMediaBlobStoreFromDeclarations, MEDIA_OBJECT_STORE_ENV, readMediaStoreEnv as readMediaStoreEnvFromDeclarations, type MediaObjectStorePorts } from "../media-store.js";
 import type { LoadedObjectStoreRegistry, ObjectStoreHost, TovuObjectStoreProvider } from "../registry.js";
 
 /**
@@ -21,22 +21,33 @@ import type { LoadedObjectStoreRegistry, ObjectStoreHost, TovuObjectStoreProvide
  * not assumed.
  */
 
+const EXAMPLE_PROVIDER_ID = "example_store";
+const declaration = {
+  providerId: EXAMPLE_PROVIDER_ID, selector: "example",
+  settings: { bucket: "TOVU_EXAMPLE_BUCKET", keyPrefix: "TOVU_EXAMPLE_KEY_PREFIX" },
+  credentialFields: { accessKeyId: "TOVU_EXAMPLE_ACCESS_KEY_ID", region: "TOVU_EXAMPLE_REGION", endpoint: "TOVU_EXAMPLE_ENDPOINT" },
+  secret: "TOVU_EXAMPLE_SECRET_ACCESS_KEY",
+  required: ["TOVU_EXAMPLE_BUCKET", "TOVU_EXAMPLE_REGION", "TOVU_EXAMPLE_ACCESS_KEY_ID", "TOVU_EXAMPLE_SECRET_ACCESS_KEY"],
+};
+const readMediaStoreEnv = (input: Parameters<typeof readMediaStoreEnvFromDeclarations>[0]) => readMediaStoreEnvFromDeclarations(input, { envDeclarations: [declaration] });
+const createMediaBlobStore = (input: Parameters<typeof createMediaBlobStoreFromDeclarations>[0]) => createMediaBlobStoreFromDeclarations(input, { envDeclarations: [declaration] });
+
 const WORKSPACE_ID = "11111111-2222-4333-8444-555555555555";
 const BYTES = new TextEncoder().encode("media bytes");
 const SHA = createHash("sha256").update(BYTES).digest("hex");
 const KEY = computeBlobStorageKey({ workspaceId: WORKSPACE_ID, sha256: SHA });
 
-const FULL_S3_ENV = {
-  [MEDIA_OBJECT_STORE_ENV]: "s3",
-  TOVU_S3_BUCKET: "media-bucket",
-  TOVU_S3_REGION: "eu-west-1",
-  TOVU_S3_ACCESS_KEY_ID: "AKIDEXAMPLE",
-  TOVU_S3_SECRET_ACCESS_KEY: "secret-value",
-  TOVU_S3_ENDPOINT: "https://r2.example.test",
-  TOVU_S3_KEY_PREFIX: "site-a/",
+const FULL_ENV = {
+  [MEDIA_OBJECT_STORE_ENV]: "example",
+  TOVU_EXAMPLE_BUCKET: "media-bucket",
+  TOVU_EXAMPLE_REGION: "eu-west-1",
+  TOVU_EXAMPLE_ACCESS_KEY_ID: "AKIDEXAMPLE",
+  TOVU_EXAMPLE_SECRET_ACCESS_KEY: "secret-value",
+  TOVU_EXAMPLE_ENDPOINT: "https://objects.example.test",
+  TOVU_EXAMPLE_KEY_PREFIX: "site-a/",
 } as const;
 
-const REQUIRED_LIST = "TOVU_S3_BUCKET, TOVU_S3_REGION, TOVU_S3_ACCESS_KEY_ID, TOVU_S3_SECRET_ACCESS_KEY";
+const REQUIRED_LIST = "TOVU_EXAMPLE_BUCKET, TOVU_EXAMPLE_REGION, TOVU_EXAMPLE_ACCESS_KEY_ID, TOVU_EXAMPLE_SECRET_ACCESS_KEY";
 
 const HOST: ObjectStoreHost = {
   createSigV4Client: () => {
@@ -147,45 +158,45 @@ test("readMediaStoreEnv: no override is 'unset'", () => {
   assert.deepEqual(readMediaStoreEnv({ env: {} }), { kind: "unset" });
 });
 
-test("readMediaStoreEnv: 'local' is the local choice, regardless of stray S3 vars", () => {
-  assert.deepEqual(readMediaStoreEnv({ env: { ...FULL_S3_ENV, [MEDIA_OBJECT_STORE_ENV]: "local" } }), { kind: "local" });
+test("readMediaStoreEnv: 'local' is the local choice, regardless of stray EXAMPLE vars", () => {
+  assert.deepEqual(readMediaStoreEnv({ env: { ...FULL_ENV, [MEDIA_OBJECT_STORE_ENV]: "local" } }), { kind: "local" });
 });
 
-test("readMediaStoreEnv: a complete s3 config maps vars to settings and credential, endpoint and key prefix included", () => {
-  assert.deepEqual(readMediaStoreEnv({ env: FULL_S3_ENV }), {
-    kind: "s3",
+test("readMediaStoreEnv: a complete example config maps vars to settings and credential, endpoint and key prefix included", () => {
+  assert.deepEqual(readMediaStoreEnv({ env: FULL_ENV }), {
+    kind: "remote", providerId: EXAMPLE_PROVIDER_ID,
     settings: { bucket: "media-bucket", keyPrefix: "site-a/" },
-    credential: { fields: { accessKeyId: "AKIDEXAMPLE", region: "eu-west-1", endpoint: "https://r2.example.test" }, secret: "secret-value" },
+    credential: { fields: { accessKeyId: "AKIDEXAMPLE", region: "eu-west-1", endpoint: "https://objects.example.test" }, secret: "secret-value" },
   });
 });
 
 test("readMediaStoreEnv: optional endpoint and key prefix stay undefined when unset", () => {
-  const { TOVU_S3_ENDPOINT: _endpoint, TOVU_S3_KEY_PREFIX: _prefix, ...env } = FULL_S3_ENV;
+  const { TOVU_EXAMPLE_ENDPOINT: _endpoint, TOVU_EXAMPLE_KEY_PREFIX: _prefix, ...env } = FULL_ENV;
   assert.deepEqual(readMediaStoreEnv({ env }), {
-    kind: "s3",
+    kind: "remote", providerId: EXAMPLE_PROVIDER_ID,
     settings: { bucket: "media-bucket", keyPrefix: undefined },
     credential: { fields: { accessKeyId: "AKIDEXAMPLE", region: "eu-west-1", endpoint: undefined }, secret: "secret-value" },
   });
 });
 
 test("readMediaStoreEnv: an unknown backend throws the operator-facing message (case-sensitive)", () => {
-  assert.throws(() => readMediaStoreEnv({ env: { [MEDIA_OBJECT_STORE_ENV]: "S3" } }), {
-    message: "Unknown TOVU_MEDIA_BLOB_STORE 'S3' — expected 'local' or 's3'.",
+  assert.throws(() => readMediaStoreEnv({ env: { [MEDIA_OBJECT_STORE_ENV]: "EXAMPLE" } }), {
+    message: "Unknown TOVU_MEDIA_BLOB_STORE 'EXAMPLE' — expected 'local' or 'example'.",
   });
   assert.throws(() => readMediaStoreEnv({ env: { [MEDIA_OBJECT_STORE_ENV]: "" } }), {
-    message: "Unknown TOVU_MEDIA_BLOB_STORE '' — expected 'local' or 's3'.",
+    message: "Unknown TOVU_MEDIA_BLOB_STORE '' — expected 'local' or 'example'.",
   });
 });
 
-test("readMediaStoreEnv: s3 with no variables names every missing one", () => {
-  assert.throws(() => readMediaStoreEnv({ env: { [MEDIA_OBJECT_STORE_ENV]: "s3" } }), {
-    message: `TOVU_MEDIA_BLOB_STORE=s3 requires ${REQUIRED_LIST} — missing: ${REQUIRED_LIST}.`,
+test("readMediaStoreEnv: example with no variables names every missing one", () => {
+  assert.throws(() => readMediaStoreEnv({ env: { [MEDIA_OBJECT_STORE_ENV]: "example" } }), {
+    message: `TOVU_MEDIA_BLOB_STORE=example requires ${REQUIRED_LIST} — missing: ${REQUIRED_LIST}.`,
   });
 });
 
 test("readMediaStoreEnv: an empty-string variable counts as missing, and only the missing ones are named", () => {
-  assert.throws(() => readMediaStoreEnv({ env: { ...FULL_S3_ENV, TOVU_S3_REGION: "", TOVU_S3_SECRET_ACCESS_KEY: undefined } }), {
-    message: `TOVU_MEDIA_BLOB_STORE=s3 requires ${REQUIRED_LIST} — missing: TOVU_S3_REGION, TOVU_S3_SECRET_ACCESS_KEY.`,
+  assert.throws(() => readMediaStoreEnv({ env: { ...FULL_ENV, TOVU_EXAMPLE_REGION: "", TOVU_EXAMPLE_SECRET_ACCESS_KEY: undefined } }), {
+    message: `TOVU_MEDIA_BLOB_STORE=example requires ${REQUIRED_LIST} — missing: TOVU_EXAMPLE_REGION, TOVU_EXAMPLE_SECRET_ACCESS_KEY.`,
   });
 });
 
@@ -194,8 +205,8 @@ test("readMediaStoreEnv: an empty-string variable counts as missing, and only th
 // ---------------------------------------------------------------------------
 
 test("createMediaBlobStore: an invalid env throws synchronously at boot without touching ports", () => {
-  assert.throws(() => createMediaBlobStore({ uploadsDir: "/nonexistent", env: { [MEDIA_OBJECT_STORE_ENV]: "s3" }, ports: throwingPorts }), {
-    message: /TOVU_MEDIA_BLOB_STORE=s3 requires/,
+  assert.throws(() => createMediaBlobStore({ uploadsDir: "/nonexistent", env: { [MEDIA_OBJECT_STORE_ENV]: "example" }, ports: throwingPorts }), {
+    message: /TOVU_MEDIA_BLOB_STORE=example requires/,
   });
 });
 
@@ -227,11 +238,11 @@ test("createMediaBlobStore: env local writes ws/{ws}/blobs/{sh}/{sha} under uplo
   assert.equal(await legacy.exists({ storageKey: KEY }), false);
 });
 
-test("createMediaBlobStore: env s3 resolves s3_compatible from the bundled registry with the env credential, never the site ports", async () => {
+test("createMediaBlobStore: env example resolves example_store from the bundled registry with the env credential, never the site ports", async () => {
   const store = memoryStore();
   const provider = recordingProvider(store);
-  const { ports, calls } = fakePorts({ loadBundledRegistry: async () => registryWith([{ id: S3_OBJECT_STORE_ID, provider }]) });
-  const { blobStore, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: "/nonexistent", env: FULL_S3_ENV, ports });
+  const { ports, calls } = fakePorts({ loadBundledRegistry: async () => registryWith([{ id: EXAMPLE_PROVIDER_ID, provider }]) });
+  const { blobStore, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: "/nonexistent", env: FULL_ENV, ports });
   assert.equal(mediaIsRemoteByEnv, true);
 
   assert.deepEqual(await blobStore.put({ workspaceId: WORKSPACE_ID, sha256: SHA, bytes: BYTES }), { storageKey: KEY });
@@ -241,25 +252,25 @@ test("createMediaBlobStore: env s3 resolves s3_compatible from the bundled regis
   assert.equal(provider.inputs.length, 1);
   const [input] = provider.inputs;
   assert.deepEqual(input!.settings, { bucket: "media-bucket", keyPrefix: "site-a/" });
-  assert.deepEqual(input!.credential, { fields: { accessKeyId: "AKIDEXAMPLE", region: "eu-west-1", endpoint: "https://r2.example.test" }, secret: "secret-value" });
+  assert.deepEqual(input!.credential, { fields: { accessKeyId: "AKIDEXAMPLE", region: "eu-west-1", endpoint: "https://objects.example.test" }, secret: "secret-value" });
   assert.equal(input!.host, HOST);
   assert.deepEqual({ ...calls, credential: calls.credential.length }, { factory: 1, bundled: 1, site: 0, setting: 0, credential: 0 });
 });
 
-test("createMediaBlobStore: env s3 without s3_compatible in the bundled registry rejects, listing the registry's refusals", async (t) => {
+test("createMediaBlobStore: env example without example_store in the bundled registry rejects, listing the registry's refusals", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports } = fakePorts({ loadBundledRegistry: async () => registryWith([], ["bad manifest in 'x'", "import failed in 'y'"]) });
-  const { blobStore } = createMediaBlobStore({ uploadsDir, env: FULL_S3_ENV, ports });
+  const { blobStore } = createMediaBlobStore({ uploadsDir, env: FULL_ENV, ports });
   await assert.rejects(blobStore.exists({ storageKey: KEY }), {
-    message: "Media storage provider 's3_compatible' is not available (bad manifest in 'x'; import failed in 'y').",
+    message: "Media storage provider 'example_store' is not available (bad manifest in 'x'; import failed in 'y').",
   });
   assert.deepEqual(await filesUnder(uploadsDir), []);
 });
 
 test("createMediaBlobStore: an unavailable provider with no refusals says so without an empty parenthesis", async () => {
   const { ports } = fakePorts({ loadBundledRegistry: async () => registryWith([]) });
-  const { blobStore } = createMediaBlobStore({ uploadsDir: "/nonexistent", env: FULL_S3_ENV, ports });
-  await assert.rejects(blobStore.exists({ storageKey: KEY }), { message: "Media storage provider 's3_compatible' is not available." });
+  const { blobStore } = createMediaBlobStore({ uploadsDir: "/nonexistent", env: FULL_ENV, ports });
+  await assert.rejects(blobStore.exists({ storageKey: KEY }), { message: "Media storage provider 'example_store' is not available." });
 });
 
 // ---------------------------------------------------------------------------
@@ -318,23 +329,23 @@ async function assertEveryCallRejects(uploadsDir: string, blobStore: ReturnType<
 
 test("createMediaBlobStore: a remote setting with no saved connection rejects every call and never falls back to local", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
-  const { ports, calls } = fakePorts({ readSetting: async () => "s3_compatible", resolveSharedCredential: async () => undefined });
+  const { ports, calls } = fakePorts({ readSetting: async () => "example_store", resolveSharedCredential: async () => undefined });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 's3_compatible' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' has no saved connection — connect it first, or clear core.storage.mediaObjectStore.");
   // A failed resolution is retried per call, so connecting later takes effect without a restart of the view.
   assert.equal(calls.credential.length, MEDIA_CALLS.length);
-  assert.deepEqual(calls.credential[0], { providerId: "s3_compatible" });
+  assert.deepEqual(calls.credential[0], { providerId: "example_store" });
   assert.equal(calls.site, 0);
 });
 
 test("createMediaBlobStore: a connection without mediaBucket is refused — the public publish bucket is never used", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports, calls } = fakePorts({
-    readSetting: async () => "s3_compatible",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { accessKeyId: "AK", region: "us-east-1", bucket: "public-site" }, secret: "s" }),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 's3_compatible' needs the connection's 'mediaBucket' field (a private bucket) — the publish bucket is public and is never used for media.");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' needs the connection's 'mediaBucket' field (a private bucket) — the publish bucket is public and is never used for media.");
   assert.equal(calls.site, 0);
 });
 
@@ -342,11 +353,11 @@ test("createMediaBlobStore: a mediaBucket naming the public publish bucket (afte
   const uploadsDir = await tempUploadsDir(t);
   for (const [bucket, mediaBucket] of [["public-site", "public-site"], ["public-site", " Public-Site "], [" PUBLIC-site", "public-site"]] as const) {
     const { ports, calls } = fakePorts({
-      readSetting: async () => "s3_compatible",
+      readSetting: async () => "example_store",
       resolveSharedCredential: async () => ({ fields: { accessKeyId: "AK", region: "us-east-1", bucket, mediaBucket }, secret: "s" }),
     });
     const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-    await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 's3_compatible' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.");
+    await assertEveryCallRejects(uploadsDir, blobStore, "Media storage 'example_store' needs a 'mediaBucket' different from the connection's public 'bucket' — media (drafts included) must live in a private bucket.");
     assert.equal(calls.site, 0, "the provider is never created against the public bucket");
   }
 });
@@ -354,7 +365,7 @@ test("createMediaBlobStore: a mediaBucket naming the public publish bucket (afte
 test("createMediaBlobStore: a whitespace-only mediaBucket counts as absent", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const { ports } = fakePorts({
-    readSetting: async () => "s3_compatible",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { mediaBucket: "   " }, secret: "s" }),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
@@ -376,23 +387,23 @@ test("createMediaBlobStore: a provider refusing its configuration rejects every 
   const uploadsDir = await tempUploadsDir(t);
   const refusing: TovuObjectStoreProvider = { create: () => providerRejected({ code: "not_configured", message: "missing: credential.fields.region" }) };
   const { ports } = fakePorts({
-    readSetting: async () => "s3_compatible",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => ({ fields: { mediaBucket: "private-media" }, secret: "s" }),
-    loadSiteRegistry: async () => registryWith([{ id: "s3_compatible", provider: refusing }]),
+    loadSiteRegistry: async () => registryWith([{ id: "example_store", provider: refusing }]),
   });
   const { blobStore } = createMediaBlobStore({ uploadsDir, env: {}, ports });
-  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage provider 's3_compatible' refused its configuration: missing: credential.fields.region");
+  await assertEveryCallRejects(uploadsDir, blobStore, "Media storage provider 'example_store' refused its configuration: missing: credential.fields.region");
 });
 
 test("createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket (trimmed), keyPrefix: mediaKeyPrefix} plus the whole credential", async (t) => {
   const uploadsDir = await tempUploadsDir(t);
   const store = memoryStore();
   const provider = recordingProvider(store);
-  const credential = { fields: { accessKeyId: "AK", region: "us-east-1", bucket: "public-site", mediaBucket: " private-media ", mediaKeyPrefix: "media/" }, secret: "s3cr3t" };
+  const credential = { fields: { accessKeyId: "AK", region: "us-east-1", bucket: "public-site", mediaBucket: " private-media ", mediaKeyPrefix: "media/" }, secret: "examplecr3t" };
   const { ports, calls } = fakePorts({
-    readSetting: async () => "s3_compatible",
+    readSetting: async () => "example_store",
     resolveSharedCredential: async () => credential,
-    loadSiteRegistry: async () => registryWith([{ id: "s3_compatible", provider }]),
+    loadSiteRegistry: async () => registryWith([{ id: "example_store", provider }]),
   });
   const { blobStore, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir, env: {}, ports });
   assert.equal(mediaIsRemoteByEnv, false, "only the env override marks media remote at boot");
@@ -412,11 +423,11 @@ test("createMediaBlobStore: a usable remote setting passes {bucket: mediaBucket 
 test("createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env override first, else the site setting read when asked", async () => {
   const envLocal = fakePorts();
   assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: { [MEDIA_OBJECT_STORE_ENV]: "local" }, ports: envLocal.ports }).isMediaRemote(), false);
-  const envS3 = fakePorts();
-  assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: FULL_S3_ENV, ports: envS3.ports }).isMediaRemote(), true);
-  assert.deepEqual([envLocal.calls.setting, envS3.calls.setting], [0, 0], "an env choice never reads the setting");
+  const envEXAMPLE = fakePorts();
+  assert.equal(await createMediaBlobStore({ uploadsDir: "/unused", env: FULL_ENV, ports: envEXAMPLE.ports }).isMediaRemote(), true);
+  assert.deepEqual([envLocal.calls.setting, envEXAMPLE.calls.setting], [0, 0], "an env choice never reads the setting");
 
-  for (const [setting, remote] of [["s3_compatible", true], ["", false], ["local", false]] as const) {
+  for (const [setting, remote] of [["example_store", true], ["", false], ["local", false]] as const) {
     const { ports, calls } = fakePorts({ readSetting: async () => setting });
     const { isMediaRemote, mediaIsRemoteByEnv } = createMediaBlobStore({ uploadsDir: "/unused", env: {}, ports });
     assert.equal(mediaIsRemoteByEnv, false);
@@ -424,4 +435,23 @@ test("createMediaBlobStore: isMediaRemote is the EFFECTIVE provider — env over
     assert.equal(await isMediaRemote(), remote, `setting '${setting}'`);
     assert.equal(calls.setting, 1);
   }
+});
+
+test("neutral env declarations use their own provider id and preserve declared missing-variable order", () => {
+  const envDeclarations = [{ ...declaration, providerId: "example-other", selector: "other", required: ["EXAMPLE_Z", "EXAMPLE_A"] }];
+  assert.throws(() => readMediaStoreEnvFromDeclarations({ env: { [MEDIA_OBJECT_STORE_ENV]: "other", EXAMPLE_A: "" } }, { envDeclarations }), {
+    message: "TOVU_MEDIA_BLOB_STORE=other requires EXAMPLE_Z, EXAMPLE_A — missing: EXAMPLE_Z, EXAMPLE_A.",
+  });
+  assert.equal(readMediaStoreEnvFromDeclarations({ env: { [MEDIA_OBJECT_STORE_ENV]: "other", EXAMPLE_Z: "z", EXAMPLE_A: "a" } }, { envDeclarations }).kind, "remote");
+});
+
+test("a missing env declaration refuses an opt-in rather than selecting local storage", () => {
+  assert.throws(() => readMediaStoreEnvFromDeclarations({ env: { [MEDIA_OBJECT_STORE_ENV]: "example" } }, { envDeclarations: [] }), {
+    message: "Unknown TOVU_MEDIA_BLOB_STORE 'example' — expected 'local'.",
+  });
+});
+
+test('without injected declarations an unknown env selector is refused without reading product sources', () => {
+  assert.throws(() => readMediaStoreEnvFromDeclarations({ env: FULL_ENV }), /expected 'local'/);
+  assert.equal(readMediaStoreEnvFromDeclarations({ env: { TOVU_MEDIA_BLOB_STORE: 'local' } }).kind, 'local');
 });

@@ -69,11 +69,14 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'publish-content': 'Publishing uses tokens and peer trust.',
   'source-control': 'Source-control providers use credentials.',
   'domain-dns': 'Live DNS/TLS probes and saved hosting credentials are not peer data reads.',
+  'email-templates': 'Email templates are read on the active site only; peer reads were not designed for them yet.',
   'site-backup': 'Backup planning uses credentials and the active backup source layout.',
   'database-transfer': 'Transfer planning uses sealed destination credentials.',
   'media-generation': 'Generation providers require credentials.',
   'media-providers': 'Provider configuration is credential-bearing.',
   'system-mail': 'Mail status belongs to the active process and provider credentials.',
+  'system-mail-providers': 'Mail provider configuration is credential-bearing and belongs to the active process.',
+  'system-mail-delivery': 'Mail readiness and send history belong to the active process and its own mail ledgers.',
   'agent-plugin-search': 'Search reads installed plugin packages and activation state.',
   'agent-plugin-skill': 'Installed skill packages may run code.',
   'agent-plugin-memory': 'Plugin runtime memory belongs to its installed execution context.',
@@ -111,8 +114,10 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */
 export class CrossSiteUnavailable extends ToolInputError {
-  constructor(readonly field: string) {
+  readonly field: string;
+  constructor(field: string) {
     super({ message: `This read needs ${field}, which isn't available for another site.` });
+    this.field = field;
     this.name = 'CrossSiteUnavailable';
   }
 }
@@ -224,7 +229,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
-    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0]) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo }),
+    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
     // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
     blobStore: {

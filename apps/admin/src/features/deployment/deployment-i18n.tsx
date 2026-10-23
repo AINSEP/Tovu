@@ -16,6 +16,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    "Enable a hosting plugin to publish this site.": "Activa un plugin de alojamiento para publicar este sitio.", Plugins: "Plugins",
     Operations: "Operaciones",
     Deployment: "Despliegue",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -93,6 +94,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "La salida es una carpeta sencilla de archivos — cualquier alojamiento estático puede servirla.",
   },
   id: {
+    "Enable a hosting plugin to publish this site.": "Aktifkan plugin hosting untuk memublikasikan situs ini.", Plugins: "Plugin",
     Operations: "Operasi",
     Deployment: "Penerapan",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -170,6 +172,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "Hasilnya adalah folder berisi file biasa — host statis apa pun dapat menyajikannya.",
   },
   de: {
+    "Enable a hosting plugin to publish this site.": "Aktiviere ein Hosting-Plugin, um diese Website zu veröffentlichen.", Plugins: "Plugins",
     Operations: "Betrieb",
     Deployment: "Bereitstellung",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -247,6 +250,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "Die Ausgabe ist ein einfacher Ordner mit Dateien — jeder statische Host kann ihn bereitstellen.",
   },
   "zh-CN": {
+    "Enable a hosting plugin to publish this site.": "启用托管插件以发布此网站。", Plugins: "插件",
     Operations: "运维",
     Deployment: "部署",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -323,6 +327,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "还没有 Dockerfile。请在下方编写一个，然后保存以创建它。",
   },
   "zh-TW": {
+    "Enable a hosting plugin to publish this site.": "啟用託管外掛程式以發布此網站。", Plugins: "外掛程式",
     Operations: "維運",
     Deployment: "部署",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -399,6 +404,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "尚無 Dockerfile。請在下方撰寫一個，然後儲存以建立它。",
   },
   "pt-BR": {
+    "Enable a hosting plugin to publish this site.": "Ative um plugin de hospedagem para publicar este site.", Plugins: "Plugins",
     Operations: "Operações",
     Deployment: "Implantação",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -476,6 +482,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "A saída é uma pasta simples de arquivos — qualquer hospedagem estática pode servi-la.",
   },
   ru: {
+    "Enable a hosting plugin to publish this site.": "Включите плагин хостинга, чтобы опубликовать этот сайт.", Plugins: "Плагины",
     Operations: "Эксплуатация",
     Deployment: "Развёртывание",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -552,6 +559,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile пока нет. Напишите его ниже и сохраните, чтобы создать.",
   },
   fa: {
+    "Enable a hosting plugin to publish this site.": "برای انتشار این سایت، یک افزونهٔ میزبانی را فعال کنید.", Plugins: "افزونه‌ها",
     Operations: "عملیات",
     Deployment: "استقرار",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -628,6 +636,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "هنوز Dockerfile‌ای وجود ندارد. یکی را در پایین بنویسید و سپس برای ایجاد آن ذخیره کنید.",
   },
   ar: {
+    "Enable a hosting plugin to publish this site.": "فعّل إضافة استضافة لنشر هذا الموقع.", Plugins: "الإضافات",
     Operations: "العمليات",
     Deployment: "النشر",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -704,6 +713,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "لا يوجد Dockerfile بعد. اكتب واحدًا أدناه، ثم احفظه لإنشائه.",
   },
   ja: {
+    "Enable a hosting plugin to publish this site.": "このサイトを公開するには、ホスティングプラグインを有効にしてください。", Plugins: "プラグイン",
     Operations: "運用",
     Deployment: "デプロイ",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -780,6 +790,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfileはまだありません。下に記述してから保存すると作成されます。",
   },
   ko: {
+    "Enable a hosting plugin to publish this site.": "이 사이트를 게시하려면 호스팅 플러그인을 활성화하세요.", Plugins: "플러그인",
     Operations: "운영",
     Deployment: "배포",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -856,6 +867,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "아직 Dockerfile이 없습니다. 아래에 작성한 다음 저장하여 만드세요.",
   },
   pl: {
+    "Enable a hosting plugin to publish this site.": "Włącz wtyczkę hostingu, aby opublikować tę witrynę.", Plugins: "Wtyczki",
     Operations: "Operacje",
     Deployment: "Wdrożenie",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -932,6 +944,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile jeszcze nie istnieje. Napisz go poniżej, a następnie zapisz, aby go utworzyć.",
   },
   hu: {
+    "Enable a hosting plugin to publish this site.": "Kapcsolj be egy tárhely-bővítményt a webhely közzétételéhez.", Plugins: "Bővítmények",
     Operations: "Üzemeltetés",
     Deployment: "Telepítés",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1008,6 +1021,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Még nincs Dockerfile. Írj egyet alább, majd mentsd a létrehozásához.",
   },
   fr: {
+    "Enable a hosting plugin to publish this site.": "Activez un plugin d’hébergement pour publier ce site.", Plugins: "Plugins",
     Operations: "Opérations",
     Deployment: "Déploiement",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1085,6 +1099,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "La sortie est un simple dossier de fichiers — tout hébergement statique peut le servir.",
   },
   uk: {
+    "Enable a hosting plugin to publish this site.": "Увімкніть плагін хостингу, щоб опублікувати цей сайт.", Plugins: "Плагіни",
     Operations: "Експлуатація",
     Deployment: "Розгортання",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1161,6 +1176,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile поки немає. Напишіть його нижче й збережіть, щоб створити.",
   },
   tr: {
+    "Enable a hosting plugin to publish this site.": "Bu siteyi yayınlamak için bir barındırma eklentisini etkinleştirin.", Plugins: "Eklentiler",
     Operations: "Operasyonlar",
     Deployment: "Dağıtım",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1237,6 +1253,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "Henüz bir Dockerfile yok. Aşağıya bir tane yazın, ardından oluşturmak için kaydedin.",
   },
   th: {
+    "Enable a hosting plugin to publish this site.": "เปิดใช้ปลั๊กอินโฮสติ้งเพื่อเผยแพร่เว็บไซต์นี้", Plugins: "ปลั๊กอิน",
     Operations: "ปฏิบัติการ",
     Deployment: "การปรับใช้",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1313,6 +1330,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "ยังไม่มี Dockerfile เขียนไว้ด้านล่าง แล้วบันทึกเพื่อสร้างไฟล์",
   },
   it: {
+    "Enable a hosting plugin to publish this site.": "Attiva un plugin di hosting per pubblicare questo sito.", Plugins: "Plugin",
     Operations: "Operazioni",
     Deployment: "Distribuzione",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1390,6 +1408,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "The output is a plain folder of files — any static host will serve it.": "L'output è una semplice cartella di file — qualsiasi hosting statico può servirla.",
   },
   hi: {
+    "Enable a hosting plugin to publish this site.": "इस साइट को प्रकाशित करने के लिए कोई होस्टिंग प्लगइन चालू करें।", Plugins: "प्लगइन",
     Operations: "संचालन",
     Deployment: "डिप्लॉयमेंट",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1466,6 +1485,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "अभी कोई Dockerfile मौजूद नहीं है। नीचे एक लिखें, फिर उसे बनाने के लिए सहेजें।",
   },
   ur: {
+    "Enable a hosting plugin to publish this site.": "اس سائٹ کو شائع کرنے کے لیے ہوسٹنگ پلگ ان فعال کریں۔", Plugins: "پلگ انز",
     Operations: "کارروائیاں",
     Deployment: "ڈیپلائے منٹ",
     "Choose how this site gets published, and see what self-hosting it involves.":
@@ -1542,6 +1562,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "No Dockerfile exists yet. Write one below, then save to create it.": "ابھی تک کوئی Dockerfile موجود نہیں۔ نیچے ایک لکھیں، پھر اسے بنانے کے لیے محفوظ کریں۔",
   },
   bn: {
+    "Enable a hosting plugin to publish this site.": "এই সাইট প্রকাশ করতে একটি হোস্টিং প্লাগইন চালু করুন।", Plugins: "প্লাগইন",
     Operations: "কার্যক্রম",
     Deployment: "ডিপ্লয়মেন্ট",
     "Choose how this site gets published, and see what self-hosting it involves.":

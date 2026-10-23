@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, packAgentPluginDirectory } from "../../lifecycle.js";
-import { DEPLOY_SPLIT_HOST_PLUGIN_IDS } from "../../deploy-split-activation.js";
 import { loadDeployOpsRegistryFromSource } from "#src/features/deployments/deploy-ops/registry";
 
 /** Phase B owner override (2026-10-12): GitHub Actions deploys live in the one `github` plugin (no
@@ -26,10 +25,9 @@ test("the github plugin contributes the github-actions ops platform and declares
   for (const file of ["tovu-deploy-ops.json", "deploy-ops/github-actions.mjs"]) assert.ok(packed.files.includes(file), file);
 });
 
-test("there is no separate github-actions plugin, seed id or carried activation", () => {
+test("there is no separate github-actions plugin, seed id", () => {
   assert.equal(existsSync(path.join(CONTENT_ROOT, "github-actions")), false);
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("github-actions"), false);
-  assert.equal(DEPLOY_SPLIT_HOST_PLUGIN_IDS.includes("github-actions"), false);
 });
 
 test("the github skill routes source control/backup apart from deploying with GitHub Actions", async () => {

@@ -1,6 +1,8 @@
 export {
   classifyStatusTransition,
   createPost,
+  createPublicPostReader,
+  isPublicPost,
   deletePost,
   isTrashed,
   getAdminPostById,
@@ -28,6 +30,9 @@ export {
   PostValidationError,
   PostVersionConflictError,
   type PostRecord,
+  type PublicPostRecord,
+  type PublicPostReaderPort,
+  type PublicPostKind,
   type PostRepoPort,
   type PostBodyFormat,
   type PostKind,

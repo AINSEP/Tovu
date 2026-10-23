@@ -89,9 +89,11 @@ test("ensurePublicAssistantSettingDefinitions is idempotent — switch and widge
   await ensurePublicAssistantSettingDefinitions(deps, input);
 
   const registered = (await settingsRepo.listActiveDefinitions({ workspaceId: WORKSPACE })).filter((d) => d.namespace === "site.assistant");
-  assert.equal(registered.length, 2);
+  assert.equal(registered.length, 3);
   assert.equal(registered[0].key, "public_enabled");
   assert.equal(registered[1].key, "widget");
+  assert.equal(registered[2].key, "visitor_tools");
+  assert.deepEqual(registered[2].defaultValue, { version: 1, tools: {} });
 });
 
 test("wcmp: widget defaults to React, persists per site, and switching does not enable the assistant", async () => {

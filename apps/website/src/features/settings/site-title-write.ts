@@ -1,11 +1,12 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
-  clear as clearSettingValue, ForbiddenError, resolveDefinitionRaw, set as setSettingValue, ValueValidationFailedError,
-  type ClearValueRequired, type ResetNamespaceRequired, type SettingsRepoPort, type SetValueRequired,
+  clear as clearSettingValue, resetNamespace as resetSettingNamespace, ForbiddenError, resolveDefinitionRaw, set as setSettingValue, ValueValidationFailedError,
+  type ClearValueRequired, type ResetNamespaceRequired, type SettingsRepoPort, type SetValueRequired, type SettingsValueWriteOptions,
 } from "@jini-ai/core/settings";
 
 import { enforceFormDeliveryBindingsWrite } from "./form-delivery.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_MAX_LENGTH, SITE_TITLE_NAMESPACE } from "./site-title.js";
+import { parseVisitorToolPolicy, VISITOR_TOOLS_PERMISSION, VISITOR_TOOLS_SETTING, VISITOR_TOOLS_WRITE_REASON } from "../../contracts/site-assistant/visitor-tools.js";
 
 /**
  * @file SPEC-050 REQ-08: this host's settings write chokepoint. The package's `set` checks a string
@@ -43,10 +44,12 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
  * The package's `set` with {@link enforceSiteTitleWriteBounds} applied first, so a rejected title
  * never reaches the ledger. Visitor enable writes additionally require the host's saved-credential
  * policy. Canonical definition resolution prevents an alias from bypassing that policy.
+ * The optional revision guard is forwarded to the ledger after host validation.
+ * @throws {SettingsRevisionConflictError} If the addressed layer changed since the supplied revision.
  *
  * @complexity O(n) in the value's length, plus the package `set`'s own cost.
  */
-export async function set(required: SetValueRequired, optional: {
+export async function set(required: SetValueRequired, optional: SettingsValueWriteOptions & {
   /** Host policy: a public visitor surface requires its own saved, decryptable key and model. */
   canEnablePublicAssistant?: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<boolean>;
   /** Injected by the theme owner; generic settings has no dependency on theme discovery. */
@@ -59,11 +62,11 @@ export async function set(required: SetValueRequired, optional: {
   if (required.input.value === true && definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
     await requirePublicAssistantReadiness({ workspaceId: required.input.workspaceId }, optional);
   }
-  refuseUncardedCommentsProviderWrite({ required, definition });
+  required = refuseDedicatedSettingWrite({ required, definition });
   required = await applyPreviewSwitcherPolicy({ required, definition, prepare: optional.preparePreviewSwitcherWrite });
   // Form delivery bindings are validated here too, so no host write path can store a list that
   // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
-  return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
+  return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) }, optional);
 }
 
 /** `core.comments/provider` hides or shows every stored comment, so it is written only by the comments
@@ -75,71 +78,108 @@ export const COMMENTS_PROVIDER_SETTING = { namespace: "core.comments", key: "pro
 /** Why every generic path refuses the provider; the agent's settings tools quote it too. */
 export const COMMENTS_PROVIDER_WRITE_REASON = "Change the comments provider with comments_set_provider; it confirms first and keeps stored comments.";
 
+/** Every generic path uses the same canonical coordinates, including aliases and namespace reset.
+ * MOVE: Clearing restores defaults, so dedicated writers make explicit choices instead of clearing.
+ */
+export const DEDICATED_SETTINGS_WRITERS: readonly {
+  readonly namespace: string; readonly key: string; readonly permissionOverride: string; readonly reason: string;
+  readonly normalize?: (required: { required: SetValueRequired }, optional?: Record<string, never>) => SetValueRequired;
+}[] = [
+  { ...COMMENTS_PROVIDER_SETTING, permissionOverride: "comments.configure", reason: COMMENTS_PROVIDER_WRITE_REASON },
+  { ...VISITOR_TOOLS_SETTING, permissionOverride: VISITOR_TOOLS_PERMISSION, reason: VISITOR_TOOLS_WRITE_REASON, normalize: validateVisitorToolsWrite },
+];
+
 type ResolvedDefinition = Awaited<ReturnType<typeof resolveDefinitionRaw>>;
 
-/** Whether a canonical (alias-resolved) definition is the comments provider. Pure, O(1). */
-function isCommentsProvider(definition: ResolvedDefinition, _options = {}): boolean {
-  return definition?.namespace === COMMENTS_PROVIDER_SETTING.namespace && definition.key === COMMENTS_PROVIDER_SETTING.key;
+/** Match only canonical definitions; settings resolution owns alias traversal. @complexity O(1). */
+function dedicatedWriter({ definition }: { definition: ResolvedDefinition }, _options = {}) {
+  return DEDICATED_SETTINGS_WRITERS.find(rule => rule.namespace === definition?.namespace && rule.key === definition.key);
 }
 
-/** See {@link COMMENTS_PROVIDER_SETTING}. @complexity O(1). */
-function refuseUncardedCommentsProviderWrite({ required, definition }: {
+/** Refuse writes without the dedicated permission, then apply the owner's normalization hook.
+ * @throws ForbiddenError or the owner's validation error. @complexity O(1) plus normalization.
+ */
+function refuseDedicatedSettingWrite({ required, definition }: {
   required: SetValueRequired; definition: ResolvedDefinition;
-}, _options = {}): void {
-  if (!isCommentsProvider(definition)) return;
-  if (required.input.requiredPermissionOverride !== "comments.configure") {
-    throw new ValueValidationFailedError(COMMENTS_PROVIDER_WRITE_REASON);
+}, _options = {}): SetValueRequired {
+  const writer = dedicatedWriter({ definition });
+  if (writer && required.input.requiredPermissionOverride !== writer.permissionOverride) {
+    throw new ForbiddenError(writer.reason);
+  }
+  return writer?.normalize?.({ required }) ?? required;
+}
+
+/** A dedicated permission cannot authorize a personal/global policy or invalid stored JSON. */
+function validateVisitorToolsWrite({ required }: { required: SetValueRequired }, _options = {}): SetValueRequired {
+  if (required.input.scope !== "workspace") throw new ForbiddenError(VISITOR_TOOLS_WRITE_REASON);
+  try {
+    const policy = parseVisitorToolPolicy({ value: required.input.value });
+    return { ...required, input: { ...required.input, value: policy as unknown as JsonValue } };
+  } catch {
+    throw new ValueValidationFailedError("Invalid visitor-tools policy.");
   }
 }
 
 /**
- * Clearing the provider's workspace override falls back to its built-in default, which re-enables
- * comments an owner switched off (`provider-selection.ts`'s read), so no generic clear may reach it:
- * the selection store never clears, it writes an explicit choice. Resolved through aliases.
+ * Clearing a dedicated setting restores defaults: it can re-enable comments or visitor tools
+ * the owner switched Off. Dedicated writers store explicit choices. Resolved through aliases.
  *
- * @throws {ForbiddenError} When the coordinate resolves to {@link COMMENTS_PROVIDER_SETTING}.
+ * @throws {ForbiddenError} When the coordinate resolves to a dedicated writer's setting.
  * @complexity O(1) definition lookups (one alias hop).
  */
-export async function refuseCommentsProviderClear(required: {
+export async function refuseDedicatedSettingClear(required: {
   repo: SettingsRepoPort; input: Pick<ClearValueRequired["input"], "namespace" | "key" | "scope" | "workspaceId">;
 }, _optional = {}): Promise<void> {
   const { repo, input } = required;
   const definition = await resolveDefinitionRaw({ repo }, {
     namespace: input.namespace, key: input.key, workspaceId: input.scope === "global" ? null : input.workspaceId ?? null,
   });
-  if (isCommentsProvider(definition)) throw new ForbiddenError(COMMENTS_PROVIDER_WRITE_REASON);
+  const writer = dedicatedWriter({ definition });
+  if (writer) throw new ForbiddenError(writer.reason);
 }
 
 /**
  * A namespace reset loops `clear` over every key its scope's partition lists for the namespace, alias
  * rows included, without this host's chokepoint, so the same keys are resolved here first and the
- * whole reset is refused before any write when one of them is the provider. The partition rule is the
+ * whole reset is refused before any write when one has a dedicated writer. The partition rule is the
  * CMS adapter's own (Jini `packages/core/src/settings/express/cms-adapter.ts`).
  *
- * @throws {ForbiddenError} When a key the reset would clear resolves to {@link COMMENTS_PROVIDER_SETTING}.
+ * @throws {ForbiddenError} When a key the reset would clear has a dedicated writer.
  * @complexity O(d) over the partition's definitions, plus one bounded alias resolution per namespace key.
  */
-export async function refuseCommentsProviderReset(required: {
+export async function refuseDedicatedSettingReset(required: {
   repo: SettingsRepoPort; input: Pick<ResetNamespaceRequired["input"], "namespace" | "scope" | "workspaceId" | "authWorkspaceId">;
 }, _optional = {}): Promise<void> {
   const { repo, input } = required;
   const workspaceId = input.scope === "global" ? null : input.workspaceId ?? input.authWorkspaceId ?? null;
   const definitions = await repo.listActiveDefinitions({ workspaceId });
   for (const definition of definitions.filter((d) => d.namespace === input.namespace)) {
-    await refuseCommentsProviderClear({ repo, input: { namespace: definition.namespace, key: definition.key, scope: input.scope, workspaceId: workspaceId ?? undefined } });
+    await refuseDedicatedSettingClear({ repo, input: { namespace: definition.namespace, key: definition.key, scope: input.scope, workspaceId: workspaceId ?? undefined } });
   }
 }
 
 /**
- * The package's `clear` behind {@link refuseCommentsProviderClear}: the host's `clear` export, so a
- * host caller naming a setting cannot restore the comments provider's default either.
+ * The package's `clear` behind the canonical dedicated-writer guard: callers cannot restore
+ * comments-provider or visitor-tool defaults through generic settings writes.
  *
  * @complexity As the package `clear`, plus one bounded alias resolution.
  */
 export async function clear(required: ClearValueRequired, _optional = {}): Promise<{ revisionSeq: number }> {
-  await refuseCommentsProviderClear({ repo: required.deps.repo, input: required.input });
+  await refuseDedicatedSettingClear({ repo: required.deps.repo, input: required.input });
   return clearSettingValue(required);
 }
+
+/** Refuse the whole reset before the ledger clears any dedicated writer's key. Keys are part of
+ * the required object; this thin host adapter passes them to Jini's existing two-argument API.
+ * @complexity O(d) preflight (partition definitions), followed by the settings owner's transaction.
+ */
+export async function resetNamespace(required: ResetNamespaceRequired & { keysInNamespace: string[] }, _optional = {}): ReturnType<typeof resetSettingNamespace> {
+  await refuseDedicatedSettingReset({ repo: required.deps.repo, input: required.input });
+  return resetSettingNamespace(required, required.keysInNamespace);
+}
+
+// Keep existing host imports compatible while the one table guards both dedicated settings.
+export { refuseDedicatedSettingClear as refuseCommentsProviderClear, refuseDedicatedSettingReset as refuseCommentsProviderReset };
 
 /** Resolve aliases before dispatching the theme-owned policy; uncomposed writers fail closed. */
 async function applyPreviewSwitcherPolicy({ required, definition, prepare }: {

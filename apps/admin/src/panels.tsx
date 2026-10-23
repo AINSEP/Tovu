@@ -30,7 +30,7 @@ import { FormsList, FormEditor } from "./features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
 import { Taxonomy } from "./features/taxonomy";
 import { Trash } from "./features/trash";
-import { Email } from "./features/email";
+import { Email, EmailTemplateEditor } from "./features/email";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
@@ -1059,6 +1059,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     nav: {
       label: "Cookie Consent",
       group: "Administration",
+      // Owner, 2026-10-22: consent needs a thorough end-to-end test pass before it reads as finished
+      // (see development/todos.md), so it carries the same reachable `soon` badge as Email.
+      soon: true,
+      soonPreviewable: true,
       icon: '<circle cx="9" cy="9" r="6.5"/><circle cx="7" cy="7.5" r="0.9"/><circle cx="11" cy="10.5" r="0.9"/><circle cx="7.5" cy="11.5" r="0.6"/>',
     },
   },
@@ -1098,10 +1102,18 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // convention as `admin-ui`'s and `consent`'s.
     id: "email",
     anyOfPermissions: ["admin.forms.manage"],
-    render: (ctx) => <Email tabId={ctx.query.get("tab")} />,
+    // A template's editor is a full page like a Page's (owner, 2026-10-22): `/email/templates/:id`.
+    render: (ctx) => (ctx.view === "email-template-editor"
+      ? <EmailTemplateEditor key={ctx.params.templateId} id={ctx.params.templateId} />
+      : <Email tabId={ctx.query.get("tab")} part={ctx.query.get("p")} />),
+    routes: [{ pattern: "/templates/:templateId", view: "email-template-editor" }],
     nav: {
       label: "Email",
       group: "Administration",
+      // Owner, 2026-10-22: Email is still rough, so it carries the same reachable `soon` badge as
+      // `comments` and `observability` (see their comments) instead of reading as finished.
+      soon: true,
+      soonPreviewable: true,
       icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M3 5l6 4.5L15 5"/>',
     },
   },

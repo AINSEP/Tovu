@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { canPublishConsent, consentProblemTab, consentStatusKey, isConsentConflict, pausedByCategory, resolveConsentTabId } from '../rules';
+import { canPublishConsent, canResetConsentCss, CONSENT_PREVIEW_DESKTOP_WIDTH, consentPreviewScale, consentProblemTab, consentStatusKey, isConsentConflict, pausedByCategory, resolveConsentTabId } from '../rules';
 
 describe('resolveConsentTabId', () => {
   it('opens the named tab, and Overview for an absent or unknown one', () => {
@@ -71,5 +71,32 @@ describe('canPublishConsent', () => {
     ['another editor won', { saveState: 'conflict' as const }],
   ])('refuses when %s', (_reason, change) => {
     expect(canPublishConsent({ ...ready, ...change })).toBe(false);
+  });
+});
+
+describe('canResetConsentCss', () => {
+  const defaultCss = '#jini-consent { padding: 16px; }';
+  it('offers Reset only while the field differs from the default style', () => {
+    expect(canResetConsentCss({ customCss: defaultCss, defaultCss })).toBe(false);
+    expect(canResetConsentCss({ customCss: '#jini-consent { padding: 12px; }', defaultCss })).toBe(true);
+    expect(canResetConsentCss({ customCss: undefined, defaultCss })).toBe(true);
+    expect(canResetConsentCss({ customCss: '', defaultCss })).toBe(true);
+  });
+
+  it('is never offered when the server sent no default', () => {
+    expect(canResetConsentCss({ customCss: 'x', defaultCss: undefined })).toBe(false);
+    expect(canResetConsentCss({ customCss: 'x', defaultCss: '' })).toBe(false);
+  });
+});
+
+describe('consentPreviewScale', () => {
+  it('lays Desktop out above the engine phone breakpoint (480px) and fits it to the pane', () => {
+    expect(CONSENT_PREVIEW_DESKTOP_WIDTH).toBeGreaterThan(480);
+    expect(consentPreviewScale({ paneWidth: CONSENT_PREVIEW_DESKTOP_WIDTH / 2 })).toBe(0.5);
+  });
+
+  it('never enlarges, and an unmeasured pane keeps the natural size', () => {
+    expect(consentPreviewScale({ paneWidth: CONSENT_PREVIEW_DESKTOP_WIDTH * 2 })).toBe(1);
+    expect(consentPreviewScale({ paneWidth: 0 })).toBe(1);
   });
 });

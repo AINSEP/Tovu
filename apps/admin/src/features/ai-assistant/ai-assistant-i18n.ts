@@ -28,6 +28,7 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  */
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { withLayoutStrings } from "./ai-assistant-layout-i18n";
+import { withVisitorToolsStrings } from "./visitor-tools-i18n";
 
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -2917,4 +2918,4 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
  *  Exported so `AiAssistant.tsx` can call it directly instead of duplicating the lookup. */
 const baseTranslator = createDictionaryTranslator({ featureDictionary: AI_ASSISTANT_DICT });
-export const t = createDictionaryTranslator({ featureDictionary: withLayoutStrings({ base: baseTranslator.dictionary }) }, { commonDictionary: COMMON_I18N });
+export const t = createDictionaryTranslator({ featureDictionary: withVisitorToolsStrings({ base: withLayoutStrings({ base: baseTranslator.dictionary }) }) }, { commonDictionary: COMMON_I18N });

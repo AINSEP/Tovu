@@ -5,7 +5,7 @@ import express from "express";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readPersistedActiveSite as readPersistedActiveSiteForTest } from "#src/platform/site-dir/index";
+import { readPersistedActiveSite as readPersistedActiveSiteForTest, resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
 import { registerAdminSitesRoutes, type AdminSitesDeps } from "../sites.js";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { createLocalSiteSupervisor } from "#src/platform/site-dir/local-site-supervisor";
@@ -46,8 +46,10 @@ for (const enabled of [true, false]) {
           });
           const result = await f.request();
           assert.equal(result.statusCode, 200);
-          const body = result.jsonBody as { switchingEnabled: boolean; localManagementEnabled: boolean; canSwitchNow: boolean; previewVersions: unknown; persistedSiteName: unknown; currentSite: { listed: boolean }; trash: unknown[] };
+          const body = result.jsonBody as { switchingEnabled: boolean; localManagementEnabled: boolean; canSwitchNow: boolean; previewVersions: unknown; persistedSiteName: unknown; currentSite: { listed: boolean }; trash: unknown[]; starterAdminPassword?: string };
           assert.equal(body.switchingEnabled, enabled);
+          // The blank-field starter password is the one creation seeds, and only where creation works.
+          assert.equal(body.starterAdminPassword, enabled ? resolveNewSiteAdminPassword({}) : undefined);
           assert.equal(body.localManagementEnabled, enabled && compatible);
           assert.equal(body.canSwitchNow, enabled && compatible && restart !== null && !("canSwitchSite" in restart && restart.canSwitchSite === false) && !dirOverridden);
           assert.deepEqual(body.previewVersions, enabled ? { owner: 12 } : {});

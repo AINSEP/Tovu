@@ -1,4 +1,6 @@
+import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
@@ -15,7 +17,7 @@ import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/syst
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
-import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
@@ -83,7 +85,7 @@ import { executionModeFromEnv } from "#src/features/deployments/publish-credenti
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
-import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
+import { loadBundledSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
@@ -222,7 +224,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
-import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -326,6 +328,12 @@ import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
+import { registerAdminMailProviderRoutes } from "../../inbound/admin-http/routes/system/mail-providers.js";
+import { registerAdminMailDnsRoutes } from "../../inbound/admin-http/routes/system/mail-dns.js";
+import { registerAdminMailTestSendRoute } from "../../inbound/admin-http/routes/system/mail-test-send.js";
+import { registerAdminMailActivityRoutes } from "../../inbound/admin-http/routes/system/mail-activity.js";
+import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
+import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
 import { registerAdminAssistantSubagentsRoutes } from "../../inbound/admin-http/routes/system/assistant-subagents.js";
@@ -422,7 +430,8 @@ function createLazyProxy<T extends object>(factory: () => T): T {
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
 export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps & ByokToolSurfaceDeps {
-  const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink();
+  // TOVU_DB=memory can still serve public routes; anonymous audit traffic shares this bounded sink.
+  const toolAttemptAuditSink = createInMemoryToolAttemptAuditSink({});
   const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [seededWorkspace] });
   const postRepo = new InMemoryPostRepo(seededPosts);
   const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [seededPresentation] });
@@ -557,8 +566,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
-    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
     .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1148,7 +1155,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
@@ -1166,6 +1174,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
   // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
   const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
+  // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
+  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
+    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
@@ -1255,7 +1269,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `revisions:` field to wire here (S1, fix plan 2026-09-24 row 14) — unlike the sqlite store,
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
-    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock, entryRefsRepo, outbox }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox }),
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because
     // it mirrors `postRepo` rather than maintaining an index; chat history has no such alternate
@@ -1275,7 +1289,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     presentationRepo,
     settingsRepo,
     getEffective,
-    set: (required) => set(required, {
+    set: (required, optional) => set(required, {
+      ...optional,
       preparePreviewSwitcherWrite: async write => preparePreviewSwitcherWrite({ write, themes: siteThemes, workspaceId: seededWorkspace.id, activeThemeId: await resolveActiveThemeId({ presentationRepo, workspaceId: seededWorkspace.id }) }),
       canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
         repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,
@@ -1287,6 +1302,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     seoDeps,
     sitemapService,
     assistantSettingsReady,
+    visitorToolsManagement: composeVisitorToolsManagement({ workspaceId: seededWorkspace.id, ready: assistantSettingsReady,
+      settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
@@ -1328,6 +1345,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteConsentReady,
     consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel(taxonomyDb), workspaceId })),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
@@ -1616,11 +1634,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
       loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
+    loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
-    // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
+    // Hermetic the same way: every bundled source-control declaration — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
-      loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "github") }),
+      loadBundledSourceControlProviderRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     // And the bundled plugins' own key cards — see `routes/types.ts`'s `loadPluginCredentialCards` doc.
     loadPluginCredentialCards: () =>
       loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }) }),
@@ -1885,7 +1904,7 @@ function applyPublicMiddleware(
   options: CreateAppOptions = {},
 ): void {
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
-  applyTrustProxy(app);
+  applyTrustProxy({ app });
   applyDevCors(app);
   // Registered as early as possible — ahead of the serving gate below and every route module — so
   // a request the gate rejects, or a 404 that matches no route at all, is still measured. See
@@ -2046,6 +2065,14 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
   registerAdminMailStatusRoute(app, routeDeps);
+  registerAdminMailProviderRoutes(app, routeDeps);
+  // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
+  // Send test email (same operation as `mail_send_test`).
+  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability: routeDeps.observability }) })(routeDeps) });
+  registerAdminMailTestSendRoute(app, routeDeps);
+  // Email page: What uses email and Recent sends and failures (same operations as
+  // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).
+  registerAdminMailActivityRoutes(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
@@ -2083,7 +2110,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
   // header for why this doesn't split trigger/read the way `publish-site.ts` does.
   registerAdminPublishCredentialsRoutes(app, routeDeps);
-  // Admin Source Control page: CRUD over saved GitHub/GitLab/Bitbucket identity connections
+  // Admin Source Control page: CRUD over saved plugin-provided source-control identities
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
   registerAdminSourceControlCredentialsRoutes(app, routeDeps);

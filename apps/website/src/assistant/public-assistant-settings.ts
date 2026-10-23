@@ -57,7 +57,7 @@ type SetSettingValue = typeof import("@jini-ai/core/settings").set;
 const ASSISTANT_NAMESPACE = "site.assistant";
 
 export type PublicAssistantWidget = "react" | "vanilla";
-export type PublicAssistantSettingKey = "public_enabled" | "widget";
+export type PublicAssistantSettingKey = "public_enabled" | "widget" | "visitor_tools";
 
 /** The read model. An object rather than a bare boolean because this is the shape the admin route
  * returns and the shape the next control (a budget cap, a rate limit — see the admin section's own
@@ -74,6 +74,7 @@ export interface PublicAssistantSettings {
 const ASSISTANT_DEFINITIONS: readonly SettingDefinitionSpec<PublicAssistantSettingKey>[] = [
   { key: "public_enabled", schema: { type: "boolean" }, defaultValue: false },
   { key: "widget", schema: { type: "enum", values: ["react", "vanilla"] }, defaultValue: "react" },
+  { key: "visitor_tools", schema: { type: "json" }, defaultValue: { version: 1, tools: {} } },
 ];
 
 export interface EnsurePublicAssistantSettingDefinitionsDeps extends EnsureSettingDefinitionsDeps {
@@ -93,7 +94,7 @@ export interface EnsurePublicAssistantSettingDefinitionsInput {
  * (skip-if-already-registered, mirroring `ensureSeoSettingDefinitions`/
  * `ensureCommentsSettingDefinitions`).
  *
- * @complexity O(1) time and auxiliary space — two definition lookups/writes.
+ * @complexity O(1) time and auxiliary space — three definition lookups/writes.
  */
 export async function ensurePublicAssistantSettingDefinitions(
   deps: EnsurePublicAssistantSettingDefinitionsDeps,

@@ -51,7 +51,7 @@ import {
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { cleanCardToken } from "./card-token.js";
-import { buildPluginCredentialForm, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { applyPluginCredentialCard, loadPluginCredentialCardsSafely, findPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
@@ -148,7 +148,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
-   *  fixed engine failure metadata and lines built by {@link reportGitHubWriteFailure}, never a raw
+   *  fixed engine failure metadata and lines built by {@link reportRepositoryWriteFailure}, never a raw
    *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
@@ -358,7 +358,7 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
  *  `reason: "error"` is this tool's own addition — unlike a form submission, the write itself can fail
  *  at the GitHub API level AFTER confirmation (a diverged branch, a provider error), which needs a
  *  human-readable `message` the other reasons never carry. That `message` is always caller-safe: a
- *  network failure's detail goes to the server log only, via {@link reportGitHubWriteFailure}. */
+ *  network failure's detail goes to the server log only, via {@link reportRepositoryWriteFailure}. */
 type WriteFilesResult =
   | { executed: true; commitSha: string; commitUrl: string; filesWritten: number }
   | { executed: false; cancelled: true }
@@ -372,19 +372,19 @@ type WriteFilesResult =
  *
  * @complexity O(1) beyond the provider's `commitFiles`'s own O(files) cost.
  */
-async function performGitHubFilesWrite(
-  routeDeps: CustomCredentialsToolDeps,
-  provider: SourceControlProvider,
-  resolved: { baseUrl: string; connection: CustomProviderConnectionInput },
-  validated: ValidatedWriteFilesInput,
-  plan: FileWritePlan
-): Promise<WriteFilesResult> {
+async function performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan }: {
+  routeDeps: CustomCredentialsToolDeps;
+  provider: SourceControlProvider;
+  resolved: { baseUrl: string; connection: CustomProviderConnectionInput };
+  validated: ValidatedWriteFilesInput;
+  plan: FileWritePlan;
+}, _optional = {}): Promise<WriteFilesResult> {
   const commitResult = await provider.commitFiles(
     { ...writeTarget(resolved, validated), branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
     plan
   );
   if (!commitResult.ok) {
-    reportGitHubWriteFailure(routeDeps, { phase: "commit", failure: commitResult });
+    reportRepositoryWriteFailure({ routeDeps, phase: "commit", failure: commitResult });
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
   }
   return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
@@ -518,7 +518,7 @@ function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => voi
 }
 
 /**
- * Logs a `custom_credential_write_files` GitHub failure server-side when it carries a log-only
+ * Logs a `custom_credential_write_files` repository failure server-side when it carries a log-only
  * `logDetail` — a network failure's class and code, or an egress refusal's full message. Everything
  * else says nothing here: its `message` is already the whole story, and it is already published.
  *
@@ -527,7 +527,7 @@ function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => voi
  *
  * @complexity O(1).
  */
-function reportGitHubWriteFailure(routeDeps: CustomCredentialsToolDeps, input: { phase: "plan" | "commit"; failure: { readonly code: string; readonly logDetail?: string } }): void {
+function reportRepositoryWriteFailure({ routeDeps, ...input }: { routeDeps: CustomCredentialsToolDeps; phase: "plan" | "commit"; failure: { readonly code: string; readonly logDetail?: string } }, _optional = {}): void {
   if (input.failure.logDetail === undefined) return;
   failureLog(routeDeps)(`[custom-credentials] ${WRITE_FILES_TOOL_ID}: ${input.phase} failed code=${input.failure.code} detail=${input.failure.logDetail}`);
 }
@@ -690,6 +690,7 @@ function readRawCreateCredentialFields(params: Record<string, unknown>): RawCrea
 /** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
  *  {@link saveCreateCard} actually acts on. */
 interface CreateCredentialSubmission {
+  readonly additionalHosts?: readonly string[];
   readonly worksFor: unknown;
   readonly label: string;
   readonly baseUrl: string;
@@ -821,6 +822,7 @@ async function saveCreateCard(
       worksFor: submission.worksFor,
       category: submission.category,
       baseUrl: submission.baseUrl,
+      ...(submission.additionalHosts === undefined ? {} : { additionalHosts: submission.additionalHosts }),
       connection: { token: cleanCardToken({ token: submission.token }), ...(submission.username !== undefined ? { username: submission.username } : {}) },
     }
   );
@@ -944,11 +946,12 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
       // The run ended during the pre-dialog reads: the engine opens no dialog for an aborted run.
       // `askThenReport`, not `askOnce` — the engine waits for save and replaces the same card URI.
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      const pluginCard = await findPluginCredentialCard({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId, saveKind: 'api', target: label });
       let errorSummary = "";
       const card = defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
         toolId: CREDENTIAL_SAVE_TOOL_ID,
         prepare: async () => ({ label }),
-        form: ({ prep }) => setTokenForm(prep),
+        form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: setTokenForm(prep) }),
         save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing }),
         result: ({ run }) => {
           // Token hints belong on the human's card, never in the model-facing result or audit output.
@@ -1002,20 +1005,23 @@ export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeD
         submissionOf: values => deriveCreateCredentialSubmission(readRawCreateCredentialFields(values)) });
     },
 
-    // A plugin's own key card (credential_save kind plugin-provider): the plugin's copy, one token
-    // field, and the row's label/baseUrl/category fixed on the server from its descriptor. Same
+    // A plugin's own key card (credential_save kind plugin-provider): plugin copy, a masked token
+    // and declared public fields, with fixed row metadata resolved on the server. Same
     // permission, save port and outcome as the generic create card. See plugin-credential-card.ts.
     pluginProvider: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
       const input = requireInputRecord({ input: ctx.input });
       const providerId = requireString({ input, key: "provider" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
-      const card = (await routeDeps.loadPluginCredentialCards?.(routeDeps.workspaceId))?.find(entry => entry.providerId === providerId);
+      const card = (await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId })).find(entry => entry.providerId === providerId);
       if (!card) throw new ToolInputError({ message: `No installed plugin declares a key card for '${providerId}'. Use credential_save with kind api instead.` });
       const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       return openCreateCard({ ctx, emitSurface, routeDeps, surfaces, locale, initialLabel: card.label,
         form: () => buildPluginCredentialForm({ card }),
-        submissionOf: values => ({ worksFor: [], label: card.label, baseUrl: card.baseUrl, category: card.category, username: undefined,
-          token: typeof values.token === "string" ? values.token : "", displayLabel: card.label }) });
+        submissionOf: values => {
+          const fields = readPluginCredentialValues({ card, values });
+          return { ...deriveCreateCredentialSubmission(readRawCreateCredentialFields({ ...fields, worksFor: [] })),
+            ...(fields.additionalHosts === undefined ? {} : { additionalHosts: fields.additionalHosts }) };
+        } });
     },
   };
   return withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }) as { create: ToolHandler; rotate: ToolHandler; pluginProvider: ToolHandler };
@@ -1174,13 +1180,13 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
 
       const planResult = await provider.planFileWrite({ ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files });
       if (!planResult.ok) {
-        reportGitHubWriteFailure(routeDeps, { phase: "plan", failure: planResult });
+        reportRepositoryWriteFailure({ routeDeps, phase: "plan", failure: planResult });
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
       }
 
       // A run aborted during reconnaissance must not proceed to the external commit.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      return performGitHubFilesWrite(routeDeps, provider, resolved, validated, planResult.plan);
+      return performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan: planResult.plan });
     },
   };
 

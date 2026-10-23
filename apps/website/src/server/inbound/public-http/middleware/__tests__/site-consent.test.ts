@@ -11,8 +11,11 @@ import { registerConsentHttp } from '@jini-ai/cms/consent/express';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
+import { applySiteConsent, CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentPorts } from '../site-consent.js';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
+import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
+import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
+import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
@@ -29,11 +32,70 @@ test('live HTML is gated and static export returns 409 without changing the live
   const base = await startTestServer(app, t);
   const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
   assert.equal(exported.status, 409);
+  assert.equal(await exported.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
   const live = await fetch(base); const html = await live.text();
   assert.equal(live.status, 200); assert.match(html, /data-jini-consent-script/);
   assert.match(html, /window.optional=1/); assert.equal(live.headers.get('cache-control'), 'private, no-store');
   const config = await createSiteConsentPorts({ deps: f.deps }).config.get({});
   assert.equal(config.policyVersion, `${f.config.policyVersion}:${f.revisionId}`);
+});
+
+test('live conditional requests cannot reuse ungated HTML unless consent is off', async t => {
+  const f = await publicFixture({ t });
+  const state = await f.store.read({});
+  assert.ok(state?.published);
+  const published = state.published;
+  const disabledStore = { ...f.store, read: async () => ({ ...state, published: {
+    ...published, config: { ...(published.config as object), enabled: false },
+  } }) };
+  f.deps.consentStore = disabledStore;
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  const modified = 'Wed, 21 Oct 2026 12:00:00 GMT';
+  app.get('/', (_req, res) => res.set({
+    'Cache-Control': 'public, max-age=60, stale-while-revalidate=300', 'Last-Modified': modified,
+  }).type('html').send(original));
+  const base = await startTestServer(app, t);
+  const ungated = await fetch(base);
+  assert.equal(ungated.status, 200);
+  assert.equal(await ungated.text(), original);
+  const etag = ungated.headers.get('etag');
+  assert.ok(etag, 'use the actual ETag generated for the ungated page');
+  const validators: Record<string, string>[] = [
+    { 'if-none-match': '*' },
+    { 'if-none-match': etag },
+    { 'if-modified-since': modified },
+  ];
+  for (const policy of ['off', 'on', 'unavailable'] as const) {
+    f.deps.consentStore = policy === 'off' ? disabledStore : policy === 'on' ? f.store : {
+      ...f.store, read: async () => { throw new Error('policy unavailable'); },
+    };
+    for (const method of ['GET', 'HEAD']) {
+      for (const headers of validators) {
+        // Default fetch adds no-cache with validators, which would hide Express's 304 behavior.
+        const response = await fetch(base, { method, headers, cache: 'no-cache' });
+        const html = await response.text();
+        assert.equal(response.status, policy === 'off' ? 304 : 200, `${policy} ${method} ${JSON.stringify(headers)}`);
+        if (policy === 'off') {
+          assert.equal(response.headers.get('etag'), etag);
+          assert.equal(response.headers.get('cache-control'), 'public, max-age=60, stale-while-revalidate=300');
+        } else {
+          assert.equal(response.headers.get('cache-control'), 'private, no-store');
+          assert.equal(response.headers.get('etag'), null);
+          if (method === 'GET') {
+            const dom = new JSDOM(html);
+            try {
+              const document = dom.window.document;
+              assert.ok(document.querySelector('#jini-consent'));
+              assert.equal(document.querySelector('template[data-jini-consent-script]')?.innerHTML, '<script>window.optional=1</script>');
+              assert.ok(![...document.querySelectorAll('script')].some(script => script.textContent === 'window.optional=1'));
+            } finally { dom.window.close(); }
+          }
+        }
+        if (method === 'HEAD' || policy === 'off') assert.equal(html, '');
+      }
+    }
+  }
 });
 
 test('bootstrap or policy-store failure never returns ungated active HTML', async t => {
@@ -138,30 +200,81 @@ test('a missing or malformed receipt in opt-out mode still denies optional categ
   }
 });
 
-test('auto-enable treats only a site stamped at or after launch as new, reads the stamp once, and checks privacy links', async t => {
-  const deps = createRouteDeps();
-  const siteFor = async (meta: string | null) => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-auto-'));
-    t.after(() => fs.rm(dir, { recursive: true, force: true }));
-    if (meta !== null) await fs.writeFile(path.join(dir, '.site-meta.json'), meta);
-    return createSiteConsentAutoEnable({ deps: { ...deps, siteBinding: { ...deps.siteBinding, dir } } });
+test('the publishing privacy check still rejects missing local Pages', async () => {
+  const privacyPageExists = createPrivacyPageCheck({ deps: { workspaceId: 'site-a', postRepo: { findBySlug: async () => null } } as never });
+  assert.equal(await privacyPageExists({ url: 'https://example.com/privacy' }), true);
+  assert.equal(await privacyPageExists({ url: '/Not A Slug' }), false);
+  assert.equal(await privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+});
+
+test('live defaults show consent; exports omit defaults, honor owner ON/OFF and block published ON', async t => {
+  const settingsRepo = new InMemorySettingsRepo(); let id = 0;
+  const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
+  const ids = { newId: () => `setting-${++id}` };
+  const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
+  const authorize = async () => ({ allowed: true as const, reason: 'test owner' });
+  await ensureSiteConsentDefinitions({ settingsRepo, clock, ids, principals }, { systemPrincipalId: 'system' });
+  const write = async (key: string, value: string | boolean) => set({ deps: { repo: settingsRepo, clock, ids, principals, authorize },
+    input: { namespace: SITE_CONSENT_NAMESPACE, key, value, scope: 'workspace', workspaceId: 'site-a', callerPrincipalId: 'owner' } });
+  let release!: () => void;
+  const siteConsentReady = new Promise<void>(resolve => { release = resolve; });
+  let published: { id: string; config: unknown } | null = null;
+  const deps = { workspaceId: 'site-a', settingsRepo, clock, siteConsentReady,
+    siteBinding: { dir: '/unused-consent-test' }, consentStore: { read: async () => published ? { published } : null } } as never;
+  const ports = createSiteConsentPorts({ deps });
+  let settled = false;
+  const config = ports.config.get({}).then(value => { settled = true; return value; });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
+  await write('privacyPolicyUrl', '/privacy'); release();
+  assert.equal((await config).enabled, true);
+  const app = express(); applySiteConsent({ app, deps });
+  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  app.get('/', (_req, res) => res.type('html').send(original));
+  const base = await startTestServer(app, t);
+  const dom = new JSDOM(await (await fetch(base)).text());
+  try {
+    assert.ok(dom.window.document.querySelector('#jini-consent'));
+    assert.ok(dom.window.document.querySelector('#jini-consent a[href="/privacy"]'));
+    assert.ok(dom.window.document.querySelector('template[data-jini-consent-script]'));
+  } finally { dom.window.close(); }
+  const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  assert.equal(exported.status, 200);
+  assert.equal(await exported.text(), original);
+  assert.match(await (await fetch(base)).text(), /id="jini-consent"/);
+  await write('enabled', true);
+  const blocked = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  assert.equal(blocked.status, 409);
+  assert.equal(await blocked.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
+  await write('enabled', false);
+  assert.equal(await (await fetch(base)).text(), original);
+  const disabledExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  assert.equal(disabledExport.status, 200);
+  assert.equal(await disabledExport.text(), original);
+  published = { id: 'published-enabled', config: { ...await config, enabled: true } };
+  const publishedExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  assert.equal(publishedExport.status, 409);
+  assert.equal(await publishedExport.text(), 'Static export requires cookie consent to be disabled. Review optional scripts before exporting.');
+});
+
+test('consent readiness rejection propagates before any policy read', async () => {
+  const failure = new Error('privacy creation failed');
+  const siteConsentReady = Promise.reject(failure);
+  const deps = { siteConsentReady, siteBinding: { dir: '/unused-consent-test' }, clock: { nowMs: () => 0 },
+    consentStore: { read: async () => assert.fail('must wait for defaults') } } as never;
+  await assert.rejects(createSiteConsentPorts({ deps }).config.get({}), error => error === failure);
+});
+
+test('a published policy with an empty Custom CSS is served with the default style; the owner\'s own CSS wins', async t => {
+  const f = await publicFixture({ t });
+  const state = await f.store.read({});
+  assert.ok(state?.published);
+  const published = state.published;
+  const serve = async (customCss: string) => {
+    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), customCss } } }) };
+    return (await createSiteConsentPorts({ deps: f.deps }).config.get({})).customCss;
   };
-  const launched = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
-  assert.equal(await launched.isNewLiveSite({}), true);
-  const older = await siteFor(JSON.stringify({ createdAt: '2026-01-01T00:00:00.000Z' }));
-  assert.equal(await older.isNewLiveSite({}), false);
-  assert.equal(await (await siteFor(JSON.stringify({ createdAt: 20261021 }))).isNewLiveSite({}), false);
-  assert.equal(await (await siteFor('{not json')).isNewLiveSite({}), false);
-  const missing = await siteFor(null);
-  assert.equal(await missing.isNewLiveSite({}), false);
-
-  const memo = await siteFor(JSON.stringify({ createdAt: CONSENT_LAUNCH_ISO }));
-  const first = memo.isNewLiveSite({});
-  assert.equal(memo.isNewLiveSite({}), first, 'the stamp is read once per port');
-
-  assert.equal(await launched.privacyPageExists({ url: 'https://example.com/privacy' }), true);
-  assert.equal(await launched.privacyPageExists({ url: '/Not A Slug' }), false);
-  assert.equal(await launched.privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+  assert.equal(await serve(''), SITE_CONSENT_DEFAULT_CSS);
+  assert.equal(await serve('#jini-consent { padding: 12px; }'), '#jini-consent { padding: 12px; }');
 });
 
 test('an auto-region published policy is refused without a trusted region header and served with one', async t => {

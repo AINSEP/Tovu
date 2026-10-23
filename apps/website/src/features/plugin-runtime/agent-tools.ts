@@ -141,7 +141,7 @@ const SET_ENABLED_SCHEMA = {
       description:
         "Which plugin SYSTEM the id belongs to. Required, and never guessed — Tovu has two unrelated systems that share the word 'plugin'. " +
         "Use 'agent-plugin' for an Agent Plugin (an agent-plugins.org package with a plugin.json, skills and an optional mcp.json — " +
-        "anything search_agent_plugin_local returned, e.g. higgsfield-media). Use 'site-runtime' for a .tovu-plugin site/runtime plugin — " +
+        "anything search_agent_plugin_local returned, e.g. an image/video plugin). Use 'site-runtime' for a .tovu-plugin site/runtime plugin — " +
         "anything content_read.plugin returned. If you did not get the id from one of those two tools, call the matching one first rather " +
         "than picking a family.",
     },
@@ -215,7 +215,7 @@ export const pluginAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Turns a plugin ON or OFF. This is the ONE tool for enabling and disabling plugins, and it covers BOTH of Tovu's plugin systems — " +
       "say which with the required 'family' argument: 'agent-plugin' for an Agent Plugin found by search_agent_plugin_local (e.g. the " +
-      "higgsfield-media image/video plugin), 'site-runtime' for a .tovu-plugin site plugin listed by content_read.plugin. Use this when the " +
+      "image/video plugin), 'site-runtime' for a .tovu-plugin site plugin listed by content_read.plugin. Use this when the " +
       "user asks to enable, disable, turn on, turn off, activate or deactivate a plugin, or when a plugin you need is installed but not " +
       "active. Site plugins sealed here with plugin_source_seal enable directly; other plugins open a confirmation dialog and wait for approval. " +
       "Disabling is not confirmed. Author site-local behavior with plugin_source_create/open → write/edit → seal → enable (family 'site-runtime'). " +

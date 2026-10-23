@@ -1,4 +1,5 @@
 /** @file SQL adapter for Jini's `MailSendLedgerPort` (migration 0023), one body for SQLite and Postgres. */
+import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import type { MailDeliveryLane, MailLedgerOutcome, MailSendLedgerPort } from "@jini-ai/platform/mail";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
@@ -48,8 +49,8 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
     const { workspaceId, idempotencyKey, recipient, payloadHash, lane, providerId } = required;
     await db.lockKey(lockName(required));
     const at = nowIso();
-    const inserted = await db.query(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at)
-      VALUES (${workspaceId}, ${idempotencyKey}, ${recipient}, ${payloadHash}, ${lane}, ${providerId}, 'reserved', ${at}, ${at})
+    const inserted = await db.query(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at, activity_id)
+      VALUES (${workspaceId}, ${idempotencyKey}, ${recipient}, ${payloadHash}, ${lane}, ${providerId}, 'reserved', ${at}, ${at}, ${randomUUID()})
       ON CONFLICT (workspace_id, idempotency_key, recipient) DO NOTHING RETURNING outcome`);
     if (inserted.length > 0) return { status: "reserved" };
     // A corrected retry after a definitive failure may carry new content, so the hash moves with it.

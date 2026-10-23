@@ -385,9 +385,24 @@ function countOccurrences(haystack: string, needle: string): number {
  * @complexity O(n) in the file's size, for the split/replace `oldString`/`newString` each perform.
  */
 function applyThemeFileEdit(
-  currentContent: string,
-  edit: { oldString: string; newString: string; replaceAll: boolean },
-  relativePath: string
+  { currentContent, edit, relativePath }: { currentContent: string; edit: { oldString: string; newString: string; replaceAll: boolean; intent?: "delete" }; relativePath: string },
+  _optional: Record<string, never> = {},
+): string {
+  const nextContent = replaceThemeFileText({ currentContent, edit, relativePath });
+  // An empty `newString` deletes text (allowed as is); only an edit that leaves NOTHING (empty or
+  // whitespace-only) needs the explicit `intent: "delete"` — the one deletion a too-wide oldString
+  // could do by accident, and a whole-file wipe is never what "remove this line" meant.
+  if (nextContent.trim() === "" && edit.intent !== "delete") {
+    throw new ThemeFileEditMatchError(
+      `this edit would leave '${relativePath}' empty; narrow oldString to the text to remove, or pass intent: 'delete' if emptying the whole file is really intended`
+    );
+  }
+  return nextContent;
+}
+
+function replaceThemeFileText(
+  { currentContent, edit, relativePath }: { currentContent: string; edit: { oldString: string; newString: string; replaceAll: boolean }; relativePath: string },
+  _optional: Record<string, never> = {},
 ): string {
   const occurrences = countOccurrences(currentContent, edit.oldString);
   if (occurrences === 0) {
@@ -506,6 +521,20 @@ type ThemeReadSelection =
   | { mode: "window"; startLine: number; lineCount: number }
   | { mode: "find"; find: string; context: number; startLine: number; lineCount?: number };
 
+/** Clamp oversized integer context at the gate, preserving invalid values for normal validation.
+ * @returns Unchanged input or a copy with a per-item normalization note; performs no I/O.
+ * @complexity O(k) for copying k fields only when clamping.
+ */
+function normalizeThemeReadInput(
+  { input }: { input: Readonly<Record<string, unknown>> },
+  _options: Record<string, never> = {},
+) {
+  const context = input.context;
+  if (typeof context !== 'number' || !Number.isInteger(context) || context <= 20) return { input, notes: [] };
+  // MOVE: a generous context request should still read the file within the published item budget.
+  return { input: { ...input, context: 20 }, notes: ['context clamped to 20 (maximum)'] };
+}
+
 /**
  * Reads an optional integer selector from tool input and enforces its published bounds.
  * @param input - Raw tool input.
@@ -590,7 +619,7 @@ function collectThemeReadMatches(required: { lines: string[]; options: Extract<T
   const rangeStart = options.startLine - 1;
   const rangeEnd = Math.min(lines.length, options.lineCount === undefined ? lines.length : rangeStart + options.lineCount);
   for (let index = rangeStart; index < rangeEnd; index++) {
-    if (!lines[index].includes(options.find)) continue;
+    if (!lines[index]?.includes(options.find)) continue;
     if (matches === 50) return { windows, matches, truncated: true };
     matches++;
     mergeThemeReadWindow({
@@ -808,7 +837,7 @@ export function buildThemesRegistrations(
         assertThemeFileWritable(theme, relativePath);
 
         const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
-        const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll }, relativePath);
+        const nextContent = applyThemeFileEdit({ currentContent, edit: { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath });
         const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
 
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);
@@ -1106,6 +1135,7 @@ export function buildThemesRegistrations(
     catalog: CATALOG_BY_ID,
     handlers: syncedHandlers,
     derivedRisk: themesDerivedRisk,
+    inputNormalizers: { theme_read_file: normalizeThemeReadInput },
   });
 }
 

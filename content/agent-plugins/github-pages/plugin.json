@@ -7,11 +7,26 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["github_pages", "github pages", "githubpages", "github.io"],
       "displayName": "GitHub Pages",
       "summary": "Puts your website online on GitHub Pages. The assistant shows you a preview first.",
       "id": "tovu/github-pages",
       "provides": [
         "deploy-target:github-pages"
+      ],
+      "credentialCards": [
+        {
+          "target": "github-pages",
+          "title": "Connect GitHub Pages",
+          "label": "GitHub Pages connection",
+          "category": "hosting",
+          "intro": "Connect GitHub Pages to commit this site’s static export and enable Pages for the selected repository.",
+          "keyHint": "Select only the destination repository. Fine-grained token: Contents and Pages → Read and write. A classic token needs repo scope.",
+          "saveKind": "publish-host",
+          "helpUrl": "https://github.com/settings/personal-access-tokens/new",
+          "helpLabel": "Create a token",
+          "baseUrl": "https://api.github.com"
+        }
       ]
     }
   },

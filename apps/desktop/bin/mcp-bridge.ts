@@ -163,9 +163,13 @@ interface ServeMcpOverStdioInput {
  * concurrent `add_site_pointer` calls would be a read-modify-write race where the second overwrites
  * the first's row. A queue is the whole mitigation, and it costs nothing at this call rate.
  *
+ * @param options.handleRequest Injectable protocol handler; defaults to the desktop sites server.
  * @complexity O(n) in bytes received; one handler call per complete line.
  */
-function serveMcpOverStdio({ input, output, context }: ServeMcpOverStdioInput): void {
+function serveMcpOverStdio(
+  { input, output, context }: ServeMcpOverStdioInput,
+  { handleRequest = handleSitesMcpRequest }: { handleRequest?: typeof handleSitesMcpRequest } = {},
+): void {
   let buffer = "";
   let pending = Promise.resolve();
 
@@ -181,7 +185,7 @@ function serveMcpOverStdio({ input, output, context }: ServeMcpOverStdioInput): 
     while (newline !== -1) {
       const line = buffer.slice(0, newline).trim();
       buffer = buffer.slice(newline + 1);
-      if (line.length > 0) pending = pending.then(() => answerLine(line, output, context));
+      if (line.length > 0) pending = pending.then(() => answerLine(line, output, context, handleRequest));
       newline = buffer.indexOf("\n");
     }
   });
@@ -194,7 +198,7 @@ function serveMcpOverStdio({ input, output, context }: ServeMcpOverStdioInput): 
  *
  * @complexity O(n) in the line length, plus the handler's own cost.
  */
-async function answerLine(line: string, output: NodeJS.WritableStream, context: ToolContext): Promise<void> {
+async function answerLine(line: string, output: NodeJS.WritableStream, context: ToolContext, handleRequest: typeof handleSitesMcpRequest): Promise<void> {
   let message;
   try {
     message = JSON.parse(line);
@@ -203,7 +207,7 @@ async function answerLine(line: string, output: NodeJS.WritableStream, context: 
     return;
   }
   try {
-    const response = await handleSitesMcpRequest(message, context);
+    const response = await handleRequest(message, context);
     if (response !== null) output.write(`${JSON.stringify(response)}\n`);
   } catch (err) {
     warn(`failed to handle '${message?.method}': ${err instanceof Error ? err.message : String(err)}`);

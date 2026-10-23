@@ -46,7 +46,10 @@ function toRow(ref: EntryRefRow): Insertable<ContentDatabase["entry_refs"]> {
 }
 
 export class SqlEntryRefsRepo implements EntryRefsRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByTarget(required: { workspaceId: UUID; targetKind: EntryRefTargetKind; targetId: UUID }): Promise<EntryRefRow[]> {
     const rows = await this.kernel.run((db) =>

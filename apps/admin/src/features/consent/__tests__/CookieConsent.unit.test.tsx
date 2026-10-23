@@ -210,3 +210,37 @@ describe('CookieConsent: draft first', () => {
     expect(await screen.findByLabelText('Banner title')).toHaveValue('Draft title');
   });
 });
+
+describe('CookieConsent: Reset to default', () => {
+  const DEFAULT_CSS = '/* default */\n#jini-consent { padding: 16px; }\n';
+  const own = '#jini-consent { padding: 12px; }';
+  const snapshot = (customCss: string) => consentSnapshot({
+    draft: revision('d1', { ...CONSENT_CONFIG, customCss }), published: revision('p1'),
+    editor: { ...consentSnapshot().editor, defaults: { customCss: DEFAULT_CSS } },
+  });
+
+  it('puts the default style back over the owner\'s CSS and autosaves it as a draft', async () => {
+    const saveDraft = vi.fn<ConsentRevisionsPort['saveDraft']>(() => Promise.resolve(saved('d2')));
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(own)), saveDraft }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(own);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
+    expect(screen.getByLabelText('Custom CSS')).toHaveValue(DEFAULT_CSS);
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ customCss: DEFAULT_CSS }) })));
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+  });
+
+  it('is not offered while the field holds the default, without a server default, or on Banner', async () => {
+    const { unmount } = renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(DEFAULT_CSS)) }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(DEFAULT_CSS);
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+    unmount();
+    const noDefault = consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, customCss: own }), published: revision('p1') });
+    const second = renderPage(fakeConsentPort({ get: () => Promise.resolve(noDefault) }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(own);
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+    second.unmount();
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(own)) }), 'banner');
+    expect(await screen.findByRole('group', { name: 'Banner text' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+  });
+});

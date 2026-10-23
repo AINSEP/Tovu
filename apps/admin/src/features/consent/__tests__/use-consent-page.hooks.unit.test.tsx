@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { ApiError } from '@/lib/api';
 import type { ConsentTimers } from '../consent-autosave';
 import type { ConsentDraftSaved, ConsentPreview, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from '../settings.hooks';
-import { useConsentPage, useConsentPreview, useConsentReadiness } from '../use-consent-page.hooks';
+import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '../use-consent-page.hooks';
 import { CONSENT_CONFIG, conflict, consentSnapshot, fakeConsentPort, revision, saved } from './consent-fixtures';
 
 /** @file The Cookie Consent controller: load, draft autosave, the 409 stop, and Publish. */
@@ -264,5 +264,40 @@ describe('useConsentReadiness', () => {
     await act(async () => { ok.resolve(ready); failed.reject(new Error('gone')); });
     expect(first.result.current.readiness).toBeNull();
     expect(second.result.current.error).toBeNull();
+  });
+});
+
+describe('useConsentPreviewScale', () => {
+  it('fits the desktop-width page to the observed pane, and stops observing a detached pane', () => {
+    let notify: ((entries: { contentRect: { width: number } }[]) => void) | null = null;
+    const disconnect = vi.fn();
+    const observe = vi.fn();
+    vi.stubGlobal('ResizeObserver', class { constructor(callback: typeof notify) { notify = callback; } observe = observe; disconnect = disconnect; });
+    try {
+      const { result } = renderHook(() => useConsentPreviewScale());
+      expect(result.current.scale).toBe(1);
+      const pane = document.createElement('div');
+      act(() => result.current.ref(pane));
+      expect(observe).toHaveBeenCalledWith(pane);
+      act(() => notify!([{ contentRect: { width: 512 } }]));
+      expect(result.current.scale).toBe(0.5);
+      act(() => notify!([]));
+      expect(result.current.scale).toBe(1);
+      act(() => result.current.ref(null));
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the natural size where ResizeObserver does not exist', () => {
+    vi.stubGlobal('ResizeObserver', undefined);
+    try {
+      const { result } = renderHook(() => useConsentPreviewScale());
+      act(() => result.current.ref(document.createElement('div')));
+      expect(result.current.scale).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

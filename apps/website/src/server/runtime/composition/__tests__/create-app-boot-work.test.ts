@@ -4,6 +4,8 @@ import { test } from "node:test";
 
 import { createApp, createRouteDeps } from "../app.js";
 import { createServingApp } from "../serving-app.js";
+import { getEffective } from "@jini-ai/core/settings";
+import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
 
 /**
  * @file `createApp()` starts the BYOK tool surface's installed-extension pass (Agent Plugins,
@@ -49,6 +51,18 @@ test("createApp hands onBootWork the installed-extension pass, which settles onl
 
 test("createApp without onBootWork still composes (every existing caller)", () => {
   assert.equal(typeof createApp(createRouteDeps()), "function");
+});
+
+test("in-memory consent readiness registers definitions without creating privacy content", async () => {
+  const deps = createRouteDeps();
+  const before = await deps.postRepo.list({ workspaceId: deps.workspaceId });
+  await deps.siteConsentReady;
+  assert.deepEqual(await deps.postRepo.list({ workspaceId: deps.workspaceId }), before);
+  const url = await getEffective({ repo: deps.settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE,
+    key: 'privacyPolicyUrl', scopeContext: { workspaceId: deps.workspaceId } });
+  assert.ok(url, 'consent definitions still register');
+  assert.equal(url.value, '');
+  assert.equal(url.sourceLayer, 'default', 'bootstrap must not write a workspace value');
 });
 
 test("createServingApp returns that same pass as bootWork, so a serving process can await it before closing the store", async () => {

@@ -7,12 +7,29 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "vendorAliases": ["s3_compatible", "s3 compatible", "s3compatible", "amazonaws", "backblaze", "wasabi", "digitaloceanspaces"],
       "displayName": "S3",
       "summary": "Puts your website online in your own storage bucket, like Amazon S3 or Cloudflare R2. The assistant shows you a preview first.",
       "id": "tovu/s3-compatible",
       "provides": [
         "deploy-target:s3-compatible"
-      ]
+      ],
+      "credentialCards": [
+        {
+          "target": "s3-compatible",
+          "title": "Connect S3-compatible storage",
+          "label": "S3-compatible storage connection",
+          "category": "hosting",
+          "intro": "Connect your storage provider to upload this site to an existing public bucket. Create the bucket and public hosting first.",
+          "keyHint": "Use an access key ID and secret access key limited to the selected bucket: ListBucket and GetObject, PutObject, DeleteObject on its objects. If using a separate private media bucket, grant only the required read/write access there too.",
+          "saveKind": "publish-host",
+          "baseUrl": "https://s3.amazonaws.com"
+        }
+      ],
+      "toolKeywords": {
+        "media_import_from_url": "s3",
+        "credential_save": "s3"
+      }
     }
   },
   "keywords": [

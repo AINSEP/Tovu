@@ -79,7 +79,7 @@ export function createPeerShareDelivery(required: { peer: PeerCallDeps; http: Ht
 type ShareDeliverySources = {
   peer: () => Promise<PeerCallDeps | undefined>;
   http: HttpClientPort;
-  s3: () => Promise<ShareDelivery | undefined>;
+  objectStore: () => Promise<ShareDelivery | undefined>;
   runtime?: () => ShareDelivery;
 };
 type SavedShareDelivery = { provider?: string; binding?: string };
@@ -94,21 +94,21 @@ async function resolveServerDelivery(required: ShareDeliverySources, optional: S
   try {
     const peer = await required.peer();
     if (peer && bindingMatches({ saved: optional.binding, actual: peer.credential.baseUrl })) return createPeerShareDelivery({ peer, http: required.http });
-  } catch { /* An unavailable connection still permits the configured S3/ZIP fallback. */ }
+  } catch { /* An unavailable connection still permits the configured object-store/ZIP fallback. */ }
   const runtime = required.runtime?.();
   return runtime && bindingMatches({ saved: optional.binding, actual: runtime.binding }) ? runtime : undefined;
 }
 
 /** The configured object-store delivery when its provider and binding match the saved ones. */
-async function resolveS3Delivery(required: ShareDeliverySources, optional: SavedShareDelivery = {}): Promise<ShareDelivery | undefined> {
+async function resolveObjectStoreDelivery(required: ShareDeliverySources, optional: SavedShareDelivery = {}): Promise<ShareDelivery | undefined> {
   try {
-    const s3 = await required.s3();
-    if (!s3 || (optional.provider && optional.provider !== s3.provider)) return undefined;
-    return bindingMatches({ saved: optional.binding, actual: s3.binding }) ? s3 : undefined;
+    const objectStore = await required.objectStore();
+    if (!objectStore || (optional.provider && optional.provider !== objectStore.provider)) return undefined;
+    return bindingMatches({ saved: optional.binding, actual: objectStore.binding }) ? objectStore : undefined;
   } catch { return undefined; } // Failed credential resolution still leaves a private ZIP download.
 }
 
-/** Selection is shared by create and revoke: connected deployed peer, S3, then ZIP only.
+/** Selection is shared by create and revoke: connected deployed peer, object store, then ZIP only.
  * A saved binding is mandatory on revoke; a changed default may never delete another site's ZIP. */
 export async function resolveShareDelivery(required: ShareDeliverySources, optional: SavedShareDelivery = {}): Promise<ShareDelivery | undefined> {
   if (!optional.provider || optional.provider === "tovu-server") {
@@ -117,5 +117,5 @@ export async function resolveShareDelivery(required: ShareDeliverySources, optio
   }
   // Any object-store provider exposing an artifact store may deliver (not one hard-coded vendor);
   // a saved provider must be the one the site's object store resolves to now.
-  return resolveS3Delivery(required, optional);
+  return resolveObjectStoreDelivery(required, optional);
 }

@@ -148,6 +148,19 @@ export function buildBashProhibitionBlock(enabled: boolean): string {
 }
 
 /**
+ * Where native file searches may run. Runs start in the site folder (`cwd` is the site dir, see
+ * `agent-daemon-server.ts`), the owner's no-system-search hook (see
+ * {@link resolveAssistantRunSettings}) denies searches rooted at `/` or `$HOME`, and a whole-tree
+ * ripgrep over uploads/build output hits the 20 s search timeout — so name the folders up front.
+ * Folder names follow `sites/README.md`'s "What one site holds".
+ */
+const SEARCH_SCOPE_GUIDANCE =
+  "File searches (Grep, Glob, rg, find) must stay inside your working directory, this site's folder, and should name " +
+  "one of its subfolders: themes/ (site themes), plugins/ (site plugins), agent-plugins/, skills/. Never search /, ~ or $HOME " +
+  "(a guard denies it), and skip uploads/, out/ and node_modules (huge; searches there time out after 20 s). " +
+  "Prefer the tools over searching files: theme_read_file and the theme file tools for themes, search_tools for everything else. ";
+
+/**
  * The tool-catalog-protocol overlay every assistant run receives before any operator-configured
  * custom instructions are appended (`custom-instructions.ts`'s `readOverlay()` — see
  * `agent-daemon-server.ts`'s `assistantPromptAugmenter.systemOverlay()` for that composition).
@@ -174,13 +187,13 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "correctness for brevity — error text, failing output, and confirmations for destructive " +
     "actions keep their full content. Tovu exposes a purpose-built, " +
     "audited catalog of tools for every action that touches this site's actual content, users, " +
-    "permissions, forms, database state, configuration, or on-screen rendering (drawing a chart, " +
+    "permissions, forms, database state, theme files, configuration, or on-screen rendering (drawing a chart, " +
     "form, or card live in the admin UI) — and equally for any outbound call to an external " +
     "service this site holds a saved credential for: DNS and registrar records, hosting and " +
     "deployment providers, and every other third-party API reachable with a stored token. Those " +
     "are NOT infrastructure work outside this catalog's scope; content_read.custom_credential, " +
     "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
-    "is made with the site's own audited credential rather than a shell. For any such request: call " +
+    "is made with the site's own audited credential rather than a shell. Before any native Bash/file fallback, or when no visible tool fits: call " +
     "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
     "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
     "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
@@ -188,7 +201,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "again with a higher limit (up to 25) or different phrasing before concluding no tool exists: a " +
     "differently-worded or wider search often surfaces a tool the default cutoff missed, so a miss " +
     "at the default limit is weak evidence, not proof that no matching tool exists. Do this before " +
-    "reaching for Bash, curl, or " +
+    "reaching for Bash, curl, direct file read/edit/write, or " +
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
@@ -197,6 +210,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
     "Never reuse a pageId from an earlier run or before a server/daemon restart. On 'No page found', list pages again or open a new page before navigating. " +
+    SEARCH_SCOPE_GUIDANCE +
     (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
     (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :
@@ -238,7 +252,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
     "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +
     "— the segment of the failing tool's own id between 'mcp__' and the next '__' (e.g. " +
-    "'higgsfield' from 'mcp__higgsfield__generate_video') — to show the administrator an in-chat " +
+    "'example' from 'mcp__example__generate_video') — to show the administrator an in-chat " +
     "reconnect notice naming that server; if you ever forget that exact name, " +
     "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
     "other registered tool. It blocks until they acknowledge it. Once they say they have " +

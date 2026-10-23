@@ -492,7 +492,10 @@ body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
    a divider between groups, and a check-mark column that is always laid out (hidden when off) so a
    toggle never shifts the rows. The row's own fill stays the hover cue; keyboard focus also gets the
    admin's focus ring, inset so the popup's edge never clips it. */
-.dock-settings-menu { min-width: 11rem; }
+.dock-settings-menu { min-width: 11rem; overflow: hidden auto; overscroll-behavior: contain; }
+/* The popup is a flex column; once it is height-capped and scrolls, rows must not shrink (the 1px
+   separators would collapse to nothing). */
+.dock-settings-menu > * { flex-shrink: 0; }
 .dock-settings-menu-row { display: flex; align-items: center; }
 .dock-settings-menu-row > .row-menu-item { flex: 1; min-width: 0; }
 .dock-settings-menu-row > .info-tip { flex: none; margin-inline: 0 0.35rem; }
@@ -1757,6 +1760,12 @@ button.jini-composer-leading,
 }
 .jini-chat-settings-segment:hover { color: var(--fg); }
 .jini-chat-settings-segment:has(input:checked) { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: var(--jini-control-shadow-segment-raised); }
+/* Dark: `--surface` is the page canvas, a step DARKER than the `--surface-2` track, and the raised
+   shadow vanishes on near-black — the chosen segment read like the rest. Lift it above the track
+   with a lighter fill and a hairline ring so it reads selected by more than its weight. */
+:root[data-theme="dark"] .jini-chat-settings-segment:has(input:checked) {
+  background: color-mix(in oklch, var(--fg) 18%, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--border-strong);
+}
 .jini-chat-settings-segment:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
 .jini-chat-settings-segment:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 /* Switch, then label with its one-line description; the switch centres on the label line. */

@@ -53,7 +53,9 @@ async function configuredLiveOrigins({ originRegistry, workspaceId }: LiveOrigin
   try {
     const configured = await originRegistry.canonicalOrigin({ workspaceId });
     if (configured.source !== "workspace-setting") return [];
-    return [`${configured.scheme}://${configured.host}${configured.port ? `:${configured.port}` : ""}`];
+    const base = `${configured.scheme}://${configured.host}`;
+    const port = configured.port ? `:${configured.port}` : "";
+    return [`${base}${port}`];
   } catch (error) {
     if (!(error instanceof OriginNotVerifiedError)) throw error;
     return [];

@@ -91,6 +91,8 @@ export class PageConcurrentEditError extends Error {}
 export interface PagesHtmlDocumentStoreDeps {
   /** The content database: one Kysely query body for every dialect (storage plan §4, ADR-066). */
   kernel: ContentKernel;
+  /** Each surface selects its own kinds; Pages defaults to page only. */
+  allowedKinds?: ReadonlySet<PostKind>;
   clock: ClockPort;
   /**
    * SPEC-047 Slice 3 — when supplied, every successful {@link SqlPagesHtmlDocumentStore.write}/
@@ -217,7 +219,8 @@ export interface PagesHtmlDocumentStorePort {
  * one `(workspaceId, postId)` pair at construction.
  */
 export type PagesHtmlDocumentStoreFactory = (
-  scope: PagesHtmlDocumentStoreScope
+  scope: PagesHtmlDocumentStoreScope,
+  options?: { allowedKinds?: ReadonlySet<PostKind> },
 ) => PagesHtmlDocumentStorePort;
 
 /**
@@ -234,11 +237,18 @@ export type PagesHtmlDocumentStoreFactory = (
  */
 export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
   private lastReadVersion: number | null = null;
+  private readonly allowedKinds: ReadonlySet<PostKind>;
 
+  private readonly scope: PagesHtmlDocumentStoreScope;
+  private readonly deps: PagesHtmlDocumentStoreDeps;
   constructor(
-    private readonly scope: PagesHtmlDocumentStoreScope,
-    private readonly deps: PagesHtmlDocumentStoreDeps
-  ) {}
+    scope: PagesHtmlDocumentStoreScope,
+    deps: PagesHtmlDocumentStoreDeps
+  ) {
+    this.scope = scope;
+    this.deps = deps;
+    this.allowedKinds = deps.allowedKinds ?? new Set(["page"]);
+  }
 
   /**
    * @see PagesHtmlDocumentStorePort.capturedVersion
@@ -299,7 +309,8 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
         .set(set)
         .where("workspace_id", "=", this.scope.workspaceId)
         .where("id", "=", this.scope.postId)
-        .where("version", "=", guard.version);
+        .where("version", "=", guard.version)
+        .where("kind", "in", [...this.allowedKinds]);
       if (guard.liveHtmlOnly) update = update.where("body_format", "=", "html").where("deleted_at", "is", null);
       return update.executeTakeFirst();
     });
@@ -324,12 +335,12 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    */
   async read(): Promise<string> {
     const row = await this.deps.kernel.run((db) =>
-      this.thisRow(db).select(["body_html", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
+      this.thisRow(db).select(["kind", "body_html", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
     );
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: row.deleted_at ? "trashed" : "live" });
-    if (row.body_format !== "html" || row.body_html === null) {
+    if (!this.allowedKinds.has(row.kind as PostKind) || row.body_format !== "html" || row.body_html === null) {
       throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     }
 
@@ -374,8 +385,9 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
 
     if (!row) throw new PageNotFoundError(`page '${this.scope.postId}' was not found`);
     assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: row.deleted_at ? "trashed" : "live" });
-    if (row.kind !== "page") {
-      throw new PageKindMismatchError(`'${this.scope.postId}' is a post, and a post is never bespoke HTML`);
+    // The factory scopes this shared writer to the calling surface's own document kinds.
+    if (!this.allowedKinds.has(row.kind as PostKind)) {
+      throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
 
     if (row.body_format === "html") {
@@ -545,7 +557,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
         this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_html", "body_format", "version"]).limit(1).executeTakeFirst()
       );
       // Check freshness before equality: matching HTML must never hide a stale captured version.
-      if (!current || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
+      if (!current || !this.allowedKinds.has(current.kind as PostKind) || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
       if (current.body_html === html) return null;
       const changes = await this.updateThisRow(
         { body_html: html, version: nextVersion, updated_at: updatedAt },

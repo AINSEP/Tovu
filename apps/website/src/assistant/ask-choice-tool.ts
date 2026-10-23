@@ -101,6 +101,36 @@ interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
+// Typed MCP validates the published descriptor before the domain normalizer can run. Extend the
+// shared schema at this adapter boundary; the gate still owns aliases and refuses mixed shapes.
+const askChoiceOptionSchema = {
+  ...ASK_CHOICE_INPUT_SCHEMA.properties.options.items,
+  properties: {
+    ...ASK_CHOICE_INPUT_SCHEMA.properties.options.items.properties,
+    id: ASK_CHOICE_INPUT_SCHEMA.properties.options.items.properties.value,
+  },
+};
+const askChoiceOptionsSchema = { ...ASK_CHOICE_INPUT_SCHEMA.properties.options, items: askChoiceOptionSchema };
+const askChoiceFlatTitleSchema = { required: ["title", "options"] };
+const askChoiceInputSchema = {
+  ...ASK_CHOICE_INPUT_SCHEMA,
+  anyOf: [...ASK_CHOICE_INPUT_SCHEMA.anyOf, askChoiceFlatTitleSchema],
+  properties: {
+    ...ASK_CHOICE_INPUT_SCHEMA.properties,
+    title: { type: "string", minLength: 1, description: "Card title; also the question when question is omitted." },
+    label: { type: "string", minLength: 1, description: "Flat options label; defaults to question, then title." },
+    options: askChoiceOptionsSchema,
+    singleSelect: {
+      ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect,
+      properties: { ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect.properties, options: askChoiceOptionsSchema },
+    },
+    multiSelect: {
+      ...ASK_CHOICE_INPUT_SCHEMA.properties.multiSelect,
+      properties: { ...ASK_CHOICE_INPUT_SCHEMA.properties.multiSelect.properties, options: askChoiceOptionsSchema },
+    },
+  },
+};
+
 export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: ASK_CHOICE_TOOL_ID,
@@ -113,11 +143,11 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +
       "Do not add a second confirmation question before those cards. " +
       "Do not describe the options in prose and wait for a reply instead: the " +
-      "administrator has no reliable way to notice a question was asked that way. Supply {question, options: [{label, value?, description?}], multiple?: boolean}; value defaults to label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
+      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are included in the visible option label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
       "and every option yourself — nothing here is pre-filled.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
-    inputSchema: ASK_CHOICE_INPUT_SCHEMA,
+    inputSchema: askChoiceInputSchema,
   },
 ];
 
@@ -194,6 +224,95 @@ const askChoiceMessages: AskChoiceMessages = {
   abandoned: "The form was dismissed because the run ended. Do not assume any answer.",
   cancelled: "The administrator cancelled the form without answering. Do not assume any answer.",
 };
+
+/** Normalize Tovu chat option spellings before Jini's closed-schema gate. The installed choice
+ * renderer shows labels only, so option descriptions are folded into visible labels.
+ * Dual id/value spellings are refused even when equal, as with region ids.
+ * @returns A copied option, leaving malformed values for the shared parser to reject.
+ * @throws ToolInputError when id and value coexist.
+ * @complexity O(k) time/space in one option's keys; no I/O or caller mutation.
+ */
+function normalizeAskChoiceOption({ option }: { option: unknown }, _options = {}): unknown {
+  if (typeof option !== "object" || option === null || Array.isArray(option)) return option;
+  const record = option as Record<string, unknown>;
+  if (Object.hasOwn(record, "id") && Object.hasOwn(record, "value")) {
+    throw new ToolInputError({ message: "Conflicting option inputs 'id' and 'value'. Send only 'value'." });
+  }
+  const { id, description, ...rest } = record;
+  const label = visibleOptionLabel({ label: record.label, description });
+  // Keep the original label as the default submitted value; display copy is never an answer id.
+  const value = Object.hasOwn(record, "id") ? id : Object.hasOwn(record, "value") ? record.value : record.label;
+  return { ...rest, label, value };
+}
+
+
+/** Render option consequences through the installed label-only choice contract. O(text length). */
+function visibleOptionLabel({ label, description }: { label: unknown; description: unknown }, _options = {}): unknown {
+  if (description === undefined) return label;
+  if (typeof description !== "string") throw new ToolInputError({ message: "Option description must be text. Fold the consequence into the label." });
+  if (typeof label !== "string" || !description.trim()) return label;
+  return `${label} — ${description.trim()}`;
+}
+
+/** Apply the option alias to one select, retaining malformed shapes for ordinary validation.
+ * @complexity O(n) time/space in the select's option data; no effects.
+ */
+function normalizeAskChoiceSelect({ select }: { select: unknown }, _options = {}): unknown {
+  if (typeof select !== "object" || select === null || Array.isArray(select)) return select;
+  const record = select as Record<string, unknown>;
+  if (!Array.isArray(record.options)) return select;
+  const options = record.options.map(option => normalizeAskChoiceOption({ option }));
+  if (options.every((option, index) => option === (record.options as unknown[])[index])) return select;
+  return { ...record, options };
+}
+
+/** Preserve the shared flat parser's checks before consuming question/multiple into nested fields.
+ * @throws ToolInputError for malformed question text or a non-boolean multiple flag.
+ * @complexity O(q) time/space for trimming q question characters; no effects.
+ */
+function validateFlatAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  if (input.question !== undefined && (typeof input.question !== "string" || !input.question.trim())) {
+    throw new ToolInputError({ message: "assistant_ask_choice: 'question' must be a non-empty string." });
+  }
+  if (input.multiple !== undefined && typeof input.multiple !== "boolean") {
+    throw new ToolInputError({ message: "assistant_ask_choice: 'multiple' must be a boolean." });
+  }
+}
+
+/** Map flat options to the shared parser's nested contract, keeping a distinct card title.
+ * @throws ToolInputError for malformed flat fields or ambiguous flat/nested questions.
+ * @complexity O(k) time/space in the top-level keys; no effects.
+ */
+function normalizeLegacyAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  if (!Object.hasOwn(input, "options")) return { input, notes: [] };
+  if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
+    throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
+  }
+  validateFlatAskChoiceInput({ input });
+  const { options, label, question, multiple, ...rest } = input;
+  const field = multiple === true ? "multiSelect" : "singleSelect";
+  return { input: { ...rest, title: input.title ?? question, [field]: { label: label ?? question ?? input.title, options } },
+    notes: [`options→${field}.options`, `label/title/question→${field}.label`] };
+}
+
+/** Extend the existing domain hook, keeping question parsing and answer security in Jini.
+ * @returns Canonical input and value-free notes, with legacy title/options still supported.
+ * @throws ToolInputError for mixed questions or conflicting option selectors.
+ * @complexity O(n) time/space in supplied option data; no effects.
+ */
+function normalizeAskChoiceInput({ input }: { input: Record<string, unknown> }, _options = {}) {
+  const normalized = { ...input };
+  const notes: string[] = [];
+  for (const field of ["options", "singleSelect", "multiSelect"]) {
+    if (!Object.hasOwn(input, field)) continue;
+    const select = field === "options" ? { options: input.options } : input[field];
+    const mapped = normalizeAskChoiceSelect({ select });
+    normalized[field] = field === "options" ? (mapped as { options: unknown }).options : mapped;
+    if (mapped !== select) notes.push(`${field}: options normalized`);
+  }
+  const legacy = normalizeLegacyAskChoiceInput({ input: normalized });
+  return { input: legacy.input, notes: [...notes, ...legacy.notes] };
+}
 
 /** Adapt the host's expiry-aware exchange port; Jini owns the choice lifecycle. */
 function askChoiceExchanges({ surfaces }: { surfaces: AssistantSurfaceDeps }, _options = {}): AskChoiceExchangeStore {
@@ -277,17 +396,14 @@ export function buildAskChoiceRegistrations(
     catalog: CATALOG_BY_ID,
     handlers,
     inputNormalizers: {
-      [ASK_CHOICE_TOOL_ID]: ({ input }) => {
-        if (Object.hasOwn(input, "question") || !Object.hasOwn(input, "options")) return { input, notes: [] };
-        if (Object.hasOwn(input, "singleSelect") || Object.hasOwn(input, "multiSelect")) {
-          throw new ToolInputError({ message: "assistant_ask_choice: options is ambiguous with singleSelect/multiSelect. Send either flat options or explicit select fields." });
-        }
-        const { options, label, ...rest } = input;
-        return { input: { ...rest, singleSelect: { label: label ?? input.title, options } }, notes: ["options→singleSelect.options", "label/title→singleSelect.label"] };
-      },
+      [ASK_CHOICE_TOOL_ID]: normalizeAskChoiceInput,
     },
     derivedRisk: askChoiceDerivedRisk,
-  }).map(registration => ({ ...registration, invocationSchema: tool.invocationSchema }));
+  }).map(registration => ({ ...registration, invocationSchema: {
+    ...tool.invocationSchema,
+    anyOf: [...tool.invocationSchema.anyOf, askChoiceFlatTitleSchema],
+    properties: { ...tool.invocationSchema.properties, ...askChoiceInputSchema.properties },
+  } }));
 }
 
 /** Ask the same principal-bound choice exchange for automatic plugin use. Only real form actions

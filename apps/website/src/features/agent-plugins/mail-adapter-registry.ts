@@ -5,8 +5,10 @@ import { contributeProviders, type LoadedProviderContribution } from "@jini-ai/a
 import type { MailAdapterCreateContext as JiniCreateContext, MailProviderModule, MailProviderRegistry } from "@jini-ai/platform/mail";
 import type { MailAdapterCreateContext, MailAdapterModule } from "#src/platform/mail/index";
 import { toJiniMailer } from "#src/platform/mail/purpose-scoped-mailer";
+import type { MailProviderSetup } from "#src/platform/mail/mail-status";
 
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
+import { parseMailProviderSetupProperty } from "./mail-provider-setup.js";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
@@ -22,7 +24,8 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
  * schemaVersion 2 (email provider contract v1, 2026-10-21) adds `credentialKeys` and `feedback`, and
  * its module is a provider module (`id`, `capabilities`, optional `feedback` parser and domain
  * methods) whose `module.id` must equal the descriptor's `id`. `credentialLabel` stays optional
- * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged.
+ * there; absent, it is {@link defaultCredentialLabel}. v1 files keep loading unchanged. 2026-10-22: v2
+ * may also carry `setup` (field labels/types/defaults/help links, `./mail-provider-setup.ts`).
  * {@link contributeMailProviders} offers every loaded adapter to Jini's keyed mail-provider registry
  * so its refusals (bad id, duplicate, capability claims without code) surface with the loader's.
  *
@@ -57,6 +60,8 @@ export interface MailAdapterDescriptor {
   readonly credentialKeys?: readonly string[];
   /** v2: whether the module ships a delivery-feedback parser. */
   readonly feedback?: boolean;
+  /** v2, optional: declarative setup-form metadata (`./mail-provider-setup.ts`). */
+  readonly setup?: MailProviderSetup;
   /** v2: the plugin's own key card copy; core fills in the saved label and category. */
   readonly credentialCard?: MailCredentialCard;
   /** Why a declared `credentialCard` was ignored; surfaced in the registry's `refusals`. */
@@ -169,7 +174,7 @@ export function parseMailAdaptersFile(raw: string): ParseResult {
 
   const descriptors: MailAdapterDescriptor[] = [];
   for (const [index, entry] of value.adapters.entries()) {
-    const result = version === 1 ? parseDescriptor(entry, `adapters[${index}]`) : parseDescriptorV2(entry, `adapters[${index}]`);
+    const result = version === 1 ? parseDescriptor(entry, `adapters[${index}]`) : parseDescriptorV2({ entry, at: `adapters[${index}]` });
     if (typeof result === "string") return { ok: false, reason: result };
     if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `adapters[${index}].id '${result.id}' is declared twice` };
     descriptors.push(result);
@@ -193,18 +198,28 @@ export function defaultCredentialLabel({ label }: { label: string }): string {
   return `Tovu Mail — ${label} API`;
 }
 
-/** One v2 descriptor entry, or the reason it is invalid. @complexity O(k) credential keys. */
-function parseDescriptorV2(entry: unknown, at: string): MailAdapterDescriptor | string {
+/** One v2 entry, or why it is invalid; a bad optional card only adds a note. @complexity O(k + f) credential keys and setup fields. */
+function parseDescriptorV2({ entry, at }: { entry: unknown; at: string }, _options: Record<string, never> = {}): MailAdapterDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, module, credentialLabel, credentialKeys, feedback } = entry;
+  const { id, label, module, credentialLabel, credentialKeys, feedback, setup } = entry;
   if (typeof id !== "string" || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must match ${PROVIDER_ID_PATTERN.source}`;
   const base = parseDescriptor({ id: "v2", label, module, credentialLabel: credentialLabel ?? "v2" }, at);
   if (typeof base === "string") return base;
-  if (!Array.isArray(credentialKeys) || !credentialKeys.every((key) => typeof key === "string" && key !== "")) return `${at}.credentialKeys must be an array of field names`;
+  if (!isCredentialKeys(credentialKeys)) return `${at}.credentialKeys must be an array of field names`;
   if (typeof feedback !== "boolean") return `${at}.feedback must be true or false`;
   const savedUnder = typeof credentialLabel === "string" ? base.credentialLabel : defaultCredentialLabel({ label: base.label });
-  const card = entry.credentialCard === undefined ? {} : parseCredentialCard(entry.credentialCard, `${at}.credentialCard`);
-  return { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...card };
+  const card = parseCredentialCardProperty({ value: entry.credentialCard, at: `${at}.credentialCard` });
+  return withSetup({ descriptor: { schemaVersion: 2, id, label: base.label, module: base.module, credentialLabel: savedUnder, credentialKeys, feedback, ...card }, setup, at });
+}
+
+/** Narrow credential keys before passing them to setup validation. @complexity O(k) keys. */
+function isCredentialKeys(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((key) => typeof key === "string" && key !== "");
+}
+
+/** Keep absent cards absent; validate declared cards through the live parser. @complexity O(1). */
+function parseCredentialCardProperty({ value, at }: { value: unknown; at: string }, _options: Record<string, never> = {}): Pick<MailAdapterDescriptor, "credentialCard" | "credentialCardRefusal"> {
+  return value === undefined ? {} : parseCredentialCard(value, at);
 }
 
 const MAX_CARD_TEXT_LENGTH = 500;
@@ -237,6 +252,12 @@ function isCardText(value: unknown): value is string {
 function isHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.length > MAX_URL_LENGTH || !URL.canParse(value)) return false;
   return new URL(value).protocol === "https:";
+}
+
+/** Parse optional setup without losing the card or its refusal note. @complexity O(f) setup fields. */
+function withSetup({ descriptor, setup, at }: { descriptor: MailAdapterDescriptor; setup: unknown; at: string }, _options = {}): MailAdapterDescriptor | string {
+  const declared = parseMailProviderSetupProperty({ value: setup, at, credentialKeys: descriptor.credentialKeys! });
+  return typeof declared === "string" ? declared : { ...descriptor, ...declared };
 }
 
 /** Why a v2 module disagrees with its descriptor, or undefined. @complexity O(1). */

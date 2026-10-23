@@ -26,9 +26,14 @@ import {
   type SourceControlCommitResult,
 } from "../commit-site.js";
 import type { ExportReport } from "#src/features/site-export/index";
-import { githubValidateTarget } from "./fixtures/github-from-source.js";
+import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
+import type { RepositoryTargetValidator } from '../provider-module.js';
 
-const github = await githubValidateTarget();
+const exampleValidator: RepositoryTargetValidator = ({ owner, repo }) => {
+  if (!/^[A-Za-z0-9-]+$/.test(owner)) return `invalid Example Git owner '${owner}'`;
+  if (!/^[A-Za-z0-9_.-]+$/.test(repo) || repo === '.' || repo === '..') return `invalid Example Git repo '${repo}'`;
+  return null;
+};
 
 /**
  * @file `commit-site.ts`'s business-logic proof — mirrors
@@ -103,10 +108,9 @@ function fakeGitAdapter(result: SourceControlCommitResult, captured: { files: re
   };
 }
 
-async function withGithubCredential<TDeps extends RouteDeps>(deps: TDeps, token = "ghp_fake_token_never_real"): Promise<TDeps> {
+async function withExampleGitCredential<TDeps extends RouteDeps>(deps: TDeps, token = "fixture_fake_token_never_real"): Promise<TDeps> {
   await createSourceControlCredential(
-    { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "Test", connection: { providerId: "github", token } }
+    { deps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadSourceControlProviders: exampleProvidersWithoutProbe }, input: { workspaceId: deps.workspaceId, label: "Test", connection: { providerId: "example-git", token } } }
   );
   return deps;
 }
@@ -121,8 +125,8 @@ test("validateCommitTarget accepts a well-formed target", () => {
 });
 
 test("validateCommitTarget rejects an invalid owner, repo, branch, or commit message", () => {
-  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, github), "invalid GitHub owner 'not valid!!'");
-  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, github), "invalid GitHub repo '..'");
+  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, exampleValidator), "invalid Example Git owner 'not valid!!'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, exampleValidator), "invalid Example Git repo '..'");
   assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }), "invalid branch name 'not a branch'");
   for (const branch of ["topic@{1}", "topic\tname", "x".repeat(251)]) {
     assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch, commitMessage: "x" }), `invalid branch name '${branch.slice(0, 60)}'`);
@@ -138,11 +142,11 @@ test("validateCommitTarget rejects an invalid owner, repo, branch, or commit mes
  * literal-equality check, never via the regex). Both remaining arms are proven here, distinctly.
  */
 test("validateCommitTarget rejects a repo with characters REPO_PATTERN itself refuses (not merely '.' or '..')", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, github) ?? "", /invalid GitHub repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget rejects a repo that is the single-character literal '.', distinctly from the '..' case", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, github) ?? "", /invalid GitHub repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget without a host check applies only the generic one-path-segment rule, naming no host", () => {
@@ -150,7 +154,7 @@ test("validateCommitTarget without a host check applies only the generic one-pat
   assert.equal(validateCommitTarget({ owner: "octo", repo: "a/b", commitMessage: "x" }), "invalid repo 'a/b'");
   assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }), "invalid repo '..'");
   assert.equal(validateCommitTarget({ owner: "", repo: "my-site", commitMessage: "x" }), "invalid owner ''");
-  // A name GitHub would refuse but another host may allow passes the generic rule.
+  // A name Example Git would refuse but another host may allow passes the generic rule.
   assert.equal(validateCommitTarget({ owner: "group_name", repo: "my-site", commitMessage: "x" }), null);
 });
 
@@ -195,13 +199,13 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
   deps.sourceControlCredentialSetRepo.findDefaultByProvider = async (...args) => { reads.push(args); assert.fail("credentials read for invalid input"); };
   deps.exportSiteBound = async () => { assert.fail("export started for invalid input"); };
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: github },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: exampleValidator },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "INVALID_CONFIG");
-  assert.match(result.message, /invalid GitHub owner/);
+  assert.match(result.message, /invalid Example Git owner/);
   assert.deepEqual(reads, []);
 });
 
@@ -209,13 +213,13 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
   const deps = testRouteDeps();
   deps.exportSiteBound = async () => { assert.fail("export before missing credential refusal"); };
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
-  assert.doesNotMatch(JSON.stringify(result), /ghp_|Bearer /i);
+  assert.doesNotMatch(JSON.stringify(result), /fixture_|Bearer /i);
 });
 
 /**
@@ -232,12 +236,12 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
  * down the daemon process outright, not just answered one request with a 500.
  */
 test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no site key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
   // `sealer.open()` fails auth-tag verification, the same shape a missing site key produces live.
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
@@ -255,14 +259,14 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
   const id = deps.idGen.newId();
   const aad = buildVaultAad({ workspaceId, id, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null });
   const sealed = await deps.siteAssistantSecretSealer.seal({
-    plaintext: JSON.stringify({ providerId: "gitlab", token: "evil-mismatched-token" }),
+    plaintext: JSON.stringify({ providerId: "example-token", token: "evil-mismatched-token" }),
     key: await deps.siteAssistantSecretKeyring.activeKey(),
     aad,
   });
   await deps.sourceControlCredentialSetRepo.insert({
     workspaceId,
     id,
-    providerId: "gitlab",
+    providerId: "example-token",
     label: "Wrong provider group",
     sealed,
     isDefault: true,
@@ -280,7 +284,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
   deps.exportSiteBound = async () => { assert.fail("export must not start for a wrong-provider credential"); };
 
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
@@ -288,7 +292,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
   assert.equal(lookup.mock.callCount(), 1);
-  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "github" }]);
+  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "example-git" }]);
   assert.equal(open.mock.callCount(), 0);
   assert.doesNotMatch(JSON.stringify(result), /evil-mismatched-token/);
 });
@@ -296,14 +300,14 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
 /** Vault failures use the store's safe public message, including non-Error adapter failures. */
 test("commitSiteToSourceControl: a vault repo throwing a non-Error value produces a safe NO_CREDENTIALS_CONFIGURED message without exposing adapter details", async (t) => {
   const deps = testRouteDeps();
-  const failure = "raw string repo failure with private token ghp_adapter_detail";
+  const failure = "raw string repo failure with private token fixture_adapter_detail";
   const lookup = t.mock.method(deps.sourceControlCredentialSetRepo.vault!, "findDefault", async () => {
     // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate non-Error adapter failure.
     throw failure;
   }, {});
   deps.exportSiteBound = async () => { assert.fail("export must not start after a credential lookup fails"); };
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
@@ -311,19 +315,19 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
   assert.equal(lookup.mock.callCount(), 1);
-  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId: deps.workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "github" }]);
+  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId: deps.workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "example-git" }]);
   assert.equal(JSON.stringify(result).includes(failure), false);
-  assert.doesNotMatch(JSON.stringify(result), /ghp_adapter_detail/);
+  assert.doesNotMatch(JSON.stringify(result), /fixture_adapter_detail/);
 });
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const originalExport = deps.exportSiteBound;
   let exported: ExportReport | undefined;
   deps.exportSiteBound = async (options) => { exported = await originalExport(options); return exported; };
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
   );
 
@@ -343,7 +347,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
     assert.ok(!file.path.includes("\\"), `file path '${file.path}' must be forward-slash normalized`);
   }
   const passedInput = captured.input as { token: string; owner: string; repo: string; branch?: string; commitMessage: string };
-  assert.equal(passedInput.token, "ghp_fake_token_never_real");
+  assert.equal(passedInput.token, "fixture_fake_token_never_real");
   assert.equal(passedInput.owner, "octo");
   assert.equal(passedInput.repo, "demo");
   assert.equal(passedInput.branch, "main");
@@ -358,9 +362,9 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
  * possible without touching `tool-registrations.ts`'s own wiring.
  */
 test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_ERROR, a wiring bug never silently no-op'd", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer } },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer } },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
@@ -375,13 +379,13 @@ test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_
  * This proves the adapter's own real value passes through unchanged when present.
  */
 test("commitSiteToSourceControl: a git adapter result WITH divergedPaths passes them through verbatim, not just the [] fallback", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     {
-      providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+      providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
       gitAdapter: fakeGitAdapter(
-        { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 1, divergedPaths: ["old-page.html"] },
+        { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 1, divergedPaths: ["old-page.html"] },
         captured
       ),
     },
@@ -393,10 +397,10 @@ test("commitSiteToSourceControl: a git adapter result WITH divergedPaths passes 
 });
 
 test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter as omitted, not a guessed default", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   const passedInput = captured.input as { branch?: string };
@@ -413,10 +417,10 @@ const ADAPTER_FAILURE_CASES: { adapterCode: Extract<SourceControlCommitResult, {
 
 for (const { adapterCode, expected } of ADAPTER_FAILURE_CASES) {
   test(`commitSiteToSourceControl: a '${adapterCode}' adapter result maps to '${expected}', distinct from every other failure code`, async () => {
-    const deps = await withGithubCredential(testRouteDeps());
+    const deps = await withExampleGitCredential(testRouteDeps());
     const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
     const result = await commitSiteToSourceControl(
-      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
+      { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
       { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
     );
     assert.equal(result.ok, false);
@@ -445,7 +449,7 @@ test("commitSiteToSourceControl: a network-unreachable result is NEVER conflated
  * git adapter must never fire.
  */
 test("commitSiteToSourceControl: an asset that fails to export blocks the commit, the same as a failed route", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   // MUTATED in place, not spread into a copy (`{...deps, createSiteApp: X}`) — `deps.exportSiteBound`
   // (2026-08-20 RouteDeps-narrowing fix) is a closure bound ONCE, over this exact object, inside
   // `createRouteDeps()` itself. A spread produces a logically-overridden but DIFFERENT object
@@ -459,7 +463,7 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
   deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/tovu-starter/css/theme.css", deps);
 
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
 
@@ -481,9 +485,9 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
  * so a THROWING fake proves this catch block directly, distinct from the report-shaped failure path.
  */
 test("commitSiteToSourceControl: exportSiteBound throwing (not merely returning a failed report) is caught and reported as EXPORT_FAILED, never an unhandled rejection", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
       sourceControlExportRootDir: deps.sourceControlExportRootDir,
@@ -505,9 +509,9 @@ test("commitSiteToSourceControl: exportSiteBound throwing (not merely returning 
 /** Same catch block, the `err instanceof Error` ternary's OTHER arm — a thrown non-`Error` value must
  *  still produce a readable message via `String(err)`, never `[object Object]` or a crash formatting it. */
 test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value still produces a readable EXPORT_FAILED message via String(err)", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
       sourceControlExportRootDir: deps.sourceControlExportRootDir,
@@ -530,7 +534,7 @@ test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value stil
 
 /**
  * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): `commitExportDir` used to
- * return one FIXED directory (`<parent>/github`) for every commit, and this feature has no
+ * return one FIXED directory (`<parent>/example-git`) for every commit, and this feature has no
  * concurrency guard at all — not even the process-local single-flight `static-publish/adapter.ts`
  * gets from `publish-run.ts`. Two overlapping commits could `clean:true` and rewrite the same
  * directory out from under each other. See `adapter.unit.test.ts`'s identical `publishOutputDir`
@@ -540,11 +544,11 @@ test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value stil
  * corrupted the returned `CommitFile[]` payload even before this fix.
  */
 test("commitExportDir: two different run ids produce two DIFFERENT, non-overlapping directories", () => {
-  const a = commitExportDir("/source-control-root", "run-a");
-  const b = commitExportDir("/source-control-root", "run-b");
+  const a = commitExportDir({ parent: "/source-control-root", providerId: "example-git", runId: "run-a" });
+  const b = commitExportDir({ parent: "/source-control-root", providerId: "example-git", runId: "run-b" });
   assert.notEqual(a, b);
-  assert.equal(a, path.join("/source-control-root", "github", "run-a"));
-  assert.equal(b, path.join("/source-control-root", "github", "run-b"));
+  assert.equal(a, path.join("/source-control-root", "example-git", "run-a"));
+  assert.equal(b, path.join("/source-control-root", "example-git", "run-b"));
   assert.ok(!a.startsWith(b) && !b.startsWith(a), "neither run's directory may be a parent/child of the other's");
 });
 
@@ -552,17 +556,17 @@ test("commitExportDir: two different run ids produce two DIFFERENT, non-overlapp
  *  against the identical fixture must both still succeed with a correct, non-empty file set once
  *  `idGen.newId()` is a required part of computing `outputDir`. */
 test("commitSiteToSourceControl: two concurrent commits both still succeed with correct file sets", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const capturedA: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const capturedB: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
 
   const [resultA, resultB] = await Promise.all([
     commitSiteToSourceControl(
-      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://github.com/octo/demo/commit/sha-a", filesChanged: 1, filesDeleted: 0 }, capturedA) },
+      { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://example-git.com/octo/demo/commit/sha-a", filesChanged: 1, filesDeleted: 0 }, capturedA) },
       { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
     ),
     commitSiteToSourceControl(
-      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://github.com/octo/demo/commit/sha-b", filesChanged: 1, filesDeleted: 0 }, capturedB) },
+      { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://example-git.com/octo/demo/commit/sha-b", filesChanged: 1, filesDeleted: 0 }, capturedB) },
       { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
     ),
   ]);
@@ -604,9 +608,9 @@ test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and
 });
 
 test("commitSiteToSourceControl: one failed route blocks all adapter work", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     controlledInput(deps, async ({ outputDir }) => {
       const report = controlledReport(outputDir);
       report.routes.failed = [{ path: "/missing", kind: "post", reason: "expected 200, got 500" }];
@@ -617,13 +621,13 @@ test("commitSiteToSourceControl: one failed route blocks all adapter work", asyn
 });
 
 test("commitSiteToSourceControl: overlapping exports use distinct run directories and preserve each run's route and asset bytes", async () => {
-  const deps = await withGithubCredential(testRouteDeps());
+  const deps = await withExampleGitCredential(testRouteDeps());
   const directories: string[] = [];
   let release!: () => void;
   const overlap = new Promise<void>((resolve) => { release = resolve; });
   const captured = [{ files: null, input: null }, { files: null, input: null }] as Array<{ files: readonly CommitFile[] | null; input: unknown }>;
   const results = await Promise.all(["run-a", "run-b"].map((runId, index) => commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "release/2", branchCreated: true, commitSha: runId, commitUrl: `https://example.test/${runId}`, filesChanged: 2, filesDeleted: 0 }, captured[index]!) },
+    { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "release/2", branchCreated: true, commitSha: runId, commitUrl: `https://example.test/${runId}`, filesChanged: 2, filesDeleted: 0 }, captured[index]!) },
     { ...controlledInput(deps, async ({ outputDir, clean }) => {
       directories.push(outputDir);
       assert.equal(clean, true);
@@ -635,11 +639,31 @@ test("commitSiteToSourceControl: overlapping exports use distinct run directorie
     }), idGen: { newId: () => runId } },
   )));
   assert.deepEqual(results.map((result) => result.ok), [true, true]);
-  assert.deepEqual(directories.sort(), [commitExportDir(exportDir, "run-a"), commitExportDir(exportDir, "run-b")].sort());
+  assert.deepEqual(directories.sort(), [commitExportDir({ parent: exportDir, providerId: "example-git", runId: "run-a" }), commitExportDir({ parent: exportDir, providerId: "example-git", runId: "run-b" })].sort());
   assert.notEqual(directories[0], directories[1]);
   for (const [index, runId] of ["run-a", "run-b"].entries()) {
-    assert.deepEqual(captured[index]!.input, { token: "ghp_fake_token_never_real", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit", files: [
+    assert.deepEqual(captured[index]!.input, { token: "fixture_fake_token_never_real", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit", files: [
       { path: "index.html", data: `<html>${runId} é</html>` }, { path: "theme-assets/fixture/image.png", data: Buffer.from(runId) },
     ] });
   }
+});
+
+test('staging directories isolate providers even when their run ids match', () => {
+  const parent = '/source-control-root';
+  assert.equal(commitExportDir({ parent, providerId: 'example-a', runId: 'same-run' }), path.join(parent, 'example-a', 'same-run'));
+  assert.notEqual(commitExportDir({ parent, providerId: 'example-a', runId: 'same-run' }), commitExportDir({ parent, providerId: 'example-b', runId: 'same-run' }));
+});
+
+test('preview passes its provider id to the same isolated exporter used by a commit', async () => {
+  let captured: string | undefined;
+  const result = await previewCommitExport({
+    workspaceId: 'example-workspace', owner: 'acme', repo: 'site', commitMessage: 'preview',
+    sourceControlExportRootDir: exportDir, idGen: { newId: () => 'preview-run' },
+    exportSiteBound: async ({ outputDir }) => {
+      captured = outputDir;
+      return { outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
+    },
+  }, { providerId: 'example-b', validateTarget: () => null });
+  assert.equal(captured, path.join(exportDir, 'example-b', 'preview-run'));
+  assert.deepEqual(result, { ok: true, fileCount: 0, totalBytes: 0, paths: [] });
 });

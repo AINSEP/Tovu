@@ -52,6 +52,13 @@ test("the mail requirements port is passed through only when the root has one", 
   assert.equal("mailRequirements" in create({ workspaceId: "ws", authorize } as never), false);
 });
 
+test("the provider's sender-domain verdict is passed through only when the root has one", () => {
+  const verdict = async () => ({ state: "no_sender" as const, providerId: null });
+  const create = createDnsChangeDepsFactory({ httpClient: { send: async () => { throw new Error("unused"); } } }, { resolver: fakeAuthoritative({ zones: {} }) });
+  assert.equal(create({ workspaceId: "ws", authorize, mailSenderDomainVerification: verdict } as never).senderDomainVerification, verdict);
+  assert.equal("senderDomainVerification" in create({ workspaceId: "ws", authorize } as never), false);
+});
+
 test("the pre-bound sweep re-checks this workspace's due bindings over the same ports", async () => {
   const resolver = fakeAuthoritative({ zones: { "example.com": ["ns1.dns.test"] }, records: { "example.com|TXT": ['"site-verify=1"'] } });
   const kernel = freshSqliteContentKernel();

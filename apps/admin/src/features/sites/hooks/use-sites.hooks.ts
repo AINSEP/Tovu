@@ -13,7 +13,7 @@ import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteEr
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
-import { resolveAdminPasswordPresentation, resolveCreatedAdminLogin } from "../Sites.hooks";
+import { resolveAdminPasswordPresentation, resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
 
 /**
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
@@ -75,6 +75,8 @@ export interface SitesController {
   adminPasswordInputType: string;
   adminPasswordRevealLabel: string;
   toggleAdminPasswordVisibility: () => void;
+  /** The starter password to show beside the blank password field — see {@link resolveShownStarterPassword}. */
+  shownStarterPassword: string | null;
   createdAdminLogin: string | null;
   /** Also clears {@link SitesController.createdName} — a still-showing "Created." banner must not
    *  survive the operator changing what's in the field (finding 25, 2026-09-05 admin-tooling audit). */
@@ -203,7 +205,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       .mutate({ input: agentPluginTokens ? { name, ...passwordInput, agentPluginTokens } : { name, ...passwordInput } })
       .then((result) => {
         setCreatedName(result.site.name);
-        setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, t }));
+        setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, starterAdminPassword: list.data?.starterAdminPassword, t }));
         setAdminPasswordRaw("");
         setPasswordRevealed(false);
         setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
@@ -216,7 +218,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       .finally(() => {
         creatingRef.current = false;
       });
-  }, [activateMutation, createMutation, createName, adminPassword, pluginTokens, t]);
+  }, [activateMutation, createMutation, createName, adminPassword, pluginTokens, list.data, t]);
 
   const activate = useCallback(
     (name: string) => {
@@ -266,6 +268,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     adminPasswordInputType: passwordPresentation.inputType,
     adminPasswordRevealLabel: passwordPresentation.revealLabel,
     toggleAdminPasswordVisibility,
+    shownStarterPassword: resolveShownStarterPassword({ adminPassword, starterAdminPassword: list.data?.starterAdminPassword }),
     createdAdminLogin,
     setCreateName,
     createNameError: resolveCreateNameError(createName, nameErrorKey, t),

@@ -150,7 +150,7 @@ export function buildGatedIdentityRegistrations(
         description: `A new login named ${username}${input["email"] ? ` (${input["email"]})` : ""} will be created with no roles. Type their first password below.`,
         submitLabel: "Create user",
         fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
-          ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create.secretField }],
+          ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create?.secretField }],
         cancelLabel: "Cancel", app: { appName: "tovu-identity-user-create", appVersion: "1" },
         preferredFrameSize: ["100%", "360px"],
       }),

@@ -8,7 +8,7 @@ import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
 import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';
 import { CONSENT_CATEGORIES, CONSENT_MAX_AGE_MS, CONSENT_MAX_CSS_LENGTH, CONSENT_CSS_SELECTORS } from '@jini-ai/cms/consent';
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS } from './config.js';
+import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_TEXT_LIMITS, withSiteConsentDefaultCss } from './config.js';
 import { consentPagePath } from './request.js';
 import { consentDryRun, type ConsentDryRunGate } from './readiness.js';
 
@@ -30,9 +30,10 @@ export interface ConsentServicePorts {
   consentGate?: ConsentDryRunGate;
 }
 
-/** Unsaved input takes precedence over the draft, then the effective published/legacy policy. */
+/** Unsaved input takes precedence over the draft, then the effective published/legacy policy.
+ * An emptied Custom CSS previews the default style, exactly as the public site delivers it. */
 function sampleConsentConfig({ state, proposed }: { state: SiteConsentState & { effective: ConsentConfig }; proposed: unknown }, _options = {}): ConsentConfig {
-  return parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed });
+  return withSiteConsentDefaultCss({ config: parseConsentConfig({ value: proposed === undefined ? state.draft?.config ?? state.effective : proposed }) });
 }
 
 /** Readiness and preview require the same complete bounded page evidence. */
@@ -57,8 +58,11 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     const store = await authorize({ principalId });
     const state = await store.read({});
     const legacy = state.published ? null : await ports.readLegacy({});
-    return { ...state, effective: parseConsentConfig({ value: state.published?.config ?? legacy }), categoriesEditable: false,
-      editor: { defaults: { ...SITE_CONSENT_DEFAULTS }, placements: [...SITE_CONSENT_PLACEMENTS], textLimits: { ...SITE_CONSENT_TEXT_LIMITS },
+    // An empty Custom CSS is what the public site fills with the default style, so the editor shows
+    // that default in the field for the owner to edit (owner, 2026-10-22).
+    const draft = state.draft && { ...state.draft, config: withSiteConsentDefaultCss({ config: state.draft.config }) };
+    return { ...state, draft, effective: withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published?.config ?? legacy }) }), categoriesEditable: false,
+      editor: { defaults: { ...SITE_CONSENT_DEFAULTS, customCss: SITE_CONSENT_DEFAULT_CSS }, placements: [...SITE_CONSENT_PLACEMENTS], textLimits: { ...SITE_CONSENT_TEXT_LIMITS },
         maxCssLength: CONSENT_MAX_CSS_LENGTH, cssSelectors: [...CONSENT_CSS_SELECTORS],
         regionModes: ports.trustedRegion ? ['opt-in', 'opt-out', 'auto'] : ['opt-in', 'opt-out'],
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),

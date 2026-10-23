@@ -85,7 +85,7 @@ test("module results are normalized: platform/target from the request, invalid r
   assert.deepEqual(await runDeploy({ deps: f.deps, input: { platform: "example-host", target: "shop" } }), { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "7", sha: "a".repeat(40) });
   for (const [result, message] of [
     [accepted({ runId: "7; rm" }), "Deployment ops platform 'example-host' returned an invalid run id."],
-    [{ ...accepted(), started: false }, "Deployment ops platform 'example-host' returned an invalid deploy result."],
+    [{ ...accepted(), started: "invalid" }, "Deployment ops platform 'example-host' returned an invalid deploy result."],
   ] as const) {
     const bad = await withDeploy(async () => result as DeployOpsDeployResult);
     await assert.rejects(runDeploy({ deps: bad.deps, input: { platform: "example-host", target: "shop" } }), { name: "ToolInputError", message });
@@ -98,7 +98,7 @@ test("the chat tool requires write permission, validates input and calls runDepl
   const tool = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === "deployment_ops_deploy")!;
   assert.equal(tool.descriptor.readOnly, false);
   const schema = tool.descriptor.inputSchema as any;
-  assert.deepEqual(Object.keys(schema.properties), ["platform", "target", "ref", "credentialLabel"]);
+  assert.deepEqual(Object.keys(schema.properties), ["platform", "target", "ref", "workflowFile", "credentialLabel"]);
   assert.deepEqual(schema.required, ["platform", "target"]);
   assert.deepEqual(await tool.handler(execution({ platform: "example-host", target: "shop", ref: "v1.2.3" })), { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "9" });
   assert.deepEqual(received, { target: "shop", ref: "v1.2.3" });
@@ -168,4 +168,24 @@ test("the chat tool forwards an explicit credential label and omits an absent re
   const tool = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === "deployment_ops_deploy")!;
   assert.deepEqual(await tool.handler(execution({ platform: "example-host", target: "shop", credentialLabel: "ops" })), { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "10" });
   assert.deepEqual(received, { target: "shop" });
+});
+
+test("the host forwards declared workflow data while absent hints remain absent", async () => {
+  for (const workflowFile of [undefined, "example-pipeline.yml"]) {
+    const f = await withDeploy(async (_ctx, input) => {
+      assert.deepEqual(input, { target: "shop", ref: "main", ...(workflowFile === undefined ? {} : { workflowFiles: [workflowFile] }) });
+      return accepted();
+    });
+    await runDeploy({ deps: { ...f.deps, loadDeployWorkflowFiles: workflowFile === undefined ? undefined : async () => [workflowFile] }, input: { platform: "example-host", target: "shop", ref: "main" } });
+  }
+});
+
+test('safe workflow refusal returns started false and never records a successful dispatch', async () => {
+  const f = await withDeploy(async () => ({ platform: 'example-host', target: 'shop', started: false, summary: 'Choose a workflow; nothing dispatched.' }));
+  let records = 0;
+  const deps = { ...f.deps, publishHistoryStore: { recordSuccess: async () => { records++; } } as never };
+  const result = await runDeploy({ deps, input: { platform: 'example-host', target: 'shop' } });
+  assert.equal(result.started, false);
+  assert.equal(records, 0);
+  assert.deepEqual(f.calls, []);
 });

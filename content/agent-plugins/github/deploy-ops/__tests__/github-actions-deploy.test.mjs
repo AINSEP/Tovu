@@ -10,7 +10,7 @@ import github from "../github-actions.mjs";
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OTHER = "fedcba9876543210fedcba9876543210fedcba98";
 const repo = "https://api.github.com/repos/owner/repo";
-const workflow = `${repo}/actions/workflows/fly-deploy.yml`;
+const workflow = `${repo}/actions/workflows/example-deploy.yml`;
 const lookup = `${workflow}/runs?event=workflow_dispatch&head_sha=${SHA}&per_page=10`;
 const run = (id, extra = {}) => ({ id, head_sha: SHA, created_at: AT, html_url: `https://github.com/owner/repo/actions/runs/${id}`, ...extra });
 
@@ -31,11 +31,11 @@ function ctx(gets, dispatched = { status: 204 }) {
   };
 }
 
-test("resolves ref to a full SHA, dispatches fly-deploy.yml pinned to it, and finds the run after it appears", async () => {
+test("resolves ref to a full SHA, dispatches example-deploy.yml pinned to it, and finds the run after it appears", async () => {
   const c = ctx({ [`${repo}/commits/release/next`]: [{ sha: SHA }], [lookup]: [{ workflow_runs: [] }, { workflow_runs: [run(77)] }] });
-  assert.deepEqual(await github.deploy(c, { target: "owner/repo", ref: "release/next" }), {
+  assert.deepEqual(await deploy(c, { target: "owner/repo", ref: "release/next" }), {
     platform: "github-actions", target: "owner/repo", started: true, sha: SHA, runId: "77", url: "https://github.com/owner/repo/actions/runs/77",
-    summary: `Dispatched fly-deploy.yml on 'release/next' at ${SHA}; run 77. The workflow refuses to deploy if 'release/next' no longer resolves to ${SHA} when it starts.`,
+    summary: `Dispatched example-deploy.yml on 'release/next' at ${SHA}; run 77. The workflow refuses to deploy if 'release/next' no longer resolves to ${SHA} when it starts.`,
   });
   assert.deepEqual(c.sends, [{ method: "POST", url: `${workflow}/dispatches`, body: { ref: "release/next", inputs: { expected_sha: SHA } } }]);
   assert.deepEqual(c.calls, [`${repo}/commits/release/next`, lookup, lookup]);
@@ -44,7 +44,7 @@ test("resolves ref to a full SHA, dispatches fly-deploy.yml pinned to it, and fi
 
 test("ref defaults to main; a run id in the dispatch response is used without lookups", async () => {
   const c = ctx({ [`${repo}/commits/main`]: [{ sha: SHA }] }, { status: 200, json: { workflow_run_id: 91, html_url: "https://github.com/owner/repo/actions/runs/91" } });
-  const result = await github.deploy(c, { target: "owner/repo" });
+  const result = await deploy(c, { target: "owner/repo" });
   assert.equal(result.runId, "91"); assert.equal(result.sha, SHA);
   assert.equal(c.sends[0].body.ref, "main");
   assert.deepEqual(c.calls, [`${repo}/commits/main`]);
@@ -53,10 +53,10 @@ test("ref defaults to main; a run id in the dispatch response is used without lo
 test("runs on another SHA or from before the dispatch are never reported as this deploy", async () => {
   const stale = { ...run(5), created_at: "2026-10-01T11:00:00.000Z" };
   const c = ctx({ [`${repo}/commits/main`]: [{ sha: SHA }], [lookup]: [{ workflow_runs: [run(4, { head_sha: OTHER }), stale] }] });
-  const result = await github.deploy(c, { target: "owner/repo", ref: "main" });
+  const result = await deploy(c, { target: "owner/repo", ref: "main" });
   assert.equal(result.runId, undefined);
   assert.equal(result.started, true);
-  assert.equal(result.summary, `Dispatched fly-deploy.yml on 'main' at ${SHA}, but its run was not visible yet. The workflow refuses to deploy if 'main' no longer resolves to ${SHA} when it starts. Check deployment_ops_status with branch 'main' in a minute.`);
+  assert.equal(result.summary, `Dispatched example-deploy.yml on 'main' at ${SHA}, but its run was not visible yet. The workflow refuses to deploy if 'main' no longer resolves to ${SHA} when it starts. Check deployment_ops_status with branch 'main' in a minute.`);
   assert.deepEqual(c.sleeps, [2000, 2000, 2000, 2000]);
   assert.equal(c.calls.filter(u => u === lookup).length, 5);
 });
@@ -70,7 +70,7 @@ test("bare SHAs, bad refs, injected targets and unresolvable refs are refused be
     [{ target: "owner/repo", ref: "main" }, { [`${repo}/commits/main`]: [{ sha: "abc" }] }, "Could not resolve 'main' to a full commit SHA."],
   ]) {
     const c = ctx(gets);
-    await assert.rejects(github.deploy(c, input), { message });
+    await assert.rejects(deploy(c, input), { message });
     assert.deepEqual(c.sends, []);
   }
 });
@@ -100,3 +100,5 @@ test("through the real registry: runDeploy sends one JSON dispatch and deploymen
   assert.equal(waited.reached, true);
   assert.equal(waited.last.state, "healthy");
 });
+
+const deploy = (ctx, input) => github.deploy(ctx, { workflowFiles: ["example-deploy.yml"], workflowFile: "example-deploy.yml", ...input });

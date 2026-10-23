@@ -109,7 +109,7 @@ export const toolMetadata = {
   },
   "newsletter_list_send_log": {
     search: {
-      keywords: "email sent delivery log history newsletter campaign who received",
+      keywords: "email sent delivery delivered log history newsletter campaign who received",
       queries: [
         "Did everyone actually receive this newsletter?",
         "Can you show me the delivery log for this campaign, email by email?",

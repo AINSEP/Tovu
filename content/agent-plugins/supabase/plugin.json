@@ -11,6 +11,32 @@
       "id": "tovu/supabase",
       "provides": [
         "database:supabase"
+      ],
+      "credentialCards": [
+        {
+          "target": "supabase-sign-in",
+          "title": "Connect Supabase",
+          "label": "Supabase account",
+          "category": "general",
+          "intro": "Connect Supabase to set up and work with this site’s database.",
+          "keyHint": "Review the account and project access requested on the Supabase sign-in page.",
+          "saveKind": "oauth",
+          "saveTarget": "supabase",
+          "permissions": "Allows the connected tools to discover your organizations and projects and work with the selected database. Creating, pausing or restoring a project and running database changes require the applicable tool permissions.",
+          "baseUrl": "https://mcp.supabase.com"
+        },
+        {
+          "target": "supabase",
+          "title": "Connect Supabase with an access token",
+          "label": "Supabase account",
+          "category": "general",
+          "intro": "Use this fallback only when browser sign-in cannot start. The token connects the Supabase account, not a site mailer or a project’s public API.",
+          "keyHint": "Use a Management API personal access token, not an anon or service-role key. Discovery: Organizations, Projects (account-wide), Organization Settings and Project Settings → Read. Database tools: Database, Migrations, API Keys, Advisors and Logs → Read. Add Organization Projects → Read-write only to create a project, Project Settings → Read-write to pause/restore, and Migrations → Read-write to apply migrations. Tool write grants are still required separately.",
+          "saveKind": "agent-plugin-token",
+          "helpUrl": "https://supabase.com/dashboard/account/tokens",
+          "helpLabel": "Create a personal access token",
+          "baseUrl": "https://api.supabase.com"
+        }
       ]
     }
   },

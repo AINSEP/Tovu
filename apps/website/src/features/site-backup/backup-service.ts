@@ -26,7 +26,7 @@ import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
-import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
+import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
@@ -293,7 +293,6 @@ async function resolveHostConnection(deps: SiteBackupToolDeps, providers: readon
   const repo = deps.sourceControlCredentialSetRepo;
   if (!repo) return null;
   for (const provider of providers) {
-    if (!isSourceControlProviderId(provider.id)) continue;
     const lookup = await findHostConnection({ deps, repo, provider, providerId: provider.id });
     if (!lookup.ok) return lookup;
     if (lookup.found && (requested === undefined || requested === lookup.found.label)) return hostCredential({ found: lookup.found, provider });
@@ -711,6 +710,10 @@ function inProgressResult(planId: string, progress: SiteBackupPushProgress, elap
   };
 }
 
+function pushWaitBudget({ deps, waitMs }: { deps: SiteBackupToolDeps; waitMs: number | undefined }, _options = {}): number {
+  return waitMs ?? deps.siteBackupPushWaitMs ?? PUSH_WAIT_MS;
+}
+
 /**
  * The push (`site_backup_push` and `POST …/site-backups/push`): consume the principal-bound plan and start its job — or, for a planId whose job is
  * still running, wait on that job — then report its outcome or its progress.
@@ -735,7 +738,7 @@ export async function pushSiteBackup(
     job = jobs.start(key, initialPushProgress(taken.plan), (signal, progress) => pushPlannedBackup(deps, taken.plan, { signal, progress }));
   }
 
-  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: optional.waitMs ?? deps.siteBackupPushWaitMs ?? PUSH_WAIT_MS });
+  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
   if (waited.state === "done") return waited.result;
   if (waited.state === "abandoned") return { pushed: false, cancelled: false, reason: "abandoned" };
   return inProgressResult(planId, waited.progress, waited.elapsedMs);

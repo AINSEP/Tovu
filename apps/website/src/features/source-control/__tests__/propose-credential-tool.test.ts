@@ -15,6 +15,7 @@ import { InMemorySourceControlCredentialSetRepo } from '../repo.memory.js';
 import { listSourceControlCredentials, resolveDefaultForSourceControl } from '../store.js';
 import { buildSourceControlCredentialHandler, buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk } from '../tool-registrations.js';
 import { githubFromSource } from './fixtures/github-from-source.js';
+import { exampleRegistry } from './fixtures/example-provider.js';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import type { Express, Request, Response } from 'express';
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../assistant/mcp-ui-tool-calls-route.js';
@@ -274,6 +275,30 @@ function directDeps(f: ReturnType<typeof fixture>, load: LoadSourceControlProvid
 function directCall(f: ReturnType<typeof fixture>, deps: SourceControlCredentialSetupDeps, input: unknown, extra: Partial<ToolExecutionContext> = {}, emitSurface?: (s: SurfaceEmission) => Promise<void>) {
   return proposeSourceControlCredential({ ctx: { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }, deps, surfaces: { surfaceExchanges: f.surfaces } }, emitSurface ? { emitSurface } : {});
 }
+
+test('a non-default token name stays on the human form and saves as canonical connection.token', async () => {
+  const f = fixture();
+  const base = exampleRegistry({ probe: false, ids: ['example-access'] }).list()[0]!;
+  const loaded = { ...base, descriptor: { ...base.descriptor, credential: { tokenField: 'accessToken', fields: [
+    { name: 'accessToken', label: 'Access token', required: true, secret: true as const },
+    { name: 'username', label: 'Username', required: true },
+  ] } } };
+  const deps = directDeps(f, async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }));
+  const emitted: SurfaceEmission[] = [];
+  let raised!: () => void;
+  const ready = new Promise<void>(resolve => { raised = resolve; });
+  const pending = directCall(f, deps, { provider: 'example-access' }, {}, async surface => { emitted.push(surface); raised(); });
+  await Promise.race([ready, pending.then(() => assert.fail('call returned without a form'))]);
+  const html = (emitted[0]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+  assert.match(html, /name="accessToken"[^>]*type="password"|type="password"[^>]*name="accessToken"/);
+  submit(f, { label: 'Team', accessToken: SECRET, username: 'operator', token: 'undeclared-token' });
+  const saved = await pending;
+  assert.equal(saved.saved, true);
+  assertNoSecret(saved);
+  assert.deepEqual((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'example-access' }))?.connection,
+    { providerId: 'example-access', token: SECRET, username: 'operator' });
+  assert.equal(f.surfaces.size(), 0);
+});
 
 test('t10 source label over 200 characters is refused before any permission check or provider load', async () => {
   const f = fixture(); const deps = directDeps(f, async () => assert.fail('no provider lookup for an invalid label'));

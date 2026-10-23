@@ -237,3 +237,54 @@ function sameTermName(a: string, b: string): boolean {
 export function findTermByName(terms: readonly AdminTerm[], name: string): AdminTerm | undefined {
   return terms.find((term) => sameTermName(term.name, name));
 }
+
+/** How many of one taxonomy's terms the editors' Categories & Tags box shows before "See more"
+ *  (owner, 2026-10-22: a site with hundreds of tags drew them all as one huge grid). */
+export const TERM_PICKER_COLLAPSED_COUNT = 20;
+/** The most "See more" reveals at once; past it the box offers a search to find the rest. Ticked
+ *  terms are never hidden, so they can push the count past this. */
+export const TERM_PICKER_MAX_SHOWN = 100;
+
+/** What one taxonomy row of the Categories & Tags box draws. */
+export interface TermListView {
+  shown: AdminTerm[];
+  /** Collapsing or expanding would change what shows, so "See more" / "Show less" is offered. */
+  canToggle: boolean;
+  /** More terms than {@link TERM_PICKER_MAX_SHOWN} exist, so a search box is offered. */
+  searchable: boolean;
+}
+
+/**
+ * Which of a taxonomy's terms the Categories & Tags box shows (owner, 2026-10-22: "See more"
+ * reveals the rest, up to 100; search finds anything past that).
+ *
+ * `pinned` is a snapshot of the ticked ids taken when the row loads or is expanded/collapsed — they
+ * lead the list so the content's own terms are seen first. It is a snapshot rather than the live
+ * `selected` set on purpose: ticking or unticking a box must not move it under the pointer. A live
+ * tick that would otherwise fall past the limit (one ticked from the add box) is appended, so a
+ * ticked term is never hidden — and a search never hides one either.
+ *
+ * @complexity Time O(n) in the taxonomy's term count; space O(n) for the shown list.
+ */
+export function termListView(required: {
+  terms: readonly AdminTerm[];
+  pinned: ReadonlySet<string>;
+  selected: ReadonlySet<string>;
+  expanded: boolean;
+  query: string;
+}): TermListView {
+  const { terms, pinned, selected, expanded } = required;
+  const query = required.query.trim().toLocaleLowerCase();
+  const lead = terms.filter((term) => pinned.has(term.id));
+  const rest = terms.filter(
+    (term) => !pinned.has(term.id) && (selected.has(term.id) || term.name.toLocaleLowerCase().includes(query)),
+  );
+  const room = (limit: number) => Math.max(0, limit - lead.length);
+  const take = room(expanded ? TERM_PICKER_MAX_SHOWN : TERM_PICKER_COLLAPSED_COUNT);
+  const tickedPastLimit = rest.slice(take).filter((term) => selected.has(term.id));
+  return {
+    shown: [...lead, ...rest.slice(0, take), ...tickedPastLimit],
+    canToggle: rest.length > room(TERM_PICKER_COLLAPSED_COUNT),
+    searchable: terms.length > TERM_PICKER_MAX_SHOWN,
+  };
+}

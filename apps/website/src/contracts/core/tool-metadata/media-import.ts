@@ -12,7 +12,7 @@ export const toolMetadata = {
   },
   "media_import_from_url": {
     search: {
-      keywords: "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
+      keywords: "url urls link links address addresses href http https web internet online remote external elsewhere cdn bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
       queries: [
         "I have a URL for an image, put it in the media library.",
         "Put the image from this URL in my media library, saving the remote image link.",

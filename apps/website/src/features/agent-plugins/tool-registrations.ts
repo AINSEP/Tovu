@@ -790,7 +790,7 @@ const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
       type: "string",
       minLength: 1,
       description:
-        "What you're looking for, in plain language — e.g. 'a plugin for deploying to fly.io', " +
+        "What you're looking for, in plain language — e.g. 'a plugin for deploying a server app', " +
         "'accessibility guidance', 'gdpr compliance checks'. Matched against each installed Agent " +
         "Plugin's id, author-declared keywords, description, and bundled skills. Required.",
     },

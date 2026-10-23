@@ -165,7 +165,7 @@ function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown)
 
 test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and returns the updated row", async (t) => {
   await withAgentPluginsDir(async () => {
-    await installReal("site-compliance", "seed-set-enabled-a");
+    await installReal("site-compliance", "seed-set-enabled-a", { version: "1.0.0", extensions: { tovu: { id: "tovu/site-compliance", provides: ["outbound-mail"], displayName: "Example Mail", summary: "Send site mail." } } });
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "test" });
 
@@ -173,8 +173,12 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and ret
     const response = await patch(baseUrl, cookie, "site-compliance", { enabled: true });
 
     assert.equal(response.status, 200);
-    const body = (await response.json()) as { agentPlugin: { pluginId: string; enabled: boolean; version: string | null; skills: Array<{ name: string }> } };
+    const body = (await response.json()) as { agentPlugin: { pluginId: string; id: string; provides: string[]; displayName: string; summary: string; enabled: boolean; version: string | null; skills: Array<{ name: string }> } };
     assert.equal(body.agentPlugin.pluginId, "site-compliance");
+    assert.equal(body.agentPlugin.id, "tovu/site-compliance");
+    assert.deepEqual(body.agentPlugin.provides, ["outbound-mail"]);
+    assert.equal(body.agentPlugin.displayName, "Example Mail");
+    assert.equal(body.agentPlugin.summary, "Send site mail.");
     assert.equal(body.agentPlugin.enabled, true, "the response reports the state just written, not the pre-write state");
     assert.equal(body.agentPlugin.version, "1.0.0", "the row is the same shape AGENT_PLUGINS_LIST returns, so the client can replace in place");
     assert.ok(body.agentPlugin.skills.some((skill) => skill.name === "site-compliance"));

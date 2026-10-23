@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ToolInputError } from "@jini-ai/core";
 import { plan, confirm, execute } from "../../../contracts/core/gated-mutations/gateway.js";
 import { stageBundle } from "../bundle-staging.js";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
@@ -85,6 +86,61 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
 }
 async function publish(f: Awaited<ReturnType<typeof fixture>>, input = {}) {
   return (await tool(f.deps, ID)).handler(context(input)) as Promise<any>;
+}
+
+/** Inject only the remote execute response; planning and confirmation still use the real gateway. */
+async function reportFixture({ report }: { report: unknown }, _options: Record<string, never> = {}) {
+  const f = await fixture();
+  const send = f.deps.publishContentPeerHttpClient!.send;
+  f.deps.publishContentPeerHttpClient = { send: async request => {
+    if (new URL(request.url).pathname.endsWith("/import/execute")) {
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ runId: "remote-run", report }) };
+    }
+    return send(request);
+  } };
+  return f;
+}
+
+const remoteRow = { entityType: "post", entityId: "one", outcome: "created", writes: true, reason: null };
+for (const report of [null, false, 0, "report", []]) {
+  test(`remote report ${JSON.stringify(report)} retains the exact missing-report error`, async () => {
+    const f = await reportFixture({ report });
+    await assert.rejects(() => publish(f), { constructor: ToolInputError, message: "The live site returned no publish report." });
+  });
+}
+
+for (const report of [
+  {}, { refused: 0, rows: [] }, { refused: false }, { refused: false, rows: {} },
+  ...[null, false, {}, { ...remoteRow, entityType: 1 }, { ...remoteRow, entityId: 1 },
+    { ...remoteRow, writes: "true" }, { ...remoteRow, outcome: "unknown" },
+    ...["created", "applied", "forced"].map(outcome => ({ ...remoteRow, outcome, writes: false })),
+    ...["unchanged", "conflict", "blocked"].map(outcome => ({ ...remoteRow, outcome, writes: true })),
+  ].map(row => ({ refused: false, rows: [remoteRow, row] })),
+  { refused: true, refusalReason: "Do not use this before validating rows.", rows: [null] },
+]) {
+  test(`malformed remote report ${JSON.stringify(report)} retains the exact validation error`, async () => {
+    const f = await reportFixture({ report });
+    await assert.rejects(() => publish(f), { constructor: ToolInputError, message: "The live site returned an invalid publish report." });
+  });
+}
+
+for (const outcome of ["created", "applied", "forced", "unchanged", "conflict", "blocked"]) {
+  test(`a valid remote ${outcome} row preserves its actual outcome and optional-field compatibility`, async () => {
+    const writes = ["created", "applied", "forced"].includes(outcome);
+    const f = await reportFixture({ report: { refused: false, rows: [{ ...remoteRow, outcome, writes }] } });
+    const result = await publish(f);
+    assert.deepEqual(result.published.map((row: { entityKey: string; outcome: string }) => ({ entityKey: row.entityKey, outcome: row.outcome })),
+      writes ? [{ entityKey: "post:one", outcome }] : []);
+    assert.equal(result.unchanged.length, outcome === "unchanged" ? 1 : 0);
+    assert.equal(result.skipped.some((row: { entityKey: string }) => row.entityKey === "post:one"), ["conflict", "blocked"].includes(outcome));
+  });
+}
+
+for (const refusalReason of [undefined, null, "", "The destination refused this content."]) {
+  test(`a refused remote report preserves refusal reason ${JSON.stringify(refusalReason)}`, async () => {
+    const f = await reportFixture({ report: { refused: true, refusalReason, rows: [] } });
+    await assert.rejects(() => publish(f), { constructor: ToolInputError, message: refusalReason ?? "The live site refused this publish." });
+  });
 }
 
 test("publishes pending content without a UI card and returns live slug URLs", async () => {

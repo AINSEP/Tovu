@@ -5,6 +5,10 @@ description: Use the user's other apps (Gmail, Calendar, Slack, Notion, GitHub, 
 
 # Composio: the user's other apps
 
+## Connection card
+
+`agent_plugin_connect {pluginId:"composio"}` shows the plugin-declared **Connect Composio** card: it explains which apps it connects and the app-by-app permissions. Review each app’s sign-in permissions and grant only the requested tools. This hosted connection declares no token fallback; do not request or save a Composio API key.
+
 Composio Connect is an **external MCP server** at `https://connect.composio.dev/mcp`. It does not
 expose one tool per app. It exposes a handful of meta-tools, and you reach every app through them.
 Its tools arrive in chat as `mcp__composio__<TOOL>`.
@@ -26,11 +30,12 @@ endpoints and registers its own client, so nobody types a URL, client id or secr
 1. **Turn the plugin on.** It ships disabled. Offer to enable it; on yes call `plugins_set_enabled`
    with `family: "agent-plugin"`, `pluginId: "composio"`, `enabled: true` (the user approves a
    dialog), or they use the **Agent Plugins** screen. Enabling creates the `composio` connection row.
-2. **Sign in.** `external_mcp_oauth_connect { id: "composio" }` returns a link. Give it to the user
-   in one line: "Sign in to Composio here (free account; sign up there if you have none)". Then check
-   `content_read.external_mcp` for `oauth.status: "connected"`. If the tool refuses because
+2. **Sign in.** Call `agent_plugin_connect { pluginId: "composio" }`. It provisions the declared
+   connection, shows the secure browser sign-in card and waits. On `status: "connected"`, continue;
+   on `status: "waiting-for-sign-in"`, wait for the person to return, then call it again once.
+   Say: "Sign in to Composio (free account; sign up there if you have none)." If it refuses because
    `TOVU_PUBLIC_URL` is unset, send the user to **Settings > External MCP** to sign in there instead;
-   do not retry.
+   do not retry. Never create a second connection or use Bash, curl or a remote workbench to sign in.
 3. **Grant the tools**, see [Grants](#grants), then the user clicks **Restart the assistant** on the
    External MCP admissions banner. Federation config is read once at assistant start; a grant saved
    mid-session does nothing until that restart.

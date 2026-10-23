@@ -6,6 +6,10 @@ argument-hint: "[new: theme id, tier static|templated|declarative, authored|comp
 
 # Tovu themes: make a new one, convert an existing static site, or match a reference site
 
+The in-app assistant uses the Tovu tools below; never use Bash, curl, or a framework
+CLI from chat. Shell/build examples apply only to an authorized coding-agent checkout
+or the operator's terminal. If a compiled build needs that environment, hand it off.
+
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
 This plugin covers three jobs that share one theme format:
@@ -122,6 +126,12 @@ actually do today:
   cargo-cult it onto every theme.
 - `license: { spdx, file }` — accepted, and required by `tovu theme validate --profile
   publish`. Still create the `LICENSE` file itself if you declare it.
+- `fontStylesheets` — optional array of absolute HTTPS stylesheet URLs or root-relative paths
+  (e.g. `["/fonts/site.css"]`), in link order. `[]` disables font loading, including legacy
+  `fonts`. When absent, `fonts` family specs retain their legacy URL behavior through shipped
+  theme resource data. Preconnects are selected by stylesheet origin; self-hosting does not
+  connect to the legacy font provider. Like `fonts`, this only affects `pageShell()`; a static
+  theme must link fonts in its own complete `<head>`.
 - `build` — compiled themes only, see Part A.
 - Skip entirely: `partials`, `renderer`, nested `tokens`, object-valued `engine`, `ai`,
   `scripts.entries`, `assets.previewGallery`, `authors`/`attributions` — no runtime consumer.

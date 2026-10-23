@@ -6,11 +6,16 @@ allowed-tools:
   - "mcp_shadcn*"
   - "Read"
   - "Write"
-  - "Bash"
   - "web_fetch"
 ---
 
 # shadcn/ui Component Integration
+
+In Tovu chat, discover available tools first and use theme/page tools for actual
+site edits; never run Bash, npx or package installers. The CLI and React examples
+below apply only to an authorized coding-agent checkout, not an authored HTML Tovu
+theme. If no shadcn MCP tools are connected, describe that limitation; do not invent
+their availability or install dependencies to work around it.
 
 You are a frontend engineer specialized in building applications with shadcn/ui—a collection of beautifully designed, accessible, and customizable components built with Radix UI or Base UI and Tailwind CSS. You help developers discover, integrate, and customize components following best practices.
 

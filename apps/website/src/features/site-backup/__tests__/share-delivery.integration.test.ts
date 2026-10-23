@@ -63,24 +63,24 @@ test("peer artifact PUT → anonymous HEAD/GET → DELETE uses remote workspace 
   assert.equal((await receiver.list({}))[0]!.status, "revoked");
 });
 
-test("delivery selection prefers connected live, falls back to S3 then ZIP, and pins revoke binding", async () => {
+test("delivery selection prefers connected live, falls back to object storage then ZIP, and pins revoke binding", async () => {
   const calls: string[] = [];
   const peer: PeerCallDeps = { credential: { id: "live", label: "Live", baseUrl: "https://live.example.test", remoteWorkspaceId: "remote", apiKey: "private" }, httpClient: { send: async () => { throw new Error("not called at selection"); } } };
-  const s3 = { provider: "s3-compatible", binding: "bucket-a", store: { upload: async () => ({ url: "https://bucket.example.test" }), delete: async () => {}, verify: async () => true } };
-  const deps = { peer: async () => { calls.push("peer"); return peer; }, http: { send: async () => { throw new Error("not called at selection"); } }, s3: async () => { calls.push("s3"); return s3; } };
+  const objectStore = { provider: "example-store", binding: "bucket-a", store: { upload: async () => ({ url: "https://bucket.example.test" }), delete: async () => {}, verify: async () => true } };
+  const deps = { peer: async () => { calls.push("peer"); return peer; }, http: { send: async () => { throw new Error("not called at selection"); } }, objectStore: async () => { calls.push("objectStore"); return objectStore; } };
   const selected = await resolveShareDelivery(deps);
   assert.equal(selected?.provider, "tovu-server");
   assert.equal(selected?.binding, peer.credential.baseUrl);
   assert.deepEqual(calls, ["peer"]);
-  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined }), s3);
-  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => { throw new Error("disconnected"); } }), s3);
-  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined, s3: async () => undefined }), undefined);
-  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined, s3: async () => { throw new Error("missing credentials"); } }), undefined);
+  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined }), objectStore);
+  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => { throw new Error("disconnected"); } }), objectStore);
+  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined, objectStore: async () => undefined }), undefined);
+  assert.equal(await resolveShareDelivery({ ...deps, peer: async () => undefined, objectStore: async () => { throw new Error("missing credentials"); } }), undefined);
   assert.equal(await resolveShareDelivery(deps, { provider: "tovu-server", binding: "https://old.example.test" }), undefined);
-  assert.equal(await resolveShareDelivery(deps, { provider: "s3-compatible", binding: "bucket-b" }), undefined);
+  assert.equal(await resolveShareDelivery(deps, { provider: "example-store", binding: "bucket-b" }), undefined);
   calls.length = 0;
-  assert.equal(await resolveShareDelivery(deps, { provider: "s3-compatible", binding: "bucket-a" }), s3);
-  assert.deepEqual(calls, ["s3"]);
+  assert.equal(await resolveShareDelivery(deps, { provider: "example-store", binding: "bucket-a" }), objectStore);
+  assert.deepEqual(calls, ["objectStore"]);
 });
 
 test("backend revoke resolves local rows without a delivery and disables exactly once", async t => {

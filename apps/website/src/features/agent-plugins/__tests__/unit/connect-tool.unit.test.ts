@@ -644,3 +644,37 @@ test("defaultResolveInstalledAgentPlugin returns null for a plugin this workspac
     await forceRemove(dir);
   }
 });
+
+test('agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card', async () => {
+  const store = makeStoreDeps();
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
+    workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: 'test' }), clock: CLOCK,
+    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    externalMcpOAuth: fakeOAuth(store.repo, 'https://mcp.example.com/authorize'), waitTimeoutMs: 0,
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+    loadPluginCredentialCards: async () => [{
+      pluginId: 'widget-store', providerId: 'widget-store', label: 'Account', category: 'general', baseUrl: 'https://mcp.example.com', title: 'Connect your workspace apps', intro: 'Connect the apps you choose.', permissions: 'Each app asks for permission separately.', saveKind: 'oauth',
+    }],
+  });
+  const emissions: SurfaceEmission[] = [];
+  await runAgentPluginConnect(deps, freshSurfaces(), fakeCtx(emissions), 'widget-store');
+  assert.equal(emissions.length, 1);
+  assert.match(htmlOf(emissions[0]!), /Connect your workspace apps/);
+  assert.match(htmlOf(emissions[0]!), /Each app asks for permission separately/);
+});
+
+test('OAuth card copy comes only from the trusted merged loader and the declaring plugin', async () => {
+  const store = makeStoreDeps();
+  const emissions: SurfaceEmission[] = [];
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
+  const baseCard = { providerId: 'sign-in', label: 'Account', category: 'ops', baseUrl: 'https://example.com', saveKind: 'oauth' as const };
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({ workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: 'test' }), clock: CLOCK,
+    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    externalMcpOAuth: fakeOAuth(store.repo, 'https://mcp.example.com/authorize'), pollIntervalMs: 5, waitTimeoutMs: 10,
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER }, credentialCards: [{ ...baseCard, title: 'Untrusted manifest copy' }] }),
+    loadPluginCredentialCards: async () => [{ ...baseCard, title: 'Other plugin copy', pluginId: 'other' }, { ...baseCard, title: 'Trusted owner copy', pluginId: 'widget-store' }],
+  });
+  await runAgentPluginConnect(deps, surfaces, fakeCtx(emissions), 'widget-store');
+  assert.match(htmlOf(emissions[0]!), /Trusted owner copy/);
+  assert.doesNotMatch(htmlOf(emissions[0]!), /Untrusted manifest copy|Other plugin copy/);
+});

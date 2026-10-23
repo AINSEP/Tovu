@@ -643,3 +643,17 @@ test("the API rotation adapter itself rejects token fields before opening a form
   assert.equal(sealer.sealCalls, 0);
   assert.equal(exchanges.size(), 0);
 });
+
+test('API key rotation uses declared plugin copy while retaining the rotation field and save owner', async () => {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps);
+  const [existing] = await deps.customCredentialSetRepo.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  const pluginDeps = { ...deps, loadPluginCredentialCards: async () => [{ providerId: 'example', label: existing!.label, category: 'general', baseUrl: 'https://api.example.com', title: 'Connect Example account', intro: 'Update your account access.', keyHint: 'Use the required account permissions.', saveKind: 'api' as const }] };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const setTokenTool = tool(buildRegistrations(pluginDeps, surfaceExchanges), TOOL_ID);
+  const { pending, exchangeId, ui } = await raiseForm(setTokenTool);
+  assert.match(ui.resource.text, /Connect Example account/);
+  assert.match(ui.resource.text, /Use the required account permissions/);
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: 'new-account-token' } }, { toolId: TOOL_ID });
+  assert.deepEqual(await pending, { saved: true });
+});

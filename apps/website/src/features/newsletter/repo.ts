@@ -51,7 +51,10 @@ import type {
 const DEFAULT_LIST_LIMIT = 100;
 
 export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -169,7 +172,10 @@ export function newsletterCampaignRepoFor(kernel: ContentKernel): SqlNewsletterC
 }
 
 export class SqlNewsletterListRepo implements NewsletterListRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<NewsletterListRow | null> {
     const row = await this.kernel.run((db) =>
@@ -231,7 +237,10 @@ export function newsletterListRepoFor(kernel: ContentKernel): SqlNewsletterListR
 }
 
 export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<SubscriptionRow | null> {
     const row = await this.kernel.run((db) =>
@@ -333,7 +342,10 @@ export function newsletterSubscriptionRepoFor(kernel: ContentKernel): SqlNewslet
 }
 
 export class SqlNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByCampaignId(required: { workspaceId: string; campaignId: string }): Promise<AudienceSnapshotRow | null> {
     const row = await this.kernel.run((db) =>
@@ -377,7 +389,10 @@ export function newsletterAudienceSnapshotRepoFor(kernel: ContentKernel): SqlNew
 }
 
 export class SqlNewsletterSendRepo implements NewsletterSendRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<SendRow | null> {
     const row = await this.kernel.run((db) =>
@@ -550,7 +565,10 @@ export function newsletterSendRepoFor(kernel: ContentKernel): SqlNewsletterSendR
 }
 
 export class SqlNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<ConfirmationTokenRecord | null> {
     const row = await this.kernel.run((db) =>

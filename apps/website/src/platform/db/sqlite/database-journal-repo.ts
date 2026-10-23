@@ -47,7 +47,10 @@ function orNull<T>(value: T | null | undefined): T | null {
 /** `database_ledger` adapter — implements both the Timeline's read port and the boot
  * reconciliation's append port, siteId-scoped at construction. */
 export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort {
-  constructor(private readonly deps: { db: DatabaseJournalDb; siteId: string }) {}
+  private readonly deps: { db: DatabaseJournalDb; siteId: string };
+  constructor(deps: { db: DatabaseJournalDb; siteId: string }) {
+    this.deps = deps;
+  }
 
   /**
    * REQ-01/REQ-04 — filtered, cursor-paginated read over `database_ledger`, newest-first. The
@@ -184,7 +187,10 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
 export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
   private static readonly TERMINAL_STATUSES = new Set(MIGRATION_RUN_TERMINAL_STATUSES as readonly string[]);
 
-  constructor(private readonly deps: { db: DatabaseJournalDb; siteId: string }) {}
+  private readonly deps: { db: DatabaseJournalDb; siteId: string };
+  constructor(deps: { db: DatabaseJournalDb; siteId: string }) {
+    this.deps = deps;
+  }
 
   /**
    * SPEC-017 C-106/C-107 (INV-08) — the single defensive read both boot-sequence steps consult:
@@ -274,7 +280,10 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
  * `CreateRestorePointRepoPort`, plus the database-side persistence helper `db-ops`'s
  * `captureRestorePoint()` result needs to become a durable row. */
 export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
-  constructor(private readonly deps: { db: DatabaseJournalDb; siteId: string }) {}
+  private readonly deps: { db: DatabaseJournalDb; siteId: string };
+  constructor(deps: { db: DatabaseJournalDb; siteId: string }) {
+    this.deps = deps;
+  }
 
   /** REQ-05 (recovery) / REQ-22 (database) — persists one `restore_points` row. */
   async save(row: {

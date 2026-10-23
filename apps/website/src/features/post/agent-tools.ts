@@ -825,9 +825,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
           description: "Filter the loaded list by status before limit. Omit to include both drafts and published entries.",
         },
         fields: {
-          type: "array",
-          items: { type: "string", enum: POST_LIST_FIELDS },
-          description: "Return only these keys per row, plus id (always included). An empty array returns ids only. Overrides includeBody.",
+          anyOf: [{ type: "array", items: { type: "string", enum: POST_LIST_FIELDS } }, { type: "string" }],
+          description: "Return only these keys per row, plus id (always included). A comma-separated string is also accepted. An empty array returns ids only. Overrides includeBody.",
         },
         limit: {
           type: "integer",

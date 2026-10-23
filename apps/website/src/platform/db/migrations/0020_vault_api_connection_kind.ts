@@ -28,9 +28,11 @@ const KIND_LIST = "'site-assistant','personal-execution','media-provider','custo
  * @example widenedVaultTableDdl({ original: tableSql }) @throws {Error} Unexpected DDL. */
 export function widenedVaultTableDdl({ original }: { original: string }, _options: Record<string, never> = {}): string {
   const [before, ...rest] = original.split(OLD_KINDS);
+  // @ts-ignore frozen step (ADR-066, checksum-pinned code): `split` always yields a first element; only the strict desktop config flags it.
   if (rest.length !== 1 || !before.startsWith("CREATE TABLE secrets_vault (")) {
     throw new Error("secrets_vault does not have the 0012 shape; revise this migration before applying it");
   }
+  // @ts-ignore frozen step (ADR-066, checksum-pinned code): `split` always yields a first element; only the strict desktop config flags it.
   return `${before.replace("CREATE TABLE secrets_vault (", "CREATE TABLE secrets_vault_0020 (")}${NEW_KINDS}${rest[0]}`;
 }
 

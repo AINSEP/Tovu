@@ -1,3 +1,4 @@
+import { isContainedDeployConfigPath } from "../deployments/index.js";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
@@ -41,14 +42,15 @@ import {
  * from the site key on demand and never exists between publishes.
  */
 
-/** Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
+/* Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
+ *  The vendor paths and their order are declared as plain data by the bundled deploy-config
+ *  plugins (`candidatePaths` in `tovu-deploy-configs.json`); core adds only the neutral `app.json`.
  *  Operator repos may commit generated configs; this repo keeps generation inputs in its workflow.
  *
  *  This is a SUGGESTION mechanism, never a trust decision: whatever it finds is shown to the owner
  *  for confirmation and is re-validated as a URL before anything is done with it. That is why a
  *  plain scan is adequate here where a real parser would be required to WRITE one (a provisioning codec) — the
  *  cost of a wrong guess is a pre-filled field the owner corrects, not a misdirected publish. */
-export const DEPLOY_CONFIG_CANDIDATE_PATHS = ["fly.toml", "render.yaml", "railway.toml", "app.json", ".github/workflows/fly-deploy.yml"] as const;
 
 /** The deploy-config key naming a deployment's public origin. Already this repo's own convention
  *  for exactly that (`features/origin/configured-origin.ts`); reusing it means a site that has ever
@@ -68,18 +70,19 @@ const PUBLIC_URL_PATTERN = new RegExp(`${PUBLIC_URL_KEY}\\s*[:=]\\s*["']?(https:
  *
  * @returns The first `https` origin found, or `null` — an install that has never been deployed has
  * no candidate, which is an ordinary empty state and not an error.
- * @complexity O(f · n) for `f` config files of length `n`; f is a fixed list of five.
+ * @complexity O(f · n) for `f` config files of length `n`; f is the number of declared candidate paths.
  */
 export async function findCandidateDestination(deps: {
   readonly io: ProvisioningFileIo;
   /** Absolute path for a repo-relative config file. */
   readonly resolvePath: (relative: string) => string;
-}): Promise<string | null> {
-  for (const relative of DEPLOY_CONFIG_CANDIDATE_PATHS) {
+}, { candidatePaths = ["app.json"] }: { readonly candidatePaths?: readonly string[] } = {}): Promise<string | null> {
+  for (const relative of candidatePaths) {
+    if (!isContainedDeployConfigPath({ value: relative })) continue;
     const contents = await deps.io.read(deps.resolvePath(relative));
     if (contents === null) continue;
-    const found = PUBLIC_URL_PATTERN.exec(contents);
-    if (found) return found[1];
+    const found = PUBLIC_URL_PATTERN.exec(contents)?.[1];
+    if (found !== undefined) return found;
   }
   return null;
 }

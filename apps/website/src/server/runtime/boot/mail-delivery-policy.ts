@@ -30,6 +30,7 @@ export interface MailPolicyWrapperDeps {
   suppression: MailSuppressionRepoPort;
   /** Fresh `core.mail.testMode` read (`features/settings/mail-provider.ts`). */
   readTestMode: () => Promise<MailTestModeSetting>;
+  observe?: (required: { message: OutboundEmail; options: MailerSendOptions; providerId: string; mode: MailTestModeSetting; result: MailerSendResult }) => Promise<void>;
 }
 
 export interface MailPolicyWrapperOptions {
@@ -37,6 +38,8 @@ export interface MailPolicyWrapperOptions {
   capture?: MailCapturePort;
   /** Limiter clock in ms; defaults to `Date.now`. */
   now?: () => number;
+  /** Fixed observation-failure diagnostic; faults in the logger never affect delivery. */
+  warn?: (line: string) => void;
 }
 
 /**
@@ -66,6 +69,15 @@ const CAPTURE_UNAVAILABLE: MailerSendResult = { ok: false, retryable: false, err
  * @complexity Per send: one test-mode read plus the policy's ledger round-trips.
  */
 export function createMailPolicyWrapper(required: MailPolicyWrapperDeps, optional: MailPolicyWrapperOptions = {}) {
+  let observationWarned = false;
+  // Delivery has already happened: activity storage and diagnostics must never alter its result.
+  const observeResult = async (event: Parameters<NonNullable<MailPolicyWrapperDeps["observe"]>>[0]): Promise<void> => {
+    try { await required.observe?.(event); } catch {
+      if (observationWarned) return;
+      observationWarned = true;
+      try { (optional.warn ?? console.warn)("[mail] activity observation failed"); } catch { /* ADR-024: diagnostics cannot reject a send. */ }
+    }
+  };
   const limiters = new Map<string, MailLaneLimiter>();
   const limiterFor = (provider: MailProviderModule, providerId: string): MailLaneLimiter | undefined => {
     const limit = provider.capabilities.rateLimit;
@@ -79,14 +91,22 @@ export function createMailPolicyWrapper(required: MailPolicyWrapperDeps, optiona
 
   return ({ providerId, provider, mailer }: { providerId: string; provider: MailProviderModule; mailer: MailerPort }): MailerPort => {
     const deliverOne = async (message: OutboundEmail, options: MailerSendOptions): Promise<MailerSendResult> => {
-      const testMode = toTestMode({ setting: await required.readTestMode(), ...(optional.capture ? { capture: optional.capture } : {}) });
+      const setting = await required.readTestMode();
+      const approval = options.mailTestApproval;
+      const actual = { providerId, driver: mailer.capabilities().driver, from: message.from, mode: setting.mode, effectiveRecipient: setting.mode === "redirect" ? setting.to : message.to.email };
+      if (approval && JSON.stringify({ ...actual, providerId: approval.providerId === null ? null : providerId }) !== JSON.stringify(approval)) {
+        return { ok: false, retryable: false, errorCode: "MAIL_TEST_APPROVAL_CHANGED", message: "Mail configuration changed. Prepare a new approval; nothing was sent." };
+      }
+      const testMode = toTestMode({ setting, ...(optional.capture ? { capture: optional.capture } : {}) });
       if (testMode === null) return CAPTURE_UNAVAILABLE;
       const limiter = limiterFor(provider, providerId);
       const policy = createMailDeliveryPolicy(
         { providerId, ledger: required.ledger, suppression: required.suppression, supportsAttachments: mailer.capabilities().supportsAttachments },
         { ...(limiter ? { limiter } : {}), ...(testMode ? { testMode } : {}), resendPolicy: () => resendPolicyFor({ options }) },
       );
-      return policy.deliver({ message, options, send: (call) => mailer.send(call.message, options) });
+      const result = await policy.deliver({ message, options, send: (call) => mailer.send(call.message, options) });
+      await observeResult({ message, options, providerId, mode: setting, result });
+      return result;
     };
     return {
       capabilities: () => mailer.capabilities(),

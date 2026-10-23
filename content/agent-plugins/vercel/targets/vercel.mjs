@@ -99,14 +99,16 @@ export function bindVercel(kit) {
    * @overallScore 100/100
    */
   function isVercelProtectedResponse(resp, body = '') {
-      const server = resp.headers?.get?.('server') || '';
-      const setCookie = resp.headers?.get?.('set-cookie') || '';
+      const { server, setCookie } = protectionHeaders({ resp });
       const text = String(body || '');
       return (/vercel/i.test(server) ||
           /_vercel_sso_nonce/i.test(setCookie) ||
           /Authentication Required/i.test(text) ||
           /Vercel Authentication/i.test(text) ||
           /vercel\.com\/sso-api/i.test(text));
+  }
+  function protectionHeaders({ resp }, _options = {}) {
+      return { server: resp.headers?.get?.('server') || '', setCookie: resp.headers?.get?.('set-cookie') || '' };
   }
   /**
    * `DeployTarget` adapter for Vercel's v13 deployments API. Publishes a
@@ -146,56 +148,12 @@ export function bindVercel(kit) {
           }
           const { refs, blobs } = vercelFileManifest(withVercelConfigFile(input.files, input.responseHeaders));
           await uploadVercelFiles(this.config, blobs, [...blobs.keys()]);
-          // `target: "production"`: without it Vercel makes a preview deployment, and only a project's
-          // FIRST deployment takes the production alias, so every later publish never reached the
-          // public address (2026-10-11). A publish is meant to update the live site.
           const name = safeVercelProjectName(input.projectName);
-          const body = JSON.stringify({ name, files: refs, target: 'production', projectSettings: { framework: null } });
-          let createResp = await createVercelDeployment(this.config, body);
-          let created = await readVercelJson(createResp);
-          const missing = created?.error?.code === 'missing_files' ? created.error.missing : undefined;
-          if (!createResp.ok && Array.isArray(missing)) {
-              // Vercel did not keep (or never got) some uploads: send exactly what it names, then create
-              // once more. A second `missing_files` is reported like any other create failure.
-              await uploadVercelFiles(this.config, blobs, missing.filter((sha) => blobs.has(sha)));
-              createResp = await createVercelDeployment(this.config, body);
-              created = await readVercelJson(createResp);
-          }
-          if (!createResp.ok)
-              throw vercelError(created, createResp.status);
+          const created = await createUploadedVercelDeployment({ config: this.config, name, refs, blobs });
           const deploymentId = typeof created.id === 'string' ? created.id : typeof created.uid === 'string' ? created.uid : undefined;
           const initialUrl = deploymentUrl(created);
-          const ready = deploymentId ? await pollVercelDeployment(this.config, deploymentId) : created;
-          if (ready?.readyState === 'ERROR') {
-              const readyError = ready?.error;
-              // `ready ?? undefined` — the `undefined` side is unreachable: this line
-              // only runs when `ready?.readyState === 'ERROR'` just matched, which
-              // requires `ready` itself to already be a real object (optional
-              // chaining on a null/undefined `ready` would make the whole comparison
-              // `undefined === 'ERROR'`, i.e. false, skipping this block entirely).
-              // So by the time `ready ?? undefined` evaluates, `ready` is always
-              // truthy and the `??` is a no-op at runtime. Kept (not simplified to
-              // just `ready`) purely for type-level reasons: `ready`'s static type is
-              // `JsonObject | null` (from `pollVercelDeployment`'s return type /
-              // `created`'s), and `DeployError`'s `details` parameter accepts
-              // `JsonObject | string | undefined` — not `null` — so this coalesce is
-              // a compile-time-required null-to-undefined conversion that TypeScript's
-              // control-flow analysis cannot narrow away just from the optional-chained
-              // comparison above. See packages/devops/source-map.md's 2026-07-22
-              // addition for the full re-derivation.
-              throw new DeployError(readyError?.message || 'Vercel deployment failed.', 502, ready ?? undefined);
-          }
-          const candidates = deploymentUrlCandidates(`${name}.vercel.app`, ready, created);
-          let link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
-              providerLabel: 'Vercel',
-              detectProtected: isVercelProtectedResponse,
-              protectedMessage: VERCEL_PROTECTED_MESSAGE,
-          });
-          // The kit counts any 3xx as reachable, but Deployment Protection answers a per-deployment
-          // URL with a redirect to Vercel's login, which is not a public link.
-          if (link.status === 'ready' && await redirectsToVercelLogin(link.url)) {
-              link = { status: 'protected', url: link.url, statusMessage: VERCEL_PROTECTED_MESSAGE };
-          }
+          const ready = await readyVercelDeployment({ config: this.config, deploymentId, created });
+          const link = await publicVercelLink({ name, ready, created, initialUrl });
           return {
               targetId: this.id,
               url: link.url || deploymentUrl(ready) || initialUrl,
@@ -212,6 +170,62 @@ export function bindVercel(kit) {
               protectedMessage: VERCEL_PROTECTED_MESSAGE,
           });
       }
+  }
+  async function createUploadedVercelDeployment({ config, name, refs, blobs }, _options = {}) {
+      // `target: "production"`: without it Vercel makes a preview deployment, and only a project's
+      // FIRST deployment takes the production alias, so every later publish never reached the
+      // public address (2026-10-11). A publish is meant to update the live site.
+      const body = JSON.stringify({ name, files: refs, target: 'production', projectSettings: { framework: null } });
+      let createResp = await createVercelDeployment(config, body);
+      let created = await readVercelJson(createResp);
+      const missing = created?.error?.code === 'missing_files' ? created.error.missing : undefined;
+      if (!createResp.ok && Array.isArray(missing)) {
+          // Vercel did not keep (or never got) some uploads: send exactly what it names, then create
+          // once more. A second `missing_files` is reported like any other create failure.
+          await uploadVercelFiles(config, blobs, missing.filter((sha) => blobs.has(sha)));
+          createResp = await createVercelDeployment(config, body);
+          created = await readVercelJson(createResp);
+      }
+      if (!createResp.ok)
+          throw vercelError(created, createResp.status);
+      return created;
+  }
+  async function readyVercelDeployment({ config, deploymentId, created }, _options = {}) {
+      const ready = deploymentId ? await pollVercelDeployment(config, deploymentId) : created;
+      if (ready?.readyState === 'ERROR') {
+          const readyError = ready?.error;
+          // `ready ?? undefined` — the `undefined` side is unreachable: this line
+          // only runs when `ready?.readyState === 'ERROR'` just matched, which
+          // requires `ready` itself to already be a real object (optional
+          // chaining on a null/undefined `ready` would make the whole comparison
+          // `undefined === 'ERROR'`, i.e. false, skipping this block entirely).
+          // So by the time `ready ?? undefined` evaluates, `ready` is always
+          // truthy and the `??` is a no-op at runtime. Kept (not simplified to
+          // just `ready`) purely for type-level reasons: `ready`'s static type is
+          // `JsonObject | null` (from `pollVercelDeployment`'s return type /
+          // `created`'s), and `DeployError`'s `details` parameter accepts
+          // `JsonObject | string | undefined` — not `null` — so this coalesce is
+          // a compile-time-required null-to-undefined conversion that TypeScript's
+          // control-flow analysis cannot narrow away just from the optional-chained
+          // comparison above. See packages/devops/source-map.md's 2026-07-22
+          // addition for the full re-derivation.
+          throw new DeployError(readyError?.message || 'Vercel deployment failed.', 502, ready ?? undefined);
+      }
+      return ready;
+  }
+  async function publicVercelLink({ name, ready, created, initialUrl }, _options = {}) {
+      const candidates = deploymentUrlCandidates(`${name}.vercel.app`, ready, created);
+      let link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
+          providerLabel: 'Vercel',
+          detectProtected: isVercelProtectedResponse,
+          protectedMessage: VERCEL_PROTECTED_MESSAGE,
+      });
+      // The kit counts any 3xx as reachable, but Deployment Protection answers a per-deployment
+      // URL with a redirect to Vercel's login, which is not a public link.
+      if (link.status === 'ready' && await redirectsToVercelLogin(link.url)) {
+          link = { status: 'protected', url: link.url, statusMessage: VERCEL_PROTECTED_MESSAGE };
+      }
+      return link;
   }
   /** One HEAD, redirects not followed: does `url` send visitors to Vercel's SSO/login wall? Any
    *  failure answers `false`, leaving the reachability result as it was. */
@@ -259,6 +273,12 @@ export function bindVercel(kit) {
       };
       await Promise.all(Array.from({ length: Math.min(VERCEL_UPLOAD_CONCURRENCY, queue.length) }, worker));
   }
+  function vercelUploadTransportError({ err }, _options = {}) {
+      // Node's fetch reports every transport failure as a bare "fetch failed"; the cause (a
+      // reset socket, a TLS or DNS error) is the only part that says what happened.
+      const cause = err?.cause?.message || err?.cause?.code;
+      return new DeployError(`Vercel file upload failed: ${err?.message ?? err}${cause ? ` (${cause})` : ''}`, 502);
+  }
   async function uploadVercelFile(config, sha, data) {
       for (let attempt = 1; ; attempt += 1) {
           let resp;
@@ -281,10 +301,7 @@ export function bindVercel(kit) {
                   await sleep(1000 * attempt);
                   continue;
               }
-              // Node's fetch reports every transport failure as a bare "fetch failed"; the cause (a
-              // reset socket, a TLS or DNS error) is the only part that says what happened.
-              const cause = err?.cause?.message || err?.cause?.code;
-              throw new DeployError(`Vercel file upload failed: ${err?.message ?? err}${cause ? ` (${cause})` : ''}`, 502);
+              throw vercelUploadTransportError({ err });
           }
           assertNotRedirected(resp, 'Vercel file upload');
           if (resp.ok) {
@@ -369,9 +386,12 @@ export function bindVercel(kit) {
           throw new DeployError('Vercel returned a non-JSON response.', resp.status || 502);
       }
   }
+  function vercelErrorField({ json, field }, _options = {}) {
+      return json?.error && typeof json.error === 'object' ? json.error[field] : undefined;
+  }
   function vercelError(json, status) {
-      const code = json?.error && typeof json.error === 'object' ? json.error.code : undefined;
-      const message = (json?.error && typeof json.error === 'object' ? json.error.message : undefined) ||
+      const code = vercelErrorField({ json, field: 'code' });
+      const message = vercelErrorField({ json, field: 'message' }) ||
           json?.message ||
           `Vercel request failed (${status}).`;
       if (code === 'forbidden' || /permission/i.test(String(message))) {
@@ -384,6 +404,26 @@ export function bindVercel(kit) {
       if (!url)
           return '';
       return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  }
+  function appendDeploymentAlias({ alias, urls }, _options = {}) {
+      if (typeof alias === 'string')
+          urls.push(alias);
+      else if (alias && typeof alias === 'object') {
+          const a = alias;
+          if (typeof a.domain === 'string')
+              urls.push(a.domain);
+          else if (typeof a.url === 'string')
+              urls.push(a.url);
+      }
+  }
+  function appendDeploymentAliases({ json, urls }, _options = {}) {
+      for (const alias of json.alias ?? []) {
+          if (typeof alias === 'string')
+              urls.push(alias);
+      }
+      for (const alias of json.aliases ?? []) {
+          appendDeploymentAlias({ alias, urls });
+      }
   }
   /**
    * `if (!json) continue` skips a response that is not there. Of this file's one call site,
@@ -403,21 +443,7 @@ export function bindVercel(kit) {
               continue;
           if (typeof json.url === 'string')
               deploymentUrls.push(json.url);
-          for (const alias of json.alias ?? []) {
-              if (typeof alias === 'string')
-                  urls.push(alias);
-          }
-          for (const alias of json.aliases ?? []) {
-              if (typeof alias === 'string')
-                  urls.push(alias);
-              else if (alias && typeof alias === 'object') {
-                  const a = alias;
-                  if (typeof a.domain === 'string')
-                      urls.push(a.domain);
-                  else if (typeof a.url === 'string')
-                      urls.push(a.url);
-              }
-          }
+          appendDeploymentAliases({ json, urls });
       }
       const candidates = [...new Set([...urls, ...deploymentUrls].map(normalizeDeploymentUrl).filter(Boolean))];
       // The public `<project>.vercel.app` alias goes first when Vercel lists it. Vercel orders aliases

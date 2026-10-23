@@ -3,7 +3,7 @@
 `site_backup_plan` and `site_backup_push` copy **this site** into one folder of a private GitHub
 repository, in one commit: its database, media, themes, installed plugins and skills, and settings.
 Both are native Tovu tools. They push with the same saved credential `custom_credential_*` uses:
-the Access Tokens page's *Add custom provider* entry, base URL `https://api.github.com`.
+the plugin’s card: `credential_save {kind:"plugin-provider",target:"github"}`.
 
 ---
 
@@ -123,7 +123,7 @@ own.
 
 | Code | What it means | What to tell them |
 |---|---|---|
-| `CREDENTIAL_NOT_FOUND` | No saved credential has that label, or none points at `https://api.github.com` | Save a GitHub token on the **Access Tokens** page (*Add custom provider*, base URL `https://api.github.com`), or name the right label with `credential`. Never have a token typed into the chat. |
+| `CREDENTIAL_NOT_FOUND` | No saved credential has that label, or none points at `https://api.github.com` | Open `credential_save {kind:"plugin-provider",target:"github"}`, or name the right label with `credential`. Never have a token typed into the chat. |
 | `CREDENTIAL_AMBIGUOUS` | More than one saved credential points at GitHub | Ask which one, then plan with `credential` |
 | `CREDENTIAL_UNREADABLE` | The credential **is saved** but this server cannot decrypt it | Not a bad GitHub token, so replacing it is the wrong first move. It starts with the **Site key**, and the message names which case applies. No Site key: start Tovu with it (`npm run dev` from the repo root, or `npm run desktop`). Malformed: fix it under **Secrets → Site key**. A different Site key from the one the credential was saved under: check **Secrets → Site key**, or save the credential again. |
 | `REPOSITORY_NOT_FOUND` | This credential cannot see that `owner/repo` | Confirm the names, then the token's repository access |

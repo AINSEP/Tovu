@@ -30,7 +30,7 @@ import test from "node:test";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { RETIRED_READ_TOOL_TO_CARD, currentToolIdFor } from "../content-read-tool.js";
-import { KEYWORD_MARKER, TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
+import { KEYWORD_MARKER, toolSearchKeywords } from "../tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -232,7 +232,7 @@ test("every retired member's SEARCH VOCABULARY survives into its card's indexed 
 
   const checked: string[] = [];
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
-    const keywords = TOOL_SEARCH_KEYWORDS[memberId];
+    const keywords = toolSearchKeywords({})[memberId];
     if (!keywords) continue;
     const description = byId.get(cardId)?.descriptor.description ?? "";
     for (const term of keywords.split(/\s+/).filter(Boolean)) {

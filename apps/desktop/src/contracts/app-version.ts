@@ -6,3 +6,11 @@ export interface RunnerAppVersionBridge {
   /** Resolves app.getVersion() verbatim, or rejects with the IPC failure. */
   getAppVersion: () => Promise<string>;
 }
+
+/** Settings › Check for updates…: main runs one check in this copy and shows every notice itself. */
+export const RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL = 'runner:app:check-for-updates';
+
+export interface RunnerUpdateCheckBridge {
+  /** Resolves once the check's first notice is shown; never carries renderer input. */
+  checkForUpdates: () => Promise<void>;
+}

@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { nativeToolMetadata } from '../../contracts/core/tool-metadata/index.js';
-import { TOOL_SEARCH_KEYWORDS } from '../tool-search-keywords.js';
+import { toolSearchKeywords } from '../tool-search-keywords.js';
 import { DOC2QUERY } from '../tool-search-doc2query.js';
 import { TOOL_APPROVAL_POLICY, POLICY_CONFIRMATION_TOOL_IDS } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from '../../contracts/headless/secret-form-cards.js';
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 
-/** Phase 16 baseline with reviewed render/gallery discovery, credential copy, site sharing,
- * tool gaps, local theme import, post templates and chat-selection additions. Exact search
+/** Phase 16 baseline with reviewed discovery additions, visitor-tool management and phase 7's
+ * vendor-neutral native vocabulary. Bundled declarations enrich search separately; exact native
  * strings and callback restrictions remain independently pinned. */
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/tool-metadata.baseline.json', import.meta.url), 'utf8')) as {
   keywords: Record<string, string>; queries: Record<string, string[]>; approvals: Record<string, unknown>;
@@ -21,7 +21,8 @@ const baseline = JSON.parse(readFileSync(new URL('./fixtures/tool-metadata.basel
 
 // Consent policy cards and the opt-in theme preview switcher extend the reviewed metadata inventory.
 test('projected search, approval and callback metadata exactly matches the reviewed baseline', () => {
-  assert.deepEqual(TOOL_SEARCH_KEYWORDS, baseline.keywords);
+  assert.deepEqual(nativeToolMetadata.keywords, baseline.keywords);
+  for (const [id, words] of Object.entries(baseline.keywords)) assert.ok(toolSearchKeywords({})[id]?.startsWith(words), id);
   assert.deepEqual(DOC2QUERY, baseline.queries);
   assert.deepEqual(TOOL_APPROVAL_POLICY, baseline.approvals);
   assert.deepEqual(SECRET_FORM_CARD_DEFINITIONS, baseline.secretForms);

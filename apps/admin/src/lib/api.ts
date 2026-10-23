@@ -578,6 +578,9 @@ export interface AdminSitesSnapshot {
   currentSite: AdminSiteBinding;
   /** The site name a previous Activate persisted to `.env`, pending a restart — `null` when none. */
   persistedSiteName: string | null;
+  /** The admin password a new site gets when the create form's password is left blank. Sent only
+   *  when switching is enabled; absent from an older server. Never written in this bundle. */
+  starterAdminPassword?: string;
 }
 
 /** The `201` body of `POST .../system/sites`. */
@@ -2209,6 +2212,7 @@ export interface AdminPluginFiles {
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
+  provides?: string[];
   origin?: "bundled" | "operator-installed";
   hostOk?: boolean;
   missingRequires?: string[];
@@ -4006,7 +4010,7 @@ export const api = {
    * `VALIDATION_ERROR` instead of a silent disable.
    */
   setAgentPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
-    request<{ agentPlugin: AdminAgentPlugin }>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}`, {
+    request<{ agentPlugin: AdminAgentPlugin; warnings?: string[] }>(`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}`, {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
     }),

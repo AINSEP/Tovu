@@ -63,9 +63,9 @@ function connectionFixture() {
 
 test("candidate discovery skips an existing config without a public URL", async () => {
   const { io, files } = connectionFixture();
-  files.set("/fixture/fly.toml", 'app = "demo"');
-  files.set("/fixture/render.yaml", "TOVU_PUBLIC_URL: https://destination.example\n");
-  assert.equal(await findCandidateDestination({ io, resolvePath: (file) => `/fixture/${file}` }), "https://destination.example");
+  files.set("/fixture/example-one.toml", 'app = "demo"');
+  files.set("/fixture/example-two.yaml", "TOVU_PUBLIC_URL: https://destination.example\n");
+  assert.equal(await findCandidateDestination({ io, resolvePath: (file) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
 });
 
 test("reconnecting an unchanged grant says that nothing needs deploying", async () => {

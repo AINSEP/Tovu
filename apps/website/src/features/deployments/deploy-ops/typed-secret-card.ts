@@ -33,7 +33,7 @@ export async function collectTypedDeploySecret(
       submitLabel: credentialText({ id: "saveSecret", locale: prep.locale }),
       text: { showSecret: credentialText({ id: "showSecret", locale: prep.locale }), hideSecret: credentialText({ id: "hideSecret", locale: prep.locale }) },
       fields: [{ kind: "string", name: "value", label: credentialText({ id: "secretValue", locale: prep.locale }),
-        ...SECRET_FORM_CARD_DEFINITIONS.deployment_ops_set_secret.secretField, multiline: true, required: true }],
+        ...SECRET_FORM_CARD_DEFINITIONS.deployment_ops_set_secret?.secretField, multiline: true, required: true }],
       cancelLabel: credentialText({ id: "cancel", locale: prep.locale }),
     }),
     save: async ({ values, signal }) => {

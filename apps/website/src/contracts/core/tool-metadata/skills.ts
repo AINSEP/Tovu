@@ -5,7 +5,7 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 export const toolMetadata = {
   "skills_install": {
     search: {
-      keywords: "skill skills install add new github repo repository url agent skill SKILL.md from github",
+      keywords: "skill skills install add new repo repository url agent skill SKILL.md from",
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },

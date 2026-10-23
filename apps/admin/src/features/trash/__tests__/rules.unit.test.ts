@@ -146,6 +146,14 @@ describe("actorLabel", () => {
 });
 
 describe("entityTypeLabel", () => {
+  it("labels the email-template registry kind in all supported locales", () => {
+    expect(entityTypeLabel("en", "email-template")).toBe("Email template");
+    for (const locale of ["es", "fr", "de", "it", "pt-BR", "id", "pl", "tr", "hu", "ru", "uk", "ar", "fa", "ur", "hi", "bn", "th", "ja", "ko", "zh-CN", "zh-TW"]) {
+      expect(entityTypeLabel(locale, "email-template")).not.toBe("Email template");
+      expect(entityTypeLabel(locale, "email-template")).not.toBe("email-template");
+    }
+  });
+
   it("translates every registry kind the Trash's phase-1-and-beyond registry can hold", () => {
     expect(entityTypeLabel("en", "post")).toBe("Post");
     expect(entityTypeLabel("en", "comment")).toBe("Comment");

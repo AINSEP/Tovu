@@ -2034,3 +2034,16 @@ test("hosts that declare no config or credential fields name that in their refus
   await assert.rejects(() => call(tool(registrations, "deployment_generate_bucket_hosting_setup"), { input: { target: "plain-host", bucket: "b" } }),
     (err: unknown) => err instanceof ToolInputError && err.message === "'bucket' is not a credential field of plain-host. It takes none.");
 });
+
+test('a throwing optional plugin card loader still opens and submits the default publish-host form', async () => {
+  const { deps } = fakeDeps();
+  deps.loadPluginCredentialCards = async () => { throw new Error('broken manifest'); };
+  const host: LoadedDeployTarget = { pluginId: 'pin-host', descriptor: { id: 'pin-host', label: 'Pin Host', module: 'host.mjs', configFields: [], credential: { vendorId: 'pin-host', tokenField: 'token', fields: [{ name: 'token', label: 'Token', required: true, secret: true }] } }, module: { create: () => assert.fail('must not publish') } };
+  deps.loadDeployTargets = async () => ({ get: id => id === 'pin-host' ? host : undefined, list: () => [host], refusals: [] });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const { pending, exchangeId, html } = await raiseCredentialForm(tool(buildRegistrations(deps, exchanges), 'credential_save'), { target: 'pin-host' });
+  assert.match(html, /Pin Host/);
+  exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: 'fixture_token_1234' } }, { toolId: 'credential_save' });
+  assert.equal((await pending as { saved: boolean }).saved, true);
+  assert.equal(exchanges.size(), 0);
+});

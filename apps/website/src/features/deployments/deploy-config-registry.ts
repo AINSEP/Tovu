@@ -2,7 +2,7 @@ import { bundledContributionSources } from "../agent-plugins/bundled-contributio
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type LoadPluginContributions, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { DeployConfigGeneratorModule } from "./deploy-config.js";
 
@@ -38,6 +38,8 @@ export interface DeployConfigGeneratorDescriptor {
   readonly id: string;
   readonly label: string;
   readonly module: string;
+  readonly candidatePaths?: readonly { readonly path: string; readonly order: number }[];
+  readonly workflowFile?: string;
 }
 
 export interface LoadedDeployConfigGenerator {
@@ -107,10 +109,7 @@ export async function loadBundledDeployConfigGenerators(required: { readonly sou
 /** Sync CLI help uses the same source selection and duplicate policy, without importing modules.
  * @complexity O(p + generators). */
 export function readBundledDeployConfigTargetIds(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): readonly string[] {
-  const ids = bundledContributionSources({ ...required, filename: DEPLOY_CONFIGS_FILENAME }).flatMap(readDeployConfigTargetIdsFromSource);
-  const counts = new Map<string, number>();
-  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return ids.filter(id => counts.get(id) === 1);
+  return readBundledDeployConfigDescriptors(required).map(descriptor => descriptor.id);
 }
 
 /** The export as a generator module, or the refusal reason. @complexity O(1). */
@@ -137,7 +136,7 @@ export function parseDeployConfigsFile(raw: string): { readonly ok: true; readon
 
   const descriptors: DeployConfigGeneratorDescriptor[] = [];
   for (const [index, entry] of value.generators.entries()) {
-    const descriptor = parseDescriptor(entry, `generators[${index}]`);
+    const descriptor = parseDescriptor({ entry, at: `generators[${index}]` });
     if (typeof descriptor === "string") return { ok: false, reason: descriptor };
     if (descriptors.some((seen) => seen.id === descriptor.id)) return { ok: false, reason: `generators[${index}].id '${descriptor.id}' is declared twice` };
     descriptors.push(descriptor);
@@ -146,14 +145,16 @@ export function parseDeployConfigsFile(raw: string): { readonly ok: true; readon
 }
 
 /** One generator entry, or the reason it is invalid. @complexity O(1). */
-function parseDescriptor(entry: unknown, at: string): DeployConfigGeneratorDescriptor | string {
+function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional = {}): DeployConfigGeneratorDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module } = entry;
-  if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !GENERATOR_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
+  if (!validGeneratorId({ id })) return `${at}.id must be a lowercase hyphenated id`;
   const label = readGeneratorLabel({ label: entry.label });
   if (label === undefined) return `${at}.label must be a non-empty string`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  return { id, label, module };
+  if (!validGeneratorModulePath({ module })) return `${at}.module must be a relative path ending in .mjs`;
+  const metadata = readPublishMetadata({ entry });
+  if (typeof metadata === "string") return `${at}.${metadata}`;
+  return { id: id as string, label, module: module as string, ...metadata };
 }
 
 /** Keep label bounds and blank detection together without normalizing the stored label. */
@@ -179,4 +180,81 @@ function buildRegistry(loaded: readonly LoadedDeployConfigGenerator[], refusals:
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Repo-relative declaration paths never escape to another drive or parent directory. */
+export function isContainedDeployConfigPath({ value }: { readonly value: unknown }, _optional = {}): boolean {
+  return typeof value === "string" && value.length <= 512 && /^[a-zA-Z0-9_./-]+$/.test(value)
+    && !value.split("/").some(segment => segment === ".." || segment === "." || segment === "");
+}
+
+/** Optional publish hints remain plain data; no generator executes during discovery. */
+function readPublishMetadata({ entry }: { entry: Readonly<Record<string, unknown>> }, _optional = {}): Pick<DeployConfigGeneratorDescriptor, "candidatePaths" | "workflowFile"> | string {
+  const { candidatePaths, workflowFile } = entry;
+  if (candidatePaths !== undefined && (!Array.isArray(candidatePaths) || !candidatePaths.every(validCandidatePath))) return "candidatePaths must contain repo-relative paths and finite orders";
+  if (workflowFile !== undefined && (typeof workflowFile !== "string" || !/^[a-zA-Z0-9_-]+\.ya?ml$/.test(workflowFile))) return "workflowFile must be a workflow filename";
+  return { ...(candidatePaths === undefined ? {} : { candidatePaths: candidatePaths as NonNullable<DeployConfigGeneratorDescriptor["candidatePaths"]> }), ...(workflowFile === undefined ? {} : { workflowFile: workflowFile as string }) };
+}
+
+function validCandidatePath(value: unknown): boolean {
+  return isPlainObject(value) && isContainedDeployConfigPath({ value: value.path }) && typeof value.order === "number" && Number.isFinite(value.order);
+}
+
+/** Synchronous hints from shipped sources, using the generator parser and duplicate-id policy.
+ * @param required Product-owned bundled source root. @returns Unambiguous descriptors, without importing modules. */
+export function readBundledDeployConfigDescriptors(required: { readonly sourceRoot: string }, _optional = {}): readonly DeployConfigGeneratorDescriptor[] {
+  // Composition roots call this eagerly; a missing bundled root yields no hints rather than a boot failure.
+  let sources: readonly TrustedPluginPackage[];
+  try { sources = bundledContributionSources({ ...required, filename: DEPLOY_CONFIGS_FILENAME }); } catch { return []; }
+  const descriptors = sources.flatMap(plugin => {
+    try {
+      const parsed = parseDeployConfigsFile(readFileSync(path.join(plugin.packageRoot, DEPLOY_CONFIGS_FILENAME), "utf8"));
+      return parsed.ok ? parsed.descriptors : [];
+    } catch { return []; }
+  });
+  const counts = new Map<string, number>();
+  for (const entry of descriptors) counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1);
+  return descriptors.filter(entry => counts.get(entry.id) === 1);
+}
+
+/** Ordered deploy suggestions; app.json remains the core's neutral convention. */
+export function readBundledDeployConfigCandidatePaths(required: { readonly sourceRoot: string }, _optional = {}): readonly string[] {
+  const entries = readBundledDeployConfigDescriptors(required).flatMap(entry => entry.candidatePaths ?? []);
+  entries.push({ path: "app.json", order: 4 });
+  entries.sort((a, b) => a.order - b.order);
+  return [...new Set(entries.map(entry => entry.path))];
+}
+
+/** Host supplies the single declared workflow to an ops adapter; ambiguity never guesses. */
+export function readBundledDeployWorkflowFile(required: { readonly sourceRoot: string }, _optional = {}): string | undefined {
+  const files = [...new Set(readBundledDeployConfigDescriptors(required).flatMap(entry => entry.workflowFile === undefined ? [] : [entry.workflowFile]))];
+  return files.length === 1 ? files[0] : undefined;
+}
+
+/** Keep identity and module path clauses separate from descriptor assembly. O(length). */
+function validGeneratorId({ id }: { id: unknown }, _options = {}): boolean {
+  return typeof id === "string" && id.length <= MAX_ID_LENGTH && GENERATOR_ID_PATTERN.test(id);
+}
+function validGeneratorModulePath({ module }: { module: unknown }, _options = {}): boolean {
+  return typeof module === "string" && module.endsWith(".mjs") && !path.posix.isAbsolute(module);
+}
+
+/** Installed workflow hints use the same active, trusted lifecycle as deploy ops, without imports. */
+export async function loadDeployWorkflowFiles(required: { workspaceId: string; loadContributions: LoadPluginContributions }, _options = {}): Promise<readonly string[]> {
+  const definition: PluginContributionDefinition<DeployConfigGeneratorDescriptor, DeployConfigGeneratorDescriptor> = {
+    filename: DEPLOY_CONFIGS_FILENAME, contribution: 'deploy workflow declarations', kind: 'data',
+    parse: ({ raw }) => parseDeployConfigsFile(raw), load: ({ descriptor }) => descriptor,
+    onReadError: () => [],
+  };
+  const result = await required.loadContributions({ workspaceId: required.workspaceId, definition }, { requireActive: true, orderByPluginId: true });
+  for (const refusal of result.refusals) console.warn(refusal);
+  return workflowFilesOf({ descriptors: result.items });
+}
+
+/** Hermetic roots use shipped sources; production uses loadDeployWorkflowFiles. O(descriptors). */
+export function readBundledDeployWorkflowFiles(required: { sourceRoot: string }, _options = {}): readonly string[] {
+  return workflowFilesOf({ descriptors: readBundledDeployConfigDescriptors(required) });
+}
+function workflowFilesOf({ descriptors }: { descriptors: readonly DeployConfigGeneratorDescriptor[] }, _options = {}): readonly string[] {
+  return [...new Set(descriptors.flatMap(entry => entry.workflowFile === undefined ? [] : [entry.workflowFile]))];
 }

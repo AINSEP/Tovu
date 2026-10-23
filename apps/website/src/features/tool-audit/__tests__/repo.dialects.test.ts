@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlToolAttemptAuditSink } from "../repo.js";
+import { MAX_VISITOR_ROWS_PER_WORKSPACE, SqlToolAttemptAuditSink } from "../repo.js";
 import { createInMemoryToolAttemptAuditSink } from "../repo.memory.js";
 import type { ToolAttemptEvent } from "../types.js";
 
@@ -30,6 +30,30 @@ async function rows(kernel: ContentKernel, workspaceId: string) {
 }
 
 describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], make: (kernel) => kernel }, (makeKernel) => {
+  test("visitor floods prune only their bucket; admin floods preserve visitors and other sites", async () => {
+    const kernel = makeKernel();
+    const sink = new SqlToolAttemptAuditSink(kernel, { maxRowsPerWorkspace: 3, maxVisitorRowsPerWorkspace: 2, pruneCheckInterval: 1 });
+    await sink.append(event({ workspaceId: "other-site", principalId: "anonymous-visitor", attemptId: "other" }));
+    await sink.append(event({ attemptId: "admin-original" }));
+    for (let i = 0; i < 8; i++) await sink.append(event({ principalId: "anonymous-visitor", attemptId: `visitor-${i}` }));
+    assert.deepEqual((await rows(kernel, "ws-1")).map(row => row.attempt_id), ["admin-original", "visitor-6", "visitor-7"]);
+    for (let i = 0; i < 8; i++) await sink.append(event({ principalId: `admin-${i % 2}`, attemptId: `admin-${i}` }));
+    assert.deepEqual((await rows(kernel, "ws-1")).map(row => row.attempt_id), ["visitor-6", "visitor-7", "admin-5", "admin-6", "admin-7"]);
+    assert.deepEqual((await rows(kernel, "other-site")).map(row => row.attempt_id), ["other"]);
+    assert.equal(MAX_VISITOR_ROWS_PER_WORKSPACE, 20_000);
+  });
+
+  test("prune cadence is tracked per workspace and bucket, so interleaved traffic cannot starve pruning", async () => {
+    const kernel = makeKernel();
+    const sink = new SqlToolAttemptAuditSink(kernel, { maxRowsPerWorkspace: 1, maxVisitorRowsPerWorkspace: 1, pruneCheckInterval: 2 });
+    for (let i = 0; i < 4; i++) {
+      await sink.append(event({ principalId: "anonymous-visitor", attemptId: `visitor-${i}` }));
+      await sink.append(event({ attemptId: `admin-${i}` }));
+      await sink.append(event({ workspaceId: "other", attemptId: `other-${i}` }));
+    }
+    assert.deepEqual((await rows(kernel, "ws-1")).map(row => row.attempt_id), ["visitor-3", "admin-3"]);
+    assert.deepEqual((await rows(kernel, "other")).map(row => row.attempt_id), ["other-3"]);
+  });
   test("a failed write reports the original error through the default logger and stores no event", async (t) => {
     const kernel = makeKernel();
     const failure = new Error("audit storage unavailable");
@@ -110,4 +134,24 @@ test("memory sink honors daemon options while retaining legacy event detail", as
   await sink.append(event(), { detail: "cross-site read: B (B)" });
   await sink.append(event(), { detail: null });
   assert.deepEqual(sink.events.map(event => event.detail), ["keys: fields[1], key, label", "cross-site read: B (B)", null]);
+});
+
+test("memory sink evicts oldest anonymous events while preserving its live read array and detail", async () => {
+  const sink = createInMemoryToolAttemptAuditSink({}, { maxEvents: 3 });
+  const retained = sink.events;
+  for (let i = 0; i < 8; i++) await sink.append(event({ principalId: "anonymous-visitor", attemptId: `visitor-${i}` }), { detail: `detail-${i}` });
+  assert.equal(sink.events, retained);
+  assert.deepEqual(retained.map(row => row.attemptId), ["visitor-5", "visitor-6", "visitor-7"]);
+  assert.deepEqual(retained.map(row => row.detail), ["detail-5", "detail-6", "detail-7"]);
+});
+
+test("memory sink defaults to 20000 retained events and rejects invalid capacities", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  for (let i = 0; i <= 20_000; i++) await sink.append(event({ principalId: "anonymous-visitor", attemptId: String(i) }));
+  assert.equal(sink.events.length, 20_000);
+  assert.equal(sink.events[0].attemptId, "1");
+  assert.equal(sink.events.at(-1)?.attemptId, "20000");
+  for (const maxEvents of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => createInMemoryToolAttemptAuditSink({}, { maxEvents }), RangeError);
+  }
 });

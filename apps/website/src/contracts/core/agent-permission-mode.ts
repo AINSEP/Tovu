@@ -1,5 +1,6 @@
 import { resolveRuntimeMode } from "./runtime-mode.js";
 import { isHostedAssistantRuntime } from "./assistant-native-fallbacks.js";
+import type { HostSignalOptions } from "./host-signals.js";
 
 /**
  * @file The assistant agent CLI's permission mode, resolved from env. Extracted from
@@ -25,12 +26,16 @@ import { isHostedAssistantRuntime } from "./assistant-native-fallbacks.js";
 
 export type AgentPermissionMode = "bypass" | "restricted";
 
-/** @complexity O(1). Pure over the env it is given. */
+/** Pure over the env and host-supplied platform facts; hosted restrictions precede overrides.
+ * @param required Environment snapshot. @param optional Matched shipped platform facts.
+ * @returns The agent's permission mode; never performs I/O. @complexity O(1).
+ * @example resolveAgentPermissionMode({ env }, { hostSignals });
+ */
 export function resolveAgentPermissionMode(
   required: { env: Record<string, string | undefined> },
-  _optional: Record<string, never> = {}
+  optional: HostSignalOptions = {}
 ): AgentPermissionMode {
-  if (isHostedAssistantRuntime({ env: required.env }, {})) return "restricted";
+  if (isHostedAssistantRuntime({ env: required.env }, optional)) return "restricted";
   if (required.env.TOVU_AGENT_PERMISSION_MODE === "bypass") return "bypass";
   if (required.env.TOVU_AGENT_PERMISSION_MODE === "restricted") return "restricted";
   return resolveRuntimeMode({ env: required.env }) === "production" ? "restricted" : "bypass";

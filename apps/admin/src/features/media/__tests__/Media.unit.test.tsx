@@ -1144,13 +1144,21 @@ describe("EditMediaModal — eye-icon trigger", () => {
     }
   });
 
-  it("keeps the desktop card title as text with the existing eye action", async () => {
+  it("opens the desktop title tooltip without opening metadata, retaining the eye action", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const user = userEvent.setup();
     const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     expect(within(card).queryByRole("button", { name: "Edit metadata: Sunset Photo.png" })).toBeNull();
-    await user.click(card.querySelector(".media-card-title")!);
+    const titleTrigger = within(card).getByRole("button", { name: "Sunset Photo.png" });
+    expect(titleTrigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(titleTrigger);
+    expect(titleTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Sunset Photo.png");
+    expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
+    await user.keyboard("{Escape}");
+    expect(titleTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector(".info-tip-bubble")).toBeNull();
     expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
     expect(within(card).getByRole("button", { name: 'Edit "Sunset Photo"' })).toBeInTheDocument();
   });

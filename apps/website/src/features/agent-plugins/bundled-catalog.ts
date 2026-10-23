@@ -1,18 +1,10 @@
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
- * Each hosting plugin split out of `deploy` (2026-10-12: `vercel`, `netlify`,
- * `cloudflare-pages`, `github-pages`, `s3-compatible`) hosts the publish targets
- * (`features/deployments/deploy-targets/`): with them off, publishing a site would stop working.
- * Owner rule: a user should never have to fix anything by hand, so they are on from the first boot,
- * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
- * `recordBundledAgentPluginIfAbsent`). An operator can still turn one off, and that decision survives
- * every later boot; an operator who had turned `deploy` off keeps the split-out hosts off too
- * (`deploy-split-activation.ts`). Phase B extends that carry to Fly, Render and Railway; GitHub
- * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12). `deploy` itself is
- * retired (Phase B7, `RETIRED_BUNDLED_AGENT_PLUGINS` below) and no longer seeded.
- * `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
- * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
- * stop sending mail. `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
+ * Hosting plugins seed disabled (owner, 2026-10-22): operators enable their chosen host in
+ * Agent Plugins before publishing. Existing activation records remain unchanged. Retirement of
+ * an enabled `deploy` still enables its successors to preserve that existing site's capability;
+ * `RETIRED_BUNDLED_AGENT_PLUGINS` below keeps that migration. GitHub Actions follows `github`.
+ * `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
  * moved out of core 2026-09-29: with it off, committing the site, `custom_credential_write_files`, site
  * backups and the Source Control form's account-name check would all stop. `site-import` (owner
  * decision 2026-10-08): bringing an existing website into Tovu is a first-run job, so the skill is
@@ -25,7 +17,7 @@
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["fly", "render", "railway", "vercel", "netlify", "cloudflare", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a

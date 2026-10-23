@@ -2,7 +2,7 @@ import { anonymousMemberAccess } from "./member-access.fixture.js";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createSiteAssistantTools, type SiteAssistantToolDeps } from "../tools.js";
+import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools.js";
 import { listPublishedPosts } from "#src/features/post/index";
 
 /**
@@ -48,6 +48,25 @@ const ROWS: FakeRow[] = [
   row({ slug: "public-page", status: "published", title: "Public Page", kind: "page" }),
 ];
 
+// Generated ids and renamed taxonomies prevent a name/id shortcut from passing as category lookup.
+const TAXONOMY = {
+  taxonomies: { list: async () => [
+    { id: "tx-topics", name: "Topics", hierarchical: true, status: "active", updatedAt: "2026-01-01", version: 1 },
+    { id: "tx-tags", name: "Labels", hierarchical: false, status: "active", updatedAt: "2026-01-01", version: 1 },
+    { id: "tx-trash", name: "Removed", hierarchical: true, status: "trash", updatedAt: "2026-01-01", version: 1 },
+  ] },
+  terms: { listByTaxonomy: async ({ taxonomyId }: { taxonomyId: string }) => [
+    { taxonomyId: "tx-topics", name: "Travel", status: "active" },
+    { taxonomyId: "tx-topics", name: "News", status: "active" },
+    { taxonomyId: "tx-topics", name: "News", status: "active" },
+    { taxonomyId: "tx-topics", name: "Removed category", status: "trash" },
+    { taxonomyId: "tx-tags", name: "Tag only", status: "active" },
+    { taxonomyId: "tx-trash", name: "Trashed taxonomy category", status: "active" },
+  ].filter(term => term.taxonomyId === taxonomyId).map((term, index) => ({
+    ...term, id: `term-${index}`, parentId: null, updatedAt: "2026-01-01", version: 1,
+  })) },
+};
+
 /**
  * Shared deps base for every `createSiteAssistantTools` call below — `SiteAssistantToolDeps` now
  * injects `listPublishedPosts` (see `tools.ts`'s own doc for why), so every call site needs it. Uses
@@ -82,10 +101,10 @@ describe("site assistant tools", () => {
     it("scopes the list call to the configured workspace", async () => {
       const { calls, port } = fakePort();
       const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
-      await tools.list_categories();
+      await tools.list_categories({});
       await tools.search_published_entries({});
       await tools.get_published_entry({ slug: "public-post" });
-      assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws" }, { workspaceId: "ws" }]);
+      assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws" }]);
     });
 
     it("never surfaces a draft from search", async () => {
@@ -164,15 +183,21 @@ describe("site assistant tools", () => {
       assert.equal((result as { text: string }).text, "");
     });
 
-    it("derives categories from published, non-trashed posts only", async () => {
-      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never }));
-      assert.deepEqual(await tools.list_categories(), ["page", "post"]);
-      const hiddenPages = createSiteAssistantTools(makeDeps({ postRepo: fakePort([
-        row({ slug: "visible", status: "published" }),
-        row({ slug: "draft-page", status: "draft", kind: "page" }),
-        row({ slug: "trashed-page", status: "published", kind: "page", deletedAt: "2026-02-01" }),
-      ]).port as never }));
-      assert.deepEqual(await hiddenPages.list_categories(), ["post"]);
+    it("lists live taxonomy category names, excluding tags, trash and duplicate names", async () => {
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never, taxonomy: TAXONOMY }));
+      assert.deepEqual(await tools.list_categories({}), ["News", "Travel"]);
+    });
+
+    it("returns no categories when only posts/pages exist, or when the site has tags only", async () => {
+      for (const taxonomy of [undefined, { ...TAXONOMY, taxonomies: { list: async () => [] } },
+        { ...TAXONOMY, taxonomies: { list: async () => (await TAXONOMY.taxonomies.list()).filter(tax => !tax.hierarchical) } },
+        { ...TAXONOMY, terms: { listByTaxonomy: async () => [] } }]) {
+        const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort().port as never, taxonomy }));
+        assert.deepEqual(await tools.list_categories({}), []);
+      }
+      const schema = SITE_ASSISTANT_TOOL_SCHEMAS.find(schema => schema.name === "list_categories");
+      assert.match(schema!.description, /taxonomy categor/);
+      assert.doesNotMatch(schema!.description, /List the content types/);
     });
   });
 
@@ -203,11 +228,10 @@ describe("site assistant tools", () => {
     });
 
     it("does not cap list_categories or get_published_entry, only the search list", async () => {
-      // The cap bounds what the model sees per search call; it must not make older content
-      // invisible to category enumeration or a direct, addressed slug lookup.
+      // Search limits must not hide categories or a directly addressed entry.
       const many = Array.from({ length: 5 }, (_, i) => row({ slug: `p${i}`, status: "published", kind: i === 4 ? "page" : "post" }));
-      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort(many).port as never, maxResults: 2 }));
-      assert.deepEqual(await tools.list_categories(), ["page", "post"]);
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: fakePort(many).port as never, maxResults: 1, taxonomy: TAXONOMY }));
+      assert.deepEqual(await tools.list_categories({}), ["News", "Travel"]);
       const result = await tools.get_published_entry({ slug: "p4" });
       assert.ok(!("error" in result), "a slug outside the search cap must still resolve directly");
     });
@@ -329,7 +353,7 @@ for (const memberAccessJson of [
     assert.deepEqual((await tools.search_published_entries({})).map(entry => entry.slug), ["open"], "gate before search cap");
     assert.deepEqual(await tools.search_published_entries({ query: "Members Secret" }), []);
     assert.ok("error" in await tools.get_published_entry({ slug: "secret" }));
-    assert.deepEqual(await tools.list_categories(), ["post"], "no kind from gated-only content");
+    assert.deepEqual(await tools.list_categories({}), [], "content kinds must never become categories");
     for (const action of ["navigate_to_entry", "scroll_to_entry", "highlight_entry"] as const) {
       const hidden = await tools[action]({ slug: "secret" });
       assert.equal(hidden.directive, undefined);

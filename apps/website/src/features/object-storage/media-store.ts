@@ -1,3 +1,4 @@
+import { type ObjectStoreEnvDeclaration } from "./registry.js";
 import { blobStoreFromObjectStore, type BlobStorePort } from "@jini-ai/cms/media";
 import { deferObjectStore, type ObjectStore, type ObjectStoreCreateInput } from "@jini-ai/core/object-store";
 import { createLocalFsObjectStore } from "@jini-ai/platform/object-store";
@@ -25,16 +26,14 @@ import type { LoadedObjectStoreRegistry, ObjectStoreHost } from "./registry.js";
 
 export const MEDIA_OBJECT_STORE_ENV = "TOVU_MEDIA_BLOB_STORE";
 
-/** The S3 provider's registry id (the env value `s3` maps to it). */
-export const S3_OBJECT_STORE_ID = "s3_compatible";
-
 type Credential = NonNullable<ObjectStoreCreateInput["credential"]>;
 
-/** The env override, resolved synchronously: unset, local, or a complete S3 config. */
+/** The env override, resolved synchronously: unset, local, or a complete config for the provider
+ *  whose bundled object-store declaration owns the selector. */
 export type MediaStoreEnvChoice =
   | { readonly kind: "unset" }
   | { readonly kind: "local" }
-  | { readonly kind: "s3"; readonly settings: Readonly<Record<string, string | undefined>>; readonly credential: Credential };
+  | { readonly kind: "remote"; readonly providerId: string; readonly settings: Readonly<Record<string, string | undefined>>; readonly credential: Credential };
 
 /** Late-bound boot ports: read on first media use, after the composition root has built them. */
 export interface MediaObjectStorePorts {
@@ -49,31 +48,34 @@ export interface MediaObjectStorePorts {
 }
 
 /**
- * Reads and validates the env override. Error texts are the ones operators already know.
- * @throws {Error} Unknown backend, or `s3` without every required variable.
+ * Reads and validates the env override. Error texts are the ones operators already know: the
+ * declaration supplies the selector and the required variables in their original order, so the
+ * messages stay byte-identical.
+ * @throws {Error} Unknown backend, or a declared selector without every required variable.
  * @complexity O(1).
  */
-export function readMediaStoreEnv(required: { readonly env: Readonly<Record<string, string | undefined>> }, _optional: Record<string, never> = {}): MediaStoreEnvChoice {
+export function readMediaStoreEnv(required: { readonly env: Readonly<Record<string, string | undefined>> }, optional: { readonly envDeclarations?: readonly ObjectStoreEnvDeclaration[] } = {}): MediaStoreEnvChoice {
   const { env } = required;
   const backend = env[MEDIA_OBJECT_STORE_ENV];
   if (backend === undefined) return { kind: "unset" };
   if (backend === "local") return { kind: "local" };
-  if (backend !== "s3") throw new Error(`Unknown TOVU_MEDIA_BLOB_STORE '${backend}' — expected 'local' or 's3'.`);
-  // Each entry pairs the env var name with its value, so a missing one is reported by its real name.
-  const requiredVars: Array<[name: string, value: string | undefined]> = [
-    ["TOVU_S3_BUCKET", env.TOVU_S3_BUCKET],
-    ["TOVU_S3_REGION", env.TOVU_S3_REGION],
-    ["TOVU_S3_ACCESS_KEY_ID", env.TOVU_S3_ACCESS_KEY_ID],
-    ["TOVU_S3_SECRET_ACCESS_KEY", env.TOVU_S3_SECRET_ACCESS_KEY],
-  ];
-  const missing = requiredVars.filter(([, value]) => !value).map(([name]) => name);
-  if (missing.length > 0) {
-    throw new Error(`TOVU_MEDIA_BLOB_STORE=s3 requires ${requiredVars.map(([name]) => name).join(", ")} — missing: ${missing.join(", ")}.`);
+  const declarations = optional.envDeclarations ?? [];
+  const declaration = declarations.find(entry => entry.selector === backend);
+  if (!declaration) {
+    const expected = ["local", ...declarations.map(entry => entry.selector)].map(selector => `'${selector}'`).join(" or ");
+    throw new Error(`Unknown ${MEDIA_OBJECT_STORE_ENV} '${backend}' — expected ${expected}.`);
   }
+  // Each entry pairs the env var name with its value, so a missing one is reported by its real name.
+  const requiredVars = declaration.required;
+  const missing = requiredVars.filter(name => !env[name]);
+  if (missing.length > 0) {
+    throw new Error(`${MEDIA_OBJECT_STORE_ENV}=${backend} requires ${requiredVars.join(", ")} — missing: ${missing.join(", ")}.`);
+  }
+  const map = (mapping: Readonly<Record<string, string>>) => Object.fromEntries(Object.entries(mapping).map(([field, name]) => [field, env[name]]));
   return {
-    kind: "s3",
-    settings: { bucket: env.TOVU_S3_BUCKET, keyPrefix: env.TOVU_S3_KEY_PREFIX },
-    credential: { fields: { accessKeyId: env.TOVU_S3_ACCESS_KEY_ID, region: env.TOVU_S3_REGION, endpoint: env.TOVU_S3_ENDPOINT }, secret: env.TOVU_S3_SECRET_ACCESS_KEY as string },
+    kind: "remote", providerId: declaration.providerId,
+    settings: map(declaration.settings),
+    credential: { fields: map(declaration.credentialFields), secret: env[declaration.secret] as string },
   };
 }
 
@@ -89,13 +91,13 @@ export function readMediaStoreEnv(required: { readonly env: Readonly<Record<stri
  */
 export function createMediaBlobStore(
   required: { readonly uploadsDir: string; readonly env: Readonly<Record<string, string | undefined>>; readonly ports: () => MediaObjectStorePorts },
-  _optional: Record<string, never> = {}
+  optional: { readonly envDeclarations?: readonly ObjectStoreEnvDeclaration[] } = {}
 ): { readonly blobStore: BlobStorePort; readonly mediaIsRemoteByEnv: boolean; readonly isMediaRemote: () => Promise<boolean> } {
-  const choice = readMediaStoreEnv({ env: required.env });
+  const choice = readMediaStoreEnv({ env: required.env }, optional);
   const local = () => createLocalFsObjectStore({ rootDir: required.uploadsDir });
   const store = choice.kind === "local" ? local() : deferObjectStore({ load: () => loadMediaObjectStore({ choice, ports: required.ports(), local }) });
-  const isMediaRemote = async () => (choice.kind === "unset" ? (await settingProviderId({ ports: required.ports() })) !== "local" : choice.kind === "s3");
-  return { blobStore: blobStoreFromObjectStore({ store }), mediaIsRemoteByEnv: choice.kind === "s3", isMediaRemote };
+  const isMediaRemote = async () => (choice.kind === "unset" ? (await settingProviderId({ ports: required.ports() })) !== "local" : choice.kind === "remote");
+  return { blobStore: blobStoreFromObjectStore({ store }), mediaIsRemoteByEnv: choice.kind === "remote", isMediaRemote };
 }
 
 /** The site setting's provider id, blank meaning the registry default `local`. @complexity One setting read. */
@@ -110,8 +112,8 @@ async function settingProviderId(required: { readonly ports: MediaObjectStorePor
  */
 async function loadMediaObjectStore(required: { readonly choice: Exclude<MediaStoreEnvChoice, { kind: "local" }>; readonly ports: MediaObjectStorePorts; readonly local: () => ObjectStore }): Promise<ObjectStore> {
   const { choice, ports } = required;
-  if (choice.kind === "s3") {
-    return createFrom({ loaded: await ports.loadBundledRegistry(), providerId: S3_OBJECT_STORE_ID, settings: choice.settings, credential: choice.credential, host: ports.host });
+  if (choice.kind === "remote") {
+    return createFrom({ loaded: await ports.loadBundledRegistry(), providerId: choice.providerId, settings: choice.settings, credential: choice.credential, host: ports.host });
   }
   const providerId = await settingProviderId({ ports });
   if (providerId === "local") return required.local();

@@ -223,7 +223,7 @@ export async function reindexStalePostSearchIndex(store: ContentKernel | Content
     });
     reindexed += ids.length;
     if (ids.length < batchSize) break;
-    after = ids[ids.length - 1];
+    after = ids.at(-1) ?? null;
   }
   await writeProjectionVersion(kernel);
   return reindexed;

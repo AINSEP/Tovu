@@ -84,7 +84,10 @@ function toBindingRow(binding: NavLocationBindingRow): NavLocationBindingsTable 
 }
 
 export class SqlMenuRepo implements MenuRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /** One `menus` row by id in the workspace, trashed rows included only when asked. */
   private async findOne(required: { workspaceId: string; id: string }, includeTrashed: boolean): Promise<NavMenuEntry | null> {
@@ -229,7 +232,10 @@ export class SqlMenuRepo implements MenuRepoPort {
 }
 
 export class SqlNavLocationBindingRepo implements NavLocationBindingRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByLocation(required: {
     workspaceId: string;

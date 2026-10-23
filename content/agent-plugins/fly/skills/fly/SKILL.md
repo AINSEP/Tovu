@@ -5,6 +5,10 @@ description: Deploy the Tovu server itself to fly.io with no CLI installed (flyc
 
 # Deploy the Tovu server
 
+## Connection card
+
+Open **Connect Fly.io** with `credential_save {kind:"plugin-provider",target:"fly"}` for a new key. The card explains app-scoped deploy tokens and saves the `fly.io` credential with both API origins. In the Fly dashboard select the real app or organization, then **Tokens**; there is no universal app token-creation URL to guess. Rotate an existing row through `credential_save {kind:"api",target:"fly.io"}`.
+
 ## Scope
 
 This plugin owns **deploying the Tovu server itself** (app, admin, database), not publishing the site's

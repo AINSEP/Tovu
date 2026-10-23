@@ -73,7 +73,10 @@ function assertSameIdentity(required: { requested: { workspaceId: string; submis
 
 /** Plans (plan-once with child jobs) and per-binding status reads. */
 export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
-  constructor(private readonly required: { kernel: ContentKernel }, _optional: Record<string, never> = {}) {}
+  private readonly required: { kernel: ContentKernel };
+  constructor(required: { kernel: ContentKernel }, _optional: Record<string, never> = {}) {
+    this.required = required;
+  }
 
   /**
    * Returns the stored plan, or runs `build` and stores the plan row, every child outbox job and
@@ -204,7 +207,10 @@ function leaseExpiresAt(nowIso: string, leaseMs: number): string {
  * bounds and must prove the lease outlasts the bounded pull (see `withFormPullLease`).
  */
 export class SqlFormPullLeaseRepo implements FormPullLeasePort {
-  constructor(private readonly required: { kernel: ContentKernel }, _optional: Record<string, never> = {}) {}
+  private readonly required: { kernel: ContentKernel };
+  constructor(required: { kernel: ContentKernel }, _optional: Record<string, never> = {}) {
+    this.required = required;
+  }
 
   /**
    * Atomic admission: under `lockKey` (Postgres advisory lock; SQLite's write transaction), reads

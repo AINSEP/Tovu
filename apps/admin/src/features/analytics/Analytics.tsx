@@ -34,7 +34,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
   if (!hits) return <div className="notice">{t("Loading recent hits…")}</div>;
 
   return (
-    <div className="page analytics-page">
+    <div className="page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Marketing")}</p>

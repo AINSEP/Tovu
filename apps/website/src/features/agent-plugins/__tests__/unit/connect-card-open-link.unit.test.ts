@@ -1,3 +1,4 @@
+import { buildAgentPluginAccessTokenForm } from "../../connect-card-ui.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from "node:module";
@@ -62,4 +63,25 @@ test("the generic connect card's sign-in button sends ui/open-link as a request 
   const open = await clickOpenLink(card.resource.text as string);
   assert.deepEqual(open, { jsonrpc: "2.0", id: open?.id, method: "ui/open-link", params: { url: SIGN_IN } });
   assert.equal(typeof open?.id, "string", "an id-less ui/open-link is a notification AppBridge drops silently");
+});
+
+test('the sign-in card uses the plugin declaration to explain the connection and permissions', () => {
+  const resource = buildAgentPluginConnectCard({ pluginId: 'example', pluginDisplayName: 'Example', state: 'waiting', signInUrl: 'https://example.com/authorize', credentialCard: {
+    providerId: 'example', label: 'Example', category: 'general', baseUrl: 'https://example.com', title: 'Connect your media account', intro: 'Create media for this site.', permissions: 'Generation needs a separate write grant.', saveKind: 'oauth',
+  } });
+  const html = resource.resource.text;
+  assert.match(html, /Connect your media account/);
+  assert.match(html, /Create media for this site/);
+  assert.match(html, /Generation needs a separate write grant/);
+  assert.ok(!html.includes("It's free and takes about two minutes."));
+});
+
+test('plugin token decoration preserves the token app, cancel action and submission fields', () => {
+  const original = buildAgentPluginAccessTokenForm({ pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens' });
+  const decorated = buildAgentPluginAccessTokenForm({ pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens', credentialCard: { pluginId: 'example', providerId: 'example', label: 'Account', category: 'ops', baseUrl: 'https://example.com', title: 'Plugin account', keyHint: 'Scoped key only', saveKind: 'agent-plugin-token' } });
+  assert.deepEqual(decorated.app, original.app);
+  assert.equal(decorated.cancelLabel, original.cancelLabel);
+  assert.equal(decorated.submitLabel, original.submitLabel);
+  assert.deepEqual(decorated.fields.map(field => field.name), ['token']);
+  assert.equal(decorated.fields[0].hint, 'Scoped key only');
 });

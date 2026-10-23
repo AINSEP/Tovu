@@ -10,7 +10,9 @@ import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, I
 import { buildMediaViewVideoRegistrations, MEDIA_VIEW_VIDEO_INPUT_SCHEMA, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
 import { startStubProviderServer } from '../../../server/__tests__/helpers/stub-provider-server.js';
 import { runByokProviderTurn } from '../../../assistant/byok-provider-turn.js';
-import { TOOL_SEARCH_KEYWORDS } from '../../../assistant/tool-search-keywords.js';
+import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
+import { applyBatchInputs, type BatchResult } from '../../../assistant/batch-tool-inputs.js';
+import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md.
 // Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
@@ -48,6 +50,70 @@ async function harness() {
 }
 type Envelope = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };
 
+test('video slugs resolve through the gate in an eight-item sequential batch', async () => {
+  const h = await harness();
+  const asset = await h.seed();
+  const registration = applyBatchInputs({ registrations: h.registrations })[0]!;
+  const extract = h.deps.extractor.extract;
+  let active = 0;
+  h.deps.extractor.extract = async (required, options) => {
+    active++;
+    assert.equal(active, 1, 'video batch extractions must be sequential');
+    try {
+      await Promise.resolve();
+      return await extract(required, options);
+    } finally { active--; }
+  };
+  const input = { items: Array.from({ length: 8 }, () => ({ slug: asset.slug, at: [0] })) };
+  const before = structuredClone(input);
+  const output = await invokeRegisteredTool(registration, { executionId: 'batch', principal: { id: owner }, run: { id: 'run' }, input, signal: new AbortController().signal }) as BatchResult;
+  assert.equal(output.succeeded, 8);
+  assert.equal(output.failed, 0);
+  assert.equal(h.extractions, 8);
+  for (const item of output.results) {
+    assert.ok(item.ok);
+    const result = item.result as Envelope & { normalizationNotes: string[] };
+    assert.ok(result.normalizationNotes.includes('slug→mediaId'));
+    assert.equal(result.content.filter(block => block.type === 'image').length, 2);
+  }
+  assert.deepEqual(input, before);
+});
+
+test('video selector conflicts and missing slugs fail only their items; equal selectors work', async () => {
+  const h = await harness();
+  const asset = await h.seed();
+  const registration = applyBatchInputs({ registrations: h.registrations })[0]!;
+  const execution = await executeRegisteredTool({ registration,
+    input: { items: [{ slug: asset.slug, mediaId: 'other' }, { slug: 'missing' }, { slug: asset.slug, mediaId: asset.id, at: [0] }] } }, { principalId: owner });
+  assert.ok('output' in execution);
+  const output = execution.output as BatchResult;
+  assert.deepEqual(output.results.map(item => item.ok), [false, false, true]);
+  assert.match((output.results[0] as { error: string }).error, /slug and mediaId.*disagree/);
+  assert.equal(h.extractions, 1);
+});
+
+test('video slug calls retain ownership checks and the eight-item cap before source reads', async () => {
+  const h = await harness();
+  const asset = await h.seed('another-owner');
+  const registration = applyBatchInputs({ registrations: h.registrations })[0]!;
+  const ctx = { executionId: 'batch', principal: { id: owner }, run: { id: 'run' }, signal: new AbortController().signal };
+  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { slug: asset.slug } }), /unavailable or not owned/);
+  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: 9 }, () => ({ slug: asset.slug })) } }), /8/);
+  for (const slug of ['', '../clip', 3, null]) {
+    await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { slug } }), /slug/);
+  }
+  assert.equal(h.extractions, 0);
+});
+
+test('delegated HTTP video batches accept slug selectors', async () => {
+  const h = await harness();
+  const asset = await h.seed();
+  const registration = applyBatchInputs({ registrations: h.registrations })[0]!;
+  const result = await executeDelegatedRegisteredTool({ registration, input: { items: [{ slug: asset.slug, at: [0] }] } }, { principalId: owner });
+  assert.notEqual(result.isError, true, delegatedText(result));
+  assert.equal(h.extractions, 1);
+});
+
 test('video schema and description advertise gap, start, sixty-four frames and total image budget', async () => {
   const h = await harness();
   const schema = MEDIA_VIEW_VIDEO_INPUT_SCHEMA;
@@ -72,7 +138,7 @@ test('video schema and description advertise gap, start, sixty-four frames and t
   assert.match(h.tool.descriptor.description!, /shrink automatically beyond 16/);
   assert.match(h.tool.descriptor.description!, /layout: sheet/);
   assert.match(h.tool.descriptor.description!, /start\/every.*zoom in/);
-  for (const word of ['motion', 'interval', 'gap', 'every', 'seconds', 'count', 'sheet', 'skim', 'zoom']) assert.ok(TOOL_SEARCH_KEYWORDS[MEDIA_VIEW_VIDEO_TOOL_ID]!.split(' ').includes(word));
+  for (const word of ['motion', 'interval', 'gap', 'every', 'seconds', 'count', 'sheet', 'skim', 'zoom']) assert.ok(toolSearchKeywords({})[MEDIA_VIEW_VIDEO_TOOL_ID]!.split(' ').includes(word));
 });
 
 test('forwards count, explicit timestamps, gap and start without supplying a missing count', async () => {

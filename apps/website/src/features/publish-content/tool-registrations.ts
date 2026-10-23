@@ -28,7 +28,6 @@ import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contr
 import {
   connectDestination,
   disconnectDestination,
-  findCandidateDestination,
   PublishTrustConnectError,
 } from "../publish-trust/connect.js";
 import { PublishTrustHandshakeError } from "../publish-trust/handshake-client.js";
@@ -179,16 +178,6 @@ export function defaultProvisioning(): PublishTrustProvisioningPort {
   });
 }
 
-/** The real deploy-config scan. Repo-relative, therefore resolved against
- *  {@link resolveCommittedConfigRoot} — the same resolution the HTTP route's own `findCandidate`
- *  uses, and NOT the bare process working directory (see that function's own doc for why: own-
- *  server mode's cwd is wherever opened Electron, not the repo root).
- *  @complexity O(1) plus up to four file reads. */
-export function defaultFindCandidate(): Promise<string | null> {
-  const repoRoot = resolveCommittedConfigRoot();
-  return findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) });
-}
-
 /** Matches a bare identifier-shaped token — `PEER_NOT_FOUND`, `publish_trust_export_not_wired`,
  *  `EGRESS_REFUSED`. Anchored on word boundaries so ordinary prose and a capitalised site name are
  *  untouched. */
@@ -252,7 +241,7 @@ export function buildPublishContentRegistrations(
   routeDeps: PublishContentToolDeps,
   surfaces: AssistantSurfaceDeps
 ): ToolRegistration[] {
-  const findCandidate = routeDeps.findPublishCandidate ?? defaultFindCandidate;
+  const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
 
   const handlers: Record<string, ToolHandler> = {
@@ -485,7 +474,8 @@ async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): 
     if (connected) return connected.id;
     if (rows.length === 1) return rows[0]!.id;
   }
-  throw new ToolInputError({ message: `Several destinations are saved. Choose a peerId: ${rows.map(row => `${row.id} (${row.label})`).join(", ")}.` });
+  const choices = rows.map(row => `${row.id} (${row.label})`).join(", ");
+  throw new ToolInputError({ message: `Several destinations are saved. Choose a peerId: ${choices}.` });
 }
 
 /** Fresh hooks from the same factory /import/plan and /import/execute use. O(1) projection. */

@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 
 import { DeployError, type DeployFile, type DeployPublishInput, type DeployPublishResult, type DeployTarget, type UnknownRecord } from "@jini-ai/devops/deploy";
 
-import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
+import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
@@ -66,7 +66,7 @@ import type { PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic. Depends on `deploy-targets/` for the target
- * registry and host kit. No dependency on `../ports.ts`/`../providers/github.ts` (the sibling
+ * registry and host kit. No dependency on `../ports.ts`/`content/agent-plugins/github/deployments/github.mjs` (the sibling
  * continuous-deployment feature) — see `./types.ts`'s header for why these stay separate.
  */
 
@@ -440,7 +440,7 @@ async function publishAndMapOutcome(
   formDestination?: FormDestinationPublishInput
 ): Promise<StaticPublishOutcome> {
   try {
-    const result = await jiniTarget.publish(publishInput, { responseHeaders: PUBLIC_PAGE_SECURITY_HEADERS,
+    const result = await jiniTarget.publish(publishInput, { responseHeaders: publicPageSecurityHeaders({}),
       metadata: { ...input.config, ...(input.domainApproval ? { domainApproval: input.domainApproval } : {}), ...(formDestination ? { formDestination } : {}) } });
     if (result.status !== "ready") {
       return buildPartialPublishOutcome(input.config.target, result, basePath);

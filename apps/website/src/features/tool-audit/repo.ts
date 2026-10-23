@@ -12,7 +12,8 @@
  *
  * Retention:
  * The table is append-only and would otherwise grow without bound, so {@link MAX_ROWS_PER_WORKSPACE}
- * rows are kept per workspace and the excess is pruned oldest-first on write. The prune runs
+ * administrator rows are kept per workspace; anonymous-visitor has an independent 20,000-row
+ * bucket. Each bucket's excess is pruned oldest-first on write. The prune runs
  * opportunistically rather than in a background job — there is no scheduler in the daemon process,
  * and a scheduled pruner would be a new failure surface for a table nothing reads on a hot path.
  *
@@ -33,6 +34,8 @@ import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
  * the largest thing in `content.db`.
  */
 export const MAX_ROWS_PER_WORKSPACE = 50_000;
+/** Anonymous traffic has its own retention bucket and can never evict administrator attempts. */
+export const MAX_VISITOR_ROWS_PER_WORKSPACE = 20_000;
 
 /** Prune every Nth append rather than on all of them — the cap is a bound, not a precise ceiling. */
 const PRUNE_CHECK_INTERVAL = 256;
@@ -42,6 +45,8 @@ export interface SqlToolAttemptAuditSinkOptions {
   onError?: (error: unknown) => void;
   /** Per-workspace row cap. @default {@link MAX_ROWS_PER_WORKSPACE} */
   maxRowsPerWorkspace?: number;
+  /** Separate anonymous bucket; the administrator cap excludes this principal entirely. */
+  maxVisitorRowsPerWorkspace?: number;
   /** Appends between prune checks. Lower it in tests to reach the prune without 50k writes. @default {@link PRUNE_CHECK_INTERVAL} */
   pruneCheckInterval?: number;
 }
@@ -54,9 +59,10 @@ export interface SqlToolAttemptAuditSinkOptions {
  * `onError` (default: `console.error`) so it is loud in logs without being fatal in behavior.
  */
 export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
-  private appendsSincePruneCheck = 0;
+  private readonly appendsSincePruneCheck = new Map<string, number>();
   private readonly onError: (error: unknown) => void;
   private readonly maxRows: number;
+  private readonly maxVisitorRows: number;
   private readonly pruneCheckInterval: number;
 
   constructor(
@@ -65,6 +71,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
   ) {
     this.onError = options.onError ?? ((error) => console.error("[tool-audit] append failed", error));
     this.maxRows = options.maxRowsPerWorkspace ?? MAX_ROWS_PER_WORKSPACE;
+    this.maxVisitorRows = options.maxVisitorRowsPerWorkspace ?? MAX_VISITOR_ROWS_PER_WORKSPACE;
     this.pruneCheckInterval = options.pruneCheckInterval ?? PRUNE_CHECK_INTERVAL;
   }
 
@@ -99,10 +106,13 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
           .execute()
       );
 
-      this.appendsSincePruneCheck += 1;
-      if (this.appendsSincePruneCheck >= this.pruneCheckInterval) {
-        this.appendsSincePruneCheck = 0;
-        await this.pruneWorkspace(event.workspaceId);
+      const visitor = event.principalId === "anonymous-visitor";
+      const bucketKey = JSON.stringify([event.workspaceId, visitor]);
+      const appends = (this.appendsSincePruneCheck.get(bucketKey) ?? 0) + 1;
+      this.appendsSincePruneCheck.set(bucketKey, appends);
+      if (appends >= this.pruneCheckInterval) {
+        this.appendsSincePruneCheck.delete(bucketKey);
+        await this.pruneWorkspace({ workspaceId: event.workspaceId, visitor });
       }
     } catch (error) {
       this.onError(error);
@@ -110,7 +120,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
   }
 
   /**
-   * Deletes this workspace's rows below the newest `maxRows`.
+   * Deletes this workspace/bucket's rows below its own newest `maxRows`.
    *
    * Uses `id` (monotonic identity) as the age ordering rather than `at`, so a clock that
    * jumps backwards cannot make the prune delete the wrong rows.
@@ -118,19 +128,22 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
    * @complexity One indexed `OFFSET` probe plus one ranged delete.
    * @overallScore 100
    */
-  private async pruneWorkspace(workspaceId: string): Promise<void> {
+  private async pruneWorkspace({ workspaceId, visitor }: { workspaceId: string; visitor: boolean }, _options = {}): Promise<void> {
+    const maxRows = visitor ? this.maxVisitorRows : this.maxRows;
     const cutoff = await this.kernel.run((db) =>
       db
         .selectFrom("agent_tool_attempts")
         .select("id")
         .where("workspace_id", "=", workspaceId)
+        .where("principal_id", visitor ? "=" : "!=", "anonymous-visitor")
         .orderBy("id", "desc")
         .limit(1)
-        .offset(this.maxRows - 1)
+        .offset(maxRows - 1)
         .executeTakeFirst()
     );
 
     if (!cutoff) return;
-    await this.kernel.run((db) => db.deleteFrom("agent_tool_attempts").where("workspace_id", "=", workspaceId).where("id", "<", cutoff.id).execute());
+    await this.kernel.run((db) => db.deleteFrom("agent_tool_attempts").where("workspace_id", "=", workspaceId)
+      .where("principal_id", visitor ? "=" : "!=", "anonymous-visitor").where("id", "<", cutoff.id).execute());
   }
 }

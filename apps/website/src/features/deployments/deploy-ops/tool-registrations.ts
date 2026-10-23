@@ -47,9 +47,9 @@ function integer(input: Record<string, unknown>, key: string, fallback: number, 
 }
 /** Validate deploy input independently of the schema, then call the same feature function as the admin route. */
 function deployHandler(deps: DeployOpsToolDeps, input: Record<string, unknown>, signal?: AbortSignal) {
-  onlyKeys(input, ["platform", "target", "ref", "credentialLabel"]);
+  onlyKeys(input, ["platform", "target", "ref", "credentialLabel", "workflowFile"]);
   const ref = string(input, "ref"); const credentialLabel = string(input, "credentialLabel");
-  return runDeploy({ deps, input: { platform: string(input, "platform", true)!, target: string(input, "target", true)!, ...(ref !== undefined ? { ref } : {}), ...(credentialLabel !== undefined ? { credentialLabel } : {}) } }, { signal });
+  return runDeploy({ deps, input: { platform: string(input, "platform", true)!, target: string(input, "target", true)!, workflowFile: string(input, "workflowFile"), ...(ref !== undefined ? { ref } : {}), ...(credentialLabel !== undefined ? { credentialLabel } : {}) } }, { signal });
 }
 function onlyKeys(input: Record<string, unknown>, allowed: readonly string[]): void {
   for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });

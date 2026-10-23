@@ -11,7 +11,31 @@
       "id": "tovu/meilisearch",
       "provides": [
         "site-search"
-      ]
+      ],
+      "credentialCards": [
+        {
+          "target": "meilisearch",
+          "title": "Connect Meilisearch",
+          "label": "Tovu Search — Meilisearch",
+          "ownedApiLabel": "Tovu Search — Meilisearch",
+          "category": "general",
+          "intro": "Connect your Meilisearch server to index and search this site’s public content only.",
+          "keyHint": "Scope the key to the site index: indexes.create, indexes.delete, documents.add, documents.get, search, settings.update and tasks.get. Use a scoped key rather than the master key.",
+          "saveKind": "api",
+          "fields": [
+            {
+              "name": "baseUrl",
+              "label": "Meilisearch server URL",
+              "hint": "The HTTPS URL of your own Cloud or self-hosted Meilisearch server.",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "toolKeywords": {
+        "search_status": "meilisearch",
+        "search_set_provider": "meilisearch"
+      }
     }
   },
   "keywords": [

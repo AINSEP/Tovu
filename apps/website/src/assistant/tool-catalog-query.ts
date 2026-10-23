@@ -55,6 +55,26 @@ function indexableDescription({ id, description }: { id: string; description: st
 }
 const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };
 
+/** Describe this host's read-card family using only the cards in the same catalog snapshot.
+ * No handler or schema is published for the family; callers must describe a concrete card.
+ * @returns A one-line purpose per registered card, or null when none are registered.
+ * @complexity O(n + d) time/space for n catalog entries and d authored description bytes; no I/O.
+ */
+function describeContentReadFamily(
+  { entries }: { entries: readonly ToolCatalogEntry[] }, _options = {},
+): ToolCatalogEntry | null {
+  const cards = entries.filter(entry => entry.id.startsWith("content_read."));
+  if (cards.length === 0) return null;
+  const lines = cards.map(entry => {
+    const purpose = entry.description.trim().split(/\r?\n|(?<=[.!?])\s/, 1)[0]
+      || `Read ${entry.id.slice("content_read.".length).replace(/_/g, " ")}.`;
+    return `${entry.id} — ${purpose}`;
+  });
+  return { id: "content_read", source: sourceForToolId("content_read"),
+    description: ["Read-card family. Describe a card id below for its inputs, then call that card.", ...lines].join("\n"),
+  };
+}
+
 /**
  * Seeds an in-memory SQLite FTS5 index from `registry.list({})` and returns a `ToolCatalogQuery`
  * backed by it.
@@ -83,13 +103,21 @@ export function buildToolCatalogQuery(
   // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
   // version: BM25 can only rank words that are in the index, and this catalog's descriptions
   // are written in the codebase's nouns while operators search in theirs.
-  const seed = () => buildCatalogSnapshot({
-    source: { list: () => registry.list({}) },
-    storeFactory: createSqliteCatalogStoreFactory({ db }),
-    enricher,
-    classifier,
-    clock: options.clock ?? { nowMs: () => Date.now() },
-  }, options);
+  const seed = () => {
+    const descriptors = registry.list({});
+    const source = { list: () => descriptors };
+    // MOVE: derive the family from the same snapshot, so reloads cannot advertise retired cards.
+    return {
+      family: describeContentReadFamily({ entries: listCatalogEntries({ source, enricher, classifier }) }),
+      query: buildCatalogSnapshot({
+        source,
+        storeFactory: createSqliteCatalogStoreFactory({ db }),
+        enricher,
+        classifier,
+        clock: options.clock ?? { nowMs: () => Date.now() },
+      }, options),
+    };
+  };
 
   let snapshot = seed();
   let revision = toolRegistryRevision({ registry });
@@ -105,11 +133,11 @@ export function buildToolCatalogQuery(
   return {
     search({ query }, { limit = 10 } = {}) {
       refresh();
-      return snapshot.search({ query }, { limit });
+      return snapshot.query.search({ query }, { limit });
     },
     describe({ id }) {
       refresh();
-      return snapshot.describe({ id });
+      return snapshot.query.describe({ id }) ?? (id === "content_read" ? snapshot.family : null);
     },
   };
 }

@@ -5,14 +5,17 @@ description: Publish the site's static export to GitHub Pages with the workspace
 
 # GitHub Pages
 
+## Connection card
+
+Open the plugin’s **Connect GitHub Pages** card with `credential_save {kind:"plugin-provider",target:"github-pages"}`. Select only the destination repository and grant Contents and Pages **Read and write**. The card links to token creation; the hosting owner verifies and seals it.
+
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
 credential is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
 publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
 This file is what is particular to GitHub Pages.
 
 - **Token:** a fine-grained personal access token (https://github.com/settings/personal-access-tokens)
-  for the repository, with **Contents: Read and write** and **Pages: Read and write**. Saved in Admin,
-  Deployment, Static site.
+  for the repository, with **Contents: Read and write** and **Pages: Read and write**. Save it with the plugin card above.
 - **Config fields:** `owner` (user or organization), `repo`, and optional `branch` (default `gh-pages`).
   Tovu commits the site to that branch and switches GitHub Pages on for it if it is off.
 - **Owner:** never guess it from the person's name or email address. Use the verified token's login
@@ -29,7 +32,7 @@ This file is what is particular to GitHub Pages.
 
 | Message | Meaning | Next step |
 |---|---|---|
-| `GitHub token is required.` | No token in the saved credential. | Save a token in Admin, Deployment, Static site. |
+| `GitHub token is required.` | No token in the saved credential. | Open the plugin card above. |
 | `invalid GitHub owner '...'` / `invalid GitHub repo '...'` / `invalid branch name '...'` | A config field has a typo or bad characters. | Correct the owner, repo, or branch name. |
 | `Bad credentials` / `Resource not accessible by personal access token` (401/403) | The token is wrong, expired, or lacks the permissions above. | Make a new token for this repo with Contents and Pages write access. |
 | `Not Found` (404) | The repo does not exist, or the token cannot see it. | Check the owner and repo names and the token's repository access. |

@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
+import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
@@ -537,6 +537,12 @@ function GettingItOnlineCard({
   credentialsController: PublishCredentialsController;
   t: Translate;
 }) {
+  if (publishController.targets?.length === 0 && !publishController.targetsError) {
+    return <div className="empty-state">
+      <p>{translate("Enable a hosting plugin to publish this site.")}</p>
+      <a href={adminHref("/addons/agent-plugins")}>{translate("Plugins")}</a>
+    </div>;
+  }
   const selectedTargetId = publishController.target;
 
   // One `Set` lookup per render, not a `.find()` inside the `.map()` below — keeps the connected

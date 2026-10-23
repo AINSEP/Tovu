@@ -1,8 +1,10 @@
+import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
-import { bindSiteConsentService } from './site-consent.js';
+import { bindSiteConsentService, ensureSiteConsentPrivacy } from './site-consent.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
@@ -27,7 +29,7 @@ import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
-import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { createPeerSiteReads } from "./peer-site-reads.js";
@@ -112,6 +114,8 @@ import { loadSourceControlProviderRegistry } from "#src/features/source-control/
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMediaProviderRegistry } from "#src/features/media-generation/media-provider-registry";
 import { createMailCaptureRepo, createMailSendLedgerRepo, createMailSuppressionRepo, createSiteMailFeedbackRoute } from "#src/features/mail/index";
+import { createMailActivityRepo } from "#src/features/mail/activity.repo";
+import { createMailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
 import { ensureMailProviderSettings } from "#src/features/settings/mail-provider";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -130,6 +134,8 @@ import {
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
+import { redactSecrets } from "@jini-ai/core";
 import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
@@ -144,6 +150,8 @@ import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
+import { createMailAttemptObserver } from "#src/features/mail/attempts.repo";
+import { startMailRetention } from "#src/features/mail/retention";
 import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
@@ -208,7 +216,7 @@ import {
   purgeMedia,
   SharpImageTransformer,
 } from "#src/features/media/index";
-import { createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
+import { readBundledObjectStoreEnvDeclarations, createMediaBlobStore, ensureMediaObjectStoreSetting, loadBundledObjectStoreRegistry, loadObjectStoreRegistry, readMediaObjectStoreSetting, selectArtifactStoreProvider, type MediaObjectStorePorts } from "#src/features/object-storage/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -255,7 +263,7 @@ import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
-import { ensureSiteConsentDefinitions } from "#src/features/consent/settings";
+import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
@@ -331,7 +339,6 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#s
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { createMailSenderIdentityResolver } from "#src/platform/mail/sender-identity";
 import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
@@ -932,13 +939,14 @@ async function openCompositionStore(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
   const registrations: StoreCloseRegistration[] = [];
   const bootDrains: Array<() => Promise<void>> = [];
   const stopStoreUsers = async (): Promise<void> => {
     // Boot still uses the inventory, journal and repos that the disposers below release.
     await Promise.all(bootDrains.map((drain) => drain()));
     await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
-    await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]);
+    await Promise.all([stopChatSweep(), stopSubmissionIpSweep(), stopMailRetention()]);
   };
   const store: SiteStore = {
     ...opened,
@@ -1151,7 +1159,7 @@ async function composeSiteRouteDeps(
       return { fields, secret: token };
     },
   });
-  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts });
+  const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: bundledAgentPluginsDir() }) });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor(store, dbPath);
@@ -1216,6 +1224,8 @@ async function composeSiteRouteDeps(
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
+  const reportToolAuditError = createSiteAssistantErrorReporter({ ids: idGen, redact: redactSecrets,
+    log: entry => console.error("[tool-audit]", entry) });
   const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => routeDeps.pluginHost,
@@ -1364,8 +1374,6 @@ async function composeSiteRouteDeps(
     .then(() => ensureMailSenderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // `core.mail.provider`/`testMode` (`features/settings/mail-provider.ts`): explicit provider per lane.
     .then(() => ensureMailProviderSettings({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Visitor cookie consent's `core.consent.*` definitions; registering them enables nothing.
-    .then(() => ensureSiteConsentDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     // Site search's per-site `core.search/provider` (default `builtin`); registering it enables nothing.
     .then(() => ensureSearchProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
@@ -1980,26 +1988,31 @@ async function composeSiteRouteDeps(
   // Email provider contract v1 (2026-10-21): lanes read `core.mail.provider` (first boot writes the
   // provider the old implicit chain picked), and every provider sits behind Jini's delivery policy
   // over the mail ledgers (`features/mail`). See `site-mailer.ts` and `resolve-mailer.ts`.
+  const mailResolveDeps = {
+    workspaceId,
+    customCredentialRepo: customCredentialSetRepo,
+    sealer: siteAssistantSecretSealer,
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    mode: runtimeMode,
+  };
   const resolvedMailer = createSiteMailer({
-    resolve: {
-      workspaceId,
-      customCredentialRepo: customCredentialSetRepo,
-      sealer: siteAssistantSecretSealer,
-      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
-      loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-      mode: runtimeMode,
-    },
+    resolve: mailResolveDeps,
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
-    delivery: { ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
+    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
-  });
+    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
+  }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName) });
+  // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
+  // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the
+  // Email page's use readiness probe (`platform/mail/purpose-gate-probe.ts`) read the same function.
+  const mailDurableOutboxReady = (_capabilityName: string): boolean => false;
   // The From for members/newsletter/forms system mail (`platform/mail/sender-identity.ts`): the
   // site's `core.mail.*` setting, read fresh per send, checked against the settled mailer.
-  const mailSenderIdentity = createMailSenderIdentityResolver({ mailer: resolvedMailer.mailer }, {
-    readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
-    settle: resolvedMailer.settle,
-  });
+
+
+  const mailSenderIdentity = resolvedMailer.operations.mailSenderIdentity!;
 
   // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
   // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
@@ -2166,7 +2179,8 @@ async function composeSiteRouteDeps(
         maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
   const derivedPublicOrigin = resolveCompositionPublicOrigin({}, {});
 
   function resolveCompositionPublicOrigin(_required: Record<string, never>, _options = {}): string {
@@ -2195,6 +2209,15 @@ async function composeSiteRouteDeps(
   const siteAppBootWork = new Set<Promise<void>>();
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  let resolveRouteDeps!: (deps: RouteDeps) => void;
+  const routeDepsBuilt = new Promise<RouteDeps>(resolve => { resolveRouteDeps = resolve; });
+  // Consent owns its own failure chain; title and seeded-owner identity must be ready first.
+  const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
+    after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  }, {
+    ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
+  });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     assistantAgentInventory,
     workspaceId: workspaceId,
@@ -2261,7 +2284,7 @@ async function composeSiteRouteDeps(
     // 2026-09-24 row 14) is the SAME `postRepo` constructed above — one `post_revisions` ledger,
     // not a second writer of that either.
     // `outbox`: a published HTML page edit enqueues `entry.updated`, so site search reindexes it.
-    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo, outbox }),
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
@@ -2276,7 +2299,8 @@ async function composeSiteRouteDeps(
     presentationRepo,
     settingsRepo,
     getEffective,
-    set: (required) => set(required, {
+    set: (required, optional) => set(required, {
+      ...optional,
       preparePreviewSwitcherWrite: async write => preparePreviewSwitcherWrite({ write, themes: siteThemes, workspaceId: workspaceId, activeThemeId: await resolveActiveThemeId({ presentationRepo, workspaceId: workspaceId }) }),
       canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
         repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,
@@ -2288,6 +2312,8 @@ async function composeSiteRouteDeps(
     sitemapService,
     settingsReady,
     assistantSettingsReady,
+    visitorToolsManagement: composeVisitorToolsManagement({ workspaceId, ready: assistantSettingsReady,
+      settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals } }),
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
     // `server/app.ts`'s `createRouteDeps()`.
     adminAssistantEnabled: isAdminAssistantEnabled(),
@@ -2342,6 +2368,7 @@ async function composeSiteRouteDeps(
     settingsUiTabsReady,
     analyticsSettingsReady,
     siteTitleReady,
+    siteConsentReady,
     consentStore: createSiteConsentStore({ kernel, workspaceId }),
     consentTrustedRegionHeader: process.env.TOVU_CONSENT_REGION_HEADER?.trim() || undefined,
     mailFeedbackRoute: createSiteMailFeedbackRoute({ db: kernel, workspaceId, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer },
@@ -2436,14 +2463,19 @@ async function composeSiteRouteDeps(
     mailer: wrapMailerWithPurposeGate({
       inner: resolvedMailer.mailer,
       mode: runtimeMode,
-      durableOutboxReady: () => false,
+      durableOutboxReady: mailDurableOutboxReady,
     }),
     settleMailer: resolvedMailer.settle,
     mailStatus: resolvedMailer.status,
-    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider },
+    setAgentPluginEnabled: resolvedMailer.setAgentPluginEnabled,
+    mailProviderControl: { check: resolvedMailer.checkProvider, select: resolvedMailer.selectProvider, describe: resolvedMailer.describeProviders, invalidate: resolvedMailer.invalidate },
     // `dns_plan`/`dns_verify` `include: ["mail"]` read the provider's sender-domain records here.
     mailDomainRequirements: resolvedMailer.domainRequirements,
-    mailSenderIdentity,
+    ...resolvedMailer.operations,
+    // Email page phase 4: send history over the ledgers, and the live purpose gate asked without sending.
+    mailActivity: createMailActivityRepo({ db: kernel }),
+    // Email page phase 5: the do-not-send list's operator side (list, audited removal) and feedback setup.
+    mailSuppressionAdmin: createMailSuppressionAdminRepo({ db: kernel }),
     menuRepo,
     navLocationBindingRepo,
     removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
@@ -2552,7 +2584,9 @@ async function composeSiteRouteDeps(
     // consumes it — see `RouteDeps.toolAttemptAuditSink`'s own doc. Deliberately not a second
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
-    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel),
+    toolAttemptAuditSink: new SqliteToolAttemptAuditSink(kernel, {
+      onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
+    }),
     toolGaps: createToolGapReader({ kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
@@ -2672,6 +2706,7 @@ async function composeSiteRouteDeps(
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
     loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadDeployWorkflowFiles: input => loadDeployWorkflowFiles({ ...input, loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
@@ -2713,6 +2748,7 @@ async function composeSiteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
+  resolveRouteDeps(routeDeps);
 
   // Owner decision 6 (2026-09-21): the widgets the retired "delete permanently" rung left behind
   // (payload status `purged`/`trash`) go into the Trash, once — idempotent, so every later boot finds
@@ -2836,7 +2872,7 @@ async function composeSiteRouteDeps(
             ...(process.env.TOVU_SHARE_PUBLIC_ORIGIN && process.env.TOVU_SHARE_PERSISTENT_STORAGE === "1" ? {
               runtime: () => createRuntimeShareDelivery({ registry, site: workspaceId, publicOrigin: process.env.TOVU_SHARE_PUBLIC_ORIGIN!, http: guardedOutboundHttpClient }),
             } : {}),
-            s3: async () => {
+            objectStore: async () => {
               // Any object-store provider that can deliver artifacts (not one hard-coded deploy target);
               // the site's media choice wins so media and shares share one provider and connection.
               const chosen = selectArtifactStoreProvider({ loaded: await mediaStorePorts().loadSiteRegistry(), preferredId: await readMediaObjectStoreSetting({ settingsRepo, workspaceId }) });

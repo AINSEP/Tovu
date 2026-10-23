@@ -7,6 +7,17 @@ description: Use when creating frontend design systems, visual direction, compon
 
 # Skill: UI/UX Design
 
+## Tovu tool use
+
+In the app, use `agent_plugin_ui_ux_design` with `skill` and optional `file` to
+load the bundled guidance and references, then discover the available theme, page,
+media and screenshot tools with `search_tools` / `describe_tool`. Never use Bash,
+curl or package installers from chat. CLI examples are for an authorized coding
+agent's checkout. If a capability is missing, say so instead of inventing a tool.
+Project specs and design notes are optional context when supplied; in-app work
+does not require an AI Dev Shop checkout or `<ADS_MEMORY_ROOT>`. Return the design
+in chat unless the user asks to save it through an available tool.
+
 ## Execution
 
 - Read the active spec, current product UI constraints, and ADR notes before making visual decisions.

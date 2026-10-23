@@ -30,7 +30,7 @@ import { FormsList, FormEditor } from "../../features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "../../features/collections";
 import { Taxonomy } from "../../features/taxonomy";
 import { Trash } from "../../features/trash";
-import { Email } from "../../features/email";
+import { Email, EmailTemplateEditor } from "../../features/email";
 import { Database } from "../../features/database";
 import { Recovery } from "../../features/recovery";
 import { ImportExport } from "../../features/import-export";
@@ -384,6 +384,7 @@ const ROUTE_RENDER_CASES = [
   { id: "users", pattern: "/change-password", component: Users, props: { openOwnPasswordReset: true } },
   { id: "themes", pattern: "/explore", component: ThemeExplore, props: { themeId: "quartz" }, query: "theme=quartz" },
   { id: "integrations", pattern: "/:subscriptionId", component: IntegrationDeliveries, props: { subscriptionId: "subscriptionId-sample" } },
+  { id: "email", pattern: "/templates/:templateId", component: EmailTemplateEditor, props: { id: "templateId-sample" }, key: "templateId-sample" },
 ];
 
 describe("declared detail routes through the real parser", () => {

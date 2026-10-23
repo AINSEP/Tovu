@@ -41,10 +41,15 @@ export interface PostSearchProjection {
 }
 
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
+  protected readonly kernel: ContentKernel;
+  private readonly search: PostSearchProjection;
   constructor(
-    protected readonly kernel: ContentKernel,
-    private readonly search: PostSearchProjection
-  ) {}
+    kernel: ContentKernel,
+    search: PostSearchProjection
+  ) {
+    this.kernel = kernel;
+    this.search = search;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PostRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -76,6 +81,19 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const rows = await this.kernel.run((db) =>
       db.selectFrom("posts").selectAll().where("workspace_id", "=", required.workspaceId).execute()
     );
+    return rows.map(toRecord);
+  }
+
+  /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
+  async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+    const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)
+      .where("body_format", "=", "html").where("body_html", "is not", null).where("deleted_at", "is", null)
+      .$if(required.before !== undefined, qb => qb.where(eb => eb.or([
+        eb("updated_at", "<", required.before!.updatedAt),
+        eb.and([eb("updated_at", "=", required.before!.updatedAt), eb("id", ">", required.before!.id)]),
+      ])))
+      .orderBy("updated_at", "desc").orderBy("id", "asc").limit(required.limit).execute());
     return rows.map(toRecord);
   }
 

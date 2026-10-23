@@ -7,7 +7,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /** Open string, not a closed union — see `features/plugins/lipay/ports.ts`'s `PaymentProviderId`
  * for why (a closed union makes every new provider a core edit). `"github"` is the only value with
- * a real adapter this pass (`./providers/github.ts`). */
+ * a real adapter this pass (`content/agent-plugins/github/deployments/github.mjs`). */
 export type DeploymentProviderId = string;
 
 
@@ -28,7 +28,7 @@ export interface DeploymentTargetRecord {
 
 /** What a release promotes. `git-revision` is the only kind a first-party adapter accepts this
  * adapter — its role is to promote a commit that already exists. `external-artifact` is declared for a future non-GitHub provider (e.g. one
- * that accepts a pre-built tarball URL) and is deliberately rejected by `./providers/github.ts`. */
+ * that accepts a pre-built tarball URL) and is deliberately rejected by `content/agent-plugins/github/deployments/github.mjs`. */
 export type ReleaseSource =
   | { readonly kind: "git-revision"; readonly repoUrl: string; readonly commitSha: string }
   | { readonly kind: "external-artifact"; readonly uri: string; readonly checksum?: string };
@@ -46,6 +46,6 @@ export interface ReleaseRecord {
 }
 
 /** Tovu's own normalized run status. Providers report a wider, provider-specific state (GitHub's
- * real deployment-status enum has seven values — see `./providers/github.ts`'s
+ * real deployment-status enum has seven values — see `content/agent-plugins/github/deployments/github.mjs`'s
  * `mapGitHubDeploymentStatus`) and every adapter narrows it down to this closed set. */
 export type DeploymentRunStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";

@@ -70,6 +70,12 @@ test("plugins_uninstall is on the allowlist — it parks on the human's confirm/
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("plugins_uninstall"));
 });
 
+test("agent_plugins_update can answer its parked policy card but cannot start from a surface callback", () => {
+  assert.equal(isMcpUiToolCallAllowed("agent_plugins_update"), true);
+  assert.equal(isMcpUiToolCallPermitted("agent_plugins_update", false), false);
+  assert.equal(isMcpUiToolCallPermitted("agent_plugins_update", true), true);
+});
+
 test("custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)", () => {
   assert.equal(isMcpUiToolCallAllowed("custom_credential_make_request"), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
@@ -141,6 +147,8 @@ const EXPECTED_ALLOWLIST = [
   // Mail provider switch and the operator's own test send (email provider contract v1, 2026-10-21).
   "mail_set_provider",
   "mail_send_test",
+  // Suppression removal (email phase 5): owner-only, a fresh plan card every time.
+  "mail_remove_suppression",
   // Provider switching uses the same principal-bound plan confirmation as mail provider changes.
   "comments_set_provider",
   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.
@@ -183,9 +191,12 @@ const EXPECTED_ALLOWLIST = [
   "deployment_delete_provider_credential",
   "source_control_delete_credential",
   "settings_set_value",
+  "visitor_tool_configure",
   "settings_clear_value",
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
+  // Explicit updates park on the principal-bound policy confirmation card.
+  "agent_plugins_update",
 
   // 2026-10-04 (852d711e6, Layout B) — the confirmed plugin-note save (`requireHumanConfirm`).
   "assistant_ask_choice",

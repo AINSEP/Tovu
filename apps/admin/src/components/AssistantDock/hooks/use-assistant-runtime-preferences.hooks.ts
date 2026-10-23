@@ -22,7 +22,7 @@ export interface AssistantRuntimePreferencesController {
 const QUERY_KEY = ["settings", CHAT_DISPLAY_NAMESPACE, "assistant-runtime"];
 
 /**
- * The gear's "Use Claude in Chrome" and "Prefer subagents" switches, live — the same
+ * The gear's runtime switches and Reply length choice, live — the same
  * optimistic-then-stored flow as `useChatAgentPlugins`: a flip shows at once, is saved per person,
  * and the optimistic copy is dropped once the stored values agree, so a change made elsewhere shows up.
  * {@link DEFAULT_ASSISTANT_RUNTIME_PREFERENCES} until the stored values arrive; a failed read keeps them.
@@ -43,7 +43,8 @@ export function useAssistantRuntimePreferences(
   useEffect(() => port.subscribe({ listener: () => invalidate({ key: QUERY_KEY }) }, {}), [port, invalidate]);
   useEffect(() => {
     if (pendingSaves.current === 0 && optimistic && query.data
-      && optimistic.preferSubagents === query.data.preferSubagents && optimistic.useClaudeInChrome === query.data.useClaudeInChrome) {
+      && optimistic.preferSubagents === query.data.preferSubagents && optimistic.useClaudeInChrome === query.data.useClaudeInChrome
+      && optimistic.replyLength === query.data.replyLength) {
       lastRequested.current = null;
       setOptimistic(null);
     }

@@ -11,7 +11,7 @@ import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
 import { type Request } from "../support/bug-pin-fixtures.js";
-import { loginAsAdmin, pinSessionHeaders } from "../support/bug-pin-auth.js";
+import { loginAsAdmin, pinSessionHeaders, pinSessionRequest } from "../support/bug-pin-auth.js";
 import { BASELINE_TIME, narrowListForBaseline } from "./_fixtures.js";
 
 // Migrated from admin-visual-regression.spec.ts; original pin intent and why comments follow.
@@ -401,6 +401,10 @@ const test = base.extend<{ adminSeed: AdminSeed }>({
       const page = await context.newPage();
       await page.clock.setFixedTime(FIXED_DATE); // Freeze Date only; UI timers and RAF still run.
       await loginAsAdmin(page);
+      for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+        const response = await pinSessionRequest({ page, url: `${WORKSPACE_API}/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+        expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+      }
       const entities = await seedContent(page);
       const state = await context.storageState();
       await use({ storageState: { cookies: state.cookies, origins: [] }, entities });

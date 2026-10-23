@@ -150,3 +150,52 @@ for (const prefill of [null, 42, 'fields']) test(`publish routing rejects malfor
   await assert.rejects(f.registrations[0]!.handler({ ...f.context, input: { kind: 'publish-host', target: 's3', prefill } }), ToolInputError);
   assert.deepEqual(f.calls, []);
 });
+
+test('plugin-provider cards dispatch to their existing save owner and preserve its options', async () => {
+  for (const [saveKind, adapter, forwarded] of [
+    ['publish-host', 'publishHost', { target: 'host' }],
+    ['source-control', 'sourceControl', { provider: 'host' }],
+    ['agent-plugin-token', 'agentPluginToken', { pluginId: 'host' }],
+  ] as const) {
+    const f = fixture();
+    const registrations = buildCredentialSaveRegistrations({ adapters: f.adapters, authorizePluginProvider: async () => undefined, loadPluginCredentialCards: async () => [{ providerId: 'card', label: 'Key', category: 'general', baseUrl: 'https://example.com', title: 'Connect', saveKind, saveTarget: 'host' }] });
+    const options = { emitSurface: async () => undefined };
+    await registrations[0]!.handler({ ...f.context, input: { kind: 'plugin-provider', target: 'card' } }, options);
+    assert.equal(f.calls[0]!.adapter, adapter);
+    assert.deepEqual(f.calls[0]!.ctx.input, forwarded);
+    assert.equal(f.calls[0]!.options, options);
+  }
+});
+
+test('OAuth-only cards direct callers to sign-in without saving to the API store', async () => {
+  const f = fixture();
+  const registrations = buildCredentialSaveRegistrations({ adapters: f.adapters, authorizePluginProvider: async () => undefined, loadPluginCredentialCards: async () => [{ providerId: 'sign-in', label: 'Account', category: 'general', baseUrl: 'https://example.com', title: 'Connect', saveKind: 'oauth' }] });
+  await assert.rejects(registrations[0]!.handler({ ...f.context, input: { kind: 'plugin-provider', target: 'sign-in' } }), /agent_plugin_connect/);
+  assert.deepEqual(f.calls, []);
+});
+
+test('plugin card lookup follows permission and resolves only once for the delegated handler', async () => {
+  const f = fixture(); const order: string[] = [];
+  const card = { providerId: 'owner', label: 'owner', category: 'general', baseUrl: 'https://example.com', title: 'Owner' };
+  const registrations = buildCredentialSaveRegistrations({ adapters: f.adapters,
+    authorizePluginProvider: async () => { order.push('permission'); },
+    loadPluginCredentialCards: async () => { order.push('load'); return [card]; },
+    adaptersForCards: ({ cards }) => ({ ...f.adapters, pluginProvider: async () => { assert.deepEqual(cards, [card]); order.push('handler'); return {}; } }),
+  });
+  await registrations[0]!.handler({ ...f.context, input: { kind: 'plugin-provider', target: 'owner' } });
+  assert.deepEqual(order, ['permission', 'load', 'handler']);
+});
+
+test('permission refusal performs no manifest I/O and a broken optional loader reaches the default owner', async () => {
+  const f = fixture(); let reads = 0;
+  const registration = (allowed: boolean) => buildCredentialSaveRegistrations({ adapters: f.adapters,
+    authorizePluginProvider: async () => { if (!allowed) throw new Error('denied'); },
+    loadPluginCredentialCards: async () => { reads++; throw new Error('EIO'); },
+  })[0]!;
+  const ctx = { ...f.context, input: { kind: 'plugin-provider', target: 'owner' } };
+  await assert.rejects(registration(false).handler(ctx), /denied/);
+  assert.equal(reads, 0);
+  await registration(true).handler(ctx);
+  assert.equal(reads, 1);
+  assert.equal(f.calls[0]!.adapter, 'pluginProvider');
+});

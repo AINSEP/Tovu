@@ -5,6 +5,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { adminHref } from "../../lib/router";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminPublishTargetField } from "../../lib/api";
@@ -171,6 +172,7 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
     <>
       <AccessTokensSearch controller={controller} otherController={otherController} />
       <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
+      <HostingPluginsHint controller={controller} />
       <div className="access-tokens-tier">
         {merged.length === 0 && !controller.query ? <div className="empty-state"><p>{controller.t("Not connected")}</p></div> : null}
         {merged.map((entry) =>
@@ -184,6 +186,15 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
       <AddCustomCredentialDialog ref={addCustomDialogRef} controller={controller} t={controller.t} />
     </>
   );
+}
+
+/** The hosting filter can be empty while source-control groups still exist. */
+function HostingPluginsHint({ controller }: { controller: AccessTokensController }) {
+  if (controller.query || !["all", "hosting"].includes(controller.category) || controller.groups?.some((group) => group.info.category === "hosting")) return null;
+  return <div className="empty-state">
+    <p>{controller.t("Enable a hosting plugin to manage its access tokens.")}</p>
+    <a href={adminHref("/addons/agent-plugins")}>{controller.t("Plugins")}</a>
+  </div>;
 }
 
 /** The `All / Source control / Hosting / Media / AI / Ops` filter row, PLUS the "Add custom
@@ -846,7 +857,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
         id="security-add-custom-additional-hosts"
         rows={2}
         value={value}
-        placeholder="https://api.machines.dev"
+        placeholder="https://secondary-api.example.test"
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle({ handle: "security-access-tokens-add-custom-additional-hosts" }, {
           role: "field",
@@ -854,7 +865,7 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
         })}
       />
       <p className="field-hint">
-        {translate("Optional — some providers use more than one API host for the same account (e.g. fly.io's api.fly.io and api.machines.dev). One per line, or comma-separated.")}
+        {translate("Optional — some providers use more than one API host for the same account (e.g. api.example.test and secondary-api.example.test). One per line, or comma-separated.")}
       </p>
       {invalid.length > 0 ? <p className="field-error">{translate("Each additional host must be a valid http:// or https:// URL.")}</p> : null}
     </div>
@@ -900,7 +911,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             type="text"
             value={form.name}
             onChange={(e) => controller.setCustomAddField({ name: e.target.value })}
-            {...agentHandle({ handle: "security-access-tokens-add-custom-name" }, { role: "field", label: "This custom provider's display name, e.g. name.com" })}
+            {...agentHandle({ handle: "security-access-tokens-add-custom-name" }, { role: "field", label: "This custom provider's display name, e.g. a registrar" })}
           />
           <p className="field-hint">{translate("A short label so you can tell this apart from your other saved credentials.")}</p>
         </div>

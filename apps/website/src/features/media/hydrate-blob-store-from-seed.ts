@@ -162,7 +162,8 @@ async function resolveOneSeedBlob(
   relativePath: string
 ): Promise<SeedBlobOutcome> {
   const match = SEED_BLOB_PATH_PATTERN.exec(relativePath);
-  if (!match) {
+  const [, workspaceId, sha256] = match ?? [];
+  if (workspaceId === undefined || sha256 === undefined) {
     return {
       kind: "failed",
       failure: {
@@ -171,7 +172,6 @@ async function resolveOneSeedBlob(
       },
     };
   }
-  const [, workspaceId, sha256] = match;
 
   try {
     const bytes = await readFile(join(seedUploadsDir, relativePath));

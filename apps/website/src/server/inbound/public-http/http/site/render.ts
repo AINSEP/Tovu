@@ -1,3 +1,4 @@
+import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -7,7 +8,7 @@ import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSe
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import type { PostRecord } from "#src/features/post/post";
+import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/slug";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";
@@ -3209,12 +3210,6 @@ function tokensToCss(tokens: Record<string, string>): string {
   return `:root { ${decls} }\n  body { font-family: var(--font-body, system-ui, sans-serif); }`;
 }
 
-function fontLink(theme: DiscoveredTheme): string {
-  const fonts = theme.manifest.fonts ?? [];
-  if (fonts.length === 0) return "";
-  const families = fonts.map((f) => `family=${f}`).join("&");
-  return `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?${families}&display=swap"/>`;
-}
 
 /**
  * The DOM id `apps/site-chat/src/main.tsx`'s bundle mounts itself into. Kept as a literal string in
@@ -3432,7 +3427,7 @@ export function pageShell(required: {
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
   // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
   // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const themeFontLink = theme ? fontLink(theme) : "";
+  const themeFontLink = theme ? renderThemeFontLinks({ manifest: theme.manifest }) : "";
   const themeStyle = theme ? `${tokensToCss(theme.tokens)}${theme.css}` : "";
   const themeAttr = theme ? ` data-theme="${escapeHtml(theme.manifest.id)}"` : "";
   const document = `<!doctype html>

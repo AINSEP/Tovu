@@ -65,7 +65,7 @@ describe("site capability registry", () => {
       const registry = registryOver([row({ slug: "public", status: "published" })]);
       const outcome = await registry.invoke({ name: "delete_everything", input: {}, caller: "anonymous-visitor" });
       assert.equal(outcome.kind, "refused");
-      assert.match((outcome as { reason: string }).reason, /unknown tool/);
+      assert.equal((outcome as { reason: string }).reason, "I can't help with that request here.");
     });
 
     it("refuses a real capability for a caller class it was not granted to", async () => {
@@ -78,7 +78,7 @@ describe("site capability registry", () => {
         caller: "future-admin-adapter" as unknown as SiteAssistantCallerClass,
       });
       assert.equal(outcome.kind, "refused");
-      assert.match((outcome as { reason: string }).reason, /not available to caller/);
+      assert.equal((outcome as { reason: string }).reason, "I can't help with that request here.");
     });
 
     it("gives the same outcome kind for a nonexistent name and a not-granted caller", async () => {
@@ -121,7 +121,7 @@ describe("site capability registry", () => {
       const registry = registryOver([row({ slug: "a", status: "published", kind: "page" })]);
       const outcome = await registry.invoke({ name: "list_categories", input: undefined, caller: "anonymous-visitor" });
       assert.equal(outcome.kind, "ok");
-      assert.deepEqual((outcome as { result: readonly string[] }).result, ["page"]);
+      assert.deepEqual((outcome as { result: readonly string[] }).result, []);
     });
   });
 
@@ -129,16 +129,16 @@ describe("site capability registry", () => {
     it("surfaces a thrown error as an error outcome instead of throwing", async () => {
       const registry = createSiteCapabilityRegistry(
         makeDeps({
-          postRepo: {
-            list: async () => {
-              throw new Error("boom");
-            },
-          } as never,
+          postRepo: fakePort([]) as never,
+          taxonomy: {
+            taxonomies: { list: async () => { throw new Error("boom"); } },
+            terms: { listByTaxonomy: async () => [] },
+          },
         }),
       );
       const outcome = await registry.invoke({ name: "list_categories", input: undefined, caller: "anonymous-visitor" });
       assert.equal(outcome.kind, "error");
-      assert.ok((outcome as { error: unknown }).error instanceof Error);
+      assert.equal((outcome as { error: unknown }).error, "boom");
     });
   });
 

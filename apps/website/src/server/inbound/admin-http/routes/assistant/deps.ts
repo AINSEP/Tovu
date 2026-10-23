@@ -52,6 +52,7 @@ export type AssistantSettingsRouteDeps = Pick<
   | "set"
   | "principalRepo"
   | "assistantSettingsReady"
+  | "visitorToolsManagement"
   | "siteAssistantCredentialRepo"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"

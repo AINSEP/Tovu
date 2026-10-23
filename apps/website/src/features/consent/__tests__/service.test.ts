@@ -7,7 +7,7 @@ import { createSiteConsentStore } from '../revisions.repo.js';
 import { SiteConsentConflict } from '../revisions.js';
 import { parseConsentConfig, consentConfigProblems } from '../validation.js';
 import { consentFixture } from './fixture.js';
-import { SITE_CONSENT_DEFAULTS } from '../config.js';
+import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS } from '../config.js';
 
 test('draft saves preserve published enforcement; stale editors and stale publication are refused', async t => {
   const f = consentFixture({ t });
@@ -210,4 +210,17 @@ test('the store refuses a head that points at a missing or oversized revision, a
   const other = createSiteConsentStore({ kernel, workspaceId: 'other' });
   await assert.rejects(other.saveDraft({ revision: { id: 'big', config: { ...f.config, message: 'x'.repeat(32_768) }, actorId: 'owner', createdAt: '2026-10-20T12:00:00.000Z' }, expectedDraftId: null }), { message: 'Consent configuration exceeds 32 KiB.' });
   assert.deepEqual(await other.read({}), { draft: null, published: null });
+});
+
+test('the editor snapshot shows the default banner style in an empty Custom CSS and offers it for Reset; own CSS stays', async t => {
+  const f = consentFixture({ t });
+  const before = await f.service.read({ principalId: 'owner' });
+  assert.equal(before.effective.customCss, SITE_CONSENT_DEFAULT_CSS);
+  assert.equal(before.editor.defaults.customCss, SITE_CONSENT_DEFAULT_CSS);
+  const empty = await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, customCss: '' }, expectedDraftId: null });
+  assert.equal(empty.revision.config.customCss, '');
+  assert.equal((await f.service.read({ principalId: 'owner' })).draft?.config.customCss, SITE_CONSENT_DEFAULT_CSS);
+  const own = '#jini-consent { padding: 12px; }';
+  await f.service.saveDraft({ principalId: 'owner', config: { ...f.config, customCss: own }, expectedDraftId: empty.revision.id });
+  assert.equal((await f.service.read({ principalId: 'owner' })).draft?.config.customCss, own);
 });

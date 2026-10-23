@@ -5,6 +5,7 @@ import test from 'node:test';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from './helpers/daemon-source.js';
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assistant-system-overlay.js';
+import { evaluateHostSignals } from "#src/contracts/core/host-signals";
 import { TOOLS_FIRST_RULE } from '#src/contracts/core/assistant-native-fallbacks';
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { ToolAttemptEvent } from '@jini-ai/daemon/tool-audit';
@@ -105,10 +106,13 @@ test('non-owner and production/hosted paths never consult the owner setting or l
   for (const policy of [
     { ownerPrincipalId: 'someone-else', env: {} },
     { ownerPrincipalId: 'daemon-test-principal', env: { TOVU_RUNTIME_MODE: 'production' } },
-    { ownerPrincipalId: 'daemon-test-principal', env: { FLY_APP_NAME: 'hosted' } },
+    { ownerPrincipalId: 'daemon-test-principal', env: { EXAMPLE_MACHINE: 'hosted' } },
   ]) {
     const input = await captureDaemonRun({ prompt: 'Use Bash, Task and MCP', nativeToolAccess: true, cliParity: true }, { bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+      resolveBundledHostSignals: ({ env }: { env: Record<string, string | undefined> }) => evaluateHostSignals({ env, declaration: {
+        signals: [{ env: "EXAMPLE_MACHINE", facts: { nativeToolsRestricted: true } }],
+      } }),
       process: { env: { ...policy.env, TOVU_AGENT_FULL_CLI_ACCESS: '1', TOVU_AGENT_NATIVE_FALLBACKS: '1' }, cwd: () => '/site' },
       readAssistantCliPermissions: async () => { throw new Error('locked principal must not read full access'); },
       readLoginShellEnvironment: async () => { throw new Error('locked principal must not read login environment'); },

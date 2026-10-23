@@ -1,7 +1,7 @@
 /**
  * @file The public site assistant's entire tool surface (ADR-054).
  *
- * Three read-only tools over published content, and nothing else. This file is the allowlist —
+ * Reads of published content and live categories, plus published page actions. This file is the allowlist —
  * there is no registry lookup, no dynamic dispatch, and no path by which a tool not written here
  * becomes callable. That is deliberate: the visitor assistant runs for anonymous internet traffic,
  * and a surface you have to remember to restrict is one you will eventually forget to restrict.
@@ -11,7 +11,7 @@
  * `PostStatus` is `"draft" | "published"`, and a row can independently carry a trash marker
  * (`PostRecord.deletedAt`). "Not a draft" is not the same as "public": a trashed row can still read
  * `status: "published"` (`PostRepoPort.softDelete` only stamps `deletedAt`; it does not touch
- * `status` — see that port's own doc). Every read here pins BOTH `status === "published"` AND
+ * `status` — see that port's own doc). Every post/page read pins BOTH `status === "published"` AND
  * `!isTrashed(row)`.
  *
  * `PostRepoPort.list()` takes only
@@ -40,12 +40,14 @@
  * `SiteAssistantToolDeps.listPublishedPosts`'s doc); it does not weaken this guarantee, because the
  * composition root still passes the real function, never a reimplementation. Note what this file
  * still deliberately does NOT do: call `deps.postRepo.list()` directly and filter (or trust a caller
- * to have filtered) — every read goes through `readPublished()`, so there is exactly one call site in
+ * to have filtered) — every post/page read goes through `readPublished()`, so there is exactly one call site in
  * this file that decides what "public" means, and it defers that decision to the one place in the
- * codebase that already owns it.
+ * codebase that already owns it. Category enumeration instead uses the site's live taxonomy catalog,
+ * because categories exist independently of whether any post/page has been published or tagged.
  */
 
 import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "@jini-ai/cms/taxonomy";
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps, type ListPublishedPosts } from "./public-content.js";
 import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
@@ -72,7 +74,7 @@ export interface PublicEntrySummary {
   readonly slug: string;
   readonly title: string;
   readonly updatedAt: string;
-  /** `PostRecord.kind` ("post" | "page") — the closest concept this content model has to a category. */
+  /** `PostRecord.kind` ("post" | "page"), a content type rather than a taxonomy category. */
   readonly type: string;
 }
 
@@ -95,12 +97,14 @@ export interface SiteAssistantToolDeps {
    * either way, this field is never reimplemented locally.
    */
   readonly listPublishedPosts: ListPublishedPosts;
+  /** Workspace-scoped live taxonomy reads; omitted by standalone callers without taxonomy support.
+   * Reuse Jini's read owner so category enumeration follows the site's taxonomy rather than post kinds. */
+  readonly taxonomy?: { readonly taxonomies: TaxonomyListPort; readonly terms: TermListPort };
   /** Hard ceiling on rows returned by `search_published_entries`, applied after the published/trash
    *  filter and after the query-string match. A visitor cannot raise it. Not applied to
    *  `get_published_entry` (a single addressed lookup already returns at most one row, so a list
-   *  ceiling has nothing to bound there) or `list_categories` (capping the pool before deriving
-   *  categories would make older categories silently vanish once the workspace has more than
-   *  `maxResults` published posts — a correctness bug, not a cost control). */
+   *  ceiling has nothing to bound there) or `list_categories` (taxonomy enumeration is independent
+   *  of the published-post search pool). */
   readonly maxResults?: number;
   /**
    * SPEC-046 D-1: whether `navigate_to_entry` may resolve to an auto-executing `navigate` action
@@ -166,7 +170,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
   const limit = deps.maxResults ?? DEFAULT_MAX_RESULTS;
 
   /**
-   * One place that decides what "public" means, so no tool below can quietly disagree with another
+   * One place that decides what "public" means for post/page reads, so those tools cannot disagree
    * — and so this file agrees with the public site itself, not just with its own idea of "public".
    *
    * `PostRepoPort.list()` returns every row in the workspace regardless of status or trash state
@@ -225,16 +229,19 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
     },
 
     /**
-     * Derived from published posts' own `kind` field ("post" | "page") rather than any registry,
-     * for the same reason the original entries-based version avoided the content-type registry:
-     * listing kinds that have no public content would tell a visitor about sections of the site
-     * they cannot see. Runs over the full published set, not a capped page of it — see
-     * `SiteAssistantToolDeps.maxResults`'s doc for why capping first would be a correctness bug
-     * here, not a cost control.
+     * Returns live category names; hierarchical taxonomies are category-style, flat ones are tags.
+     * Never infer categories from post/page kinds: a site can publish both without any categories.
+     * Missing taxonomy support or an empty catalog returns []; read errors propagate to the registry.
+     * @complexity O(t + n + c log c) time, O(t + n) space for t taxonomies, n terms, c category names;
+     * Jini performs one taxonomy read and one term read per taxonomy, never per published post.
      */
-    async list_categories(): Promise<readonly string[]> {
-      const entries = await readPublished();
-      return [...new Set(entries.map((e) => e.kind))].sort();
+    async list_categories(_required: Record<string, never>, _optional = {}): Promise<readonly string[]> {
+      if (!deps.taxonomy) return [];
+      const { items } = await listTaxonomiesWithTerms(deps.taxonomy);
+      const categories = items
+        .filter(({ taxonomy }) => taxonomy.hierarchical && taxonomy.status !== "trash")
+        .flatMap(({ terms }) => terms.filter(term => term.status !== "trash").map(term => term.name));
+      return [...new Set(categories)].sort();
     },
 
     /**
@@ -311,7 +318,7 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
   },
   {
     name: "list_categories",
-    description: "List the content types that have published entries on this site.",
+    description: "List this site's live taxonomy category names, not content types or tags. An empty list means this site has no categories.",
     parameters: { type: "object", properties: {} },
   },
   {

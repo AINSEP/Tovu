@@ -2,13 +2,14 @@ import { parseConsentConfig, consentConfigProblems } from '#src/features/consent
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { Express, Request } from "express";
+import express, { type Express, type Request } from "express";
 import { registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
+import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
-import { createSiteConsentConfig, type SiteConsentAutoEnablePort } from "#src/features/consent/settings";
+import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/features/consent/settings";
 import { findPublishedPostBySlug } from "#src/features/post/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -31,9 +32,6 @@ import { resolvePublicOrigin } from "../routes/oauth/public-origin.js";
 /** Top-level, non-portable site folder holding one immutable proof file per visitor choice. */
 export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
 
-/** Sites created on or after this instant count as new for the owner's auto-enable rollout rule. */
-export const CONSENT_LAUNCH_ISO = "2026-10-20T00:00:00.000Z";
-
 /** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
 export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max: 20, burst: 5 };
 
@@ -46,17 +44,6 @@ const atomicWrite: ConsentAtomicWriter = async ({ filePath, data }, { createPare
   writeJsonFileAtomic({ filePath, data }, { mode, refuseSymlink });
 };
 
-/** `.site-meta.json`'s `createdAt`; unreadable metadata counts as an existing site (stays off).
- * @complexity O(1), one small file read. */
-async function siteCreatedAfterLaunch({ siteDir }: { siteDir: string }, _options = {}): Promise<boolean> {
-  try {
-    const meta = JSON.parse(await fs.readFile(path.join(siteDir, ".site-meta.json"), "utf8")) as { createdAt?: unknown };
-    return typeof meta.createdAt === "string" && Date.parse(meta.createdAt) >= Date.parse(CONSENT_LAUNCH_ISO);
-  } catch {
-    return false;
-  }
-}
-
 /** A local single-segment link (/privacy) must name a published page; https links are trusted.
  * @complexity O(1), one indexed slug lookup. */
 export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRepo" | "workspaceId"> }, _optional = {}) {
@@ -65,16 +52,6 @@ export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRe
     const slug = /^\/([a-z0-9-]+)\/?$/.exec(url)?.[1];
     if (!slug) return false;
     return (await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } })) !== null;
-  };
-}
-
-/** The new-site rule's inputs, read once per site process (creation time never changes).
- * @complexity O(1). */
-export function createSiteConsentAutoEnable({ deps }: { deps: Pick<RouteDeps, "postRepo" | "workspaceId" | "siteBinding"> }, _optional = {}): SiteConsentAutoEnablePort {
-  let isNew: Promise<boolean> | undefined;
-  return {
-    isNewLiveSite: () => (isNew ??= siteCreatedAfterLaunch({ siteDir: deps.siteBinding.dir })),
-    privacyPageExists: createPrivacyPageCheck({ deps }),
   };
 }
 
@@ -93,10 +70,11 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
   });
   return {
     config: { get: async () => {
-      await deps.siteTitleReady;
+      await deps.siteConsentReady;
       const state = await deps.consentStore?.read({});
-      if (!state?.published) return createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }, { autoEnable: createSiteConsentAutoEnable({ deps }) }).get({});
-      const config = parseConsentConfig({ value: state.published.config });
+      // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
+      if (!state?.published) return withSiteConsentDefaultCss({ config: await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }).get({}) });
+      const config = withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published.config }) });
       if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
       // Receipts name an immutable configuration; changing a published revision requires a new choice.
       return { ...config, policyVersion: `${config.policyVersion}:${state.published.id}` };
@@ -110,17 +88,49 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
   };
 }
 
+/** True when consent is on only by the product default: no owner choice and nothing published.
+ * Exports omit that consent until a browser-side banner supports static sites; live serving keeps it.
+ * @complexity O(1), one store read and one settings read. */
+async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}): Promise<boolean> {
+  await deps.siteConsentReady;
+  if ((await deps.consentStore?.read({}))?.published) return false;
+  return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
+}
+
 /**
  * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
- * static delivery, which refuses HTML with 409 while consent is on: a static host cannot store
- * receipts, and silently stripping consent would ship trackers ungated.
+ * static delivery, which refuses HTML with 409 while explicitly enabled consent is on: a static host
+ * cannot store receipts, and silently stripping consent would ship trackers ungated. Default-only
+ * consent skips the engine for exports; a failed check falls through to it, which blocks.
  * @complexity O(1) at registration; per page see `registerConsentHttp`.
  */
 export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): void {
-  registerConsentHttp({ app, ports: createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {}) }, {
+  // A sub-app so `next("router")` can skip every consent route and the HTML gate at once.
+  const consentApp = express();
+  const ports = createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {});
+  consentApp.use(async (req, _res, next) => {
+    if (isStaticExportRequest(req)) {
+      isDefaultOnlyConsent({ deps }).then(skip => (skip ? next("router") : next()), () => next());
+      return;
+    }
+    // Pages only: assets (/x.css, /x.png) keep their 304s and skip the policy read.
+    if ((req.method === "GET" || req.method === "HEAD") && !/\.(?!html?$)[a-z0-9]+$/i.test(req.path)) {
+      let enabled = true;
+      try { enabled = (await ports.config.get({})).enabled; }
+      catch { /* A failed policy read must not permit reuse of ungated HTML. */ }
+      if (enabled) {
+        // Renderers validate pre-consent bytes; a 304 would bypass the engine's HTML rewrite.
+        delete req.headers["if-none-match"];
+        delete req.headers["if-modified-since"];
+      }
+    }
+    next();
+  });
+  registerConsentHttp({ app: consentApp, ports }, {
     necessaryScripts: TOVU_NECESSARY_SCRIPTS,
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
     delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),
   });
+  app.use(consentApp);
 }
