@@ -29,7 +29,7 @@ import { createToolGapReader } from "#src/features/tool-audit/tool-gaps.repo";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
-import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 import { createPeerSiteReads } from "./peer-site-reads.js";
@@ -2179,7 +2179,8 @@ async function composeSiteRouteDeps(
         maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
   const derivedPublicOrigin = resolveCompositionPublicOrigin({}, {});
 
   function resolveCompositionPublicOrigin(_required: Record<string, never>, _options = {}): string {

@@ -16,6 +16,7 @@ import { createPluginInstallAttachmentReader } from "../../runtime/composition/p
 import { sniffContentType } from "#src/features/media/index";
 import { prepareByokMessageAttachments } from "./byok-message-attachments.js";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import { resolveApiConnectionRuntime } from "../../runtime/composition/agent-plugin-connections.js";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
@@ -1558,7 +1559,8 @@ frontendControl.httpExtension({ app, context: { adapter } });
  * process, while device begin/poll still share the durable store.
  */
 const externalMcpOAuth = createExternalMcpOAuthService({
-  httpPorts: createTovuOAuthHttpPorts({ http: routeDeps.mediaGenerationHttpClient }),
+  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
+  httpPorts: createTovuOAuthHttpPorts({ http: routeDeps.mediaGenerationHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" }),
   workspaceId: routeDeps.workspaceId,
   repo: routeDeps.externalMcpServerRepo,
   sealer: routeDeps.siteAssistantSecretSealer,

@@ -17,7 +17,7 @@ import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/syst
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
-import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
@@ -1155,7 +1155,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
+  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
