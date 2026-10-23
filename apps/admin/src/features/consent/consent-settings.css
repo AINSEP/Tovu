@@ -55,13 +55,37 @@
 /* The admin's input type (styles.css `input, select, textarea`), not the 16px page text. */
 .jini-consent-settings-field .jini-input { width: 100%; min-width: 0; max-width: 100%; font-family: var(--font-ui); font-size: var(--text-sm); }
 .jini-consent-settings-field textarea { resize: vertical; }
+/* Each control sized to what it holds, not the column: selects to their longest option, short text
+   and the policy version to a field's width, the banner message and Custom CSS capped at one shared
+   readable measure so their right edges line up. The field is a grid, which stretches its children,
+   so a select also needs `justify-self: start` for `width: auto` to take. */
+.consent-page .jini-consent-settings-field select.jini-input { justify-self: start; width: auto; min-width: 12rem; max-width: min(18rem, 100%); }
+.consent-page .jini-consent-settings-field input[type="text"].jini-input { max-width: 16rem; }
+/* Banner fields by position (Jini renders them in a fixed order with no per-field hook): the title
+   reads as a short sentence, the two link URLs can be full addresses; the button labels and link
+   text keep the 16rem above. */
+.consent-page .jini-consent-settings-fields:has(input[type="text"]) > .jini-consent-settings-field:nth-of-type(1) input.jini-input { max-width: 24rem; }
+.consent-page .jini-consent-settings-fields:has(input[type="text"]) > .jini-consent-settings-field:is(:nth-of-type(6), :nth-of-type(8)) input.jini-input { max-width: 36rem; }
+.consent-page .consent-editor:not(.consent-editor-with-preview) .jini-consent-settings-field input[type="text"].jini-input { max-width: 12rem; }
+.consent-page .jini-consent-settings-field input[type="number"].jini-input { max-width: 8rem; }
+.consent-page .jini-consent-settings-field textarea.jini-input { max-width: 36rem; }
+/* The on/off row only needs its label and switch side by side; wider and the switch drifts away. */
+.consent-page .consent-editor .jini-toggle-row { max-width: 24rem; }
+/* On a phone the column is already narrow: text fields take all of it so their edges line up instead
+   of stepping between 12, 16, 24rem and full width. Selects and px fields keep their own size. Same
+   specificity as the banner by-position rules above, so this later rule wins. */
+@media (max-width: 480px) {
+  .consent-page .jini-consent-settings-fields:has(input[type="text"]) > .jini-consent-settings-field input[type="text"].jini-input { max-width: 100%; }
+  .consent-page .consent-editor .jini-toggle-row { max-width: none; }
+}
 .jini-consent-settings-fields .jini-hint { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 .jini-consent-field-problems { display: grid; gap: var(--space-1); }
 .jini-consent-settings-fields .jini-hint-error { color: var(--danger); }
 .jini-consent-css { font-family: var(--font-mono); font-size: var(--text-sm); }
 
-/* Appearance tokens: an even grid of small controls, as many per row as fit. */
-.jini-consent-token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: var(--space-4); }
+/* Appearance tokens: an even grid of small controls, as many per row as fit, each column only as
+   wide as a swatch row needs. */
+.consent-page .jini-consent-token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 10rem)); gap: var(--space-4); }
 .jini-consent-color-row { display: flex; align-items: center; gap: var(--space-2); min-height: 2.25rem; }
 .jini-consent-color {
   inline-size: 2.25rem; block-size: 2.25rem; flex-shrink: 0; padding: 2px; cursor: pointer;
