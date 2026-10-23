@@ -1,4 +1,4 @@
-import { secretFormField } from "../../../contracts/headless/secret-form-cards.js";
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../../contracts/headless/secret-form-cards.js";
 import { requirePlatform } from "./registry.js";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
@@ -33,7 +33,7 @@ export async function collectTypedDeploySecret(
       submitLabel: credentialText({ id: "saveSecret", locale: prep.locale }),
       text: { showSecret: credentialText({ id: "showSecret", locale: prep.locale }), hideSecret: credentialText({ id: "hideSecret", locale: prep.locale }) },
       fields: [{ kind: "string", name: "value", label: credentialText({ id: "secretValue", locale: prep.locale }),
-        ...secretFormField("deployment_ops_set_secret"), multiline: true, required: true }],
+        ...SECRET_FORM_CARD_DEFINITIONS.deployment_ops_set_secret?.secretField, multiline: true, required: true }],
       cancelLabel: credentialText({ id: "cancel", locale: prep.locale }),
     }),
     save: async ({ values, signal }) => {

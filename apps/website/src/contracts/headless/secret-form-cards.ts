@@ -9,13 +9,3 @@ export const CREDENTIAL_SAVE_TOOL_ID = 'credential_save';
 export const SECRET_FORM_CARD_DEFINITIONS = nativeToolMetadata.secretForms;
 
 export const SECRET_FORM_TOOL_IDS = nativeToolMetadata.secretFormIds;
-
-/**
- * The secret marker for one secret-form tool's card. Throws when `toolId` declares no secret form,
- * so a card can never render a secret field the callback gate does not protect.
- */
-export function secretFormField(toolId: string): { readonly secret: true } {
-  const definition = SECRET_FORM_CARD_DEFINITIONS[toolId];
-  if (!definition) throw new Error(`${toolId} declares no secret form`);
-  return definition.secretField;
-}
