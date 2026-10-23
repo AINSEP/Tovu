@@ -1,4 +1,4 @@
-import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
+import { secretFormField } from "../../contracts/headless/secret-form-cards.js";
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
@@ -76,7 +76,7 @@ export function setTokenForm({ label }: { label: string }, _optional = {}): Secr
         hint: "Pasted or typed here only — never shown to the assistant.",
         required: false,
         allowBlank: true,
-        ...SECRET_FORM_CARD_DEFINITIONS.credential_save.secretField,
+        ...secretFormField("credential_save"),
       },
     ],
     cancelLabel: "Cancel",

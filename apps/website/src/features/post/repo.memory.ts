@@ -114,7 +114,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.record.workspaceId && row.id === required.record.id
     );
-    if (index === -1 || this.rows[index].version !== required.ifVersion) return { applied: false };
+    if (index === -1 || this.rows[index]?.version !== required.ifVersion) return { applied: false };
 
     this.rows[index] = required.record;
     return { applied: true };
@@ -137,10 +137,11 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.workspaceId && row.id === required.id
     );
-    if (index === -1) return;
+    const row = this.rows[index];
+    if (row === undefined) return;
 
     this.rows[index] = {
-      ...this.rows[index],
+      ...row,
       deletedAt: required.deletedAt,
       updatedAt: required.updatedAt,
       version: required.version,
@@ -197,7 +198,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
     const priorForPost = this.revisions.filter(
       (row) => row.workspaceId === input.workspaceId && row.postId === input.postId
     );
-    const previousId = priorForPost.length > 0 ? priorForPost[priorForPost.length - 1].id : null;
+    const previousId = priorForPost.at(-1)?.id ?? null;
 
     const id = randomUUID();
     const contentHash = createHash("sha256").update(JSON.stringify(input.stateJson)).digest("hex");

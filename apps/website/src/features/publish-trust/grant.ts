@@ -305,13 +305,14 @@ export function grantAllowsEntityType(grant: PublishTrustGrant, entityType: stri
  */
 export function isPublishTrustRoute(method: string, path: string): boolean {
   const wanted = method.toUpperCase();
-  const actual = path.split("?")[0].split("/");
+  const actual = (path.split("?")[0] ?? "").split("/");
   return PUBLISH_TRUST_ROUTES.some((route) => {
     if (route.method !== wanted) return false;
     const template = route.path.split("/");
     if (template.length !== actual.length) return false;
-    return template.every((segment, i) =>
-      segment.startsWith(":") ? actual[i].length > 0 && actual[i] !== "." && actual[i] !== ".." : segment === actual[i]
-    );
+    return template.every((segment, i) => {
+      const value = actual[i] ?? "";
+      return segment.startsWith(":") ? value.length > 0 && value !== "." && value !== ".." : segment === value;
+    });
   });
 }

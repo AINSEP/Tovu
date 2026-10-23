@@ -116,20 +116,32 @@ function freeLabel({ preferred, taken }: { preferred: string; taken: Set<string>
   return label;
 }
 
+/** The named `SELECT *` columns under new keys, omitting a column this row lacks — the same object
+ * JSON serialization of a direct `row.column` read would store. */
+function columns({ row, names }: { row: LegacyRow; names: Readonly<Record<string, string>> }): VaultMeta {
+  const out: VaultMeta = {};
+  for (const [key, column] of Object.entries(names)) {
+    const value = row[column];
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 /** Plain metadata alone moves here. Legacy tails have unknown lengths and are intentionally
  * withheld until boot opens the payload and calls Jini's length-aware hint implementation. */
 function metadata({ table, row }: { table: string; row: LegacyRow }): VaultMeta {
   switch (table) {
     case "site_assistant_credentials": case "media_provider_credentials":
-      return { baseUrl: row.base_url, model: row.model };
+      return columns({ row, names: { baseUrl: "base_url", model: "model" } });
     case "admin_execution_credentials":
-      return { protocol: row.protocol, baseUrl: row.base_url, model: row.model, maxTokens: row.max_tokens };
+      return columns({ row, names: { protocol: "protocol", baseUrl: "base_url", model: "model", maxTokens: "max_tokens" } });
     case "custom_credential_sets":
-      return { category: row.category, baseUrl: row.base_url, additionalHosts: row.additional_hosts_json === null ? [] : JSON.parse(String(row.additional_hosts_json)), username: row.username };
-    case "publish_content_peers": return { baseUrl: row.base_url, remoteWorkspaceId: row.remote_workspace_id };
-    case "database_transfer_destinations": return { description: { host: row.host, port: row.port, database: row.database_name, user: row.user_name },
+      return { ...columns({ row, names: { category: "category", baseUrl: "base_url" } }),
+        additionalHosts: row.additional_hosts_json === null ? [] : JSON.parse(String(row.additional_hosts_json)), ...columns({ row, names: { username: "username" } }) };
+    case "publish_content_peers": return columns({ row, names: { baseUrl: "base_url", remoteWorkspaceId: "remote_workspace_id" } });
+    case "database_transfer_destinations": return { description: columns({ row, names: { host: "host", port: "port", database: "database_name", user: "user_name" } }),
       lastRun: row.last_run_json === null ? null : JSON.parse(String(row.last_run_json)) };
-    case "vendor_credential_sets": case "source_control_credential_sets": case "publish_credential_sets": return { accountLabel: row.account_label };
+    case "vendor_credential_sets": case "source_control_credential_sets": case "publish_credential_sets": return columns({ row, names: { accountLabel: "account_label" } });
     default: return {};
   }
 }

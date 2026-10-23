@@ -94,8 +94,9 @@ export async function reconcileLegacyHistory(kernel: StorageKernel<unknown>, cha
   const rows = await kernel.query<{ hash: string }>(sql`SELECT hash FROM ${sql.table(DRIZZLE_TABLE)}`);
   const byHash = new Map(chain.map((entry) => [entry.hash, entry]));
   const unknown = [...new Set(rows.map((row) => row.hash))].filter((hash) => !byHash.has(hash));
-  if (unknown.length > 0) {
-    throw new LegacyHistoryError(`__drizzle_migrations records ${unknown.length} migration(s) that are not in the frozen chain (hash ${unknown[0].slice(0, 12)}…); the history was edited or comes from another branch`);
+  const [firstUnknown] = unknown;
+  if (firstUnknown !== undefined) {
+    throw new LegacyHistoryError(`__drizzle_migrations records ${unknown.length} migration(s) that are not in the frozen chain (hash ${firstUnknown.slice(0, 12)}…); the history was edited or comes from another branch`);
   }
   const applied = new Set(rows.map((row) => (byHash.get(row.hash) as LegacyEntry).index));
   const last = Math.max(-1, ...applied);
@@ -182,8 +183,9 @@ export async function adoptLegacySqlite(kernel: StorageKernel<unknown>, note: (m
   const chain = readFrozenChain();
   const state = await reconcileLegacyHistory(kernel, chain);
   await applyLegacyEntries(kernel, state.pending);
-  if (!state.fresh && state.pending.length > 0) {
-    note(`applied legacy migrations ${state.pending[0].tag} … ${state.pending.at(-1)?.tag} (${state.pending.length})`);
+  const [firstPending] = state.pending;
+  if (!state.fresh && firstPending !== undefined) {
+    note(`applied legacy migrations ${firstPending.tag} … ${state.pending.at(-1)?.tag} (${state.pending.length})`);
   }
   const difference = compareShapes(await frozenHeadShape(chain), await readSchemaShape(kernel, { exclude: BOOKKEEPING }), {
     optionalTables: DROPPABLE,

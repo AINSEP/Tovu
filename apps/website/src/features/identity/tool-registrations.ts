@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
 import { withToolMetadata } from '@jini-ai/core';
-import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
+import { secretFormField } from "../../contracts/headless/secret-form-cards.js";
 import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
 import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-management";
 /**
@@ -150,7 +150,7 @@ export function buildGatedIdentityRegistrations(
         description: `A new login named ${username}${input["email"] ? ` (${input["email"]})` : ""} will be created with no roles. Type their first password below.`,
         submitLabel: "Create user",
         fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
-          ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create.secretField }],
+          ...secretFormField("identity_user_create") }],
         cancelLabel: "Cancel", app: { appName: "tovu-identity-user-create", appVersion: "1" },
         preferredFrameSize: ["100%", "360px"],
       }),

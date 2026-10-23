@@ -246,7 +246,7 @@ function normalizeSourceDirOrIssue(sourceDir: string): { normalized: string } | 
 /** v2-strict only: does `normalized`'s first path segment collide with one of §3's OTHER invariant
  * roots (not `package.json`, and not a dotted `tokens.<mode>.json`-style pattern entry)? */
 function checkSourceDirRootConflict(sourceDir: string, normalized: string): ThemeValidationIssue | undefined {
-  const firstSegment = normalized.split("/")[0];
+  const firstSegment = normalized.split("/")[0] ?? "";
   const otherReservedRoots = [...V2_APPROVED_ROOTS].filter((root) => root !== "package.json" && !root.includes("."));
   if (!otherReservedRoots.includes(firstSegment)) return undefined;
   return {

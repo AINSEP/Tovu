@@ -27,11 +27,11 @@ const KIND_LIST = "'site-assistant','personal-execution','media-provider','custo
 /** The 0012 table DDL with the widened kind list under the temporary name `secrets_vault_0020`.
  * @example widenedVaultTableDdl({ original: tableSql }) @throws {Error} Unexpected DDL. */
 export function widenedVaultTableDdl({ original }: { original: string }, _options: Record<string, never> = {}): string {
-  const [before, ...rest] = original.split(OLD_KINDS);
-  if (rest.length !== 1 || !before.startsWith("CREATE TABLE secrets_vault (")) {
+  const [before = "", after, ...extra] = original.split(OLD_KINDS);
+  if (after === undefined || extra.length > 0 || !before.startsWith("CREATE TABLE secrets_vault (")) {
     throw new Error("secrets_vault does not have the 0012 shape; revise this migration before applying it");
   }
-  return `${before.replace("CREATE TABLE secrets_vault (", "CREATE TABLE secrets_vault_0020 (")}${NEW_KINDS}${rest[0]}`;
+  return `${before.replace("CREATE TABLE secrets_vault (", "CREATE TABLE secrets_vault_0020 (")}${NEW_KINDS}${after}`;
 }
 
 async function upSqlite(kernel: StorageKernel<unknown>): Promise<void> {

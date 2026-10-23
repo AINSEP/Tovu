@@ -57,8 +57,9 @@ function pushReversed<T, U>(stack: U[], items: readonly T[], wrap: (item: T) => 
 /** A public rendition src can point back to a library id/slug; originals are never covers. */
 function renditionRef(src: string): string | undefined {
   const match = /^\/m\/([^/]+)\/[^/]+\.v\d+\/[^/?#]+(?:[?#].*)?$/.exec(src);
-  if (!match) return undefined;
-  try { return decodeURIComponent(match[1]); } catch { return undefined; }
+  const encoded = match?.[1];
+  if (encoded === undefined) return undefined;
+  try { return decodeURIComponent(encoded); } catch { return undefined; }
 }
 
 /** Preserve body alt and prefer an explicit library reference to a legacy src. */

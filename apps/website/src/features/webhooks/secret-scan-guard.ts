@@ -287,7 +287,7 @@ function filterBlobShas(typeCheckOut: string, pathBySha: ReadonlyMap<string, str
   for (const line of typeCheckOut.split("\n")) {
     if (!line) continue;
     const [sha, type] = line.split(" ");
-    if (type === "blob") blobs.push({ sha, path: pathBySha.get(sha)! });
+    if (type === "blob" && sha !== undefined) blobs.push({ sha, path: pathBySha.get(sha)! });
   }
   return blobs;
 }
@@ -330,9 +330,8 @@ function readBlobContents(repoRoot: string, shas: readonly string[]): Map<string
   while (offset < out.length) {
     const headerEnd = out.indexOf("\n", offset);
     if (headerEnd === -1) break;
-    const parts = out.slice(offset, headerEnd).split(" ");
-    if (parts.length < 3) break; // malformed/unexpected batch record; stop rather than misparse
-    const [sha, , sizeStr] = parts;
+    const [sha, , sizeStr] = out.slice(offset, headerEnd).split(" ");
+    if (sha === undefined || sizeStr === undefined) break; // malformed/unexpected batch record; stop rather than misparse
     const size = Number(sizeStr);
     const contentStart = headerEnd + 1;
     contents.set(sha, out.slice(contentStart, contentStart + size));
