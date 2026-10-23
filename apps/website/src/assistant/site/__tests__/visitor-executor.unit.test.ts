@@ -139,6 +139,8 @@ test("rollback runs literal contracts without managed policy, quotas or a sink",
   assert.deepEqual(await executor.availableToolNames({}), ["list_categories"]);
   assert.equal(executor.isAdvertised({ toolId: "list_categories" }), true);
   assert.deepEqual(await executor.invoke({ ...call, name: "unknown" }), refused);
+  assert.deepEqual(await executor.invoke(call, { refuseOnly: true }), refused);
+  assert.equal(f.calls(), 6);
   assert.equal(f.charges(), 0);
 });
 
@@ -150,4 +152,29 @@ test("an admin registration in a different registry is unreachable even if polic
   assert.deepEqual(await f.executor.invoke({ ...call, name: "settings_set_value" }), refused);
   assert.equal(adminCalls, 0);
   assert.equal(adminRegistry.has({ toolId: "settings_set_value" }), true);
+});
+
+
+test("refusal-only calls stay denied when audit re-enables the tool and normal calls overlap", async () => {
+  const off = parseVisitorToolPolicy({ value: { version: 1, tools: { list_categories: { mode: "off" } } } });
+  const f = fixture({ policy: off });
+  const append = f.ports.sink.append;
+  const executor = createVisitorExecutor({ capabilities: f.capabilities }, { ports: {
+    ...f.ports,
+    sink: { append: async (event, detail) => {
+      if (event.phase === "requested") f.setPolicy(EMPTY_VISITOR_TOOL_POLICY);
+      await append(event, detail);
+    } },
+  } });
+  const [denied, allowed] = await Promise.all([
+    executor.invoke(call, { refuseOnly: true }), executor.invoke(call),
+  ]);
+  assert.deepEqual(denied, refused);
+  assert.equal(allowed.kind, "ok");
+  assert.equal(f.calls(), 1);
+  assert.equal(f.charges(), 1);
+  const deniedAttempt = f.events[0].attemptId;
+  assert.deepEqual(f.events.filter(event => event.attemptId === deniedAttempt).map(event => event.phase), ["requested", "denied"]);
+  assert.ok(f.events.every(event => event.toolId === "list_categories"));
+  assert.doesNotMatch(JSON.stringify(f.events), /secret/);
 });

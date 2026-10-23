@@ -1288,7 +1288,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     presentationRepo,
     settingsRepo,
     getEffective,
-    set: (required) => set(required, {
+    set: (required, optional) => set(required, {
+      ...optional,
       preparePreviewSwitcherWrite: async write => preparePreviewSwitcherWrite({ write, themes: siteThemes, workspaceId: seededWorkspace.id, activeThemeId: await resolveActiveThemeId({ presentationRepo, workspaceId: seededWorkspace.id }) }),
       canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
         repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,

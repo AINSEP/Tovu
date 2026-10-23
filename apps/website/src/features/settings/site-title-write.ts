@@ -1,7 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   clear as clearSettingValue, resetNamespace as resetSettingNamespace, ForbiddenError, resolveDefinitionRaw, set as setSettingValue, ValueValidationFailedError,
-  type ClearValueRequired, type ResetNamespaceRequired, type SettingsRepoPort, type SetValueRequired,
+  type ClearValueRequired, type ResetNamespaceRequired, type SettingsRepoPort, type SetValueRequired, type SettingsValueWriteOptions,
 } from "@jini-ai/core/settings";
 
 import { enforceFormDeliveryBindingsWrite } from "./form-delivery.js";
@@ -44,10 +44,12 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
  * The package's `set` with {@link enforceSiteTitleWriteBounds} applied first, so a rejected title
  * never reaches the ledger. Visitor enable writes additionally require the host's saved-credential
  * policy. Canonical definition resolution prevents an alias from bypassing that policy.
+ * The optional revision guard is forwarded to the ledger after host validation.
+ * @throws {SettingsRevisionConflictError} If the addressed layer changed since the supplied revision.
  *
  * @complexity O(n) in the value's length, plus the package `set`'s own cost.
  */
-export async function set(required: SetValueRequired, optional: {
+export async function set(required: SetValueRequired, optional: SettingsValueWriteOptions & {
   /** Host policy: a public visitor surface requires its own saved, decryptable key and model. */
   canEnablePublicAssistant?: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<boolean>;
   /** Injected by the theme owner; generic settings has no dependency on theme discovery. */
@@ -64,7 +66,7 @@ export async function set(required: SetValueRequired, optional: {
   required = await applyPreviewSwitcherPolicy({ required, definition, prepare: optional.preparePreviewSwitcherWrite });
   // Form delivery bindings are validated here too, so no host write path can store a list that
   // planning would refuse or a secret in a binding's config (`form-delivery.ts`).
-  return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) });
+  return setSettingValue({ ...required, input: enforceFormDeliveryBindingsWrite(enforceSiteTitleWriteBounds(required.input)) }, optional);
 }
 
 /** `core.comments/provider` hides or shows every stored comment, so it is written only by the comments

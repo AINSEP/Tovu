@@ -245,6 +245,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // domain composed in `server/runtime/composition/site-search-tools.ts` over `@jini-ai/search/tools`.
     "search",
     "settings",
+    "visitor-tools",
     "consent",
     "settings-ui-locales",
     // 2026-09-21: `site_backup_plan`/`site_backup_push` (`features/site-backup`).

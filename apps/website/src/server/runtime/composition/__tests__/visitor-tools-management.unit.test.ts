@@ -48,7 +48,7 @@ test("the existing assistant-settings module mounts both visitor routes over the
   assert.equal(tools.length, 7);
   assert.deepEqual(tools.find(tool => tool.id === "list_categories"), {
     id: "list_categories", title: "list categories",
-    description: "List the content types that have published entries on this site.",
+    description: "List this site's live taxonomy category names, not content types or tags. An empty list means this site has no categories.",
     displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",
     source: "builtin", sourceRevision: "builtin-v1", effect: "read", availability: { available: true },
     mode: "auto", limits: { perIpPerHour: 30, perSitePerDay: 1000 },

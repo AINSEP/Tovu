@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { ensureSettingDefinitions, ForbiddenError, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, SettingsRevisionConflictError, ForbiddenError, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { set, ValueValidationFailedError } from "../index.js";
 import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../site-title.js";
@@ -225,4 +225,20 @@ test("enabling an unrelated boolean (another site.assistant key, or a global set
     value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } }, refuse)).value, true);
   assert.equal((await set({ deps, input: { namespace: "core.flags", key: "beta", scope: "global",
     value: true, callerPrincipalId: OWNER_PRINCIPAL_ID } }, refuse)).value, true);
+});
+
+
+test("host title policy preserves the package revision guard and rolls back stale writes", async () => {
+  const ledger = await makeLedger();
+  const required: Parameters<typeof set>[0] = {
+    deps: { repo: ledger.settingsRepo, clock, ids, authorize: allowAll, principals: ledger.principals },
+    input: { ...SITE_TITLE, scope: "workspace", workspaceId: WORKSPACE_ID, value: "  First  ", callerPrincipalId: OWNER_PRINCIPAL_ID },
+  };
+  const first = await set(required, { expectedRevisionSeq: 0 });
+  assert.equal(first.value, "First");
+  const before = await revisionCount(ledger);
+  await assert.rejects(set({ ...required, input: { ...required.input, value: "Stale" } }, { expectedRevisionSeq: 0 }), SettingsRevisionConflictError);
+  assert.equal(await storedValue(ledger, SITE_TITLE), "First");
+  assert.equal(await revisionCount(ledger), before);
+  assert.equal((await set({ ...required, input: { ...required.input, value: "  Second  " } }, { expectedRevisionSeq: first.revisionSeq })).value, "Second");
 });

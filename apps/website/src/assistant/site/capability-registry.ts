@@ -56,7 +56,7 @@
  */
 import type { ClientDirective } from "./client-directives.js";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
-import { createVisitorExecutor, type VisitorCapabilityContract, type VisitorExecutionPorts } from "./visitor-executor.js";
+import { createVisitorExecutor, type VisitorCapabilityContract, type VisitorExecutionPorts, type VisitorExecutor } from "./visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "./visitor-tool-presentation.js";
 
 /** Owner's site-guide brief adds one explicitly named read-only seam. This does not accept a
@@ -161,7 +161,7 @@ export interface SiteCapabilityRegistry {
   /** The model-facing tool schemas (Google function-calling shape). Re-exported here so an adapter
    * never has to import `tools.ts` directly for anything, capability execution included. */
   readonly schemas: readonly { readonly name: string; readonly description: string; readonly parameters: Readonly<Record<string, unknown>> }[];
-  invoke(invocation: SiteCapabilityInvocation): Promise<SiteCapabilityOutcome>;
+  invoke(invocation: SiteCapabilityInvocation, optional?: Parameters<VisitorExecutor["invoke"]>[1]): Promise<SiteCapabilityOutcome>;
 }
 
 /** Creates one registry bound to a single workspace's read-only content. The SSE route is the only
@@ -189,5 +189,5 @@ export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, option
   }
   const executor = createVisitorExecutor({ capabilities: [...capabilities.values()] }, { ports: options.visitorExecution });
   if (options.visitorExecution) schemas = schemas.filter(schema => executor.isAdvertised({ toolId: schema.name }));
-  return { schemas, invoke: invocation => executor.invoke(invocation) };
+  return { schemas, invoke: (invocation, optional) => executor.invoke(invocation, optional) };
 }

@@ -43,7 +43,8 @@ export type VisitorToolOutcome =
 export interface VisitorExecutor {
   availableToolNames(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly string[]>;
   isAdvertised(required: { toolId: string }, optional?: Record<string, never>): boolean;
-  invoke(required: { name: string; input: unknown; caller: string }, optional?: Record<string, never>): Promise<VisitorToolOutcome>;
+  /** Refusal-only mode audits the attempt but never evaluates policy or executes a handler. */
+  invoke(required: { name: string; input: unknown; caller: string }, optional?: { refuseOnly?: boolean }): Promise<VisitorToolOutcome>;
 }
 
 /** Create a request-lifetime executor over reviewed CMS handlers only. Registration is private.
@@ -61,21 +62,27 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
   const signal = ports?.signal;
   let attempts = 0;
 
-  /** Pre-gate unknown names without executor hints. Audit still observes the refused attempt. */
-  const gated = { ...executor, execute: async (args: Parameters<typeof executor.execute>[0], options: Parameters<typeof executor.execute>[1] = {}): Promise<ToolExecutionResult> => {
-    attempts++;
-    if (!registry.has({ toolId: args.toolId }) || (ports && attempts > VISITOR_TOOL_CALLS_PER_TURN)) {
-      return { executionId: ports?.ids.newId() ?? "refused", status: "denied" };
-    }
-    return executor.execute(args, options);
-  } };
-  const audited = ports ? withToolAttemptAudit({
-    inner: gated, workspaceId: ports.workspaceId, now: ports.clock.nowIso.bind(ports.clock), newAttemptId: ports.ids.newId.bind(ports.ids),
-    // MOVE: Arbitrary input keys and unknown tool ids can themselves contain secrets. Retain only
-    // reviewed ids and fixed provenance; neither query values nor provider errors enter this sink.
-    sink: { append: (event) => ports.sink.append(event, { detail: '{"audience":"visitor","source":"builtin"}' }) },
-    readErrorId: () => undefined,
-  }, { onSinkError: ports.reportError }) : gated;
+  /** Refuse unpublished calls inside the audit wrapper even if policy changes during its append.
+   * Each call captures its mode independently; the turn-wide attempt budget remains shared.
+   * @complexity O(1) wrapper construction; the audit sink owns its append cost.
+   */
+  const audited = ({ refuseOnly = false }: { refuseOnly?: boolean }) => {
+    /** Pre-gate unknown names without executor hints. Audit still observes the refused attempt. */
+    const gated = { ...executor, execute: async (args: Parameters<typeof executor.execute>[0], options: Parameters<typeof executor.execute>[1] = {}): Promise<ToolExecutionResult> => {
+      attempts++;
+      if (refuseOnly || !registry.has({ toolId: args.toolId }) || (ports && attempts > VISITOR_TOOL_CALLS_PER_TURN)) {
+        return { executionId: ports?.ids.newId() ?? "refused", status: "denied" };
+      }
+      return executor.execute(args, options);
+    } };
+    return ports ? withToolAttemptAudit({
+      inner: gated, workspaceId: ports.workspaceId, now: ports.clock.nowIso.bind(ports.clock), newAttemptId: ports.ids.newId.bind(ports.ids),
+      // MOVE: Arbitrary input keys and unknown tool ids can themselves contain secrets. Retain only
+      // reviewed ids and fixed provenance; neither query values nor provider errors enter this sink.
+      sink: { append: (event) => ports.sink.append(event, { detail: '{"audience":"visitor","source":"builtin"}' }) },
+      readErrorId: () => undefined,
+    }, { onSinkError: ports.reportError }) : gated;
+  };
 
   return {
     /** The guide uses a fresh grant snapshot, so its prose never advertises a disabled tool. */
@@ -90,10 +97,10 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
       return registry.has({ toolId }) && policy !== null && visitorModeAdvertised({ policy, toolId, ports });
     },
     /** Normalize all gate failures to the same safe status; the route owns error presentation. */
-    async invoke({ name, input, caller }: { name: string; input: unknown; caller: string }, _options = {}) {
+    async invoke({ name, input, caller }: { name: string; input: unknown; caller: string }, options: { refuseOnly?: boolean } = {}) {
       try {
         const toolId = caller === "anonymous-visitor" && registry.has({ toolId: name }) ? name : "unavailable";
-        const outcome = await audited.execute({ principal: { id: "anonymous-visitor" }, run: { id: runId }, toolId,
+        const outcome = await audited(options).execute({ principal: { id: "anonymous-visitor" }, run: { id: runId }, toolId,
           input: structuredClone(input) }, { signal });
         confirmation?.forget({ executionId: outcome.executionId });
         // Caller classes are transport-owned. A forged class never reaches a public handler.

@@ -139,7 +139,7 @@ test("mail_send_test reports a refusal, uses a username address, and refuses an 
   const refusing = controls();
   refusing.deps.mailer.send = async () => ({ ok: false, retryable: false, errorCode: "MAIL_UNCONFIGURED", message: "no provider" });
   const { at: _at, ...refused } = await refusing.call("mail_send_test", {}, refusing.answer("mail_send_test")) as { at: string };
-  assert.deepEqual(refused, { sent: false, outcome: "failed", to: "owner@example.com", from: "news@example.com", driver: "smtp", errorCode: "MAIL_UNCONFIGURED", message: "no provider", retryable: false });
+  assert.deepEqual(refused, { sent: false, outcome: "failed", to: "owner@example.com", from: "news@example.com", driver: "smtp", errorCode: "MAIL_UNCONFIGURED", message: "No mail provider is configured. Nothing was sent.", retryable: false });
   const byUsername = controls({ userRepo: { findByPrincipalId: async () => ({ principalId: "owner", workspaceId: "ws", username: "ops@example.com", passwordHash: "x" }) } });
   assert.equal((await byUsername.call("mail_send_test", {}, byUsername.answer("mail_send_test")) as { to: string }).to, "ops@example.com");
   const none = controls({ userRepo: { findByPrincipalId: async () => null } });

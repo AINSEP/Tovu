@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { parse } from "postcss";
 import { describe, expect, it, vi } from "vitest";
@@ -125,7 +126,7 @@ describe("admin theme cascade", () => {
     const chat = read(resolve(THEME_DIRS.classic!, "chat.css"));
     const bridge = read(resolve(SRC, "styles/admin-theme-bridge.css"));
     const platform = resolve(process.cwd(), "node_modules/@jini-ai/admin/src/themes/default");
-    const variables = read(resolve(process.cwd(), "node_modules/@jini-ai/ui/src/styles/variables.css"));
+    const variables = read(createRequire(import.meta.url).resolve("@jini-ai/ui/styles/variables.css"));
     const tokens = (sheets: string[]) => {
       const values: Record<string, string> = {};
       for (const sheet of sheets) parse(sheet).walkRules((rule) => {

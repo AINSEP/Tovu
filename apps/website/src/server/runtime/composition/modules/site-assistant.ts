@@ -1,3 +1,4 @@
+import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
 import { runPublicSiteGuide } from "../public-site-guide.js";
@@ -752,6 +753,10 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           tools: capabilities.schemas.map(
             (schema): ToolDescriptor => ({ id: schema.name, description: schema.description, inputSchema: schema.parameters }),
           ),
+          onUnexposedToolCall: async ({ toolName, input }) => {
+            await capabilities.invoke({ name: toolName, input, caller: "anonymous-visitor" }, { refuseOnly: true });
+            return { text: VISITOR_TOOL_REFUSAL };
+          },
           executeTool,
           signal: abort.signal,
           onEvent: (event) => {

@@ -166,7 +166,7 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
     "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
     "media-providers", "media-video-view", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
     "pages", "permanent-delete", "plugin-source", "plugins", "plugins-install", "post", "post-preview", "publish-content",
-    "publish-content-disconnect", "recovery", "redirects", "search", "seo", "settings", "settings-ui-locales",
+    "publish-content-disconnect", "recovery", "redirects", "search", "seo", "settings", "settings-ui-locales", "visitor-tools",
     "site-backup", "site-evidence", "site-guide", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
     "static-publish", "system-mail", "system-mail-delivery", "system-mail-providers", "system-server-logs", "taxonomy", "theme-duplicate", "theme-import-file", "theme-preview-switcher", "theme-set-active", "theme-set-page-published", "theme-trash",
     "themes", "trash", "web", "web-screenshot", "widgets", "workspace",

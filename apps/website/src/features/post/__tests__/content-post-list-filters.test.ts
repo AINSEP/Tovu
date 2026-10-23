@@ -207,7 +207,7 @@ test("t02: list publishes the optional query, real status enum and exact project
   };
   assert.equal(schema.properties.query?.type, "string");
   assert.deepEqual(schema.properties.status?.enum, ["draft", "published"]);
-  assert.deepEqual(schema.properties.fields?.items, {
+  assert.deepEqual(schema.properties.fields?.anyOf, [{ type: "array", items: {
     type: "string",
     enum: [
       "id",
@@ -228,7 +228,7 @@ test("t02: list publishes the optional query, real status enum and exact project
       "author",
       "showAuthor",
     ],
-  });
+  } }, { type: "string" }]);
   assert.deepEqual(schema.required, ["kind"]);
 });
 

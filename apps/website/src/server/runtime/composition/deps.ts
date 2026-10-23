@@ -2298,7 +2298,8 @@ async function composeSiteRouteDeps(
     presentationRepo,
     settingsRepo,
     getEffective,
-    set: (required) => set(required, {
+    set: (required, optional) => set(required, {
+      ...optional,
       preparePreviewSwitcherWrite: async write => preparePreviewSwitcherWrite({ write, themes: siteThemes, workspaceId: workspaceId, activeThemeId: await resolveActiveThemeId({ presentationRepo, workspaceId: workspaceId }) }),
       canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
         repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,

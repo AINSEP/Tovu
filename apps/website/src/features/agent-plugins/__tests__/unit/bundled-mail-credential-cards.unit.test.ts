@@ -54,8 +54,10 @@ for (const { pluginId, packageRoot } of packages) {
         if (!descriptor.credential) continue;
         const card: PluginCredentialCard | undefined = parsed.descriptors.find(c => c.saveKind === saveKind && (c.saveTarget ?? c.providerId) === descriptor.id);
         assert.ok(card, `${pluginId}/${descriptor.id}: credential contribution requires its own card`);
-        const extras = descriptor.credential.fields.filter((f: { name: string; secret?: boolean }) => !f.secret && f.name !== (descriptor.credential.tokenField ?? 'token'));
-        assert.deepEqual(card.fields?.map(f => f.name) ?? [], extras.map((f: { name: string }) => f.name));
+        // Publish-host and source-control forms read their fields from the domain descriptor.
+        // The manifest parser forbids parallel field declarations on these routing cards.
+        assert.deepEqual(card.fields ?? [], []);
+        assert.ok(descriptor.credential.fields.length > 0, `${pluginId}/${descriptor.id}: domain form needs credential fields`);
       }
     }
     if (existsSync(path.join(packageRoot, 'tovu-search-providers.json'))) {
