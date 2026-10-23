@@ -70,7 +70,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
       </p>
       <p className="observability-lede">
         {t(
-          'A "provider" is that monitoring tool — for example Datadog or Grafana. Turning this on means pointing Tovu at the provider’s own collector address (and, for most providers, a key) so it knows where to send what it records. Until that is configured, Tovu keeps recording nothing, at no cost.',
+          'A "provider" is that monitoring tool — for example a metrics service or a tracing service. Turning this on means pointing Tovu at the provider’s own collector address (and, for most providers, a key) so it knows where to send what it records. Until that is configured, Tovu keeps recording nothing, at no cost.',
         )}
       </p>
 
@@ -103,7 +103,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
  * header for why a plain "not built yet" beats a functional-looking form that does nothing.
  *
  * Deliberately no input, no "Connect" button, and no saved-credential list: nothing in Tovu can
- * fetch, save, or send to a Datadog/Grafana endpoint yet (owner's own words, `development/
+ * fetch, save, or send to a monitoring endpoint yet (owner's own words, `development/
  * todos.md` 2026-09-09: "let's set that up with another subagent"). Building the appearance of
  * that feature here would be worse than stating plainly that it isn't built.
  */
@@ -115,7 +115,7 @@ function ProvidersPanel({ t }: { t: Translate }) {
           <GaugeIcon size={28} />
         </span>
         <h3>{t("No provider connected yet")}</h3>
-        <p>{t("Datadog and Grafana are planned. Tovu does not fetch, configure, or send data to any provider yet.")}</p>
+        <p>{t("Monitoring integrations are planned. Tovu does not fetch, configure, or send data to any provider yet.")}</p>
         <p className="jini-field-hint">{t("Until then, the Overview tab reports whether OpenTelemetry itself is on or off.")}</p>
       </div>
     </section>
@@ -189,7 +189,7 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
       label: t("Providers"),
       icon: <GaugeIcon />,
       title: t("Observability"),
-      subtitle: t("Where a Datadog/Grafana connection will live."),
+      subtitle: t("Where a monitoring connection will live."),
       panel: <ProvidersPanel t={t} />,
     },
     {

@@ -1,0 +1,32 @@
+[
+  {
+    "vendors": [
+      "youtube",
+      "vimeo"
+    ],
+    "paths": [
+      "apps/website/src/server/inbound/public-http/http/site/render.ts",
+      "apps/website/src/contracts/core/public-page-security-headers.ts",
+      "apps/website/src/features/post/agent-tools.ts",
+      "apps/admin/src/features/posts/PostEditor.tsx",
+      "apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts"
+    ],
+    "reason": "Owner decision, 2026-10-22: public content embeds remain core content behavior, including consent-safe hosts, URL recognition and report-only frame-src allowances; they are not vendor API integrations."
+  },
+  {
+    "vendors": [
+      "openai",
+      "anthropic",
+      "google",
+      "gemini",
+      "replicate"
+    ],
+    "paths": [
+      "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
+      "apps/admin/src/lib/execution-settings.ts",
+      "apps/admin/src/components/AssistantDock/agent-failure-hints.ts",
+      "apps/website/src/contracts/core/tool-metadata/custom-credentials.ts"
+    ],
+    "reason": "Owner decision, 2026-10-22: AI model vendors remain core exceptions. Model protocols, default configuration, credential fallback and actionable model-error guidance retain their existing owners."
+  }
+]

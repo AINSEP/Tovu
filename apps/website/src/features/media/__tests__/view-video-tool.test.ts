@@ -10,7 +10,7 @@ import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, I
 import { buildMediaViewVideoRegistrations, MEDIA_VIEW_VIDEO_INPUT_SCHEMA, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
 import { startStubProviderServer } from '../../../server/__tests__/helpers/stub-provider-server.js';
 import { runByokProviderTurn } from '../../../assistant/byok-provider-turn.js';
-import { TOOL_SEARCH_KEYWORDS } from '../../../assistant/tool-search-keywords.js';
+import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
 import { applyBatchInputs, type BatchResult } from '../../../assistant/batch-tool-inputs.js';
 import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 
@@ -138,7 +138,7 @@ test('video schema and description advertise gap, start, sixty-four frames and t
   assert.match(h.tool.descriptor.description!, /shrink automatically beyond 16/);
   assert.match(h.tool.descriptor.description!, /layout: sheet/);
   assert.match(h.tool.descriptor.description!, /start\/every.*zoom in/);
-  for (const word of ['motion', 'interval', 'gap', 'every', 'seconds', 'count', 'sheet', 'skim', 'zoom']) assert.ok(TOOL_SEARCH_KEYWORDS[MEDIA_VIEW_VIDEO_TOOL_ID]!.split(' ').includes(word));
+  for (const word of ['motion', 'interval', 'gap', 'every', 'seconds', 'count', 'sheet', 'skim', 'zoom']) assert.ok(toolSearchKeywords({})[MEDIA_VIEW_VIDEO_TOOL_ID]!.split(' ').includes(word));
 });
 
 test('forwards count, explicit timestamps, gap and start without supplying a missing count', async () => {

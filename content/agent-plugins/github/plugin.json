@@ -41,7 +41,18 @@
           "helpLabel": "Create a fine-grained token",
           "baseUrl": "https://api.github.com"
         }
-      ]
+      ],
+      "toolKeywords": {
+        "credential_save": "github",
+        "deployment_ops_deploy": "github",
+        "deployment_ops_logs": "github",
+        "deployment_ops_status": "github",
+        "site_backup_plan": "github",
+        "site_backup_push": "github",
+        "skills_install": "github",
+        "source_control_execute_commit": "github",
+        "source_control_get_capabilities": "github"
+      }
     }
   },
   "keywords": [

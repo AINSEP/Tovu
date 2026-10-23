@@ -12,7 +12,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
+import { toolSearchKeywords } from "../tool-search-keywords.js";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 
@@ -283,7 +283,7 @@ test("theme_reset_file's description states the unmodified-file no-op, and no lo
 });
 
 test("theme_reset_file's search keywords carry modified/changed vocabulary", () => {
-  const keywords = TOOL_SEARCH_KEYWORDS["theme_reset_file"];
+  const keywords = toolSearchKeywords({})["theme_reset_file"];
   assert.ok(keywords);
   assert.match(keywords, /\bmodified\b/);
   assert.match(keywords, /\bchanged\b/);

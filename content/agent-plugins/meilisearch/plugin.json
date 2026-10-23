@@ -31,7 +31,11 @@
             }
           ]
         }
-      ]
+      ],
+      "toolKeywords": {
+        "search_status": "meilisearch",
+        "search_set_provider": "meilisearch"
+      }
     }
   },
   "keywords": [

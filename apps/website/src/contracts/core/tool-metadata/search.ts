@@ -15,7 +15,7 @@ export const toolMetadata = {
   },
   search_status: {
     search: {
-      keywords: "search index status health provider indexed pending failed backend builtin meilisearch",
+      keywords: "search index status health provider indexed pending failed backend builtin",
       queries: ["Is site search working?", "Which search provider does my site use?", "How many documents are indexed?"],
     },
     approval: { class: 'read', confirmation: 'direct' },
@@ -25,7 +25,7 @@ export const toolMetadata = {
     approval: { class: 'publish', confirmation: 'plan' },
   },
   search_set_provider: {
-    search: { keywords: "search provider switch change backend meilisearch builtin engine" },
+    search: { keywords: "search provider switch change backend builtin engine" },
     approval: { class: 'publish', confirmation: 'plan' },
   },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

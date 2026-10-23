@@ -19,6 +19,12 @@ import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../../..");
 export const BASELINE_PATH = path.join(import.meta.dirname, "deploy-vendor-baseline.json");
 
+/** Owner decisions used by the generalized boundary in phase 11. These content/model exceptions
+ * are separate from the shrinking hosting ratchet; each names its retained core behavior. */
+export const VENDOR_OWNER_ALLOWLIST: ReadonlyArray<{ vendors: string[]; paths: string[]; reason: string }> =
+  JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "vendor-owner-allowlist.json"), "utf8"));
+
+
 /** Phase 1 adds the source-control owner and its admin adapter to the existing ratchet. */
 export const SOURCE_CONTROL_ROOTS = [
   'apps/website/src/features/source-control/',

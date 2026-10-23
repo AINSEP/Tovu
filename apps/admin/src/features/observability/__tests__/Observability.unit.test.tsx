@@ -137,7 +137,7 @@ describe("Observability — Providers tab", () => {
     await userEvent.click(screen.getByRole("button", { name: "Providers" }));
 
     expect(screen.getByText("No provider connected yet")).toBeInTheDocument();
-    expect(screen.getByText(/Datadog and Grafana are planned/)).toBeInTheDocument();
+    expect(screen.getByText(/Monitoring integrations are planned/)).toBeInTheDocument();
     // No connection form of any kind: no text inputs, and no button offering to save/connect
     // anything — only the two tab-switch buttons this screen always renders.
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();

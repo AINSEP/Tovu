@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan";
 
-import { BASELINE_PATH, type Counts, countDeployVendors, DEPLOY_VENDOR_ALLOWLIST, SCAN_ROOTS, listSourceFiles, scanDeployVendors, scanDeployVendorsRaw, sortedCounts } from "./deploy-vendor-scan.js";
+import { BASELINE_PATH, type Counts, countDeployVendors, DEPLOY_VENDOR_ALLOWLIST, VENDOR_OWNER_ALLOWLIST, SCAN_ROOTS, listSourceFiles, scanDeployVendors, scanDeployVendorsRaw, sortedCounts } from "./deploy-vendor-scan.js";
 
 /**
  * @file Ratchet: no NEW static-hosting vendor names in core (deploy plan T7, the boundary that
@@ -72,6 +72,14 @@ test("every allowlist entry still matches its file exactly and gives a reason", 
     (entry) => `${entry.file}: ${entry.rule} allowlists ${entry.count}, file has ${raw[entry.file]?.[entry.rule] ?? 0}`,
   );
   assert.deepEqual(stale, [], "An allowlist entry outlived its hits. Lower or remove it in deploy-vendor-scan.ts.");
+});
+
+test('owner-approved content and model exceptions name existing paths and their retained behavior', () => {
+  for (const entry of VENDOR_OWNER_ALLOWLIST) {
+    assert.ok(entry.reason.startsWith('Owner decision, 2026-10-22:'));
+    assert.ok(entry.vendors.length > 0);
+    for (const file of entry.paths) assert.equal(listSourceFiles(file).length, 1, file);
+  }
 });
 
 test("tool search metadata scan covers the deployments tools, which carry no hosting product names at all", async () => {

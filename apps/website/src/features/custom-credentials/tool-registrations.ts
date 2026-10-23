@@ -148,7 +148,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
-   *  fixed engine failure metadata and lines built by {@link reportGitHubWriteFailure}, never a raw
+   *  fixed engine failure metadata and lines built by {@link reportRepositoryWriteFailure}, never a raw
    *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
@@ -358,7 +358,7 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
  *  `reason: "error"` is this tool's own addition — unlike a form submission, the write itself can fail
  *  at the GitHub API level AFTER confirmation (a diverged branch, a provider error), which needs a
  *  human-readable `message` the other reasons never carry. That `message` is always caller-safe: a
- *  network failure's detail goes to the server log only, via {@link reportGitHubWriteFailure}. */
+ *  network failure's detail goes to the server log only, via {@link reportRepositoryWriteFailure}. */
 type WriteFilesResult =
   | { executed: true; commitSha: string; commitUrl: string; filesWritten: number }
   | { executed: false; cancelled: true }
@@ -372,19 +372,19 @@ type WriteFilesResult =
  *
  * @complexity O(1) beyond the provider's `commitFiles`'s own O(files) cost.
  */
-async function performGitHubFilesWrite(
-  routeDeps: CustomCredentialsToolDeps,
-  provider: SourceControlProvider,
-  resolved: { baseUrl: string; connection: CustomProviderConnectionInput },
-  validated: ValidatedWriteFilesInput,
-  plan: FileWritePlan
-): Promise<WriteFilesResult> {
+async function performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan }: {
+  routeDeps: CustomCredentialsToolDeps;
+  provider: SourceControlProvider;
+  resolved: { baseUrl: string; connection: CustomProviderConnectionInput };
+  validated: ValidatedWriteFilesInput;
+  plan: FileWritePlan;
+}, _optional = {}): Promise<WriteFilesResult> {
   const commitResult = await provider.commitFiles(
     { ...writeTarget(resolved, validated), branch: validated.branch, commitMessage: validated.commitMessage, files: validated.files },
     plan
   );
   if (!commitResult.ok) {
-    reportGitHubWriteFailure(routeDeps, { phase: "commit", failure: commitResult });
+    reportRepositoryWriteFailure({ routeDeps, phase: "commit", failure: commitResult });
     return { executed: false, cancelled: false, reason: "error", message: commitResult.message };
   }
   return { executed: true, commitSha: commitResult.commitSha, commitUrl: commitResult.commitUrl, filesWritten: validated.files.length };
@@ -518,7 +518,7 @@ function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => voi
 }
 
 /**
- * Logs a `custom_credential_write_files` GitHub failure server-side when it carries a log-only
+ * Logs a `custom_credential_write_files` repository failure server-side when it carries a log-only
  * `logDetail` — a network failure's class and code, or an egress refusal's full message. Everything
  * else says nothing here: its `message` is already the whole story, and it is already published.
  *
@@ -527,7 +527,7 @@ function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => voi
  *
  * @complexity O(1).
  */
-function reportGitHubWriteFailure(routeDeps: CustomCredentialsToolDeps, input: { phase: "plan" | "commit"; failure: { readonly code: string; readonly logDetail?: string } }): void {
+function reportRepositoryWriteFailure({ routeDeps, ...input }: { routeDeps: CustomCredentialsToolDeps; phase: "plan" | "commit"; failure: { readonly code: string; readonly logDetail?: string } }, _optional = {}): void {
   if (input.failure.logDetail === undefined) return;
   failureLog(routeDeps)(`[custom-credentials] ${WRITE_FILES_TOOL_ID}: ${input.phase} failed code=${input.failure.code} detail=${input.failure.logDetail}`);
 }
@@ -1180,13 +1180,13 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
 
       const planResult = await provider.planFileWrite({ ...writeTarget(resolved, validated), branch: validated.branch, files: validated.files });
       if (!planResult.ok) {
-        reportGitHubWriteFailure(routeDeps, { phase: "plan", failure: planResult });
+        reportRepositoryWriteFailure({ routeDeps, phase: "plan", failure: planResult });
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
       }
 
       // A run aborted during reconnaissance must not proceed to the external commit.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      return performGitHubFilesWrite(routeDeps, provider, resolved, validated, planResult.plan);
+      return performRepositoryFilesWrite({ routeDeps, provider, resolved, validated, plan: planResult.plan });
     },
   };
 

@@ -24,7 +24,11 @@
           "saveKind": "publish-host",
           "baseUrl": "https://s3.amazonaws.com"
         }
-      ]
+      ],
+      "toolKeywords": {
+        "media_import_from_url": "s3",
+        "credential_save": "s3"
+      }
     }
   },
   "keywords": [
