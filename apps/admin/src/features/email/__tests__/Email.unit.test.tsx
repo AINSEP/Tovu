@@ -35,7 +35,7 @@ describe("Email", () => {
   it.each([
     ["overview", ["Status"]], ["provider", ["Provider"]],
     ["sender", ["Sender"]], ["templates", ["Templates"]],
-    ["activity", ["Recent sends", "Blocked addresses", "Bounce and spam reports"]],
+    ["activity", ["Recent sends"]],
     ["unknown", ["Status"]],
   ])("opens the %s tab from the URL", (tabId, titles) => {
     renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: tabId as string });
@@ -56,6 +56,7 @@ describe("Email", () => {
   it.each([
     ["overview", "uses", ["What uses email"]], ["overview", "test", ["Send test email"]], ["overview", "nope", ["Status"]],
     ["sender", "dns", ["DNS"]], ["sender", "nope", ["Sender"]],
+    ["activity", "blocked", ["Blocked addresses"]], ["activity", "reports", ["Bounce and spam reports"]], ["activity", "nope", ["Recent sends"]],
   ])("opens the %s tab's %s section from ?p=", (tabId, part, titles) => {
     renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId, part });
     expect(sectionTitles()).toEqual(titles);
@@ -77,8 +78,11 @@ describe("Email", () => {
     expect(screen.getByText("No templates yet.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New template" })).toBeEnabled();
     unmount();
-    renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: "activity" });
+    const activity = renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: "activity" });
+    expect(screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["Recent sends", "Blocked addresses", "Bounce and spam reports"]);
     expect(screen.getByText("No sends recorded yet.")).toBeInTheDocument();
+    activity.unmount();
+    renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: "activity", part: "blocked" });
     expect(screen.getByText("No blocked addresses.")).toBeInTheDocument();
   });
 

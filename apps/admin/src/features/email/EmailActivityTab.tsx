@@ -10,7 +10,8 @@ import type { EmailActivityController, PagedList } from "./hooks/use-email-activ
  * @file The Activity tab: recent sends (filters, Load more, one send's feedback), blocked
  * addresses (search; Remove asks for a reason, then shows what removal means before the final
  * confirm — the server records the reason and only lets the owner do it), and whether provider
- * feedback (bounces, complaints) reaches this site.
+ * feedback (bounces, complaints) reaches this site. The page shows one section at a time (`part`,
+ * from its segmented pill); with no `part` all three render.
  */
 
 const OUTCOMES = ["accepted", "delivered", "bounced", "complained", "suppressed", "deferred", "failed", "unknown", "captured"] as const;
@@ -253,12 +254,13 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
   );
 }
 
-export function EmailActivityTab(props: { controller: EmailActivityController; locale: string }) {
+export function EmailActivityTab(props: { controller: EmailActivityController; locale: string; part?: "sends" | "blocked" | "reports" | undefined }) {
+  const { controller, locale, part } = props;
   return (
     <>
-      <RecentSends {...props} />
-      <BlockedAddresses {...props} />
-      <FeedbackSetup {...props} />
+      {part === undefined || part === "sends" ? <RecentSends controller={controller} locale={locale} /> : null}
+      {part === undefined || part === "blocked" ? <BlockedAddresses controller={controller} locale={locale} /> : null}
+      {part === undefined || part === "reports" ? <FeedbackSetup controller={controller} locale={locale} /> : null}
     </>
   );
 }

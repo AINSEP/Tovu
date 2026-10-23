@@ -37,10 +37,11 @@ import "./email.css";
  * same as Admin UI and Cookie Consent: the URL owns the selection, so a reload or a link (the mail
  * banner's "Set up email" opens `?tab=provider`) lands on that tab.
  *
- * Inside Overview, Provider and Sender & DNS, a segmented pill shows one section at a time (owner,
- * 2026-10-22: the stacked cards were too much to take in). The URL owns that choice too, as `?p=`:
- * an Overview section, a provider id, or `sender`/`dns`. A missing or unknown `p` falls back to the
- * first section (Provider: the active provider — see `EmailProviderTab.tsx`).
+ * Inside Overview, Provider, Sender & DNS and Activity, a segmented pill shows one section at a time
+ * (owner, 2026-10-22: the stacked cards were too much to take in). The URL owns that choice too, as
+ * `?p=`: an Overview section, a provider id, `sender`/`dns`, or an Activity section. A missing or
+ * unknown `p` falls back to the first section (Provider: the active provider — see
+ * `EmailProviderTab.tsx`).
  */
 
 const TAB_IDS = ["overview", "provider", "sender", "templates", "activity"] as const;
@@ -59,6 +60,9 @@ const OVERVIEW_PART_LABELS: Record<OverviewPart, string> = { status: "Status", u
 const SENDER_PARTS = ["sender", "dns"] as const;
 type SenderPart = (typeof SENDER_PARTS)[number];
 const SENDER_PART_LABELS: Record<SenderPart, string> = { sender: "Sender", dns: "DNS" };
+const ACTIVITY_PARTS = ["sends", "blocked", "reports"] as const;
+type ActivityPart = (typeof ACTIVITY_PARTS)[number];
+const ACTIVITY_PART_LABELS: Record<ActivityPart, string> = { sends: "Recent sends", blocked: "Blocked addresses", reports: "Bounce and spam reports" };
 
 /** `p` when it names one of `parts`, else the first. Pure. */
 function pickPart<T extends string>(parts: readonly T[], part: string | null | undefined): T {
@@ -162,8 +166,16 @@ function SenderTab(props: PartProps & { label: string; status: EmailController }
 function TemplatesTab(props: { hooks: EmailTabHooks; locale: string }) {
   return <EmailTemplatesTab controller={props.hooks.templates({ newName: t({ locale: props.locale, key: "Untitled email" }) })} locale={props.locale} />;
 }
-function ActivityTab(props: { hooks: EmailTabHooks; locale: string }) {
-  return <EmailActivityTab controller={props.hooks.activity()} locale={props.locale} />;
+/** Activity's hook stays mounted across its segments, so filters, searches and loaded pages survive a switch. */
+function ActivityTab(props: PartProps & { label: string }) {
+  const controller = props.hooks.activity();
+  const part = pickPart(ACTIVITY_PARTS, props.part);
+  return (
+    <>
+      <PartSegments name="email-activity-part" label={props.label} labels={ACTIVITY_PART_LABELS} active={part} locale={props.locale} onSelect={props.onPart} />
+      <EmailActivityTab controller={controller} locale={props.locale} part={part} />
+    </>
+  );
 }
 
 /**
@@ -215,7 +227,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
         {activeId === "provider" ? <ProviderTab {...partProps} status={controller} /> : null}
         {activeId === "sender" ? <SenderTab {...partProps} label={tabLabel("sender")} status={controller} /> : null}
         {activeId === "templates" ? <TemplatesTab hooks={hooks} locale={locale} /> : null}
-        {activeId === "activity" ? <ActivityTab hooks={hooks} locale={locale} /> : null}
+        {activeId === "activity" ? <ActivityTab {...partProps} label={tabLabel("activity")} /> : null}
       </div>
     </div>
   );
