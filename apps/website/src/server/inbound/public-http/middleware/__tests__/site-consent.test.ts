@@ -11,7 +11,7 @@ import { registerConsentHttp } from '@jini-ai/cms/consent/express';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
+import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 
@@ -139,7 +139,7 @@ test('a missing or malformed receipt in opt-out mode still denies optional categ
   }
 });
 
-test('auto-enable treats only a site stamped at or after launch as new, reads the stamp once, and checks privacy links', async t => {
+test('auto-enable treats only a site stamped at or after launch as new and reads the stamp once; the privacy check stays for publishing', async t => {
   const deps = createRouteDeps();
   const siteFor = async (meta: string | null) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tovu-consent-auto-'));
@@ -160,9 +160,10 @@ test('auto-enable treats only a site stamped at or after launch as new, reads th
   const first = memo.isNewLiveSite({});
   assert.equal(memo.isNewLiveSite({}), first, 'the stamp is read once per port');
 
-  assert.equal(await launched.privacyPageExists({ url: 'https://example.com/privacy' }), true);
-  assert.equal(await launched.privacyPageExists({ url: '/Not A Slug' }), false);
-  assert.equal(await launched.privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+  const privacyPageExists = createPrivacyPageCheck({ deps });
+  assert.equal(await privacyPageExists({ url: 'https://example.com/privacy' }), true);
+  assert.equal(await privacyPageExists({ url: '/Not A Slug' }), false);
+  assert.equal(await privacyPageExists({ url: '/no-such-privacy-page/' }), false);
 });
 
 test('a published policy with an empty Custom CSS is served with the default style; the owner\'s own CSS wins', async t => {

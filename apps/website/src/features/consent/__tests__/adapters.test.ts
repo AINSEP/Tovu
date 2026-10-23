@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, type SiteConsentAutoEnablePort } from '../settings.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF, type SiteConsentAutoEnablePort } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
@@ -73,23 +73,23 @@ test('a policy version beyond 128 characters is refused even within the general 
   await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Cookie consent policy version must contain 1–128 characters.' });
 });
 
-test('settings stay OFF by default, use the existing ledger and isolate site choices', async () => {
+test('settings stay OFF without an owner choice or new-site check, use the existing ledger and isolate site choices', async () => {
   const { deps, settingsRepo, write } = await ledger();
   const before = await settingsRepo.maxRevisionSeq();
   await ensureSiteConsentDefinitions(deps, { systemPrincipalId: 'system-test' });
   assert.equal(await settingsRepo.maxRevisionSeq(), before);
   const config = createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' });
-  assert.deepEqual(await config.get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await config.get({}), SITE_CONSENT_OFF);
   await write('enabled', true); await write('privacyPolicyUrl', '/legal/privacy'); await write('regionMode', 'opt-out'); await write('message', 'Our policy text.');
   assert.deepEqual(await config.get({}), { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/legal/privacy', regionMode: 'opt-out', message: 'Our policy text.' });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-b' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-b' }).get({}), SITE_CONSENT_OFF);
   await assert.rejects(write('regionMode', 'invalid'));
 });
 
 test('WebMCP bootstrap does not own or register public consent settings', async () => {
   const { deps, settingsRepo, write } = await ledger({ register: false });
   await ensureSettingsUiTabDefinitions(deps, { systemPrincipalId: 'system-test' });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_OFF);
   await assert.rejects(write('enabled', true));
 });
 
@@ -101,7 +101,7 @@ test('invalid enabled copy fails visibly, but disabling remains a safe rollback'
   await write('policyVersion', '1'); await write('message', 'x'.repeat(2001));
   await assert.rejects(config.get({}), { message: 'Cookie consent setting message exceeds 2000 characters.' });
   await write('enabled', false);
-  assert.deepEqual(await config.get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await config.get({}), SITE_CONSENT_OFF);
 });
 
 test('request ports ignore region headers until configured and parse malformed cookies without throwing', async () => {
@@ -152,7 +152,7 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   let release!: () => void;
   const after = new Promise<void>(resolve => { release = resolve; });
   const ready = createSiteConsentReadiness(deps, { after, systemPrincipalId: 'system-test' });
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({}), SITE_CONSENT_OFF);
   release(); await ready;
   await write('enabled', true);
   assert.equal((await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get({})).enabled, true);
@@ -172,52 +172,36 @@ test('consent has independent readiness after the shared ledger boot and cannot 
 test('an omitted or explicitly undefined auto-enable port preserves the default OFF result', async () => {
   const { settingsRepo } = await ledger();
   const required = { settingsRepo, workspaceId: 'site-a' };
-  assert.deepEqual(await createSiteConsentConfig(required).get(), SITE_CONSENT_DEFAULTS);
-  assert.deepEqual(await createSiteConsentConfig(required, { autoEnable: undefined }).get(), SITE_CONSENT_DEFAULTS);
+  assert.deepEqual(await createSiteConsentConfig(required).get(), SITE_CONSENT_OFF);
+  assert.deepEqual(await createSiteConsentConfig(required, { autoEnable: undefined }).get(), SITE_CONSENT_OFF);
 });
 
-test('automatic consent stays OFF until the new live site has a valid published privacy link', async () => {
-  const cases = [
-    { live: false, url: '/privacy', exists: true, pageCalls: [] },
-    { live: true, url: '', exists: true, pageCalls: [] },
-    { live: true, url: 42, exists: true, pageCalls: [] },
-    { live: true, url: 'http://example.test/privacy', exists: true, pageCalls: [] },
-    { live: true, url: '/privacy', exists: false, pageCalls: ['/privacy'] },
-  ];
-  for (const scenario of cases) {
-    const { settingsRepo } = await ledger();
-    await persistUnchecked(settingsRepo, 'privacyPolicyUrl', scenario.url);
-    const pageCalls: string[] = [];
-    const autoEnable: SiteConsentAutoEnablePort = {
-      isNewLiveSite: async () => scenario.live,
-      privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return scenario.exists; },
-    };
-    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), SITE_CONSENT_DEFAULTS);
-    assert.deepEqual(pageCalls, scenario.pageCalls);
-  }
-});
-
-test('a new live site automatically enables consent after its linked privacy page exists', async () => {
+test('a site created before consent shipped stays OFF without an owner choice, even with a privacy link', async () => {
   const { settingsRepo, write } = await ledger();
   await write('privacyPolicyUrl', '/privacy');
-  const pageCalls: string[] = [];
-  const autoEnable: SiteConsentAutoEnablePort = {
-    isNewLiveSite: async () => true,
-    privacyPageExists: async ({ url }: { url: string }) => { pageCalls.push(url); return true; },
-  };
-  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
-    ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy',
-  });
-  assert.deepEqual(pageCalls, ['/privacy']);
+  const autoEnable: SiteConsentAutoEnablePort = { isNewLiveSite: async () => false };
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), SITE_CONSENT_OFF);
 });
 
-test('an explicit owner choice bypasses automatic eligibility and page lookups', async () => {
+test('a new live site shows the banner by default, with no privacy page needed first', async () => {
+  assert.equal(SITE_CONSENT_DEFAULTS.enabled, true);
+  const { settingsRepo } = await ledger();
+  const autoEnable: SiteConsentAutoEnablePort = { isNewLiveSite: async () => true };
+  assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), { ...SITE_CONSENT_DEFAULTS, enabled: true });
+});
+
+test('the ledger default for enabled stays OFF, so existing sites are not rewritten at boot', async () => {
+  const { settingsRepo } = await ledger();
+  const definition = await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', workspaceId: null });
+  assert.equal(definition?.defaultValue, false);
+});
+
+test('an explicit owner choice bypasses automatic eligibility', async () => {
   for (const enabled of [false, true]) {
     const { settingsRepo, write } = await ledger();
     await write('enabled', enabled);
     const autoEnable: SiteConsentAutoEnablePort = {
       isNewLiveSite: async (): Promise<boolean> => { assert.fail('owner choice must bypass eligibility'); },
-      privacyPageExists: async (): Promise<boolean> => { assert.fail('owner choice must bypass page lookup'); },
     };
     assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }, { autoEnable }).get(), {
       ...SITE_CONSENT_DEFAULTS, enabled,

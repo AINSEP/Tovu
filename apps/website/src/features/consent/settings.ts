@@ -1,15 +1,23 @@
 import { ensureSettingDefinitions, getEffective, type EnsureSettingDefinitionsDeps, type SettingsRepoPort, type SettingDefinitionSpec } from '@jini-ai/core/settings';
 
-import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, siteConsentLinkProblem, type SiteConsentSettings } from './config.js';
+import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, type SiteConsentSettings } from './config.js';
 export { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE } from './config.js';
 
 const ENUM_VALUES: Partial<Record<keyof SiteConsentSettings, readonly string[]>> = { regionMode: SITE_CONSENT_REGION_MODES, placement: SITE_CONSENT_PLACEMENTS };
+
+/** What a site serves when consent is not on: the default copy with the banner off. */
+export const SITE_CONSENT_OFF: SiteConsentSettings = { ...SITE_CONSENT_DEFAULTS, enabled: false };
+
+/** The ledger's `enabled` default stays OFF: its default layer only means "no owner choice yet",
+ * which {@link resolveSiteConsentActivation} turns into on (new site) or off (site created before
+ * consent shipped). Keeping it unchanged also means no boot-time rewrite of existing sites' ledgers. */
+const LEDGER_DEFAULTS: SiteConsentSettings = SITE_CONSENT_OFF;
 
 /** The shared registrar owns legacy scalar definitions and their ledger revisions.
  * Complete published policies use the site snapshot adapter, avoiding partial field publication.
  * @complexity O(1), thirteen bounded settings definitions. */
 export async function ensureSiteConsentDefinitions(required: EnsureSettingDefinitionsDeps, { systemPrincipalId }: { systemPrincipalId: string }): Promise<void> {
-  const definitions: SettingDefinitionSpec[] = Object.entries(SITE_CONSENT_DEFAULTS).map(([key, defaultValue]) => {
+  const definitions: SettingDefinitionSpec[] = Object.entries(LEDGER_DEFAULTS).map(([key, defaultValue]) => {
     const values = ENUM_VALUES[key as keyof SiteConsentSettings];
     return { key, schema: values ? { type: 'enum', values: [...values] } : { type: typeof defaultValue === 'boolean' ? 'boolean' : 'string' }, defaultValue };
   });
@@ -27,16 +35,15 @@ export function createSiteConsentReadiness(required: EnsureSettingDefinitionsDep
   return ready;
 }
 
-/** Owner rollout rule (2026-10-19): sites created before consent shipped are never switched on
- * silently; a new live site turns on by itself once its privacy page exists and is linked. */
+/** Owner rollout rules: sites created before consent shipped are never switched on silently
+ * (2026-10-19); a new live site shows the banner by default, with no privacy page or other step
+ * needed first (2026-10-22). */
 export interface SiteConsentAutoEnablePort {
   /** True only for a site created after consent shipped and served live (not static export). */
   isNewLiveSite(required: Record<string, never>, optional?: Record<string, never>): Promise<boolean>;
-  /** Whether the linked privacy page is published. External https links count as present. */
-  privacyPageExists(required: { url: string }, optional?: Record<string, never>): Promise<boolean>;
 }
 
-export type SiteConsentWaitingFor = 'new-live-site' | 'privacy-link' | 'privacy-page';
+export type SiteConsentWaitingFor = 'new-live-site';
 /** `owner`: an explicit on/off choice; `automatic`: the new-site rule; `default`: no choice yet. */
 export type SiteConsentActivation = { enabled: boolean; source: 'owner' | 'automatic' | 'default'; waitingFor: SiteConsentWaitingFor | null };
 
@@ -47,14 +54,12 @@ async function readSetting({ settingsRepo, workspaceId }: Deps, key: keyof SiteC
   return getEffective({ repo: settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
 }
 
-/** Why a site without an explicit owner choice is (not yet) on. @complexity O(1), at most one ledger read and one page lookup. */
-async function automaticActivation(deps: Deps, autoEnable: SiteConsentAutoEnablePort): Promise<SiteConsentActivation> {
-  const off = (waitingFor: SiteConsentWaitingFor): SiteConsentActivation => ({ enabled: false, source: 'default', waitingFor });
-  if (!await autoEnable.isNewLiveSite({})) return off('new-live-site');
-  const url = (await readSetting(deps, 'privacyPolicyUrl'))?.value;
-  if (typeof url !== 'string' || url === '' || siteConsentLinkProblem({ url }) !== null) return off('privacy-link');
-  if (!await autoEnable.privacyPageExists({ url })) return off('privacy-page');
-  return { enabled: true, source: 'automatic', waitingFor: null };
+/** A site without an explicit owner choice: new sites get the default (on); older sites stay off.
+ * The privacy link is not a precondition: the banner shows without it, and publishing an edited
+ * policy still requires one (validation.ts). @complexity O(1), one metadata read per site process. */
+async function automaticActivation(autoEnable: SiteConsentAutoEnablePort): Promise<SiteConsentActivation> {
+  if (!await autoEnable.isNewLiveSite({})) return { enabled: false, source: 'default', waitingFor: 'new-live-site' };
+  return { enabled: SITE_CONSENT_DEFAULTS.enabled, source: 'automatic', waitingFor: null };
 }
 
 /** Resolve whether consent applies, honoring an explicit owner choice over the new-site rule.
@@ -67,7 +72,7 @@ export async function resolveSiteConsentActivation(deps: Deps, { autoEnable }: {
     return { enabled: enabled.value, source: 'owner', waitingFor: null };
   }
   if (!autoEnable) return { enabled: enabled?.value === true, source: 'default', waitingFor: null };
-  return automaticActivation(deps, autoEnable);
+  return automaticActivation(autoEnable);
 }
 
 /** Read every non-flag value with type and length checks. @complexity O(1), twelve ledger reads. */
@@ -82,14 +87,14 @@ async function readValues(deps: Deps): Promise<Omit<SiteConsentSettings, 'enable
   return Object.fromEntries(entries) as Omit<SiteConsentSettings, 'enabled'>;
 }
 
-/** Bind workspace settings to the mechanism. Missing definitions use the OFF default.
+/** Bind workspace settings to the mechanism. Missing definitions read as OFF.
  * Malformed values throw rather than bypass an enabled policy. @complexity O(1), thirteen reads. */
 export function createSiteConsentConfig({ settingsRepo, workspaceId }: Deps, { autoEnable }: { autoEnable?: SiteConsentAutoEnablePort } = {}) {
   return {
     async get(_input: Record<string, never> = {}, _optional = {}): Promise<SiteConsentSettings> {
       // Disabling remains a working rollback even if another consent setting is malformed.
       const activation = await resolveSiteConsentActivation({ settingsRepo, workspaceId }, { autoEnable });
-      if (!activation.enabled) return { ...SITE_CONSENT_DEFAULTS };
+      if (!activation.enabled) return { ...SITE_CONSENT_OFF };
       const values = await readValues({ settingsRepo, workspaceId });
       if (!SITE_CONSENT_REGION_MODES.includes(values.regionMode)) throw new Error('Choose automatic, opt-in, or opt-out cookie consent region mode.');
       if (!SITE_CONSENT_PLACEMENTS.includes(values.placement)) throw new Error(`Choose a cookie banner placement: ${SITE_CONSENT_PLACEMENTS.join(', ')}.`);

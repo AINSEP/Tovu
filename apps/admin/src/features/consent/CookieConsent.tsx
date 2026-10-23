@@ -1,13 +1,14 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from "@jini-ai/admin/consent/react";
 import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
-import { canResetConsentCss, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
+import { canResetConsentCss, CONSENT_PREVIEW_DESKTOP_WIDTH, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
-import { useConsentPage, useConsentPreview, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
+import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
 import "./consent-settings.css";
 
 /**
@@ -89,6 +90,7 @@ function ResetStyle({ page, t, disabled }: { page: ConsentPageController; t: Tra
 
 function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
   const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, delays?.previewMs === undefined ? {} : { delayMs: delays.previewMs });
+  const fit = useConsentPreviewScale();
   const value = page.value!;
   const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: page.editor?.textLimits };
   if (tab === "rules") {
@@ -112,7 +114,7 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
         {tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
-      <div className="card consent-preview-pane">
+      <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
         <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
       </div>

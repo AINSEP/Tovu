@@ -10,7 +10,9 @@ export const SITE_CONSENT_REGION_MODES = ['auto', 'opt-in', 'opt-out'] as const;
 export type SiteConsentRegionMode = typeof SITE_CONSENT_REGION_MODES[number];
 
 export const SITE_CONSENT_DEFAULTS = {
-  enabled: false,
+  // New sites show the banner out of the box (owner, 2026-10-22). Sites created before consent
+  // shipped, and any site whose owner chose on/off, are decided in settings.ts, not by this value.
+  enabled: true,
   // Opt-in everywhere is the safe default: "auto" only differs once a trusted region header exists.
   regionMode: 'opt-in' as SiteConsentRegionMode,
   policyVersion: '1',

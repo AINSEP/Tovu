@@ -32,7 +32,7 @@ import { resolvePublicOrigin } from "../routes/oauth/public-origin.js";
 /** Top-level, non-portable site folder holding one immutable proof file per visitor choice. */
 export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
 
-/** Sites created on or after this instant count as new for the owner's auto-enable rollout rule. */
+/** Sites created on or after this instant count as new: without an owner choice they show the banner. */
 export const CONSENT_LAUNCH_ISO = "2026-10-20T00:00:00.000Z";
 
 /** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
@@ -71,11 +71,10 @@ export function createPrivacyPageCheck({ deps }: { deps: Pick<RouteDeps, "postRe
 
 /** The new-site rule's inputs, read once per site process (creation time never changes).
  * @complexity O(1). */
-export function createSiteConsentAutoEnable({ deps }: { deps: Pick<RouteDeps, "postRepo" | "workspaceId" | "siteBinding"> }, _optional = {}): SiteConsentAutoEnablePort {
+export function createSiteConsentAutoEnable({ deps }: { deps: Pick<RouteDeps, "siteBinding"> }, _optional = {}): SiteConsentAutoEnablePort {
   let isNew: Promise<boolean> | undefined;
   return {
     isNewLiveSite: () => (isNew ??= siteCreatedAfterLaunch({ siteDir: deps.siteBinding.dir })),
-    privacyPageExists: createPrivacyPageCheck({ deps }),
   };
 }
 

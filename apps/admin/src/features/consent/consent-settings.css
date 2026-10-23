@@ -75,6 +75,17 @@
   display: block; max-width: 100%; block-size: 34rem; margin-inline: auto;
   border: 1px solid var(--border); border-radius: var(--r-md); background: #fff;
 }
+/* Desktop lays the page out at a real desktop width (set from rules.ts) and scales it to the pane,
+   so the banner shows its desktop layout, not the phone sheet it uses at 480px and below. The
+   negative margins give back the layout space the scale-down frees. Jini sets an inline width. */
+.consent-preview-pane .jini-consent-preview-frame.is-desktop {
+  box-sizing: border-box; max-width: none; margin: 0;
+  width: var(--consent-preview-desktop-width, 100%) !important;
+  block-size: calc(34rem / var(--consent-preview-scale, 1));
+  margin-block-end: calc(34rem - 34rem / var(--consent-preview-scale, 1));
+  margin-inline-end: calc(var(--consent-preview-desktop-width, 0px) * (var(--consent-preview-scale, 1) - 1));
+  transform: scale(var(--consent-preview-scale, 1)); transform-origin: 0 0;
+}
 .jini-consent-preview-empty {
   display: grid; place-items: center; block-size: 34rem; margin: 0;
   border: 1px dashed var(--border); border-radius: var(--r-md); color: var(--muted);

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
 import type { Translate } from '@jini-ai/ui/panel-kit';
 import { describeApiError } from '@/lib/api';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';
-import { canPublishConsent, isConsentConflict, type ConsentSaveState } from './rules';
+import { canPublishConsent, consentPreviewScale, isConsentConflict, type ConsentSaveState } from './rules';
 import type { ConsentEditorLimits, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from './settings.hooks';
 
 /**
@@ -146,6 +146,22 @@ export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsP
     return () => clearTimeout(timer);
   }, [port, config, delayMs]); // eslint-disable-line react-hooks/exhaustive-deps -- t is fixed per mount
   return state;
+}
+
+/** Tracks the preview pane's width as the scale that fits a desktop-width page into it, so the
+ * Desktop preview shows the banner's desktop layout. Without ResizeObserver (tests) it stays 1.
+ * @complexity O(1) per resize. */
+export function useConsentPreviewScale(_required: Record<string, never> = {}, _optional = {}): { ref: (node: HTMLElement | null) => void; scale: number } {
+  const [scale, setScale] = useState(1);
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((node: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    observer.current = new ResizeObserver(entries => setScale(consentPreviewScale({ paneWidth: entries[0]?.contentRect.width ?? 0 })));
+    observer.current.observe(node);
+  }, []);
+  return { ref, scale };
 }
 
 /** Readiness for Overview: the server checks the draft (else the live settings) as if it were on.
