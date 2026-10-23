@@ -11,8 +11,8 @@ import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from '../../contra
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 
-/** Phase 16 baseline with reviewed render/gallery discovery, credential copy, site sharing,
- * tool gaps, local theme import, post templates and chat-selection additions. Exact search
+/** Phase 16 baseline with reviewed discovery additions, visitor-tool management and phase 7's
+ * vendor-neutral native vocabulary. Bundled declarations enrich search separately; exact native
  * strings and callback restrictions remain independently pinned. */
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/tool-metadata.baseline.json', import.meta.url), 'utf8')) as {
   keywords: Record<string, string>; queries: Record<string, string[]>; approvals: Record<string, unknown>;

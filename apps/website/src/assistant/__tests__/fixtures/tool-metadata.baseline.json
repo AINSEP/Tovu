@@ -263,8 +263,8 @@
     "deployment_get_export_status": "progress done finished check static site build",
     "deployment_get_dockerfile": "docker container read view current build file",
     "deployment_set_dockerfile": "docker container write edit update change build file",
-    "source_control_get_capabilities": "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
-    "source_control_execute_commit": "commit my site to a git repository push the site code export to repo commit changes github gitlab",
+    "source_control_get_capabilities": "git source control connected ready can I commit repository credentials setup",
+    "source_control_execute_commit": "commit my site to a git repository push the site code export to repo commit changes",
     "site_backup_plan": "backup back up save copy snapshot archive keep safe my site database content repository private repo",
     "site_backup_push": "backup back up save copy snapshot archive site database repository confirm push",
     "site_get_profile": "site overview summary snapshot everything about the site inventory status",
@@ -342,7 +342,11 @@
     "search_reindex": "search reindex rebuild refresh index full backfill",
     "search_set_provider": "search provider switch change backend builtin engine",
     "comments_get_provider": "comments provider built-in active readiness pending",
-    "comments_set_provider": "comments provider select switch disable built-in"
+    "comments_set_provider": "comments provider select switch disable built-in",
+    "visitor_tools_list": "visitor public assistant tools list modes limits permissions anonymous chatbot",
+    "visitor_tool_configure": "visitor public assistant tools enable disable auto ask off mode limits rate budget",
+    "visitor_tool_save": "visitor tool create update saved request api endpoint",
+    "visitor_tool_delete": "visitor tool delete remove saved request permanently"
   },
   "queries": {
     "media_replace_file": [
@@ -461,7 +465,7 @@
       "Which hosting and domain changes would a publish make?"
     ],
     "source_control_get_capabilities": [
-      "Is GitHub connected for source control?",
+      "Is a repository host connected for source control?",
       "Is git set up for this site yet?",
       "Which repository host is connected?",
       "Are my source control credentials ready?"
@@ -1993,6 +1997,21 @@
     ],
     "comments_set_provider": [
       "Switch my comments provider."
+    ],
+    "visitor_tools_list": [
+      "What can visitors do in chat?",
+      "List visitor tools and limits."
+    ],
+    "visitor_tool_configure": [
+      "Turn off visitor search.",
+      "Raise the visitor tool limit.",
+      "Set visitor tools to Ask first."
+    ],
+    "visitor_tool_save": [
+      "Create a visitor tool."
+    ],
+    "visitor_tool_delete": [
+      "Delete a created visitor tool."
     ]
   },
   "approvals": {
@@ -3551,6 +3570,22 @@
     "comments_set_provider": {
       "class": "escalation",
       "confirmation": "plan"
+    },
+    "visitor_tools_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "visitor_tool_configure": {
+      "class": "escalation",
+      "confirmation": "plan"
+    },
+    "visitor_tool_save": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "visitor_tool_delete": {
+      "class": "read",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3606,7 +3641,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "secretForms": {
     "credential_save": {
@@ -3699,7 +3735,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3759,7 +3796,8 @@
     "mail_send_test",
     "search_reindex",
     "search_set_provider",
-    "comments_set_provider"
+    "comments_set_provider",
+    "visitor_tool_configure"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

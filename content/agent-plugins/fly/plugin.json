@@ -42,7 +42,7 @@
         }
       ],
       "toolKeywords": {
-        "credential_save": "fly flyio fly.io",
+        "credential_save": "fly flyio fly.io fly api token hosting account",
         "custom_credential_list": "flyio fly.io",
         "custom_credential_make_request": "fly.io",
         "custom_credential_verify": "fly.io",

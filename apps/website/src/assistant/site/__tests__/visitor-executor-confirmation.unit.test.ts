@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
+import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit/repo.memory.js";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorExecutionPorts } from "../visitor-executor.js";
 import { VISITOR_TOOL_PRESENTATION } from "../visitor-tool-presentation.js";
 import { parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
@@ -17,12 +17,15 @@ function fixture() {
   let failRead = false;
   let onRead = (_count: number) => {};
   let onPrompt = (_prompt: ToolConfirmationDirective) => {};
-  const events: ToolAttemptEvent[] = [], errors: unknown[] = [];
+  // MOVE: The visitor adapter supplies fixed provenance through append's optional detail port.
+  // Use the memory sink owner so this fixture retains the same sanitized rows as production.
+  const sink = createInMemoryToolAttemptAuditSink({});
+  const events = sink.events, errors: unknown[] = [];
   const ports: VisitorExecutionPorts = { initialPolicy: policy, readPolicy: async () => policy,
     readSnapshot: async () => { snapshotReads++; onRead(snapshotReads); if (failRead) throw new Error("db unavailable"); return { policy, revision }; },
     confirmation: { ...f.confirmations, emit: directive => { f.directives.push(directive); onPrompt(directive); } },
     budgets: { charge: async () => true }, clock: f.clock, ids: { newId: () => "attempt" }, workspaceId: "w", runId: "run", ip: "ip",
-    sink: { append: async event => { events.push(event); } }, signal: f.abort.signal, reportError: error => { errors.push(error); } };
+    sink, signal: f.abort.signal, reportError: error => { errors.push(error); } };
   const capabilities = [{ name: "list_categories", visitorOfferable: true as const, ...VISITOR_TOOL_PRESENTATION.list_categories,
     execute: async ({ input }: { input: unknown }) => { calls++; return { result: input }; } }];
   const executor = createVisitorExecutor({ capabilities }, { ports });
@@ -49,6 +52,9 @@ for (const allow of [true, false]) test(`Ask advertises but never runs until thi
   assert.deepEqual(f.events.map(event => event.phase), ["requested", allow ? "completed" : "confirmation-denied"]);
   assert.doesNotMatch(JSON.stringify(result), new RegExp(directive.challengeId));
   assert.doesNotMatch(JSON.stringify(f.events), /approved|click Allow|challengeId/);
+  assert.ok(!JSON.stringify(f.events).includes(directive.challengeId));
+  assert.ok(!JSON.stringify(f.events).includes(directive.summary));
+  assert.ok(f.events.every(event => event.detail === '{"audience":"visitor","source":"builtin"}'));
   assert.equal(await f.confirmations.confirm({ challengeId: directive.challengeId, allow: true }), false);
 });
 
