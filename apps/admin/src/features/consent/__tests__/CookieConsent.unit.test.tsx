@@ -5,7 +5,6 @@ import { navigate } from '@/lib/router';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';
 import { CookieConsent } from '../CookieConsent';
 import type { ConsentRevisionsPort } from '../settings.hooks';
-import { SUGGESTED_CONSENT_CSS } from '../rules';
 import { CONSENT_CONFIG, conflict, consentSnapshot, fakeConsentPort, revision, saved } from './consent-fixtures';
 
 vi.mock('@/lib/router', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/router')>()), navigate: vi.fn() }));
@@ -212,24 +211,36 @@ describe('CookieConsent: draft first', () => {
   });
 });
 
-describe('CookieConsent: suggested style', () => {
-  it('fills an empty Custom CSS field with the suggested style and autosaves it as a draft', async () => {
-    const saveDraft = vi.fn<ConsentRevisionsPort['saveDraft']>(() => Promise.resolve(saved('d2')));
-    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), saveDraft }), 'look');
-    fireEvent.click(await screen.findByRole('button', { name: 'Use suggested style' }));
-    expect(screen.getByLabelText('Custom CSS')).toHaveValue(SUGGESTED_CONSENT_CSS);
-    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ customCss: SUGGESTED_CONSENT_CSS }) })));
-    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
+describe('CookieConsent: Reset to default', () => {
+  const DEFAULT_CSS = '/* default */\n#jini-consent { padding: 16px; }\n';
+  const own = '#jini-consent { padding: 12px; }';
+  const snapshot = (customCss: string) => consentSnapshot({
+    draft: revision('d1', { ...CONSENT_CONFIG, customCss }), published: revision('p1'),
+    editor: { ...consentSnapshot().editor, defaults: { customCss: DEFAULT_CSS } },
   });
 
-  it('is not offered over existing Custom CSS, and not on Banner', async () => {
-    const own = consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, customCss: '#jini-consent { padding: 12px; }' }), published: revision('p1') });
-    const { unmount } = renderPage(fakeConsentPort({ get: () => Promise.resolve(own) }), 'look');
-    expect(await screen.findByLabelText('Custom CSS')).toHaveValue('#jini-consent { padding: 12px; }');
-    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
+  it('puts the default style back over the owner\'s CSS and autosaves it as a draft', async () => {
+    const saveDraft = vi.fn<ConsentRevisionsPort['saveDraft']>(() => Promise.resolve(saved('d2')));
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(own)), saveDraft }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(own);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
+    expect(screen.getByLabelText('Custom CSS')).toHaveValue(DEFAULT_CSS);
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledWith(expect.objectContaining({ config: expect.objectContaining({ customCss: DEFAULT_CSS }) })));
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+  });
+
+  it('is not offered while the field holds the default, without a server default, or on Banner', async () => {
+    const { unmount } = renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(DEFAULT_CSS)) }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(DEFAULT_CSS);
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
     unmount();
-    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft) }), 'banner');
+    const noDefault = consentSnapshot({ draft: revision('d1', { ...CONSENT_CONFIG, customCss: own }), published: revision('p1') });
+    const second = renderPage(fakeConsentPort({ get: () => Promise.resolve(noDefault) }), 'look');
+    expect(await screen.findByLabelText('Custom CSS')).toHaveValue(own);
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+    second.unmount();
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(snapshot(own)) }), 'banner');
     expect(await screen.findByRole('group', { name: 'Banner text' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Use suggested style' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
   });
 });

@@ -5,7 +5,7 @@ import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
-import { canSuggestConsentCss, consentStatusKey, resolveConsentTabId, SUGGESTED_CONSENT_CSS, type ConsentTabId } from "./rules";
+import { canResetConsentCss, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
 import { useConsentPage, useConsentPreview, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
 import "./consent-settings.css";
@@ -66,21 +66,22 @@ function Notices({ page, t }: { page: ConsentPageController; t: Translate }) {
   );
 }
 
-/** Offers Tovu's suggested banner style into an empty Custom CSS field (never over the owner's
- * own CSS). Like any edit it only autosaves a draft; the live banner changes on Publish. */
-function SuggestedStyle({ page, t, disabled }: { page: ConsentPageController; t: Translate; disabled: boolean }) {
-  if (!canSuggestConsentCss({ customCss: page.value?.customCss })) return null;
+/** Puts the site's default banner style back into Custom CSS. The server pre-fills an empty field
+ * with that default, so this appears only after the owner has changed it. Like any edit it only
+ * autosaves a draft; the live banner changes on Publish. */
+function ResetStyle({ page, t, disabled }: { page: ConsentPageController; t: Translate; disabled: boolean }) {
+  const defaultCss = page.editor?.defaults?.customCss;
+  if (!defaultCss || !canResetConsentCss({ customCss: page.value?.customCss, defaultCss })) return null;
   return (
-    <div className="consent-css-suggestion">
-      <p>{t("Start from a rounded card with roomy padding.")}</p>
+    <div className="consent-css-reset">
       <button
         type="button"
         className="btn-secondary"
         disabled={disabled}
-        onClick={() => page.onChange({ patch: { customCss: SUGGESTED_CONSENT_CSS } })}
-        {...agentHandle({ handle: "consent-use-suggested-css" }, { role: "button", label: "Fill the empty Custom CSS field with the suggested cookie banner style" })}
+        onClick={() => page.onChange({ patch: { customCss: defaultCss } })}
+        {...agentHandle({ handle: "consent-reset-css" }, { role: "button", label: "Put the default cookie banner style back into Custom CSS" })}
       >
-        {t("Use suggested style")}
+        {t("Reset to default")}
       </button>
     </div>
   );
@@ -109,7 +110,7 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
     <div className="consent-editor consent-editor-with-preview">
       <div className="card">
         {tab === "banner" ? <ConsentBannerFields {...fields} /> : <ConsentLookFields {...fields} placements={page.editor?.placements} />}
-        {tab === "look" && <SuggestedStyle page={page} t={translation.t} disabled={fields.disabled} />}
+        {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
       <div className="card consent-preview-pane">
         {preview.error && <p className="notice error" role="alert">{preview.error}</p>}

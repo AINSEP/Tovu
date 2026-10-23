@@ -1,7 +1,9 @@
-/** siteConsentLinkProblem: the admin's pre-save explanation of why a policy link is refused. */
+/** siteConsentLinkProblem: the admin's pre-save explanation of why a policy link is refused.
+ * withSiteConsentDefaultCss: the default banner style that fills an empty Custom CSS. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { siteConsentLinkProblem } from '../../config.js';
+import { compileConsentCss } from '@jini-ai/cms/consent';
+import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS, siteConsentLinkProblem, withSiteConsentDefaultCss } from '../../config.js';
 
 const SITE_OR_HTTPS = 'Use a page on this site, like /privacy, or an https:// address.';
 
@@ -34,4 +36,26 @@ test('credentials embedded in an https URL are refused, user name or password al
 
 test('text that is neither a local path nor a parseable URL gets the same fix sentence', () => {
   assert.equal(siteConsentLinkProblem({ url: 'privacy' }), SITE_OR_HTTPS);
+});
+
+test('the default banner CSS passes the engine policy unchanged and sets no colors, so the theme colors stay', () => {
+  const { css, problems } = compileConsentCss({ css: SITE_CONSENT_DEFAULT_CSS, tokens: {} });
+  assert.deepEqual(problems, []);
+  assert.ok(css.includes('#jini-consent[data-has-record="false"]{padding:16px;border-radius:14px}'));
+  assert.ok(css.includes('#jini-consent[data-has-record="false"] button{border-radius:8px}'));
+  assert.doesNotMatch(SITE_CONSENT_DEFAULT_CSS, /(^|[^-])color\s*:/m);
+});
+
+test('an unset or blank Custom CSS gets the default style; the owner\'s own CSS is never replaced', () => {
+  for (const customCss of [undefined, '', '  \n']) {
+    assert.equal(withSiteConsentDefaultCss({ config: { title: 'T', customCss } }).customCss, SITE_CONSENT_DEFAULT_CSS, JSON.stringify(customCss));
+  }
+  const own = { title: 'T', customCss: '#jini-consent { padding: 12px; }' };
+  assert.equal(withSiteConsentDefaultCss({ config: own }), own);
+  const comment = { customCss: '/* plain engine look */' };
+  assert.equal(withSiteConsentDefaultCss({ config: comment }), comment);
+});
+
+test('new sites default to a corner card, not a full-width bar', () => {
+  assert.equal(SITE_CONSENT_DEFAULTS.placement, 'bottom-right');
 });

@@ -23,7 +23,10 @@ returned draft ID. On 409 reload and review; never silently retry over another e
 
 `config` uses Jini's ConsentConfig: enabled, regionMode, policyVersion, privacyPolicyUrl, title,
 message, acceptLabel, rejectLabel, preferencesLabel, placement, secondaryLinkLabel/Url,
-appearance tokens and customCss. GET settings exposes safe defaults and editor limits. Drafts may
+appearance tokens and customCss. An empty or unset customCss means Tovu's default banner style
+(`SITE_CONSENT_DEFAULT_CSS` in `config.ts`): the public site delivers it, the preview shows it, and GET
+settings pre-fills it into `effective`/`draft` and exposes it as `editor.defaults.customCss` for
+"Reset to default". GET settings exposes safe defaults and editor limits. Drafts may
 retain invalid appearance while editing. Publish validates the stored copy, links, published local
 privacy page, trusted automatic region mode and Jini's CSS result. Invalid drafts never change the
 published look. Categories, necessary behavior and GPC are fixed by Jini; the API does not pretend

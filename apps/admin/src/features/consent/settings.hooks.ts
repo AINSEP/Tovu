@@ -18,6 +18,8 @@ export interface ConsentRevision {
 
 /** What GET /settings says the editor may offer. Categories and GPC are fixed by the engine. */
 export interface ConsentEditorLimits {
+  /** Field defaults; `customCss` is the default banner style that "Reset to default" restores. */
+  defaults?: { customCss?: string };
   placements: string[];
   textLimits: Partial<Record<'title' | 'message' | 'acceptLabel' | 'rejectLabel' | 'preferencesLabel' | 'secondaryLinkLabel', number>>;
   maxCssLength: number;

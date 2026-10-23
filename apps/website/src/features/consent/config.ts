@@ -22,9 +22,36 @@ export const SITE_CONSENT_DEFAULTS = {
   acceptLabel: 'Accept all',
   rejectLabel: 'Reject non-essential',
   preferencesLabel: 'Cookie preferences',
-  placement: 'bottom-bar' as SiteConsentPlacement,
+  // A corner card covers far less of the page than a full-width bar (owner, 2026-10-22).
+  placement: 'bottom-right' as SiteConsentPlacement,
 };
 export type SiteConsentSettings = typeof SITE_CONSENT_DEFAULTS;
+
+/** Tovu's default banner Custom CSS: live whenever the owner's field is empty, and shown in that
+ * field so the owner edits it like their own. The engine allows only its banner selectors and a few
+ * safe properties (no var(), alpha colors, layout or font sizes under 16px), so this sets shape and
+ * spacing only; colors keep following the site theme in light and dark. */
+export const SITE_CONSENT_DEFAULT_CSS = `/* Tovu's default cookie banner style. Edit it freely; "Reset to default" brings it back. */
+#jini-consent {
+  padding: 16px;
+  border-radius: 14px;
+}
+#jini-consent button {
+  border-radius: 8px;
+}
+#jini-consent a {
+  border-radius: 6px;
+}
+`;
+
+/** An empty or unset Custom CSS means "use the default"; an owner's own CSS is never replaced.
+ * Shared by public delivery, the admin preview and the editor snapshot, so all three show the same
+ * banner. @complexity O(css length). */
+export function withSiteConsentDefaultCss<T extends object>({ config }: { config: T }, _options = {}): T {
+  const { customCss } = config as { customCss?: unknown };
+  const empty = customCss === undefined || (typeof customCss === 'string' && customCss.trim() === '');
+  return empty ? { ...config, customCss: SITE_CONSENT_DEFAULT_CSS } : config;
+}
 
 /** Plain-text fields and their limits; config text is always rendered as text, never HTML. */
 export const SITE_CONSENT_TEXT_LIMITS: Readonly<Record<'title' | 'message' | 'acceptLabel' | 'rejectLabel' | 'preferencesLabel' | 'secondaryLinkLabel', number>> = {

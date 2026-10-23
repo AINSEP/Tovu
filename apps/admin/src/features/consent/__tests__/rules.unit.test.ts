@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '@/lib/api';
-import { compileConsentCss } from '@jini-ai/cms/consent';
-import { canPublishConsent, canSuggestConsentCss, consentProblemTab, consentStatusKey, isConsentConflict, pausedByCategory, resolveConsentTabId, SUGGESTED_CONSENT_CSS } from '../rules';
+import { canPublishConsent, canResetConsentCss, consentProblemTab, consentStatusKey, isConsentConflict, pausedByCategory, resolveConsentTabId } from '../rules';
 
 describe('resolveConsentTabId', () => {
   it('opens the named tab, and Overview for an absent or unknown one', () => {
@@ -75,20 +74,17 @@ describe('canPublishConsent', () => {
   });
 });
 
-describe('SUGGESTED_CONSENT_CSS', () => {
-  it('passes the engine CSS policy unchanged and sets no colors, so the banner keeps the theme colors', () => {
-    const { css, problems } = compileConsentCss({ css: SUGGESTED_CONSENT_CSS, tokens: {} });
-    expect(problems).toEqual([]);
-    expect(css).toContain('#jini-consent[data-has-record="false"]{border-radius:16px;padding:24px}');
-    expect(css).toContain('#jini-consent[data-has-record="false"] button{border-radius:10px}');
-    expect(SUGGESTED_CONSENT_CSS).not.toMatch(/(^|[^-])color\s*:/m);
+describe('canResetConsentCss', () => {
+  const defaultCss = '#jini-consent { padding: 16px; }';
+  it('offers Reset only while the field differs from the default style', () => {
+    expect(canResetConsentCss({ customCss: defaultCss, defaultCss })).toBe(false);
+    expect(canResetConsentCss({ customCss: '#jini-consent { padding: 12px; }', defaultCss })).toBe(true);
+    expect(canResetConsentCss({ customCss: undefined, defaultCss })).toBe(true);
+    expect(canResetConsentCss({ customCss: '', defaultCss })).toBe(true);
   });
-});
 
-describe('canSuggestConsentCss', () => {
-  it('offers the suggestion only into an empty field, never over the owner\'s own CSS', () => {
-    expect(canSuggestConsentCss({ customCss: undefined })).toBe(true);
-    expect(canSuggestConsentCss({ customCss: '  \n' })).toBe(true);
-    expect(canSuggestConsentCss({ customCss: '#jini-consent { padding: 12px; }' })).toBe(false);
+  it('is never offered when the server sent no default', () => {
+    expect(canResetConsentCss({ customCss: 'x', defaultCss: undefined })).toBe(false);
+    expect(canResetConsentCss({ customCss: 'x', defaultCss: '' })).toBe(false);
   });
 });

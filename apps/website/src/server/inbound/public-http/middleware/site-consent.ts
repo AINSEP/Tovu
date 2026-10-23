@@ -7,6 +7,7 @@ import { registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
+import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
 import { createSiteConsentConfig, type SiteConsentAutoEnablePort } from "#src/features/consent/settings";
 import { findPublishedPostBySlug } from "#src/features/post/index";
@@ -95,8 +96,9 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
     config: { get: async () => {
       await deps.siteTitleReady;
       const state = await deps.consentStore?.read({});
-      if (!state?.published) return createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }, { autoEnable: createSiteConsentAutoEnable({ deps }) }).get({});
-      const config = parseConsentConfig({ value: state.published.config });
+      // An empty owner Custom CSS gets Tovu's default banner style (owner, 2026-10-22).
+      if (!state?.published) return withSiteConsentDefaultCss({ config: await createSiteConsentConfig({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }, { autoEnable: createSiteConsentAutoEnable({ deps }) }).get({}) });
+      const config = withSiteConsentDefaultCss({ config: parseConsentConfig({ value: state.published.config }) });
       if (consentConfigProblems({ config, trustedRegion: Boolean(trustedRegionHeader) }).length) throw new Error('Published consent policy is invalid.');
       // Receipts name an immutable configuration; changing a published revision requires a new choice.
       return { ...config, policyVersion: `${config.policyVersion}:${state.published.id}` };

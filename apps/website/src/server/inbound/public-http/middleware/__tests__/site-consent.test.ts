@@ -13,6 +13,7 @@ import { startTestServer } from '#src/server/__tests__/helpers/http-test-server'
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { applySiteConsent, CONSENT_LAUNCH_ISO, CONSENT_RECEIPTS_DIR_NAME, createSiteConsentAutoEnable, createSiteConsentPorts } from '../site-consent.js';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
+import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
@@ -162,6 +163,19 @@ test('auto-enable treats only a site stamped at or after launch as new, reads th
   assert.equal(await launched.privacyPageExists({ url: 'https://example.com/privacy' }), true);
   assert.equal(await launched.privacyPageExists({ url: '/Not A Slug' }), false);
   assert.equal(await launched.privacyPageExists({ url: '/no-such-privacy-page/' }), false);
+});
+
+test('a published policy with an empty Custom CSS is served with the default style; the owner\'s own CSS wins', async t => {
+  const f = await publicFixture({ t });
+  const state = await f.store.read({});
+  assert.ok(state?.published);
+  const published = state.published;
+  const serve = async (customCss: string) => {
+    f.deps.consentStore = { ...f.store, read: async () => ({ ...state, published: { ...published, config: { ...(published.config as object), customCss } } }) };
+    return (await createSiteConsentPorts({ deps: f.deps }).config.get({})).customCss;
+  };
+  assert.equal(await serve(''), SITE_CONSENT_DEFAULT_CSS);
+  assert.equal(await serve('#jini-consent { padding: 12px; }'), '#jini-consent { padding: 12px; }');
 });
 
 test('an auto-region published policy is refused without a trusted region header and served with one', async t => {
