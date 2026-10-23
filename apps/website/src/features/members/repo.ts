@@ -55,7 +55,10 @@ function withoutId<T extends { id: unknown }>(row: T): Omit<T, "id"> {
 }
 
 export class SqlMemberRepo implements MemberRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -138,7 +141,10 @@ export class SqlMemberRepo implements MemberRepoPort {
 }
 
 export class SqlMemberTierRepo implements MemberTierRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberTierRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -186,7 +192,10 @@ export class SqlMemberTierRepo implements MemberTierRepoPort {
 }
 
 export class SqlMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberSubscriptionRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -253,7 +262,10 @@ export class SqlMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
  * @complexity O(s) for bulk revocation, s = sessions of the member; two bulk updates, no per-row I/O.
  */
 export class SqlMemberSessionRepo implements MemberSessionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MemberSessionRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -331,7 +343,10 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
 }
 
 export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -401,7 +416,10 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
  * `transaction` is the kernel's: `consent-service.ts` awaits repo calls inside it.
  */
 export class SqlMemberConsentRepo implements MemberConsentRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByMemberAndPurpose(required: {
     workspaceId: string;

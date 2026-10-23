@@ -68,7 +68,10 @@ function toPrincipalRecord(row: Selectable<PrincipalsTable>): PrincipalRecord {
 }
 
 export class SqlPrincipalRepo implements PrincipalRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PrincipalRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -117,7 +120,10 @@ function toUserRecord(row: Selectable<IdentityUsersTable>): UserRecord {
 }
 
 export class SqlUserRepo implements UserRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByPrincipalId(required: {
     workspaceId: string;
@@ -188,7 +194,10 @@ function toSessionRecord(row: Selectable<SessionsTable>): SessionRecord {
 }
 
 export class SqlSessionRepo implements SessionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<SessionRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -266,7 +275,10 @@ function toRoleRecord(row: Selectable<RolesTable>): RoleRecord {
 }
 
 export class SqlRoleRepo implements RoleRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<RoleRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -334,7 +346,10 @@ function toPolicyRecord(row: Selectable<PoliciesTable>): PolicyRecord {
 }
 
 export class SqlPolicyRepo implements PolicyRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PolicyRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -404,7 +419,10 @@ function toPolicyPermissionRecord(row: Selectable<PolicyPermissionsTable>): Poli
 }
 
 export class SqlPolicyPermissionRepo implements PolicyPermissionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByPolicyId(required: {
     workspaceId: string;
@@ -458,7 +476,10 @@ function toRolePolicyRecord(row: Selectable<RolePoliciesTable>): RolePolicyRecor
 }
 
 export class SqlRolePolicyRepo implements RolePolicyRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByRoleId(required: { workspaceId: string; roleId: string }): Promise<RolePolicyRecord[]> {
     const rows = await this.kernel.run((db) =>
@@ -501,7 +522,10 @@ function toPrincipalRoleRecord(row: Selectable<PrincipalRolesTable>): PrincipalR
 }
 
 export class SqlPrincipalRoleRepo implements PrincipalRoleRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByPrincipalId(required: {
     workspaceId: string;
@@ -547,7 +571,10 @@ function toPrincipalPolicyRecord(row: Selectable<PrincipalPoliciesTable>): Princ
 }
 
 export class SqlPrincipalPolicyRepo implements PrincipalPolicyRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByPrincipalId(required: {
     workspaceId: string;
@@ -618,7 +645,10 @@ function toApiKeyRecord(row: Selectable<ApiKeysTable>): ApiKeyRecord {
 }
 
 export class SqlApiKeyRepo implements ApiKeyRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<ApiKeyRecord | null> {
     const row = await this.kernel.run((db) =>

@@ -114,8 +114,10 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */
 export class CrossSiteUnavailable extends ToolInputError {
-  constructor(readonly field: string) {
+  readonly field: string;
+  constructor(field: string) {
     super({ message: `This read needs ${field}, which isn't available for another site.` });
+    this.field = field;
     this.name = 'CrossSiteUnavailable';
   }
 }

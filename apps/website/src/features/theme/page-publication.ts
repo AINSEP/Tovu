@@ -4,8 +4,12 @@ import { readThemeFile, writeThemeFile } from "./theme-files.js";
 
 /** Expected page-publication refusals shared by HTTP and assistant transports. */
 export class ThemePagePublicationError extends Error {
-  constructor(message: string, readonly status: number, readonly code: string) {
+  readonly status: number;
+  readonly code: string;
+  constructor(message: string, status: number, code: string) {
     super(message);
+    this.status = status;
+    this.code = code;
     this.name = "ThemePagePublicationError";
   }
 }

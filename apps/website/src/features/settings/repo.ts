@@ -145,7 +145,10 @@ function toRevisionRecord(row: Selectable<SettingRevisionsTable>): SettingRevisi
 }
 
 export class SqlSettingsRepo implements SettingsRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findActiveDefinition(required: {
     namespace: string;
