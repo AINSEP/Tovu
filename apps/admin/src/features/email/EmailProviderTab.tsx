@@ -200,7 +200,7 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
   const { controller, locale } = props;
   const pending = controller.pendingSwitch;
   return (
-    <Section id="provider" title={t({ locale, key: "Provider" })}>
+    <Section id="provider" title={t({ locale, key: "Provider" })} hideTitle>
       <Loaded view={controller.view} locale={locale} retry={controller.reload}>
         {(report) => (
           <>

@@ -17,15 +17,22 @@ export function Chip(props: { tone: Tone; children: ReactNode }) {
   return <span className={`status status-${props.tone}`}>{props.children}</span>;
 }
 
-/** One titled card; `id` doubles as the in-page anchor within its tab. */
-export function Section(props: { id: string; title: string; actions?: ReactNode; children: ReactNode }) {
+/**
+ * One titled card; `id` doubles as the in-page anchor within its tab. `hideTitle` drops the visible
+ * heading where the selected tab or segment already says the same words (owner, 2026-10-22: "all
+ * the subtabs have duplicate titles"); the title stays the region's accessible name.
+ */
+export function Section(props: { id: string; title: string; hideTitle?: boolean; actions?: ReactNode; children: ReactNode }) {
+  const named = props.hideTitle ? { "aria-label": props.title } : { "aria-labelledby": `email-${props.id}-title` };
   return (
-    <section id={props.id} className="jini-settings-section email-section" aria-labelledby={`email-${props.id}-title`}>
+    <section id={props.id} className={`jini-settings-section email-section${props.hideTitle ? " email-section-untitled" : ""}`} {...named}>
       <div className="jini-settings-section-card email-card">
-        <div className="email-card-head">
-          <h2 className="jini-byok-card-title" id={`email-${props.id}-title`}>{props.title}</h2>
-          {props.actions}
-        </div>
+        {props.hideTitle && !props.actions ? null : (
+          <div className="email-card-head">
+            {props.hideTitle ? null : <h2 className="jini-byok-card-title" id={`email-${props.id}-title`}>{props.title}</h2>}
+            {props.actions}
+          </div>
+        )}
         {props.children}
       </div>
     </section>

@@ -80,16 +80,16 @@ export function EmailOverviewTab(props: { controller: EmailOverviewController; l
   const { controller, locale, part } = props;
   return (
     <>
-      {part === "test" ? null : <UsesSection controller={controller} locale={locale} />}
-      {part === "uses" ? null : <TestSection controller={controller} locale={locale} />}
+      {part === "test" ? null : <UsesSection controller={controller} locale={locale} hideTitle={part !== undefined} />}
+      {part === "uses" ? null : <TestSection controller={controller} locale={locale} hideTitle={part !== undefined} />}
     </>
   );
 }
 
-function UsesSection(props: { controller: EmailOverviewController; locale: string }) {
+function UsesSection(props: { controller: EmailOverviewController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   return (
-    <Section id="uses" title={t({ locale, key: "What uses email" })}>
+    <Section id="uses" title={t({ locale, key: "What uses email" })} hideTitle={props.hideTitle}>
       <Loaded view={controller.uses} locale={locale} retry={controller.reloadUses}>
         {(report) => (report.uses.length === 0
           ? <p className="jini-field-hint">{t({ locale, key: "Nothing on this site sends email yet." })}</p>
@@ -99,12 +99,12 @@ function UsesSection(props: { controller: EmailOverviewController; locale: strin
   );
 }
 
-function TestSection(props: { controller: EmailOverviewController; locale: string }) {
+function TestSection(props: { controller: EmailOverviewController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const test = controller.test;
   const line = test.kind === "done" ? testResultLine(test.result, locale) : null;
   return (
-    <Section id="test" title={t({ locale, key: "Send test email" })}>
+    <Section id="test" title={t({ locale, key: "Send test email" })} hideTitle={props.hideTitle}>
       <form className="email-test-form" onSubmit={(event) => { event.preventDefault(); void controller.sendTest(); }}>
         <div className="jini-field email-field">
           <label className="jini-field-label" htmlFor="email-test-to">{t({ locale, key: "To" })}</label>

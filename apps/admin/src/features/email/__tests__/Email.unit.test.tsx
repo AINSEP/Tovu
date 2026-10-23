@@ -14,7 +14,9 @@ function renderEmail(required: { view: EmailStatusView; tabId?: string; part?: s
   const tabHooks = createTabHooks();
   return { ...render(<Email tabId={required.tabId} part={required.part} useEmailHook={() => controller} tabHooks={tabHooks} />), tabHooks };
 }
-const sectionTitles = () => screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
+/** Each shown section's accessible name — its heading, or its `aria-label` where the heading would repeat the tab or segment. */
+const sectionNames = () => screen.getAllByRole("region").map((region) => region.getAttribute("aria-label") ?? region.querySelector("h2")?.textContent);
+const sectionHeadings = () => screen.queryAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
 const originalUrl = window.location.href;
 afterEach(() => window.history.replaceState(null, "", originalUrl));
 const LOCAL: AdminMailStatus = { mailDeliveryAvailable: false, state: "degraded", lanes: [{ lane: "transactional", providerId: "local", state: "local_only" }, { lane: "bulk", providerId: "local", state: "local_only" }], warnings: ["sender_unknown"] };
@@ -25,7 +27,8 @@ describe("Email", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Email" })).toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Overview", "Provider", "Sender & DNS", "Templates", "Activity"]);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
-    expect(sectionTitles()).toEqual(["Status"]);
+    expect(sectionNames()).toEqual(["Status"]);
+    expect(sectionHeadings()).toEqual([]);
     expect(screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual(["Status", "What uses email", "Send test email"]);
     expect(screen.getByRole("radio", { name: "Status" })).toBeChecked();
     expect(tabHooks.overview).toHaveBeenCalledOnce();
@@ -33,13 +36,14 @@ describe("Email", () => {
   });
 
   it.each([
-    ["overview", ["Status"]], ["provider", ["Provider"]],
-    ["sender", ["Sender"]], ["templates", ["Templates"]],
-    ["activity", ["Recent sends"]],
-    ["unknown", ["Status"]],
-  ])("opens the %s tab from the URL", (tabId, titles) => {
+    ["overview", ["Status"], []], ["provider", ["Provider"], []],
+    ["sender", ["Sender"], []], ["templates", ["Templates"], ["Templates"]],
+    ["activity", ["Recent sends"], []],
+    ["unknown", ["Status"], []],
+  ])("opens the %s tab from the URL, with no heading that repeats the tab or segment", (tabId, names, headings) => {
     renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId: tabId as string });
-    expect(sectionTitles()).toEqual(titles);
+    expect(sectionNames()).toEqual(names);
+    expect(sectionHeadings()).toEqual(headings);
     expect(screen.queryByText("Coming next")).not.toBeInTheDocument();
   });
 
@@ -59,7 +63,8 @@ describe("Email", () => {
     ["activity", "blocked", ["Blocked addresses"]], ["activity", "reports", ["Bounce and spam reports"]], ["activity", "nope", ["Recent sends"]],
   ])("opens the %s tab's %s section from ?p=", (tabId, part, titles) => {
     renderEmail({ view: { kind: "loaded", status: LOCAL }, tabId, part });
-    expect(sectionTitles()).toEqual(titles);
+    expect(sectionNames()).toEqual(titles);
+    expect(sectionHeadings()).toEqual([]);
     expect(screen.getByRole("radio", { name: titles[0] })).toBeChecked();
   });
 

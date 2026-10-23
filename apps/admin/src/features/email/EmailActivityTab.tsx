@@ -111,10 +111,10 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
   );
 }
 
-function RecentSends(props: { controller: EmailActivityController; locale: string }) {
+function RecentSends(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   return (
-    <Section id="activity" title={t({ locale, key: "Recent sends" })}>
+    <Section id="activity" title={t({ locale, key: "Recent sends" })} hideTitle={props.hideTitle}>
       <div className="email-filters">
         <select className="jini-input" aria-label={t({ locale, key: "Outcome" })} value={controller.filter.outcome ?? ""}
           onChange={(e) => controller.setFilter({ ...controller.filter, outcome: e.target.value || undefined })}
@@ -170,11 +170,11 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
   );
 }
 
-function BlockedAddresses(props: { controller: EmailActivityController; locale: string }) {
+function BlockedAddresses(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const step = controller.removal;
   return (
-    <Section id="blocked" title={t({ locale, key: "Blocked addresses" })}>
+    <Section id="blocked" title={t({ locale, key: "Blocked addresses" })} hideTitle={props.hideTitle}>
       <p className="jini-field-hint">{t({ locale, key: "Addresses that bounced, marked mail as spam, or were blocked by hand. Nothing is sent to them." })}</p>
       <input className="jini-input" type="search" aria-label={t({ locale, key: "Search blocked addresses" })} placeholder={t({ locale, key: "Search blocked addresses" })}
         value={controller.search} onChange={(e) => controller.setSearch(e.target.value)}
@@ -215,10 +215,10 @@ function BlockedAddresses(props: { controller: EmailActivityController; locale: 
   );
 }
 
-function FeedbackSetup(props: { controller: EmailActivityController; locale: string }) {
+function FeedbackSetup(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   return (
-    <Section id="feedback" title={t({ locale, key: "Bounce and spam reports" })}>
+    <Section id="feedback" title={t({ locale, key: "Bounce and spam reports" })} hideTitle={props.hideTitle}>
       <Loaded view={controller.feedback} locale={locale}>
         {(report) => (!report.available || report.providers.length === 0 ? (
           <p className="jini-field-hint">{t({ locale, key: "No active provider reports bounces here." })}</p>
@@ -258,9 +258,9 @@ export function EmailActivityTab(props: { controller: EmailActivityController; l
   const { controller, locale, part } = props;
   return (
     <>
-      {part === undefined || part === "sends" ? <RecentSends controller={controller} locale={locale} /> : null}
-      {part === undefined || part === "blocked" ? <BlockedAddresses controller={controller} locale={locale} /> : null}
-      {part === undefined || part === "reports" ? <FeedbackSetup controller={controller} locale={locale} /> : null}
+      {part === undefined || part === "sends" ? <RecentSends controller={controller} locale={locale} hideTitle={part !== undefined} /> : null}
+      {part === undefined || part === "blocked" ? <BlockedAddresses controller={controller} locale={locale} hideTitle={part !== undefined} /> : null}
+      {part === undefined || part === "reports" ? <FeedbackSetup controller={controller} locale={locale} hideTitle={part !== undefined} /> : null}
     </>
   );
 }

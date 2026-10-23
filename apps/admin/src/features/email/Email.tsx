@@ -219,7 +219,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
       <div className="settings-ui-section settings-ui-section--page-flow email-sections" {...themeBoundary}>
         {activeId === "overview" ? (
           <OverviewTab {...partProps} label={tabLabel("overview")} status={(
-            <Section id="status" title={t({ locale, key: "Status" })}>
+            <Section id="status" title={t({ locale, key: "Status" })} hideTitle>
               <StatusBody view={view} locale={locale} retry={controller.retry} />
             </Section>
           )} />

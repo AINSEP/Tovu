@@ -22,7 +22,8 @@
 .email-provider-form, .email-test-form { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; }
 .email-providers { gap: var(--space-3); }
 .email-provider { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: 10px; }
-.email-provider-name, .email-use-name { font-weight: 600; }
+/* Item names sit under the section heading (14px/600) and above the 12px hints. */
+.email-provider-name, .email-use-name { font-size: var(--text-sm); font-weight: 600; }
 .email-use, .email-activity { display: flex; flex-direction: column; gap: var(--space-1); padding-block: var(--space-2); border-bottom: 1px solid var(--border); }
 .email-use:last-child, .email-activity:last-child { border-bottom: 0; }
 .email-reasons { margin: 0; padding-inline-start: 1.2em; }
@@ -95,3 +96,8 @@
    (styles.css) by one class. Inputs, buttons and the DNS record boxes keep their borders. */
 .email-sections .jini-settings-section-card.email-card { padding: 0; border: 0; border-radius: 0; background: none; }
 .email-providers .email-provider { padding: 0; border: 0; border-radius: 0; }
+
+/* Duplicate titles (owner, 2026-10-22): a section whose heading repeated its tab or segment drops it
+   (`Section`'s `hideTitle`). With no heading, the shared section's 14px top margin left an empty band
+   under the tab bar on Provider, the one tab without a segmented pill — the tab bar's gap is enough. */
+.email-sections > .email-section-untitled:first-child { margin-top: 0; }

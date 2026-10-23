@@ -142,7 +142,7 @@ const SENDER_WARNING: Record<string, string> = {
   sender_unverified: "The provider has not verified the sender's domain.",
 };
 
-function DnsSection(props: { controller: EmailSenderController; locale: string }) {
+function DnsSection(props: { controller: EmailSenderController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const canCheck = controller.dns.kind === "loaded" && controller.dns.data.state === "checked";
   const check = canCheck ? (
@@ -152,7 +152,7 @@ function DnsSection(props: { controller: EmailSenderController; locale: string }
     </button>
   ) : null;
   return (
-    <Section id="dns" title={t({ locale, key: "DNS" })} actions={check}>
+    <Section id="dns" title={t({ locale, key: "DNS" })} hideTitle={props.hideTitle} actions={check}>
       <Loaded view={controller.dns} locale={locale}>
         {(status) => <DnsBody status={status} locale={locale} />}
       </Loaded>
@@ -161,10 +161,10 @@ function DnsSection(props: { controller: EmailSenderController; locale: string }
   );
 }
 
-function SenderSection(props: { controller: EmailSenderController; warnings?: readonly string[] | undefined; locale: string }) {
+function SenderSection(props: { controller: EmailSenderController; warnings?: readonly string[] | undefined; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   return (
-    <Section id="sender" title={t({ locale, key: "Sender" })}>
+    <Section id="sender" title={t({ locale, key: "Sender" })} hideTitle={props.hideTitle}>
       {(props.warnings ?? []).map((warning) => (
         <div key={warning} className="email-row">
           <Chip tone="warning">{t({ locale, key: "Needs attention" })}</Chip>
@@ -182,8 +182,8 @@ export function EmailSenderTab(props: { controller: EmailSenderController; warni
   const { controller, locale, part } = props;
   return (
     <>
-      {part === "dns" ? null : <SenderSection controller={controller} warnings={props.warnings} locale={locale} />}
-      {part === "sender" ? null : <DnsSection controller={controller} locale={locale} />}
+      {part === "dns" ? null : <SenderSection controller={controller} warnings={props.warnings} locale={locale} hideTitle={part !== undefined} />}
+      {part === "sender" ? null : <DnsSection controller={controller} locale={locale} hideTitle={part !== undefined} />}
     </>
   );
 }

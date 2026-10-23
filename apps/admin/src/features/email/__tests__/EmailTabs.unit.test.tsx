@@ -137,6 +137,8 @@ describe("Email tab components", () => {
     const controller = createTabHooks().activity();
     controller.activity.view = { kind: "loaded", data: { items: [ACTIVITY], nextCursor: "next", empty: null, access: "masked" } };
     render(<EmailActivityTab controller={controller} locale="en" />);
+    // Standalone (no `part`, no segmented pill above): every section keeps its heading.
+    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual(["Recent sends", "Blocked addresses", "Bounce and spam reports"]);
     expect(screen.getByText("Addresses are partly hidden for your role.")).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText("Outcome"), "failed");
     expect(controller.setFilter).toHaveBeenLastCalledWith({ outcome: "failed" });
