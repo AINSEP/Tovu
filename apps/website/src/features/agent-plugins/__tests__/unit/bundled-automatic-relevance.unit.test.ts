@@ -39,7 +39,7 @@ for (const [query, expected] of [
     const loaded: string[] = [];
     const controller = createAutomaticAgentPluginUse({ mode: 'auto', ports: {
       list: async () => candidates, rank,
-      resolve: async ({ pluginId }) => { loaded.push(pluginId); return `Guidance: ${pluginId}`; },
+      resolve: async ({ pluginId }) => { loaded.push(pluginId); return { ok: true, promptPrefix: `Guidance: ${pluginId}` }; },
       ask: async () => { throw new Error('Auto must not ask'); },
       saveAuto: async () => {}, publish: async () => {},
     } });

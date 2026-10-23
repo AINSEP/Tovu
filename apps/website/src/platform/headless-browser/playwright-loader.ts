@@ -1,6 +1,7 @@
 import type { PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 
-/** Resolve the optional browser module from Tovu, including when Jini is linked from another repo. */
+/** Resolve the optional browser module from Tovu, including when Jini is linked from another repo.
+ * Forward Jini's Chromium/Chrome selection and security launch options. */
 export const playwrightModuleLoader = {
   // A literal host import checks the native module against the structural port without a cast;
   // dynamic loading still lets Jini report a missing module or browser as unavailable evidence.

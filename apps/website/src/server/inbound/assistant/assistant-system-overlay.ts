@@ -2,6 +2,7 @@ import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-per
 import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
@@ -39,17 +40,20 @@ import { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native
 export { resolveAssistantDisallowedTools } from "#src/contracts/core/assistant-native-fallbacks";
 
 /** Explain the same per-run grant enforced by the CLI, outside catalog discovery.
- * @param required - Bound runtime and its freshly read site-owner subagent setting.
- * @returns Explicit native-tool availability and cost-conscious delegation instructions.
- * @complexity O(1) time/space: fixed guidance for one run. */
+ * @param required - The native capabilities enforced for this launch, including host restrictions.
+ * @returns Delegation guidance and the names of disabled native capabilities; no I/O or errors.
+ * @complexity O(1) time/space: a fixed set of capability labels for one run.
+ * @example buildAssistantSubagentsOverlay({ capabilities }, {}); */
 export function buildAssistantSubagentsOverlay(required: {
-  agentId: string; subagentsEnabled: boolean;
+  capabilities: AssistantCliPermissions["capabilities"];
 }, _optional: Record<string, never> = {}): string {
-  return required.subagentsEnabled
-    ? "Full CLI access is ON. Use the CLI's native agents/subagents/Task and workflows when useful, " +
+  const disabled = ASSISTANT_CLI_CAPABILITIES.filter(({ key }) => !required.capabilities[key]).map(({ label }) => label);
+  const delegation = required.capabilities.subagents
+    ? "Native agents/subagents/Task are available for this chat. Use them when useful, " +
       "including other local agent CLIs. These are native tools, not Tovu catalog tools. " +
       "Subagents follow the same catalog authorization and permanent-delete confirmation rules. "
-    : "Native agents/subagents/Task and workflows are unavailable for this chat. ";
+    : "Native agents/subagents/Task are unavailable for this chat. ";
+  return delegation + (disabled.length ? `Disabled native capabilities for this chat: ${disabled.join(", ")}. ` : "");
 }
 
 /**

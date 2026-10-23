@@ -71,7 +71,7 @@ export async function captureDaemonRun(
     formatRunEndLogLine, formatRunErrorLogLine,
     durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
-    assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
+    assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
     resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),

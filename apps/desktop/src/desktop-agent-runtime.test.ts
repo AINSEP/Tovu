@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createNativeAgentRuntime, AGENT_DEFS, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime, getAgentDef, AGENT_DEFS, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createRunLifecycle, createInMemoryEventLog, type createAgentExecutor } from "@jini-ai/daemon";
 import { createDesktopAgentRuntime, resolveDesktopTurnAccess } from "./desktop-agent.ts";
 import { assistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
@@ -27,7 +27,7 @@ test("desktop turn access defaults on locally and passes host exclusions to the 
     },
   });
   assert.deepEqual(access, {
-    nativeCapabilities: assistantCliPermissions({ enabled: true }).capabilities,
+    nativeCapabilities: { ...assistantCliPermissions({ enabled: true }).capabilities, userMcp: false },
     nativeToolAccess: true,
     parityEnv,
   });
@@ -52,7 +52,7 @@ test("desktop turn access re-reads boolean grants with the captured addressee ea
   for (const grant of [false, true, false]) {
     enabled = grant;
     const access = await resolveDesktopTurnAccess({ addressee, hostEnv: {} }, options);
-    assert.deepEqual(access.nativeCapabilities, assistantCliPermissions({ enabled: grant }).capabilities);
+    assert.deepEqual(access.nativeCapabilities, { ...assistantCliPermissions({ enabled: grant }).capabilities, userMcp: false });
     assert.equal(access.nativeToolAccess, grant);
     assert.deepEqual(access.parityEnv, grant ? { PATH: "/operator/bin" } : undefined);
   }
@@ -234,11 +234,16 @@ test('desktop owner setting and environment control the same provider grant and 
   t.after(() => chat.close());
   for (const grant of [false, true, false]) {
     enabled = grant;
-    const { runId } = await chat.startTurn({ prompt: 'Use Task', agentId: 'codex' }, { addressee: { siteDir, name: 'site' } });
+    const { runId } = await chat.startTurn({ prompt: 'Use Task', agentId: 'claude' }, { addressee: { siteDir, name: 'site' } });
     await chat.lifecycle.waitForTerminal({ runId });
     const input = captured.at(-1)!;
     assert.equal(input.cliParity, grant); assert.equal(input.nativeToolAccess, grant);
-    assert.deepEqual(input.nativeCapabilities, assistantCliPermissions({ enabled: grant }).capabilities);
+    assert.deepEqual(input.nativeCapabilities, { ...assistantCliPermissions({ enabled: grant }).capabilities, userMcp: false });
+    const args = getAgentDef({ id: 'claude' })!.buildArgs({ prompt: '', imagePaths: [] }, {
+      options: input, runtimeContext: { mcpJsonPath: '/staged/desktop-mcp.json' },
+    });
+    assert.ok(args.includes('--strict-mcp-config'), 'desktop MCP isolation must survive full CLI parity');
+    assert.equal(args[args.indexOf('--mcp-config') + 1], '/staged/desktop-mcp.json');
     assert.deepEqual(input.env, grant ? { PATH: '/operator/bin' } : undefined);
     for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Workflow']) assert.equal(input.disallowedTools?.includes(tool), !grant);
     assert.equal(input.cwd, grant ? siteDir : dir);

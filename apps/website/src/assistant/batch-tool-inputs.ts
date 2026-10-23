@@ -12,6 +12,7 @@ const ROW_LEVEL_MAX_ITEMS = 100;
  * Video previews can each return 8 MiB, so both expensive readers stay capped at eight items.
  */
 export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
+  { toolId: "pages_read_html" },
   { toolId: "media_view_video", maxItems: 8 },
   { toolId: "web_screenshot_page", maxItems: 8 },
 ];

@@ -285,7 +285,9 @@ async function resolveDesktopTurnAccess(
   const setting = resolveFullCliAccess({ isOwner: true, env: required.hostEnv }, { hostSignals })
     ? await optional.readFullCliAccess?.({ addressee: required.addressee }, {}) : false;
   const settings = typeof setting === "object" ? setting : assistantCliPermissions({ enabled: setting ?? true });
-  const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.hostEnv, settings }, { hostSignals });
+  const { capabilities } = resolveAssistantCliPermissions({ isOwner: true, env: required.hostEnv, settings }, { hostSignals });
+  // In-app chat uses only Tovu's staged MCP catalog, even when the owner grants CLI parity.
+  const nativeCapabilities = { ...capabilities, userMcp: false };
   const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
   const parityEnv = nativeCapabilities.loginEnvironment ? await (optional.readLoginShellEnvironment ?? readLoginShellEnvironment)({ baseEnv: required.hostEnv,
     excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;

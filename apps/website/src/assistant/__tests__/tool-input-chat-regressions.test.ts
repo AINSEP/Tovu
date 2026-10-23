@@ -119,13 +119,13 @@ test('chat-input regression: media lookup retains the peer site selector and ref
   assert.equal(inputs.length, 1);
 });
 
-test('chat-input regression: page slugs require a real id, with the tool properties and a recovery example', async () => {
+test('chat-input regression: page writes still require a real id, with the tool properties and a recovery example', async () => {
   let reads = 0;
   const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo([]),
     authorize: async () => ({ allowed: true, reason: 'test' }),
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
   });
-  for (const registration of registrations) {
+  for (const registration of registrations.filter(tool => tool.descriptor.id !== 'pages_read_html')) {
     const result = await executeRegisteredTool({ registration, input: { slug: '/' } });
     assert.equal(result.errorKind, 'validation');
     assert.match(result.error!, /Unknown input 'slug'.*Accepted properties:.*id/);
