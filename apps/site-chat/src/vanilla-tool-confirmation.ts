@@ -48,9 +48,16 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
       }
     };
     element.addEventListener('click', click, true);
+    // Jini re-renders its chrome on every state change and on open/close, hiding the strip and
+    // blanking the label — including Escape (a keydown) and the loader's outside bubble (an event,
+    // not a click inside `element`). Re-project whenever that happens so a pending prompt stays answerable.
+    const Observer = document.defaultView?.MutationObserver;
+    const observer = Observer ? new Observer(() => { if (strip.hidden || label.textContent !== `${directive.title} ${directive.summary}`) render(); }) : null;
+    observer?.observe(strip, { attributes: true, attributeFilter: ['hidden'], childList: true, subtree: true, characterData: true });
     const timer = setTimeout(() => clear(), 60_000);
     clear = () => {
       active = false;
+      observer?.disconnect();
       clearTimeout(timer);
       element.removeEventListener('click', click, true);
       cancel.remove();

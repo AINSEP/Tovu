@@ -636,6 +636,24 @@
   opacity: 0.9;
 }
 
+/* The widget keeps its own skin, so a site's dark-mode `p`/`li` colours must not reach reply
+ * markdown (Mono dark turned replies light grey on the white panel, ~2.5:1). */
+.tovu-site-assistant .jini-message-content :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th) { color: inherit; }
+
+/* A visitor-tool prompt (role="group") must show its whole summary — the visitor decides on it —
+ * so the label wraps instead of ellipsing, and Cancel reads as the secondary choice. */
+.tovu-site-assistant__proposal[role="group"] .tovu-site-assistant__proposal-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+}
+
+.tovu-site-assistant__proposal[role="group"] .tovu-site-assistant__proposal-go + .tovu-site-assistant__proposal-go {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
 @media (max-width: 640px), (pointer: coarse) {
   .tovu-site-assistant .jini-composer-send,
   .tovu-site-assistant .jini-chat-pane__new-thread,

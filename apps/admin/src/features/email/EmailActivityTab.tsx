@@ -69,10 +69,12 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
   const detail = open ? controller.detail : null;
   return (
     <li className="email-activity">
-      <div className="email-row">
+      <div className="email-row email-activity-row">
         <Chip tone={outcome.tone}>{t({ locale, key: outcome.label })}</Chip>
-        <span className="email-activity-recipient">{item.recipient}</span>
-        <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when(item.createdAt, locale)}</span>
+        <span className="email-activity-what">
+          <span className="email-activity-recipient">{item.recipient}</span>
+          <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when(item.createdAt, locale)}</span>
+        </span>
         {item.id ? (
           <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(item.id!)}
             {...agentHandle({ handle: `email-activity-${props.index}-details` }, { role: "button", label: "Show this send's details" })}>

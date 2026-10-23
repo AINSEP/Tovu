@@ -28,6 +28,16 @@
 .email-reasons { margin: 0; padding-inline-start: 1.2em; }
 .email-push-end { margin-inline-start: auto; }
 .email-activity-recipient { overflow-wrap: anywhere; min-width: 0; }
+/* One layout for every row: status, then who/when stacked (wraps inside), then Details pinned right —
+ * a free-wrapping row dropped Details onto its own line only when the recipient was long. */
+.email-activity-row { flex-wrap: nowrap; }
+.email-activity-row > :not(.email-activity-what) { flex-shrink: 0; }
+.email-activity-what { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+/* Phones: status + Details on one line, who/when full width beneath — every row the same shape. */
+@media (max-width: 480px) {
+  .email-activity-row { flex-wrap: wrap; }
+  .email-activity-what { order: 3; flex-basis: 100%; }
+}
 .email-activity-detail { padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--jini-bg-subtle); }
 .email-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .email-filters .jini-input { flex: 1 1 12rem; min-width: 0; }

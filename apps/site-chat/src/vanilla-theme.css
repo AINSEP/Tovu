@@ -36,10 +36,15 @@
   border-color: var(--border-control);
   font-size: 12.5px;
 }
+/* The proposal strip's wrapping label takes the slack; Allow/Cancel keep their width (Cancel clipped at 390px). */
+.jini-chat-vanilla .jini-chat-vanilla__proposal > .jini-chat-vanilla__button { flex-shrink: 0; }
 .jini-chat-vanilla .jini-chat-vanilla__header { padding: 12px 16px; border-bottom: 0; }
 .jini-chat-vanilla .jini-chat-vanilla__title { font: 600 15px var(--font-display); }
 .jini-chat-vanilla .jini-chat-vanilla__greeting { margin: 0; color: var(--fg-2); }
 .jini-chat-vanilla .jini-chat-vanilla__messages { padding: 20px 16px; }
+/* The widget keeps its own light skin, so a site's dark-mode `p`/`li` colours must not reach the
+ * markdown inside a reply (Mono dark turned replies light grey on white, ~2.5:1). */
+.jini-chat-vanilla .jini-chat-vanilla__message :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th) { color: inherit; }
 .jini-chat-vanilla .jini-chat-vanilla__suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .jini-chat-vanilla .jini-chat-vanilla__suggestions .jini-chat-vanilla__button {
   border-radius: var(--r-pill);

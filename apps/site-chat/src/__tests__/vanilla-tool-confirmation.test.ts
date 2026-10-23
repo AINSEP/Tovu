@@ -57,6 +57,22 @@ test('expiry, supersession, run teardown and open/close chrome changes clean lis
   f.show({ directive: null });
 });
 
+test('a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt', async t => {
+  const f = fixture(); t.after(() => f.dom.window.close());
+  f.show({ directive });
+  const label = f.strip.querySelector('span')!;
+  f.strip.hidden = true; // what Jini's renderChrome does on close/open with no navigation proposal
+  label.textContent = '';
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(f.strip.hidden, false);
+  assert.equal(label.textContent, `${directive.title} ${directive.summary}`);
+  f.strip.querySelectorAll('button')[1].click();
+  f.strip.hidden = true; // after a decision the observer is gone: no revival
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(f.strip.hidden, true);
+  assert.equal(f.strip.textContent, 'Go to About?Go there');
+});
+
 test('unmounted or incomplete host markup never creates a second proposal bar', () => {
   for (const html of ['', '<div class="jini-chat-vanilla__proposal"></div>', '<div class="jini-chat-vanilla__proposal"><span></span></div>']) {
     const dom = new JSDOM(`<main>${html}</main>`);

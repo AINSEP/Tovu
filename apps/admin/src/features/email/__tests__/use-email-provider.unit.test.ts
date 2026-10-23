@@ -28,6 +28,17 @@ describe("useEmailProvider", () => {
     await waitFor(() => expect(api.listProviders).toHaveBeenCalledTimes(2));
   });
 
+  it("drops \"Enter the key first.\" as soon as that provider's field is typed in", async () => {
+    const api = createEmailFake();
+    const { result } = renderHook(() => useEmailProvider({ api }));
+    await waitFor(() => expect(result.current.view.kind).toBe("loaded"));
+    await act(() => result.current.saveKey(PROVIDER));
+    act(() => result.current.setDraftField("other-provider", "token", "x"));
+    expect(result.current.notice?.text).toBe("Enter the key first.");
+    act(() => result.current.setDraftField(PROVIDER.id, "token", "x"));
+    expect(result.current.notice).toBeNull();
+  });
+
   it("switches only after confirmation, and cancel makes no request", async () => {
     const api = createEmailFake();
     const { result } = renderHook(() => useEmailProvider({ api }));

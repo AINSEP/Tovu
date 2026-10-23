@@ -60,6 +60,8 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
 
   const setDraftField = useCallback((providerId: string, key: keyof MailProviderCredentialInput, value: string) => {
     setDrafts((all) => ({ ...all, [providerId]: { ...all[providerId], [key]: value } }));
+    // Typing answers "Enter the key first." — drop that hint so it doesn't linger next to a filled field.
+    setNotice((current) => (current?.providerId === providerId && current.text === "Enter the key first." ? null : current));
   }, []);
   const toggleReveal = useCallback((providerId: string) => setRevealed((all) => ({ ...all, [providerId]: !all[providerId] })), []);
 

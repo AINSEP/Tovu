@@ -1,10 +1,9 @@
 import { ConfirmDialog, DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 
 import { adminHref, navigate } from "../../lib/router";
 import { t } from "./email-i18n";
-import { Loaded, Section } from "./EmailParts";
+import { Loaded, Section, when } from "./EmailParts";
 import { templateEditorPath, type EmailTemplatesController } from "./hooks/use-email-templates.hooks";
 
 /**
@@ -50,7 +49,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
                 header: t({ locale, key: "Fields" }),
                 cell: (template) => (template.fields.length === 0 ? "—" : <code className="email-break">{template.fields.map((field) => `{{${field.name}}}`).join(" ")}</code>),
               },
-              { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => formatTimestamp({ iso: template.updatedAt }, { timeZone: "local" }) },
+              { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => when(template.updatedAt, locale) },
               {
                 key: "actions",
                 header: t({ locale, key: "More" }),
