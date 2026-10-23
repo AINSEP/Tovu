@@ -33,7 +33,8 @@ export interface VisitorExecutionPorts {
   readonly signal?: AbortSignal;
 }
 
-export const VISITOR_TOOL_REFUSAL = "This tool is unavailable.";
+/** Uniform visitor-safe refusal keeps denied and unknown capabilities indistinguishable. */
+export const VISITOR_TOOL_REFUSAL = "I can't help with that request here.";
 
 export type VisitorToolOutcome =
   | { readonly kind: "ok"; readonly result: unknown; readonly directive?: ClientDirective }

@@ -133,7 +133,7 @@ function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssis
       name: "list_categories",
       visitorOfferable: true,
       ...VISITOR_TOOL_PRESENTATION.list_categories,
-      execute: async (_required, _options = {}) => ({ result: await tools.list_categories() }),
+      execute: async (_required, _options = {}) => ({ result: await tools.list_categories({}) }),
     },
     {
       name: "navigate_to_entry",

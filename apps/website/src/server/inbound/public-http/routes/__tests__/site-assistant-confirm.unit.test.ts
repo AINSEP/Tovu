@@ -76,7 +76,7 @@ test("missing Fetch Metadata is permitted only with a validated Origin; stale/re
   assert.deepEqual(legacy.origins, ["https://site.test"]);
   for (const options of [{ accepted: false }, { fail: true }]) {
     const f = fixture(options);
-    assert.deepEqual(await f.send(), { status: 400, body: { error: "This tool is unavailable." }, cache: "no-store" });
+    assert.deepEqual(await f.send(), { status: 400, body: { error: "I can't help with that request here." }, cache: "no-store" });
     assert.equal(f.errors.length, "fail" in options ? 1 : 0);
   }
 });

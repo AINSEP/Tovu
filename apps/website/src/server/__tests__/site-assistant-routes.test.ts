@@ -45,8 +45,8 @@ for (const allow of [true, false]) test(`Ask holds the real stream until its vis
   deps.originRegistry.canonicalOrigin = async () => ({ scheme: "http", host: siteOrigin.hostname, port: Number(siteOrigin.port),
     source: "dev-capability", verifiedAt: deps.clock.nowIso() });
   let reads = 0;
-  const list = deps.postRepo.list.bind(deps.postRepo);
-  deps.postRepo.list = async (...args) => { reads++; return list(...args); };
+  const list = deps.taxonomyRepo.list.bind(deps.taxonomyRepo);
+  deps.taxonomyRepo.list = async () => { reads++; return list(); };
   const requests: Record<string, unknown>[] = [];
   const rawToolInput = { privateModelArgument: "not-for-the-consent-strip" };
   const baseUrl = await bootGeminiStub(t, deps, (count, body) => {
@@ -91,7 +91,7 @@ for (const allow of [true, false]) test(`Ask holds the real stream until its vis
   assert.equal(reads, allow ? 1 : 0);
   assert.equal(requests.length, 2);
   assert.doesNotMatch(JSON.stringify(requests), new RegExp(directive.challengeId));
-  if (!allow) assert.match(JSON.stringify(requests[1]), /This tool is unavailable/);
+  if (!allow) assert.match(JSON.stringify(requests[1]), /I can't help with that request here/);
   assert.match(raw, /event: end/);
 });
 
@@ -209,7 +209,7 @@ for (const policyFlag of [undefined, "off"] as const) {
     assert.doesNotMatch(stream, /list_categories|visitor-private-input|tool_use|tool_result/);
     assert.equal(requests.length, 2);
     assert.equal(JSON.stringify(requests[0].tools).includes('"list_categories"'), policyFlag === "off");
-    assert.equal(JSON.stringify(requests[1]).includes("This tool is unavailable."), policyFlag !== "off");
+    assert.equal(JSON.stringify(requests[1]).includes("I can't help with that request here."), policyFlag !== "off");
     const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
     assert.deepEqual(rows.map(row => row.phase), policyFlag === "off" ? [] : ["requested", "denied"]);
     assert.doesNotMatch(JSON.stringify(rows), /visitor-private-input|127\.0\.0\.1/);
@@ -238,7 +238,7 @@ test("T1 HTTP turn has a four-call cap across parallel calls and emits no raw au
   const stream = await response.text();
   assert.match(stream, /Done/);
   assert.doesNotMatch(stream, /list_categories|tool_use|tool_result/);
-  assert.equal((JSON.stringify(requests[1]).match(/This tool is unavailable\./g) ?? []).length, 1);
+  assert.equal((JSON.stringify(requests[1]).match(/I can't help with that request here\./g) ?? []).length, 1);
   const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
   assert.equal(rows.filter(row => row.phase === "completed").length, 4);
   assert.equal(rows.filter(row => row.phase === "denied").length, 1);

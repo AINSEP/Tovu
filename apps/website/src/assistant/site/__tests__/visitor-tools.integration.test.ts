@@ -39,7 +39,7 @@ for (const name of ["search_published_entries", "get_published_entry", "list_cat
       assert.equal(result.kind, "ok");
       const json = JSON.stringify(result);
       if (slug !== "public") assert.doesNotMatch(json, new RegExp(`"(?:slug|title)":"${slug}"`));
-      if (name === "list_categories") assert.deepEqual(result, { kind: "ok", result: ["post"], directive: undefined });
+      if (name === "list_categories") assert.deepEqual(result, { kind: "ok", result: [], directive: undefined });
     }
   });
 }
@@ -62,7 +62,7 @@ test("site_guide receives only effective capability names, and empty/invalid pol
     { kind: "ok", result: { availableTools: names }, directive: undefined });
   const invalid = createSiteCapabilityRegistry(f.deps, { visitorExecution: { ...f.ports, initialPolicy: null, readPolicy: async () => null } });
   assert.deepEqual(invalid.schemas, []);
-  assert.deepEqual(await invalid.invoke({ name: "list_categories", input: {}, caller: "anonymous-visitor" }), { kind: "refused", reason: "This tool is unavailable." });
+  assert.deepEqual(await invalid.invoke({ name: "list_categories", input: {}, caller: "anonymous-visitor" }), { kind: "refused", reason: "I can't help with that request here." });
 });
 
 test("public execution import graph cannot reach admin composition, registry contributions or plugin loaders", async () => {

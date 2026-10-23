@@ -3,6 +3,7 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 import { createVisitorExecutor, VISITOR_TOOL_REFUSAL, type VisitorCapabilityContract, type VisitorExecutionPorts } from "../visitor-executor.js";
+import { VisitorPlanRefused } from "../visitor-confirmation-gate.js";
 import { EMPTY_VISITOR_TOOL_POLICY, parseVisitorToolPolicy, type VisitorToolPolicy } from "../../../contracts/site-assistant/visitor-tools.js";
 
 function fixture(options: { policy?: VisitorToolPolicy | null; failBudget?: boolean; rejectBudget?: boolean; failPolicy?: boolean; failSink?: boolean; failHandler?: boolean } = {}) {
@@ -26,6 +27,12 @@ function fixture(options: { policy?: VisitorToolPolicy | null; failBudget?: bool
 }
 const call = { name: "list_categories", input: { query: "secret" }, caller: "anonymous-visitor" };
 const refused = { kind: "refused", reason: VISITOR_TOOL_REFUSAL };
+
+test("uniform refusal uses visitor-friendly language without internal tools or identifiers", () => {
+  assert.equal(VISITOR_TOOL_REFUSAL, "I can't help with that request here.");
+  assert.doesNotMatch(VISITOR_TOOL_REFUSAL, /tool|list_categories|settings_set_value|[_`]/i);
+  assert.equal(new VisitorPlanRefused().message, VISITOR_TOOL_REFUSAL);
+});
 
 test("unknown, wrong caller, Off, Ask and over-budget have identical public refusal and no effects", async () => {
   const cases = [

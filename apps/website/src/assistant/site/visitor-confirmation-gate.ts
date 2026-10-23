@@ -14,7 +14,7 @@ function digest({ input }: { input: unknown }, _options = {}): string {
 
 /** A cancelled/revised held plan is refused without reporting an operational handler error. */
 export class VisitorPlanRefused extends Error {
-  constructor() { super("This tool is unavailable."); }
+  constructor() { super("I can't help with that request here."); }
 }
 
 const CONFIRMATION_COPY: Readonly<Record<string, { title: string; summary: string; field?: string }>> = {

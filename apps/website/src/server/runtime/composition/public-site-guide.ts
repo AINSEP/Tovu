@@ -1,4 +1,4 @@
-import { publicCapabilityCard } from "#src/assistant/site/capability-card";
+import { publicCapabilityCard, VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";
 import { resolveSiteGuideEngine } from "./site-guide.js";
 import { readSiteGuideInput } from "./site-guide-tools.js";
@@ -35,8 +35,8 @@ function effectivePublicCard({ availableTools }: { availableTools?: readonly str
   const actions = Object.entries(labels).filter(([id]) => availableTools.includes(id)).map(([, label]) => label);
   // Preserve today's model-facing card byte-for-byte when the default CMS grants all remain.
   if (actions.length === Object.keys(labels).length) return publicCapabilityCard;
-  return { ...publicCapabilityCard, summary: actions.length ? actions.join("; ") + "." : "No content tools are enabled.",
-    explanation: "Currently available: " + (actions.join("; ") || "none") + ". Drafts, private configuration and administrator tools are unavailable. Ask the site operator to plan or build features requiring those permissions.",
+  return { ...publicCapabilityCard, summary: actions.length ? actions.join("; ") + "." : "No content actions are available.",
+    explanation: "Currently available: " + (actions.join("; ") || "none") + ". Drafts, private configuration and administrator tools are unavailable. Ask the site operator to plan or build features requiring those permissions. " + VISITOR_REPLY_GUIDANCE,
     pointers: actions.map(label => ({ label, permissions: [] })),
   };
 }
