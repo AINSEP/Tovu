@@ -2,8 +2,16 @@
    `jini-consent-*` classes Jini's field sections and preview frame render (Jini ships no CSS for
    them; hosts style them). Only admin tokens, so light and dark follow the admin theme. */
 
-/* Overview: the same card rhythm as Deployment's tabs, so cards never touch. */
-.consent-overview { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-5); }
+/* Every tab sits flat on the page, no card frame; headings, spacing and hairlines group the content
+   instead. The `.card` classes stay on the markup for their type scale (`.card p` → 13px). */
+.consent-page .card { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; backdrop-filter: none; }
+.consent-page .card-head { margin: 0 0 var(--space-2); padding: 0; border-bottom: 0; }
+/* Stacked sections (Overview, Rules) read as separate groups through a hairline between them. */
+.consent-overview > .card + .card,
+.consent-editor:not(.consent-editor-with-preview) > .card + .card { border-top: 1px solid var(--border); padding-top: var(--space-5); }
+
+/* Overview: the same rhythm as Deployment's tabs, so sections never touch. */
+.consent-overview { display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-5); }
 .consent-note { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--muted); }
 .consent-problem-list,
 .consent-paused-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -31,12 +39,17 @@
 .consent-preview-pane { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
 .consent-fixed-rules { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--space-2); color: var(--fg-2); }
 
-/* Jini field sections, sitting in a card. The legend matches the shared `.card-title`
+/* Jini field sections. The legend matches the shared `.card-title`
    (styles.css): the heading face at 14px/600, not a second, larger display-face tier. */
 .jini-consent-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-4); }
 .jini-consent-settings-fields legend {
   padding: 0; margin-bottom: var(--space-2);
   font-family: var(--jini-font-heading); font-size: var(--text-base); font-weight: 600; line-height: 1.3; color: var(--fg);
+}
+/* The legend only repeats the active tab's name ("Look & position" under Look & Position), so it is
+   hidden from view but kept as the field group's accessible name. */
+.consent-editor .jini-consent-settings-fields > legend {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 .jini-consent-settings-field { display: grid; gap: var(--space-1); min-width: 0; align-content: start; }
 /* The admin's input type (styles.css `input, select, textarea`), not the 16px page text. */
