@@ -41,7 +41,7 @@ export function createSiteConsentReadiness({ after, systemPrincipalId, ...requir
 }
 
 /** Explicit owner on/off overrides the default for every site. */
-export type SiteConsentActivation = { enabled: boolean };
+export type SiteConsentActivation = { enabled: boolean; source: 'owner' | 'default' };
 
 type Deps = { settingsRepo: SettingsRepoPort; workspaceId: string };
 
@@ -58,9 +58,9 @@ export async function resolveSiteConsentActivation(deps: Deps, _options = {}): P
   const enabled = await readSetting(deps, 'enabled');
   if (enabled !== null && enabled.sourceLayer !== 'default') {
     if (typeof enabled.value !== 'boolean') throw new Error('Invalid cookie consent setting: enabled.');
-    return { enabled: enabled.value };
+    return { enabled: enabled.value, source: 'owner' };
   }
-  return { enabled: SITE_CONSENT_DEFAULTS.enabled };
+  return { enabled: SITE_CONSENT_DEFAULTS.enabled, source: 'default' };
 }
 
 /** Read every non-flag value with type and length checks. @complexity O(1), twelve ledger reads. */

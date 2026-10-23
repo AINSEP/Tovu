@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
+import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
@@ -176,6 +176,7 @@ test('all no-choice sites default ON, including missing definitions', async () =
   for (const register of [false, true]) {
     const { settingsRepo } = await ledger({ register });
     assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), SITE_CONSENT_DEFAULTS);
+    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: true, source: 'default' });
   }
 });
 
@@ -189,6 +190,7 @@ test('explicit owner ON and OFF win over the product default', async () => {
   for (const enabled of [false, true]) {
     const { settingsRepo, write } = await ledger();
     await write('enabled', enabled);
+    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled, source: 'owner' });
     assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), {
       ...SITE_CONSENT_DEFAULTS, enabled,
     });

@@ -2,14 +2,14 @@ import { parseConsentConfig, consentConfigProblems } from '#src/features/consent
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import path from "node:path";
-import type { Express, Request } from "express";
+import express, { type Express, type Request } from "express";
 import { registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
-import { createSiteConsentConfig } from "#src/features/consent/settings";
+import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/features/consent/settings";
 import { findPublishedPostBySlug } from "#src/features/post/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -88,17 +88,34 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
   };
 }
 
+/** True when consent is on only by the product default: no owner choice and nothing published.
+ * Exports omit that consent until a browser-side banner supports static sites; live serving keeps it.
+ * @complexity O(1), one store read and one settings read. */
+async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}): Promise<boolean> {
+  await deps.siteConsentReady;
+  if ((await deps.consentStore?.read({}))?.published) return false;
+  return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
+}
+
 /**
  * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
- * static delivery, which refuses HTML with 409 while consent is on: a static host cannot store
- * receipts, and silently stripping consent would ship trackers ungated.
+ * static delivery, which refuses HTML with 409 while explicitly enabled consent is on: a static host
+ * cannot store receipts, and silently stripping consent would ship trackers ungated. Default-only
+ * consent skips the engine for exports; a failed check falls through to it, which blocks.
  * @complexity O(1) at registration; per page see `registerConsentHttp`.
  */
 export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): void {
-  registerConsentHttp({ app, ports: createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {}) }, {
+  // A sub-app so `next("router")` can skip every consent route and the HTML gate at once.
+  const consentApp = express();
+  consentApp.use((req, _res, next) => {
+    if (!isStaticExportRequest(req)) return next();
+    isDefaultOnlyConsent({ deps }).then(skip => (skip ? next("router") : next()), () => next());
+  });
+  registerConsentHttp({ app: consentApp, ports: createSiteConsentPorts({ deps }, trustedRegionHeader ? { trustedRegionHeader } : {}) }, {
     necessaryScripts: TOVU_NECESSARY_SCRIPTS,
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
     delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),
   });
+  app.use(consentApp);
 }
