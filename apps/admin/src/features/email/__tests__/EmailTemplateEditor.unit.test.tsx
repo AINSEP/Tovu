@@ -59,6 +59,7 @@ describe("EmailTemplateEditor", () => {
     expect(controller.setValue).toHaveBeenCalledWith("name", "Bo");
     await userEvent.click(screen.getByRole("button", { name: "As sent" }));
     expect(controller.setMode).toHaveBeenCalledWith("sent");
+    await userEvent.click(screen.getByRole("tab", { name: "HTML" }));
     fireEvent.change(screen.getByLabelText("Template HTML"), { target: { value: "<p>Edit</p>" } });
     expect(controller.setHtml).toHaveBeenCalledWith("<p>Edit</p>");
     fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "Renamed" } });
@@ -67,12 +68,34 @@ describe("EmailTemplateEditor", () => {
     expect(controller.commitName).toHaveBeenCalledOnce();
   });
 
-  it("shows the 409 advice and keeps the source visible", () => {
+  it("shows the 409 advice and keeps the source visible", async () => {
     const error = "Someone else changed this template. Reload to get their version; copy your edits first.";
     const controller = createEditorController({ overrides: { dirty: true, html: "<p>Keep my edits</p>", saveError: error } });
     render(<EmailTemplateEditor id={TEMPLATE.id} useEditorHook={() => controller} locale="en" />);
     expect(screen.getByRole("alert")).toHaveTextContent(error);
+    await userEvent.click(screen.getByRole("tab", { name: "HTML" }));
     expect(screen.getByLabelText("Template HTML")).toHaveValue("<p>Keep my edits</p>");
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("lays out like the Pages editor: HTML | Preview tabs, device widths and As sent only on Preview", async () => {
+    const controller = createEditorController({ overrides: { mode: "sent" } });
+    render(<EmailTemplateEditor id={TEMPLATE.id} useEditorHook={() => controller} locale="en" />);
+    expect(screen.getByRole("link", { name: "Back: Templates" })).toHaveAttribute("href", expect.stringContaining("/email?tab=templates"));
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "Interactive" })).toBeNull();
+    expect(screen.getByText("1280px")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Mobile" }));
+    expect(screen.getByText("390px")).toBeInTheDocument();
+    const asSent = screen.getByRole("button", { name: "As sent" });
+    expect(asSent).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(asSent);
+    expect(controller.setMode).toHaveBeenCalledWith("admin");
+    expect(screen.getByText("Fill-in fields (preview values)").closest("details")).toHaveAttribute("open");
+    await userEvent.click(screen.getByRole("tab", { name: "HTML" }));
+    expect(screen.getByLabelText("Template HTML")).toHaveValue(TEMPLATE.html);
+    expect(screen.queryByTitle("Email preview")).toBeNull();
+    expect(screen.queryByRole("button", { name: "As sent" })).toBeNull();
+    expect(screen.queryByText("390px")).toBeNull();
   });
 });

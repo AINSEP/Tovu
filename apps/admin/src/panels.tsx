@@ -1106,6 +1106,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     nav: {
       label: "Email",
       group: "Administration",
+      // Owner, 2026-10-22: Email is still rough, so it carries the same reachable `soon` badge as
+      // `comments` and `observability` (see their comments) instead of reading as finished.
+      soon: true,
+      soonPreviewable: true,
       icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M3 5l6 4.5L15 5"/>',
     },
   },

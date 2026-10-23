@@ -52,34 +52,29 @@
 .email-dns-value code { flex: 1; }
 .email-copy { flex: none; }
 
-/* Template editor page: wide like the Pages editor, not the settings measure. */
-.email-template-page { display: flex; flex-direction: column; gap: var(--space-3); }
-.email-template-name {
-  width: 100%; margin: 0; padding: 2px 6px; margin-inline-start: -6px;
-  border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; font: inherit;
-}
-.email-template-name:hover { border-color: var(--border); }
-/* `.page-header .page-title { margin: 0 }` (0,2,0, later sheet) beat the inset above, so the name sat 7px right
-   of the breadcrumb. Padding + the 1px border, pulled back so the text lines up. */
-.page-header .page-title.email-template-name { margin-inline-start: -7px; }
-.email-template-name:focus-visible { outline: 2px solid var(--focus-ring, var(--primary)); outline-offset: 1px; }
-.email-template-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: 10px; }
-.email-template-fields legend { padding-inline: var(--space-1); }
-.email-template-fields .email-field { flex: 1 1 12rem; }
-.email-template-fields label { display: flex; align-items: center; gap: var(--space-2); }
-.email-template-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+/* Template editor (owner, 2026-10-22): laid out like the Pages editor, so the page itself takes the
+   shared `.page.content-editor-page` spacing and chrome from `styles/editor.css` + `styles/pages.css`.
+   The name input wears `.content-editor-title` (the Pages title underline); the subject sits where
+   Pages shows the slug, read-only. */
+.content-editor-header .email-template-name:disabled { opacity: 0.6; }
+.content-editor-header > .email-template-subject { gap: var(--space-2); max-width: 22rem; color: var(--fg-2); }
+.email-template-subject-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
 .email-template-source { min-height: 36rem; }
-.email-template-preview { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.email-template-subject { margin: 0; overflow-wrap: anywhere; }
-.email-template-frame { height: 36rem; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--tovu-site-preview-bg, #fff); }
+.email-template-preview { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin-top: -15px; }
+.email-template-fields { margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 10px; }
+/* `.jini-field-label` makes the summary flex, which hides the disclosure triangle that says it folds. */
+.email-template-fields > summary { cursor: pointer; display: list-item; }
+.email-template-fields[open] > summary { margin-bottom: var(--space-2); }
+.email-template-field-list { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.email-template-field-list .email-field { flex: 1 1 12rem; }
+.email-template-field-list label { display: flex; align-items: center; gap: var(--space-2); }
+.email-template-preview .page-preview-frame { background: var(--tovu-site-preview-bg, #fff); }
 .email-template-empty { padding: var(--space-3); margin: 0; }
 @media (max-width: 900px) {
-  .email-template-split { grid-template-columns: 1fr; }
   .email-template-source { min-height: 20rem; }
 }
 @media (max-width: 480px) {
   .email-dns-value { grid-template-columns: 1fr; gap: var(--space-1); }
-  .email-template-frame { height: 28rem; }
 }
 
 /* Chrome check 2026-10-22. `.jini-field-error` is only styled inside `.jini-page`/`.jini-dialog`
