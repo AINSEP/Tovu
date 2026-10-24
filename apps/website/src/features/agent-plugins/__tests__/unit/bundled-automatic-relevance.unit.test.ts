@@ -27,7 +27,8 @@ for (const [query, expected] of [
   ['Design a new theme for this site', ['tovu-theme', 'ui-ux-design']],
   ["Design a new theme for this site — just tell me which plugins you'd load, don't change anything.", ['tovu-theme', 'ui-ux-design']],
   ['Deploy this site to Vercel', ['vercel']],
-  ['Import my old WordPress site', ['site-import']],
+  // d6b319cea added dedicated WordPress guidance alongside the import owner.
+  ['Import my old WordPress site', ['site-import', 'wordpress']],
   ["what's 2+2", []],
   ['Design a theme inspired by Vercel', ['tovu-theme', 'ui-ux-design']],
 ] as const) {

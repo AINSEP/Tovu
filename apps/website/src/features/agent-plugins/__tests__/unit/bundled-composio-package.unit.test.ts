@@ -50,7 +50,8 @@ test("mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, n
 
 test("the package packs through the real installer's packer, and carries no credential material", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
-  assert.deepEqual([...packed.files].sort(), ["mcp.json", "plugin.json", "skills/composio/SKILL.md"]);
+  // 45e6d4164 moved contract tests into the package; the packer includes every regular file.
+  assert.deepEqual([...packed.files].sort(), ["__tests__/connection-contract.test.mjs", "__tests__/credential-card.test.mjs", "mcp.json", "plugin.json", "skills/composio/SKILL.md"]);
   assert.match(packed.sha256, /^[a-f0-9]{64}$/);
 
   for (const file of packed.files) {
@@ -72,7 +73,9 @@ test("SKILL.md names the meta-tools the flow uses and the connection's real tool
     assert.ok(skill.includes(tool), `SKILL.md must name ${tool}`);
   }
   assert.match(skill, /mcp__composio__/);
-  assert.match(skill, /external_mcp_oauth_connect/);
+  // 46a03a47d routes sign-in through the plugin connection owner, which selects its card.
+  assert.match(skill, /agent_plugin_connect \{ pluginId: "composio" \}/);
+  assert.doesNotMatch(skill, /external_mcp_oauth_connect/);
 });
 
 test("SKILL.md never recommends granting Composio's remote code-execution tools", async () => {

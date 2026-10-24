@@ -498,12 +498,16 @@ function normalizePageRegionInput(
 /** Shared assistant target inputs own slug lookup after site selection and authorization.
  * Region aliases remain owned by Pages.
  * @returns Canonical input and value-free alias notes.
- * @throws ToolInputError for competing region selectors.
+ * @throws ToolInputError for competing region selectors or a missing write-region target.
  * @complexity O(k) time/space in supplied keys for region aliases; otherwise O(1), no I/O.
  */
 function normalizePageInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}) {
-  if (toolId === "pages_read_html" || toolId === "pages_write_region" || toolId === "pages_move_region") return normalizePageRegionInput({ input });
-  return { input, notes: [] };
+  if (!["pages_read_html", "pages_write_region", "pages_move_region"].includes(toolId)) return { input, notes: [] };
+  const normalized = normalizePageRegionInput({ input });
+  // ccdc7e888 moved slug lookup ahead of the handler. Reject a missing region before any lookup,
+  // after accepting the existing aliases; the read tool still permits the whole document.
+  if (toolId === "pages_write_region") requireString({ input: normalized.input, key: "regionId" });
+  return normalized;
 }
 
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
