@@ -288,7 +288,13 @@ test("secret-bearing provider failures never enter status or diagnostic logs", a
   const creds = credentialDeps(); await saveKey(creds, "key-one"); const logs: string[] = [];
   const fake = fakeProvider({ result: () => ({ ok: false, retryable: false, errorCode: secret, message: secret }), domainStatus: async () => { throw new Error(secret); } });
   const resolved = createResolvedMailer(deps({ creds, registry: fake.registry }, { readSenderEmail: async () => "sender@example.com", warn: m => logs.push(m), log: m => logs.push(m) }));
-  await resolved.mailer.send(MESSAGE, OPTIONS); const report = await resolved.status();
+  const checked = await resolved.status();
+  assert.doesNotMatch(JSON.stringify({ report: checked, logs }), /secret-token|private body|Authorization/);
+  assert.equal(checked.lastError!.source, "check");
+  assert.equal(checked.lastError!.message, "The provider configuration check could not complete.");
+  await resolved.mailer.send(MESSAGE, OPTIONS); const report = await resolved.status({ refresh: true });
   assert.doesNotMatch(JSON.stringify({ report, logs }), /secret-token|private body|Authorization/);
-  assert.equal(report.lastError!.message, "The provider configuration check could not complete.");
+  // A refresh must preserve the send failure, using fixed copy rather than secret-bearing provider text.
+  assert.equal(report.lastError!.source, "send");
+  assert.equal(report.lastError!.message, "The provider did not confirm acceptance. Check provider configuration.");
 });
