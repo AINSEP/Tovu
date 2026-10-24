@@ -10,7 +10,11 @@ import { toRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js
  * joins the caller's transaction when there is one.
  */
 export class SqlContentTypeRepo implements ContentTypeRepoPort, ContentTypeListPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /**
    * Upserts a `content_types` row by its synthetic `(workspaceId, key)` id — full-replace

@@ -76,7 +76,7 @@ export function setTokenForm({ label }: { label: string }, _optional = {}): Secr
         hint: "Pasted or typed here only — never shown to the assistant.",
         required: false,
         allowBlank: true,
-        ...SECRET_FORM_CARD_DEFINITIONS.credential_save.secretField,
+        ...SECRET_FORM_CARD_DEFINITIONS.credential_save?.secretField,
       },
     ],
     cancelLabel: "Cancel",

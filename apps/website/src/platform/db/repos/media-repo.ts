@@ -163,7 +163,10 @@ function slugLockKey(workspaceId: UUID): string {
 }
 
 export class SqlMediaRepo implements VersionedMediaRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /** Only creation writes stamp provenance, privacy kind and original filename. Metadata/Trash
    * updates omit those columns so stale drafts cannot publicize a document or rename its source.
@@ -452,7 +455,10 @@ function toAssetBlobRecord(row: Selectable<AssetBlobsTable>): AssetBlobRecord {
 }
 
 export class SqlAssetBlobRepo implements AssetBlobRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByHash(required: { workspaceId: UUID; sha256: string }): Promise<AssetBlobRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -518,7 +524,10 @@ export class SqlAssetBlobRepo implements AssetBlobRepoPort {
  * nothing — the correct outcome, since there is no blob to describe.
  */
 export class SqlMediaContentTypeStore implements MediaContentTypeStorePort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async getMany(required: { workspaceId: UUID; sha256s: readonly string[] }): Promise<Map<string, string>> {
     if (required.sha256s.length === 0) return new Map();
@@ -566,7 +575,10 @@ function toAssetRenditionRecord(row: Selectable<AssetRenditionsTable>): AssetRen
 }
 
 export class SqlAssetRenditionRepo implements AssetRenditionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByAsset(required: { workspaceId: UUID; assetId: UUID }): Promise<AssetRenditionRecord[]> {
     const rows = await this.kernel.run((db) =>
@@ -631,7 +643,10 @@ function toTransformDefinitionRecord(row: Selectable<TransformRegistryTable>): T
 }
 
 export class SqlTransformDefinitionRepo implements TransformDefinitionRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async listByName(required: { workspaceId: UUID; name: string }): Promise<TransformDefinitionRecord[]> {
     const rows = await this.kernel.run((db) =>

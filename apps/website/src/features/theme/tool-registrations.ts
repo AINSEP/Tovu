@@ -619,7 +619,7 @@ function collectThemeReadMatches(required: { lines: string[]; options: Extract<T
   const rangeStart = options.startLine - 1;
   const rangeEnd = Math.min(lines.length, options.lineCount === undefined ? lines.length : rangeStart + options.lineCount);
   for (let index = rangeStart; index < rangeEnd; index++) {
-    if (!lines[index].includes(options.find)) continue;
+    if (!lines[index]?.includes(options.find)) continue;
     if (matches === 50) return { windows, matches, truncated: true };
     matches++;
     mergeThemeReadWindow({

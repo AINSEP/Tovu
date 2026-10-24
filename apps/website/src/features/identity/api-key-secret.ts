@@ -156,14 +156,15 @@ function parseStoredHashParams(rawN: string, rawR: string, rawP: string): Parsed
 
 /** Split a stored `scrypt$...` string. Returns `null` for anything this file did not write. */
 function parseStoredHash(storedHash: string): ParsedDigest | null {
-  const parts = storedHash.split("$");
-  if (parts.length !== 6 || parts[0] !== "scrypt") return null;
+  const [scheme, rawN, rawR, rawP, rawSalt, rawDigest, ...extra] = storedHash.split("$");
+  if (scheme !== "scrypt" || rawN === undefined || rawR === undefined || rawP === undefined) return null;
+  if (rawSalt === undefined || rawDigest === undefined || extra.length > 0) return null;
 
-  const params = parseStoredHashParams(parts[1], parts[2], parts[3]);
+  const params = parseStoredHashParams(rawN, rawR, rawP);
   if (!params) return null;
 
-  const salt = Buffer.from(parts[4], "base64url");
-  const digest = Buffer.from(parts[5], "base64url");
+  const salt = Buffer.from(rawSalt, "base64url");
+  const digest = Buffer.from(rawDigest, "base64url");
   if (salt.length === 0 || digest.length === 0) return null;
 
   return { params, salt, digest };

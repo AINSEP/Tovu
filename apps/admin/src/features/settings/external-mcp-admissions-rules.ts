@@ -70,7 +70,9 @@ export type AdmissionDriftKind =
   // sent the operator round a loop (observed: namecom's child exiting with code 1 on every boot).
   // The daemon's own reason is shown instead. See {@link FAILED_TO_START_KEY}.
   | "failed-to-start"
-  | "missing-launcher";
+  | "missing-launcher"
+  // An OAuth connection that isn't signed in (2026-10-23): fixed by the row's Connect button.
+  | "needs-sign-in";
 
 /** One place the operator's intent and the running assistant disagree. */
 export interface AdmissionDriftEntry {
@@ -119,6 +121,8 @@ export interface SavedConnectionIntent {
   /** Saved launch details, used only to identify a missing stdio launcher. */
   readonly transport?: string;
   readonly command?: string;
+  /** An OAuth row that isn't signed in — its row shows Connect, so the banner points there. */
+  readonly needsSignIn?: boolean;
 }
 
 /** The one refusal that is routine rather than newsworthy — see this file's header. */
@@ -208,7 +212,11 @@ const RESTART_HEADLINE_KEY = "Saved. The assistant is still running with its pre
 /** Headline when nothing listed would change on a restart — the server itself does not offer a
  *  tool, refused it, or failed to start. Saying "still running its previous tool list" there sent
  *  the operator to restart, see the same list again, and conclude the restart was broken. */
-const NO_RESTART_HEADLINE_KEY = "Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below.";
+const NO_RESTART_HEADLINE_KEY = "Some saved tools aren't loaded. The reasons are below.";
+
+/** A not-running OAuth connection that was never signed in (2026-10-23). Whatever the daemon said,
+ *  the fix is the row's own Connect button, so the row says that instead of the raw reason. */
+const NEEDS_SIGN_IN_KEY = "Not signed in. Use Connect on this server below.";
 
 /** The kinds a restart alone never changes: the server does not offer the tool, marks it
  *  destructive, published it broken, cannot be unlocked, or fails to start. Every OTHER kind is the
@@ -222,6 +230,7 @@ const RESTART_CANNOT_FIX: ReadonlySet<AdmissionDriftKind> = new Set<AdmissionDri
   "decrypt-failed",
   "failed-to-start",
   "missing-launcher",
+  "needs-sign-in",
 ]);
 
 /** Whether any drift row can benefit from a restart alone.
@@ -418,6 +427,9 @@ function resolveNotRunningCopy(
   configFailureReason: string | undefined,
   saved: SavedConnectionIntent,
 ): { readonly kind: AdmissionDriftKind; readonly messageKey: string; readonly messageVars: Readonly<Record<string, string>> } {
+  if (kind === "not-running" && saved.needsSignIn) {
+    return { kind: "needs-sign-in", messageKey: NEEDS_SIGN_IN_KEY, messageVars: {} };
+  }
   if (kind === "not-running" && configFailureReason !== undefined) {
     if (isMissingLauncher(saved, configFailureReason)) {
       return { kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} };

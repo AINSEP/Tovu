@@ -289,7 +289,10 @@ export async function verifyChallengeResponse(
 export class InMemoryPublishChallengeStore implements PublishChallengeStorePort {
   private readonly records = new Map<string, PublishChallengeRecord>();
 
-  constructor(private readonly clock: { nowIso(): string }) {}
+  private readonly clock: { nowIso(): string };
+  constructor(clock: { nowIso(): string }) {
+    this.clock = clock;
+  }
 
   /** @complexity O(n) in the stored record count (the sweep), bounded by the TTL window. */
   async put(record: PublishChallengeRecord): Promise<void> {

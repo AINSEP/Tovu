@@ -431,8 +431,9 @@ export function readFileAsBase64(
 }
 
 /**
- * The grid contents for one tab: every asset on "all", and only assets whose sniffed
- * `contentType` is in the matching family on "images"/"videos".
+ * The grid contents for one tab: every non-trashed asset on "all", only non-trashed assets whose
+ * sniffed `contentType` is in the matching family on "images"/"videos", and only trashed assets on
+ * "trash".
  *
  * Prefix matching on `image/`/`video/` rather than an enumerated list of the sniffer's current
  * outputs: the server's sniffer allowlist can gain a format (another image codec, say) without
@@ -450,13 +451,17 @@ export function readFileAsBase64(
  * @complexity Time O(n), space O(n).
  */
 export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): AdminMedia[] {
-  if (tab === "images") return media.filter((item) => item.contentType?.startsWith("image/") ?? false);
-  if (tab === "videos") return media.filter((item) => item.contentType?.startsWith("video/") ?? false);
-  return media;
+  // Trash is its own tab (owner, 2026-10-23): the list route returns every status, so trashed rows
+  // are split off here and appear on no other tab.
+  if (tab === "trash") return media.filter((item) => item.status === "trashed");
+  const active = media.filter((item) => item.status !== "trashed");
+  if (tab === "images") return active.filter((item) => item.contentType?.startsWith("image/") ?? false);
+  if (tab === "videos") return active.filter((item) => item.contentType?.startsWith("video/") ?? false);
+  return active;
 }
 
 /**
- * Item counts for the "all"/"images"/"videos" tabs (owner ask, 2026-09-26: a count next to each
+ * Item counts for the "all"/"images"/"videos"/"trash" tabs (owner ask, 2026-09-26: a count next to each
  * Media tab, e.g. "All 42 · Images 30 · Videos 12"). Reuses {@link filterMediaByTab} for the two
  * filtered tabs rather than a separate count-only pass, so a tab's badge number can never disagree
  * with what switching to it actually shows.
@@ -466,16 +471,17 @@ export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): A
  * (`components/TabBar.tsx`) renders no badge at all when `count` is `undefined`, so a tab never
  * flashes a misleading "0" before the first load resolves.
  *
- * @complexity Time O(n), space O(1) — three passes over `media` (one per tab); not fused into a
- * single loop, since this runs once per render on an already-small, unpaginated array and three
+ * @complexity Time O(n), space O(n) — four passes over `media` (one per tab); not fused into a
+ * single loop, since this runs once per render on an already-small, unpaginated array and four
  * readable filter calls are clearer than one hand-merged one.
  */
 export function mediaContentTabCounts(media: AdminMedia[] | null): Partial<Record<MediaContentTabId, number>> {
   if (!media) return {};
   return {
-    all: media.length,
+    all: filterMediaByTab(media, "all").length,
     images: filterMediaByTab(media, "images").length,
     videos: filterMediaByTab(media, "videos").length,
+    trash: filterMediaByTab(media, "trash").length,
   };
 }
 
@@ -573,6 +579,12 @@ export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): Ad
  */
 export function hasUntypedMedia(media: AdminMedia[]): boolean {
   return media.some((item) => item.contentType === null);
+}
+
+/** Whether the active tab shows {@link hasUntypedMedia}'s note: only the type tabs drop untyped
+ *  rows, and a trashed untyped row is on the Trash tab, not missing from All. */
+export function showsUntypedMediaNote(media: AdminMedia[], tab: MediaContentTabId): boolean {
+  return (tab === "images" || tab === "videos") && hasUntypedMedia(filterMediaByTab(media, "all"));
 }
 
 /**

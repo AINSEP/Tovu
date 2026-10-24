@@ -1686,13 +1686,38 @@ const MEDIA_PROVENANCE_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Created by": "তৈরি করেছেন", Unknown: "অজানা" },
 };
 
+/** Trash tab empty state (owner, 2026-10-23). */
+const MEDIA_TRASH_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Trash is empty.": "La papelera está vacía.", "Media you trash appears here.": "Los medios que envíes a la papelera aparecerán aquí." },
+  id: { "Trash is empty.": "Sampah kosong.", "Media you trash appears here.": "Media yang Anda buang muncul di sini." },
+  de: { "Trash is empty.": "Der Papierkorb ist leer.", "Media you trash appears here.": "Medien, die du in den Papierkorb verschiebst, erscheinen hier." },
+  "zh-CN": { "Trash is empty.": "回收站为空。", "Media you trash appears here.": "移到回收站的媒体会显示在这里。" },
+  "zh-TW": { "Trash is empty.": "垃圾桶是空的。", "Media you trash appears here.": "移到垃圾桶的媒體會顯示在這裡。" },
+  "pt-BR": { "Trash is empty.": "A lixeira está vazia.", "Media you trash appears here.": "As mídias que você enviar para a lixeira aparecem aqui." },
+  ru: { "Trash is empty.": "Корзина пуста.", "Media you trash appears here.": "Медиа, перемещённые в корзину, появятся здесь." },
+  fa: { "Trash is empty.": "سطل زباله خالی است.", "Media you trash appears here.": "رسانه‌هایی که به سطل زباله می‌فرستید اینجا نمایش داده می‌شوند." },
+  ar: { "Trash is empty.": "سلة المهملات فارغة.", "Media you trash appears here.": "تظهر هنا الوسائط التي تنقلها إلى سلة المهملات." },
+  ja: { "Trash is empty.": "ゴミ箱は空です。", "Media you trash appears here.": "ゴミ箱に移動したメディアはここに表示されます。" },
+  ko: { "Trash is empty.": "휴지통이 비어 있습니다.", "Media you trash appears here.": "휴지통으로 옮긴 미디어가 여기에 표시됩니다." },
+  pl: { "Trash is empty.": "Kosz jest pusty.", "Media you trash appears here.": "Multimedia przeniesione do kosza pojawią się tutaj." },
+  hu: { "Trash is empty.": "A kuka üres.", "Media you trash appears here.": "A kukába helyezett média itt jelenik meg." },
+  fr: { "Trash is empty.": "La corbeille est vide.", "Media you trash appears here.": "Les médias mis à la corbeille apparaissent ici." },
+  uk: { "Trash is empty.": "Кошик порожній.", "Media you trash appears here.": "Медіа, переміщені в кошик, з’являться тут." },
+  tr: { "Trash is empty.": "Çöp kutusu boş.", "Media you trash appears here.": "Çöpe taşıdığınız medya burada görünür." },
+  th: { "Trash is empty.": "ถังขยะว่างเปล่า", "Media you trash appears here.": "สื่อที่คุณย้ายไปถังขยะจะแสดงที่นี่" },
+  it: { "Trash is empty.": "Il cestino è vuoto.", "Media you trash appears here.": "I contenuti multimediali spostati nel cestino appaiono qui." },
+  hi: { "Trash is empty.": "ट्रैश खाली है।", "Media you trash appears here.": "जिस मीडिया को आप ट्रैश में डालते हैं, वह यहाँ दिखता है।" },
+  ur: { "Trash is empty.": "ردی کی ٹوکری خالی ہے۔", "Media you trash appears here.": "جو میڈیا آپ ردی کی ٹوکری میں ڈالتے ہیں وہ یہاں دکھائی دیتا ہے۔" },
+  bn: { "Trash is empty.": "ট্র্যাশ খালি।", "Media you trash appears here.": "আপনি যে মিডিয়া ট্র্যাশে পাঠান তা এখানে দেখা যায়।" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
     // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
-    // is present in all four, which left those fallbacks with no reachable branch).
-    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale] },
+    // is present in every one, which left those fallbacks with no reachable branch).
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale] },
   ]),
 );
 

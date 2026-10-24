@@ -11,6 +11,7 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
@@ -26,7 +27,8 @@ import {
   useSavedAllowedToolNamesById,
 } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
-import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, resolveExternalMcpEffectiveAuthMode } from "./rules";
+import { useExternalMcpOAuthConnect } from "./hooks/use-external-mcp-oauth-connect.hooks";
+import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
@@ -194,15 +196,26 @@ function ExternalMcpConnectionCard(props: {
   const testResult = list.testResults[source.id];
   const tBuiltIn = useExternalMcpDriftCopy();
   if (isBuiltInExternalMcpSource({ source })) {
+    // Same head-row shape as `SourceConfigItemCard` (toggle, name, then a small badge and ⓘ), minus
+    // Remove and the expandable fields: a built-in connection is the host's, not the operator's.
+    const label = sourceDisplayLabel(source, fieldSpecs);
+    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", label);
     return (
-      <div className="source-config-item-card" role="region" aria-label={sourceDisplayLabel(source, fieldSpecs)} {...agentHandle({ handle: cardHandle }, { role: "region", label: sourceDisplayLabel(source, fieldSpecs) })}>
+      <div className="source-config-item-card external-mcp-builtin-card" role="region" aria-label={label} {...agentHandle({ handle: cardHandle }, { role: "region", label })}>
         <div className="source-config-item-card-head">
-          <strong>{sourceDisplayLabel(source, fieldSpecs)}</strong> <span className="badge">{tBuiltIn("Built-in")}</span>
+          <label className="source-config-item-card-enabled-toggle" title={enableLabel}>
+            <input type="checkbox" aria-label={enableLabel} {...agentHandle({ handle: `${cardHandle}-enabled` }, { role: "checkbox", label: enableLabel })} checked={source.enabled} disabled={list.isPending(source.id, "update")} onChange={(event) => void list.update(source.id, { enabled: event.target.checked })} />
+          </label>
+          <span className="external-mcp-builtin-summary">
+            <span className="source-config-item-card-label">{label}</span>
+            <span className="external-mcp-builtin-badge">{tBuiltIn("Built-in")}</span>
+            <InfoTip
+              label={tBuiltIn("Lets this site's assistant list your other Tovu sites, add a site pointer, and reveal a site folder.")}
+              triggerLabel={tBuiltIn("About {name}").replace("{name}", label)}
+              agentHandle={`${cardHandle}-info`}
+            />
+          </span>
         </div>
-        <label>
-          <input type="checkbox" {...agentHandle({ handle: `${cardHandle}-enabled` }, { role: "checkbox", label: tBuiltIn("Enable") })} checked={source.enabled} disabled={list.isPending(source.id, "update")} onChange={(event) => void list.update(source.id, { enabled: event.target.checked })} />
-          {tBuiltIn("Enable")}
-        </label>
       </div>
     );
   }
@@ -226,6 +239,55 @@ function ExternalMcpConnectionCard(props: {
   );
 }
 
+/** The "Connect" button for an OAuth row that isn't signed in (2026-10-23). It disappears once the
+ *  roster re-reads the row as `connected` — see `useExternalMcpOAuthConnect` for the flow. While a
+ *  sign-in is in flight it stays put, disabled, with the same label (no width jump); the line under
+ *  the row says what it is waiting on. */
+function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string; busy: boolean; tDrift: Translate; onConnect: () => void }) {
+  const { cardHandle, rowLabel, busy, tDrift, onConnect } = props;
+  const label = tDrift("Sign in to {name}").replace("{name}", rowLabel);
+  return (
+    <button
+      type="button"
+      className="external-mcp-source-connect"
+      onClick={onConnect}
+      disabled={busy}
+      aria-label={label}
+      {...agentHandle({ handle: `${cardHandle}-connect` }, { role: "button", label })}
+    >
+      {tDrift("Connect")}
+    </button>
+  );
+}
+
+/** The verification page's host, for the device-code line; the raw string if it won't parse. */
+function displayHost(uri: string): string {
+  try { return new URL(uri).host; } catch { return uri; }
+}
+
+/** The line under a row while sign-in is in flight, or why it failed. `null` when there is
+ *  nothing to say. */
+function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalMcpOAuthConnect>["state"]; tDrift: Translate; onCancel: () => void }) {
+  const { state, tDrift, onCancel } = props;
+  if (state.phase === "idle") {
+    return state.error ? <p className="external-mcp-connect-status external-mcp-connect-status--error" role="alert">{state.error}</p> : null;
+  }
+  if (state.phase === "starting") return null;
+  return (
+    <p className="external-mcp-connect-status" role="status">
+      {state.phase === "device" ? (
+        <span>
+          {tDrift("Enter this code on the sign-in page:")} <code>{state.userCode}</code>{" "}
+          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost(state.verificationUri)}</a>
+        </span>
+      ) : (
+        <span>{tDrift("Finish signing in in the new window.")}</span>
+      )}
+      <button type="button" className="external-mcp-connect-cancel" onClick={onCancel}>{tDrift("Cancel")}</button>
+    </p>
+  );
+}
+
 /** One server's row: the (unmodified) card plus a Tovu-owned "Tools" button that opens
  *  {@link ExternalMcpToolsModal} — see this file's own "Per-server Tools modal" header. Split out of
  *  {@link ExternalMcpSourcesSection}'s own `.map()` for the same complexity-budget reason as
@@ -243,13 +305,21 @@ function ExternalMcpSourceRow(props: {
   /** Opens the remove-confirmation dialog for this source id, instead of deleting immediately —
    *  see this file's own "Remove asks first" header note. */
   onRequestRemove: (sourceId: string) => void;
+  /** Test seam for the sign-in flow. */
+  useConnect?: typeof useExternalMcpOAuthConnect;
 }) {
-  const { source, cardHandle, list, tDrift, onRequestRemove } = props;
+  const { source, cardHandle, list, tDrift, onRequestRemove, useConnect = useExternalMcpOAuthConnect } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
   const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, tDrift);
   // The SAVED count, not the picker's own draft — see this file's header on why.
   const enabledToolCount = parseSavedToolNames(source.fields["allowedToolNames"]).length;
   const rowLabel = sourceDisplayLabel(source, fieldSpecs);
+  // Idle (no listeners, no timers) for every row until its Connect is pressed.
+  const signIn = useConnect(
+    { serverId: source.id, grant: source.fields["oauthGrant"] ?? "", onConnected: () => void list.reload() },
+    { fallbackError: tDrift("Sign-in could not start.") },
+  );
+  const showConnect = externalMcpNeedsSignIn({ source }) || signIn.state.phase !== "idle";
 
   return (
     <div className="external-mcp-source">
@@ -263,6 +333,15 @@ function ExternalMcpSourceRow(props: {
             onRequestRemove={onRequestRemove}
           />
         </div>
+        {showConnect ? (
+          <ExternalMcpConnectButton
+            cardHandle={cardHandle}
+            rowLabel={rowLabel}
+            busy={signIn.state.phase !== "idle"}
+            tDrift={tDrift}
+            onConnect={() => void signIn.connect()}
+          />
+        ) : null}
         <button
           type="button"
           className="external-mcp-source-tools-open"
@@ -284,6 +363,7 @@ function ExternalMcpSourceRow(props: {
           <span className="external-mcp-source-tools-count">{enabledToolCount}</span>
         </button>
       </div>
+      <ExternalMcpConnectStatus state={signIn.state} tDrift={tDrift} onCancel={signIn.cancel} />
 
       {toolsOpen ? (
         <ExternalMcpToolsModal

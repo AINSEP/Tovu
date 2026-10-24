@@ -1831,3 +1831,56 @@ button.jini-composer-leading,
   .jini-chat-settings-dialog > .tab-bar { padding-inline: 1rem; }
   .jini-chat-settings-header { padding-left: 1rem; }
 }
+
+/* ---- Chat UI batch (2026-10-23, `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`) ----
+   Host-side halves of the findings whose cause is this file or a style the package injects. The
+   markup changes (footer labels, copy on mid-run bubbles, answered cards, …) are Jini's. */
+
+/* #14: the assistant's text has no bubble, so it drops the user-bubble padding above and lines up
+   with the "Used N tools" label and the footer. Consecutive blocks were 48px apart (10px padding +
+   14px paragraph margin, each side); now one 10px margin between blocks (sibling margins collapse),
+   and a block's own first/last paragraph adds nothing at its edges. */
+.jini-chat-pane .jini-message-assistant > .jini-message-content {
+  padding: 0;
+  margin: 10px 0;
+}
+.jini-chat-pane .jini-message-assistant > .jini-message-content > :first-child { margin-top: 0; }
+.jini-chat-pane .jini-message-assistant > .jini-message-content > :last-child { margin-bottom: 0; }
+
+/* #7: the package draws a 2px rule left of the assistant copy button; the usage-actions grid above
+   already drops it, this drops it everywhere. Doubled class: the package's rule has the same
+   specificity and is injected after this file. */
+.jini-chat-pane.jini-chat-pane .jini-message-actions--assistant {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* #6 (spacing half): the stop/error line sat flush under the footer. */
+.jini-chat-pane .jini-message-usage + .jini-message-error { margin-top: 8px; }
+
+/* #11: a long tool title (`mcp__…`) refused to shrink and pushed the chevron out of the card. */
+.jini-chat-pane .op-card-head .op-title {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* #12 (tint half): a failed call's output looked exactly like its input. The head's error icon is
+   the only failure signal the markup carries, so the output is tinted off that. The "Error"
+   caption needs a class from the package. */
+.jini-chat-pane .op-card:has(> .op-card-head .op-status-error) .op-output {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-left: 3px solid var(--danger);
+}
+
+/* #16: on a phone the package's 92px textarea left the transcript ~190px. Start one line tall and
+   grow with the text (up to the existing 160px cap). */
+@media (max-width: 640px) {
+  .jini-chat-pane.jini-chat-pane .jini-composer-input {
+    min-height: 44px;
+    field-sizing: content;
+  }
+}

@@ -25,5 +25,5 @@ export const APPROVAL_COPY = {
 } as const;
 const KEYS = ['Confirm action?', 'Confirm', 'Cancel', 'Tool', 'Input'] as const;
 export function approvalText({ locale, key }: { locale: string; key: typeof KEYS[number] }, _optional = {}): string {
-  return (APPROVAL_COPY[locale as keyof typeof APPROVAL_COPY] ?? APPROVAL_COPY.en)[KEYS.indexOf(key)];
+  return (APPROVAL_COPY[locale as keyof typeof APPROVAL_COPY] ?? APPROVAL_COPY.en)[KEYS.indexOf(key)] ?? key;
 }

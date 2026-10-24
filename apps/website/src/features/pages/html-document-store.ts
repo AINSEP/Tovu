@@ -239,10 +239,16 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
   private lastReadVersion: number | null = null;
   private readonly allowedKinds: ReadonlySet<PostKind>;
 
+  private readonly scope: PagesHtmlDocumentStoreScope;
+  private readonly deps: PagesHtmlDocumentStoreDeps;
   constructor(
-    private readonly scope: PagesHtmlDocumentStoreScope,
-    private readonly deps: PagesHtmlDocumentStoreDeps
-  ) { this.allowedKinds = deps.allowedKinds ?? new Set(["page"]); }
+    scope: PagesHtmlDocumentStoreScope,
+    deps: PagesHtmlDocumentStoreDeps
+  ) {
+    this.scope = scope;
+    this.deps = deps;
+    this.allowedKinds = deps.allowedKinds ?? new Set(["page"]);
+  }
 
   /**
    * @see PagesHtmlDocumentStorePort.capturedVersion

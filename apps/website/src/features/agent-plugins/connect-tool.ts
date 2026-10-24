@@ -339,12 +339,12 @@ export async function runAgentPluginConnect(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
+  const [server] = pending;
   // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
-  if (pending.length === 0) return { status: "connected" };
+  if (!server) return { status: "connected" };
   if (pending.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
-  const [server] = pending;
 
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
@@ -445,8 +445,10 @@ async function connectDeclaredApiConnectionOrRefuse(
   pluginId: string,
   optional: ToolExecutionOptions,
 ): Promise<ApiConnectionConnectStatus> {
-  const declared: readonly DeclaredApiConnection[] = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
-  if (declared.length === 0) {
+  const apiConnections = routeDeps.apiConnections;
+  const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.host.listConnections({ pluginId }) : [];
+  const [connection] = declared;
+  if (!apiConnections || !connection) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
   }
   if (declared.length > 1) {
@@ -459,7 +461,7 @@ async function connectDeclaredApiConnectionOrRefuse(
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
     const result = await runApiConnectionConnect({
-      deps: routeDeps.apiConnections!, connection: declared[0], actorId: ctx.principal.id, signal: ctx.signal,
+      deps: apiConnections, connection, actorId: ctx.principal.id, signal: ctx.signal,
       pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
       showSignIn: async ({ signInUrl }) => {
         const emitSurface = optional.emitSurface;

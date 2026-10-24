@@ -1,6 +1,11 @@
 /** Public form copy follows the rendered document/form language; field labels remain authored. */
-export const FORM_VALIDATION_COPY: Record<string, readonly [string, string, string, string, string]> = {
-  en: ["Please enter {label}.", "Please select {label}.", "Please shorten {label}.", "Please check {label}.", "this field"],
+type FormValidationCopy = readonly [string, string, string, string, string];
+
+/** The fallback for any locale without its own row. */
+const ENGLISH_COPY: FormValidationCopy = ["Please enter {label}.", "Please select {label}.", "Please shorten {label}.", "Please check {label}.", "this field"];
+
+export const FORM_VALIDATION_COPY: Record<string, FormValidationCopy> = {
+  en: ENGLISH_COPY,
   es: ["Introduce {label}.", "Selecciona {label}.", "Acorta {label}.", "Revisa {label}.", "este campo"],
   id: ["Silakan isi {label}.", "Silakan pilih {label}.", "Silakan persingkat {label}.", "Silakan periksa {label}.", "bidang ini"],
   de: ["Bitte füllen Sie {label} aus.", "Bitte wählen Sie {label} aus.", "Bitte kürzen Sie {label}.", "Bitte prüfen Sie {label}.", "dieses Feld"],
@@ -27,6 +32,6 @@ export const FORM_VALIDATION_COPY: Record<string, readonly [string, string, stri
 export function formValidationCopy({ locale }: { locale: string }, _optional = {}) {
   const normalized = locale.toLowerCase();
   const key = Object.keys(FORM_VALIDATION_COPY).find((key) => key.toLowerCase() === normalized)
-    ?? (normalized.startsWith("zh") ? (/(tw|hk|hant)/.test(normalized) ? "zh-TW" : "zh-CN") : normalized.split("-")[0]);
-  return FORM_VALIDATION_COPY[key] ?? (key === "pt" ? FORM_VALIDATION_COPY["pt-BR"] : FORM_VALIDATION_COPY.en);
+    ?? (normalized.startsWith("zh") ? (/(tw|hk|hant)/.test(normalized) ? "zh-TW" : "zh-CN") : (normalized.split("-")[0] ?? normalized));
+  return FORM_VALIDATION_COPY[key] ?? (key === "pt" ? FORM_VALIDATION_COPY["pt-BR"] : undefined) ?? ENGLISH_COPY;
 }

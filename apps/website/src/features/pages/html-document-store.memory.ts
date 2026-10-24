@@ -45,13 +45,19 @@ export class InMemoryPagesHtmlDocumentStore {
   private lastReadVersion: number | null = null;
   private readonly allowedKinds: ReadonlySet<PostKind>;
 
+  private readonly scope: PagesHtmlDocumentStoreScope;
+  private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> };
   constructor(
-    private readonly scope: PagesHtmlDocumentStoreScope,
+    scope: PagesHtmlDocumentStoreScope,
     // `entryRefsRepo` is optional for the identical reason `PagesHtmlDocumentStoreDeps.entryRefsRepo`
     // (the real adapter) is — see that field's own doc.
     /** `outbox`: the real store's go-live catch-up (`PagesHtmlDocumentStoreDeps.outbox`). */
-    private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> }
-  ) { this.allowedKinds = deps.allowedKinds ?? new Set(["page"]); }
+    deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> }
+  ) {
+    this.scope = scope;
+    this.deps = deps;
+    this.allowedKinds = deps.allowedKinds ?? new Set(["page"]);
+  }
 
   private async load(): Promise<PostRecord | null> {
     return this.deps.repo.findById({ workspaceId: this.scope.workspaceId, id: this.scope.postId });

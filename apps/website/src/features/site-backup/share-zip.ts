@@ -31,7 +31,7 @@ function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEnt
   requireShareSecretFree({ path: entry.path, bytes: entry.content });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
-  const picked = new File([entry.content as BlobPart], entry.path.split("/").at(-1)!);
+  const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
   // Jini's picker encoder strips the selected folder's name. Supply that same picker contract
   // explicitly so archive paths keep their first scope segment (database/, uploads/, themes/).
   Object.defineProperty(picked, "webkitRelativePath", { value: `share/${entry.path}` });

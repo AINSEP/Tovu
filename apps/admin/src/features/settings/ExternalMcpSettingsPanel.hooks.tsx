@@ -9,6 +9,7 @@ import { t as tExternalMcp } from "./external-mcp-i18n";
 import {
   buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,
+  externalMcpNeedsSignIn,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
 } from "./rules";
@@ -51,6 +52,7 @@ export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[
         enabled: source.enabled ?? true,
         transport: resolveExternalMcpEffectiveTransport(source.fields),
         command: source.fields["command"] ?? "",
+        needsSignIn: externalMcpNeedsSignIn({ source }),
       };
     }
     return byId;

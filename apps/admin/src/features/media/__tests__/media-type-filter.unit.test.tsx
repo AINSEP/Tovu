@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
-import { filterMediaByTab, hasUntypedMedia } from "../rules";
+import { filterMediaByTab, hasUntypedMedia, showsUntypedMediaNote } from "../rules";
 import type { AdminMedia } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
@@ -51,6 +52,8 @@ const BINARY = makeItem({ id: "bin-1", title: "Mystery Blob", contentType: "appl
 const UNTYPED = makeItem({ id: "untyped-1", title: "Unreadable Asset", contentType: null });
 
 const ALL_ITEMS = [PNG, WEBP, MP4, BINARY, UNTYPED];
+const TRASHED_PNG = makeItem({ id: "trashed-png", title: "Old Logo", contentType: "image/png", status: "trashed" });
+const TRASHED_UNTYPED = makeItem({ id: "trashed-untyped", title: "Old Blob", contentType: null, status: "trashed" });
 
 describe("filterMediaByTab", () => {
   it("returns every item for the All tab, including untyped and unrecognized ones", () => {
@@ -75,6 +78,27 @@ describe("filterMediaByTab", () => {
 
   it("never drops an untyped item from the All tab", () => {
     expect(filterMediaByTab(ALL_ITEMS, "all").some((m) => m.id === "untyped-1")).toBe(true);
+  });
+
+  it("moves trashed items off All/Images/Videos and onto Trash only", () => {
+    const media = [...ALL_ITEMS, TRASHED_PNG];
+    expect(filterMediaByTab(media, "all")).toEqual(ALL_ITEMS);
+    expect(filterMediaByTab(media, "images").map((m) => m.id)).toEqual(["png-1", "webp-1"]);
+    expect(filterMediaByTab(media, "trash").map((m) => m.id)).toEqual(["trashed-png"]);
+    expect(filterMediaByTab(ALL_ITEMS, "trash")).toEqual([]);
+  });
+});
+
+describe("showsUntypedMediaNote", () => {
+  it("shows only on the type tabs", () => {
+    expect(showsUntypedMediaNote(ALL_ITEMS, "images")).toBe(true);
+    expect(showsUntypedMediaNote(ALL_ITEMS, "videos")).toBe(true);
+    expect(showsUntypedMediaNote(ALL_ITEMS, "all")).toBe(false);
+    expect(showsUntypedMediaNote(ALL_ITEMS, "trash")).toBe(false);
+  });
+
+  it("ignores an untyped item that is trashed, since All never lists it either", () => {
+    expect(showsUntypedMediaNote([PNG, TRASHED_UNTYPED], "images")).toBe(false);
   });
 });
 
@@ -173,5 +197,29 @@ describe("Media screen type tabs", () => {
     // and the server both accept video — see `MediaTypeEmptyState`'s own doc comment for the history.
     expect(screen.queryByText("Only image uploads are supported right now.")).not.toBeInTheDocument();
     expect(screen.getByText("Uploaded videos appear here once you add them.")).toBeInTheDocument();
+  });
+
+  it("keeps a trashed item off the All tab and lists it on the Trash tab with Delete permanently", async () => {
+    mockList([PNG, TRASHED_PNG]);
+    const { unmount } = renderScreen({ tabId: "all" });
+    await screen.findByRole("button", { name: "Sunset Photo.png" });
+    expect(screen.queryByRole("button", { name: /^Old Logo/ })).not.toBeInTheDocument();
+    unmount();
+
+    renderScreen({ tabId: "trash" });
+    const card = (await screen.findByRole("button", { name: "Old Logo.png" })).closest(".media-card") as HTMLElement;
+    expect(screen.queryByRole("button", { name: /^Sunset Photo/ })).not.toBeInTheDocument();
+    await userEvent.setup().click(within(card).getByRole("button", { name: /actions for "old logo"/i }));
+    expect(screen.getByRole("menuitem", { name: /delete permanently/i })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /^trash$/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the Trash empty state when nothing is trashed", async () => {
+    mockList([PNG]);
+    renderScreen({ tabId: "trash" });
+
+    expect(await screen.findByText("Trash is empty.")).toBeInTheDocument();
+    expect(screen.getByText("Media you trash appears here.")).toBeInTheDocument();
+    expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
   });
 });

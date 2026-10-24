@@ -81,8 +81,8 @@ export async function findCandidateDestination(deps: {
     if (!isContainedDeployConfigPath({ value: relative })) continue;
     const contents = await deps.io.read(deps.resolvePath(relative));
     if (contents === null) continue;
-    const found = PUBLIC_URL_PATTERN.exec(contents);
-    if (found) return found[1];
+    const found = PUBLIC_URL_PATTERN.exec(contents)?.[1];
+    if (found !== undefined) return found;
   }
   return null;
 }

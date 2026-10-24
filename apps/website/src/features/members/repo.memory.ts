@@ -264,9 +264,10 @@ export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.workspaceId && row.id === required.id
     );
-    if (index === -1) return;
+    const row = this.rows[index];
+    if (row === undefined) return;
 
-    this.rows[index] = { ...this.rows[index], revokedAt: required.revokedAt };
+    this.rows[index] = { ...row, revokedAt: required.revokedAt };
   }
 
   async revokeAllForMember(required: {
@@ -325,14 +326,15 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === required.workspaceId && row.id === required.id
     );
-    if (index === -1) {
+    const row = this.rows[index];
+    if (row === undefined) {
       throw new Error(`magic link token '${required.id}' was not found`);
     }
-    if (this.rows[index].consumedAt) {
+    if (row.consumedAt) {
       throw new Error(`magic link token '${required.id}' was already consumed`);
     }
 
-    this.rows[index] = { ...this.rows[index], consumedAt: required.consumedAt };
+    this.rows[index] = { ...row, consumedAt: required.consumedAt };
   }
 }
 

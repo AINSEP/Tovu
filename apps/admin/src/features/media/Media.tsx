@@ -11,7 +11,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   filterMediaByTab,
-  hasUntypedMedia,
+  showsUntypedMediaNote,
   mediaContentTabCounts,
   mediaRowMenuItems,
   sortMediaByOrder,
@@ -995,6 +995,7 @@ function MediaGridOrEmpty({
         </div>
       );
     }
+    if (activeTab === "trash") return <MediaTrashEmptyState t={t} />;
     return <MediaTypeEmptyState kind={activeTab} t={t} />;
   }
 
@@ -1146,7 +1147,7 @@ function MediaLibraryPanel(
           comment for why the `key` lives on `EditMediaPanel`, not on the `<dialog>` around it. */}
       <EditMediaModal item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
 
-      {activeTab !== "all" && hasUntypedMedia(media) ? <UntypedMediaNote t={t} /> : null}
+      {showsUntypedMediaNote(media, activeTab) ? <UntypedMediaNote t={t} /> : null}
 
       <MediaGridOrEmpty
         activeTab={activeTab}
@@ -1206,6 +1207,18 @@ function MediaTypeEmptyState({ kind, t }: { kind: "images" | "videos"; t: (key: 
             ? t("Uploaded images appear here once you add them.")
             : t("Uploaded videos appear here once you add them.")}
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** The Trash tab's empty state (owner, 2026-10-23) — same card as the type tabs' own. */
+function MediaTrashEmptyState({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="card">
+      <div className="empty-state">
+        <p>{t("Trash is empty.")}</p>
+        <p className="page-description">{t("Media you trash appears here.")}</p>
       </div>
     </div>
   );

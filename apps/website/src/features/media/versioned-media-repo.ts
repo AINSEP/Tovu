@@ -131,11 +131,12 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
   async save(record: MediaRecord): Promise<void> {
     const index = this.rows.findIndex((row) => row.id === record.id);
     this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
-    const priorSlug = index === -1 ? null : this.rows[index].slug;
-    if (index === -1) {
+    const original = this.rows[index];
+    const priorSlug = original === undefined ? null : original.slug;
+    if (original === undefined) {
       this.rows.push(record);
     } else {
-      this.rows[index] = preserveMediaCreator({ record, original: this.rows[index] });
+      this.rows[index] = preserveMediaCreator({ record, original });
     }
     this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
   }
@@ -163,10 +164,11 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
   async saveIfVersion(required: { record: MediaRecord; ifVersion: number }): Promise<{ applied: boolean }> {
     const { record, ifVersion } = required;
     const index = this.rows.findIndex((row) => row.workspaceId === record.workspaceId && row.id === record.id);
-    if (index === -1 || this.rows[index].version !== ifVersion) return { applied: false };
+    const original = this.rows[index];
+    if (original === undefined || original.version !== ifVersion) return { applied: false };
     this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
-    const priorSlug = this.rows[index].slug;
-    this.rows[index] = preserveMediaCreator({ record, original: this.rows[index] });
+    const priorSlug = original.slug;
+    this.rows[index] = preserveMediaCreator({ record, original });
     this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
     return { applied: true };
   }

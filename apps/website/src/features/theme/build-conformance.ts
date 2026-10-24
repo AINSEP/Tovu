@@ -157,7 +157,7 @@ function visibleIslandText(innerHtml: string): string {
 function checkIslandContent(pageId: string, html: string): ConformanceIssue[] {
   const issues: ConformanceIssue[] = [];
   for (const match of html.matchAll(ISLAND_MARKER)) {
-    if (visibleIslandText(match[2]).length === 0) {
+    if (visibleIslandText(match[2] ?? "").length === 0) {
       issues.push({
         page: pageId,
         rule: "island-content",

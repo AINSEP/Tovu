@@ -20,7 +20,7 @@ export function validatePreviewPath(
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\u0000-\u0020]/.test(path)) return reject();
   let decoded: string;
   try {
-    decoded = decodeURIComponent(path.split(/[?#]/, 1)[0]);
+    decoded = decodeURIComponent(path.split(/[?#]/, 1)[0] ?? "");
   } catch {
     return reject();
   }

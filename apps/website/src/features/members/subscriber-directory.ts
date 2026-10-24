@@ -85,7 +85,10 @@ function toSubscriberContact(member: MemberRecord): SubscriberContact {
  * @overallScore 100
  */
 export class MembersSubscriberDirectory implements SubscriberDirectoryPort {
-  constructor(private readonly deps: MembersSubscriberDirectoryDeps) {}
+  private readonly deps: MembersSubscriberDirectoryDeps;
+  constructor(deps: MembersSubscriberDirectoryDeps) {
+    this.deps = deps;
+  }
 
   /**
    * Resolve one subscriber's contact by id. `subscriberId` is looked up as a

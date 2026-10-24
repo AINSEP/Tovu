@@ -409,12 +409,20 @@ describe("ExternalMcpSettingsPanel — card actions, draft test, failures and wr
     expect(savedIntents.at(-1)).toMatchObject({ hosted: { allowedToolNames: "", enabled: true, command: "" } });
   });
 
+  it("shows Connect only on an OAuth row that isn't signed in", async () => {
+    const pending: SourceConfigItem = { id: "higgsfield", fields: { id: "higgsfield", transport: "streamable_http", authMode: "oauth", oauthStatus: "disconnected" } };
+    const signedIn: SourceConfigItem = { id: "linear", fields: { id: "linear", transport: "streamable_http", authMode: "oauth", oauthStatus: "connected" } };
+    renderWith({ sources: [pending, signedIn] });
+    expect(await screen.findByRole("button", { name: "Sign in to higgsfield" })).toHaveTextContent("Connect");
+    expect(screen.queryByRole("button", { name: "Sign in to linear" })).toBeNull();
+  });
+
   it("toggles a built-in server's Enable checkbox through the list port", async () => {
     const user = userEvent.setup();
     const builtIn: SourceConfigItem = { id: "tovu-site", enabled: true, fields: { id: "tovu-site", builtIn: "true" } };
     const { port } = renderWith({ sources: [builtIn] });
     const update = vi.spyOn(port as Required<typeof port>, "updateSource");
-    await user.click(await screen.findByRole("checkbox", { name: "Enable" }));
+    await user.click(await screen.findByRole("checkbox", { name: /^Enable / }));
     await waitFor(() => expect(update).toHaveBeenCalledWith("tovu-site", { enabled: false }));
   });
 

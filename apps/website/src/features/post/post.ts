@@ -1004,12 +1004,16 @@ export class PostConflictError extends Error {}
  * envelope (and a client can offer "reload and reapply") without parsing prose.
  */
 export class PostVersionConflictError extends PostConflictError {
+  public readonly expectedVersion: number;
+  public readonly currentVersion: number;
   constructor(
     message: string,
-    public readonly expectedVersion: number,
-    public readonly currentVersion: number
+    expectedVersion: number,
+    currentVersion: number
   ) {
     super(message);
+    this.expectedVersion = expectedVersion;
+    this.currentVersion = currentVersion;
   }
 }
 

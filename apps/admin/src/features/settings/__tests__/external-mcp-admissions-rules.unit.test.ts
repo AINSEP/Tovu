@@ -359,6 +359,19 @@ describe("decrypt-failed — a saved connection that never reached admission", (
     expect(drifted[0]?.notLoaded).toEqual(["Hello", "TldPriceList"]);
   });
 
+  // 2026-10-23: an OAuth row that was never signed in points at its own Connect button instead of
+  // echoing the daemon's reason, which only ever said the same thing less usefully.
+  it("points a not-signed-in OAuth connection at Connect, whatever the daemon reported", () => {
+    const drifted = describeAdmissionDrift(
+      { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "401 unauthorized" }] },
+      { higgsfield: { allowedToolNames: "generate_image", enabled: true, needsSignIn: true } },
+    );
+
+    expect(drifted[0]?.entries[0]?.kind).toBe("needs-sign-in");
+    expect(drifted[0]?.entries[0]?.messageKey).toBe("Not signed in. Use Connect on this server below.");
+    expect(describeDriftHeadline(drifted)).toBe("Some saved tools aren't loaded. The reasons are below.");
+  });
+
   it("ignores a config failure for a DIFFERENT connection id", () => {
     const drifted = describeAdmissionDrift(
       { connections: [], configFailures: [{ connectionId: "some-other-server", reason: "stored credentials could not be decrypted: x" }] },
@@ -436,7 +449,7 @@ describe("a deleted roster connection is not a preset", () => {
 
 describe("describeDriftHeadline — does a restart actually help?", () => {
   const RESTART = "Saved. The assistant is still running with its previous tool list.";
-  const NO_RESTART = "Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below.";
+  const NO_RESTART = "Some saved tools aren't loaded. The reasons are below.";
 
   it("does not promise a restart fix when every row is something the server itself decides (the owner's 2026-09-29 screen)", () => {
     const drifted = describeAdmissionDrift(
@@ -481,7 +494,7 @@ describe("admissionRestartHelps", () => {
   it.each<[AdmissionDriftKind, boolean]>([
     ["not-offered", false], ["destructive", false], ["server-side-defect", false],
     ["decrypt-failed", false], ["failed-to-start", false], ["missing-launcher", false],
-    ["needs-write-grant", true], ["inert-write-grant", true], ["still-live-after-removal", true],
+    ["needs-sign-in", false], ["needs-write-grant", true], ["inert-write-grant", true], ["still-live-after-removal", true],
     ["not-running", true], ["disabled-but-running", true], ["removed-but-still-running", true],
   ])("%s: restartHelps is %s", (kind, expected) => {
     const connections = [{ connectionId: "server", liveToolCount: 0, savedToolCount: 0, notLoaded: [],

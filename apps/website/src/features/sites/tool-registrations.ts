@@ -288,7 +288,9 @@ export function buildSitesReadRegistrations(deps: SitesReadToolDeps, _optional: 
   /** A list is complete locally, so filtering its card is an authoritative single-site read. */
   handlers.sites_get_site = async ctx => {
     const name = requireString({ input: requireInputRecord({ input: ctx.input }), key: "name" });
-    const listed = await handlers.sites_list({ ...ctx, input: {} }) as { sites: readonly SiteListEntry[] };
+    const listSites = handlers.sites_list;
+    if (!listSites) throw new Error("sites_get_site needs sites_list, which is not registered");
+    const listed = await listSites({ ...ctx, input: {} }) as { sites: readonly SiteListEntry[] };
     const sites = listed.sites.filter(site => site.name === name);
     if (!sites.length) throw new ToolInputError({ message: `site '${name}' was not found — call content_read.site without name to list valid sites` });
     return { ...listed, sites };

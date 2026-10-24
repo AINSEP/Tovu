@@ -16,7 +16,10 @@ function toRecord(row: Selectable<WorkspacesTable>): WorkspaceRecord {
 }
 
 export class SqlWorkspaceRepo implements WorkspaceRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async insert(record: WorkspaceRecord): Promise<void> {
     await this.kernel.run((db) =>
