@@ -9,7 +9,7 @@ import { createSiteConsentService } from '#src/features/consent/service';
 import { readSiteConsentAuthoringSettings } from '#src/features/consent/settings';
 import { fetchPublishedPage, resolveSameOriginPath } from '#src/features/site-inspection/published-page';
 import type { RouteDeps } from '#src/server/routes/types';
-import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck, TOVU_NECESSARY_SCRIPTS } from '../../inbound/public-http/middleware/site-consent.js';
+import { CONSENT_RECEIPTS_DIR_NAME, createPrivacyPageCheck } from '../../inbound/public-http/middleware/site-consent.js';
 
 /** Reuse the existing local-render owner (bounded reads, timeout, finally-close, no external URL).
  * @example bindSiteConsentService({ deps })
@@ -28,7 +28,6 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
     readLegacy: async () => readSiteConsentAuthoringSettings({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId }),
     privacyPageExists: createPrivacyPageCheck({ deps }),
-    necessaryScripts: TOVU_NECESSARY_SCRIPTS,
     receiptStorage: async () => {
       try { return await readConsentReceiptStorage({ directory: path.join(deps.siteBinding.dir, CONSENT_RECEIPTS_DIR_NAME) }); }
       catch (error) { console.error('[consent] receipt storage check failed'); throw error; }

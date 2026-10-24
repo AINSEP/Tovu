@@ -8,6 +8,8 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { MailProviderControl, MailProviderConfigurationReport } from "../../platform/mail/mail-status.js";
 import { mailProviderAgentToolCatalog } from "./provider-agent-tools.js";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";
+import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from "../agent-plugins/tool-registrations.js";
+import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 
 /**
  * @file Assistant adapters for the shared provider operations (`./provider-operations.ts`), the
@@ -19,6 +21,8 @@ export interface MailProviderToolDeps {
   authorize: AuthorizeFn; workspaceId: string;
   /** Absent in hermetic roots: both tools refuse and change nothing. */
   mailProviderControl?: MailProviderControl;
+  agentPluginLayout?: AgentPluginSearchToolDeps["agentPluginLayout"];
+  loadPluginCredentialCards?: LoadPluginCredentialCards;
 }
 
 export const mailProviderDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -93,13 +97,25 @@ export function buildMailProviderRegistrations(deps: MailProviderToolDeps, _opti
     mail_list_providers: async (ctx) => {
       requireInputRecord({ input: ctx.input });
       await permission({ deps: deps, ctx: ctx, name: "admin.forms.manage" });
-      return asToolInputError({ run: () => readMailProviderConfigurations({ control: deps.mailProviderControl }) });
+      const report = await asToolInputError({ run: () => readMailProviderConfigurations({ control: deps.mailProviderControl }) });
+      if (!deps.agentPluginLayout) return report;
+      // Discovery must include disabled plugins without loading their executable adapters.
+      const candidates = await loadAgentPluginSearchCandidates({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout });
+      const availablePlugins = candidates.filter(plugin => plugin.provides.includes("outbound-mail")).map(plugin => ({
+        pluginId: plugin.pluginId, description: plugin.description, enabled: plugin.enabled, mcpServers: plugin.mcpServerIds,
+      }));
+      return { ...report, availablePlugins };
     },
     mail_configure_provider: async (ctx) => {
       const providerId = readProviderId({ input: ctx.input });
       await permission({ deps: deps, ctx: ctx, name: "custom-credentials.write" });
       const plan = await asToolInputError({ run: () => planMailProviderCredential({ control: deps.mailProviderControl, providerId }) });
-      return { activated: false, ...plan, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: credentialPrefill(plan) }, {}), followUps: followUps(plan) };
+      // A saved key is not a request to replace it. Keep setup from suggesting an overwrite.
+      if (plan.credential.action === "rotate") return { activated: false, ...plan, note: `A key is already saved. Reuse it. Only if the person explicitly asks to replace it, call credential_save {kind:"api",target:"${plan.credential.label}"}.`, followUps: [] };
+      const cards = await loadPluginCredentialCardsSafely({ loadCards: deps.loadPluginCredentialCards, workspaceId: deps.workspaceId });
+      const card = cards.find(card => card.providerId === providerId && card.label === plan.credential.label);
+      const prefill = card ? { kind: "plugin-provider", target: card.providerId } : credentialPrefill(plan);
+      return { activated: false, ...plan, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill }, {}), followUps: followUps(plan) };
     },
   }, rules: [forbiddenRule({ domainPrefix: "MAIL_PROVIDERS", error: ForbiddenError })] }) });
 }

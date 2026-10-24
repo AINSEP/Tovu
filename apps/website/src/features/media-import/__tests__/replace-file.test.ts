@@ -47,7 +47,7 @@ async function fixture(t: test.TestContext) {
 for (const source of ["local", "url"]) test(`${source} replacement preserves identity and metadata and invalidates old renditions`, async t => {
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, "new.png"), replacement);
-  const input = source === "local" ? { root: "repo", path: "new.png" } : { url: "https://cdn.example.com/new.png" };
+  const input = source === "local" ? { root: "site", path: "new.png" } : { url: "https://cdn.example.com/new.png" };
   const result = await f.run({ mediaId: f.media.id, ...input });
   const sha256 = createHash("sha256").update(replacement).digest("hex");
   assert.equal(result.media.id, f.media.id);
@@ -88,8 +88,8 @@ test("concurrent metadata edits survive a replacement conflict", async t => {
 });
 
 for (const input of [
-  { url: "http://example.com/new.png" }, { root: "repo", path: "../escape.png" },
-  { root: "repo", path: ".env" }, { url: "https://example.com/new.png", root: "repo", path: "new.png" }, {},
+  { url: "http://example.com/new.png" }, { root: "site", path: "../escape.png" },
+  { root: "site", path: ".env" }, { url: "https://example.com/new.png", root: "site", path: "new.png" }, {},
 ]) test(`invalid replacement source is refused without mutation: ${JSON.stringify(input)}`, async t => {
   const f = await fixture(t);
   await assert.rejects(f.run({ mediaId: f.media.id, ...input }));
@@ -133,11 +133,11 @@ test('oversized and unsupported local replacement bytes leave the media unchange
 
 for (const source of [
   {},
-  { root: "repo" },
+  { root: "site" },
   { path: "new.png" },
-  { url: "https://cdn.example.com/new.png", root: "repo" },
+  { url: "https://cdn.example.com/new.png", root: "site" },
   { url: "https://cdn.example.com/new.png", path: "new.png" },
-  { url: "https://cdn.example.com/new.png", root: "repo", path: "new.png" },
+  { url: "https://cdn.example.com/new.png", root: "site", path: "new.png" },
 ]) test(`source exclusivity is checked before looking up media: ${JSON.stringify(source)}`, async t => {
   const f = await fixture(t);
   f.deps.mediaRepo.findById = async () => { assert.fail("invalid source must precede media lookup"); };
@@ -149,7 +149,7 @@ for (const source of [
 test("explicit undefined URL selects local bytes; undefined local fields allow a URL", async t => {
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, "new.png"), replacement);
-  const local = await f.run({ mediaId: f.media.id, url: undefined, root: "repo", path: "new.png" });
+  const local = await f.run({ mediaId: f.media.id, url: undefined, root: "site", path: "new.png" });
   assert.equal(local.media.version, f.media.version + 1);
   assert.equal(f.fetches(), 0);
   const remote = await f.run({ mediaId: f.media.id, url: "https://cdn.example.com/new.png", root: undefined, path: undefined });
@@ -159,7 +159,7 @@ test("explicit undefined URL selects local bytes; undefined local fields allow a
 
 test("null URL counts as a supplied remote source before URL string validation", async t => {
   const f = await fixture(t);
-  await assert.rejects(f.run({ mediaId: f.media.id, url: null, root: "repo", path: "new.png" }), /Pass either url or root and path, never both\./);
+  await assert.rejects(f.run({ mediaId: f.media.id, url: null, root: "site", path: "new.png" }), /Pass either url or root and path, never both\./);
   await assert.rejects(f.run({ mediaId: "missing-media", url: null }), /Media was not found or is in Trash/);
   assert.equal(f.fetches(), 0);
 });
@@ -168,11 +168,32 @@ test("a traversal path or a file that is not valid media is refused as input, an
   const f = await fixture(t);
   fs.writeFileSync(path.join(f.root, "notes.txt"), "plain text, not an image");
   const errors: Error[] = [];
-  for (const input of [{ root: "repo", path: "../../etc/passwd" }, { root: "repo", path: "notes.txt" }]) {
+  for (const input of [{ root: "site", path: "../../etc/passwd" }, { root: "site", path: "notes.txt" }]) {
     await assert.rejects(f.run({ mediaId: f.media.id, ...input }), (error: Error) => { errors.push(error); return true; });
   }
   assert.deepEqual(errors.map(e => e.name), ["ToolInputError", "ToolInputError"]);
   assert.match(errors[0]!.message, /^path '\.\.\/\.\.\/etc\/passwd' resolves outside the allowed root\. Fix the input and retry .*Schema for 'media_replace_file'/s);
   assert.match(errors[1]!.message, /^'notes\.txt' is not an importable file: its actual bytes are 'application\/octet-stream'\./);
   assert.deepEqual(await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id }), f.media);
+});
+
+test("site replacement refuses repo and outside custom roots without reading or changing the asset", async t => {
+  const f = await fixture(t);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'replace-outside-'));
+  t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(outside, 'payload.png'), Buffer.concat([png, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
+  fs.writeFileSync(path.join(outside, 'OUTSIDE_CANARY_NAME.png'), png);
+  f.deps.resolveRoots = () => ({ repo: outside, custom: outside, site: f.root });
+  const reads = t.mock.method(fs, 'createReadStream');
+  for (const root of ['repo', 'custom']) {
+    await assert.rejects(() => f.run({ mediaId: f.media.id, root, path: 'payload.png' }), error => {
+      assert.ok(error instanceof Error);
+      assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);
+      return true;
+    });
+  }
+  assert.equal(reads.mock.callCount(), 0);
+  const saved = await f.deps.mediaRepo.findById({ workspaceId: f.deps.workspaceId, id: f.media.id });
+  assert.equal(saved?.version, f.media.version);
+  assert.equal(saved?.source.sha256, f.media.source.sha256);
 });

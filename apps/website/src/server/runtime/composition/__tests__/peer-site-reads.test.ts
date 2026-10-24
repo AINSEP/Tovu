@@ -60,6 +60,7 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
   const html = await f.call('pages_read_html', { site: 'B', id: 'page' }) as { html: string; theme: unknown };
   assert.match(html.html, /B page/);
   assert.deepEqual(html.theme, { id: 'selected', tokens: { '--ink': '#123456' }, tokensLight: {} });
+  assert.deepEqual(await f.call('theme_get_preview_switcher', { site: 'B' }), { enabled: false, themes: [], position: 'top' });
   const image = await f.call('media_view_image', { site: 'B', mediaId: 'media' }) as { content: Array<{ type: string; data?: string }> };
   const block = image.content.find(block => block.type === 'image'); assert.ok(block?.data);
   const pixels = await sharp(Buffer.from(block.data, 'base64')).removeAlpha().raw().toBuffer();
@@ -68,13 +69,13 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
     await assert.rejects(f.call('assistant_chat_read', { site: 'B', chatId }), /Chat is unavailable to this caller/);
   }
   assert.equal(f.a.db.$client.open, true);
-  assert.equal(f.audits.length, 10, 'one active-site audit row per successful peer resolution, including domain refusals');
+  assert.equal(f.audits.length, 11, 'one active-site audit row per successful peer resolution, including domain refusals');
   for (const event of f.audits) {
     assert.equal(event.detail, 'cross-site read: B (B)');
     assert.equal(event.workspaceId, f.a.workspaceId);
     assert.equal(event.principalId, f.a.ownerId);
   }
-  assert.equal((f.a.db.$client.prepare('SELECT COUNT(*) AS n FROM agent_tool_attempts WHERE detail = ?').get('cross-site read: B (B)') as { n: number }).n, 10);
+  assert.equal((f.a.db.$client.prepare('SELECT COUNT(*) AS n FROM agent_tool_attempts WHERE detail = ?').get('cross-site read: B (B)') as { n: number }).n, 11);
   assert.equal((f.b.db.$client.prepare('SELECT COUNT(*) AS n FROM agent_tool_attempts').get() as { n: number }).n, 0);
   await f.peer.close();
   files.forEach((file, index) => {
@@ -94,6 +95,36 @@ test('foreign-site writes never reach a handler; the current registry name is st
   assert.equal(await f.call('content_post_create', { site: 'A', title: 'Yes' }), f.a.workspaceId);
   assert.equal(calls, 1);
   assert.equal(f.audits.length, 0);
+});
+
+test('excluded cross-site reads name the tool and do not claim to be writes', async t => {
+  const f = await peerFixture(t);
+  await assert.rejects(f.call('system_read_server_logs', { site: 'B' }), { message: "system_read_server_logs can't read another site yet." });
+  assert.equal(f.contentHandles.length, 0, 'an unsupported read must not open a peer');
+  await assert.rejects(f.call('theme_update_preview_switcher', { site: 'B', enabled: false, themes: [], position: 'top' }),
+    { message: 'Writes run only on the active site. Switch with sites_switch_site first.' });
+});
+
+test('shared slug lookup uses B after scope selection, with raw and collapsed names in one peer cache', async t => {
+  const f = await peerFixture(t);
+  for (const site of [f.a, f.b]) {
+    const page = await site.postRepo.findById({ workspaceId: site.workspaceId, id: 'page' });
+    await site.postRepo.save({ ...page!, slug: '/' });
+    const media = await site.mediaRepo.findById({ workspaceId: site.workspaceId, id: 'media' });
+    await site.mediaRepo.save({ ...media!, id: `${site.name}-asset`, slug: 'shared-media' });
+  }
+  f.a.postRepo.findById = f.a.postRepo.findBySlug = async () => assert.fail('peer slug lookup must never use A');
+  const page = await f.call('pages_read_html', { site: 'B', id: '/' }) as { id: string; html: string };
+  assert.equal(page.id, 'page');
+  assert.match(page.html, /B page/);
+  const card = f.build(true).find(tool => tool.descriptor.id === 'content_read.media_asset')!;
+  const result = await invokeRegisteredTool(card, { ...context({ items: [{ site: 'B', id: 'shared-media' }, { site: 'B', id: 'missing' }, { site: 'B', slug: 'shared-media' }] }), principal: { id: f.a.ownerId } }) as {
+    results: Array<{ ok: boolean; result?: { media: Array<{ id: string }> } }>;
+  };
+  assert.deepEqual(result.results.map(item => item.ok), [true, false, true]);
+  assert.deepEqual(result.results[0]!.result!.media.map(asset => asset.id), ['B-asset']);
+  assert.deepEqual(result.results[2]!.result!.media.map(asset => asset.id), ['B-asset']);
+  await assert.rejects(f.call('pages_read_html', { site: 'B', id: '/' }, f.a.staffId), /Only this installation's owner/);
 });
 
 test("forms_delivery_status on B reads only B's delivery rows, never A's, and never answers (security pin)", async t => {

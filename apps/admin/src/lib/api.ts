@@ -121,6 +121,12 @@ export interface AdminExternalMcpOAuthView {
  * to the two fields the generic streamable-HTTP + OAuth transport added on top of the original
  * stdio-only shape.
  */
+/** `POST .../mcp-servers/:serverId/oauth/connect`'s `auth`. Mirrors `src/assistant/external-mcp-oauth.ts`'s
+ *  `ExternalMcpConnectStart`; the device code itself never leaves the server. */
+export type AdminExternalMcpConnectStart =
+  | { kind: "redirect_required"; authorizationUrl: string; expiresAt: string }
+  | { kind: "device_code"; userCode: string; verificationUri: string; verificationUriComplete: string | null; expiresAt: string; intervalSeconds: number };
+
 /** One saved "Always allow" from `GET .../mcp-servers/tool-approvals` — a remote tool the approval
  *  card no longer asks about. Revoking it makes the card ask again. */
 export interface AdminExternalMcpToolApproval {
@@ -502,6 +508,8 @@ export interface AdminServerLogsQuery {
 /** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
+  /** Provider-side sender-domain verdict, independent of whether the sending key is saved. */
+  senderDomainVerification?: import("../features/email/email-api").ProviderDomainVerification;
   mailDeliveryAvailable: boolean;
   /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
    *  admin's blocking banner. */
@@ -2212,6 +2220,8 @@ export interface AdminPluginFiles {
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
+  /** Tovu host maturity; absent means normal. */
+  maturity?: "untested" | "soon";
   provides?: string[];
   origin?: "bundled" | "operator-installed";
   hostOk?: boolean;
@@ -3204,6 +3214,20 @@ export const api = {
   probeExternalMcpServer: (serverId: string) =>
     request<AdminExternalMcpProbeResult>(
       `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/probe`,
+      { method: "POST" }
+    ),
+  /** Starts an OAuth sign-in for one saved server. `redirect_required` carries the provider URL to
+   *  open; `device_code` carries a code the operator types at `verificationUri`, then
+   *  {@link api.pollExternalMcpOAuthDevice} reports when it lands. */
+  connectExternalMcpOAuth: (serverId: string) =>
+    request<{ auth: AdminExternalMcpConnectStart }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`,
+      { method: "POST" }
+    ),
+  /** One poll of a device sign-in; the caller owns the loop and waits `retryAfterSeconds`. */
+  pollExternalMcpOAuthDevice: (serverId: string) =>
+    request<{ status: "pending"; retryAfterSeconds: number } | { status: "connected" }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/device/poll`,
       { method: "POST" }
     ),
   /**

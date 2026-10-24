@@ -103,6 +103,8 @@ function toItem(server: AdminExternalMcpServer, locale: string = "en"): SourceCo
       oauthClientSecret: "",
       oauthScopes: server.oauth.scopes.join(" "),
       oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
+      // Read-only: drives the row's Connect button. `toWriteBody` never sends it.
+      oauthStatus: server.oauth.status,
       // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
       // `providerId` is enough to identify a registered one, and a connection with its own
       // endpoints has no other read model for them today. Left blank rather than guessed; an

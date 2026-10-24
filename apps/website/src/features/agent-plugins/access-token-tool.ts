@@ -33,7 +33,7 @@ import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSa
  * so no vendor code is left in core: the tokens page and the probe URL now come from the plugin.
  *
  * A Jini secret-card spec with domain copy from `connect-card-ui.ts`; the submitted token is probed with one GET to the declared
- * `probeUrl` (401/403 = rejected), then saved as the plugin row's sealed `static_env` access token
+ * `probeUrl` (401 = invalid, 403 = refused for this purpose), then saved as the plugin row's sealed `static_env` access token
  * through `saveExternalMcpServer`. The store sends that token to the hosted server as
  * `Authorization: Bearer`, and switching the row's auth mode replaces any unfinished OAuth attempt on
  * it. The save itself carries `enabled` and the tool lists forward; then `switch-on-saved-token.ts`
@@ -85,7 +85,7 @@ const MESSAGES = {
 type UnansweredReason = "cancelled" | "expired" | "abandoned";
 type SetAccessTokenResult =
   | { saved: true; next: string }
-  | { saved: false; reason: UnansweredReason | "invalid" | "unavailable" | "error"; message?: string };
+  | { saved: false; reason: UnansweredReason | "invalid" | "refused" | "unavailable" | "error"; message?: string };
 
 /** The one declared token-auth server this call saves onto. */
 export interface TokenAuthTarget {
@@ -152,7 +152,7 @@ export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, plugi
 }
 
 /** One GET with the token as a Bearer header. Never throws, never returns the token or the body. */
-export async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "unavailable"> {
+export async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
   try { assertCredentialToken({ value: token, field: 'token' }); }
   catch { return "invalid"; }
   let response;
@@ -166,7 +166,9 @@ export async function probeToken(httpClient: HttpClientPort, probeUrl: string, t
   } catch {
     return "unavailable";
   }
-  if (response.status === 401 || response.status === 403) return "invalid";
+  if (response.status === 401) return "invalid";
+  // Permission refusal is not evidence that a token is invalid for its other uses.
+  if (response.status === 403) return "refused";
   return response.status >= 200 && response.status < 300 ? "ok" : "unavailable";
 }
 
@@ -221,9 +223,9 @@ function describeSaveError(err: unknown): string {
  * @complexity O(1) plus one outbound GET and one store save.
  */
 async function saveSubmittedAccessToken(
-  { values, routeDeps, target, principalId, locale, signal }: {
+  { values, routeDeps, target, principalId, locale, signal, credentialCard }: {
     values: Readonly<Record<string, unknown>>; routeDeps: AgentPluginAccessTokenToolDeps;
-    target: TokenAuthTarget; principalId: string; locale: string; signal: AbortSignal;
+    target: TokenAuthTarget; principalId: string; locale: string; signal: AbortSignal; credentialCard?: PluginCredentialCard;
   }, _optional = {},
 ): Promise<SetAccessTokenResult> {
   const submitted = values.token;
@@ -234,6 +236,7 @@ async function saveSubmittedAccessToken(
   const probe = await probeToken(routeDeps.customCredentialsHttpClient, target.config.tovuTokenAuth.probeUrl, token);
   signal.throwIfAborted();
   if (probe === "invalid") return { saved: false, reason: "invalid", message: translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
+  if (probe === "refused") return { saved: false, reason: "refused", message: `This token was refused for this purpose.${credentialCard?.keyHint ? ` This card needs: ${credentialCard.keyHint}` : ''}` };
   if (probe === "unavailable") return { saved: false, reason: "unavailable", message: `${target.displayName} is unavailable right now. Try again shortly.` };
   await saveStaticAccessToken(routeDeps, target, principalId, token, { signal });
   let next: string;

@@ -2,9 +2,29 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { readInstalledAgentPluginIdentity } from "../../identity.js";
+import { readInstalledAgentPluginIdentity, readPluginMaturity } from "../../identity.js";
 
 const plugin = { pluginId: "github", packageRoot: path.join("/plugins", "github") };
+
+test("host maturity accepts both flags and leaves absent metadata normal", async () => {
+  for (const maturity of ['untested', 'soon'] as const) {
+    const identity = await readInstalledAgentPluginIdentity({ plugin }, {
+      readText: async () => JSON.stringify({ name: 'github', extensions: { tovu: { id: 'tovu/github', maturity } } }),
+    });
+    assert.equal(identity.maturity, maturity);
+  }
+  for (const manifest of [null, [], {}, { extensions: null }, { extensions: [] }, { extensions: { tovu: null } }, { extensions: { tovu: [] } }, { extensions: { tovu: {} } }]) {
+    assert.equal(readPluginMaturity({ manifest }, { warn: () => assert.fail('absent maturity must not warn') }), undefined);
+  }
+});
+
+test("unknown host maturity is ignored with a warning, without reflecting arbitrary manifest values", () => {
+  for (const maturity of ['beta', '', null, 42, {}, ['untested']]) {
+    const warnings: string[] = [];
+    assert.equal(readPluginMaturity({ manifest: { extensions: { tovu: { maturity } } } }, { warn: message => warnings.push(message) }), undefined);
+    assert.deepEqual(warnings, ['[agent-plugins] Unknown extensions.tovu.maturity ignored; expected "untested" or "soon".']);
+  }
+});
 
 test("reads plugin.json from the package root and projects its publisher identity", async () => {
   const reads: string[] = [];

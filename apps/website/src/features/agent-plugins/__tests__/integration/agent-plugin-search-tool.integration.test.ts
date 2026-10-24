@@ -55,6 +55,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 }
 
 interface ManifestFields {
+  readonly extensions?: { tovu: { maturity: 'untested' | 'soon' } };
   readonly version?: string;
   readonly description?: string;
   readonly keywords?: readonly string[];
@@ -106,6 +107,7 @@ function fakeCtx(input: unknown): ToolExecutionContext {
 
 interface SearchResponse {
   matches: {
+    maturity?: 'untested' | 'soon';
     pluginId: string;
     version: string | null;
     description: string | null;
@@ -135,6 +137,21 @@ description: Evidence-based privacy, cookie/consent, and accessibility risk scre
 
 # Site Compliance
 `;
+
+for (const maturity of ['untested', 'soon', undefined] as const) {
+  test(`search results carry host maturity ${maturity ?? '(absent)'}`, async () => {
+    await withAgentPluginsDir(async () => {
+      await installReal(WORKSPACE_A, 'site-compliance', {
+        'plugin.json': manifestJson('site-compliance', { keywords: ['compliance'], ...(maturity ? { extensions: { tovu: { maturity } } } : {}) }),
+        'skills/site-compliance/SKILL.md': SITE_COMPLIANCE_SKILL,
+      }, `maturity-${maturity}`);
+      const result = await search(WORKSPACE_A, { query: 'compliance' });
+      assert.equal(result.matches.length, 1);
+      assert.equal(result.matches[0]!.maturity, maturity);
+      assert.equal(Object.hasOwn(result.matches[0]!, 'maturity'), maturity !== undefined);
+    });
+  });
+}
 
 test("the catalog carries exactly one tool, search_agent_plugin_local, with a required 'query' and optional 'limit'", async () => {
   const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });

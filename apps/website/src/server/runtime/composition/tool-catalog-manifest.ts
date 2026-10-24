@@ -6,6 +6,7 @@ import type { LoadPluginCredentialCards } from "#src/features/custom-credentials
 import path from "node:path";
 import { resolveProductRoot } from "#src/platform/site-dir/index";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
+import { bindContentTargetInputs } from "./content-target-inputs.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
@@ -47,7 +48,7 @@ import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/inde
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { renderPublicPage, createRenderBrowserPool, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { contributeWebTools } from "#src/features/web/tool-registrations";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
@@ -353,6 +354,7 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
@@ -471,9 +473,16 @@ export function installFirstPartyToolContributors(
   // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
   const publicBrowserPool = createRenderBrowserPool({
-    launch: async () => (await playwrightModuleLoader.load({ moduleName: "playwright" })).chromium.launch({
-      ...PUBLIC_RENDER_LAUNCH_OPTIONS, chromiumSandbox: false, // The production container composition explicitly permits unsandboxed Chromium.
-    }),
+    launch: async () => {
+      const result = await openPlaywrightRenderBrowser({}, {
+        moduleLoader: playwrightModuleLoader,
+        launchOptions: {
+          ...PUBLIC_RENDER_LAUNCH_OPTIONS, chromiumSandbox: false, // The production container composition explicitly permits unsandboxed Chromium.
+        },
+      });
+      if (!result.available) throw new Error(result.reason);
+      return result.browser;
+    },
   }, { maxConcurrent: 2 });
   const renderedWebClient = createHttpClient({ ...WEB_FETCH_EGRESS_POLICY, maxRedirects: 0 }, { observability });
   contributions.contributors.register({ contribution: contributeWebTools({

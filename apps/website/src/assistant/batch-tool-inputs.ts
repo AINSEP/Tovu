@@ -1,4 +1,4 @@
-import { applyBatchInputs as applyCoreBatchInputs, defaultBatchableTools, ToolInputError, type ToolRegistration, type BatchableTool, type BatchOptOut } from '@jini-ai/core';
+import { applyBatchInputs as applyCoreBatchInputs, batchEligibilityFor, defaultBatchableTools, ToolInputError, type ToolRegistration, type BatchableTool, type BatchOptOut } from '@jini-ai/core';
 import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/assistant-permanent-deletes-policy.js';
 export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BATCH_ITEMS, type BatchableTool, type BatchOptOut, type BatchResult, type BatchItemResult } from '@jini-ai/core';
 
@@ -7,18 +7,12 @@ export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BA
  *  seo_set_entry_overrides, 14 theme_trash_file single calls in one chat). */
 const ROW_LEVEL_MAX_ITEMS = 100;
 
-/** Explicit opt-ins for read tools whose alternative selectors leave no top-level required field.
- * MOVE: published Jini classifies these as list reads; settings alone cannot enable their wrapper.
- * Video previews can each return 8 MiB, so both expensive readers stay capped at eight items.
- */
-export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
+/** Per-tool settings over the default `{ toolId }` entry; eligibility is selected below.
+ * This list only raises or lowers a cap or adds item defaults/validation. */
+export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
+  // Video previews can each return 8 MiB, so both expensive readers stay capped at eight items.
   { toolId: "media_view_video", maxItems: 8 },
   { toolId: "web_screenshot_page", maxItems: 8 },
-];
-
-/** Per-tool batch settings over the default `{ toolId }` entry. Batching itself is default-on in
- *  Jini; this list only raises or lowers a cap or adds item defaults/validation. */
-export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
   ...[
     "redirects_create", "redirects_update", "redirects_tombstone",
     "taxonomy_create_term", "taxonomy_rename_term", "taxonomy_assign_terms", "taxonomy_unassign_terms",
@@ -38,8 +32,8 @@ export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
 const ASKS = "asks a human per call; batched it would ask once per item";
 const SINGLETON = "one site-wide setting or action; there is nothing per item to batch";
 
-/** Tools kept single-call. Every other read-by-id or mutating tool takes `items` automatically
- *  (`batch-tool-inputs.test.ts` fails for a tool that is neither batched nor listed here). */
+/** Tools kept single-call, each with its reason; every other read or write takes `items`.
+ * Native items fields retain their existing owner. The production-catalog test checks coverage. */
 export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   // Leaves this site or acts on a live host.
   { toolId: "deployment_ops_deploy", reason: `deploys to a live host; ${ASKS}` },
@@ -62,6 +56,8 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "comments_set_provider", reason: `changes the comments provider; ${ASKS}` },
   { toolId: "consent_update_settings", reason: `site-wide consent draft; ${ASKS}` },
   { toolId: "plugins_set_enabled", reason: `enabling a plugin is an escalation that ${ASKS}` },
+  { toolId: "agent_plugins_update", reason: `replacing a plugin's code is an escalation that ${ASKS}` },
+  { toolId: "visitor_tool_configure", reason: `changes what public visitors' assistant may call; ${ASKS}` },
   { toolId: "settings_set_value", reason: `execution settings escalate and ${ASKS}` },
   { toolId: "settings_clear_value", reason: `execution settings escalate and ${ASKS}` },
   { toolId: "database_execute_migrate_forward", reason: `migrates the whole database; ${ASKS}` },
@@ -116,7 +112,7 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "deployment_ops_wait", reason: "waits on one deploy; a batch would chain long waits" },
 ];
 
-/** Resolve default eligibility/settings plus {@link BATCHABLE_TOOLS}' explicit opt-ins.
+/** Resolve default eligibility plus pure list reads, minus opt-outs, retaining per-tool limits.
  * @param required.registrations - The assembled registrations, before batch wrapping.
  * @returns Only tools present in the registration list, without mutating registrations.
  * @example resolveBatchableTools({ registrations });
@@ -128,13 +124,21 @@ export function resolveBatchableTools(
 ): BatchableTool[] {
   const toolsById = new Map(defaultBatchableTools({ registrations }, { optOut: BATCH_OPT_OUT, settings: BATCH_TOOL_SETTINGS })
     .map(tool => [tool.toolId, tool]));
-  for (const tool of BATCHABLE_TOOLS) toolsById.set(tool.toolId, tool);
+  const settings = new Map(BATCH_TOOL_SETTINGS.map(tool => [tool.toolId, tool]));
+  const optOut = new Set(BATCH_OPT_OUT.map(entry => entry.toolId));
+  // Jini's list-read exclusion is a host default, not a safety boundary. Pure optional-selector and
+  // list reads take items here too, unless opted out with a reason. Native items stay owned.
+  for (const registration of registrations) {
+    const toolId = registration.descriptor.id;
+    if (registration.descriptor.sideEffects !== "none" || batchEligibilityFor({ registration }, { optOut }) !== "list-read") continue;
+    toolsById.set(toolId, settings.get(toolId) ?? { toolId });
+  }
   return registrations.flatMap(registration => toolsById.get(registration.descriptor.id) ?? []);
 }
 
 /** Apply the shared batch wrapper; batching and per-item normalization belong to Jini.
- * Read batches reuse each scoped, authorized get handler. Merged cards route `items` to that
- * wrapper before deciding get/list, so an item without an id cannot turn into a list disclosure.
+ * Read batches reuse each scoped, authorized handler. Each merged-card item selects get/list
+ * after normalization; either branch retains its original domain permission gate.
  * @param optional.tools - Explicit list replacing the default-on selection (tests, peer reads).
  */
 export function applyBatchInputs(

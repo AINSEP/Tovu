@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createNativeAgentRuntime, AGENT_DEFS, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createNativeAgentRuntime, getAgentDef, AGENT_DEFS, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createRunLifecycle, createInMemoryEventLog, type createAgentExecutor } from "@jini-ai/daemon";
 import { createDesktopAgentRuntime, resolveDesktopTurnAccess } from "./desktop-agent.ts";
 import { assistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
@@ -32,6 +32,7 @@ test("desktop turn access defaults on locally and passes host exclusions to the 
     parityEnv,
   });
   assert.equal(access.parityEnv, parityEnv);
+  assert.equal(access.nativeCapabilities.userMcp, false, 'personal MCP defaults OFF without an owner setting');
   assert.equal(loginReads, 1);
 });
 
@@ -218,13 +219,13 @@ test('desktop owner setting and environment control the same provider grant and 
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const runtime = createNativeAgentRuntime({ env: {} });
   t.after(() => runtime.dispose({}));
-  let enabled = false; let loginReads = 0;
+  let settings = assistantCliPermissions({ enabled: false }); let loginReads = 0;
   const captured: {
     cliParity?: boolean; nativeToolAccess?: boolean; cwd: string; disallowedTools?: readonly string[];
     nativeCapabilities?: Record<string, boolean>; env?: NodeJS.ProcessEnv;
   }[] = [];
   const chat = await createDesktopAgentRuntime({ workDir: dir, buildTools: () => [], agentRuntime: runtime }, {
-    readFullCliAccess: async () => enabled,
+    readFullCliAccess: async () => settings,
     readLoginShellEnvironment: async () => { loginReads++; return { PATH: '/operator/bin' }; },
     createAgentExecutor: ({ lifecycle }) => ({ run: async (required, options = {}) => {
       captured.push({ ...required, ...options });
@@ -232,16 +233,22 @@ test('desktop owner setting and environment control the same provider grant and 
     } }),
   });
   t.after(() => chat.close());
-  for (const grant of [false, true, false]) {
-    enabled = grant;
-    const { runId } = await chat.startTurn({ prompt: 'Use Task', agentId: 'codex' }, { addressee: { siteDir, name: 'site' } });
+  for (const [grant, userMcp] of [[false, undefined], [true, undefined], [true, false], [true, true], [false, undefined]] as const) {
+    settings = assistantCliPermissions({ enabled: grant, ...(userMcp === undefined ? {} : { capabilities: { userMcp } }) });
+    const { runId } = await chat.startTurn({ prompt: 'Use Task', agentId: 'claude' }, { addressee: { siteDir, name: 'site' } });
     await chat.lifecycle.waitForTerminal({ runId });
     const input = captured.at(-1)!;
     assert.equal(input.cliParity, grant); assert.equal(input.nativeToolAccess, grant);
-    assert.deepEqual(input.nativeCapabilities, assistantCliPermissions({ enabled: grant }).capabilities);
+    assert.deepEqual(input.nativeCapabilities, settings.capabilities);
+    assert.equal(input.nativeCapabilities?.userMcp, userMcp === true);
+    const args = getAgentDef({ id: 'claude' })!.buildArgs({ prompt: '', imagePaths: [] }, {
+      options: input, runtimeContext: { mcpJsonPath: '/staged/desktop-mcp.json' },
+    });
+    assert.equal(args.includes('--strict-mcp-config'), userMcp !== true, 'desktop honors the owner MCP choice with default OFF');
+    assert.equal(args[args.indexOf('--mcp-config') + 1], '/staged/desktop-mcp.json');
     assert.deepEqual(input.env, grant ? { PATH: '/operator/bin' } : undefined);
     for (const tool of ['Bash', 'Edit', 'Write', 'Task', 'Workflow']) assert.equal(input.disallowedTools?.includes(tool), !grant);
     assert.equal(input.cwd, grant ? siteDir : dir);
   }
-  assert.equal(loginReads, 1);
+  assert.equal(loginReads, 3);
 });

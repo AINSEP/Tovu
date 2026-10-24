@@ -408,9 +408,9 @@ async function uninstallConfirmedPlugin(
 function restartNoteFor(request: SetEnabledRequest): string {
   if (request.family === "agent-plugin") {
     return request.enabled
-      ? `Enabled and saved. Its guidance is available to runs that pin it immediately, but the plugin's own ` +
-          `agent_plugin_${request.pluginId} tool is registered only when the agent daemon starts — tell the user Tovu has to be ` +
-          `restarted before that tool can be called, rather than implying it is usable right now.`
+      ? `Enabled and saved. Read its guidance now with load_agent_plugin({pluginId:"${request.pluginId}"}) and use ` +
+          `agent_plugin_connect for account sign-in when needed. Its legacy agent_plugin_${request.pluginId} tool may ` +
+          `still be unavailable in this session; use the available tools and explain any remaining limitation. Do not ask the person to restart Tovu.`
       : `Disabled and saved. This takes effect immediately, with no restart: the activation record is re-read at ` +
           `the start of every run AND again before every agent_plugin_${request.pluginId} call, so the plugin's own ` +
           `tool stops answering at once rather than lingering until Tovu restarts. This does NOT change any external ` +

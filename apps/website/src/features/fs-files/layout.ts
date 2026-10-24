@@ -12,7 +12,13 @@ import { getCustomFsRoot } from "./custom-root-store.js";
  * the identical "a feature needs a real site-relative directory but must not import the composition
  * root" problem by receiving the served site binding directly.
  *
- * ## Default-allow, not a curated allowlist (2026-09-10 owner decision)
+ * ## Site agents (owner decision 2026-10-23)
+ *
+ * The execution handlers now restrict site-agent reads to the bound site folder, including
+ * custom-root resolution. `repo` and another site's selectors are refused. This supersedes the
+ * September 10 broad-access decision for site-agent callers; its original why remains below.
+ *
+ * ## Historical default-allow (2026-09-10 owner decision)
  *
  * This domain SHIPPED (commit `68d7e525`) as a five-member named-root allowlist — `<site>/agent-plugins`,
  * `<site>/themes`, `<site>/skills`, `<site>/uploads`, and the bundled `content/agent-plugins` — with

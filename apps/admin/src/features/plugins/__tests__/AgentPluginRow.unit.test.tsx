@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import { AgentPluginRow } from "../AgentPluginRow";
@@ -33,19 +33,20 @@ it.each([
 });
 
 function renderExpandedRow(plugin: {
+  maturity?: "untested" | "soon";
   summary?: string | null;
   description: string | null;
   keywords?: string[];
   skills?: { name: string; summary: string }[];
   mcpServerIds?: string[];
-}) {
+}, onToggleExpanded = vi.fn()) {
   render(<ul><AgentPluginRow
     plugin={{ pluginId: "tovu-theme", version: "1.0.0", enabled: true, keywords: [], skills: [], mcpServerIds: [], ...plugin }}
     t={(key) => key}
     locale="en"
     expanded
     busy={false}
-    onToggleExpanded={vi.fn()}
+    onToggleExpanded={onToggleExpanded}
     stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }}
     onInspect={vi.fn()}
     uninstallNoteId="uninstall-note"
@@ -53,6 +54,27 @@ function renderExpandedRow(plugin: {
   /></ul>);
   return screen.getByRole("listitem", { name: "Tovu Theme" });
 }
+
+it.each([["untested", "Untested"], ["soon", "Soon"]] as const)("renders the %s pill beside the version with a warning that stays open after a tap", (maturity, label) => {
+  const onToggleExpanded = vi.fn();
+  const row = renderExpandedRow({ description: null, maturity }, onToggleExpanded);
+  const trigger = within(row).getByRole("button", { name: label });
+  expect(trigger.querySelector(".soon")).toHaveTextContent(label);
+  expect(trigger.closest(".agent-plugin-row-maturity")?.previousElementSibling).toHaveClass("agent-plugin-row-version");
+  expect(within(row).getByRole("button", { name: `Tovu Theme v1.0.0 ${label}` })).toHaveClass("agent-plugin-row-summary");
+  fireEvent.click(trigger);
+  expect(onToggleExpanded).not.toHaveBeenCalled();
+  fireEvent.mouseLeave(trigger);
+  expect(trigger).toHaveAttribute("aria-expanded", "true");
+  expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Not yet tested end to end. It may not work.");
+  fireEvent.click(trigger);
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+});
+
+it("omits the maturity pill for a normal plugin", () => {
+  const row = renderExpandedRow({ description: null });
+  expect(row.querySelector(".agent-plugin-maturity")).toBeNull();
+});
 
 it("shows the human summary as paragraphs and never renders the agent-facing description or keywords", () => {
   const row = renderExpandedRow({

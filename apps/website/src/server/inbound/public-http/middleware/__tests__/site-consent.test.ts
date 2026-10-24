@@ -16,6 +16,8 @@ import { bindSiteConsentService } from '#src/server/runtime/composition/site-con
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
+import type { DiscoveredTheme } from '#src/features/theme/index';
+import { consentDryRun } from '#src/features/consent/readiness';
 
 async function publicFixture({ t }: { t: import('node:test').TestContext }, _options = {}) {
   const f = consentFixture({ t });
@@ -25,10 +27,69 @@ async function publicFixture({ t }: { t: import('node:test').TestContext }, _opt
   return { ...f, deps, revisionId: saved.revision.id };
 }
 
+test('live and audit gates retain active and preview theme scripts across overlapping requests', async t => {
+  const f = await publicFixture({ t });
+  f.deps.themes = ['first', 'second'].map(id => ({
+    manifest: { id, apiVersion: 2 }, status: 'valid',
+    pages: { index: '<script src="../scripts/nav.js"></script>' },
+    partials: {}, liquidTemplates: {}, handlebarsTemplates: {},
+  } as DiscoveredTheme));
+  const activate = (activeThemeId: string) => f.deps.presentationRepo.save({
+    workspaceId: f.deps.workspaceId, activeThemeId, updatedAt: '2026-10-23T00:00:00Z',
+  });
+  await activate('first');
+  let started!: () => void, release!: () => void;
+  const pending = new Promise<void>(resolve => { started = resolve; });
+  const held = new Promise<void>(resolve => { release = resolve; });
+  t.after(() => release());
+  const html = '<html><head></head><body><script src="/theme-assets/first/scripts/nav.js"></script>' +
+    '<script src="/theme-assets/second/scripts/nav.js"></script><script src="https://tracker.example/track.js"></script></body></html>';
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get('/:page', async (req, res) => {
+    if (req.params.page === 'held') { started(); await held; }
+    res.type('html').send(html);
+  });
+  const base = await startTestServer(app, t);
+  const firstResponse = fetch(`${base}/held`);
+  await pending;
+  await activate('second');
+  const secondHtml = await (await fetch(`${base}/next`)).text();
+  release();
+  const firstHtml = await (await firstResponse).text();
+  const dryRun = consentDryRun({ html, config: f.config });
+  assert.ok(dryRun.gatedHtml);
+  for (const [body, active, other] of [[firstHtml, 'first', 'second'], [secondHtml, 'second', 'first'],
+    [dryRun.gatedHtml, 'second', 'first']]) {
+    const dom = new JSDOM(body);
+    try {
+      const document = dom.window.document;
+      assert.ok(document.querySelector(`script[src="/theme-assets/${active}/scripts/nav.js"]`));
+      assert.ok(document.querySelector(`script[src="/theme-assets/${other}/scripts/nav.js"]`));
+      assert.equal(document.querySelector('script[src="https://tracker.example/track.js"]'), null);
+      assert.equal(document.querySelectorAll('template[data-jini-consent-script]').length, 1);
+    } finally { dom.window.close(); }
+  }
+});
+
+test('page requests need no active-theme source scan to run first-party assets', async t => {
+  const f = await publicFixture({ t });
+  f.deps.themes = [{ manifest: { id: 'active', apiVersion: 2 }, status: 'valid',
+    get pages() { assert.fail('consent must not scan loaded theme templates'); } } as unknown as DiscoveredTheme];
+  const app = express(); applySiteConsent({ app, deps: f.deps });
+  app.get(['/', '/_themes/preview'], (_req, res) => res.type('html').send('<html><head></head><body>' +
+    '<script src="/theme-assets/preview/scripts/nav.js"></script></body></html>'));
+  const base = await startTestServer(app, t);
+  for (const path of ['/', '/?theme=preview', '/_themes/preview']) {
+    const dom = new JSDOM(await (await fetch(base + path)).text());
+    try { assert.ok(dom.window.document.querySelector('script[src="/theme-assets/preview/scripts/nav.js"]')); }
+    finally { dom.window.close(); }
+  }
+});
+
 test('live HTML is gated and static export returns 409 without changing the live delivery mode', async t => {
   const f = await publicFixture({ t }); const app = express();
   applySiteConsent({ app, deps: f.deps });
-  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script>window.optional=1</script></body></html>'));
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>'));
   const base = await startTestServer(app, t);
   const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
   assert.equal(exported.status, 409);
@@ -50,7 +111,7 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
   } }) };
   f.deps.consentStore = disabledStore;
   const app = express(); applySiteConsent({ app, deps: f.deps });
-  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  const original = '<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>';
   const modified = 'Wed, 21 Oct 2026 12:00:00 GMT';
   app.get('/', (_req, res) => res.set({
     'Cache-Control': 'public, max-age=60, stale-while-revalidate=300', 'Last-Modified': modified,
@@ -87,7 +148,7 @@ test('live conditional requests cannot reuse ungated HTML unless consent is off'
             try {
               const document = dom.window.document;
               assert.ok(document.querySelector('#jini-consent'));
-              assert.equal(document.querySelector('template[data-jini-consent-script]')?.innerHTML, '<script>window.optional=1</script>');
+              assert.equal(document.querySelector('template[data-jini-consent-script]')?.innerHTML, '<script data-consent-category="analytics">window.optional=1</script>');
               assert.ok(![...document.querySelectorAll('script')].some(script => script.textContent === 'window.optional=1'));
             } finally { dom.window.close(); }
           }
@@ -103,7 +164,7 @@ test('bootstrap or policy-store failure never returns ungated active HTML', asyn
   const failing = { ...f.store, read: async () => { throw new Error('sensitive persisted location'); } };
   f.deps.consentStore = failing;
   const app = express(); applySiteConsent({ app, deps: f.deps });
-  app.get('/', (_req, res) => res.type('html').send('<html><body><script>window.leaked=1</script></body></html>'));
+  app.get('/', (_req, res) => res.type('html').send('<html><body><script data-consent-category="analytics">window.leaked=1</script></body></html>'));
   const base = await startTestServer(app, t); const html = await (await fetch(base)).text();
   const dom = new JSDOM(html);
   const document = dom.window.document;
@@ -118,7 +179,7 @@ test('cached OFF cannot bypass consent after publishing ON when the next policy 
   await f.service.publish({ principalId: 'owner', draftId: off.revision.id, expectedPublishedId: null });
   const deps = createRouteDeps(); deps.consentStore = f.store;
   const app = express(); applySiteConsent({ app, deps });
-  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  const original = '<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>';
   app.get('/', (_req, res) => res.type('html').send(original));
   const base = await startTestServer(app, t);
   assert.equal(await (await fetch(base)).text(), original);
@@ -189,7 +250,7 @@ test('a missing or malformed receipt in opt-out mode still denies optional categ
   const ports = createSiteConsentPorts({ deps: f.deps });
   ports.records = { read: async () => null, save: async () => assert.fail('reading proof cannot write') };
   const app = express(); registerConsentHttp({ app, ports });
-  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script>window.optional=1</script></body></html>'));
+  app.get('/', (_req, res) => res.type('html').send('<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>'));
   const base = await startTestServer(app, t);
   for (const cookie of ['jini_consent=short', 'jini_consent=missing_01234567890123456789']) {
     const html = await (await fetch(base, { headers: { cookie } })).text();
@@ -228,7 +289,7 @@ test('live defaults show consent; exports omit defaults, honor owner ON/OFF and 
   await write('privacyPolicyUrl', '/privacy'); release();
   assert.equal((await config).enabled, true);
   const app = express(); applySiteConsent({ app, deps });
-  const original = '<html><head></head><body><script>window.optional=1</script></body></html>';
+  const original = '<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>';
   app.get('/', (_req, res) => res.type('html').send(original));
   const base = await startTestServer(app, t);
   const dom = new JSDOM(await (await fetch(base)).text());

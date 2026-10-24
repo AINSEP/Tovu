@@ -36,6 +36,7 @@ function toolDeps(overrides: Partial<FsFilesToolDeps> = {}): FsFilesToolDeps {
   const { roots } = makeFixtureRoots();
   return testSiteLayoutContext({
     workspaceId: "workspace-local",
+    siteBinding: { dir: roots.site },
     authorize: async () => ({ allowed: true }) as never,
     resolveRoots: () => roots,
     ...overrides,
@@ -189,22 +190,57 @@ test("a 'secrets' path segment is refused through the real handler", async () =>
 // 4. The operator-set `custom` root.
 // ---------------------------------------------------------------------------
 
-test("root: 'custom' reads a real directory OUTSIDE both repo and site once an operator has set one", async () => {
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-custom-outside-"));
-  fs.writeFileSync(path.join(outsideDir, "notes.txt"), "hello from outside repo/site", "utf8");
+test("site agents refuse repo and outside custom roots at execution (owner 2026-10-23)", async () => {
   const { roots } = makeFixtureRoots();
-  const deps = toolDeps({ resolveRoots: () => ({ ...roots, custom: outsideDir }) });
+  const outside = path.dirname(roots.site);
+  fs.writeFileSync(path.join(outside, "outside-canary.txt"), "OUTSIDE_CANARY_CONTENT");
+  const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => ({ ...roots, custom: outside }) });
+  for (const toolId of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
+    const handler = handlerFor(buildFsFilesRegistrations(deps), toolId);
+    for (const root of ["repo", "custom"]) {
+      await assert.rejects(() => handler(toolContext({ root, path: "outside-canary.txt" }, toolId)));
+    }
+    await assert.rejects(() => handler(toolContext({ root: "site", path: "outside-canary.txt", site: "another-site" }, toolId)), /active site/);
+  }
+});
+
+test("an in-site custom root reads normally without exposing a sibling canary", async () => {
+  const { roots } = makeFixtureRoots();
+  const custom = path.join(roots.site, "custom");
+  fs.mkdirSync(custom);
+  fs.writeFileSync(path.join(custom, "inside.txt"), "INSIDE_CANARY");
+  fs.writeFileSync(path.join(path.dirname(roots.site), "outside-canary.txt"), "OUTSIDE_CANARY_CONTENT");
+  const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => ({ ...roots, custom }) });
   const registrations = buildFsFilesRegistrations(deps);
+  const listed = await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(toolContext({ root: "custom" }, FS_LIST_FILES_TOOL_ID));
+  assert.ok(!JSON.stringify(listed).includes("outside-canary"));
+  const read = await handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: "inside.txt" }, FS_READ_FILE_TOOL_ID)) as { content: string };
+  assert.equal(read.content, "INSIDE_CANARY");
+});
 
-  const listResult = (await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(
-    toolContext({ root: "custom" }, FS_LIST_FILES_TOOL_ID),
-  )) as { files: string[] };
-  assert.deepEqual(listResult.files, ["notes.txt"]);
-
-  const readResult = (await handlerFor(registrations, FS_READ_FILE_TOOL_ID)(
-    toolContext({ root: "custom", path: "notes.txt" }, FS_READ_FILE_TOOL_ID),
-  )) as { content: string };
-  assert.equal(readResult.content, "hello from outside repo/site");
+test('a custom-root symlink replaced between validation and reading cannot establish an outside reader base', async t => {
+  if (process.platform === 'win32') return t.skip('Symlink fixture requires host symlink privileges');
+  const { roots } = makeFixtureRoots();
+  const site = fs.realpathSync(roots.site);
+  const safe = path.join(site, 'safe-custom');
+  const outside = path.join(path.dirname(site), 'site-other');
+  fs.mkdirSync(safe); fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(safe, 'notes.txt'), 'INSIDE_CANARY');
+  fs.writeFileSync(path.join(outside, 'notes.txt'), 'OUTSIDE_CONTENT_CANARY');
+  const alias = path.join(site, 'custom-alias');
+  fs.symlinkSync(safe, alias);
+  const originalRealpath = fs.realpathSync;
+  let aliasResolutions = 0;
+  t.mock.method(fs, 'realpathSync', (input, options) => {
+    if (String(input) === alias && ++aliasResolutions === 3) {
+      fs.rmSync(alias); fs.symlinkSync(outside, alias);
+    }
+    return originalRealpath(input, options);
+  });
+  const deps = toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ ...roots, site, custom: alias }) });
+  const handler = handlerFor(buildFsFilesRegistrations(deps), FS_READ_FILE_TOOL_ID);
+  await assert.rejects(() => handler(toolContext({ root: 'custom', path: 'notes.txt' }, FS_READ_FILE_TOOL_ID)));
+  assert.ok(aliasResolutions >= 3, 'the fixture must replace the root after its initial containment checks');
 });
 
 test("root: 'custom' before an operator has set one is refused with actionable guidance, not a crash", async () => {
@@ -219,11 +255,12 @@ test("root: 'custom' before an operator has set one is refused with actionable g
 });
 
 test("the denylist still fires inside the 'custom' root — an .env file is refused and excluded from listing", async () => {
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fsfiles-custom-denylist-"));
+  const { roots } = makeFixtureRoots();
+  const outsideDir = path.join(roots.site, "custom-denylist");
+  fs.mkdirSync(outsideDir);
   fs.writeFileSync(path.join(outsideDir, ".env"), "SECRET=1", "utf8");
   fs.writeFileSync(path.join(outsideDir, "readme.md"), "# hi", "utf8");
-  const { roots } = makeFixtureRoots();
-  const deps = toolDeps({ resolveRoots: () => ({ ...roots, custom: outsideDir }) });
+  const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => ({ ...roots, custom: outsideDir }) });
   const registrations = buildFsFilesRegistrations(deps);
 
   const listResult = (await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(
@@ -243,7 +280,7 @@ test("fs_list_files forwards truncation for a directory exceeding the file cap",
   fs.mkdirSync(dir);
   try {
     for (let i = 0; i < 2001; i++) fs.writeFileSync(path.join(dir, `${i}.txt`), "fixture");
-    const deps = toolDeps({ resolveRoots: () => roots });
+    const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => roots });
     const result = await handlerFor(buildFsFilesRegistrations(deps), FS_LIST_FILES_TOOL_ID)(toolContext({ root: "site", path: "capped" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean };
     assert.equal(result.files.length, 2000);
     assert.equal(result.truncated, true);
@@ -275,4 +312,18 @@ test("contributeFsFilesTools contributes this domain's registrations and derived
   assert.equal(contributor.domain, "fs-files");
   assert.equal(contributor.build, buildFsFilesRegistrations);
   assert.equal(contributor.risk, fsFilesDerivedRisk);
+});
+
+test("the exported raw handler reaches requireCurrentSite before root resolution", async () => {
+  const { roots } = makeFixtureRoots();
+  const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => { assert.fail('site selector must be refused before root access'); } });
+  for (const toolId of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
+    const handler = handlerFor(buildFsFilesRegistrations(deps), toolId);
+    await assert.rejects(() => handler(toolContext({ root: 'site', path: 'inside.txt', site: 'another-site' }, toolId)), error => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /active site/);
+      assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|outside-canary.txt/);
+      return true;
+    });
+  }
 });

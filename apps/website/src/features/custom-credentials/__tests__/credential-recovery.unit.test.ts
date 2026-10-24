@@ -31,9 +31,12 @@ test("any other failure propagates unchanged", async () => {
   await assert.rejects(withCustomCredentialSetup({ invoke: async () => { throw failure; }, label: "Stripe" }), (error) => error === failure);
 });
 
-test("a 401 response keeps the provider output and adds a rotation card targeting the label", async () => {
-  const output = { status: 401, body: "unauthorized" };
-  assert.deepEqual(await withCustomCredentialSetup({ invoke: async () => output, label: "Stripe" }), { credentialSetup: setupFor({ kind: "api", target: "Stripe" }), ...output });
+test("request-level authentication or permission refusals never offer to replace a saved key", async () => {
+  for (const status of [401, 403, 'refused']) {
+    const output = { status, body: 'refused for this purpose' };
+    assert.equal(await withCustomCredentialSetup({ invoke: async () => output, label: "Sending key" }), output);
+    assert.equal(await withCustomCredentialSetup({ invoke: async () => output, label: "Sending key", verification: true }), output);
+  }
 });
 
 test("an 'invalid' verification status means rotation only for verification calls", async () => {

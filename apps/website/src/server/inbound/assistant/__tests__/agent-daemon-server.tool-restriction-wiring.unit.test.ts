@@ -1,3 +1,4 @@
+import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -56,8 +57,20 @@ describe("Finding 2 wiring — the spawned assistant's tool grant is actually re
 
 test("onStarted hands the executor the enforced tool restrictions", async () => {
   const input = await captureDaemonRun({ prompt: "Review this page" });
+  assert.equal(input.filesystemRoot, input.cwd, 'the host supplies the site folder as a mandatory runtime boundary');
   assert.deepEqual(input.disallowedTools, ASSISTANT_DISALLOWED_TOOLS);
   assert.deepEqual(input.settingSources, ASSISTANT_SETTING_SOURCES);
+});
+
+test('native Windows shell launches emit the required value-free limitation notice', async () => {
+  const warnings: unknown[][] = [];
+  // Owner launches subscribe to tool-gap events before dispatch, including on Windows.
+  await captureDaemonRun({ prompt: 'Review this page' }, { bindings: {
+    process: { platform: 'win32', env: {} },
+    routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), toolAttemptAuditSink: { append: async () => {} } },
+    console: { warn: (...args: unknown[]) => warnings.push(args), error() {}, log() {} },
+  }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
+  assert.deepEqual(warnings, [['[agent-daemon] shell is not folder-limited on this platform']]);
 });
 
 test("onStarted forwards the exact search hook settings through to Claude launch arguments", async () => {
@@ -74,7 +87,10 @@ test("onStarted forwards the exact search hook settings through to Claude launch
   const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: input });
   const settingsIndex = args.indexOf("--settings");
   assert.ok(settingsIndex >= 0);
-  assert.equal(args[settingsIndex + 1], input.settings);
+  const emitted = JSON.parse(args[settingsIndex + 1]!);
+  assert.equal(emitted.autoMemoryEnabled, false);
+  assert.equal(emitted.permissions.blockReadsOutsideWorkingDirectories, true);
+  assert.deepEqual(emitted.hooks, JSON.parse(input.settings!).hooks);
 });
 
 test("onStarted disables auto-memory through Claude launch settings even when the hook file is absent", async () => {
@@ -85,7 +101,10 @@ test("onStarted disables auto-memory through Claude launch settings even when th
   const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { extraAllowedDirs: [], options: input });
   const settingsIndex = args.indexOf("--settings");
   assert.ok(settingsIndex >= 0);
-  assert.equal(args[settingsIndex + 1], input.settings);
+  const emitted = JSON.parse(args[settingsIndex + 1]!);
+  assert.equal(emitted.autoMemoryEnabled, false);
+  assert.equal(emitted.permissions.blockReadsOutsideWorkingDirectories, true);
+  assert.deepEqual(emitted.hooks, JSON.parse(input.settings!).hooks);
 });
 
 test("a non-owner cannot use a true owner setting to change any provider's grant", async () => {
@@ -173,10 +192,10 @@ test("catalog grants survive a parser continuation using the pre-existing reques
 
 
 test("the real prompt augmenter receives the same fresh grant as each concurrent launch", async () => {
-  const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+  const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
     daemonInitializer("assistantPromptAugmenter"), {
-      buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantSubagentsContext,
+      getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },
       buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
@@ -184,7 +203,7 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
   const observed: { enabled: boolean; overlay: string; tools: readonly string[] }[] = [];
   await Promise.all([true, false].map(enabled => captureDaemonRun({ prompt: "Import posts" }, { bindings: {
     routeDeps: { ownerPrincipalId: Promise.resolve("daemon-test-principal"), siteBinding: { dir: "/site" }, workspaceId: "ws", toolAttemptAuditSink: { append: async () => {} } },
-    assistantSubagentsContext, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
+    assistantCliCapabilitiesContext, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
     agentExecutor: { run: async (_required: unknown, optional: { disallowedTools: readonly string[] }) => {
       // Read after an async boundary so a process-wide last-value cache cannot satisfy this test.
       await Promise.resolve();
@@ -195,10 +214,10 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
   assert.equal(observed.length, 2);
   for (const { enabled, overlay, tools } of observed) {
     assert.ok(overlay.includes(enabled
-      ? "Full CLI access is ON."
-      : "Native agents/subagents/Task and workflows are unavailable for this chat."));
+      ? "Native agents/subagents/Task are available for this chat."
+      : "Native agents/subagents/Task are unavailable for this chat."));
     assert.ok(overlay.includes("Owner custom guidance"));
     for (const tool of ["Agent", "Task"]) assert.equal(tools.includes(tool), !enabled);
   }
-  assert.equal(assistantSubagentsContext.getStore(), undefined);
+  assert.equal(assistantCliCapabilitiesContext.getStore(), undefined);
 });

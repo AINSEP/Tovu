@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "tovu-theme",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Build Tovu themes, match a reference site, or Tovuize a static website folder. One up-front choice: images into Media and editable Tovu Pages by default, or keep the same look as a static theme without individual page editing. Reuses existing choice, Media, Pages and theme tools, with local/URL font and image import, layout-family shells, asset rewrites and screenshot verification.",
   "author": "Tovu",
   "license": "Apache-2.0",

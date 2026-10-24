@@ -1,6 +1,7 @@
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
+import type { PluginMaturity } from "#src/features/agent-plugins/identity";
 
 /**
  * @file Pure response builders for `install.ts` (`AGENT_PLUGIN_INSTALL_ZIP`): which status and body
@@ -98,8 +99,9 @@ export function installErrorResponse(error: unknown): InstallRefusal {
  * responses cannot drift.
  * @complexity O(1).
  */
-export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate }, _optional: Record<string, never> = {}) {
+export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPluginSearchCandidate & { maturity?: PluginMaturity } }, _optional: Record<string, never> = {}) {
   return {
+    ...(candidate.maturity ? { maturity: candidate.maturity } : {}),
     origin: candidate.origin,
     hostOk: candidate.hostOk,
     missingRequires: candidate.missingRequires ?? [],
@@ -110,6 +112,7 @@ export function agentPluginLifecycleFields({ candidate }: { candidate: AgentPlug
 
 /** The installed plugin's row, as `list.ts` reports it, or null when the read model does not list it. */
 export interface InstalledAgentPluginRow {
+  readonly maturity?: PluginMaturity;
   readonly origin?: AgentPluginSearchCandidate["origin"];
   readonly hostOk?: boolean;
   readonly missingRequires?: readonly string[];

@@ -79,6 +79,27 @@ test("a declared API connection connects through the real host: waiting card, th
   assert.ok(!everything.includes(accessToken) && !everything.includes(refreshToken), "no token in the result or any card");
 });
 
+test('API sign-in displays only the declaring plugin oauth card copy', async () => {
+  const composition = await compose();
+  mountCallback(composition);
+  const card = { pluginId: PLUGIN, providerId: 'office-sign-in', label: 'Office', saveKind: 'oauth' as const,
+    category: 'general', baseUrl: 'https://api.acme.test', title: 'Connect your office account',
+    intro: 'Use the files you choose.', permissions: 'Read selected files only.', keyHint: 'Account sign-in' };
+  const cards: string[] = [];
+  // Assign rather than spread: spreading would evaluate the fixture's lazy layout getters outside the test site.
+  const result = await runAgentPluginConnect(Object.assign(depsFor(composition.apiConnections), { loadPluginCredentialCards: async (workspaceId: string) => {
+    assert.equal(workspaceId, WORKSPACE);
+    return [{ ...card, pluginId: 'other-plugin', title: 'Wrong owner copy' }, { ...card, saveKind: 'api', title: 'Wrong kind copy' }, card];
+  } }), surfaces(), ctxFor(), PLUGIN, { emitSurface: async emission => {
+    const html = htmlOf(emission); cards.push(html);
+    if (cards.length === 1) assert.equal((await followConsent(signInUrlOf(html))).status, 200);
+  } });
+  assert.equal(result.status, 'connected');
+  for (const copy of [card.title, card.intro, card.permissions]) assert.ok(cards[0]!.includes(copy));
+  assert.doesNotMatch(cards[0]!, /Wrong owner copy|Wrong kind copy/);
+  assert.equal(cards.length, 2);
+});
+
 test("a plugin that declares neither an OAuth MCP server nor an API connection is refused", async () => {
   await assert.rejects(connect(await compose(), { pluginId: "other-plugin" }), { name: "ToolInputError", message: "agent_plugin_connect: 'other-plugin' declares no OAuth-authenticated MCP server to connect." });
 });

@@ -7,7 +7,10 @@ description: Connect Higgsfield with agent_plugin_connect and browser sign-in, t
 
 ## Connection card
 
-`agent_plugin_connect {pluginId:"higgsfield-media"}` shows the plugin-declared **Connect Higgsfield** card: it explains media generation, account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
+`agent_plugin_connect {pluginId:"higgsfield-media"}` shows the plugin-declared **Connect Higgsfield** card. Review account credits and the separate write grants. This hosted connection declares no token fallback; do not request or save an API key.
 
 Use Tovu tools throughout, never Bash, curl or a vendor CLI. The bundled connection
 already declares the service URL: start with

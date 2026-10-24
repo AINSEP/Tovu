@@ -37,7 +37,7 @@ import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
-import { deriveContentReadRegistrations } from "./content-read-tool.js";
+import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
 import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
 
@@ -340,6 +340,19 @@ function appendDerivedRegistrations({ registrations, ownerByToolId, routeDeps, s
   }
 }
 
+/** Derive read cards before host target adaptation, retaining their source domain for peer gates.
+ * @complexity O(t) registration work for t tools, no storage access or input mutation.
+ */
+function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, options, beforeLookup }: {
+  registrations: readonly ToolRegistration[]; ownerByToolId: Map<string, string>; routeDeps: AssistantToolRegistryDeps;
+  options: { includeContentReadCollapse?: boolean; contributions?: AssistantToolContributions };
+  beforeLookup: ChatDeleteSurfaceDeps["assertChatDeleteAllowed"];
+}, _optional = {}): ToolRegistration[] {
+  const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations(registrations);
+  for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor(toolId), owner);
+  return options.contributions?.contentTargetInputs?.({ registrations: readRegistrations, routeDeps, beforeLookup }) ?? readRegistrations;
+}
+
 /**
  * Builds the complete agent-tool surface for one workspace's route-deps bag.
  *
@@ -413,24 +426,38 @@ export function buildAssistantToolRegistrations(
       return typeof setting?.value === "string" ? setting.value : "en";
     },
   }));
+  // Collapse before target adapters/scoping/batching: every card item selects get/list after its
+  // own normalization, and a slug is resolved only after the selected site's permission gate.
+  const inputRegistrations = prepareReadRegistrations({ registrations: approvedRegistrations, ownerByToolId, routeDeps: enrichedRouteDeps, options, beforeLookup: assertChatDeleteAllowed });
   const peer = routeDeps.peerSiteReads;
-  const scopedRegistrations = options.targetScope !== "off" && peer ? applyTargetScope({
-    registrations: approvedRegistrations,
+  const scopedRegistrations = options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
+    registrations: [registration],
     isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
     resolveTarget: async ({ target, toolId, principal }) => {
       // Installation ownership is checked BEFORE registry discovery or opening another site's files.
       if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
       const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
-        buildRegistrations: peerDeps => buildAssistantToolRegistrations(peerDeps, surfaces, {
-          ...options, targetScope: "off", includeContentReadCollapse: false,
-          batchableTools: [],
-          // Excluded builders may touch credentials/live hosts during construction. Never run
-          // them over a peer bag, even if their registrations would be discarded afterwards.
-          contributions: options.contributions ? {
-            contributors: { ...options.contributions.contributors, list: required => options.contributions!.contributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
-            derivedContributors: { ...options.contributions.derivedContributors, list: required => options.contributions!.derivedContributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
-          } : undefined,
-        }).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? '')),
+        buildRegistrations: peerDeps => {
+          const peerContributions = options.contributions ? {
+            ...options.contributions,
+            // Excluded builders may touch credentials/live hosts during construction. Never run
+            // them over a peer bag, even if their registrations would be discarded afterwards.
+            contributors: { ...options.contributions.contributors, list: (required: Record<string, never>) => options.contributions!.contributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+            derivedContributors: { ...options.contributions.derivedContributors, list: (required: Record<string, never>) => options.contributions!.derivedContributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+            // Adapt once after deriving cards so a card cannot resolve the same target twice.
+            contentTargetInputs: undefined,
+          } : undefined;
+          const raw = buildAssistantToolRegistrations(peerDeps, surfaces, {
+            ...options, targetScope: "off", includeContentReadCollapse: false,
+            batchableTools: [], contributions: peerContributions,
+          });
+          // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
+          // names over the same domain handlers instead of making the first caller choose its ABI.
+          const rawIds = new Set(raw.map(tool => tool.descriptor.id));
+          const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
+          const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
+          return adapted.filter(registration => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? ''));
+        },
       });
       if (resolved === "current") return resolved;
       return { principal: resolved.principal, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
@@ -445,9 +472,11 @@ export function buildAssistantToolRegistrations(
     },
   }, {
     param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
-    refuseMessage: "Writes run only on the active site. Switch with sites_switch_site first.",
+    refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
+      ? `${registration.descriptor.id} can't read another site yet.`
+      : "Writes run only on the active site. Switch with sites_switch_site first.",
     scoped: ({ registration }) => isReadOnlyTool({ descriptor: registration.descriptor }) && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? ''),
-  }) : approvedRegistrations;
+  })) : inputRegistrations;
   // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
   // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
   const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
@@ -459,7 +488,7 @@ export function buildAssistantToolRegistrations(
     return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
   });
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
-  const finalRegistrations = deriveContentReadRegistrations(batchedRegistrations);
+  const finalRegistrations = batchedRegistrations;
   // A new collapsed card is a new registered tool too: never exempt it from the guard.
   for (const registration of finalRegistrations) toolApprovalPolicyFor({ registration });
   return finalRegistrations;

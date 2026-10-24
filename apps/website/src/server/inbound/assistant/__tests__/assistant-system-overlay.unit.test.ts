@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
 
 import {
@@ -16,6 +17,13 @@ import {
   buildAssistantSubagentsOverlay,
   resolveAssistantDisallowedTools,
 } from "../assistant-system-overlay.js";
+
+test("relay guidance is included verbatim only when enabled for the run", () => {
+  const sentence = "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation.";
+  assert.ok(buildBaseSystemOverlay(false, { messageRelayEnabled: true }).includes(sentence));
+  assert.equal(buildBaseSystemOverlay(false).includes(sentence), false);
+  assert.equal(buildBaseSystemOverlay(true, { messageRelayEnabled: false }).includes(sentence), false);
+});
 
 test("resolveBashProhibitionEnabled defaults to false with no env var set", () => {
   assert.equal(resolveBashProhibitionEnabled({}), false);
@@ -181,18 +189,47 @@ test("one full-access grant controls native tools on every CLI while preserving 
   }
 });
 
-test("ON overlay permits delegation without imposing a model choice on any native CLI", () => {
-  for (const agentId of ["claude", "codex"]) {
-    const overlay = buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: true });
-    for (const phrase of ["Full CLI access is ON", "agents/subagents/Task", "workflows", "not Tovu catalog tools"]) assert.ok(overlay.includes(phrase), phrase);
-    assert.doesNotMatch(overlay, /haiku|sonnet|Avoid fork/);
+test("delegation guidance follows the subagent capability without claiming full CLI access", () => {
+  const overlay = buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }).capabilities });
+  for (const phrase of ["Native agents/subagents/Task are available", "not Tovu catalog tools"]) assert.ok(overlay.includes(phrase), phrase);
+  assert.doesNotMatch(overlay, /Full CLI access is ON|haiku|sonnet|Avoid fork|Disabled native capabilities/);
+});
+
+test("enabled subagents require budget handoffs and immediate successors with a no-progress limit", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: true, shell: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Every subagent brief must require writing a handoff \(done \/ remaining \/ files\) before stopping/);
+    assert.match(overlay, /before the 250k context warning or any lower cap/);
+    assert.match(overlay, /stops at its context budget or any cap with work remaining, IMMEDIATELY start a fresh subagent from its notes and handoff/);
+    assert.match(overlay, /Do not ask the owner or end the turn while delegated work is unfinished/);
+    assert.match(overlay, /If the same task stops twice without progress, report to the owner instead of restarting/);
   }
 });
 
-test("OFF explicitly forbids native delegation on all runtimes", () => {
-  for (const agentId of ["claude", "codex"]) {
-    assert.match(buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: false }), /unavailable/);
+test("disabled subagents omit budget, handoff and successor instructions", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Native agents\/subagents\/Task are unavailable/);
+    assert.doesNotMatch(overlay, /Every subagent brief|250k|handoff|IMMEDIATELY start|delegated work is unfinished|stops twice without progress/);
   }
+});
+
+test("shell OFF with subagents ON names the disabled capabilities without denying delegation", () => {
+  const capabilities = assistantCliPermissions({ enabled: true, capabilities: { shell: false, userMcp: false, workflows: false } }).capabilities;
+  const overlay = buildAssistantSubagentsOverlay({ capabilities });
+  assert.match(overlay, /Native agents\/subagents\/Task are available/);
+  assert.match(overlay, /Disabled native capabilities for this chat: Bash\/shell, Your MCP servers, Workflows\./);
+  assert.doesNotMatch(overlay, /Full CLI access is ON/);
+});
+
+test("disabled subagents do not claim independently enabled workflows are unavailable", () => {
+  const capabilities = assistantCliPermissions({ enabled: true, capabilities: { subagents: false, userMcp: true } }).capabilities;
+  const overlay = buildAssistantSubagentsOverlay({ capabilities });
+  assert.match(overlay, /Native agents\/subagents\/Task are unavailable/);
+  assert.match(overlay, /Disabled native capabilities for this chat: Subagents\/Task\./);
+  assert.doesNotMatch(overlay, /workflows are unavailable/i);
 });
 
 // FAQ claim (public docs): "In Local CLI mode, Claude Code can read files and search the web, but

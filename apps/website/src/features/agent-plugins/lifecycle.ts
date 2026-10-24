@@ -23,6 +23,7 @@ import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/n
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
+import { readPluginMaturity, UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
@@ -124,6 +125,25 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
     readBundledSource: createBundledSourceManifestReader({ sourceRoot: () => defaultBundledSourceRoot({ env: process.env }) }),
   };
+  /** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
+   * @throws A manifest read failure; never deliver guidance while hiding its maturity.
+   * @complexity One catalog scan plus one contained manifest read per selected plugin.
+   */
+  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: { deliveryMode: AgentPluginDeliveryMode }) {
+    const result = await owner.resolveAgentPluginRefs(input, options);
+    if (!result.ok || input.pluginRefIds.length === 0) return result;
+    const installed = owner.preferBundledAgentPluginDigests({
+      installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
+      bundled: await owner.readBundledAgentPluginDigests({ workspaceRoot: input.workspaceLayout.root }),
+    });
+    const selected = new Set(input.pluginRefIds);
+    const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
+      const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
+      // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
+      return readPluginMaturity({ manifest }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+    }));
+    return { ...result, promptPrefix: [...notices, result.promptPrefix].filter(Boolean).join('\n\n') };
+  }
   return {
     ...owner,
     // Select the trusted replacement at the contribution owner BEFORE duplicate-id validation.
@@ -144,7 +164,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),
     seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
     retireBundledAgentPlugins: (input: RetireBundledAgentPluginsRequired, options: Parameters<typeof owner.retireBundledAgentPlugins>[1] = {}) => owner.retireBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, options),
-    resolveAgentPluginRefs: (pluginRefIds: readonly string[], workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root">, deliveryMode = resolveAgentPluginDeliveryMode()) => owner.resolveAgentPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
+    resolveAgentPluginRefs: (pluginRefIds: readonly string[], workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root">, deliveryMode = resolveAgentPluginDeliveryMode()) => resolveHostPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
     listInstalledPlugins: (workspaceRoot: string) => owner.listInstalledPlugins({ workspaceRoot }),
     isInstalledDigestPresent: (packagesDir: string, archiveDigest: string) => owner.isInstalledDigestPresent({ packagesDir, archiveDigest }),
     indexInstalledRoot: (packageRoot: string, archiveDigest: string) => owner.indexInstalledRoot({ packageRoot, archiveDigest }),

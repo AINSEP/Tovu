@@ -12,6 +12,7 @@ import {
 } from "./agent-tools.js";
 import { FsFilePathError, listFsFiles, readFsFile } from "./fs-files.js";
 import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "./layout.js";
+import { FsRootNotFoundError, resolveSiteFileRequest } from "./site-file-request.js";
 
 /**
  * @file Wires `fs_list_files`/`fs_read_file` into the assistant's tool catalog, through the same
@@ -45,19 +46,6 @@ export interface FsFilesToolDeps {
   resolveRoots?: () => Record<FsRootId, string | undefined>;
 }
 
-/** Raised when `root` does not name one of {@link FS_ROOT_IDS} — a different `root` is exactly what
- *  would fix this, so it is a shape rejection like {@link FsFilePathError}. */
-class FsRootNotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "FsRootNotFoundError";
-  }
-}
-
-function isFsRootId(value: string): value is FsRootId {
-  return (FS_ROOT_IDS as readonly string[]).includes(value);
-}
-
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with — mirrors
  *  `theme/tool-registrations.ts`'s identical `isShapeRejection` predicate for this domain's own two
  *  error classes. A genuine I/O failure (a permission-denied disk) is not one of these. */
@@ -65,24 +53,12 @@ function isShapeRejection(error: unknown): boolean {
   return error instanceof FsFilePathError || error instanceof FsRootNotFoundError;
 }
 
-/**
- * Resolves `root` to its real absolute directory, refusing an unrecognized id outright rather than
- * letting an invalid string reach `resolveFsRoots`'s own record lookup as `undefined` — and refusing
- * a recognized id that resolved to `undefined` (today, only `custom` before an operator has set one)
- * with a message that tells the caller what would fix it, rather than throwing a raw lookup failure.
+/** Raw exported handlers can bypass schema normalization; keep this execution guard.
+ * Filesystem tools cannot retarget another site's binding, even through a delegated call.
+ * O(1); throws a caller-correctable rejection before any filesystem access.
  */
-function resolveRootPathOrThrow(routeDeps: FsFilesToolDeps, root: string): string {
-  if (!isFsRootId(root)) {
-    throw new FsRootNotFoundError(`'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}`);
-  }
-  // The real resolver needs `workspaceId` to look up THIS workspace's persisted `custom` root
-  // (`custom-root-store.ts` keys its map by it) — a test's own `resolveRoots` override ignores it.
-  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))();
-  const rootPath = roots[root];
-  if (rootPath === undefined) {
-    throw new FsRootNotFoundError(`no folder has been set for the '${root}' root yet — ask the operator to set one from the chat composer, then retry`);
-  }
-  return rootPath;
+function requireCurrentSite({ input }: { input: Record<string, unknown> }, _optional = {}): void {
+  if (input.site !== undefined) throw new ToolInputError({ message: 'Filesystem tools use only the active site; a site selector is not accepted' });
 }
 
 /**
@@ -104,7 +80,7 @@ export const fsFilesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
  */
 function requireFsRootInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}): string {
   if (typeof input.root !== "string" || input.root.length === 0) {
-    throw new ToolInputError({ message: `${toolId}: 'root' (non-empty string) is required. Choose one of: ${FS_ROOT_IDS.join(", ")}. Example: fs_list_files({"root":"repo"}); fs_read_file({"root":"repo","path":"README.md"}).` });
+    throw new ToolInputError({ message: `${toolId}: 'root' (non-empty string) is required. Choose one of: ${FS_ROOT_IDS.join(", ")}. Example: fs_list_files({"root":"site"}); fs_read_file({"root":"site","path":"README.md"}).` });
   }
   return input.root;
 }
@@ -115,7 +91,7 @@ function requireFsRootInput({ input, toolId }: { input: Record<string, unknown>;
  */
 function normalizeFsReadInput({ input }: { input: Record<string, unknown> }, _options = {}) {
   if (Object.hasOwn(input, "find")) {
-    throw new ToolInputError({ message: `Unknown input 'find'. Accepted properties: root, path (both required); also site if listed in this tool's input schema. fs_read_file returns full file content and has no text-search parameter. Send fs_read_file({"root":"repo","path":"development/docs/themes/themes-guide.md"}) and search the returned content.` });
+    throw new ToolInputError({ message: `Unknown input 'find'. Accepted properties: root, path (both required); also site if listed in this tool's input schema. fs_read_file returns full file content and has no text-search parameter. Send fs_read_file({"root":"site","path":"README.md"}) and search the returned content.` });
   }
   return { input, notes: [] };
 }
@@ -124,29 +100,31 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
   const handlers: Record<string, ToolHandler> = {
     [FS_LIST_FILES_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
+      requireCurrentSite({ input }, {});
       const root = requireFsRootInput({ input, toolId: FS_LIST_FILES_TOOL_ID });
       const relativePath = optionalString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
       return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const rootPath = resolveRootPathOrThrow(routeDeps, root);
+        const fileRequest = resolveSiteFileRequest({ routeDeps, root, ...(relativePath === undefined ? {} : { relativePath }) }, {});
         // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
         // caller handed only a short array cannot tell a small directory from a cut-off listing —
         // which is exactly the wrong thing for a model about to conclude "that file does not exist".
-        const { files, truncated } = listFsFiles({ rootPath, relativePath });
+        const { files, truncated } = listFsFiles(fileRequest);
         return { root, path: relativePath ?? "", files, truncated };
       } });
     },
 
     [FS_READ_FILE_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
+      requireCurrentSite({ input }, {});
       const root = requireFsRootInput({ input, toolId: FS_READ_FILE_TOOL_ID });
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
       return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const rootPath = resolveRootPathOrThrow(routeDeps, root);
-        const { content, bytes } = readFsFile({ rootPath, relativePath });
+        const fileRequest = resolveSiteFileRequest({ routeDeps, root, relativePath }, {});
+        const { content, bytes } = readFsFile(fileRequest);
         return { root, path: relativePath, content, bytes };
       } });
     },

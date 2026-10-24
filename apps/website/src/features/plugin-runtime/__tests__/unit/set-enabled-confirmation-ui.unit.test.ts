@@ -18,8 +18,10 @@ for (const family of ["agent-plugin", "site-runtime"] as const) {
     assert.deepEqual(plan.cancel, { toolName: "plugins_set_enabled", params: { __exchangeId: "exchange-42", decision: "cancel" } });
     // The family-specific warning is a promised fragment of the resource, not a loose identity match.
     assert.ok(html.includes(family === "agent-plugin"
-      ? "agent daemon restarts."
-      : "schema changes to the live database"));
+      ? "guidance and tools"
+      : "change its database"));
+    assert.doesNotMatch(html, /injects|daemon|six assistant execution settings/);
+    assert.match(html, /service receiving your requests/, "plain language must retain the access disclosure");
     assert.ok(html.includes("<dt>Version</dt><dd>2.7.0</dd>"));
   });
 }

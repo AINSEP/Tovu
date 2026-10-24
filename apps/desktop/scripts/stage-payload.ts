@@ -33,12 +33,11 @@
  * whose own `node_modules` silently satisfies the gap), and reading `cliEntry` from
  * `runtime-manifest.json` rather than hardcoding `dist/src/cli/main.js`.
  *
- * Three things are deliberately NOT carried over:
+ * Two things are deliberately NOT carried over:
  * - Runner's `assertNodeMajorInSync()`, which pins a `TOVU_MIN_NODE_MAJOR` constant in Runner's own
  *   source. This shell spawns Electron's own Node (`ELECTRON_RUN_AS_NODE=1`), so there is no
  *   system-Node version to agree with.
  * - Runner's source `tovuDir` indirection — the source here IS this repo.
- * - `playwright`. See `EXCLUDED_PACKAGES` in `../src/stage-payload-lib.ts`.
  *
  * ## Shape
  *

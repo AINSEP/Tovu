@@ -482,21 +482,6 @@ function mapCardSelectors(
   return { input: { ...candidate.value, items }, notes };
 }
 
-/** The media card has no slug reader: a slug cannot be an id alias or a discarded filter.
- * @returns Unchanged input when no unsupported slug filter is present.
- * @throws ToolInputError listing the actual composed schema's properties and a recovery example.
- * @complexity O(p) time/space for p accepted property names on refusal; no I/O.
- */
-function normalizeMediaCardInput(
-  { input, inputSchema }: { input: Record<string, unknown>; inputSchema: Readonly<Record<string, unknown>> }, _options = {},
-): NormalizedToolInput {
-  if (Object.hasOwn(input, "slug")) {
-    const properties = (inputSchema.properties as Record<string, unknown> | undefined) ?? EMPTY_SCHEMA;
-    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ") || "none"}. This card lists media or reads by id; it does not look up a slug. Call content_read.media_asset({}) and select the asset with the matching slug from the returned assets. For a peer site, retain its declared site selector.` });
-  }
-  return { input, notes: [] };
-}
-
 /** Adapt canonical card input back to the original handler ABI; aliases belong to the gate hook.
  * The direct handler also refuses collisions for callers that already own their execution gate.
  * @complexity O(k) time/space in supplied keys, plus the unchanged source handler cost.
@@ -508,7 +493,8 @@ function canonicalCardDispatch(
   const idProperty = card.get?.idProperty ?? card.listLookup?.idProperty;
   if (!idProperty || idProperty === "id") return { ...dispatch, normalizeInput: undefined };
   const normalizeInput: ToolInputNormalizer = ({ input }, _optional = {}) => {
-    if (card.resource === "media_asset") normalizeMediaCardInput({ input, inputSchema: canonicalCardSchema({ inputSchema: dispatch.inputSchema, idProperty }) });
+    // Slug lookup belongs to the host target adapter after site selection and authorization;
+    // this card owns only canonical id ↔ source-selector spelling.
     return mapCardSelectors({ input, from: idProperty, to: "id" });
   };
   const handler: ToolHandler = (ctx, options) => dispatch.handler({ ...ctx, input: mapCardSelectors({ input: ctx.input, from: "id", to: idProperty }).input }, options);
@@ -561,13 +547,13 @@ function unionInputSchema(
 }
 
 /**
- * The composition-root final step: takes the already-built flat registration list every domain
+ * The composition-root read pass: takes the already-built flat registration list every domain
  * contributed (`buildAssistantToolRegistrations`'s own loop), replaces the 36 Tier-1 read tools it
  * contains with the `content_read.<resource>` cards defined above, and leaves everything else —
  * all 141 other tools — untouched except that a retired id named in their prose is pointed at its
  * card (see {@link createRetiredReadToolIdRewriter}).
  *
- * Called from `tool-registrations.ts`'s `buildAssistantToolRegistrations` as its own last step, NOT
+ * Called from `tool-registrations.ts`'s `buildAssistantToolRegistrations` before host target and batch wrappers, NOT
  * registered as a `ToolContributor` — see this file's header for why it structurally cannot be one
  * (it needs to see what the contributor loop already produced).
  *

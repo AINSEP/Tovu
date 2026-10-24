@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
+import { AgentPluginMaturity } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
@@ -224,6 +225,17 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
                 <>
                   {" "}
                   <span className="agent-plugin-row-version">v{plugin.version}</span>
+                </>
+              ) : null}
+              {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
+                  wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
+                  also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
+              {plugin.maturity ? (
+                <>
+                  {" "}
+                  <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
+                    <AgentPluginMaturity maturity={plugin.maturity} t={t} />
+                  </span>
                 </>
               ) : null}
             </span>

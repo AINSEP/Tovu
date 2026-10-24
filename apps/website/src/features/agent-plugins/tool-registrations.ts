@@ -1,5 +1,5 @@
 import { describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
-import { readInstalledAgentPluginIdentity } from "./identity.js";
+import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
@@ -153,6 +153,7 @@ export interface AgentPluginSkillDetail {
 /** One installed Agent Plugin, fully resolved into a single tool-ready source. See this file's
  *  header, SECURITY. */
 export interface AgentPluginToolSource {
+  readonly maturity?: PluginMaturity;
   readonly id: string;
   readonly pluginId: string;
   /** The archive digest whose extracted bytes this source's skills were read from — carried so the
@@ -289,6 +290,7 @@ function buildToolSource(plugin: AgentPluginToolIdentity, skills: readonly Agent
     id: toAgentPluginToolId(pluginId),
     pluginId,
     archiveDigest,
+    maturity: plugin.maturity,
     description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason) + (plugin.publisherId ? ` Plugin discovery: ${[plugin.publisherId, ...(plugin.keywords ?? []), ...(plugin.provides ?? [])].join(" ")}.` : ""),
     skills,
     defaultSkillName,
@@ -345,7 +347,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
 
       const skills = await resolveSkillsForPlugin(plugin);
       const identity = await readInstalledAgentPluginIdentity({ plugin });
-      sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
+      sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, maturity: identity.maturity, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
     } catch (error) {
       // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
       // cannot take every OTHER installed plugin's tool down with it — see this file's header,
@@ -433,8 +435,10 @@ async function buildPluginToolResult(source: AgentPluginToolSource, input: { ski
   if (input.file !== undefined && !selected.readFile) notes.push("File request refused: no supporting-file reader is available. Valid supporting files: (none).");
   return {
     pluginId: source.pluginId,
+    ...(source.maturity ? { maturity: source.maturity } : {}),
     skillName: selected.name,
-    guidance: content.guidance,
+    // Any maturity flag ("untested" or "soon") means not tested end to end: caution before keys/actions.
+    guidance: source.maturity ? `${UNTESTED_PLUGIN_GUIDANCE}\n\n${content.guidance}` : content.guidance,
     files: content.files,
     // Keep the availability list short without removing vocabulary from the indexed description.
     availableSkills: source.skills.filter(skill => skill.name !== selected.name).map(skill => ({ name: skill.name, description: skill.summary.slice(0, 320) })),
@@ -522,6 +526,7 @@ async function buildPluginToolResult(source: AgentPluginToolSource, input: { ski
  *  content identifiers — a manifest-declared plugin name and an archive digest — never host paths,
  *  so this stays inside this file's SECURITY property above. */
 export interface AgentPluginToolIdentity {
+  readonly maturity?: PluginMaturity;
   readonly publisherId?: string;
   readonly keywords?: readonly string[];
   readonly provides?: readonly string[];
@@ -846,7 +851,7 @@ export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
 /** A search candidate whose identity was read from the installed `plugin.json`: `readPluginIdentity`
  *  always yields an `id` and a `provides` list, so this loader's callers never need a fallback for
  *  either (the shared `AgentPluginSearchCandidate` type leaves both optional for other producers). */
-export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[] };
+export type IdentifiedAgentPluginSearchCandidate = AgentPluginSearchCandidate & { readonly id: string; readonly provides: readonly string[]; readonly maturity?: PluginMaturity };
 
 export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
   const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
@@ -921,12 +926,14 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
 
       const candidates = await loadAgentPluginSearchCandidates(routeDeps);
       // Rank the whole local catalog once, then page it; the response bound is not a discovery cap.
-      const ranked = rankInstalledAgentPlugins(query, candidates, candidates.length);
+      // The shared ranker spreads each candidate, preserving Tovu's host metadata.
+      const ranked = rankInstalledAgentPlugins(query, candidates, candidates.length) as readonly (IdentifiedAgentPluginSearchCandidate & { score: number })[];
       const matches = ranked.slice(offset, offset + limit);
 
       return {
         matches: matches.map((match) => ({
           pluginId: match.pluginId,
+          ...(match.maturity ? { maturity: match.maturity } : {}),
           version: match.version ?? null,
           description: match.description ?? null,
           id: match.id ?? `unknown/${match.pluginId}`,
@@ -1050,6 +1057,7 @@ async function buildSearchCandidate(
     ...(plugin.version !== undefined ? { version: plugin.version } : {}),
     ...(plugin.description !== undefined ? { description: plugin.description } : {}),
     id: identity.id,
+    ...(identity.maturity ? { maturity: identity.maturity } : {}),
     provides: identity.provides,
     keywords: identity.keywords,
     enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),

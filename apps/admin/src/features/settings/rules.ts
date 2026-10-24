@@ -455,3 +455,14 @@ export function isBuiltInExternalMcpSource(
   { source }: { source: { fields: Record<string, string> } },
   _options = {},
 ): boolean { return source.fields.builtIn === "true"; }
+
+/** Whether a saved OAuth row still needs the operator to sign in, which shows its Connect button.
+ *  A row with no `oauthStatus` at all (a fake, or an older API) reads as signed in, so the button
+ *  never appears on a guess. */
+export function externalMcpNeedsSignIn(
+  { source }: { source: { fields: Record<string, string> } },
+  _options = {},
+): boolean {
+  const status = source.fields.oauthStatus;
+  return resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth" && status !== undefined && status !== "connected";
+}

@@ -34,10 +34,10 @@ async function boundLifecycle(t: TestContext) {
   return { dir, layout, lifecycle: createTovuAgentPluginLifecycle({ layout }) };
 }
 
-async function packedNotes(dir: string, lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle>) {
+async function packedNotes(dir: string, lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle>, maturity?: 'untested' | 'soon') {
   const source = path.join(dir, "source", "notes");
   await mkdir(path.join(source, "skills", "notes"), { recursive: true });
-  await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "notes", version: "1.0.0", description: "Keeps notes." }));
+  await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "notes", version: "1.0.0", description: "Keeps notes.", extensions: { tovu: { maturity } } }));
   await writeFile(path.join(source, "skills", "notes", "SKILL.md"), "---\nname: notes\ndescription: Take notes.\n---\nWrite things down.");
   return lifecycle.packAgentPluginDirectory(source);
 }
@@ -71,6 +71,21 @@ test("pack, bundled reader and install round-trip through the binding's position
   const refs = await lifecycle.resolveAgentPluginRefs(["notes", "missing"], workspace, "inject");
   assert.ok(JSON.stringify(refs).includes("missing"), "an unknown ref is reported, not dropped");
 });
+
+for (const maturity of ['untested', 'soon', undefined] as const) {
+  for (const deliveryMode of ['inject', 'pointer'] as const) {
+    test(`${deliveryMode} pinned guidance discloses maturity ${maturity ?? '(absent)'}`, async t => {
+      const { dir, layout, lifecycle } = await boundLifecycle(t);
+      const packed = await packedNotes(dir, lifecycle, maturity);
+      await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
+      const result = await lifecycle.resolveAgentPluginRefs(['notes'], layout.forWorkspace(WORKSPACE), deliveryMode);
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+      assert.equal(result.promptPrefix.includes("Before saving keys or acting with this plugin"), maturity !== undefined);
+      if (deliveryMode === 'inject') assert.match(result.promptPrefix, /Write things down/);
+    });
+  }
+}
 
 test("pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking", async t => {
   const { lifecycle } = await boundLifecycle(t);

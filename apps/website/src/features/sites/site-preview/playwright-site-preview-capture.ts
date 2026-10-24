@@ -16,11 +16,13 @@
  * (one at a time, once per site run, at most every 30 minutes while the Sites screen is viewed)
  * that is a few seconds of work per site per half hour, and none at all when nobody looks.
  *
- * When Playwright or its browser is missing — a self-hosted image may not carry Chromium — every
+ * When Playwright or both browsers are missing — a self-hosted image may not carry either — every
  * capture is `null` and cards show their placeholder; the service's retry delay keeps that from
  * relaunching on every listing.
  */
-import { createLazyBrowser, encodeJpeg, importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
+import { createLazyBrowser, encodeJpeg } from "#src/platform/headless-browser/lazy-browser";
+import { openPlaywrightRenderBrowser } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import type { SitePreviewCapturePort } from "./site-preview-service.js";
 import { desktopRenderForHost } from '#src/platform/headless-browser/desktop-render';
 import type { UrlCapturePort } from '@jini-ai/desktop-host';
@@ -40,7 +42,7 @@ export interface PreviewBrowserLauncher {
 }
 
 export interface PlaywrightSitePreviewCaptureOptions {
-  /** Resolves Chromium; defaults to a dynamic `import("playwright")` so a missing module is a `null` capture, not a boot failure. */
+  /** Defaults to Jini's bundled Chromium/system Chrome selection; missing browsers yield a `null` capture, not a boot failure. */
   loadLauncher?: () => Promise<PreviewBrowserLauncher>;
   /** PNG in, stored bytes out; defaults to sharp → 640px JPEG. */
   resize?: (required: { png: Buffer; width: number }) => Promise<Buffer>;
@@ -55,9 +57,15 @@ const LOAD_TIMEOUT_MS = 15_000;
 // opens a loopback URL the server built for one of its own sites, never a caller-chosen address.
 const LAUNCH_OPTIONS = { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] };
 
+/** Jini owns browser fallback; retain the preview's launch policy on both attempts.
+ * Unavailable results reject the capture into its existing placeholder/retry path.
+ * @complexity O(1) state, at most two browser launches per acquisition. */
 async function loadPlaywrightLauncher(): Promise<PreviewBrowserLauncher> {
-  const chromium = await importPlaywrightChromium();
-  return { launch: (options) => chromium.launch(options) as Promise<PreviewBrowser> };
+  return { launch: async (options) => {
+    const result = await openPlaywrightRenderBrowser({}, { moduleLoader: playwrightModuleLoader, launchOptions: options });
+    if (!result.available) throw new Error(result.reason);
+    return result.browser as unknown as PreviewBrowser;
+  } };
 }
 
 async function resizeWithSharp({ png, width }: { png: Buffer; width: number }): Promise<Buffer> {

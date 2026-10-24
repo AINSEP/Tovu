@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 
-import { isImportShapeRejection, resolveLocalImportRoot, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
+import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
 import { FsFilePathError } from "../fs-files/fs-files.js";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
@@ -94,6 +94,13 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: importThemeFileAgentToolCatalo
 /** One guarded source read, then a new or replaced theme file and a theme reload. */
 export const importThemeFileDerivedRisk: DerivedRiskByToolId = new Map([["theme_import_file_from_url", "mutates-durable-state"], ["theme_import_local_file", "mutates-durable-state"]]);
 
+/** Preserve the theme import contract while the shared reader keeps the site as its I/O root. */
+function localThemeSource({ routeDeps, input }: { routeDeps: ImportThemeFileToolDeps; input: Record<string, unknown> }, _optional = {}) {
+  const request = resolveLocalImportRequest({ routeDeps, root: requireString({ input, key: "root" }),
+    relativePath: requireString({ input, key: "sourcePath" }) }, {});
+  return { rootPath: request.rootPath, sourcePath: request.relativePath };
+}
+
 /**
  * Builds either source adapter over one permission/write-gate/import/reload lifecycle.
  * @returns A handler reporting asset metadata and reloaded theme status/errors.
@@ -122,15 +129,16 @@ function buildImportThemeFileHandler(
         const imported = toolId === "theme_import_local_file"
           ? await importThemeFileFromLocalFile({
               ...destination,
-              rootPath: resolveLocalImportRoot({ routeDeps, root: requireString({ input, key: "root" }) }),
-              sourcePath: requireString({ input, key: "sourcePath" }),
+              ...localThemeSource({ routeDeps, input }, {}),
             })
           : await importThemeFileFromUrl(
               { ...destination, httpClient: routeDeps.mediaImportHttpClient, url: requireString({ input, key: "url" }) },
               { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
             );
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
-        return { themeId, ...imported, status: reloaded.status, errors: reloaded.errors };
+        return { themeId, ...imported,
+          ...(toolId === "theme_import_local_file" ? { sourcePath: requireString({ input, key: "sourcePath" }) } : {}),
+          status: reloaded.status, errors: reloaded.errors };
       }, { toolId }),
     });
   };

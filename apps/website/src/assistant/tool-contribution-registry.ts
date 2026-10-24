@@ -84,6 +84,9 @@ export interface DerivedToolContributor {
 
 /** The two ordered registries belong to one composition root, never shared across workspaces. */
 export interface AssistantToolContributions {
+  /** Host binds CMS target lookup to its existing domain services; assistant has no feature value edge. */
+  contentTargetInputs?: (input: { registrations: readonly ToolRegistration[]; routeDeps: AssistantToolRegistryDeps;
+    beforeLookup?: import("./content-target-inputs.js").ContentTargetDeps["beforeLookup"] }, options?: Record<string, never>) => ToolRegistration[];
   readonly contributors: import("@jini-ai/core").ContributionRegistry<ToolContributor>;
   readonly derivedContributors: import("@jini-ai/core").ContributionRegistry<DerivedToolContributor>;
 }

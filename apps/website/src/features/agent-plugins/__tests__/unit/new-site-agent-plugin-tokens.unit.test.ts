@@ -92,6 +92,13 @@ test("firstNewSiteAgentPluginTokenRefusal names the first refused plugin and nev
   assert.equal(await firstNewSiteAgentPluginTokenRefusal(async () => "ok", { a: "x" }), null);
 });
 
+test('a permission refusal stops onboarding without calling the token invalid', async () => {
+  const refusal = await firstNewSiteAgentPluginTokenRefusal(async () => 'refused', { supabase: 'permission-limited-token' });
+  assert.equal(refusal?.code, 'AGENT_PLUGIN_TOKEN_REFUSED');
+  assert.match(refusal!.error, /refused for this purpose/);
+  assert.doesNotMatch(refusal!.error, /invalid|permission-limited-token/i);
+});
+
 test("bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty", async () => {
   const ids = (await listBundledAgentPluginServers(root)).map((p) => p.pluginId).sort();
   assert.deepEqual(ids, ["plain", "supabase"]);

@@ -7,7 +7,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { EXPECTED_VERSION_REJECTION, isTrashed, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -443,39 +443,41 @@ function normalizePageRegionInput(
   return { input: { ...rest, regionId }, notes: [`${selector}→regionId`] };
 }
 
-/** A slug is a lookup key, not a page id. Refuse it before a store opens and show the lookup.
- * Region aliases still pass through the existing domain normalizer.
+/** Shared assistant target inputs own slug lookup after site selection and authorization.
+ * Region aliases remain owned by Pages.
  * @returns Canonical input and value-free alias notes.
- * @throws ToolInputError with accepted properties and an id-based example for slug calls.
+ * @throws ToolInputError for competing region selectors.
  * @complexity O(k) time/space in supplied keys for region aliases; otherwise O(1), no I/O.
  */
 function normalizePageInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}) {
-  if (Object.hasOwn(input, "slug")) {
-    const properties = CATALOG_BY_ID.get(toolId)!.inputSchema!.properties as Record<string, unknown>;
-    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ")}; also site if listed in this tool's input schema. ${toolId} requires the page's id, not its slug. Call content_read.content_post({"kind":"page"}) and use the matching row's id. Example target: {"id":"<page id>"}; include this tool's other required fields and retain site when targeting another site.` });
-  }
-  if (toolId === "pages_write_region" || toolId === "pages_move_region") return normalizePageRegionInput({ input });
+  if (toolId === "pages_read_html" || toolId === "pages_write_region" || toolId === "pages_move_region") return normalizePageRegionInput({ input });
   return { input, notes: [] };
 }
 
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    // Resolve against this handler's site dependencies, after scope selection and permission checks.
+    // Region selection stays outside the document fallback so a failed lookup cannot return a full page.
     pages_read_html: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
-      const id = requireString({ input: input, key: "id" });
+      const id = requireString({ input, key: "id" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
+      let page;
       try {
         const html = await store.read();
         // `version` is the basis a writer states back as `expectedVersion` — see
         // `PagesHtmlDocumentStorePort.capturedVersion` for why it comes off the store rather than off
         // a second row read.
-        return { id, html, regions: regionHandlesIn(html), version: requireCapturedVersion(store), theme: await readPageTheme({ deps: routeDeps }) };
+        page = { id, html, regions: regionHandlesIn(html), version: requireCapturedVersion(store), theme: await readPageTheme({ deps: routeDeps }) };
       } catch (err) {
-        return readDocPageFallback({ deps: routeDeps, id, err });
+        page = await readDocPageFallback({ deps: routeDeps, id, err });
       }
+      if (input.regionId === undefined) return page;
+      const region = requireRegion(page.html, id, requireString({ input, key: "regionId" }));
+      return { ...page, html: page.html.slice(region.start, region.end) };
     },
 
     pages_write_html: async (ctx) => {
@@ -650,7 +652,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // stays a separate, inline reclassification at its own two call sites (unchanged) — it targets
     // `PageConcurrentEditError` specifically, with a narrower message than a generic allowlist rule
     // would produce.
-    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }, { error: PostNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
     inputNormalizers: Object.fromEntries([...CATALOG_BY_ID.keys()].map(toolId => [toolId,
       ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizePageInput({ input, toolId }),

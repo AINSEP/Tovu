@@ -9,6 +9,7 @@ test('the theme package ships its v2 contract and teaches native tool authoring'
   const packed = await packAgentPluginDirectory(root);
   assert.ok(packed.files.includes('skills/tovu-theme/references/theme-v2-contract.md'));
   assert.ok(packed.files.includes('skills/tovu-theme/references/kuinetic-worked-example.md'));
+  assert.ok(packed.files.includes('skills/tovu-theme/references/motion.md'));
   const skill = await readFile(path.join(root, 'skills/tovu-theme/SKILL.md'), 'utf8');
   assert.match(skill, /theme_set_page_published/);
   assert.match(skill, /theme_import_local_file/);

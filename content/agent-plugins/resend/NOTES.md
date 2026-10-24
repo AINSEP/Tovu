@@ -25,6 +25,11 @@ behaviours generically; the vendor detail lives here.
   `tovuAuthMode: "oauth"` is the primary sign-in. `tovuTokenAuth` is the fallback: the key arrives
   through `credential_save { kind: "agent-plugin-token", target: "resend" }`, is sealed on the row and
   sent as `Authorization: Bearer`, the header Resend documents for headless clients.
+- **OAuth discovery mismatch (2026-10-24).** The server's protected-resource metadata lives only at the origin
+  root and names `"resource": "https://mcp.resend.com"`, not the `/mcp` endpoint. RFC 9728 wants an exact
+  match and `oauth4webapi` enforces it, so Jini's discovery fails ("did not return a JSON object") and no
+  sign-in card opens; the chat falls back to the Full access key card. MCP's own SDK accepts a same-origin
+  path-prefix resource, which is the generic Jini fix.
 - **Probe.** `GET /domains` answers 200 for a Full access key and 401 `restricted_api_key` for a
   Sending access key, so a key that cannot manage the account is refused before it is saved. A
   malformed key gets 400, which core's generic probe reports as "unavailable", not "rejected"; the

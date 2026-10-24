@@ -195,7 +195,9 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "pages_read_html",
     description:
-      "Reads the full bespoke HTML body of a page, plus the list of editable region handles currently " +
+      "Reads the bespoke HTML body of a page by id OR slug (including '/'). Send exactly one target. " +
+      "Optional regionId returns only that region's HTML, including its outer element; omit it for the full body. " +
+      "Also returns the list of editable region handles currently " +
       "present in it, the page's current version, and `theme`: the resolved active theme's id, tokens " +
       "and tokensLight overrides (null when unstyled). Call this before authoring ANY page, including " +
       "a new empty page, to get the site's actual token vocabulary instead of guessing names.\n\n" +
@@ -203,15 +205,20 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "change is listed there, edit THAT region rather than rewriting the whole page with " +
       "pages_write_html. Pass the returned 'version' back as expectedVersion on whichever write you " +
       "make.\n\n" +
-      "A page that has never been given HTML reads back as an empty string with no regions and no " +
-      "version — that is a new page, not an error; author it with pages_write_html.",
+      "Without regionId, a page that has never been given HTML reads back as an empty string with no regions " +
+      "and its current version — that is a new page, not an error; author it with pages_write_html. " +
+      "An absent, duplicate or unclosed region is refused. Example: {slug:'/',regionId:'page-hero'}.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id"],
-      properties: { id: PAGE_ID_SCHEMA },
+      // The shared batch wrapper retains root oneOf constraints; enforce the alternative in the handler.
+      properties: {
+        id: PAGE_ID_SCHEMA,
+        slug: { type: "string", minLength: 1, description: "The page's slug, including '/' for the home page. Send id OR slug, never both." },
+        regionId: { type: "string", minLength: 1, description: "Optional data-agent-element handle. Returns this region's outer HTML; version, theme and regions still describe the page." },
+      },
     },
   },
   {

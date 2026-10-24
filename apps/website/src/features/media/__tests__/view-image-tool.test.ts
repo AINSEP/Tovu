@@ -6,6 +6,7 @@ import { createToolRegistry, isReadOnlyTool, ToolInputError, type ToolExecutionC
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
+import { withContentTargets } from "../../../assistant/__tests__/fixtures/content-target-inputs.js";
 
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from "../index.js";
 import {
@@ -96,7 +97,7 @@ async function seed(
 }
 
 function viewTool(harness: Harness): ToolRegistration {
-  const found = buildMediaViewImageRegistrations(harness.deps).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
+  const found = withContentTargets({ registrations: buildMediaViewImageRegistrations(harness.deps), deps: harness.deps }).find((r) => r.descriptor.id === MEDIA_VIEW_IMAGE_TOOL_ID);
   assert.ok(found, `expected ${MEDIA_VIEW_IMAGE_TOOL_ID} to be registered`);
   return found;
 }
@@ -206,12 +207,12 @@ test("an unknown id or slug is a ToolInputError naming what was asked for and ho
   const tool = viewTool(harness);
   await assert.rejects(call(tool, { mediaId: "no-such-id" }), (error: unknown) => {
     assert.ok(error instanceof ToolInputError, String(error));
-    assert.equal(error.message, "media_view_image: no media asset with id 'no-such-id'. Use content_read.media_asset to list the library and find the right id or slug.");
+    assert.equal(error.message, "media_view_image: no media asset with id or slug 'no-such-id'. Use content_read.media_asset to list the library and find the right id or slug.");
     return true;
   });
   await assert.rejects(call(tool, { slug: "no-such-slug" }), (error: unknown) => {
     assert.ok(error instanceof ToolInputError, String(error));
-    assert.equal(error.message, "media_view_image: no media asset with slug 'no-such-slug'. Use content_read.media_asset to list the library and find the right id or slug.");
+    assert.equal(error.message, "media_view_image: no media asset with id or slug 'no-such-slug'. Use content_read.media_asset to list the library and find the right id or slug.");
     return true;
   });
 });
@@ -219,10 +220,10 @@ test("an unknown id or slug is a ToolInputError naming what was asked for and ho
 test("neither or both of mediaId/slug is a ToolInputError, not a guess", async () => {
   const harness = makeHarness();
   const tool = viewTool(harness);
-  for (const input of [{}, { mediaId: "a", slug: "b" }, { mediaId: "" }]) {
+  for (const [input, message] of [[{}, /mediaId.*non-empty string/], [{ mediaId: "a", slug: "b" }, /^media_view_image: send exactly one of mediaId or slug\.$/], [{ mediaId: "" }, /mediaId.*non-empty string/]] as const) {
     await assert.rejects(call(tool, input), (error: unknown) => {
       assert.ok(error instanceof ToolInputError, `${JSON.stringify(input)}: ${String(error)}`);
-      assert.equal(error.message, "media_view_image: pass exactly one of 'mediaId' or 'slug' (a non-empty string).");
+      assert.match(error.message, message);
       return true;
     });
   }

@@ -72,6 +72,9 @@ const TRASHED_ITEM = {
   htmlAttributes: null,
 };
 const MEDIA_RESPONSE = { media: [ACTIVE_ITEM, TRASHED_ITEM] };
+/** Both fixtures on one grid: trashed media lives only on the Trash tab (owner, 2026-10-23), so the
+ *  lightbox tests that need two cards side by side un-trash the clip. */
+const TWO_ACTIVE_RESPONSE = { media: [ACTIVE_ITEM, { ...TRASHED_ITEM, status: "active" }] };
 
 /** Routes a mocked `fetch` call on method + a distinguishing URL substring — see
  *  `Dashboard.unit.test.tsx`'s identical helper for why (order/count-coupled mocks silently
@@ -331,7 +334,7 @@ describe("preview fallback chain", () => {
 
   it("falls back from image alt text to the title when alt is blank", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = renderScreen();
+    const { container } = renderScreen({ tabId: "trash" });
 
     const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
     const img = card.querySelector("img");
@@ -441,7 +444,7 @@ describe("lightbox", () => {
    */
   it("resets the image/video/placeholder fallback chain when navigating to the next asset, instead of carrying the previous asset's verdict across", async () => {
     const user = userEvent.setup();
-    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(TWO_ACTIVE_RESPONSE)) }]));
     const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
@@ -499,7 +502,7 @@ describe("lightbox", () => {
 
   it("ArrowRight/ArrowLeft navigate between assets and update the counter, clamping at the last item rather than wrapping", async () => {
     const user = userEvent.setup();
-    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(TWO_ACTIVE_RESPONSE)) }]));
     const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
@@ -549,7 +552,7 @@ describe("lightbox", () => {
   describe("single shared instance (not one dialog per card)", () => {
     it("mounts exactly one .media-lightbox for a multi-card grid, and re-targets its label when a different card's trigger opens it", async () => {
       const user = userEvent.setup();
-      fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+      fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(TWO_ACTIVE_RESPONSE)) }]));
       const { container } = renderScreen();
       await waitForCard(container, "Sunset Photo.png");
       await waitForCard(container, "Trashed Clip.mp4");
@@ -610,7 +613,7 @@ describe("row actions via RowMenu", () => {
   it("a trashed item's menu offers Delete permanently, which opens ConfirmDialog rather than deleting immediately", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = renderScreen();
+    const { container } = renderScreen({ tabId: "trash" });
     const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -643,7 +646,7 @@ describe("row actions via RowMenu", () => {
         },
       ])
     );
-    const { container } = renderScreen();
+    const { container } = renderScreen({ tabId: "trash" });
     const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -657,7 +660,7 @@ describe("row actions via RowMenu", () => {
   it("canceling the purge dialog sends no DELETE and closes the dialog", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = renderScreen();
+    const { container } = renderScreen({ tabId: "trash" });
     const card = cardFor(await waitForCard(container, "Trashed Clip.mp4"), "Trashed Clip.mp4");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -1191,10 +1194,10 @@ describe("tab bar — useMediaTabsHook injection seam", () => {
   it("renders the tab the injected hook reports, proving the default isn't hardcoded", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     // The real `useMediaTabs` can only ever start on "all" — landing already filtered to the
-    // videos tab on first render is a value the real hook cannot produce, so seeing only the
-    // `video/mp4` fixture here proves this seam is wired to the injected hook, not calling
+    // trash tab on first render is a value the real hook cannot produce, so seeing only the
+    // trashed fixture here proves this seam is wired to the injected hook, not calling
     // `useMediaTabs()` directly.
-    renderScreen({ useMediaTabsHook: () => ({ activeTab: "videos", setActiveTab: vi.fn() }) });
+    renderScreen({ useMediaTabsHook: () => ({ activeTab: "trash", setActiveTab: vi.fn() }) });
 
     expect(await waitForCard(document.body, "Trashed Clip.mp4")).toBeInTheDocument();
     expect(cardTitles()).not.toContain("Sunset Photo.png");
@@ -1204,7 +1207,7 @@ describe("tab bar — useMediaTabsHook injection seam", () => {
 describe("?tab= deep linking", () => {
   it("opens directly on the tab named by the tabId prop", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    renderScreen({ tabId: "videos" });
+    renderScreen({ tabId: "trash" });
 
     expect(await waitForCard(document.body, "Trashed Clip.mp4")).toBeInTheDocument();
     expect(cardTitles()).not.toContain("Sunset Photo.png");

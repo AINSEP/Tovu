@@ -251,26 +251,32 @@ test("stageTransitiveDependencies: does not loop on a dependency cycle, staging 
   assert.equal(count, 2); // foo + bar, each staged exactly once despite the cycle
 });
 
-test("stageTransitiveDependencies: skips an excluded package before ever resolving it", () => {
+test("stageTransitiveDependencies: retains the Playwright driver closure without downloaded browsers", t => {
   const tmp = tempDir();
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const pkgA = path.join(tmp, "pkgA");
   writePackage(pkgA, { playwright: "^1" });
-  // A REAL, resolvable playwright package sits right where findPackageDir would find it — proving
-  // the skip happens at the exclusion check, not merely because resolution failed.
-  writePackage(path.join(pkgA, "node_modules", "playwright"), {});
+  const modules = path.join(pkgA, "node_modules");
+  writePackage(path.join(modules, "playwright"), { "playwright-core": "^1" });
+  writePackage(path.join(modules, "playwright-core"));
+  fs.writeFileSync(path.join(modules, "playwright-core", "index.js"), "export const driver = true;");
+  fs.mkdirSync(path.join(modules, "playwright-core", ".local-browsers", "chromium"), { recursive: true });
+  fs.writeFileSync(path.join(modules, "playwright-core", ".local-browsers", "chromium", "chrome"), "browser binary");
   const outDir = path.join(tmp, "out");
 
   const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
 
-  assert.equal(count, 0);
-  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "playwright")), false);
+  assert.equal(count, 2);
+  assert.equal(fs.readFileSync(path.join(outDir, "node_modules", "playwright-core", "index.js"), "utf8"), "export const driver = true;");
+  assert.equal(fs.existsSync(path.join(outDir, "node_modules", "playwright-core", ".local-browsers")), false);
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });
 
 test("stageTransitiveDependencies: skips lucide-react before ever resolving it", () => {
   const tmp = tempDir();
   const pkgA = path.join(tmp, "pkgA");
   writePackage(pkgA, { "lucide-react": "^1" });
-  // Resolvable, same as the playwright case above, so only the exclusion check can skip it.
+  // Resolvable, so only the exclusion check can skip it.
   writePackage(path.join(pkgA, "node_modules", "lucide-react"), {});
   const outDir = path.join(tmp, "out");
 
@@ -361,7 +367,7 @@ test("assertClosureComplete: an excluded package is exempt from the check even w
   const tmp = tempDir();
   const outDir = path.join(tmp, "out");
   const modulesDir = path.join(outDir, "node_modules");
-  writePackage(path.join(modulesDir, "pkgA"), { playwright: "^1" });
+  writePackage(path.join(modulesDir, "pkgA"), { "@oven/bun-darwin-aarch64": "^1" });
 
   assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });

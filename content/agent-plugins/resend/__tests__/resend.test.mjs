@@ -170,6 +170,11 @@ test('domainRequirements: an unknown domain, a failed detail read, and odd list/
   assert.deepEqual((await resend.domainRequirements(ctxWith(noRecords), { domain: 'a.test' })).value.records, []);
   const listDown = await resend.domainRequirements(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '' } })), { domain: 'a.test' });
   assert.equal(listDown.error.code, 'unauthorized');
+  // A Sending access key is a permission refusal, which the host may retry with the account key.
+  const restricted = await resend.domainStatus(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '{"statusCode":401,"name":"restricted_api_key","message":"This API key is restricted to only send emails"}' } })), { domain: 'a.test' });
+  assert.equal(restricted.error.code, 'forbidden');
+  const badKey = await resend.domainStatus(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '{"name":"invalid_api_key"}' } })), { domain: 'a.test' });
+  assert.equal(badKey.error.code, 'unauthorized');
 });
 
 test('domainStatus maps Resend states and the custom base URL is used', async () => {

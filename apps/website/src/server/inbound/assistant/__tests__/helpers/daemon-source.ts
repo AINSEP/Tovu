@@ -4,6 +4,7 @@ import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-sign
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import assert from "node:assert/strict";
+import { tmpdir } from "node:os";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -63,6 +64,7 @@ export async function captureDaemonRun(
   const timer = setTimeout(() => reject(new Error("onStarted did not call the executor")), 1000);
   const fixtureDeps = options.bindings?.routeDeps as { agentSessions?: AgentSessionStore } | undefined;
   const bindings = {
+    stagedAttachmentCleanupByRunId: new Map(),
     captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
@@ -71,7 +73,7 @@ export async function captureDaemonRun(
     formatRunEndLogLine, formatRunErrorLogLine,
     durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true }),
-    assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
+    assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
     resolveAssistantRuntimeLaunch, getAgentDef, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
@@ -110,7 +112,7 @@ export async function captureDaemonRun(
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
     ...options.bindings,
     // Partial fixture ports still need the site directory used by every CLI launch.
-    routeDeps: { workspaceId: "ws-daemon-test", siteBinding: { dir: "/tmp/daemon-test" }, ...fixtureDeps },
+    routeDeps: { workspaceId: "ws-daemon-test", siteBinding: { dir: tmpdir() }, ...fixtureDeps },
   };
   try {
     if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");

@@ -1578,13 +1578,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .cms-item.is-soon { cursor: default; color: var(--faint); }
 .cms-item.is-soon:hover { background: transparent; }
 .cms-item.is-soon svg { color: var(--faint); }
-.cms-item .soon {
+.cms-item .soon, .agent-plugin-maturity .soon {
   flex-shrink: 0; white-space: nowrap; overflow-wrap: normal; word-break: normal;
   margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
 
 .cms-foot { margin-top: auto; padding-top: 10px; }
+/* Keep the existing pill shape inside the shared tap/keyboard tooltip trigger. */
+.agent-plugin-maturity .info-tip { margin-left: 0; }
+.agent-plugin-maturity .info-tip-icon { width: auto; height: auto; min-height: 24px; border-radius: 5px; }
 /* Hidden outside the desktop rail — see the rail block below. There is no mobile-drawer use for
    a rail toggle, since the drawer is always full-width and has its own close control. */
 .cms-rail-toggle-row { display: none; }
@@ -3988,6 +3991,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: var(--jini-bg-subtle); border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius-pill); padding: 1px 7px;
 }
+/* The maturity pill sits on the title line beside the version (owner, 2026-10-24): one shared
+   line-height gives both chips the same box (1px padding + 1px border each), and it drops the
+   sidebar `.soon` push-right, which stays as is everywhere else. The negative margin keeps the
+   pill's 24px tap target without making the title line taller. */
+.agent-plugin-row-maturity { flex: 0 0 auto; align-self: center; display: inline-flex; }
+.agent-plugin-row-version, .agent-plugin-row-maturity .soon { line-height: 14px; }
+.agent-plugin-row-maturity .soon { margin-left: 0; }
+.agent-plugin-row-maturity .info-tip-icon { min-height: 0; padding-block: 3px; margin-block: -3px; }
 /* One line, clamped. The full text is never lost — it is the first thing the assistant reads and
    it stays in the package's own manifest; on this screen its job is to identify the row, and a
    four-line paragraph per row is what made the old cards unscannable. */

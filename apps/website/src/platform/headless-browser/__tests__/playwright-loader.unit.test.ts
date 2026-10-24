@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { playwrightModuleLoader } from "../playwright-loader.js";
 import type { PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 test("the host loader adapts Playwright contexts and copies readonly launch arguments", async t => {
   const launches: Array<Parameters<PlaywrightLike["chromium"]["launch"]>[0]> = [];
@@ -27,6 +28,9 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
   t.mock.module("playwright", { namedExports: { chromium: {
     launch: async (options: Parameters<PlaywrightLike["chromium"]["launch"]>[0]) => {
       launches.push(options);
+      if (options?.headless && options.args?.includes("--proxy-server=http://127.0.0.1:9") && options.channel !== "chrome") {
+        throw new Error("downloaded Chromium absent");
+      }
       return {
         newContext: async (options: unknown) => { contextInputs.push(options); return nativeContext; },
         close: async () => { closed.push("browser"); },
@@ -62,4 +66,9 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
   const noArgs = await chromium.launch({ headless: false });
   await noArgs.close();
   assert.deepEqual(launches.slice(1), [{}, { headless: false }]);
+
+  const fallback = await openPlaywrightRenderBrowser({}, { moduleLoader: playwrightModuleLoader, launchOptions: PUBLIC_RENDER_LAUNCH_OPTIONS });
+  assert.ok(fallback.available, "the host loader must forward the shared system Chrome fallback");
+  assert.deepEqual(launches.slice(3), [PUBLIC_RENDER_LAUNCH_OPTIONS, { ...PUBLIC_RENDER_LAUNCH_OPTIONS, channel: "chrome" }]);
+  await fallback.browser.close();
 });

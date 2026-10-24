@@ -64,8 +64,13 @@ export function resolveAssistantCliPermissions(required: {
 
 /** Locked run policy (SEC-assistant-env-isolation-2026-09-07 Finding 2).
  * Owner decision 2026-10-17 supersedes native-tool restrictions for local full-access runs.
- * Those runs retain Read path denies as defense in depth only: Bash can still read keys and
- * write other sites, as the owner explicitly accepted. Bridge/site tool credentials stay scoped.
+ * Historical rationale: those runs retained Read path denies as defense in depth only; Bash
+ * could read keys and write other sites, which the owner accepted on 2026-10-17.
+ * Owner decision 2026-10-23 supersedes that broader access for the in-app SITE agent:
+ * Tovu supplies its site folder to Jini's mandatory filesystem boundary independently of these
+ * capability grants. Bash stays available under the CLI sandbox on macOS/Linux; native Windows
+ * retains shell access with an explicit warning. Desktop-agent confinement is a separate scope.
+ * Bridge/site tool credentials stay scoped.
  * All other principals keep the complete list; native providers must enforce it or refuse spawn.
  */
 export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
@@ -87,7 +92,8 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "RemoteTrigger",
   "Workflow",
   // Read/Grep/Glob path denies remain useful in locked runs and as defense in depth locally.
-  // Full CLI access explicitly accepts Bash reading these same files (owner, 2026-10-17). `//`
+  // Historical Full CLI access accepted Bash reading these files (owner, 2026-10-17); the site
+  // agent's 2026-10-23 filesystem boundary now applies independently. `//`
   // anchors at the filesystem root, so `//**/.tovu/**` covers the folder at any depth; `/proc` is
   // the Linux `/proc/<pid>/environ` route to the env-held key. Confirmed live on Claude Code
   // 2.1.281 under bypassPermissions: Read refused, Grep/Glob return no match on the denied files.
@@ -100,7 +106,8 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
 
 /** Project the one verified grant into native tool denies for both site and desktop hosts.
  * Legacy agent/subagent fields are accepted for compatibility but never establish a grant.
- * The owner accepted hand-run filesystem access; Read path denies remain defense in depth.
+ * The October 17 owner accepted hand-run filesystem access; October 23 limits site agents to
+ * their site folder without changing this capability projection. Read path denies remain.
  * @complexity O(t) for t fixed deny entries when enabled, O(1) for the locked policy.
  */
 export function resolveAssistantDisallowedTools(required: {

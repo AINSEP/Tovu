@@ -47,26 +47,8 @@ export const catalog = [{
 export const mediaViewVideoDerivedRisk: DerivedRiskByToolId = new Map([[MEDIA_VIEW_VIDEO_TOOL_ID, 'none']]);
 const catalogById = indexCatalogById({ catalog });
 
-/** Resolve a media slug through the workspace repository before the canonical gate runs.
- * Leaves caller input intact; the existing handler still enforces permission and ownership.
- * @returns Canonical mediaId input and the shared gate's per-item alias note.
- * @throws ToolInputError for invalid, missing or conflicting selectors.
- * @complexity O(k) copy for k fields and one indexed slug lookup; no blob reads.
- */
-async function normalizeVideoInput(
-  { input, deps }: { input: Readonly<Record<string, unknown>>; deps: Pick<MediaViewVideoToolDeps, 'workspaceId' | 'mediaRepo'> },
-  _options: Record<string, never> = {},
-) {
-  if (!Object.hasOwn(input, 'slug')) return { input, notes: [] };
-  const { slug, ...rest } = input;
-  if (typeof slug !== 'string' || !slug || /[/\\\0]/u.test(slug)) throw refusal({ message: 'slug must be a nonempty media-library slug; filesystem paths are refused.' });
-  if (input.attachmentRef !== undefined) throw refusal({ message: 'pass a mediaId or slug, OR attachmentRef.' });
-  // MOVE: slugs are lookup keys, not ids; the existing repository also owns historical slug aliases.
-  const asset = await deps.mediaRepo.findBySlug({ workspaceId: deps.workspaceId, slug });
-  if (!asset || asset.workspaceId !== deps.workspaceId) throw refusal({ message: 'media is unavailable or not owned by the caller.' });
-  if (input.mediaId !== undefined && input.mediaId !== asset.id) throw refusal({ message: 'slug and mediaId disagree; send selectors for the same media asset.' });
-  return { input: { ...rest, mediaId: asset.id }, notes: ['slug→mediaId'] };
-}
+// Slugs are lookup keys, not ids. The shared assistant content-target adapter now resolves them
+// after site selection and authorization, using the repository's historical slug aliases too.
 
 function refusal(required: { message: string }, _optional: Record<string, never> = {}) {
   return new ToolInputError({ message: `${MEDIA_VIEW_VIDEO_TOOL_ID}: ${required.message}` });
@@ -208,7 +190,6 @@ export function buildMediaViewVideoRegistrations(
   deps: MediaViewVideoToolDeps, _optional: Record<string, never> = {},
 ): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: 'media-video-view', catalogModule: 'features/media/view-video-tool.ts', catalog: catalogById, derivedRisk: mediaViewVideoDerivedRisk,
-    inputNormalizers: { [MEDIA_VIEW_VIDEO_TOOL_ID]: ({ input }, _options = {}) => normalizeVideoInput({ input, deps }) },
     handlers: { [MEDIA_VIEW_VIDEO_TOOL_ID]: async ctx => {
       const input = readInput({ input: ctx.input }, {});
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'media.read' }, { entityType: 'media' });

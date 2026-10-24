@@ -13,9 +13,8 @@ import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/feat
 import { findPublishedPostBySlug } from "#src/features/post/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
-import { FORM_RANGE_READOUT_JS } from "../http/site/form-render.js";
 import { isStaticExportRequest } from "../routes/site/pages.js";
-import { resolvePublicOrigin } from "../routes/oauth/public-origin.js";
+import { resolvePublicOrigin, resolveProtocol } from "../routes/oauth/public-origin.js";
 
 /**
  * @file Mounts Jini's consent lifecycle (`@jini-ai/cms/consent/express`) on public site HTML.
@@ -35,8 +34,20 @@ export const CONSENT_RECEIPTS_DIR_NAME = "consent-receipts";
 /** Twenty choices per ten minutes per address (/64 for IPv6), with a small burst for retries. */
 export const CONSENT_SAVE_PROFILE: RateLimitProfile = { windowSeconds: 600, max: 20, burst: 5 };
 
-/** Tovu's own essential scripts, matched exactly; everything else waits for a visitor choice. */
-export const TOVU_NECESSARY_SCRIPTS = [{ content: FORM_RANGE_READOUT_JS }] as const;
+/** Keep the public origin pinned except for loopback aliases on the same scheme and port.
+ * Only Host identifies this request; X-Forwarded-Host must never widen consent's origin check.
+ * Invalid request hosts retain the configured origin. Configuration errors still propagate.
+ * @complexity O(1), bounded request headers; no I/O. */
+export function resolveSiteConsentOrigin({ request }: { request: Request }, _options = {}): string {
+  const configured = new URL(resolvePublicOrigin(request));
+  const loopback = /^(?:localhost|127(?:\.\d+){3}|\[::1\])$/;
+  if (!loopback.test(configured.hostname)) return configured.origin;
+  try {
+    const own = new URL(`${resolveProtocol(request)}://${request.get('host')}`);
+    return loopback.test(own.hostname) && own.protocol === configured.protocol && own.port === configured.port
+      ? own.origin : configured.origin;
+  } catch { return configured.origin; }
+}
 
 /** Bind the engine's atomic-writer port to the site-dir writer (which owns flush/rename/mode). */
 const atomicWrite: ConsentAtomicWriter = async ({ filePath, data }, { createParent, mode, refuseSymlink }) => {
@@ -64,7 +75,7 @@ function reportConsentError({ operation }: { operation: "read" | "save"; error: 
 export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedRegionHeader }: { trustedRegionHeader?: string } = {}): ConsentHttpPorts {
   const request = createSiteConsentRequestPorts({
     ...(trustedRegionHeader ? { trustedRegionHeader } : {}),
-    origin: ({ request: req }) => resolvePublicOrigin(req as Request),
+    origin: ({ request: req }) => resolveSiteConsentOrigin({ request: req as Request }),
     rateLimiter: createRateLimiter({ profile: CONSENT_SAVE_PROFILE, clock: deps.clock }),
     rateLimitKey: consentRateLimitKey,
   });
@@ -127,7 +138,9 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     next();
   });
   registerConsentHttp({ app: consentApp, ports }, {
-    necessaryScripts: TOVU_NECESSARY_SCRIPTS,
+    // Jini runs unlabelled inline/local scripts by default, including form readouts and assets
+    // of previewed themes. No active-theme scan/cache is needed: edits and theme switches use
+    // the delivered HTML directly. Optional features declare their consent category instead.
     // Site chat and analytics talk to this same origin; no third-party collector is reviewed yet.
     categoryOrigins: { functional: [], analytics: [] },
     delivery: ({ request: req }) => (isStaticExportRequest(req) ? "static" : "live"),

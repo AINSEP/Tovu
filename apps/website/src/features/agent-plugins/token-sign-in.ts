@@ -47,10 +47,10 @@ export async function listTokenSignInPlugins(
     .sort((a, b) => a.pluginId.localeCompare(b.pluginId));
 }
 
-export type TokenCheckOutcome = "ok" | "invalid" | "unavailable" | "unsupported";
+export type TokenCheckOutcome = "ok" | "invalid" | "refused" | "unavailable" | "unsupported";
 
 /**
- * Checks `token` against the plugin's declared probe URL (one GET; 401/403 = rejected). Never throws,
+ * Checks `token` against the plugin's declared probe URL (one GET; 401 invalid, 403 refused). Never throws,
  * never returns or logs the token. `unsupported`: the plugin is not installed or takes no token.
  */
 export async function checkAgentPluginAccessToken(

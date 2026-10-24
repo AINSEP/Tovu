@@ -240,6 +240,7 @@ describe("useExternalMcp — fetchSources / toItem", () => {
           accessToken: "",
           accessTokenEnvName: "",
           ...BLANK_OAUTH_FIELDS,
+          oauthStatus: "disconnected",
         },
         statusMessage: "Credentials set: GITHUB_TOKEN",
       },

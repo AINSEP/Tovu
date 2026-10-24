@@ -1,6 +1,6 @@
 import { navigate } from "@/lib/router";
 
-export type MediaTabId = "all" | "images" | "videos" | "external-providers";
+export type MediaTabId = "all" | "images" | "videos" | "external-providers" | "trash";
 
 /** The subset of {@link MediaTabId} that reaches the media-grid rendering path
  *  (`filterMediaByTab`, `MediaGridOrEmpty`, `MediaLibraryPanel` in `Media.tsx`) — everything except
@@ -22,6 +22,9 @@ export const MEDIA_TABS: readonly { id: MediaTabId; label: string }[] = [
   { id: "images", label: "Images" },
   { id: "videos", label: "Videos" },
   { id: "external-providers", label: "External Providers" },
+  // Trash (owner, 2026-10-23: "trashed media as its own tab … removed from All, Images, Videos").
+  // Last, after the existing tabs, as asked. Reuses the row menu's own "Trash" label key.
+  { id: "trash", label: "Trash" },
 ];
 
 const MEDIA_TAB_IDS = MEDIA_TABS.map((tab) => tab.id) as readonly string[];

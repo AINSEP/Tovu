@@ -62,12 +62,12 @@ import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
  */
 export function setTokenForm({ label }: { label: string }, _optional = {}): SecretCardForm {
   return {
-    title: `Set the token for '${label}'?`,
+    title: `Replace the saved key for '${label}'?`,
     description:
-      "Type the new token directly into the field below. It is sealed on the server the moment you submit — " +
+      "This REPLACES the saved key. Only continue if you want to replace it. Type the new key directly into the field below. It is sealed on the server the moment you submit — " +
       "the assistant never sees it, and it is never written to the chat transcript. Any saved username for " +
       "this credential is kept as-is.",
-    submitLabel: "Save token",
+    submitLabel: "Replace saved key",
     fields: [
       {
         kind: "string",

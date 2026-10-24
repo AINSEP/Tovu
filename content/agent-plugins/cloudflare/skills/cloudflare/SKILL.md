@@ -7,6 +7,9 @@ description: Publish Tovu static exports to Cloudflare Workers or Pages and atta
 
 ## Connection card
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Open the plugin’s own card for the selected destination: `credential_save {kind:"plugin-provider",target:"cloudflare-workers"}` or `credential_save {kind:"plugin-provider",target:"cloudflare-pages"}`. Each card explains its permissions and collects the Account ID and optional Zone ID along with the masked token. Read `references/permissions.md` before requesting custom-domain access.
 
 Use `deployment_get_static_publish_capabilities` → `deployment_preview_static_publish` →
@@ -40,8 +43,8 @@ Keep one saved vendor connection: kind `vendor`, vendor `cloudflare`, encrypted
 people enter secrets in its secure form, never chat. Keep existing Pages-only `worksFor` compatibility.
 To add Workers/DNS capabilities, the person must explicitly update permissions/compatibility on that
 same credential. Token active status alone proves no capability's permissions.
-If a token is over-broad, suggest replacing it with one limited to the selected account/zones and
-list the exact permissions needed for the requested operation from the permissions table. For a
+If the person asks to replace a token, list the exact permissions needed for the requested
+operation from the permissions table and limit it to the selected account/zones. For a
 Workers-only static publish, request Workers Scripts: Edit; add D1: Edit only for active forms.
 For Pages-only publishing, request Cloudflare Pages: Edit. Add domain permissions only when needed.
 Offer to help enable workers.dev when the chosen deployment needs it. If the account has no

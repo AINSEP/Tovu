@@ -135,6 +135,24 @@ test("mail_send_test sends one transactional, interactive message to the operato
   assert.deepEqual(f.sent[0]!.options, { mailTestApproval: { providerId: null, driver: "smtp", from: { email: "news@example.com", name: "Site" }, mode: "off", effectiveRecipient: "owner@example.com" }, idempotencyKey: "mail:test:owner:e", workspaceId: "ws", sourceContext: { module: "mail", ref: "e" }, purpose: "transactional", lane: "interactive" });
 });
 
+test("mail_send_test's card names the sender and the provider's label, and falls back to the driver", async () => {
+  const card = async (overrides: Partial<MailStatusToolDeps>) => {
+    const f = controls(overrides);
+    const surfaces: unknown[] = [];
+    const answered = f.answer("mail_send_test");
+    await f.call("mail_send_test", {}, { emitSurface: async (...args) => { surfaces.push(args); return answered.emitSurface!(...args); } });
+    return JSON.stringify(surfaces);
+  };
+  const labelled = await card({ mailTestProvider: async () => "smtp",
+    mailProviderControl: { describe: async () => ({ providers: [{ id: "smtp", label: "SMTP server" }] }) } as never });
+  assert.match(labelled, /<dt>From<\/dt><dd>news@example.com<\/dd>/);
+  assert.match(labelled, /<dt>Through<\/dt><dd>SMTP server<\/dd>/);
+  // A failed catalog read is display-only: the card still prepares, naming the driver.
+  const unlabelled = await card({ mailTestProvider: async () => "smtp",
+    mailProviderControl: { describe: async () => { throw new Error("catalog down"); } } as never });
+  assert.match(unlabelled, /<dt>Through<\/dt><dd>smtp<\/dd>/);
+});
+
 test("mail_send_test reports a refusal, uses a username address, and refuses an account with no address", async () => {
   const refusing = controls();
   refusing.deps.mailer.send = async () => ({ ok: false, retryable: false, errorCode: "MAIL_UNCONFIGURED", message: "no provider" });

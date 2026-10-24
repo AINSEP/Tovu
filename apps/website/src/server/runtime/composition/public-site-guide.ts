@@ -1,7 +1,7 @@
 import { publicCapabilityCard, VISITOR_REPLY_GUIDANCE } from "#src/assistant/site/capability-card";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";
 import { resolveSiteGuideEngine } from "./site-guide.js";
-import { readSiteGuideInput } from "./site-guide-tools.js";
+import { readSiteGuideInput, searchGuide } from "./site-guide-tools.js";
 
 /** Public wrapper uses the SAME Jini shell with only an anonymous capability card. No private
  * site facts or plugin lifecycle enter this factory. The optional registry adapter still enforces
@@ -18,7 +18,9 @@ export async function runPublicSiteGuide({ input }: { input: unknown }, options:
     loadContributions: async () => ({ items: [], refusals: [] }),
     facts: { read: async () => ({ content: { status: "ok", data: { visibility: "published-only", administration: false } } }) },
   });
-  return service.run({ caller: { principalId: "anonymous-visitor" }, ...parsed });
+  const caller = { principalId: "anonymous-visitor" };
+  if (parsed.operation === "search") return searchGuide({ guide: service, caller, topic: parsed.topic! });
+  return service.run({ caller, operation: parsed.operation, topic: parsed.topic });
 }
 
 /** Keep tool ids out of visitor prose, and derive all advertised actions from effective policy.
