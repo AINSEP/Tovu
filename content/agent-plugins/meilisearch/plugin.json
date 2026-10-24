@@ -20,6 +20,10 @@
           "ownedApiLabel": "Tovu Search — Meilisearch",
           "category": "general",
           "intro": "Connect your Meilisearch server to index and search this site’s public content only.",
+          "usedFor": [
+            "Keeps a search index of your site's public content",
+            "Finds matching public content for your site's visitors"
+          ],
           "keyHint": "Scope the key to the site index: indexes.create, indexes.delete, documents.add, documents.get, search, settings.update and tasks.get. Use a scoped key rather than the master key.",
           "saveKind": "api",
           "fields": [

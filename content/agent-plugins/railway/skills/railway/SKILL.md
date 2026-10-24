@@ -19,6 +19,9 @@ Deploying ships code, not site content.
 
 ## Railway token
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Writing `railway.json` needs **no token**. Do not open a key card for that task.
 
 Deploying through Railway's API is being added. Until then you cannot deploy, redeploy or

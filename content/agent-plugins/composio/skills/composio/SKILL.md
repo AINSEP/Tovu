@@ -7,7 +7,10 @@ description: Use the user's other apps (Gmail, Calendar, Slack, Notion, GitHub, 
 
 ## Connection card
 
-`agent_plugin_connect {pluginId:"composio"}` shows the plugin-declared **Connect Composio** card: it explains which apps it connects and the app-by-app permissions. Review each app’s sign-in permissions and grant only the requested tools. This hosted connection declares no token fallback; do not request or save a Composio API key.
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
+`agent_plugin_connect {pluginId:"composio"}` shows the plugin-declared **Connect Composio** card. Review each app’s sign-in permissions and grant only the requested tools. This hosted connection declares no token fallback; do not request or save a Composio API key.
 
 Composio Connect is an **external MCP server** at `https://connect.composio.dev/mcp`. It does not
 expose one tool per app. It exposes a handful of meta-tools, and you reach every app through them.

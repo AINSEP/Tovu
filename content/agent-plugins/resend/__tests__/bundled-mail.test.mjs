@@ -402,6 +402,7 @@ test("the bundled descriptor owns the Resend key-card contract", async () => {
   const registry = await loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: PACKAGE_ROOT });
   assert.deepEqual(registry.list()[0].descriptor.credentialCard, {
     title: "Connect Resend",
+    usedFor: ["Sends your site's emails (sign-in links, form notices, newsletters)"],
     intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
     helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys",
     keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com",

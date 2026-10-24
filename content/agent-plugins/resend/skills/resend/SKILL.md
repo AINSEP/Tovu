@@ -7,12 +7,15 @@ description: Send the site's email through Resend, and manage the Resend account
 
 ## Scope
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 This plugin does two separate jobs. Keep them apart.
 
-1. **The site's own email** (sign-in links, form notifications, newsletters). The adapter ships in
+1. **The sending card** (`resend`). The adapter ships in
    this opt-in plugin. Enable it first in Email → Provider → + Add provider, then save its key.
    Choose “Use this provider” to switch delivery; enabling or saving alone never switches mail.
-2. **The Resend account** (domains, broadcasts, contacts, segments, topics, templates, logs, usage).
+2. **The account card** (`resend-mcp`).
    This goes through Resend's own hosted MCP server, `https://mcp.resend.com/mcp`. Its tools appear
    as `mcp__resend__<name>`, for example `mcp__resend__list-domains`.
 
@@ -60,8 +63,7 @@ OAuth discovery can fail before any card exists. Never promise a card or ask the
   "This is a separate Full access key so I can add and verify your domain. It keeps your site's
   existing sending key." Then tell the person:
   1. Sign in at [resend.com/api-keys](https://resend.com/api-keys) and choose **Create API Key**.
-  2. Permission: **Full access** (managing domains, contacts and broadcasts needs it; a "Sending
-     access" key is refused). Domain: all domains.
+  2. Permission: **Full access** (a "Sending access" key is refused). Domain: all domains.
   3. Paste it into the form Tovu shows. Never into the chat.
 - The form says the key was rejected: it is a "Sending access" key. Make a Full access one.
 - The form says Resend is unavailable right after a save: most often the key was mistyped (Resend
@@ -89,7 +91,7 @@ Never ask for the key in chat, and never put it in any tool argument.
 
 - `validation_error`: a bad address or an unverified sending domain. Fix the address or verify the domain.
 - `missing_api_key`, `invalid_api_key`, `restricted_api_key`: the saved key is wrong or lacks sending
-  access. Explain the failure and ask whether the person wants to replace the key. Only after an
+  access. Explain the failure and needed access. Only after an
   explicit replacement request, use `credential_save { kind: "api", target: "Tovu Mail — Resend API" }`.
 - `rate_limit_exceeded`, HTTP 5xx, `TRANSPORT_ERROR`: temporary. Tovu retries these.
 

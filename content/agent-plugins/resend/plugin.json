@@ -157,6 +157,12 @@
           "label": "Resend account",
           "category": "ops",
           "intro": "Let the assistant add and verify your email domain in Resend. This saves a separate account key and keeps your site's sending key.",
+          "usedFor": [
+            "Adds and verifies your email domain",
+            "Manages contacts and broadcasts",
+            "Manages email templates and reads email activity and account usage",
+            "Sends one-off emails you request"
+          ],
           "keyHint": "In Resend, open API Keys → Create API Key. Choose Full access and all domains. Sending access cannot add or verify domains.",
           "saveKind": "agent-plugin-token",
           "saveTarget": "resend",

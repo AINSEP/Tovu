@@ -22,6 +22,10 @@
           "label": "Google Workspace",
           "category": "general",
           "intro": "Sign in with Google to read and update the spreadsheets you choose, create spreadsheets, or send form submissions to a sheet. No API key is needed.",
+          "usedFor": [
+            "Reads and updates spreadsheets you choose, and creates new ones",
+            "Saves your site's form submissions to a spreadsheet"
+          ],
           "keyHint": "Continue to Google's sign-in page and allow access to the files you use with this app (drive.file). Choose existing spreadsheets in Tovu's Google file picker after signing in.",
           "saveKind": "oauth",
           "saveTarget": "google-workspace",
@@ -37,6 +41,9 @@
           "ownedApiLabel": "google-workspace/account OAuth client",
           "category": "general",
           "intro": "For a self-hosted site that cannot use Tovu's Google sign-in app, or an organisation using its own Google Cloud project. Save the app's client ID and client secret here, then sign in with Google. This does not replace your account sign-in.",
+          "usedFor": [
+            "Uses your own Google sign-in app to connect this site to Google Workspace"
+          ],
           "keyHint": "In Google Cloud, open Google Auth platform → Clients → Create client. Choose Web application for a hosted site, with this site's address plus /api/agent-plugins/connections/oauth/callback as the redirect URI, or Desktop app for Tovu desktop. Turn on the Sheets, Drive and Picker APIs. Paste the client secret here. Not a service-account key.",
           "saveKind": "api",
           "helpUrl": "https://console.cloud.google.com/auth/clients",

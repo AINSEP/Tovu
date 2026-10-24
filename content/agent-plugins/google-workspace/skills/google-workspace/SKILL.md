@@ -12,7 +12,7 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
 
 ## Choose the connection for the task
 
-For anything with spreadsheets or form submissions to Sheets, use **Connect Google Workspace**:
+For the tasks on its `usedFor` list, use **Connect Google Workspace**:
 `agent_plugin_connect { pluginId: "google-workspace" }`. It reuses a working sign-in. Choose it
 yourself; never ask the person to pick between sign-in and a key. There is no API-key route.
 

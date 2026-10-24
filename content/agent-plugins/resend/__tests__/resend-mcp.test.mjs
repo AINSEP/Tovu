@@ -105,6 +105,7 @@ test("the Full access card is the plugin's own, saves to the account connection,
   const parsed = parsePluginCredentialCards({ raw: await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8") });
   assert.equal(parsed.ok, true);
   const card = parsed.descriptors.find((descriptor) => descriptor.providerId === "resend-mcp");
+  assert.deepEqual(card.usedFor, ["Adds and verifies your email domain", "Manages contacts and broadcasts", "Manages email templates and reads email activity and account usage", "Sends one-off emails you request"]);
   // agent-plugin-token on "resend" seals it on the MCP row, apart from the site's sending key.
   assert.deepEqual({ saveKind: card.saveKind, saveTarget: card.saveTarget, helpUrl: card.helpUrl }, { saveKind: "agent-plugin-token", saveTarget: "resend", helpUrl: "https://resend.com/api-keys" });
   const form = JSON.stringify(buildAgentPluginAccessTokenForm({ pluginDisplayName: "Resend", helpUrl: card.helpUrl, credentialCard: card }));

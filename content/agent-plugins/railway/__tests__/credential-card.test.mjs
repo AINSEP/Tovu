@@ -31,3 +31,17 @@ test('Railway guidance opens its own card, claims no deploys and never offers an
   assert.match(skill, /Until then you cannot deploy, redeploy or\s+change Railway services/);
   assert.match(skill, /Never offer to replace a working (token|key) unless asked/);
 });
+
+test('every credential card parses its task purposes', () => {
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
+    {
+      "providerId": "railway",
+      "usedFor": [
+        "Looks up your Railway projects",
+        "Deploys your server (being added)"
+      ]
+    }
+  ]);
+});

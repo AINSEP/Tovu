@@ -7,13 +7,15 @@ description: Run the site's visitor search on a Meilisearch server. Covers what 
 
 ## Connection card
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Open **Connect Meilisearch** with `credential_save {kind:"plugin-provider",target:"meilisearch"}`. It collects your server’s HTTPS URL and a masked scoped key, and saves the exact label `Tovu Search — Meilisearch`. The card lists index, document, search, settings and task permissions. Create the key in your own instance/Cloud console; there is no universal instance-specific key-creation URL.
 
 ## Scope
 
-This plugin owns **sending the site's PUBLIC content to a Meilisearch server and asking it for
-search results**. The provider code ships inside this plugin; Tovu runs it only because Tovu shipped
-it. Tovu's built-in search stays the default; Meilisearch answers only after the owner picks it for
+This plugin owns the Meilisearch provider code; Tovu runs it only because Tovu shipped it.
+Tovu's built-in search stays the default; Meilisearch answers only after the owner picks it for
 the site.
 
 **What Meilisearch receives:** the title, plain text, URL, collection and locale of each published,
@@ -35,7 +37,7 @@ it. Every result Meilisearch returns is checked again against the site before a 
 ## What a failure means
 
 - `not_configured`: the host or API key is missing. Save both.
-- `unauthorized` / `forbidden`: the key is wrong or lacks one of the actions above. Create a new key.
+- `unauthorized` / `forbidden`: the key is wrong or lacks one of the actions above. Explain the refusal and needed access; replace the key only if asked.
 - `rate_limited`: Meilisearch asked Tovu to slow down. Tovu waits and retries.
 - `network`, `timeout`, `provider_unavailable`: the server could not be reached or is down. Tovu
   reconciles the index once it is back; nothing needs re-entering.

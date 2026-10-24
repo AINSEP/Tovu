@@ -34,6 +34,11 @@
           "ownedApiLabel": "fly.io",
           "category": "hosting",
           "intro": "Connect Fly.io to inspect and deploy the Tovu server and manage its Machines.",
+          "usedFor": [
+            "Deploys your Tovu server and checks its status and logs",
+            "Manages the app's running servers",
+            "Creates and manages apps when you grant access to the organization"
+          ],
           "keyHint": "Use a deploy token scoped to this app. Use an org-scoped token only when creating or managing apps across that organization. In the Fly dashboard, select the app or organization, then Tokens. Avoid the short-lived login auth token.",
           "saveKind": "api",
           "additionalHosts": [

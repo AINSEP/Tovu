@@ -63,3 +63,23 @@ test('Google guidance chooses sign-in and keeps the own-client fallback on its o
   assert.ok(reference.includes('target: "google-workspace-oauth-client"'));
   assert.doesNotMatch(reference, /custom_credential_create/);
 });
+
+test('every credential card parses its task purposes', () => {
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
+    {
+      "providerId": "google-workspace-sign-in",
+      "usedFor": [
+        "Reads and updates spreadsheets you choose, and creates new ones",
+        "Saves your site's form submissions to a spreadsheet"
+      ]
+    },
+    {
+      "providerId": "google-workspace-oauth-client",
+      "usedFor": [
+        "Uses your own Google sign-in app to connect this site to Google Workspace"
+      ]
+    }
+  ]);
+});

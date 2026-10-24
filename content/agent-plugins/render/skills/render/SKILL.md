@@ -18,6 +18,9 @@ Deploying ships code, not site content. Keep one server instance for Tovu's SQLi
 
 ## Render API key
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Writing `render.yaml` needs **no key**. Do not open a key card for that task.
 
 Deploying through Render's API is being added. Until then you cannot deploy, redeploy or
