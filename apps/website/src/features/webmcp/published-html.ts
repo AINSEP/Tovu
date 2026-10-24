@@ -66,7 +66,8 @@ export function injectPublishedWebMcp(
 ): string {
   if (!enabled) return withoutNativeFormTools({ html });
   if (html.includes(`<script ${SCRIPT_MARKER}`)) return html;
-  const script = `<script ${SCRIPT_MARKER}>${createAnnotatedActionsScript({ preferenceKey: 'tovu.admin.webmcp.enabled', confirmationMessage: PUBLISHED_WEBMCP_CONFIRMATION.en, confirmationMessages: PUBLISHED_WEBMCP_CONFIRMATION })}</script>`;
+  // WebMCP is an optional assistant feature, so first-party defaults must not auto-run it.
+  const script = `<script ${SCRIPT_MARKER} data-consent-category="functional">${createAnnotatedActionsScript({ preferenceKey: 'tovu.admin.webmcp.enabled', confirmationMessage: PUBLISHED_WEBMCP_CONFIRMATION.en, confirmationMessages: PUBLISHED_WEBMCP_CONFIRMATION })}</script>`;
   const bodyEnd = html.toLowerCase().lastIndexOf('</body>');
   return bodyEnd < 0 ? html + script : html.slice(0, bodyEnd) + script + html.slice(bodyEnd);
 }

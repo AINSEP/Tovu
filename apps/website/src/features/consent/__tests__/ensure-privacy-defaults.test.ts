@@ -170,7 +170,7 @@ test('ensuring an unpublished policy retains PRIVACY_PAGE_MISSING and cannot pub
       publish: async () => assert.fail('missing privacy Page must block publication') },
     privacyPageExists: createPrivacyPageCheck({ deps: { postRepo: f.repo, workspaceId: 'site-a' } }),
     renderPage: async () => ({ html: '<html><head></head><body>Site</body></html>', ok: true, truncated: false }),
-    necessaryScripts: async () => [], receiptStorage: async () => ({ writable: true, count: 0 }),
+    receiptStorage: async () => ({ writable: true, count: 0 }),
   } });
   const readiness = await service.readiness({ principalId: 'owner', config });
   assert.ok(readiness.blockingProblems.some(problem => problem.code === 'PRIVACY_PAGE_MISSING'));
