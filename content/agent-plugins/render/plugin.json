@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "render",
   "version": "0.1.0",
-  "description": "Generates render.yaml for the Tovu server with a persistent disk, health check and manually supplied secrets. Config generation only; follow the output notes to deploy.",
+  "description": "Generates render.yaml and deploys existing Render server services through the API, with status, logs and environment variable tools.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "extensions": {
@@ -10,10 +10,11 @@
       "maturity": "untested",
       "vendorAliases": ["render.com", "render.yaml", "onrender.com", "RENDER_API_KEY"],
       "displayName": "Render",
-      "summary": "Writes the settings file for running the Tovu server on Render. You follow its notes to finish the deploy.",
+      "summary": "Configure and deploy an existing Render server service, then check its status and logs.",
       "id": "tovu/render",
       "provides": [
-        "deploy-config:render"
+        "deploy-config:render",
+        "deploy-ops:render"
       ],
       "credentialCards": [
         {
@@ -22,16 +23,17 @@
           "label": "Render API",
           "ownedApiLabel": "Render API",
           "category": "hosting",
-          "intro": "Save a Render API key for deploying this site from Tovu. Deploys from Tovu are being added; until then the assistant can only look up your Render services with it. Writing the deployment settings file needs no key. Untested: this connection hasn't been tried end to end yet.",
+          "intro": "Save a Render API key for deploying this site from Tovu. Use it to look up existing services, deploy your server, check status and logs, and manage environment variables. Writing the deployment settings file needs no key. Untested: this connection hasn't been tried end to end yet.",
           "usedFor": [
             "Looks up your Render services",
-            "Deploys your server (being added)"
+            "Deploys your server"
           ],
           "keyHint": "In Render, open Account Settings → API Keys → Create API Key. The key has the same access as your Render account, so use an account that can deploy the site's service.",
           "saveKind": "api",
           "helpUrl": "https://render.com/docs/api#1-create-an-api-key",
           "helpLabel": "Create a Render API key",
-          "baseUrl": "https://api.render.com/v1"
+          "baseUrl": "https://api.render.com/v1",
+          "probeUrl": "https://api.render.com/v1/owners?limit=1"
         }
       ]
     }
@@ -39,6 +41,7 @@
   "keywords": [
     "render",
     "deploy",
-    "deploy-config:render"
+    "deploy-config:render",
+    "deploy-ops:render"
   ]
 }
