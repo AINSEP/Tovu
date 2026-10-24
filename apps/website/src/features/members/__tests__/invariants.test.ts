@@ -79,6 +79,8 @@ async function status(required: { baseUrl: string; method: string; url: string }
 
 test("a member who signs up through the public routes is denied every admin capability and every admin route (F3144)", async (t) => {
   const routeDeps = createRouteDeps();
+  const capabilities = routeDeps.mailer.capabilities();
+  routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   const app = createApp(routeDeps);
   const baseUrl = await startTestServer(app, t);
   const { workspaceId } = routeDeps;

@@ -31,6 +31,8 @@ import type { RouteDeps } from "../../routes/types.js";
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps; membersDeps: MembersRouteDeps } {
   const deps = createRouteDeps();
+  const capabilities = deps.mailer.capabilities();
+  deps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   // T023/C-015: a real (non-shared-with-anything-else) MAGIC_LINK_PER_EMAIL
   // limiter instance for this test app — mirrors `app.ts`'s per-boot wiring.
   const membersDeps: MembersRouteDeps = {

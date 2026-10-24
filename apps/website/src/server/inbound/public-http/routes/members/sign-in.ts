@@ -1,6 +1,7 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 
-import { MemberValidationError, requestSignInLink } from "#src/features/members/index";
+import { MemberSignInUnavailableError, MemberValidationError, requestSignInLink } from "#src/features/members/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
@@ -24,8 +25,8 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
  * Both checks must pass (W-002/W-003) — this is the primary target of ADR-030
  * OQ-8's hard pre-launch precondition; checking only one of the two would
  * reopen the enumeration/abuse surface. INV-06 (anti-enumeration) is
- * preserved unchanged: `requestSignInLink` itself already returns the same
- * `{delivered:true}` shape regardless of whether the email is registered; a
+ * preserved: the public response is `{accepted:true}` regardless of the address
+ * or mailer result; site-wide setup failures are checked before member lookup; a
  * `429` here is a volume signal (this email/IP was queried too often), never
  * an existence signal.
  */
@@ -85,7 +86,7 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
         return;
       }
 
-      const result = await requestSignInLink({
+      await requestSignInLink({
         deps: toPublicMembersWriteServiceDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
@@ -94,14 +95,29 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
         },
       });
 
-      res.json(result);
+      // Acceptance never asserts delivery: disabled, suppressed and failed sends share this
+      // response so per-address facts stay private. Site-wide setup errors are checked first.
+      res.json({ accepted: true });
     } catch (err) {
-      if (err instanceof MemberValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      respondToSignInError({ error: err, res });
     }
   });
+}
+
+/** Maps site setup, validation and unexpected failures to the public response contract.
+ * Per-address delivery outcomes never enter this error path: they use generic acceptance.
+ * @complexity O(1); writes one response, without logging credentials or provider detail.
+ */
+function respondToSignInError(required: { error: unknown; res: Response }, _options: Record<string, never> = {}): void {
+  const { error, res } = required;
+  if (error instanceof MemberSignInUnavailableError || error instanceof SenderIdentityNotConfiguredError) {
+    res.status(503).json({ error: error instanceof SenderIdentityNotConfiguredError ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+    return;
+  }
+  if (error instanceof MemberValidationError) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
+
+  res.status(500).json({ error: "internal error" });
 }

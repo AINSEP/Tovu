@@ -135,7 +135,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_request_magic_link",
     description:
-      "Requests (or resends) a passwordless sign-in link for a member's email — the same 'resend sign-in link' action available in the admin UI. Returns {delivered:true, mailDeliveryAvailable:true} when email sending is configured. delivered:false means mail is off and nothing was sent; returns mailDeliveryAvailable:false and a setup note. It never reveals whether the address is registered. A configured driver does not guarantee inbox arrival. Rate-limited per email; malformed addresses and denied permission are refused.",
+      "Requests (or resends) a passwordless sign-in link for a member's email — the same 'resend sign-in link' action available in the admin UI. Returns {delivered, mailDeliveryAvailable:true}: delivered:true means the mail provider accepted the link, not that it reached the inbox; delivered:false means no provider accepted it (disabled member, test-mode capture or a provider failure). Refuses with MEMBERS_SIGN_IN_UNAVAILABLE when email or the site address is not set up; check system_get_mail_status. Rate-limited per email; malformed addresses and denied permission are refused.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "member.manage" },
     inputSchema: {

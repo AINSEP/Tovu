@@ -65,6 +65,10 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
     remote_id: "plain-text", submission_id: "plain-text", imported_at: "utc-timestamp-text" } },
 };
 
+// Classified but never copied (`member_magic_tokens` is a login table in `database-transfer/exclusions.ts`),
+// so only the classification parity sees it. 0032 (new-address sign-in challenge email).
+const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = { member_magic_tokens: { email: "plain-text" } };
+
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
   transfer: Record<string, string[]>; classes: Record<string, Record<string, string>>;
 };
@@ -216,6 +220,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
       expected[table] = { ...expected[table], ...addition.classes };
     }
     for (const [table, addition] of Object.entries(LATER_TABLES)) expected[table] = addition.classes;
+    for (const [table, classes] of Object.entries(LATER_UNCOPIED_COLUMNS)) expected[table] = { ...expected[table], ...classes };
     expected.external_mcp_servers = without(expected.external_mcp_servers, MCP_SEALED);
     const current = without(actual, ["secrets_vault"]);
     current.external_mcp_servers = without(current.external_mcp_servers, MCP_POINTERS);

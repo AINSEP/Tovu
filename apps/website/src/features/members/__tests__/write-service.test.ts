@@ -30,6 +30,7 @@ import {
 } from "../write-service.js";
 import {
   MemberAuthError,
+  MemberSignInUnavailableError,
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
@@ -96,6 +97,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
     magicLinks: new InMemoryMagicLinkTokenRepo(),
     mailer,
     principals,
+    origin: makeOriginRegistry({ canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: clock.nowIso(), source: "dev-capability" }) }),
     ...overrides,
   };
 
@@ -120,22 +122,21 @@ function extractRawToken(linkText: string): string {
   return match![1];
 }
 
-test("requestSignInLink gives a new member a kind 'member' principal under the member's id, once (F3144)", async () => {
-  const { deps, principals } = makeDeps();
-
-  await requestSignInLink({ deps, input: { workspaceId: "ws-1", email: "new@example.com" } });
-  const member = await deps.members.findByEmail({ workspaceId: "ws-1", email: "new@example.com" });
-  assert.ok(member);
-  assert.deepEqual(await principals.list({ workspaceId: "ws-1" }), [
-    { id: member.id, workspaceId: "ws-1", kind: "member", displayName: "Site member", status: "active", createdAt: member.createdAt },
+test("completeSignIn creates a member-kind principal only after consumption, once (F3144)", async () => {
+  const { deps, principals, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } });
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } });
+  assert.equal(await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "new@example.com" }), null);
+  assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
+  const first = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(sent[0].message.text!) } });
+  const second = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(sent[1].message.text!) } });
+  assert.equal(second.member.id, first.member.id, "outstanding new-address links reuse the same account");
+  assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), [
+    { id: first.member.id, workspaceId: WORKSPACE_ID, kind: "member", displayName: "Site member", status: "active", createdAt: first.member.createdAt },
   ]);
-
-  // A second request for the same member reuses its row and principal.
-  await requestSignInLink({ deps, input: { workspaceId: "ws-1", email: "new@example.com" } });
-  assert.equal((await principals.list({ workspaceId: "ws-1" })).length, 1);
 });
 
-test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest and activates a pending member", async () => {
+test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest and creates a member on consumption", async () => {
   const { deps, sent, clock } = makeDeps();
 
   const requestResult = await requestSignInLink({
@@ -147,9 +148,8 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   assert.deepEqual(sent[0].message.to, { email: "jane@example.com" });
   assert.equal(sent[0].message.workspaceId, WORKSPACE_ID);
 
-  const pendingMember = await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "jane@example.com" });
-  assert.ok(pendingMember, "requestSignInLink should pre-create a pending member");
-  assert.equal(pendingMember!.status, "pending");
+  const memberBeforeConsume = await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "jane@example.com" });
+  assert.equal(memberBeforeConsume, null, "unverified requests must not create members");
 
   const rawToken = extractRawToken(sent[0].message.text!);
   assert.deepEqual(sent[0].opts, { idempotencyKey: `members:signin:${hashToken(rawToken)}`, workspaceId: WORKSPACE_ID, sourceContext: { module: "members" }, purpose: "transactional", lane: "interactive" });
@@ -169,15 +169,15 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
 
   assert.equal(completeResult.member.status, "active");
   assert.ok(completeResult.member.emailVerifiedAt);
-  assert.equal(completeResult.member.id, pendingMember!.id);
+  assert.equal(completeResult.member.id, storedTokenRecord!.memberId);
   assert.equal(completeResult.member.emailVerifiedAt, clock.nowIso());
-  assert.equal(completeResult.member.version, pendingMember!.version + 1);
+  assert.equal(completeResult.member.version, 2);
   // F2.3/F6.3: inspect production-created members, not a literal that omits operator fields.
-  for (const member of [pendingMember, completeResult.member]) {
+  for (const member of [completeResult.member]) {
     assert.ok(!("role" in member) && !("permissions" in member));
     assert.ok(!("roles" in member) && !("isAdmin" in member));
   }
-  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: pendingMember!.id }), completeResult.member);
+  assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: completeResult.member.id }), completeResult.member);
 
   assert.ok(completeResult.rawSessionToken, "completeSignIn must surface the raw session token for the cookie");
   assert.notEqual(
@@ -196,7 +196,7 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   assert.deepEqual(storedSession, completeResult.session);
   const resolver = new DefaultMemberAccessResolver(deps);
   const context = { workspaceId: WORKSPACE_ID, sessionToken: completeResult.rawSessionToken };
-  assert.deepEqual(await resolver.resolveContext({ ...context, nowIso: clock.nowIso() }), { isAuthenticated: true, memberId: pendingMember!.id, activeTierIds: [], isPaid: false });
+  assert.deepEqual(await resolver.resolveContext({ ...context, nowIso: clock.nowIso() }), { isAuthenticated: true, memberId: completeResult.member.id, activeTierIds: [], isPaid: false });
   assert.equal((await resolver.resolveContext({ ...context, nowIso: "2026-08-08T23:59:59.999Z" })).isAuthenticated, true);
   assert.equal((await resolver.resolveContext({ ...context, nowIso: storedSession.expiresAt })).isAuthenticated, false);
 });
@@ -227,6 +227,7 @@ test("two devices can use links issued before either device signs in", async () 
 
 test("profile edits keep pending sign-in links usable", async () => {
   const { deps, clock, sent } = makeDeps();
+  await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "profile@example.test" } });
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "profile@example.test" } });
   const pending = (await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "profile@example.test" }))!;
   clock.advanceMs(1000);
@@ -268,6 +269,7 @@ test("completeSignIn rejects an already-consumed magic-link token (single-use)",
 
 test("completeSignIn rejects a token whose member was disabled AFTER the link was issued", async () => {
   const { deps, sent } = makeDeps();
+  await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.com" } });
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.com" } });
   const rawToken = extractRawToken(sent[0].message.text!);
 
@@ -314,7 +316,7 @@ test("completeSignIn rejects an unknown token", async () => {
   );
 });
 
-test("requestSignInLink for a disabled member is a silent no-op but still reports delivered (anti-enumeration)", async () => {
+test("requestSignInLink for a disabled member is a silent no-op and never claims delivery", async () => {
   const { deps, sent } = makeDeps();
   const disabledMember = {
     id: "member-disabled",
@@ -332,7 +334,7 @@ test("requestSignInLink for a disabled member is a silent no-op but still report
     input: { workspaceId: WORKSPACE_ID, email: "disabled@example.com" },
   });
 
-  assert.deepEqual(result, { delivered: true });
+  assert.deepEqual(result, { delivered: false });
   assert.equal(sent.length, 0, "no mail should be sent for a disabled member");
 });
 
@@ -345,14 +347,7 @@ test("requestSignInLink rejects a malformed email", async () => {
   );
 });
 
-/**
- * T013/C-007/INV-06 (ADR-PIPE-013 Decision §3) — `requestSignInLink`'s
- * origin-fallback branch: a workspace with a verified origin gets an
- * absolute magic-link URL via `OriginRegistryPort.canonicalOrigin`; a
- * workspace that throws `OriginNotVerifiedError` (or has no `origin` dep
- * wired at all) falls back to today's relative-path link, and the response
- * shape (`{delivered:true}`) never varies either way (INV-06 preserved).
- */
+/** T013/C-007: trusted origins produce absolute URLs; missing evidence refuses before writes. */
 test("T013: requestSignInLink builds an absolute link when the workspace has a verified origin", async () => {
   const verified: VerifiedOrigin = {
     scheme: "https",
@@ -391,53 +386,16 @@ test("T013: requestSignInLink includes a non-default port and a basePath when th
   );
 });
 
-test("T013: requestSignInLink falls back to a relative link when OriginNotVerifiedError is thrown, and still returns {delivered:true}", async () => {
-  const { deps, sent } = makeDeps({ origin: makeOriginRegistry() }); // default fake always throws OriginNotVerifiedError
-
-  const result = await requestSignInLink({
-    deps,
-    input: { workspaceId: WORKSPACE_ID, email: "unverified@example.com" },
+for (const scenario of ["unverified", "missing"] as const) {
+  test(`T013: ${scenario} origin refuses before lookup, token storage or sending`, async () => {
+    const { deps, sent } = makeDeps({ origin: scenario === "missing" ? undefined : makeOriginRegistry() });
+    deps.members.findByEmail = async () => assert.fail("origin setup must be checked before address facts");
+    deps.magicLinks.save = async () => assert.fail("no unusable link may be stored");
+    await assert.rejects(requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "secret@example.com" } }),
+      { name: "Error", message: "Member sign-in is unavailable: the site address is not set up." });
+    assert.equal(sent.length, 0);
   });
-
-  assert.deepEqual(result, { delivered: true });
-  assert.equal(sent.length, 1);
-  assert.match(sent[0].message.text!, /Sign in using this link \(expires in 15 minutes\): \/auth\/magic\?token=/);
-});
-
-test("T013: requestSignInLink with no origin dep wired at all behaves exactly like today (relative link, no error)", async () => {
-  const { deps, sent } = makeDeps(); // no `origin` override — field absent entirely
-
-  const result = await requestSignInLink({
-    deps,
-    input: { workspaceId: WORKSPACE_ID, email: "no-origin-wired@example.com" },
-  });
-
-  assert.deepEqual(result, { delivered: true });
-  assert.match(sent[0].message.text!, /Sign in using this link \(expires in 15 minutes\): \/auth\/magic\?token=/);
-});
-
-test("T013: the origin-fallback path logs one warning-level line carrying workspaceId only — never the email or the raw token", async () => {
-  const { deps, sent } = makeDeps({ origin: makeOriginRegistry() });
-  const originalWarn = console.warn;
-  const warnings: unknown[][] = [];
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args);
-  };
-
-  try {
-    await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "secret@example.com" } });
-  } finally {
-    console.warn = originalWarn;
-  }
-
-  assert.equal(warnings.length, 1, "exactly one warning-level log line for the fallback");
-  const loggedText = warnings[0].map(String).join(" ");
-  assert.ok(loggedText.includes(WORKSPACE_ID), "must carry the workspaceId");
-  assert.ok(!loggedText.includes("secret@example.com"), "must never carry the recipient email");
-
-  const rawToken = extractRawToken(sent[0].message.text!);
-  assert.ok(!loggedText.includes(rawToken), "must never carry the raw token");
-});
+}
 
 test("disableMember is disable-only (idempotent, never hard-deleted) and revokes live sessions", async () => {
   const { deps, sent } = makeDeps();
@@ -733,6 +691,7 @@ for (const scenario of [
 
 test("L298 completeSignIn consumes a valid token before the member lookup and retains session metadata", async () => {
   const { deps, sent, clock } = makeDeps();
+  await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "ordered@example.test" } });
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "ordered@example.test" } });
   const rawToken = extractRawToken(sent[0].message.text!);
   const tokenHash = hashToken(rawToken);
@@ -844,9 +803,10 @@ test("requestSignInLink's missing-sender refusal is the same for a disabled memb
 });
 
 test("completeSignIn refuses with MemberNotFoundError when the token's member row is gone, and opens no session", async () => {
-  // Defensive path: `requestSignInLink` always pre-creates the member, so only a row lost after the
-  // link was minted reaches it. The token is consumed first (single-use holds even here).
+  // A legacy/existing-member link stays bound to its member, even if that row is lost.
+  // The token is consumed first (single-use holds even here).
   const { deps, sent } = makeDeps();
+  await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "vanished@example.test" } });
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "vanished@example.test" } });
   const rawToken = extractRawToken(sent[0].message.text!);
   const tokenHash = hashToken(rawToken);
@@ -981,3 +941,46 @@ test("createMember refuses when a disabled member with that email appears betwee
   assert.equal(lookups, 2);
   assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), [], "no principal is created for the raced email");
 });
+
+for (const outcome of ["failed", "suppressed", "captured"] as const) {
+  test(`step 1: ${outcome} mail never reports delivery or creates an account`, async () => {
+    const { deps, principals } = makeDeps();
+    deps.mailer.send = async () => outcome === "captured"
+      ? { ok: true, providerMessageId: "captured:one", acceptedAt: "2026-07-10T00:00:00.000Z" }
+      : { ok: false, retryable: false, errorCode: outcome === "suppressed" ? "MAIL_RECIPIENT_SUPPRESSED" : "MAIL_SEND_FAILED", message: "private provider detail" };
+    assert.deepEqual(await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }), { delivered: false });
+    assert.equal(await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "new@example.com" }), null);
+    assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
+  });
+}
+
+for (const state of ["unconfigured", "missing_credential", "local_only", "unknown_provider"] as const) {
+  test(`step 1: transactional ${state} refuses before any address lookup or challenge write`, async () => {
+    const { deps, sent } = makeDeps({ mailStatus: async () => ({ state: "unconfigured", lanes: [{ lane: "transactional", providerId: null, state }], warnings: [] }) });
+    deps.members.findByEmail = async () => assert.fail("must check readiness before address facts");
+    deps.magicLinks.save = async () => assert.fail("must not store unusable credentials");
+    await assert.rejects(requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }), MemberSignInUnavailableError);
+    assert.deepEqual(sent, []);
+  });
+}
+
+test("step 1: bulk degradation does not block ready transactional sign-in", async () => {
+  const { deps, sent } = makeDeps({ mailStatus: async () => ({ state: "degraded", lanes: [{ lane: "transactional", providerId: "smtp", state: "ready" }, { lane: "bulk", providerId: null, state: "unconfigured" }], warnings: [] }) });
+  assert.deepEqual(await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }), { delivered: true });
+  assert.match(sent[0].message.text!, /https:\/\/localhost:3000\/auth\/magic\?token=/);
+});
+
+for (const status of ["disabled", "trash"] as const) {
+  test(`step 1: new-address link cannot bypass a ${status} account created after issuance`, async () => {
+    const { deps, sent, principals } = makeDeps();
+    await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "race@example.com" } });
+    const { member } = await createMember({ deps, input: { workspaceId: WORKSPACE_ID, email: "race@example.com" } });
+    await deps.members.save({ ...member, status });
+    const before = await principals.list({ workspaceId: WORKSPACE_ID });
+    await assert.rejects(completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(sent[0].message.text!) } }), MemberAuthError);
+    assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), before);
+    assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: member.id }), []);
+    // `list` hides Trash; the unchanged principal set already proves no second account was made.
+    assert.equal((await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "race@example.com" }))?.id, member.id);
+  });
+}

@@ -174,11 +174,13 @@ test("gapb member: sign-in request for a trashed email keeps the neutral respons
   const fail = async () => { assert.fail("a trashed account must not mint a credential or send mail"); };
   const deps = {
     clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo([blocked]),
-    magicLinks: { save: fail }, mailer: { send: fail }, ids: { newId: () => { assert.fail("must not mint"); } },
-    // The sender is resolved before the member lookup, for every address alike.
+    magicLinks: { save: fail }, mailer: { send: fail, capabilities: () => ({ driver: "smtp" }) }, ids: { newId: () => { assert.fail("must not mint"); } },
+    // The sender and site origin are resolved before the member lookup, for every address alike.
     senderIdentity: { resolve: async ({ fallback }: { fallback: unknown }) => fallback },
+    origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000 }) },
   } as unknown as MembersWriteServiceDeps;
-  assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }), { delivered: true });
+  // The service reports no send; public HTTP maps every per-address outcome to `{ accepted: true }`.
+  assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }), { delivered: false });
 });
 
 

@@ -2000,7 +2000,7 @@ async function composeSiteRouteDeps(
     resolve: mailResolveDeps,
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
-    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
+    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
     readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
   }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName) });

@@ -25,6 +25,8 @@ import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-htt
 
 function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: MemberPublicRouteDeps } {
   const routeDeps = createRouteDeps();
+  const capabilities = routeDeps.mailer.capabilities();
+  routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   const deps: MemberPublicRouteDeps = {
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
@@ -33,6 +35,7 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
     mailer: routeDeps.mailer,
+    origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
@@ -228,14 +231,8 @@ test("a user-agent header on the completing request is recorded on the minted se
 });
 
 test("the member record backing a valid, unexpired token having vanished is refused 404 MEMBER_NOT_FOUND — a data-integrity guard, not a validation outcome", async (t) => {
-  // `completeSignIn` (write-service.ts) treats this as "should not happen given
-  // requestSignInLink always pre-creates the member" — defensive, not reachable through any
-  // normal request. It IS reachable at this route's boundary, though: the route only depends on
-  // whatever `deps.members.findById` returns, and a `MemberRepoPort` implementation that (for
-  // whatever reason — a concurrent hard-delete, a backing-store inconsistency) can't find the
-  // row the token points at is a real, if rare, production shape. Simulated here by wrapping the
-  // real in-memory repo and making ONLY `findById` report "not found", so `requestSignInLink`
-  // still pre-creates the member via `findByEmail`/`save` exactly as it always does.
+  // An existing-member link remains bound to its row: a later deletion must not recreate it.
+  // Wrap findById only so this exercises the legacy member-bound path at the route boundary.
   const { app, deps } = buildPublicApp();
   const realFindById = deps.memberRepo.findById.bind(deps.memberRepo);
   let suppressFindById = false;
@@ -244,6 +241,7 @@ test("the member record backing a valid, unexpired token having vanished is refu
     return realFindById(required);
   };
   const baseUrl = await startTestServer(app, t);
+  await deps.memberRepo.save({ id: "vanished", workspaceId: deps.workspaceId, email: "vanished-member@example.com", status: "active", createdAt: "2026-10-24T00:00:00.000Z", updatedAt: "2026-10-24T00:00:00.000Z", version: 1 });
   const token = await requestAndExtractToken(baseUrl, deps, "vanished-member@example.com");
   suppressFindById = true;
 

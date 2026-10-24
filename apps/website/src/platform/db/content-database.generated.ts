@@ -423,6 +423,7 @@ export interface MemberConsentsTable {
 }
 
 export interface MemberMagicTokensTable {
+  email: string | null;
   id: string;
   workspace_id: string;
   member_id: string;

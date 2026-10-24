@@ -1,4 +1,7 @@
 /** @file SQL adapter for Jini's `MailCapturePort` (migration 0023): test/capture mode's message sink. */
+import { isLoopbackHostname } from "@jini-ai/platform/net";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import type { MailCapturePort, MailDeliveryLane, OutboundEmail } from "@jini-ai/platform/mail";
@@ -28,22 +31,24 @@ const clampLimit = (limit: number | undefined): number =>
   Math.min(MAX_CAPTURE_LIST, Math.max(1, Math.trunc(limit ?? DEFAULT_CAPTURE_LIST)));
 
 /**
- * Stores captured messages whole (rendered content, headers, attachments) so the operator can read
- * exactly what would have been sent. Nothing here leaves the process.
- * @complexity capture O(1); listCaptured O(limit) via `idx_mail_capture_workspace_created`.
+ * Stores sign-in captures whole only for trusted loopback origins, so local/desktop operators
+ * can click their links. Public or missing origins retain routing metadata only: subject, body,
+ * headers, names and attachments may all contain credentials and must never reach storage.
+ * @complexity capture O(payload size); listCaptured O(returned payload size), with a bounded indexed row limit.
  * @example createMailCaptureRepo({ db: kernel }).capture({ message, lane: "transactional", idempotencyKey })
  */
 export function createMailCaptureRepo<DB>(
-  { db }: MailRepoDeps<DB>,
+  { db, origin }: MailRepoDeps<DB> & { origin?: OriginRegistryPort },
   optional: MailRepoOptions & { newId?: () => string } = {},
 ): MailCaptureRepo {
   const nowIso = optional.nowIso ?? (() => new Date().toISOString());
   const newId = optional.newId ?? randomUUID;
   return {
     async capture({ message, lane, idempotencyKey }) {
+      const stored = await capturePayload({ message, idempotencyKey, origin });
       const id = newId();
       await db.execute(sql`INSERT INTO mail_capture (id, workspace_id, lane, idempotency_key, to_address, subject, payload_json, created_at)
-        VALUES (${id}, ${message.workspaceId}, ${lane}, ${idempotencyKey}, ${message.to.email}, ${message.subject}, ${JSON.stringify(message)}, ${nowIso()})`);
+        VALUES (${id}, ${message.workspaceId}, ${lane}, ${idempotencyKey}, ${stored.to.email}, ${stored.subject}, ${JSON.stringify(stored)}, ${nowIso()})`);
       return { id };
     },
     async listCaptured({ workspaceId }, options = {}) {
@@ -54,5 +59,32 @@ export function createMailCaptureRepo<DB>(
         message: JSON.parse(row.payload_json) as OutboundEmail, createdAt: row.created_at,
       }));
     },
+  };
+}
+
+/**
+ * Redacts sign-in captures at the persistence boundary, before serialization. The activity owner
+ * classifies Tovu's purpose keys; Jini owns loopback detection. Missing evidence fails closed.
+ * @returns The original local/non-auth message, or an allowlisted public sign-in envelope.
+ * @throws Unexpected origin/storage failures propagate; no unredacted fallback is persisted.
+ * @complexity O(1), at most one origin read; redaction does not scan credential-bearing content.
+ */
+async function capturePayload(required: {
+  message: OutboundEmail; idempotencyKey: string; origin?: OriginRegistryPort;
+}, _options: Record<string, never> = {}): Promise<OutboundEmail> {
+  const { message, idempotencyKey, origin } = required;
+  if (mailActivityUse({ idempotencyKey }) !== "sign_in") return message;
+  try {
+    const canonical = await origin?.canonicalOrigin({ workspaceId: message.workspaceId });
+    if (canonical && isLoopbackHostname({ hostname: canonical.host })) return message;
+  } catch (err) {
+    if (!(err instanceof OriginNotVerifiedError)) throw err;
+  }
+  return {
+    workspaceId: message.workspaceId,
+    to: { email: message.to.email },
+    from: { email: message.from.email },
+    subject: "Sign-in email (content redacted)",
+    text: "Authentication content is not stored on public sites.",
   };
 }

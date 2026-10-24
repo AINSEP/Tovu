@@ -12,14 +12,9 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  *
  * Known interface gaps (flagged per task instructions — NOT silently papered
  * over; see file-level comments at each site below):
- *  1. `MagicLinkTokenRecord.memberId` is a non-optional composite FK, but ADR-030's
- *     Round-2 fold flags an unresolved contradiction with "upsert member on first
- *     use" (a brand-new signup has no member row yet when the link is requested).
- *     Resolution taken here: `requestSignInLink` eagerly creates a `pending`
- *     `MemberRecord` (if none exists for the email) so the token always has a
- *     valid `memberId`; `completeSignIn` then promotes `pending -> active` and
- *     sets `emailVerifiedAt` rather than literally creating the row. This satisfies
- *     the port as written without touching `types.ts`/`ports.ts`.
+ *  1. New-address challenges reserve a member id and carry the email, without creating a
+ *     member or principal. Consumption resolves that email again and creates the member then.
+ *     Legacy challenges without an email remain bound to their existing member id.
  *  2. `MembersWriteService.completeSignIn`'s declared return type is
  *     `{ member: MemberRecord; session: MemberSessionRecord }` — but the session
  *     token is stored **hashed** (Round-3 audit fold), so there is no way for a
@@ -32,10 +27,11 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  */
 import { createHash, randomBytes } from "node:crypto";
 
-import { mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
+import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
 import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
 import {
   MemberAuthError,
+  MemberSignInUnavailableError,
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
@@ -88,20 +84,17 @@ function assertValidEmail(email: string): string {
 }
 
 /**
- * Resolves the member a sign-in request is for: the existing row, or a freshly-created `pending`
- * one when none exists (see file-header gap (1): pre-creates so the magic-link token's required
- * `memberId` FK is always valid at creation time). Returns `null` for a disabled member — the
- * caller's signal to skip issuing a token/mail while still returning the constant
- * `{ delivered: true }` response (see {@link requestSignInLink}'s own doc).
- *
- * @complexity O(1) — one lookup, at most two saves (the member principal, then the member).
+ * Resolves or creates a pending member for operator creation or a consumed email challenge.
+ * Public sign-in requests never call this owner: unverified addresses must not create accounts.
+ * Returns null for a disabled/trashed address. Principal creation precedes the member save.
+ * @complexity O(1) — one lookup and at most two saves.
  */
 async function resolveOrCreateSignInMember(required: {
   deps: MembersWriteServiceDeps;
   workspaceId: string;
   email: string;
   nowIso: string;
-}, optional: { name?: string } = {}): Promise<MemberRecord | null> {
+}, optional: { name?: string; memberId?: string } = {}): Promise<MemberRecord | null> {
   const { deps, workspaceId, email, nowIso } = required;
   const existing = await deps.members.findByEmail({ workspaceId, email });
   if (existing) {
@@ -109,7 +102,7 @@ async function resolveOrCreateSignInMember(required: {
   }
 
   const member: MemberRecord = {
-    id: deps.ids.newId(),
+    id: optional.memberId ?? deps.ids.newId(),
     workspaceId,
     email,
     status: "pending",
@@ -165,22 +158,18 @@ export async function createMember(required: {
 }
 
 /**
- * Resolves the absolute sign-in link path via the verified origin (ADR-PIPE-013 Decision §3),
- * falling back to `relativePath` on any unverified-origin failure — INV-06: a missing/unverified
- * origin must never fail the call or change the caller-facing response, only degrade the link's
- * shape. The gap is surfaced only as an observability signal (workspaceId only — never the email or
- * raw token, both out of scope for this function).
- *
- * @complexity O(1) — at most one `canonicalOrigin` call.
+ * Builds an absolute link from trusted origin evidence, never request headers.
+ * Missing/unverified evidence refuses sign-in for every address before repository writes.
+ * @throws MemberSignInUnavailableError when the site origin is not configured.
+ * @complexity O(1) — one canonical-origin read.
  */
 async function resolveSignInLinkPath(required: {
   deps: MembersWriteServiceDeps;
   workspaceId: string;
   relativePath: string;
-}): Promise<string> {
+}, _options: Record<string, never> = {}): Promise<string> {
   const { deps, workspaceId, relativePath } = required;
-  if (!deps.origin) return relativePath;
-
+  if (!deps.origin) throw new MemberSignInUnavailableError("Member sign-in is unavailable: the site address is not set up.");
   try {
     const origin = await deps.origin.canonicalOrigin({ workspaceId });
     const portSuffix = origin.port ? `:${origin.port}` : "";
@@ -188,30 +177,38 @@ async function resolveSignInLinkPath(required: {
     return `${origin.scheme}://${origin.host}${portSuffix}${basePath}${relativePath}`;
   } catch (err) {
     if (!(err instanceof OriginNotVerifiedError)) throw err;
-    console.warn(
-      `[members] requestSignInLink: no verified origin for workspaceId=${workspaceId}, falling back to a relative sign-in link`
-    );
-    return relativePath;
+    throw new MemberSignInUnavailableError("Member sign-in is unavailable: the site address is not set up.");
   }
 }
 
 /**
- * Begin passwordless sign-in/up: mint a hashed, short-TTL magic-link token and
- * mail the raw token embedded in a link. Always resolves `{ delivered: true }`
- * regardless of whether the email is registered, already disabled, or the
- * mailer accepts the send — a constant response is the anti-enumeration
- * mitigation ADR-030 OQ-8 flags as a launch-gate precondition; a distinguishable
- * response (error vs success) would let a caller probe which emails exist.
- *
- * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
- *   sender configured — for every address alike, before any member or token is written.
- * @complexity O(1) — single member lookup/create + one token write + one mail send.
- * @overallScore 100
+ * Checks site-wide mail readiness before any address lookup. Sender resolution settles lazy
+ * configuration first; transactional readiness is independent of the bulk lane.
+ * @throws MemberSignInUnavailableError for an unconfigured/non-delivering transactional lane.
+ * @complexity O(1) status read and capabilities check; no per-address I/O.
+ */
+async function requireSignInMail(required: { deps: MembersWriteServiceDeps }, _options: Record<string, never> = {}): Promise<void> {
+  const { deps } = required;
+  const status = await deps.mailStatus?.();
+  const transactional = status?.lanes.find(lane => lane.lane === "transactional");
+  if ((status && transactional?.state !== "ready") || !isMailDeliveryAvailable(deps.mailer)) {
+    throw new MemberSignInUnavailableError("Member sign-in is unavailable: email is not set up for this site.");
+  }
+}
+
+/**
+ * Begin passwordless sign-in/up without creating a member or principal.
+ * Returns the mailer's acceptance, not proof of inbox delivery; captures and disabled members
+ * report false. Public HTTP maps all per-address outcomes to a generic accepted response, so
+ * suppression/provider failures cannot reveal membership. Site setup errors happen first.
+ * @throws MemberSignInUnavailableError when site-wide mail/origin setup is unavailable.
+ * @throws SenderIdentityNotConfiguredError when a delivering mailer lacks a sender.
+ * @complexity O(1) — one member read, one challenge write and at most one mail send.
  */
 async function requestSignInLink(required: {
   deps: MembersWriteServiceDeps;
   input: { workspaceId: string; email: string; redirectPath?: string };
-}): Promise<{ delivered: true }> {
+}, _options: Record<string, never> = {}): Promise<{ delivered: boolean }> {
   const { deps, input } = required;
   const email = assertValidEmail(input.email);
   const nowIso = clockNowIso({ clock: deps.clock });
@@ -221,38 +218,28 @@ async function requestSignInLink(required: {
   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
     .resolve({ workspaceId: input.workspaceId, fallback: MEMBERS_FALLBACK_SENDER });
 
-  const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso });
-  if (!member) {
-    // Disabled members cannot sign in; still return the constant `{ delivered: true }`
-    // response (see doc above) and skip issuing a token / sending mail.
-    return { delivered: true };
-  }
-
+  await requireSignInMail({ deps });
   const rawToken = newRawToken();
   const tokenHash = hashToken(rawToken);
+  // ADR-040 owns origin evidence. Resolve before the address lookup so a setup error cannot
+  // distinguish an existing/disabled address, and never store a token for a relative link.
+  const relativePath = `/auth/magic?token=${rawToken}${
+    input.redirectPath ? `&redirect=${encodeURIComponent(input.redirectPath)}` : ""
+  }`;
+  const linkPath = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
+  const member = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
+  if (member?.status === "disabled" || member?.status === "trash") return { delivered: false };
 
   await deps.magicLinks.save({
     id: deps.ids.newId(),
     workspaceId: input.workspaceId,
-    memberId: member.id,
+    memberId: member?.id ?? deps.ids.newId(),
+    ...(member ? {} : { email }),
     tokenHash,
     purpose: "signin",
     createdAt: nowIso,
     expiresAt: isoPlusMs(nowIso, MAGIC_LINK_TTL_MS),
   });
-
-  // ADR-PIPE-013 Decision §3: `core/origin` (ADR-040) now exists and is the
-  // trusted seam for absolute magic-link URLs — the stale "no core/origin
-  // port exists yet" note this file used to carry is corrected here. `origin`
-  // is an optional dep (see `ports.ts`'s doc): no composition root wires a
-  // real instance in yet, so an absent dep is treated identically to
-  // `OriginNotVerifiedError` (silent relative-path fallback, no warning log —
-  // that's a repo-wiring gap, not an operator misconfiguration to flag). See
-  // `resolveSignInLinkPath` for the fallback logic itself.
-  const relativePath = `/auth/magic?token=${rawToken}${
-    input.redirectPath ? `&redirect=${encodeURIComponent(input.redirectPath)}` : ""
-  }`;
-  const linkPath = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
 
   const message: OutboundEmail = {
     workspaceId: input.workspaceId,
@@ -272,12 +259,8 @@ async function requestSignInLink(required: {
     lane: "interactive",
   };
 
-  // Result intentionally unobserved by the caller-facing response (see doc
-  // above); a provider failure should surface via observability/alerting, not
-  // by changing this synchronous, constant-shaped return.
-  await deps.mailer.send(message, sendOptions);
-
-  return { delivered: true };
+  const result = await deps.mailer.send(message, sendOptions);
+  return { delivered: result.ok && !result.providerMessageId.startsWith("captured:") };
 }
 
 /** Looks up, validates and consumes a workspace-scoped sign-in credential before member access. */
@@ -312,7 +295,29 @@ async function consumeSignInToken(required: {
 }
 
 /**
- * Consume a magic-link token: verify email, promote the member to `active`,
+ * Resolves legacy member-bound links or creates the account for a consumed new-address link.
+ * Rechecking email handles two outstanding signup links and accounts created since issuance.
+ * @throws MemberAuthError for a disabled address; MemberNotFoundError for a lost legacy member.
+ * @complexity O(1), one lookup and at most two saves through the existing creation owner.
+ */
+async function resolveConsumedSignInMember(required: {
+  deps: MembersWriteServiceDeps; tokenRecord: MagicLinkTokenRecord; nowIso: string;
+}, _options: Record<string, never> = {}): Promise<MemberRecord> {
+  const { deps, tokenRecord, nowIso } = required;
+  if (tokenRecord.email !== undefined) {
+    const member = await resolveOrCreateSignInMember({
+      deps, workspaceId: tokenRecord.workspaceId, email: tokenRecord.email, nowIso,
+    }, { memberId: tokenRecord.memberId });
+    if (!member) throw new MemberAuthError("this account has been disabled");
+    return member;
+  }
+  const member = await deps.members.findById({ workspaceId: tokenRecord.workspaceId, id: tokenRecord.memberId });
+  if (!member) throw new MemberNotFoundError(`member '${tokenRecord.memberId}' was not found`);
+  return member;
+}
+
+/**
+ * Consume a magic-link token: create/resolve the member, verify email and promote to `active`,
  * and mint a member session. See file-header gap (2) — the raw session token
  * is returned as `rawSessionToken` in addition to the declared `session` record.
  *
@@ -322,7 +327,7 @@ async function consumeSignInToken(required: {
 async function completeSignIn(required: {
   deps: MembersWriteServiceDeps;
   input: { workspaceId: string; token: string; userAgent?: string; ip?: string };
-}): Promise<{ member: MemberRecord; session: MemberSessionRecord; rawSessionToken: string }> {
+}, _options: Record<string, never> = {}): Promise<{ member: MemberRecord; session: MemberSessionRecord; rawSessionToken: string }> {
   const { deps, input } = required;
   const nowIso = clockNowIso({ clock: deps.clock });
   const tokenHash = hashToken(input.token);
@@ -334,15 +339,7 @@ async function completeSignIn(required: {
     nowIso,
   });
 
-  const existingMember = await deps.members.findById({
-    workspaceId: input.workspaceId,
-    id: tokenRecord.memberId,
-  });
-  if (!existingMember) {
-    // Should not happen given `requestSignInLink` always pre-creates the member
-    // (gap (1) above) — defensive, not a validation outcome.
-    throw new MemberNotFoundError(`member '${tokenRecord.memberId}' was not found`);
-  }
+  const existingMember = await resolveConsumedSignInMember({ deps, tokenRecord, nowIso });
   if (existingMember.status === "disabled" || existingMember.status === "trash") {
     throw new MemberAuthError("this account has been disabled");
   }

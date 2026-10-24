@@ -177,11 +177,13 @@ export function toMemberSessionRow(record: MemberSessionRecord): Insertable<Cont
   };
 }
 
+/** Maps legacy/new-address challenge rows without adding an undefined identity to legacy records. @complexity O(1). */
 export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
     memberId: row.member_id,
+    ...(row.email === null ? {} : { email: row.email }),
     tokenHash: row.token_hash,
     purpose: row.purpose as MagicLinkTokenRecord["purpose"],
     createdAt: row.created_at,
@@ -190,11 +192,13 @@ export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord
   };
 }
 
+/** Stores new-address identity on the challenge only; legacy links retain a null email. @complexity O(1). */
 export function toMagicLinkTokenRow(record: MagicLinkTokenRecord): Insertable<ContentDatabase["member_magic_tokens"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
     member_id: record.memberId,
+    email: record.email ?? null,
     token_hash: record.tokenHash,
     purpose: record.purpose,
     created_at: record.createdAt,

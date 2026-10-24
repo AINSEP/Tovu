@@ -16,7 +16,6 @@ import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
@@ -29,7 +28,7 @@ import type {
   MemberTierRepoPort,
   MembersWriteServiceDeps,
 } from "./ports.js";
-import { MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
+import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
 import { createMember, disableMember, requestSignInLink, updateProfile } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: membersAgentToolCatalog });
@@ -67,6 +66,8 @@ export interface MembersToolDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MembersWriteServiceDeps["mailer"];
+  originRegistry?: MembersWriteServiceDeps["origin"];
+  mailStatus?: MembersWriteServiceDeps["mailStatus"];
   /** See `MembersWriteServiceDeps.principals` — sign-up writes the member's `kind: "member"` principal here. */
   principalRepo: MembersWriteServiceDeps["principals"];
   /** Resolves configuration independently of sending; production supplies this so disabled
@@ -95,6 +96,8 @@ function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDe
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    mailStatus: deps.mailStatus,
+    origin: deps.originRegistry,
     principals: deps.principalRepo,
     senderIdentity: deps.mailSenderIdentity,
   };
@@ -115,7 +118,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["members_update_profile", "mutates-durable-state"],
   // -> disableMember (write-service.ts): status flip + revokes every live session.
   ["members_disable", "mutates-durable-state"],
-  // -> requestSignInLink (write-service.ts): may create a pending member row, saves a magic-link
+  // -> requestSignInLink (write-service.ts): saves a new-address challenge without creating a member, saves a magic-link
   //    token row, and sends mail; settleMailer refreshes configuration without sending.
   ["members_request_magic_link", "mutates-durable-state"],
 ]);
@@ -161,7 +164,7 @@ function toMemberToolView(member: MemberRecord) {
  *
  * Every message here is built from the caller's OWN input (`member '<id>' was not found`,
  * `'<email>' is not a valid email address`) plus this domain's vocabulary. None carries a member's
- * stored record, another workspace's data, a token, or an internal path: `types.ts`'s four classes
+ * stored record, another workspace's data, a token, or an internal path: `types.ts`'s typed errors
  * are all constructed at `write-service.ts` call sites that interpolate ids and the submitted email
  * only. `MemberAuthError` is deliberately ABSENT — it is thrown on the magic-link REDEMPTION path
  * (`consumeSignInLink`), which no tool here calls, and its messages ("sign-in link was already
@@ -174,6 +177,7 @@ const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: MemberNotFoundError, code: "MEMBERS_NOT_FOUND" },
   { error: MemberValidationError, code: "MEMBERS_VALIDATION_FAILED" },
   { error: MemberConflictError, code: "MEMBERS_CONFLICT" },
+  { error: MemberSignInUnavailableError, code: "MEMBERS_SIGN_IN_UNAVAILABLE" },
 ];
 
 /** `members_list`'s schema cap (`agent-tools.ts`), which is also the repo's own page size. */
@@ -257,7 +261,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       }
 
       await deps.settleMailer?.();
-      await requestSignInLink({
+      const result = await requestSignInLink({
         deps: toMembersWriteServiceDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
@@ -265,11 +269,9 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
           redirectPath: typeof input.redirectPath === "string" ? input.redirectPath : undefined,
         },
       });
-      // send() awaits lazy driver resolution; checking afterwards avoids misreporting the
-      // boot-time console fallback. Neither result discloses the address's membership status.
-      return isMailDeliveryAvailable(deps.mailer)
-        ? { delivered: true, mailDeliveryAvailable: true }
-        : { delivered: false, mailDeliveryAvailable: false, note: MAIL_DELIVERY_UNAVAILABLE_NOTE };
+      // requestSignInLink refuses (MEMBERS_SIGN_IN_UNAVAILABLE) when mail is off, so reaching
+      // here means delivery is available; the privileged operator gets the actual send result.
+      return { delivered: result.delivered, mailDeliveryAvailable: true };
     },
   };
 

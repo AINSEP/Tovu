@@ -163,8 +163,10 @@ export interface MemberSessionRecord {
 export interface MagicLinkTokenRecord {
   id: UUID;
   workspaceId: UUID;
-  /** Composite FK → members(workspace_id, id). */
+  /** Existing member id, or reserved id for a new address until consumption. */
   memberId: UUID;
+  /** New-address challenge identity; absent on legacy/existing-member links. */
+  email?: string;
   tokenHash: string;
   /** What the click authorizes — first sign-in also verifies the email. */
   purpose: "signin" | "signup" | "email_change";
@@ -221,6 +223,8 @@ export interface MemberAccessDecision {
 
 /** Raised when a member sign-in credential is invalid, expired, or consumed. */
 export class MemberAuthError extends Error {}
+/** Site-wide setup failure; safe to expose before any per-address lookup. */
+export class MemberSignInUnavailableError extends Error {}
 /** Raised when a member profile/tier/subscription payload fails validation. */
 export class MemberValidationError extends Error {}
 /** Raised on a unique-constraint clash (e.g. duplicate email or tier slug). */

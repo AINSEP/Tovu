@@ -819,6 +819,7 @@ export const memberMagicTokens = sqliteTable(
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
     memberId: text("member_id").notNull(),
+    email: text("email"),
     tokenHash: text("token_hash").notNull(),
     purpose: text("purpose").notNull(),
     createdAt: text("created_at").notNull(),

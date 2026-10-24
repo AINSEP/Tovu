@@ -23,6 +23,7 @@
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type { MailStatus } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
@@ -196,6 +197,8 @@ export interface MembersWriteServiceDeps {
   sessions: MemberSessionRepoPort;
   magicLinks: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  /** Site-wide status; checked before reading any address. */
+  mailStatus?: () => Promise<MailStatus>;
   /**
    * The identity principal store. A member signing up gets a `kind: "member"` principal row with
    * the member's own id (`MemberRecord.id` is a principal id, ADR-021 §5), so `authorize()` can
@@ -205,13 +208,7 @@ export interface MembersWriteServiceDeps {
    */
   principals: Pick<PrincipalRepoPort, "save">;
   /**
-   * ADR-040 canonical-origin registry (ADR-PIPE-013 Decision §3) — optional:
-   * no composition root in this repo wires a real `OriginRegistryPort`
-   * instance into `members` yet. `requestSignInLink` treats an absent
-   * `origin` exactly like `OriginNotVerifiedError` (relative-link fallback,
-   * no warning log — an unwired dependency isn't an operator
-   * misconfiguration). When present, a workspace with a verified origin gets
-   * an absolute magic-link URL instead of today's relative path.
+   * ADR-040 canonical-origin registry. Sign-in refuses without trusted origin evidence.
    */
   origin?: OriginRegistryPort;
   /**
@@ -228,7 +225,7 @@ export interface MembersWriteService {
   requestSignInLink(required: {
     deps: MembersWriteServiceDeps;
     input: { workspaceId: UUID; email: string; redirectPath?: string };
-  }): Promise<{ delivered: true }>;
+  }): Promise<{ delivered: boolean }>;
 
   /** Consume a magic token: verify email, upsert member, mint a member session. */
   completeSignIn(required: {

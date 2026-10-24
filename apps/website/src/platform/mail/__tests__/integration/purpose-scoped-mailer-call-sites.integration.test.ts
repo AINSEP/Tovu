@@ -97,6 +97,8 @@ test("real call sites use distinct lanes through the production gate and sign-in
     magicLinks: new InMemoryMagicLinkTokenRepo(), mailer, principals: new InMemoryPrincipalRepo({}),
     // A delivering ("recording") driver needs the site's configured sender.
     senderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example" }) },
+    // Sign-in links are absolute, so the site origin must be known before any send.
+    origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: now, source: "dev-capability" }), isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false },
   }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });
   try {
     // Drain the call site's asynchronous repo operations without advancing any wall-clock timer.

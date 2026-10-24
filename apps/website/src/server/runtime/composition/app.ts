@@ -2010,6 +2010,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
     mailer: routeDeps.mailer,
+    mailStatus: routeDeps.mailStatus,
+    origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,

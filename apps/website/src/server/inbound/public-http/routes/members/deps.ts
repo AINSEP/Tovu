@@ -44,12 +44,13 @@ export interface MemberPublicRouteDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  mailStatus?: MembersWriteServiceDeps["mailStatus"];
   clock: ClockPort;
   idGen: IdGeneratorPort;
   /** Where sign-up writes the member's `kind: "member"` principal — see `MembersWriteServiceDeps.principals`.
    *  Write-only and kind-fixed by the write service, so this family still holds no session or authorize power. */
   principalRepo: Pick<PrincipalRepoPort, "save">;
-  /** ADR-040 canonical-origin registry — optional, see `MembersWriteServiceDeps.origin`'s doc. */
+  /** ADR-040 canonical-origin registry — required for sign-in, see `MembersWriteServiceDeps.origin`. */
   origin?: OriginRegistryPort;
   /** The site's system-email From resolver — see `MembersWriteServiceDeps.senderIdentity`. */
   mailSenderIdentity?: MailSenderIdentityPort;
@@ -69,6 +70,7 @@ export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps): Me
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    mailStatus: deps.mailStatus,
     principals: deps.principalRepo,
     origin: deps.origin,
     senderIdentity: deps.mailSenderIdentity,

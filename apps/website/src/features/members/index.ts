@@ -38,6 +38,7 @@ export type {
 
 export {
   MemberAuthError,
+  MemberSignInUnavailableError,
   MemberValidationError,
   MemberConflictError,
   MemberNotFoundError,

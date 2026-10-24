@@ -9,7 +9,7 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from ".
 import express from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 
-import { createRouteDeps } from "../../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
@@ -19,12 +19,14 @@ import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-htt
  * `registerPublicMemberSignInRequestRoute`: the primary target of the hard
  * pre-launch precondition. Both `MAGIC_LINK_PER_EMAIL` and `MAGIC_LINK_PER_IP`
  * must be enforced (T015/W-002/W-003), and INV-06 (anti-enumeration) must
- * hold: a registered and an unregistered email both get `{delivered:true}`
+ * hold: a registered and an unregistered email both get `{accepted:true}`
  * below the limit and both get `429` identically once exceeded.
  */
 
 function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps } {
   const routeDeps = createRouteDeps();
+  const capabilities = routeDeps.mailer.capabilities();
+  routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   const deps: MemberPublicRouteDeps = {
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
@@ -33,6 +35,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
     mailer: routeDeps.mailer,
+    origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
@@ -87,7 +90,7 @@ test("T015/W-003: MAGIC_LINK_PER_IP — the 21st sign-in request from this IP (a
   assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
 });
 
-test("INV-06: a registered and an unregistered email both get {delivered:true} below the limit, identically", async (t) => {
+test("INV-06: a registered and an unregistered email both get {accepted:true} below the limit, identically", async (t) => {
   const { app, deps } = buildPublicApp();
   const baseUrl = await startTestServer(app, t);
   await deps.memberRepo.save({
@@ -104,8 +107,8 @@ test("INV-06: a registered and an unregistered email both get {delivered:true} b
   const unregistered = await postSignIn(baseUrl, deps.workspaceId, "never-seen@example.com");
   assert.equal(registered.status, 200);
   assert.equal(unregistered.status, 200);
-  assert.deepEqual(await registered.json(), { delivered: true });
-  assert.deepEqual(await unregistered.json(), { delivered: true });
+  assert.deepEqual(await registered.json(), { accepted: true });
+  assert.deepEqual(await unregistered.json(), { accepted: true });
 });
 
 test("INV-06: a registered and an unregistered email both get 429 identically once exceeded", async (t) => {
@@ -198,7 +201,9 @@ test("a redirectPath is carried into the minted sign-in link", async (t) => {
   });
   assert.ok(storedToken, "the actionable URL's token must identify a minted sign-in token");
   const member = await deps.memberRepo.findByEmail({ workspaceId: deps.workspaceId, email: "redirect-path@example.com" });
-  assert.equal(storedToken.memberId, member?.id);
+  assert.equal(member, null, "request does not create a member");
+  assert.equal(storedToken.email, "redirect-path@example.com");
+  assert.ok(storedToken.memberId, "new-address token reserves a member id");
   assert.equal(storedToken.purpose, "signin");
 });
 
@@ -288,4 +293,65 @@ test("MAGIC_LINK_PER_EMAIL shares one budget across case and whitespace variants
   assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
   assert.equal(body.error, "too many sign-in requests for this email");
   assert.equal((await postSignIn(baseUrl, deps.workspaceId, "different@example.com")).status, 200);
+});
+
+for (const mode of ["console", "missing_credential", "sender_missing"] as const) {
+  test(`step 1: ${mode} returns a clear identical site-level 503 for known, missing and disabled addresses`, async t => {
+    const { app, deps } = buildPublicApp();
+    await deps.memberRepo.save({ id: "known", workspaceId: deps.workspaceId, email: "known@example.com", status: "active", createdAt: "2026-10-24", updatedAt: "2026-10-24", version: 1 });
+    await deps.memberRepo.save({ id: "disabled", workspaceId: deps.workspaceId, email: "disabled@example.com", status: "disabled", createdAt: "2026-10-24", updatedAt: "2026-10-24", version: 1 });
+    if (mode === "console") {
+      const caps = deps.mailer.capabilities();
+      deps.mailer.capabilities = () => ({ ...caps, driver: "console" });
+    } else if (mode === "sender_missing") {
+      const caps = deps.mailer.capabilities();
+      deps.mailer.capabilities = () => ({ ...caps, driver: "smtp" });
+    } else {
+      deps.mailStatus = async () => ({ state: "unconfigured", lanes: [{ lane: "transactional", providerId: "smtp", state: "missing_credential" }], warnings: [] });
+    }
+    deps.memberRepo.findByEmail = async () => assert.fail("readiness must not inspect any address");
+    deps.magicLinkRepo.save = async () => assert.fail("unready site must not mint tokens");
+    deps.mailer.send = async () => assert.fail("unready site must not send");
+    const baseUrl = await startTestServer(app, t);
+    for (const email of ["known@example.com", "missing@example.com", "disabled@example.com"]) {
+      const response = await postSignIn(baseUrl, deps.workspaceId, email);
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { error: "Member sign-in is unavailable: email is not set up for this site.", code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+    }
+  });
+}
+
+test("step 1: public acceptance hides suppressed and failed sends and disabled membership", async t => {
+  const { app, deps } = buildPublicApp();
+  await deps.memberRepo.save({ id: "disabled", workspaceId: deps.workspaceId, email: "disabled@example.com", status: "disabled", createdAt: "2026-10-24", updatedAt: "2026-10-24", version: 1 });
+  const baseUrl = await startTestServer(app, t);
+  for (const errorCode of ["MAIL_RECIPIENT_SUPPRESSED", "MAIL_SEND_FAILED"]) {
+    deps.mailer.send = async () => ({ ok: false, retryable: false, errorCode, message: "private provider detail" });
+    for (const email of ["new@example.com", "disabled@example.com"]) {
+      const response = await postSignIn(baseUrl, deps.workspaceId, email);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { accepted: true });
+    }
+  }
+  assert.equal(await deps.memberRepo.findByEmail({ workspaceId: deps.workspaceId, email: "new@example.com" }), null);
+});
+
+test("step 1: createApp wires MailStatus and the trusted https localhost origin into public members", async t => {
+  const deps = createRouteDeps();
+  const caps = deps.mailer.capabilities();
+  deps.mailer.capabilities = () => ({ ...caps, driver: "memory" });
+  let ready = true;
+  deps.mailStatus = async () => ({ state: ready ? "ready" : "unconfigured", lanes: [{ lane: "transactional", providerId: ready ? "smtp" : null, state: ready ? "ready" : "unconfigured" }], warnings: [], providers: [], refusals: [], checkedAt: "2026-10-24" });
+  deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "localhost", port: 3000, source: "dev-capability", verifiedAt: "2026-10-24" });
+  const sent: OutboundEmail[] = [];
+  deps.mailer.send = async message => { sent.push(message); return { ok: true, providerMessageId: "one", acceptedAt: "2026-10-24" }; };
+  const baseUrl = await startTestServer(createApp(deps), t);
+  const first = await postSignIn(baseUrl, deps.workspaceId, "new@example.com");
+  assert.equal(first.status, 200);
+  assert.deepEqual(await first.json(), { accepted: true });
+  assert.match(sent[0].text!, /https:\/\/localhost:3000\/auth\/magic\?token=[a-f0-9]{64}/);
+  assert.equal(await deps.memberRepo.findByEmail({ workspaceId: deps.workspaceId, email: "new@example.com" }), null);
+  ready = false;
+  assert.equal((await postSignIn(baseUrl, deps.workspaceId, "other@example.com")).status, 503);
+  assert.equal(sent.length, 1, "readiness comes from the same composed site status");
 });
