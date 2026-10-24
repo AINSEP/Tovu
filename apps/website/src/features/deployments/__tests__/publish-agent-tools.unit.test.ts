@@ -1378,11 +1378,13 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
   const originalRows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(originalRows.length, 1);
   const originalId = originalRows[0]!.id;
+  // A replacement now must be accepted before overwriting the original row.
+  deps.fetchFn = async () => new Response('', { status: 200 });
 
   const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "credential_save"));
   surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" } }, { toolId: "credential_save" });
   const result = await second.pending;
-  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. The server rejected this token." });
+  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true, connection: "connected", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. Connected." });
 
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");
@@ -2046,4 +2048,38 @@ test('a throwing optional plugin card loader still opens and submits the default
   exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: 'fixture_token_1234' } }, { toolId: 'credential_save' });
   assert.equal((await pending as { saved: boolean }).saved, true);
   assert.equal(exchanges.size(), 0);
+});
+
+for (const status of [401, 503]) test(`publish-host replacement HTTP ${status} keeps the old sealed key`, async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), 'credential_save');
+  const first = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: 'credential_save' });
+  await first.pending;
+  const before = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  deps.fetchFn = async () => new Response('SECRET-vendor-response', { status });
+  const second = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, secretAccessKey: 'SECRET-replacement' } }, { toolId: 'credential_save' });
+  const result = await second.pending as { saved: boolean; message: string };
+  assert.equal(result.saved, false);
+  assert.match(result.message, status === 401 ? /refused/ : /service couldn't be reached/);
+  assert.match(result.message, /previous key was kept/);
+  assert.ok(!JSON.stringify(result).includes('SECRET-'));
+  assert.deepEqual(await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }), before);
+});
+
+test('publish-host update with a blank secret skips the replacement check and keeps the stored secret', async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), 'credential_save');
+  const first = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: 'credential_save' });
+  await first.pending;
+  const second = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, bucket: 'renamed-bucket', secretAccessKey: '' } }, { toolId: 'credential_save' });
+  assert.equal((await second.pending as { saved: boolean }).saved, true);
+  const [row] = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === 's3-compatible');
+  const resolved = await resolveForPublish({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets!, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, id: row!.id });
+  assert.deepEqual(resolved?.connection, { providerId: 's3-compatible', ...VALID_FORM_SUBMISSION, bucket: 'renamed-bucket' });
 });

@@ -72,7 +72,7 @@ test("secret tools advertise only platforms whose loaded adapter implements secr
   const listSecrets = buildDeployOpsRegistrations({ ...f.deps, deployOpsRegistry: observeOnly }).find(r => r.descriptor.id === "deployment_ops_list_secrets")!.descriptor;
   assert.deepEqual((listSecrets.inputSchema as any).properties.platform.enum, []);
   assert.ok(listSecrets.description);
-  assert.match(listSecrets.description, / Platforms: none available\.$/);
+  assert.match(listSecrets.description, / Platforms: none available; enable a hosting plugin under Agent Plugins\.$/);
 });
 test("schemas follow a narrowed or empty loaded registry rather than bundled platform ids", async () => {
   const f = await fixture();
@@ -202,5 +202,5 @@ test("an unreadable bundled plugin tree yields a catalog with no platforms inste
   assert.match(roots[0] ?? "", /content[\\/]agent-plugins$/);
   const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
   assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, []);
-  assert.match(status.description, /Platforms: none available\./);
+  assert.match(status.description, /Platforms: none available; enable a hosting plugin under Agent Plugins\./);
 });

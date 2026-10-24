@@ -50,7 +50,7 @@ export async function listTokenSignInPlugins(
 export type TokenCheckOutcome = "ok" | "invalid" | "refused" | "unavailable" | "unsupported";
 
 /**
- * Checks `token` against the plugin's declared probe URL (one GET; 401 invalid, 403 refused). Never throws,
+ * Checks `token` against the plugin's declared probe URL (one GET; 401/403 refused). Never throws,
  * never returns or logs the token. `unsupported`: the plugin is not installed or takes no token.
  */
 export async function checkAgentPluginAccessToken(
@@ -70,5 +70,5 @@ export async function checkAgentPluginAccessToken(
   }
   const auth = plugin ? soleTokenAuth(plugin.servers) : null;
   if (!auth) return "unsupported";
-  return probeToken(deps.httpClient, auth.probeUrl, input.token);
+  return probeToken({ probeUrl: auth.probeUrl, token: input.token }, { httpClient: deps.httpClient });
 }

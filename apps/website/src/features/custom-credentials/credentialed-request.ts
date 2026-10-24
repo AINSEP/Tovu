@@ -1,3 +1,4 @@
+import { probeCredentialConnection as jiniProbe, type CredentialConnectionProbeInput, type CredentialConnectionProbeStatus } from "@jini-ai/integrations/credentialed-http";
 import type { Clock } from "@jini-ai/core/primitives";
 // Request validation and secret scrubbing live in Jini packages/integrations/src/credentialed-http/credentialed-request.ts.
 /** Tovu's credential-store, audit and diagnostic policy adapter over Jini's guarded requests.
@@ -671,13 +672,8 @@ function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
   return {
     resolver: adaptCredentialResolver(deps),
-    // The host port keeps its request-only ABI; Jini's body already lives inside request.
-    // Redirect policy comes from host composition. Refuse unsupported per-call overrides
-    // rather than silently dropping an explicit error/manual directive at this security seam.
-    httpClient: { send: ({ request }, optional = {}) => {
-      if (optional.redirect !== undefined) throw new Error("credentialed HTTP adapter does not support per-request redirect controls");
-      return deps.httpClient.send(request);
-    } },
+    // Forward the policy so a pre-save probe cannot follow redirects through the legacy host ABI.
+    httpClient: { send: ({ request }, options) => deps.httpClient.send(request, options) },
     clock: deps.clock,
     audit: { record: ({ entry }) => audit.record(entry) },
     // Keep installed-plugin digest trust checks in the host; generic scheme precedence needs no
@@ -758,4 +754,15 @@ export async function makeCredentialedRequest(
   try {
     return await requestWithCredential({ deps: adaptRequestDeps(deps), input: requiredInput }, { ...REQUEST_POLICY, headers, body });
   } catch (error) { return rethrowHostError(error); }
+}
+
+/** Adapt the guarded host client to Jini's bodyless, redirect-refusing GET probe.
+ * @param required Trusted plugin URL, plaintext connection and installed auth schemes.
+ * @param options Guarded host HTTP client; retains composition's observability and egress policy.
+ * @returns Only ok/refused/unavailable; no transport error or response body escapes.
+ * @complexity One bounded GET plus O(s) auth rules.
+ * @example probeCredentialConnection({ connection, url, schemes }, { httpClient });
+ */
+export function probeCredentialConnection(required: CredentialConnectionProbeInput, options: { httpClient: HttpClientPort }): Promise<CredentialConnectionProbeStatus> {
+  return jiniProbe(required, { httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
 }

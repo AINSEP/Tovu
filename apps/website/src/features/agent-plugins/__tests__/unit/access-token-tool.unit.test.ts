@@ -230,7 +230,7 @@ test("AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as 
   assert.equal(env.http.requests.length, 1);
   assert.equal(env.http.requests[0]!.url, PROBE_URL);
   assert.equal(env.http.requests[0]!.method, "GET");
-  assert.equal(env.http.requests[0]!.headers.authorization, `Bearer ${TOKEN}`);
+  assert.equal(env.http.requests[0]!.headers.Authorization, `Bearer ${TOKEN}`);
 
   const row = await env.readRow();
   assert.equal(row?.authMode, "static_env", "the fallback token supersedes the unfinished OAuth attempt on the same row");
@@ -248,7 +248,7 @@ test("EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's r
   env.http.respond = unauthorized;
   const { result, emitted } = await submit(env, { token: TOKEN });
 
-  assert.deepEqual(result, { saved: false, reason: "invalid", message: "The server rejected this token." });
+  assert.deepEqual(result, { saved: false, reason: "refused", message: "This token was refused for this purpose." });
   const row = await env.readRow();
   assert.equal(row?.authMode, "oauth");
   assert.equal(row?.sealedOAuth, null);

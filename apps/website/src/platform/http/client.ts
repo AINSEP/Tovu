@@ -24,13 +24,14 @@ const EGRESS_REFUSED_MESSAGE = "egress to the requested host was refused by this
 
 /** Keeps the existing request ABI and host refusal copy without exposing internal DNS details.
  * Only the neutral fallback is replaced; explicit safe hostname/classification messages survive.
+ * Per-call redirect refusal reaches Jini so credential probes cannot inherit follow-redirect policy.
  * Operational errors propagate unchanged, and the refusal keeps Jini's exported class identity.
  */
 function toTovuHttpClient({ client }: { client: JiniHttpClientPort }): HttpClientPort {
   return {
-    async send(request) {
+    async send(request, options = {}) {
       try {
-        return await client.send({ request });
+        return await client.send({ request }, options);
       } catch (error) {
         if (error instanceof EgressRefusedError && error.callerSafeMessage === defaultPlatformMessages.egressRefused()) {
           throw new EgressRefusedError({ message: error.message }, { callerSafeMessage: EGRESS_REFUSED_MESSAGE });

@@ -1,3 +1,5 @@
+import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
+export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { applyPluginCredentialCard, findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { deploymentRefusal, type SiteConsentService } from '#src/features/consent/service';
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
@@ -12,7 +14,7 @@ import { credentialText, formatCredentialHint, translateCredentialMessage } from
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import { PublishCredentialValidationError } from './publish-credentials/store.js';
 import { summarizeCredentialSources, type CredentialCopyToolDeps } from '../custom-credentials/index.js';
-import { verifyPublishCredentialById } from './static-publish/verify.js';
+import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -797,7 +799,9 @@ async function saveProposedCredential(required: {
   };
   const saved = await listPublishCredentials(writeDeps, { workspaceId: deps.workspaceId });
   const existing = saved.find((row) => row.providerId === targetId && row.isDefault);
-  // Cancellation may arrive during the metadata read; refuse before invoking persistence.
+  // A failed replacement check must leave the working default key intact, before any seal/write.
+  if (existing) await checkPublishReplacement({ deps, targetId, credential, connection });
+  // Cancellation may arrive during the metadata read or probe; refuse before invoking persistence.
   signal.throwIfAborted();
   const stored = existing
     ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
@@ -805,32 +809,26 @@ async function saveProposedCredential(required: {
   return { credentialId: stored.id, tokenHint: stored.tokenHint ?? null };
 }
 
-/**
- * Wraps the credential repo so every persistence write (insert/update and the vault's put/applyBatch)
- * first refuses an aborted signal; reads, deletes and non-function vault members pass straight through.
- * Extracted from `saveProposedCredential` so the guard is testable against a hand-written repo.
- * @complexity O(1) wiring; each call costs what the wrapped repo's call costs.
+/** Reuse the provider-owned verifier only where replacement would destroy an existing key.
+ * @throws PublishCredentialValidationError with fixed copy on refusal/unavailability; preserves legacy hosts without checks.
+ * @complexity One registry lookup/load plus one bounded provider check, no persistence.
  */
-export function abortGuardedCredentialRepo({ store, signal }: { store: VendorCredentialSetRepoPort; signal: AbortSignal }, _optional = {}): VendorCredentialSetRepoPort {
-  // Since secrets_vault (9b20083b6) create/update write through `repo.vault`; dropping it here made
-  // every agent save fail with VaultError invalid-record. Its writes get the same abort guard.
-  const vault = store.vault && new Proxy(store.vault, { get(target, key) {
-    const value = Reflect.get(target, key);
-    if (typeof value !== "function") return value;
-    return (...args: unknown[]) => { if (key === "put" || key === "applyBatch") signal.throwIfAborted(); return value.apply(target, args); };
-  } });
-  // Registry reads, blank-secret preservation and sealing await; guard both existing write ports.
-  return {
-    ...(vault ? { vault } : {}),
-    insert: record => { signal.throwIfAborted(); return store.insert(record); },
-    update: record => { signal.throwIfAborted(); return store.update(record); },
-    findById: input => store.findById(input),
-    findDefaultByVendor: input => store.findDefaultByVendor(input),
-    listByVendor: input => store.listByVendor(input),
-    listByWorkspace: input => store.listByWorkspace(input),
-    delete: input => store.delete(input),
-    updateAccountLabel: input => store.updateAccountLabel(input),
-  };
+async function checkPublishReplacement({ deps, targetId, credential, connection }: {
+  deps: StaticPublishToolDeps; targetId: string; credential: DeployTargetCredentialSpec; connection: Record<string, unknown>;
+}, _options = {}): Promise<void> {
+  // A blank secret keeps the stored one (store.ts updatedConnection), so no working key is replaced.
+  if (credential.fields.some(field => (field.secret === true || field.name === credential.tokenField) && !connection[field.name])) return;
+  const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+  if (!registry.get(targetId)?.module.verifyCredential) return;
+  const verification = await verifySubmittedPublishCredential({
+    deps: { loadDeployTargets: async () => registry, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, fetchFn: deps.fetchFn, observability: deps.observability },
+    workspaceId: deps.workspaceId, target: targetId, spec: credential,
+    connection: connection as Parameters<typeof verifySubmittedPublishCredential>[0]['connection'],
+  });
+  if (verification.status === 'valid') return;
+  throw new PublishCredentialValidationError(verification.status === 'invalid'
+    ? 'This key was refused for this purpose. Nothing was saved. The previous key was kept.'
+    : "The service couldn't be reached. Nothing was saved. The previous key was kept.");
 }
 
 /**

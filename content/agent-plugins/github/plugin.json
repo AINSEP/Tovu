@@ -32,7 +32,8 @@
           "saveKind": "api",
           "helpUrl": "https://github.com/settings/personal-access-tokens/new",
           "helpLabel": "Create a fine-grained token",
-          "baseUrl": "https://api.github.com"
+          "baseUrl": "https://api.github.com",
+          "probeUrl": "https://api.github.com/user"
         },
         {
           "target": "github-source-control",
