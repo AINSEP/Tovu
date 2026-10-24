@@ -45,6 +45,9 @@ export const MEMBER_AUTH_STYLE =
   ".member-auth .member-auth-links{margin:24px 0 0;}" +
   ".member-auth .member-note{margin:0 0 20px;}" +
   ".member-auth form .member-note{margin:0 0 16px;}" +
+  // The script focuses a view's status note (tabindex=-1) so it is read out; it is not a control, so
+  // no focus ring (the theme drew one around plain text after "Email me a code").
+  ".member-auth [data-member-focus]:focus{outline:none;}" +
   // Sign out is its own section on /account, not a second button of the password form.
   ".member-auth .member-signout{margin:32px 0 0;padding-top:24px;border-top:1px solid var(--border,#d1d5db);}" +
   // A 6-digit code needs a short box, not the full form width.
