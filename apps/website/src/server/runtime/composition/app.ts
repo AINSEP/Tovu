@@ -288,6 +288,7 @@ import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/r
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import { registerMailFeedbackRoute } from "../../inbound/public-http/routes/mail-feedback.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
+import { registerMemberPageRoutes } from "../../inbound/public-http/routes/site/member-pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
@@ -2478,6 +2479,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     },
   });
 
+  // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
+  registerMemberPageRoutes(app, routeDeps);
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes(app, routeDeps);
 
