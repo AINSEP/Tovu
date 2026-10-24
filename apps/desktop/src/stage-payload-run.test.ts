@@ -46,7 +46,8 @@ function fixture() {
   write(path.join(repo, "node_modules", "dep-a", "index.js"), "a");
   write(path.join(repo, "node_modules", "dep-a", "node_modules", "nested", "index.js"), "nested");
   write(path.join(repo, "node_modules", "better-sqlite3", "index.js"), "sqlite");
-  write(path.join(repo, "node_modules", "playwright", "index.js"), "excluded");
+  write(path.join(repo, "node_modules", "playwright", "index.js"), "driver");
+  write(path.join(repo, "node_modules", "@playwright", "test", "index.js"), "excluded");
   write(path.join(tmp, "jini", "packages", "core", "package.json"), JSON.stringify({ name: "@jini-ai/core" }));
   write(path.join(tmp, "jini", "packages", "core", "node_modules", "pnpm-farm", "x.js"), "farm");
   write(path.join(tmp, "jini", "packages", "platform", "package.json"), JSON.stringify({ name: "@jini-ai/platform" }));
@@ -61,7 +62,7 @@ function fixture() {
 
 type Fixture = ReturnType<typeof fixture>;
 
-const NPM_LS = (repo: string) => [repo, "dep-a", "dep-a/node_modules/nested", "better-sqlite3", "playwright", "not-installed"]
+const NPM_LS = (repo: string) => [repo, "dep-a", "dep-a/node_modules/nested", "better-sqlite3", "playwright", "@playwright/test", "not-installed"]
   .map((name, index) => (index === 0 ? name : path.join(repo, "node_modules", name))).join("\n");
 
 function harness(fx: Fixture, overrides: { steps?: Partial<StageSteps>; ports?: Partial<StagePorts> } = {}) {
@@ -120,7 +121,9 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
   }
   assert.equal(readFileSync(path.join(modules, "dep-a", "node_modules", "nested", "index.js"), "utf8"), "nested");
   assert.ok(existsSync(path.join(modules, "better-sqlite3", "index.js")));
-  assert.ok(!existsSync(path.join(modules, "playwright")), "an EXCLUDED package never ships");
+  // Rendered fetch and screenshots need the driver; only Playwright test tooling is excluded.
+  assert.equal(readFileSync(path.join(modules, "playwright", "index.js"), "utf8"), "driver");
+  assert.ok(!existsSync(path.join(modules, "@playwright", "test")), "an EXCLUDED package never ships");
   assert.ok(!existsSync(path.join(modules, "not-installed")));
   // Jini packages are staged flat from the link's real directory, without their pnpm symlink farm.
   assert.ok(existsSync(path.join(modules, "@jini-ai", "core", "package.json")));
@@ -140,8 +143,8 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
   assert.deepEqual(calls.npmLs, [{ command: "npm", args: ["ls", "--omit=dev", "--parseable", "--all"], options: { cwd: fx.repo, encoding: "utf8", maxBuffer: 64 * MB, shell: false } }]);
   assert.deepEqual(out, [
     `stage-payload: staged bundled npm -> ${path.join(fx.desktop, "staging/npm")} (1962 files, 5.0 MB)\n`,
-    // dep-a + better-sqlite3 (nested already came with dep-a) + 2 Jini packages + 2 transitive.
-    `stage-payload: staged 6 packages, materialized 1 symlinks -> ${fx.outDir} (10.0 MB)\n`,
+    // dep-a + better-sqlite3 + playwright (nested came with dep-a) + 2 Jini + 2 fake transitive.
+    `stage-payload: staged 7 packages, materialized 1 symlinks -> ${fx.outDir} (10.0 MB)\n`,
     "stage-payload: stripped 4 declarations, 3 third-party source maps, 1 coverage reports (2.0 MB on disk)\n",
     "stage-payload: native prebuilds kept for darwin-x64 + darwin-arm64 only; removed 6 other-architecture prebuilds and 2 from-source build inputs (3.0 MB on disk)\n",
   ]);
