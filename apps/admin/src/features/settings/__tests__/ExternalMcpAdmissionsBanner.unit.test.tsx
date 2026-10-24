@@ -242,7 +242,7 @@ describe("ExternalMcpAdmissionsBanner", () => {
     render(<ExternalMcpAdmissionsBanner controller={controller({ connections: [notOffered] })} t={IDENTITY_T} onRequestRemove={() => {}} onAllowWrite={() => {}} />);
 
     expect(
-      screen.getByText("Some saved tools aren't loaded. Restarting the assistant won't change this — the reasons are below."),
+      screen.getByText("Some saved tools aren't loaded. The reasons are below."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Saved. The assistant is still running with its previous tool list.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Restart the assistant" })).not.toBeInTheDocument();

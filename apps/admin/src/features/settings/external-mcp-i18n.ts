@@ -1031,3 +1031,46 @@ const MISSING_LAUNCHER_COPY: Record<string, Record<"Launcher missing", string>> 
 for (const [locale, copy] of Object.entries(MISSING_LAUNCHER_COPY)) {
   Object.assign(Reflect.get(EXTERNAL_MCP_DICT, locale), copy);
 }
+
+// 2026-10-23: row-level OAuth Connect + the built-in row's toggle/ⓘ. Same end-of-file block
+// pattern as MISSING_LAUNCHER_COPY above. Order: Connect, Sign in to {name}, Sign-in could not
+// start., Enter this code on the sign-in page:, Finish signing in in the new window., Not signed
+// in. Use Connect on this server below., Enable {name}, About {name}, built-in tooltip.
+const CONNECT_KEYS = [
+  "Connect",
+  "Sign in to {name}",
+  "Sign-in could not start.",
+  "Enter this code on the sign-in page:",
+  "Finish signing in in the new window.",
+  "Not signed in. Use Connect on this server below.",
+  "Enable {name}",
+  "About {name}",
+  "Lets this site's assistant list your other Tovu sites, add a site pointer, and reveal a site folder.",
+] as const;
+const CONNECT_COPY: Record<string, readonly string[]> = {
+  es: ["Conectar", "Iniciar sesión en {name}", "No se pudo iniciar sesión.", "Introduce este código en la página de inicio de sesión:", "Termina de iniciar sesión en la nueva ventana.", "Sin sesión iniciada. Usa Conectar en este servidor, abajo.", "Activar {name}", "Acerca de {name}", "Permite que el asistente de este sitio liste tus otros sitios de Tovu, añada un acceso a un sitio y muestre la carpeta de un sitio."],
+  id: ["Hubungkan", "Masuk ke {name}", "Proses masuk tidak dapat dimulai.", "Masukkan kode ini di halaman masuk:", "Selesaikan proses masuk di jendela baru.", "Belum masuk. Gunakan Hubungkan pada server ini di bawah.", "Aktifkan {name}", "Tentang {name}", "Memungkinkan asisten situs ini menampilkan situs Tovu Anda yang lain, menambahkan penunjuk situs, dan membuka folder situs."],
+  de: ["Verbinden", "Bei {name} anmelden", "Die Anmeldung konnte nicht gestartet werden.", "Gib diesen Code auf der Anmeldeseite ein:", "Schließe die Anmeldung im neuen Fenster ab.", "Nicht angemeldet. Nutze „Verbinden“ bei diesem Server unten.", "{name} aktivieren", "Über {name}", "Lässt den Assistenten dieser Website deine anderen Tovu-Websites auflisten, einen Website-Verweis hinzufügen und einen Website-Ordner anzeigen."],
+  "zh-CN": ["连接", "登录 {name}", "无法开始登录。", "在登录页面输入此代码：", "请在新窗口中完成登录。", "尚未登录。请使用下方此服务器的“连接”。", "启用 {name}", "关于 {name}", "让此站点的助手列出你的其他 Tovu 站点、添加站点指针并显示站点文件夹。"],
+  "zh-TW": ["連線", "登入 {name}", "無法開始登入。", "在登入頁面輸入此代碼：", "請在新視窗中完成登入。", "尚未登入。請使用下方此伺服器的「連線」。", "啟用 {name}", "關於 {name}", "讓此網站的助理列出你的其他 Tovu 網站、新增網站指標並顯示網站資料夾。"],
+  "pt-BR": ["Conectar", "Entrar em {name}", "Não foi possível iniciar o login.", "Digite este código na página de login:", "Conclua o login na nova janela.", "Sem login. Use Conectar neste servidor, abaixo.", "Ativar {name}", "Sobre {name}", "Permite que o assistente deste site liste seus outros sites Tovu, adicione um atalho de site e mostre a pasta de um site."],
+  ru: ["Подключить", "Войти в {name}", "Не удалось начать вход.", "Введите этот код на странице входа:", "Завершите вход в новом окне.", "Вход не выполнен. Нажмите «Подключить» у этого сервера ниже.", "Включить {name}", "О {name}", "Позволяет ассистенту этого сайта показывать другие ваши сайты Tovu, добавлять ссылку на сайт и открывать папку сайта."],
+  fa: ["اتصال", "ورود به {name}", "ورود آغاز نشد.", "این کد را در صفحهٔ ورود وارد کنید:", "ورود را در پنجرهٔ جدید تمام کنید.", "وارد نشده‌اید. از «اتصال» در این سرور در پایین استفاده کنید.", "فعال‌سازی {name}", "دربارهٔ {name}", "به دستیار این سایت اجازه می‌دهد سایت‌های دیگر Tovu شما را فهرست کند، نشانگر سایت اضافه کند و پوشهٔ سایت را نشان دهد."],
+  ar: ["اتصال", "تسجيل الدخول إلى {name}", "تعذّر بدء تسجيل الدخول.", "أدخل هذا الرمز في صفحة تسجيل الدخول:", "أكمل تسجيل الدخول في النافذة الجديدة.", "لم يتم تسجيل الدخول. استخدم «اتصال» في هذا الخادم أدناه.", "تفعيل {name}", "حول {name}", "يتيح لمساعد هذا الموقع عرض مواقع Tovu الأخرى الخاصة بك، وإضافة مؤشر موقع، وإظهار مجلد الموقع."],
+  ja: ["接続", "{name} にサインイン", "サインインを開始できませんでした。", "サインインページでこのコードを入力してください：", "新しいウィンドウでサインインを完了してください。", "サインインしていません。下のこのサーバーの「接続」を使ってください。", "{name} を有効にする", "{name} について", "このサイトのアシスタントが、ほかの Tovu サイトの一覧表示、サイトへのポインターの追加、サイトフォルダーの表示を行えるようにします。"],
+  ko: ["연결", "{name}에 로그인", "로그인을 시작할 수 없습니다.", "로그인 페이지에 이 코드를 입력하세요:", "새 창에서 로그인을 완료하세요.", "로그인되지 않았습니다. 아래 이 서버의 연결을 사용하세요.", "{name} 사용", "{name} 정보", "이 사이트의 어시스턴트가 다른 Tovu 사이트를 나열하고, 사이트 포인터를 추가하고, 사이트 폴더를 표시할 수 있게 합니다."],
+  pl: ["Połącz", "Zaloguj się do {name}", "Nie udało się rozpocząć logowania.", "Wpisz ten kod na stronie logowania:", "Dokończ logowanie w nowym oknie.", "Nie zalogowano. Użyj „Połącz” przy tym serwerze poniżej.", "Włącz {name}", "Informacje o {name}", "Pozwala asystentowi tej witryny wyświetlać Twoje inne witryny Tovu, dodawać odnośnik do witryny i pokazywać folder witryny."],
+  hu: ["Csatlakozás", "Bejelentkezés: {name}", "A bejelentkezés nem indítható el.", "Írd be ezt a kódot a bejelentkezési oldalon:", "Fejezd be a bejelentkezést az új ablakban.", "Nincs bejelentkezve. Használd lent ennél a szervernél a Csatlakozás gombot.", "{name} engedélyezése", "Névjegy: {name}", "Lehetővé teszi, hogy az oldal asszisztense listázza a többi Tovu-oldaladat, oldalmutatót adjon hozzá, és megmutasson egy oldalmappát."],
+  fr: ["Connecter", "Se connecter à {name}", "Impossible de lancer la connexion.", "Saisissez ce code sur la page de connexion :", "Terminez la connexion dans la nouvelle fenêtre.", "Non connecté. Utilisez Connecter sur ce serveur, ci-dessous.", "Activer {name}", "À propos de {name}", "Permet à l’assistant de ce site de lister vos autres sites Tovu, d’ajouter un pointeur de site et d’afficher le dossier d’un site."],
+  uk: ["Підключити", "Увійти в {name}", "Не вдалося почати вхід.", "Введіть цей код на сторінці входу:", "Завершіть вхід у новому вікні.", "Вхід не виконано. Натисніть «Підключити» біля цього сервера нижче.", "Увімкнути {name}", "Про {name}", "Дозволяє асистенту цього сайту показувати інші ваші сайти Tovu, додавати посилання на сайт і відкривати теку сайту."],
+  tr: ["Bağlan", "{name} hizmetinde oturum aç", "Oturum açma başlatılamadı.", "Bu kodu oturum açma sayfasına girin:", "Oturum açmayı yeni pencerede tamamlayın.", "Oturum açılmadı. Aşağıda bu sunucudaki Bağlan'ı kullanın.", "{name} öğesini etkinleştir", "{name} hakkında", "Bu sitenin asistanının diğer Tovu sitelerinizi listelemesine, site işaretçisi eklemesine ve bir site klasörünü göstermesine izin verir."],
+  th: ["เชื่อมต่อ", "ลงชื่อเข้าใช้ {name}", "เริ่มการลงชื่อเข้าใช้ไม่ได้", "ป้อนรหัสนี้ในหน้าลงชื่อเข้าใช้:", "ลงชื่อเข้าใช้ให้เสร็จในหน้าต่างใหม่", "ยังไม่ได้ลงชื่อเข้าใช้ ใช้ปุ่มเชื่อมต่อของเซิร์ฟเวอร์นี้ด้านล่าง", "เปิดใช้ {name}", "เกี่ยวกับ {name}", "ให้ผู้ช่วยของเว็บไซต์นี้แสดงรายการเว็บไซต์ Tovu อื่นของคุณ เพิ่มตัวชี้เว็บไซต์ และแสดงโฟลเดอร์ของเว็บไซต์"],
+  it: ["Connetti", "Accedi a {name}", "Impossibile avviare l'accesso.", "Inserisci questo codice nella pagina di accesso:", "Completa l'accesso nella nuova finestra.", "Accesso non effettuato. Usa Connetti su questo server, qui sotto.", "Attiva {name}", "Informazioni su {name}", "Permette all'assistente di questo sito di elencare gli altri tuoi siti Tovu, aggiungere un collegamento a un sito e mostrare la cartella di un sito."],
+  hi: ["कनेक्ट करें", "{name} में साइन इन करें", "साइन-इन शुरू नहीं हो सका।", "साइन-इन पेज पर यह कोड डालें:", "नई विंडो में साइन-इन पूरा करें।", "साइन इन नहीं है। नीचे इस सर्वर पर कनेक्ट करें का उपयोग करें।", "{name} चालू करें", "{name} के बारे में", "इस साइट के असिस्टेंट को आपकी अन्य Tovu साइटें दिखाने, साइट पॉइंटर जोड़ने और साइट फ़ोल्डर दिखाने देता है।"],
+  ur: ["منسلک کریں", "{name} میں سائن ان کریں", "سائن اِن شروع نہیں ہو سکا۔", "سائن اِن صفحے پر یہ کوڈ درج کریں:", "نئی ونڈو میں سائن اِن مکمل کریں۔", "سائن اِن نہیں ہے۔ نیچے اس سرور پر منسلک کریں استعمال کریں۔", "{name} فعال کریں", "{name} کے بارے میں", "اس سائٹ کے اسسٹنٹ کو آپ کی دوسری Tovu سائٹیں دکھانے، سائٹ پوائنٹر شامل کرنے اور سائٹ فولڈر دکھانے دیتا ہے۔"],
+  bn: ["সংযুক্ত করুন", "{name}-এ সাইন ইন করুন", "সাইন-ইন শুরু করা যায়নি।", "সাইন-ইন পেজে এই কোডটি লিখুন:", "নতুন উইন্ডোতে সাইন-ইন শেষ করুন।", "সাইন ইন করা নেই। নিচে এই সার্ভারের সংযুক্ত করুন ব্যবহার করুন।", "{name} চালু করুন", "{name} সম্পর্কে", "এই সাইটের সহকারীকে আপনার অন্য Tovu সাইটগুলো দেখাতে, সাইট পয়েন্টার যোগ করতে এবং সাইট ফোল্ডার দেখাতে দেয়।"],
+};
+
+for (const [locale, values] of Object.entries(CONNECT_COPY)) {
+  Object.assign(Reflect.get(EXTERNAL_MCP_DICT, locale), Object.fromEntries(CONNECT_KEYS.map((key, index) => [key, values[index]])));
+}
