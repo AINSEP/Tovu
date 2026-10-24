@@ -502,6 +502,8 @@ export interface AdminServerLogsQuery {
 /** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
+  /** Provider-side sender-domain verdict, independent of whether the sending key is saved. */
+  senderDomainVerification?: import("../features/email/email-api").ProviderDomainVerification;
   mailDeliveryAvailable: boolean;
   /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
    *  admin's blocking banner. */

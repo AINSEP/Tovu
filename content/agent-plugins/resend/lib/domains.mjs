@@ -28,6 +28,13 @@ export function retryAfterMs(headers) {
   return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds * 1000) : undefined;
 }
 
+/** Whether a 401 is Resend's `restricted_api_key`: a valid Sending access key without domain
+ * permission. The host retries only permission refusals with the account key, so this must be
+ * `forbidden`, not the `unauthorized` a bad key gets. @param {HttpResponse} response */
+function isRestrictedKey(response) {
+  try { return JSON.parse(response.bodyText)?.name === 'restricted_api_key'; } catch { return false; }
+}
+
 /** HTTP status to a rejected/unknown result. @param {HttpResponse} response @returns {ProviderResult} */
 function failure(response) {
   const { status } = response;
@@ -36,7 +43,7 @@ function failure(response) {
     return { status: 'rejected', error: { code: 'rate_limited', message: 'Resend rate limit reached', ...(wait === undefined ? {} : { retryAfterMs: wait }) } };
   }
   if (status >= 500) return { status: 'unknown', error: { code: 'provider_unavailable', message: `Resend responded with HTTP ${status}` } };
-  const code = REJECTED_CODES[status] ?? 'provider_error';
+  const code = status === 401 && isRestrictedKey(response) ? 'forbidden' : REJECTED_CODES[status] ?? 'provider_error';
   return { status: 'rejected', error: { code, message: `Resend refused the request (HTTP ${status})` } };
 }
 

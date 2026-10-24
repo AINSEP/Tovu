@@ -12,7 +12,7 @@ import { EmailActivityTab } from "./EmailActivityTab";
 import { EmailOverviewTab } from "./EmailOverviewTab";
 import { Chip, Section, Segments, type Tone } from "./EmailParts";
 import { EmailProviderTab } from "./EmailProviderTab";
-import { EmailSenderTab } from "./EmailSenderTab";
+import { EmailSenderTab, SenderDomain } from "./EmailSenderTab";
 import { EmailTemplatesTab } from "./EmailTemplatesTab";
 import { emailSummary, useWiredEmail, type EmailController, type EmailStatusView, type EmailSummary } from "./hooks/use-email.hooks";
 import { useWiredEmailActivity, type EmailActivityController } from "./hooks/use-email-activity.hooks";
@@ -105,12 +105,14 @@ function StatusBody(props: { view: EmailStatusView; locale: string; retry: () =>
     );
   }
   const summary = SUMMARY[emailSummary({ status: view.status })];
+  const verification = view.status.senderDomainVerification;
   return (
     <>
       <div className="email-row">
         <Chip tone={summary.tone}>{t({ locale, key: summary.chip })}</Chip>
         <span className="jini-field-hint">{t({ locale, key: summary.line })}</span>
       </div>
+      <SenderDomain status={{ senderDomain: verification?.domain ?? null, providerVerification: verification ?? null }} locale={locale} />
       <p className="jini-field-hint">{t({ locale, key: "This checks configuration only. It does not prove that mail arrives." })}</p>
     </>
   );

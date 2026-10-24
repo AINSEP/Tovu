@@ -1,4 +1,5 @@
 import { createSenderDomainVerification } from "./sender-domain-verification.js";
+import { readMailDomain, type MailDomainReadCredentialPort } from "./mail-domain-read.js";
 import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
@@ -28,6 +29,7 @@ import {
   MAIL_CREDENTIAL_CATEGORY,
   MAIL_SMTP_CREDENTIAL_LABEL,
   resolveMailCredential,
+  resolveMailDomainReadCredential,
   type MailProviderCatalog,
   type MailProviderCatalogDeps,
 } from "./mail-provider-catalog.js";
@@ -355,10 +357,12 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   };
 
   // The resolver owns provider selection and credential resolution for both status and DNS.
+  const resolveDomainReadCredential: MailDomainReadCredentialPort = ({ id }) => resolveMailDomainReadCredential({ deps, id });
   const senderDomainVerification = createSenderDomainVerification({
     workspaceId: deps.workspaceId, httpClient: deps.httpClient,
     findProvider: async ({ id }) => (await loadMailProviderCatalog(deps)).registry.get({ id })?.provider,
     resolveCredential: async ({ id }) => resolveMailCredential({ deps, catalog: await loadMailProviderCatalog(deps), id }),
+    resolveDomainReadCredential,
     readProviderId: async () => (await currentSetting()).transactional,
     readSenderEmail: async () => deps.readSenderEmail ? deps.readSenderEmail() : undefined,
   });
@@ -398,7 +402,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const provider = id === null ? undefined : catalog.registry.get({ id })?.provider;
     if (!domain || !provider?.capabilities.domainVerification) return null;
     const { credential } = await providerCredential(catalog, id!);
-    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain }, { timeoutMs: deps.domainRequirementsTimeoutMs }) : null;
+    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain, resolveDomainReadCredential }, { timeoutMs: deps.domainRequirementsTimeoutMs }) : null;
   };
   return { senderDomainVerification, laneReady: async ({ lane }) => (await forLane(lane)).capabilities().driver !== "console", mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
 }
@@ -415,9 +419,9 @@ function callContext(deps: ResolveMailerDeps, credential: MailAdapterCredential)
   return { workspaceId: deps.workspaceId, mode: "live", credential, httpClient };
 }
 
-/** One provider call; a provider-reported failure becomes a caller-safe error. @complexity One call. */
+/** A domain read with the same account fallback as status; failures stay caller-safe. @complexity At most two calls. */
 async function requestDomainRequirements(
-  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string },
+  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string; resolveDomainReadCredential?: MailDomainReadCredentialPort },
   optional: { timeoutMs?: number } = {},
 ): Promise<DomainRequirement> {
   const { ctx, providerId, provider, domain } = required;
@@ -427,7 +431,7 @@ async function requestDomainRequirements(
     timer = setTimeout(() => reject(new Error("The mail provider could not list its required DNS records.")), optional.timeoutMs ?? 5_000);
   });
   try {
-    const result = await Promise.race([provider.domainRequirements!(ctx, { domain }), timeout]);
+    const result = await Promise.race([readMailDomain({ ctx, providerId, read: context => provider.domainRequirements!(context, { domain }), resolveDomainReadCredential: required.resolveDomainReadCredential }), timeout]);
     if (result.status === "ok") return result.value;
     throw new Error("The mail provider could not list its required DNS records.");
   } finally { clearTimeout(timer); }
@@ -470,5 +474,5 @@ async function computeStatusReport(
     domainState === undefined ? {} : { senderDomainState: domainState },
   );
   const { providers } = describeMailProviders({ catalog, records: rows, setting });
-  return { ...status, providers, refusals: catalog.refusals, checkedAt };
+  return { ...status, providers, refusals: catalog.refusals, checkedAt, senderDomainVerification: verdict };
 }

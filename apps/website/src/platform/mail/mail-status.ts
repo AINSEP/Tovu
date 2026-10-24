@@ -1,4 +1,5 @@
 import type { MailStatus } from "@jini-ai/platform/mail";
+import type { SenderDomainVerification } from "./sender-domain-verification.js";
 
 /**
  * The site's mail status: Jini's `computeMailStatus` projection (state, per-lane provider/state,
@@ -6,6 +7,8 @@ import type { MailStatus } from "@jini-ai/platform/mail";
  * `server/runtime/boot/resolve-mailer.ts`; declared here so routes and features need no boot import.
  */
 export interface MailStatusReport extends MailStatus {
+  /** The provider's verdict, kept apart from credential presence and delivery evidence. */
+  readonly senderDomainVerification?: SenderDomainVerification;
   /** Every installed provider's safe configuration (a superset of the v1 `{id,label,hosted,origin}`). */
   readonly providers: readonly MailProviderConfiguration[];
   /** Plugin providers that were not loaded, and why (log-safe). */

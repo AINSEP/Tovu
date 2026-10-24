@@ -48,7 +48,35 @@ test("a missing key, a provider error and a thrown call are Unknown, never faile
   assert.deepEqual(await createSenderDomainVerification(deps({ resolveCredential: async () => null }))(), unknown("the provider's key is not saved"));
   assert.deepEqual(await createSenderDomainVerification(deps({ resolveCredential: async () => { throw new Error("vault"); } }))(), unknown("the provider's key is not saved"));
   const rejecting = provider(async () => providerRejected({ code: "forbidden", message: "no" }));
-  assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => rejecting }))(), unknown("the provider did not answer the domain check"));
+  assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => rejecting }))(), unknown("the sending key can't check domains, and no connected account could check it either"));
   const throwing = provider(async () => { throw new Error("socket"); });
   assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => throwing }))(), unknown("the provider did not answer the domain check"));
+});
+
+test("a permission refusal retries with the plugin account key without changing the sending key", async () => {
+  const credential = { token: "send-only" };
+  const tokens: string[] = [];
+  const restricted = provider(async (ctx, { domain }) => {
+    tokens.push(ctx.credential.token);
+    return ctx.credential.token === "account"
+      ? providerOk({ value: { domain, state: "verified" as const } })
+      : providerRejected({ code: "forbidden", message: "sending access only" });
+  });
+  const check = createSenderDomainVerification(deps({
+    findProvider: async () => restricted, resolveCredential: async () => credential,
+    resolveDomainReadCredential: async ({ id }) => { assert.equal(id, "mailer"); return { token: "account" }; },
+  }));
+  assert.deepEqual(await check(), { state: "verified", domain: "example.com", providerId: "mailer" });
+  assert.deepEqual(tokens, ["send-only", "account"]);
+  assert.deepEqual(credential, { token: "send-only" });
+});
+
+test("an unrelated provider refusal never opens the account credential", async () => {
+  let lookups = 0;
+  const check = createSenderDomainVerification(deps({
+    findProvider: async () => provider(async () => providerRejected({ code: "rate_limited", message: "wait" })),
+    resolveDomainReadCredential: async () => { lookups += 1; return { token: "account" }; },
+  }));
+  assert.equal((await check()).state, "unknown");
+  assert.equal(lookups, 0);
 });

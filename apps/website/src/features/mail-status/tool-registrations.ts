@@ -107,10 +107,13 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
       prepare: async ({ ctx }) => {
         const to = readTestRecipient({ value: requireInputRecord({ input: ctx.input }).to });
         await permission(deps, ctx, "admin.forms.manage");
-        return planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
+        const plan = await planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
+        // Display metadata must not prevent preparing a send when the catalog read is unavailable.
+        const providers = await deps.mailProviderControl?.describe?.().catch(() => undefined);
+        return { ...plan, providerLabel: providers?.providers.find(provider => provider.id === plan.approval.providerId)?.label ?? plan.driver };
       },
       describe: ({ prepared }) => ({ toolId: "mail_send_test", errorCode: "MAIL", title: `Send a test email to ${prepared.to}?`,
-        details: [{ label: "To", value: prepared.to }, { label: "Through", value: prepared.driver }, ...testModeDetails(prepared)], confirmLabel: "Send test email" }),
+        details: [{ label: "From", value: prepared.approval.from.email }, { label: "To", value: prepared.to }, { label: "Through", value: prepared.providerLabel }, ...testModeDetails(prepared)], confirmLabel: "Send test email" }),
       run: async ({ ctx, prepared }) => {
         await permission(deps, ctx, "admin.forms.manage");
         const result = await runMailTestSend({ deps, principalId: ctx.principal.id, plan: prepared, ref: ctx.executionId });
