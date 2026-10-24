@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
+import { installLazyChatLoader } from '@jini-ai/chat/browser/lazy-loader';
+import { startSiteChatLoader } from '../loader-host';
 
 import {
   clearPersistedState,
@@ -337,6 +339,35 @@ describe("real-sessionStorage-bound wrappers", () => {
   afterEach(() => {
     (globalThis as { sessionStorage?: unknown }).sessionStorage = savedSessionStorage;
     dom.window.close();
+  });
+
+  for (const variant of ['react', 'vanilla']) it(`${variant}: a fresh unopened chat writes no browser storage and loads only after activation`, async () => {
+    dom.window.document.body.innerHTML = `<div id="tovu-site-assistant-root"></div><button data-jini-chat-loader data-widget="${variant}"></button>`;
+    let writes = 0;
+    let loads = 0;
+    let dispose = () => {};
+    // Observe even transient writes, rather than just checking the final storage length.
+    dom.window.Storage.prototype.setItem = () => { writes++; };
+    try {
+      startSiteChatLoader({
+        install: args => {
+          const loader = installLazyChatLoader(args);
+          dispose = () => loader.dispose();
+          return loader;
+        },
+        loadAssets: async () => { loads++; },
+      }, { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window });
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(loads, 0);
+      assert.equal(writes, 0);
+      assert.equal(dom.window.sessionStorage.length, 0);
+      assert.equal(dom.window.localStorage.length, 0);
+      assert.equal(dom.window.document.cookie, '');
+      dom.window.document.querySelector('button')!.click();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(loads, 1);
+      assert.equal(dom.window.document.getElementById('tovu-site-assistant-root')!.dataset.chatOpen, 'true');
+    } finally { dispose(); }
   });
 
   it("checks queued effects without consuming them before the full widget loads", () => {
