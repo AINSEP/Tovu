@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { JSDOM } from 'jsdom';
 import { injectPublishedWebMcp } from '../published-html.js';
+
+test('first-party WebMCP registers local actions without writing storage, cookies or making requests', () => {
+  const html = injectPublishedWebMcp({ html: '<html><body><button type="button" data-toolname="help" data-tooldescription="Show help">Help</button></body></html>', enabled: true });
+  const dom = new JSDOM(html, { url: 'https://site.example/', runScripts: 'outside-only' });
+  try {
+    let registrations = 0;
+    Object.defineProperty(dom.window.document, 'modelContext', { value: { registerTool: () => { registrations++; } } });
+    dom.window.Storage.prototype.setItem = () => { assert.fail('WebMCP must not write browser storage'); };
+    Object.defineProperty(dom.window.document, 'cookie', { set: () => { assert.fail('WebMCP must not write cookies'); } });
+    dom.window.fetch = () => { assert.fail('WebMCP must not make network requests'); };
+    const script = dom.window.document.querySelector('script[data-tovu-webmcp-script]')!;
+    assert.equal(script.hasAttribute('data-consent-category'), false);
+    dom.window.eval(script.textContent!);
+    assert.equal(registrations, 1);
+    assert.equal(dom.window.localStorage.length, 0);
+    assert.equal(dom.window.sessionStorage.length, 0);
+    dom.window.dispatchEvent(new dom.window.Event('pagehide'));
+  } finally { dom.window.close(); }
+});
 
 test('opt-out strips all five tool attributes with original whitespace and unrelated bytes intact', () => {
   const html = '<!doctype html><!--keep--><form TOOLNAME=contact tooldescription="Contact" toolautosubmit><input toolparamtitle=Email toolparamdescription="Address" name=email></form>Text';

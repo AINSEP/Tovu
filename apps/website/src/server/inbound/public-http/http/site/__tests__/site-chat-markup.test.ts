@@ -12,10 +12,11 @@ for (const variant of ['react', 'vanilla'] as const) test(`${variant}: enabled p
   assert.doesNotMatch(markup.head, /<link/);
   assert.match(markup.body, /<button type="button" class="jini-chat-bubble"/);
   assert.match(markup.body, new RegExp(`data-widget="${variant}"`));
+  assert.doesNotMatch(markup.body, /data-consent-category/);
   assert.match(markup.body, /aria-haspopup="dialog"/);
   assert.match(markup.body, /aria-label="Chat with this site"/);
   assert.match(markup.head, /--jini-chat-accent:oklch\(55\.29% 0\.1129 43\.4\)/);
-  assert.match(markup.body, /<script defer src="\/site-chat\/site-assistant-loader\.js" data-consent-category="functional"><\/script>/);
+  assert.match(markup.body, /<script defer src="\/site-chat\/site-assistant-loader\.js"><\/script>/);
   assert.doesNotMatch(markup.head + markup.body, /remixicon|src="\/site-chat\/site-assistant(?:-vanilla)?\.js"/);
 });
 test('disabled emits nothing; missing build artifacts signal an unavailable lazy widget', () => {
@@ -57,8 +58,8 @@ test('legacy boolean callers keep the default React widget', t => {
 });
 
 
-test('chat bubble and loader share functional consent so rejection cannot leave a dead control', () => {
+test('the host chat bubble and loader are untagged necessary features', () => {
   const markup = renderLazySiteChatMarkup({ enabled: true, variant: 'vanilla', assetsReady: true, mountId: 'tovu-site-assistant-root' })!;
-  assert.equal(markup.body.includes('<button type="button" class="jini-chat-bubble" data-consent-category="functional" data-jini-chat-loader'), true);
-  assert.equal(markup.body.includes('<script defer src="/site-chat/site-assistant-loader.js" data-consent-category="functional"></script>'), true);
+  assert.equal(markup.body.includes('<button type="button" class="jini-chat-bubble" data-jini-chat-loader'), true);
+  assert.equal(markup.body.includes('<script defer src="/site-chat/site-assistant-loader.js"></script>'), true);
 });

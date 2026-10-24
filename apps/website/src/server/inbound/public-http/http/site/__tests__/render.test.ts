@@ -505,7 +505,7 @@ test("renderSite: the page shell includes only the lazy loader and inline bubble
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
   assert.match(html, /<style data-jini-chat-bubble>/);
   assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
-  assert.match(html, /<script defer src="\/site-chat\/site-assistant-loader\.js" data-consent-category="functional"><\/script>/);
+  assert.match(html, /<script defer src="\/site-chat\/site-assistant-loader\.js"><\/script>/);
   assert.doesNotMatch(html, /(?:src|href)=["'][^"']*(?:site-assistant\.(?:js|css)|react)|modulepreload/i);
   // Exactly once each: this is the shell every route funnels through, not per-theme injection.
   assert.equal(html.match(/tovu-site-assistant-root/g)?.length, 1);

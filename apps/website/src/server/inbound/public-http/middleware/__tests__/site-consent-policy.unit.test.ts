@@ -79,18 +79,30 @@ test('the real preview-switcher banner script mounts its shadow UI after reject'
   } finally { dom.window.close(); }
 });
 
-test('WebMCP and site chat remain functional-category features under first-party defaults', () => {
-  const chat = renderLazySiteChatMarkup({ enabled: true, variant: 'vanilla', assetsReady: true, mountId: 'tovu-site-assistant-root' });
+for (const variant of ['react', 'vanilla'] as const) test(`${variant}: host chat and WebMCP work before choice and after reject; external widgets stay gated`, () => {
+  const chat = renderLazySiteChatMarkup({ enabled: true, variant, assetsReady: true, mountId: 'tovu-site-assistant-root' });
   assert.ok(chat);
-  const html = injectPublishedWebMcp({ html: `<html><head>${chat.head}</head><body>${chat.body}</body></html>`, enabled: true });
-  const dom = new JSDOM(gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
-    record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }));
-  try {
-    const document = dom.window.document;
-    assert.equal(document.querySelector('[data-tovu-webmcp-script]'), null);
-    assert.equal(document.querySelector('script[src="/site-chat/site-assistant-loader.js"]'), null);
-    const scripts = [...document.querySelectorAll<HTMLTemplateElement>('template[data-jini-consent-script]')];
-    assert.equal(scripts.length, 2);
-    assert.ok(scripts.every(script => script.dataset.category === 'functional'));
-  } finally { dom.window.close(); }
+  const external = '<script src="https://widget.example/chat.js"></script><script data-consent-category="functional" src="/external-chat-proxy.js"></script>';
+  const html = injectPublishedWebMcp({ html: `<html><head>${chat.head}</head><body>${chat.body}${external}</body></html>`, enabled: true });
+  const record = { id: 'rejected_0123456789012345', timestamp: '2026-10-24T00:00:00Z', policyVersion: '1',
+    regionMode: 'opt-in' as const, gpc: false, action: 'reject' as const,
+    choices: { necessary: true as const, functional: false, analytics: false, marketing: false } };
+  for (const choice of [null, record]) {
+    const dom = new JSDOM(gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
+      record: choice, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }));
+    try {
+      const document = dom.window.document;
+      assert.ok(document.querySelector('script[data-tovu-webmcp-script]'));
+      assert.ok(document.querySelector('script[src="/site-chat/site-assistant-loader.js"]'));
+      const button = document.querySelector<HTMLButtonElement>('button[data-jini-chat-loader]');
+      assert.ok(button);
+      assert.equal(button.hidden, false);
+      assert.equal(button.disabled, false);
+      assert.equal(button.hasAttribute('data-jini-consent-attributes'), false);
+      assert.equal(document.querySelector('script[src="https://widget.example/chat.js"]'), null);
+      assert.equal(document.querySelector('script[src="/external-chat-proxy.js"]'), null);
+      const scripts = [...document.querySelectorAll<HTMLTemplateElement>('template[data-jini-consent-script]')];
+      assert.deepEqual(scripts.map(script => script.dataset.category), ['marketing', 'functional']);
+    } finally { dom.window.close(); }
+  }
 });
