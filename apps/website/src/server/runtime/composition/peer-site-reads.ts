@@ -55,6 +55,7 @@ export const CROSS_SITE_READ_DOMAINS: ReadonlySet<string> = new Set([
   'content-types', 'entries', 'themes', 'settings', 'comments', 'members', 'newsletter',
   'redirects', 'seo', 'widgets', 'workspace', 'identity',
   'identity-policy-list-permissions', 'database', 'trash', 'change-sets', 'assistant-history',
+  'theme-preview-switcher',
 ]);
 
 /** Every other read contributor has an explicit boundary; catalog tests reject unclassified additions. */
@@ -109,7 +110,6 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   'admin-screen-link': 'Links refer to the active admin UI.',
   'external-mcp-reauth': 'Reauthentication belongs to the active UI and credentials.',
   consent: 'Consent readiness diagnoses the active site middleware and deploy gate; peer composition supplies no consent service.',
-  'theme-preview-switcher': 'The switcher syncs the active installation\'s theme roster from its themes directory.',
 };
 
 /** A dependency omitted by peer composition must fail visibly, never fall back to active data. */
@@ -224,7 +224,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   const bag = {
     ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,
     // Optional build-time settings are explicit so builders don't iterate a poison value.
-    extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(),
+    extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
     peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
@@ -261,6 +261,9 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),
     entryRepo: new SqliteEntryRepo(kernel), contentTypeRepo: new SqliteContentTypeRepo(kernel),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
+    // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
+    presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),
+      save: unavailable({ field: 'presentationRepo.save' }), listAll: unavailable({ field: 'presentationRepo.listAll' }) },
     // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
     resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
     commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),

@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { applyBatchInputs, type BatchResult } from "../../../assistant/batch-tool-inputs.js";
 import { invokeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
+import { withContentTargets } from "../../../assistant/__tests__/fixtures/content-target-inputs.js";
 import { createPost, InMemoryPostRepo } from "../../post/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -28,11 +29,12 @@ interface PageRead {
 /** Real domain/store plus the production batch selection and executor normalization gates. */
 function readerHarness(_required: Record<string, never>, { authorize }: { authorize?: PagesToolDeps["authorize"] } = {}) {
   const repo = new InMemoryPostRepo([]);
-  const registrations = buildPagesRegistrations({
+  const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
     pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
     themes: [theme], resolveActiveThemeId: async () => "ink",
-  });
+  };
+  const registrations = withContentTargets({ registrations: buildPagesRegistrations(deps), deps });
   const reader = applyBatchInputs({ registrations }).find(entry => entry.descriptor.id === "pages_read_html")!;
   const call = (input: Record<string, unknown>) => invokeRegisteredTool(reader, {
     executionId: "read", run: { id: "run" }, principal: { id: "owner" }, input, signal: new AbortController().signal,

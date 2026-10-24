@@ -47,10 +47,35 @@ test("site_guide refuses the assistant-use floor before constructing the engine"
 });
 test("site_guide modes have exact corrective input errors", () => {
   assert.deepEqual(readSiteGuideInput({ input: { operation: "overview" } }), { operation: "overview" });
-  assert.throws(() => readSiteGuideInput({ input: { operation: "write" } }), { message: "site_guide: operation must be overview or explain." });
+  assert.throws(() => readSiteGuideInput({ input: { operation: "write" } }), { message: "site_guide: operation must be overview, explain or search." });
   assert.throws(() => readSiteGuideInput({ input: { operation: "explain" } }), { message: "site_guide: explain requires a topic id from overview." });
-  assert.throws(() => readSiteGuideInput({ input: { operation: "overview", topic: "forms" } }), { message: "site_guide: topic is only accepted with operation explain." });
+  assert.throws(() => readSiteGuideInput({ input: { operation: "overview", topic: "forms" } }), { message: "site_guide: topic is only accepted with operation explain or search." });
   assert.throws(() => readSiteGuideInput({ input: { operation: "explain", topic: "../secret" } }), ToolInputError);
+});
+
+test("site_guide searches visible topic text with query alias, without reading hidden facts", async () => {
+  const { executeRegisteredTool } = await import("../../../../assistant/__tests__/fixtures/execute-registered-tool.js");
+  const d = deps();
+  d.authorize = async ({ permission }) => ({ allowed: ["admin.assistant.use", "content.read"].includes(permission), reason: "test" });
+  d.postRepo.list = async () => assert.fail("search must not load topic facts");
+  const registration = buildSiteGuideRegistrations({ deps: d })[0]!;
+  for (const input of [{ operation: "search", topic: "CONTENT" }, { operation: "search", query: "content" }]) {
+    const result = await executeRegisteredTool({ registration, input });
+    assert.equal(result.status, "completed");
+    const output = result.output as { operation: string; topics: Array<{ id: string }>; facts: unknown; normalizationNotes?: string[] };
+    assert.equal(output.operation, "search");
+    assert.ok(output.topics.some(topic => topic.id === "content"));
+    assert.ok(output.topics.every(topic => !["members", "plugins"].includes(topic.id)));
+    assert.deepEqual(output.facts, {});
+    if ("query" in input) assert.ok(output.normalizationNotes?.includes("query→topic"));
+  }
+  const hidden = await executeRegisteredTool({ registration, input: { operation: "search", query: "members" } });
+  assert.equal(hidden.status, "completed");
+  assert.deepEqual((hidden.output as { topics: unknown[] }).topics, []);
+  for (const input of [{ operation: "search" }, { operation: "search", query: " " }, { operation: "search", topic: "a".repeat(201) },
+    { operation: "search", topic: "content", query: "members" }]) {
+    assert.equal((await executeRegisteredTool({ registration, input })).errorKind, "validation");
+  }
 });
 test("hidden-topic errors retain their exact message and classify as tool input rejection", async () => {
   const message = "Topic unavailable. Call site_guide with operation overview for topics you may read.";
