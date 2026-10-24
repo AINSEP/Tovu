@@ -78,6 +78,15 @@ export function ExternalProvidersIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Trash — a lidded bin, the same glyph family as the icons above. */
+export function TrashMediaIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M4.5 7h15M9.5 7V4.75h5V7M6.5 7l.9 12.25h9.2L17.5 7M10.25 10.5v5.5M13.75 10.5v5.5" />
+    </svg>
+  );
+}
+
 /** Which icon each `MEDIA_TABS` id carries — a lookup rather than a field on `MEDIA_TABS` itself,
  *  because that constant lives in a `.hooks.ts` file (no JSX) and is the URL contract
  *  `use-media-tabs.hooks.ts` resolves `?tab=` against; the icons are presentation. */
@@ -86,6 +95,7 @@ const MEDIA_TAB_ICONS = {
   images: <ImagesIcon />,
   videos: <VideosIcon />,
   "external-providers": <ExternalProvidersIcon />,
+  trash: <TrashMediaIcon />,
 } as const;
 
 /**
@@ -103,7 +113,7 @@ const MEDIA_TAB_ICONS = {
  * Defaulted to `{}` so every pre-existing call site (a test calling this directly) keeps rendering
  * exactly as before.
  *
- * @complexity O(1) — a fixed four-element array.
+ * @complexity O(1) — a fixed five-element array.
  */
 export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Record<MediaTabId, number>> = {}): TabBarTab[] {
   return MEDIA_TABS.map((tab) => ({

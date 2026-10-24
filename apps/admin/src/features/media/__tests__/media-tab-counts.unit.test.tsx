@@ -62,21 +62,21 @@ describe("mediaContentTabCounts", () => {
 
   it("counts all/images/videos correctly for a mixed set, matching filterMediaByTab exactly", () => {
     const media = [IMAGE_A, IMAGE_B, VIDEO_A, UNTYPED];
-    expect(mediaContentTabCounts(media)).toEqual({ all: 4, images: 2, videos: 1 });
+    expect(mediaContentTabCounts(media)).toEqual({ all: 4, images: 2, videos: 1, trash: 0 });
   });
 
   it("updates when an item is added", () => {
     const before = mediaContentTabCounts([IMAGE_A, VIDEO_A]);
     const after = mediaContentTabCounts([IMAGE_A, VIDEO_A, IMAGE_B]);
-    expect(before).toEqual({ all: 2, images: 1, videos: 1 });
-    expect(after).toEqual({ all: 3, images: 2, videos: 1 });
+    expect(before).toEqual({ all: 2, images: 1, videos: 1, trash: 0 });
+    expect(after).toEqual({ all: 3, images: 2, videos: 1, trash: 0 });
   });
 
   it("updates when an item is removed", () => {
     const before = mediaContentTabCounts([IMAGE_A, IMAGE_B, VIDEO_A]);
     const after = mediaContentTabCounts([IMAGE_A, VIDEO_A]);
-    expect(before).toEqual({ all: 3, images: 2, videos: 1 });
-    expect(after).toEqual({ all: 2, images: 1, videos: 1 });
+    expect(before).toEqual({ all: 3, images: 2, videos: 1, trash: 0 });
+    expect(after).toEqual({ all: 2, images: 1, videos: 1, trash: 0 });
   });
 
   it("has no count of its own for a tab with zero matching items — 0 is still a real count, not an absence", () => {
@@ -85,17 +85,23 @@ describe("mediaContentTabCounts", () => {
     // this case, which is correct: unlike the loading state, this IS a known count.
     expect(mediaContentTabCounts([IMAGE_A]).videos).toBe(0);
   });
+
+  it("counts a trashed item only on Trash, never on All/Images/Videos", () => {
+    const media = [IMAGE_A, { ...IMAGE_B, status: "trashed" as const }, { ...VIDEO_A, status: "trashed" as const }];
+    expect(mediaContentTabCounts(media)).toEqual({ all: 1, images: 1, videos: 0, trash: 2 });
+  });
 });
 
 describe("resolveMediaTabs — count wiring", () => {
   const t = (key: string) => key;
 
   it("attaches each tab's count from the given map, by id", () => {
-    const tabs = resolveMediaTabs(t, { all: 4, images: 2, videos: 1, "external-providers": 9 });
+    const tabs = resolveMediaTabs(t, { all: 4, images: 2, videos: 1, "external-providers": 9, trash: 3 });
     expect(tabs.find((tab) => tab.id === "all")?.count).toBe(4);
     expect(tabs.find((tab) => tab.id === "images")?.count).toBe(2);
     expect(tabs.find((tab) => tab.id === "videos")?.count).toBe(1);
     expect(tabs.find((tab) => tab.id === "external-providers")?.count).toBe(9);
+    expect(tabs.find((tab) => tab.id === "trash")?.count).toBe(3);
   });
 
   it("leaves a tab's count undefined (no badge) when the map has no entry for it", () => {
@@ -184,7 +190,7 @@ describe("Media screen — tab counts", () => {
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("updates the All/Videos counts after an item is permanently deleted from the grid", async () => {
+  it("lists a trashed item on Trash only and updates the Trash count after it is permanently deleted", async () => {
     const user = userEvent.setup();
     let items: AdminMedia[] = [IMAGE_A, { ...VIDEO_A, status: "trashed" }];
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -198,11 +204,13 @@ describe("Media screen — tab counts", () => {
       if (url.includes("/media")) return Promise.resolve(jsonResponse({ media: items }));
       return Promise.reject(new Error(`media-tab-counts test: no mocked route for ${method} ${url}`));
     });
-    renderScreen();
+    renderScreen({ tabId: "trash" });
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
-    await screen.findByRole("button", { name: "Image A.png" });
-    expect(tabCount("All")).toBe("2");
-    expect(tabCount("Videos")).toBe("1");
+    await screen.findByRole("button", { name: "Video A.mp4" });
+    expect(screen.queryByRole("button", { name: /^Image A/ })).not.toBeInTheDocument();
+    expect(tabCount("All")).toBe("1");
+    expect(tabCount("Videos")).toBe("0");
+    expect(tabCount("Trash")).toBe("1");
 
     const card = screen.getByRole("button", { name: "Video A.mp4" }).closest(".media-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: /actions for "video a"/i }));
@@ -210,7 +218,8 @@ describe("Media screen — tab counts", () => {
     await screen.findByText("Delete permanently?");
     await user.click(screen.getByRole("button", { name: "Delete permanently" }));
 
-    await waitFor(() => expect(tabCount("All")).toBe("1"));
-    expect(tabCount("Videos")).toBe("0");
+    await waitFor(() => expect(tabCount("Trash")).toBe("0"));
+    expect(tabCount("All")).toBe("1");
+    expect(await screen.findByText("Trash is empty.")).toBeInTheDocument();
   });
 });
