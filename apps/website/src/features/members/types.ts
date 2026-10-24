@@ -228,6 +228,8 @@ export interface MemberAccessDecision {
 
 /** Raised when a member sign-in credential is invalid, expired, or consumed. */
 export class MemberAuthError extends Error {}
+/** A passwordless member must prove inbox access again before setting a password. */
+export class MemberReauthenticationRequiredError extends MemberAuthError {}
 /** Site-wide setup failure; safe to expose before any per-address lookup. */
 export class MemberSignInUnavailableError extends Error {}
 /** Raised when a member profile/tier/subscription payload fails validation. */

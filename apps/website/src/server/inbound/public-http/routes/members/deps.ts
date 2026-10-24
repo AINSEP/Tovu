@@ -62,6 +62,7 @@ export interface MemberPublicRouteDeps {
   passwordHasher: PasswordHasherPort;
   passwordSignInPerEmailLimiter: RateLimiter;
   passwordSignInPerIpLimiter: RateLimiter;
+  passwordSetPerMemberLimiter: RateLimiter;
   magicLinkPerEmailLimiter: RateLimiter;
   magicLinkPerIpLimiter: RateLimiter;
   magicLinkCompleteAttemptLimiter: RateLimiter;
@@ -119,6 +120,7 @@ const MEMBER_BODY_SHAPES = {
   passwordSignIn: [["email", "password"], []],
   forgotPassword: [["email"], []],
   resetPassword: [["token", "password"], []],
+  setPassword: [["password"], ["currentPassword"]],
   token: [["token"], []],
   code: [["challengeId", "code"], []],
 } satisfies Record<string, [string[], string[]]>;
@@ -143,11 +145,13 @@ export function memberStringBody(required: {
  */
 export async function checkMemberRequestLimits(required: MemberRequest & {
   email?: string; emailLimiter?: RateLimiter; ipLimiter: RateLimiter;
+  identity?: { key: string; limiter: RateLimiter };
 }, _options = {}): Promise<boolean> {
   const { req, res, emailLimiter, email, ipLimiter } = required;
   const checks = await Promise.all([
     ipLimiter.check({ key: resolveClientIp(req) }),
     ...(emailLimiter ? [emailLimiter.check({ key: (email ?? "").trim().toLowerCase() || "<empty>" })] : []),
+    ...(required.identity ? [required.identity.limiter.check({ key: required.identity.key })] : []),
   ]);
   for (const result of checks) {
     if (result.allowed) continue;

@@ -2,7 +2,8 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { validatePasswordPolicy } from "@jini-ai/user-management/server";
 import type { MemberSignInResult, MembersWriteServiceDeps } from "./ports.js";
-import { MemberAuthError, MemberValidationError, type MemberRecord } from "./types.js";
+import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord, type MemberSessionRecord } from "./types.js";
+import { resolveMemberSession } from "./access-resolver.js";
 import {
   consumeMemberChallenge, dummyPasswordHash, issueMemberSession, memberPasswordHasher, requestMemberChallenge,
 } from "./write-service.js";
@@ -89,11 +90,80 @@ export async function resetPassword(required: {
   const member = resettableMember({
     member: await deps.members.findById({ workspaceId: input.workspaceId, id: record.memberId }), createdAt: record.createdAt,
   });
-  const passwordHash = await memberPasswordHasher({ deps }).hash({ password: input.password });
-  await deps.members.setPasswordHash({ workspaceId: input.workspaceId, memberId: member.id, passwordHash });
-  await deps.sessions.revokeAllForMember({ workspaceId: input.workspaceId, memberId: member.id, revokedAt: nowIso });
+  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password, nowIso },
+    { verifyInbox: true });
+  return { ok: true };
+}
+
+/** /me eligibility: pending and active members may change credentials; disabled/trashed never. O(1). */
+function credentialMember({ member }: { member: MemberRecord | null }, _options = {}): MemberRecord {
+  if (!member || (member.status !== "active" && member.status !== "pending")) throw new MemberAuthError("INVALID_CREDENTIALS");
+  return member;
+}
+
+/** One password-write lifecycle for reset and self-service; revoke before a profile save can fail.
+ * @complexity O(n + s), password code points n and affected sessions s; hashing is adapter-owned.
+ * @throws MemberAuthError when the member was disabled/trashed meanwhile; repository/hasher errors
+ * propagate; no success is returned after partial failure.
+ */
+async function persistMemberPassword(required: {
+  deps: MembersWriteServiceDeps; workspaceId: string; memberId: string; password: string; nowIso: string;
+}, options: { exceptSessionId?: string; verifyInbox?: boolean } = {}): Promise<void> {
+  const { deps, workspaceId, memberId, password, nowIso } = required;
+  const passwordHash = await memberPasswordHasher({ deps }).hash({ password });
+  // Read status after Argon2: saving the record read before it would undo a racing disable.
+  const member = credentialMember({ member: await deps.members.findById({ workspaceId, id: memberId }) });
+  await deps.members.setPasswordHash({ workspaceId, memberId, passwordHash });
+  await deps.sessions.revokeAllForMember({ workspaceId, memberId, revokedAt: nowIso }, { exceptSessionId: options.exceptSessionId });
   // The reset link proves the inbox, so it verifies the email and activates a pending member.
-  await deps.members.save({ ...member, credentialsRevokedAt: nowIso, emailVerifiedAt: member.emailVerifiedAt ?? nowIso,
-    status: member.status === "pending" ? "active" : member.status, updatedAt: nowIso, version: member.version + 1 });
+  const inbox = options.verifyInbox ? { emailVerifiedAt: member.emailVerifiedAt ?? nowIso, status: "active" as const } : {};
+  await deps.members.save({ ...member, ...inbox, credentialsRevokedAt: nowIso, updatedAt: nowIso, version: member.version + 1 });
+}
+
+/** Existing credentials need proof; a passwordless account needs a recent inbox-backed session.
+ * @throws MemberAuthError on missing/wrong current password; reauthentication error on stale sessions.
+ * @complexity O(1) plus one adapter-owned password verification when a hash exists.
+ */
+async function authorizePasswordSet(required: {
+  deps: MembersWriteServiceDeps; hash: string | null; currentPassword?: string;
+  session: MemberSessionRecord; nowIso: string;
+}, _options = {}): Promise<void> {
+  const { deps, hash, currentPassword, session, nowIso } = required;
+  if (hash !== null) {
+    if (currentPassword === undefined) throw new MemberAuthError("INVALID_CREDENTIALS");
+    const verified = await memberPasswordHasher({ deps }).verify({ hash, password: currentPassword });
+    if (!verified) throw new MemberAuthError("INVALID_CREDENTIALS");
+    return;
+  }
+  // Session issuance, not last activity, proves that the inbox was accessed recently.
+  const ageMs = Date.parse(nowIso) - Date.parse(session.createdAt);
+  if (!(ageMs >= 0 && ageMs <= 15 * 60_000)) {
+    throw new MemberReauthenticationRequiredError("sign in again to set a password");
+  }
+}
+
+/** Set/change a signed-in member's password, preserving only the presenting session.
+ * @returns {ok:true}; never returns a password/hash or mints a session.
+ * @throws MemberAuthError for invalid sessions/status/proof, reauthentication error when stale,
+ * MemberValidationError for empty/>512-code-point passwords; adapter failures propagate.
+ * @complexity O(n + s), password code points n and member sessions s.
+ * @example setMemberPassword({ deps, input: { workspaceId, sessionToken, password: "x" } });
+ */
+export async function setMemberPassword(required: {
+  deps: MembersWriteServiceDeps;
+  input: { workspaceId: string; sessionToken?: string; password: string; currentPassword?: string };
+}, _options = {}): Promise<{ ok: true }> {
+  const { deps, input } = required;
+  const nowIso = clockNowIso({ clock: deps.clock });
+  const session = await resolveMemberSession({ sessions: deps.sessions, workspaceId: input.workspaceId,
+    sessionToken: input.sessionToken, nowIso });
+  if (!session) throw new MemberAuthError("INVALID_CREDENTIALS");
+  const member = credentialMember({ member: await deps.members.findById({ workspaceId: input.workspaceId, id: session.memberId }) });
+  const hash = await deps.members.findPasswordHash({ workspaceId: input.workspaceId, memberId: member.id });
+  await authorizePasswordSet({ deps, hash, currentPassword: input.currentPassword, session, nowIso });
+  const policyError = validatePasswordPolicy({ password: input.password });
+  if (policyError) throw new MemberValidationError(policyError);
+  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password, nowIso },
+    { exceptSessionId: session.id });
   return { ok: true };
 }

@@ -38,6 +38,7 @@ export type {
 
 export {
   MemberAuthError,
+  MemberReauthenticationRequiredError,
   MemberSignInUnavailableError,
   MemberValidationError,
   MemberConflictError,
@@ -120,4 +121,5 @@ export {
 
 export { trashMember } from "./trash-member.js";
 
-export { signInWithPassword, requestPasswordReset, resetPassword } from "./password-auth.js";
+export { signInWithPassword, requestPasswordReset, resetPassword, setMemberPassword } from "./password-auth.js";
+export { resolveMemberSession } from "./access-resolver.js";

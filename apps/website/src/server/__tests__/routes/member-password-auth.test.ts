@@ -11,6 +11,7 @@ import {
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, requestSignInLink, requestPasswordReset,
   type MemberRecord, type OutboundEmail,
 } from "#src/features/members/index";
+import { issueMemberSession } from "#src/features/members/write-service";
 import {
   createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP,
   type RateLimiter,
@@ -21,6 +22,7 @@ import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-ht
 import { registerPublicMemberPasswordSignInRoute } from "../../inbound/public-http/routes/members/password-sign-in.js";
 import { registerPublicMemberForgotPasswordRoute } from "../../inbound/public-http/routes/members/forgot-password.js";
 import { registerPublicMemberResetPasswordRoute } from "../../inbound/public-http/routes/members/reset-password.js";
+import { registerPublicMemberSetPasswordRoute } from "../../inbound/public-http/routes/members/set-password.js";
 import { registerPublicMemberMeRoute } from "../../inbound/public-http/routes/members/me.js";
 import { registerPublicMemberSignOutRoute } from "../../inbound/public-http/routes/members/sign-out.js";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
@@ -55,12 +57,13 @@ function harness() {
     magicLinkCompleteAttemptLimiter: createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock }),
     passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock }),
     passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock }),
+    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock }),
   };
   const app = express();
   app.use(express.json());
   for (const register of [registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute,
     registerPublicMemberPasswordSignInRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberResetPasswordRoute,
-    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute]) register(app, deps);
+    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register(app, deps);
   async function seed(email = "ada@example.test", status: MemberRecord["status"] = "active", password: string | null = "x") {
     const member: MemberRecord = { id: email, workspaceId: deps.workspaceId, email, status,
       createdAt: clock.nowIso(), updatedAt: clock.nowIso(), version: 1 };
@@ -81,7 +84,11 @@ function harness() {
     assert.ok(record);
     return { token, challengeId: record.id, code: /\b(\d{6})\b/.exec(text)?.[1] };
   }
-  return { app, deps, seed, challenge, sent, clock };
+  async function cookieFor(member: MemberRecord) {
+    const result = await issueMemberSession({ deps: toPublicMembersWriteServiceDeps(deps), member, nowIso: clock.nowIso() });
+    return `tovu_member_session=${result.rawSessionToken}`;
+  }
+  return { app, deps, seed, challenge, sent, clock, cookieFor };
 }
 
 function post(base: string, path: string, body: unknown = {}, headers: Record<string, string> = {}) {
@@ -97,6 +104,113 @@ function spyLimiter(allowed: boolean) {
   } };
   return { keys, limiter };
 }
+
+for (const method of ["link", "code"]) {
+  test(`D2: fresh ${method} session sets a password and retains only its own cookie session`, async t => {
+    const h = harness(); const member = await h.seed("ada@example.test", "active", null);
+    const otherCookie = await h.cookieFor(member);
+    const challenge = await h.challenge();
+    const base = await startTestServer(h.app, t);
+    const proof = method === "link" ? { token: challenge.token } : { challengeId: challenge.challengeId, code: challenge.code };
+    const login = await post(base, "sign-in/complete", proof);
+    assert.equal(login.status, 200);
+    const cookie = login.headers.get("set-cookie")!.split(";")[0];
+    const result = await post(base, "password/set", { password: "🙂" }, { cookie });
+    assert.equal(result.status, 200);
+    assert.deepEqual(await result.json(), { ok: true });
+    assert.equal(result.headers.has("set-cookie"), false);
+    const me = await fetch(`${base}${BASE}/me`, { headers: { cookie } });
+    assert.deepEqual(await me.json(), { member: { id: member.id, email: member.email, status: "active" } });
+    const other = await fetch(`${base}${BASE}/me`, { headers: { cookie: otherCookie } });
+    assert.deepEqual(await other.json(), { member: null });
+    assert.equal(await h.deps.memberRepo.findPasswordHash({ workspaceId: h.deps.workspaceId, memberId: member.id }), hash("🙂"));
+    const sessions = await h.deps.memberSessionRepo.listByMember({ workspaceId: h.deps.workspaceId, memberId: member.id });
+    assert.equal(sessions.length, 2);
+    assert.equal(sessions.filter(s => !s.revokedAt).length, 1);
+  });
+}
+
+test("D2: existing password gives uniform 401 for missing/wrong proof and changes with exact proof", async t => {
+  const h = harness(); const member = await h.seed(); const cookie = await h.cookieFor(member);
+  const base = await startTestServer(h.app, t);
+  for (const body of [{ password: "y" }, { password: "y", currentPassword: "wrong" }]) {
+    const response = await post(base, "password/set", body, { cookie });
+    assert.equal(response.status, 401); assert.deepEqual(await response.json(), INVALID);
+  }
+  h.clock.advanceMs(16 * 60_000);
+  const changed = await post(base, "password/set", { password: " y ", currentPassword: "x" }, { cookie });
+  assert.equal(changed.status, 200); assert.deepEqual(await changed.json(), { ok: true });
+  const login = await post(base, "password/sign-in", { email: member.email, password: " y " });
+  assert.equal(login.status, 200);
+});
+
+test("D2: passwordless stale session returns UI reauthentication code and leaves credentials untouched", async t => {
+  const h = harness(); const member = await h.seed("ada@example.test", "active", null);
+  const cookie = await h.cookieFor(member);
+  h.clock.advanceMs(15 * 60_000 + 1);
+  const base = await startTestServer(h.app, t);
+  const response = await post(base, "password/set", { password: "x" }, { cookie });
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" });
+  assert.equal(await h.deps.memberRepo.findPasswordHash({ workspaceId: h.deps.workspaceId, memberId: member.id }), null);
+});
+
+test("D2: missing/staff/unknown/revoked/expired cookies and disabled members cannot set a password", async t => {
+  const h = harness(); const member = await h.seed("ada@example.test", "active", null);
+  const cookie = await h.cookieFor(member);
+  const base = await startTestServer(h.app, t);
+  for (const invalidCookie of ["", "tovu_session=staff", "tovu_member_session=unknown"]) {
+    const response = await post(base, "password/set", { password: "x" }, { cookie: invalidCookie });
+    assert.equal(response.status, 401); assert.deepEqual(await response.json(), INVALID);
+  }
+  for (const state of ["revoked", "expired", "disabled"]) {
+    const [session] = await h.deps.memberSessionRepo.listByMember({ workspaceId: h.deps.workspaceId, memberId: member.id });
+    await h.deps.memberSessionRepo.save({ ...session,
+      revokedAt: state === "revoked" ? h.clock.nowIso() : undefined,
+      expiresAt: state === "expired" ? h.clock.nowIso() : "2026-11-24T12:00:00.000Z" });
+    if (state === "disabled") await h.deps.memberRepo.save({ ...member, status: "disabled", version: 2 });
+    const response = await post(base, "password/set", { password: "x" }, { cookie });
+    assert.equal(response.status, 401); assert.deepEqual(await response.json(), INVALID);
+  }
+});
+
+for (const denied of ["member", "ip"]) {
+  test(`D2: ${denied} limiter denies before hashing and both strict counters are charged`, async t => {
+    const h = harness(); const member = await h.seed(); const cookie = await h.cookieFor(member);
+    const memberLimit = spyLimiter(denied !== "member"), ipLimit = spyLimiter(denied !== "ip");
+    h.deps.passwordSetPerMemberLimiter = memberLimit.limiter;
+    h.deps.passwordSignInPerIpLimiter = ipLimit.limiter;
+    h.deps.passwordHasher.verify = async () => assert.fail("limited request must not verify");
+    h.deps.passwordHasher.hash = async () => assert.fail("limited request must not hash");
+    const base = await startTestServer(h.app, t);
+    const response = await post(base, "password/set", { password: "y", currentPassword: "x" }, { cookie });
+    assert.equal(response.status, 429); assert.equal(response.headers.get("retry-after"), "42");
+    assert.deepEqual(memberLimit.keys, [member.id]); assert.equal(ipLimit.keys.length, 1);
+  });
+}
+
+test("D2: LOGIN_STRICT exhausts after ten current-password guesses and resets after the window", async t => {
+  const h = harness(); const member = await h.seed(); const cookie = await h.cookieFor(member);
+  const base = await startTestServer(h.app, t);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    assert.equal((await post(base, "password/set", { password: "y", currentPassword: "wrong" }, { cookie })).status, 401);
+  }
+  assert.equal((await post(base, "password/set", { password: "y", currentPassword: "x" }, { cookie })).status, 429);
+  h.clock.advanceMs(60_001);
+  assert.equal((await post(base, "password/set", { password: "y", currentPassword: "x" }, { cookie })).status, 200);
+});
+
+test("D2: set-password policy matches reset and workspace mismatch is 404", async t => {
+  const h = harness(); const member = await h.seed("ada@example.test", "active", null);
+  const cookie = await h.cookieFor(member); const base = await startTestServer(h.app, t);
+  for (const password of ["", "x".repeat(513)]) {
+    assert.equal((await post(base, "password/set", { password }, { cookie })).status, 400);
+  }
+  const foreign = await fetch(`${base}/api/members/v1/workspaces/foreign/password/set`, {
+    method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ password: "x" }),
+  });
+  assert.equal(foreign.status, 404);
+});
 
 test("password account classes, links, codes and reset failures share exactly one 401", async t => {
   const h = harness();
@@ -126,7 +240,7 @@ test("every member POST refuses cross-origin and form requests before service wo
   const h = harness();
   h.deps.memberRepo.findByEmail = async () => assert.fail("must refuse before lookup");
   const base = await startTestServer(h.app, t);
-  for (const path of ["sign-in", "sign-in/complete", "password/sign-in", "forgot-password", "reset-password", "sign-out"]) {
+  for (const path of ["sign-in", "sign-in/complete", "password/sign-in", "password/set", "forgot-password", "reset-password", "sign-out"]) {
     for (const headers of [{ origin: "https://attacker.test" }, { "content-type": "application/x-www-form-urlencoded" }] as Record<string, string>[]) {
       const response = await post(base, path, {}, headers);
       assert.equal(response.status, 403, path);
@@ -146,6 +260,8 @@ test("malformed body shapes and missing IDs return 400 before repository access"
     ["password/sign-in", { email: {}, password: "x" }], ["password/sign-in", { email: "a@b.test", password: 2 }],
     ["reset-password", { token: "x" }], ["reset-password", { token: 1, password: "x" }],
     ["reset-password", { challengeId: "x", code: "000000", password: "x" }],
+    ["password/set", {}], ["password/set", { password: 1 }], ["password/set", { password: "x", currentPassword: 1 }],
+    ["password/set", { password: "x", memberId: "someone-else" }],
     ["sign-in/complete", {}], ["sign-in/complete", { code: "000000" }],
     ["sign-in/complete", { challengeId: "", code: "000000" }], ["sign-in/complete", { token: 1 }],
     ["sign-in/complete", { token: "x", challengeId: "x", code: "000000" }],
@@ -193,7 +309,7 @@ test("password bodies over 4 KB stop before lookup or hashing", async t => {
   const h = harness();
   h.deps.memberRepo.findByEmail = async () => assert.fail("oversized body must not look up address");
   const base = await startTestServer(h.app, t);
-  for (const path of ["password/sign-in", "reset-password"]) {
+  for (const path of ["password/sign-in", "password/set", "reset-password"]) {
     const response = await post(base, path, { email: "ada@example.test", token: "x", password: "x".repeat(4096) });
     assert.equal(response.status, 413);
   }
@@ -357,6 +473,13 @@ test("createApp uses the staff hasher and admin routes reject a valid member coo
   assert.equal(login.status, 200);
   assert.equal(staffVerifications, 1);
   const cookie = login.headers.get("set-cookie")!.split(";")[0];
+  const changed = await fetch(`${base}/api/members/v1/workspaces/${deps.workspaceId}/password/set`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ password: "y", currentPassword: "x" }),
+  });
+  assert.equal(changed.status, 200);
+  assert.deepEqual(await changed.json(), { ok: true });
+  assert.equal(staffVerifications, 2, "set-password uses the injected staff Argon2 hasher");
   const admin = await fetch(`${base}/api/admin/v1/workspaces/${deps.workspaceId}/members`, { headers: { cookie } });
   assert.equal(admin.status, 401);
 });

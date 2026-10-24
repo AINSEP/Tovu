@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 
 import type { MemberAccessResolver } from "./ports.js";
 import type { MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports.js";
-import type { MemberAccessDecision, MemberContentAccess, MemberContentVisibility, MemberContext } from "./types.js";
+import type { MemberAccessDecision, MemberContentAccess, MemberContentVisibility, MemberContext, MemberSessionRecord } from "./types.js";
 
 /** Anonymous/invalid-session context — the fail-closed default. */
 const ANONYMOUS_CONTEXT: MemberContext = { isAuthenticated: false, activeTierIds: [], isPaid: false };
@@ -60,6 +60,21 @@ function hashToken(rawToken: string): string {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
+/** Shared session validity check for /me and password changes; never accepts an admin cookie.
+ * @returns The live member session, or null for absent, unknown, revoked or expired tokens.
+ * @complexity O(1) indexed lookup; adapter failures propagate.
+ * @example resolveMemberSession({ sessions, workspaceId, sessionToken, nowIso });
+ */
+export async function resolveMemberSession(required: {
+  sessions: MemberSessionRepoPort; workspaceId: string; sessionToken?: string; nowIso: string;
+}, _options = {}): Promise<MemberSessionRecord | null> {
+  const { sessions, workspaceId, sessionToken, nowIso } = required;
+  if (!sessionToken) return null;
+  const session = await sessions.findByTokenHash({ workspaceId, tokenHash: hashToken(sessionToken) });
+  if (!session || session.revokedAt || session.expiresAt <= nowIso) return null;
+  return session;
+}
+
 export interface MemberAccessResolverDeps {
   sessions: MemberSessionRepoPort;
   subscriptions: MemberSubscriptionRepoPort;
@@ -87,13 +102,8 @@ export class DefaultMemberAccessResolver implements MemberAccessResolver {
     nowIso: string;
   }): Promise<MemberContext> {
     const { workspaceId, sessionToken, nowIso } = required;
-    if (!sessionToken) return ANONYMOUS_CONTEXT;
-
-    const tokenHash = hashToken(sessionToken);
-    const session = await this.deps.sessions.findByTokenHash({ workspaceId, tokenHash });
+    const session = await resolveMemberSession({ sessions: this.deps.sessions, workspaceId, sessionToken, nowIso });
     if (!session) return ANONYMOUS_CONTEXT;
-    if (session.revokedAt) return ANONYMOUS_CONTEXT;
-    if (session.expiresAt <= nowIso) return ANONYMOUS_CONTEXT;
 
     const activeSubscriptions = await this.deps.subscriptions.listActiveByMember({
       workspaceId,

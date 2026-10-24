@@ -90,11 +90,12 @@ export interface MemberSessionRepoPort {
   save(record: MemberSessionRecord): Promise<void>;
   /** Server-side revocation (single session or all a member's sessions). */
   revoke(required: { workspaceId: UUID; id: UUID; revokedAt: ISODateTime }): Promise<void>;
+  /** Revoke sessions; optionally preserve the presenting session. */
   revokeAllForMember(required: {
     workspaceId: UUID;
     memberId: UUID;
     revokedAt: ISODateTime;
-  }): Promise<void>;
+  }, options?: { exceptSessionId?: UUID }): Promise<void>;
 }
 
 export interface MagicLinkTokenRepoPort {

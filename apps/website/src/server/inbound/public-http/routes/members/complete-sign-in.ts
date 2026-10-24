@@ -1,5 +1,5 @@
 import type { Express, Response } from "express";
-import { completeSignIn, MemberAuthError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
+import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
@@ -34,6 +34,10 @@ export function clearMemberSessionCookie({ res }: { res: Response }, _options = 
 
 /** Credential failures share one body across password, link, code and reset; no exception text leaks. */
 export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
+  if (error instanceof MemberReauthenticationRequiredError) {
+    res.status(401).json({ error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" });
+    return;
+  }
   if (error instanceof MemberAuthError) {
     res.status(401).json({ error: "invalid credentials", code: "INVALID_CREDENTIALS" });
     return;

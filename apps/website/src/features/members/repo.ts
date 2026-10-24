@@ -327,7 +327,11 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
     );
   }
 
-  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string }): Promise<void> {
+  /** Atomically advance the cutoff and revoke live sessions, optionally excluding one id.
+   * @complexity O(s) affected sessions in one bulk update; database failures propagate.
+   */
+  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string },
+    options: { exceptSessionId?: string } = {}): Promise<void> {
     await this.kernel.transaction(async () => {
       // Same lock as Trash and session minting: all sessions and the pending-link cutoff commit
       // together. A late request may persist a token after this update, but the cutoff rejects it.
@@ -341,6 +345,8 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
       await this.kernel.run(db => db.updateTable("member_sessions")
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+        // Exclude in SQL: revoking then restoring the current row could resurrect a concurrent sign-out.
+        .$if(options.exceptSessionId !== undefined, query => query.where("id", "!=", options.exceptSessionId!))
         .where("revoked_at", "is", null).execute());
     });
   }

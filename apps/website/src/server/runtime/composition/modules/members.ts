@@ -9,6 +9,7 @@ import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/pub
 import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
 import { registerPublicMemberForgotPasswordRoute } from "#src/server/inbound/public-http/routes/members/forgot-password";
 import { registerPublicMemberResetPasswordRoute } from "#src/server/inbound/public-http/routes/members/reset-password";
+import { registerPublicMemberSetPasswordRoute } from "#src/server/inbound/public-http/routes/members/set-password";
 import { registerPublicMemberMeRoute } from "#src/server/inbound/public-http/routes/members/me";
 import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-http/routes/members/sign-out";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
@@ -18,7 +19,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-038) — the `members` server module (ADR-030 Members admin CRUD +
  * ADR-PIPE-013 public sign-in).
  *
- * Owns 12 registrations: 5 admin routes (list/get/disable/delete/request-magic-link) plus 7
+ * Owns 13 registrations: 5 admin routes (list/get/disable/delete/request-magic-link) plus 8
  * public member auth routes — moved here verbatim
  * from `app.ts`'s `createApp()`; the original routes retain their relative order. Owner 2026-10-24
  * adds DELETE-to-Trash alongside Disable.
@@ -53,6 +54,7 @@ export function createMembersModule(deps: {
       registerPublicMemberPasswordSignInRoute(app, deps.public);
       registerPublicMemberForgotPasswordRoute(app, deps.public);
       registerPublicMemberResetPasswordRoute(app, deps.public);
+      registerPublicMemberSetPasswordRoute(app, deps.public);
       registerPublicMemberMeRoute(app, deps.public);
       registerPublicMemberSignOutRoute(app, deps.public);
     },

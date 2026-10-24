@@ -41,6 +41,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
     principalRepo: routeDeps.principalRepo,
     passwordHasher: routeDeps.passwordHasher,
     passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
     passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
     magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock }),
     magicLinkPerIpLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock }),

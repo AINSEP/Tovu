@@ -10,9 +10,9 @@ import {
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
 } from "../repo.memory.js";
-import { completeSignIn, requestSignInLink } from "../write-service.js";
-import { requestPasswordReset, resetPassword, signInWithPassword } from "../password-auth.js";
-import { MemberAuthError, MemberValidationError, type MemberRecord } from "../types.js";
+import { completeSignIn, issueMemberSession, requestSignInLink } from "../write-service.js";
+import { requestPasswordReset, resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
+import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "../types.js";
 
 const WS = "member-passwords";
 const EMAIL = "ada@example.test";
@@ -60,8 +60,128 @@ function harness() {
     return token;
   }
   const login = (password = "old", email = EMAIL) => signInWithPassword({ deps, input: { workspaceId: WS, email, password } });
-  return { deps, clock, sent, verifications, hashInputs, seed, resetToken, login };
+  const sessionFor = (member: MemberRecord) => issueMemberSession({ deps, member, nowIso: clock.nowIso() });
+  const setPassword = (sessionToken: string | undefined, password = "new", currentPassword?: string) =>
+    setMemberPassword({ deps, input: { workspaceId: WS, sessionToken, password, currentPassword } });
+  return { deps, clock, sent, verifications, hashInputs, seed, resetToken, login, sessionFor, setPassword };
 }
+
+for (const password of ["x", "  كلمة🙂  ", "🙂".repeat(512)]) {
+  test(`D2: fresh passwordless member sets ${[...password].length} code points without altering bytes`, async () => {
+    const h = harness(); const member = await h.seed("active", null);
+    const current = await h.sessionFor(member); const other = await h.sessionFor(member);
+    h.clock.advanceMs(1000);
+    assert.deepEqual(await h.setPassword(current.rawSessionToken, password), { ok: true });
+    assert.deepEqual(h.hashInputs, [password]);
+    assert.deepEqual(h.verifications, []);
+    assert.equal(await h.deps.members.findPasswordHash({ workspaceId: WS, memberId: member.id }), credentialHash(password));
+    assert.equal((await h.deps.members.findById({ workspaceId: WS, id: member.id }))?.credentialsRevokedAt, h.clock.nowIso());
+    const sessions = await h.deps.sessions.listByMember({ workspaceId: WS, memberId: member.id });
+    assert.equal(sessions.length, 2, "no new session is minted");
+    assert.equal(sessions.find(s => s.id === current.session.id)?.revokedAt, undefined);
+    assert.equal(sessions.find(s => s.id === other.session.id)?.revokedAt, h.clock.nowIso());
+    await h.login(password);
+  });
+}
+
+for (const ageMs of [15 * 60_000, 15 * 60_000 + 1, -1]) {
+  test(`D2: passwordless session issuance age ${ageMs} controls authorization`, async () => {
+    const h = harness(); const member = await h.seed("active", null);
+    const current = await h.sessionFor(member);
+    h.clock.advanceMs(ageMs);
+    await h.deps.sessions.save({ ...current.session, lastSeenAt: h.clock.nowIso() });
+    if (ageMs === 15 * 60_000) assert.deepEqual(await h.setPassword(current.rawSessionToken), { ok: true });
+    else {
+      await assert.rejects(h.setPassword(current.rawSessionToken), MemberReauthenticationRequiredError);
+      assert.deepEqual(h.hashInputs, []);
+      assert.equal(await h.deps.members.findPasswordHash({ workspaceId: WS, memberId: member.id }), null);
+      assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: current.session.tokenHash }))?.revokedAt, undefined);
+    }
+  });
+}
+
+test("D2: existing password requires exact current proof even on a fresh session; old sessions may change it", async () => {
+  const h = harness(); const member = await h.seed("active", " old🙂 ");
+  const current = await h.sessionFor(member); const other = await h.sessionFor(member);
+  for (const proof of [undefined, "wrong", "old🙂"]) {
+    await assert.rejects(h.setPassword(current.rawSessionToken, "x", proof), { message: "INVALID_CREDENTIALS" });
+    assert.deepEqual(h.hashInputs, []);
+    assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: other.session.tokenHash }))?.revokedAt, undefined);
+  }
+  h.clock.advanceMs(16 * 60_000);
+  assert.deepEqual(await h.setPassword(current.rawSessionToken, "x", " old🙂 "), { ok: true });
+  assert.deepEqual(h.verifications.map(v => v.password), ["wrong", "old🙂", " old🙂 "]);
+  assert.equal(h.verifications.at(-1)?.hash, credentialHash(" old🙂 "));
+  assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: current.session.tokenHash }))?.revokedAt, undefined);
+  assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: other.session.tokenHash }))?.revokedAt, h.clock.nowIso());
+  await assert.rejects(h.login(" old🙂 "), MemberAuthError);
+  await h.login("x");
+});
+
+for (const password of ["", "🙂".repeat(513)]) {
+  test(`D2: invalid length ${[...password].length} leaves credentials and sessions untouched`, async () => {
+    const h = harness(); const member = await h.seed("active", null);
+    const current = await h.sessionFor(member);
+    await assert.rejects(h.setPassword(current.rawSessionToken, password), MemberValidationError);
+    assert.deepEqual(h.hashInputs, []);
+    assert.equal((await h.deps.members.findById({ workspaceId: WS, id: member.id }))?.credentialsRevokedAt, undefined);
+    assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: current.session.tokenHash }))?.revokedAt, undefined);
+  });
+}
+
+test("D2: absent, unknown, expired, revoked and foreign-workspace sessions cannot set a password", async () => {
+  const h = harness(); const member = await h.seed("active", null);
+  await assert.rejects(h.setPassword(undefined), MemberAuthError);
+  await assert.rejects(h.setPassword("unknown"), MemberAuthError);
+  for (const state of ["expired", "revoked", "foreign"]) {
+    const current = await h.sessionFor(member);
+    await h.deps.sessions.save({ ...current.session,
+      expiresAt: state === "expired" ? h.clock.nowIso() : current.session.expiresAt,
+      revokedAt: state === "revoked" ? h.clock.nowIso() : undefined,
+      workspaceId: state === "foreign" ? "foreign" : WS });
+    await assert.rejects(h.setPassword(current.rawSessionToken), MemberAuthError);
+  }
+  assert.deepEqual(h.hashInputs, []);
+});
+
+for (const status of ["pending", "disabled", "trash"] as const) {
+  test(`D2: session member status ${status} follows /me eligibility`, async () => {
+    const h = harness(); const member = await h.seed("active", null);
+    const current = await h.sessionFor(member);
+    await h.deps.members.save({ ...member, status, version: 2 });
+    if (status === "pending") assert.deepEqual(await h.setPassword(current.rawSessionToken), { ok: true });
+    else {
+      await assert.rejects(h.setPassword(current.rawSessionToken), MemberAuthError);
+      assert.deepEqual(h.hashInputs, []);
+    }
+  });
+}
+
+test("D2: setting a password invalidates outstanding inbox challenges while preserving the current session", async () => {
+  const h = harness(); const member = await h.seed("active", null);
+  const current = await h.sessionFor(member);
+  await requestSignInLink({ deps: h.deps, input: { workspaceId: WS, email: EMAIL } });
+  const magic = /#magic=([a-f0-9]+)/.exec(h.sent.at(-1)!.text!)![1];
+  const reset = await h.resetToken();
+  h.clock.advanceMs(1);
+  await h.setPassword(current.rawSessionToken);
+  await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WS, token: magic } }), MemberAuthError);
+  await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token: reset, password: "other" } }), MemberAuthError);
+  assert.equal((await h.deps.sessions.findByTokenHash({ workspaceId: WS, tokenHash: current.session.tokenHash }))?.revokedAt, undefined);
+});
+
+test("D2: a disable that races the Argon2 hash is not undone by the password write", async () => {
+  const h = harness(); const member = await h.seed("active", null);
+  const current = await h.sessionFor(member);
+  const hasher = h.deps.passwordHasher!; const hash = hasher.hash;
+  hasher.hash = async input => {
+    await h.deps.members.save({ ...member, status: "disabled", credentialsRevokedAt: h.clock.nowIso(), version: 2 });
+    return hash(input);
+  };
+  await assert.rejects(h.setPassword(current.rawSessionToken), MemberAuthError);
+  assert.equal((await h.deps.members.findById({ workspaceId: WS, id: member.id }))?.status, "disabled");
+  assert.equal(await h.deps.members.findPasswordHash({ workspaceId: WS, memberId: member.id }), null);
+});
 
 for (const password of ["x", "🙂", "  päss كلمة  ", "🙂".repeat(512)]) {
   test(`reset and password login preserve ${[...password].length} Unicode code points exactly`, async () => {

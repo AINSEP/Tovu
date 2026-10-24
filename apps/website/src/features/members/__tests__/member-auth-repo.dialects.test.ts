@@ -2,9 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { MagicLinkTokenRepoPort, MemberRepoPort } from "../ports.js";
-import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo } from "../repo.memory.js";
-import { SqlMagicLinkTokenRepo, SqlMemberRepo } from "../repo.js";
+import type { MagicLinkTokenRepoPort, MemberRepoPort, MemberSessionRepoPort } from "../ports.js";
+import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo } from "../repo.memory.js";
+import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
 import type { MagicLinkTokenRecord, MemberRecord } from "../types.js";
 
 const NOW = "2026-10-24T12:00:00.000Z";
@@ -20,17 +20,46 @@ const challenge: MagicLinkTokenRecord = {
 interface Repos {
   members: MemberRepoPort;
   tokens: MagicLinkTokenRepoPort;
+  sessions: MemberSessionRepoPort;
   close?: () => Promise<void>;
 }
 const adapters = [
-  ...eachDialect<Repos>({ tables: ["members", "member_magic_tokens"], make: kernel => ({
-    members: new SqlMemberRepo(kernel), tokens: new SqlMagicLinkTokenRepo(kernel),
+  ...eachDialect<Repos>({ tables: ["member_sessions", "members", "member_magic_tokens"], make: kernel => ({
+    members: new SqlMemberRepo(kernel), tokens: new SqlMagicLinkTokenRepo(kernel), sessions: new SqlMemberSessionRepo(kernel),
     close: kernel.dialect === "sqlite" ? () => kernel.close() : undefined,
   }) }),
-  { name: "memory", make: (): Repos => ({ members: new InMemoryMemberRepo(), tokens: new InMemoryMagicLinkTokenRepo() }) },
+  { name: "memory", make: (): Repos => ({ members: new InMemoryMemberRepo(), tokens: new InMemoryMagicLinkTokenRepo(), sessions: new InMemoryMemberSessionRepo() }) },
 ];
 
 for (const adapter of adapters) {
+  test(`[${adapter.name}] D2: bulk revocation excludes only the current session within the member/workspace`, async t => {
+    const { members, sessions, close } = adapter.make();
+    t.after(() => close?.());
+    await members.save(member);
+    await members.save({ ...member, id: "other-member", email: "other@example.test" });
+    await members.save({ ...member, id: "foreign-member", workspaceId: "foreign" });
+    for (const id of ["current", "other", "revoked", "unrelated", "foreign"]) {
+      await sessions.save({ id, workspaceId: id === "foreign" ? "foreign" : "w",
+        memberId: id === "unrelated" ? "other-member" : id === "foreign" ? "foreign-member" : member.id,
+        tokenHash: `hash-${id}`, createdAt: NOW, expiresAt: "2026-11-24T12:00:00.000Z",
+        revokedAt: id === "revoked" ? NOW : undefined });
+    }
+    const revokedAt = "2026-10-24T12:01:00.000Z";
+    await sessions.revokeAllForMember({ workspaceId: "w", memberId: member.id, revokedAt }, { exceptSessionId: "current" });
+    const read = (id: string, workspaceId = "w") => sessions.findByTokenHash({ workspaceId, tokenHash: `hash-${id}` });
+    assert.equal((await read("current"))?.revokedAt, undefined);
+    assert.equal((await read("current"))?.createdAt, NOW, "keeping a session must not refresh its issuance time");
+    assert.equal((await read("other"))?.revokedAt, revokedAt);
+    assert.equal((await read("revoked"))?.revokedAt, NOW);
+    assert.equal((await read("unrelated"))?.revokedAt, undefined);
+    assert.equal((await read("foreign", "foreign"))?.revokedAt, undefined);
+    await sessions.revokeAllForMember({ workspaceId: "w", memberId: member.id, revokedAt });
+    assert.equal((await read("current"))?.revokedAt, revokedAt, "reset's default still revokes every session");
+    await sessions.revokeAllForMember({ workspaceId: "w", memberId: member.id, revokedAt: "2026-10-24T12:02:00.000Z" },
+      { exceptSessionId: "current" });
+    assert.equal((await read("current"))?.revokedAt, revokedAt, "exclusion never restores an already-revoked session");
+  });
+
   test(`[${adapter.name}] password reads/writes are scoped and profile saves cannot erase or expose the hash`, async t => {
     const { members, close } = adapter.make();
     t.after(() => close?.());

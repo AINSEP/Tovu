@@ -284,16 +284,22 @@ export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
     this.rows[index] = { ...this.rows[index], revokedAt: required.revokedAt };
   }
 
+  /** Revoke matching live sessions except the presenting one; never restore a revoked row.
+   * @complexity O(n) time and space over stored sessions.
+   */
   async revokeAllForMember(required: {
     workspaceId: string;
     memberId: string;
     revokedAt: string;
-  }): Promise<void> {
-    this.rows = this.rows.map((row) =>
-      row.workspaceId === required.workspaceId && row.memberId === required.memberId && !row.revokedAt
-        ? { ...row, revokedAt: required.revokedAt }
-        : row
-    );
+  }, options: { exceptSessionId?: string } = {}): Promise<void> {
+    this.rows = this.rows.map((row) => {
+      if (row.id === options.exceptSessionId) return row;
+      return (
+        row.workspaceId === required.workspaceId && row.memberId === required.memberId && !row.revokedAt
+          ? { ...row, revokedAt: required.revokedAt }
+          : row
+      );
+    });
   }
 }
 

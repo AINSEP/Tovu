@@ -2023,6 +2023,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     passwordHasher: routeDeps.passwordHasher,
     passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
     passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
   };
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
