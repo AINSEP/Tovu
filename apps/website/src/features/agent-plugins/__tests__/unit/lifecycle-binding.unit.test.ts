@@ -81,7 +81,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
       const result = await lifecycle.resolveAgentPluginRefs(['notes'], layout.forWorkspace(WORKSPACE), deliveryMode);
       assert.equal(result.ok, true);
       if (!result.ok) return;
-      assert.equal(result.promptPrefix.includes("Before saving keys or acting with this plugin"), maturity === 'untested');
+      assert.equal(result.promptPrefix.includes("Before saving keys or acting with this plugin"), maturity !== undefined);
       if (deliveryMode === 'inject') assert.match(result.promptPrefix, /Write things down/);
     });
   }

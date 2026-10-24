@@ -253,7 +253,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
     assert.equal(output.status, 'loaded');
     assert.equal(output.maturity, maturity);
     assert.equal(Object.hasOwn(output, 'maturity'), maturity !== undefined);
-    assert.equal(JSON.stringify(output).includes("Before saving keys or acting with this plugin"), maturity === 'untested');
+    assert.equal(JSON.stringify(output).includes("Before saving keys or acting with this plugin"), maturity !== undefined);
   });
 }
 

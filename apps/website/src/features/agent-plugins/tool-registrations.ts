@@ -437,7 +437,8 @@ async function buildPluginToolResult(source: AgentPluginToolSource, input: { ski
     pluginId: source.pluginId,
     ...(source.maturity ? { maturity: source.maturity } : {}),
     skillName: selected.name,
-    guidance: source.maturity === 'untested' ? `${UNTESTED_PLUGIN_GUIDANCE}\n\n${content.guidance}` : content.guidance,
+    // Any maturity flag ("untested" or "soon") means not tested end to end: caution before keys/actions.
+    guidance: source.maturity ? `${UNTESTED_PLUGIN_GUIDANCE}\n\n${content.guidance}` : content.guidance,
     files: content.files,
     // Keep the availability list short without removing vocabulary from the indexed description.
     availableSkills: source.skills.filter(skill => skill.name !== selected.name).map(skill => ({ name: skill.name, description: skill.summary.slice(0, 320) })),

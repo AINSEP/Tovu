@@ -139,7 +139,8 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     const selected = new Set(input.pluginRefIds);
     const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
       const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
-      return readPluginMaturity({ manifest }) === 'untested' ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+      // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
+      return readPluginMaturity({ manifest }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
     }));
     return { ...result, promptPrefix: [...notices, result.promptPrefix].filter(Boolean).join('\n\n') };
   }

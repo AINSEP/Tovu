@@ -227,6 +227,17 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
                   <span className="agent-plugin-row-version">v{plugin.version}</span>
                 </>
               ) : null}
+              {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
+                  wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
+                  also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
+              {plugin.maturity ? (
+                <>
+                  {" "}
+                  <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
+                    <AgentPluginMaturity maturity={plugin.maturity} t={t} />
+                  </span>
+                </>
+              ) : null}
             </span>
             {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
                 a hover tooltip, not a substitute for the unclamped copy below in the expanded
@@ -247,8 +258,6 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           </span>
         </button>
 
-        {/* Outside the summary button so the tappable pill is never a nested control. */}
-        <AgentPluginMaturity maturity={plugin.maturity} t={t} />
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
         <div className="agent-plugin-row-actions">

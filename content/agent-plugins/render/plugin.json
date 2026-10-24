@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "maturity": "untested",
+      "maturity": "soon",
       "vendorAliases": ["render.com", "render.yaml", "onrender.com", "RENDER_API_KEY"],
       "displayName": "Render",
       "summary": "Configure and deploy an existing Render server service, then check its status and logs.",

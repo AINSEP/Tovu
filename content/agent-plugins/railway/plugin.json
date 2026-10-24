@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "maturity": "untested",
+      "maturity": "soon",
       "displayName": "Railway",
       "summary": "Deploys and checks an existing Railway service, stages variables, and writes the server settings file.",
       "id": "tovu/railway",

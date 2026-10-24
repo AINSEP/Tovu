@@ -12,11 +12,11 @@ test("Railway manifest loads the contained deploy adapter with only its GraphQL 
   for (const verb of ["listTargets", "deploy", "status", "logs", "listSecrets", "setSecret", "unsetSecret"]) assert.equal(typeof module[verb], "function", verb);
   assert.equal(module.readSecret, undefined);
 });
-test("Railway advertises deployment ops and retains Untested maturity and its existing token guidance", async () => {
+test("Railway advertises deployment ops and keeps the 'soon' maturity flag and its existing token guidance", async () => {
   const plugin = JSON.parse(await readFile(new URL("../../plugin.json", import.meta.url), "utf8"));
   const tovu = plugin.extensions.tovu;
   assert.deepEqual(tovu.provides, ["deploy-config:railway", "deploy-ops:railway"]);
-  assert.equal(tovu.maturity, "untested");
+  assert.equal(tovu.maturity, "soon");
   const card = tovu.credentialCards[0];
   assert.equal(card.probeUrl, undefined);
   assert.equal(card.baseUrl, "https://backboard.railway.com/graphql/v2");
