@@ -1,9 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import { runDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
+import { runDeploy, runDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
 import { fixture } from "./example-ops-fixture.js";
 import { AT } from "./module-fixture.js";
+
+for (const runId of ["dep-abc123", "550e8400-e29b-41d4-a716-446655440000", "42", "A" + "_".repeat(127)]) {
+  test(`deploy result preserves bounded run ID ${runId}`, async () => {
+    const f = await fixture();
+    const loaded = f.registry.get("example-host")!;
+    const platform = { ...loaded, module: { ...loaded.module, deploy: async () => ({ platform: "example-host", target: "shop", started: true, summary: "Accepted", runId }) } };
+    f.deps.loadDeployOps = async () => ({ ...f.registry, get: () => platform });
+    const result = await runDeploy({ deps: f.deps, input: { platform: "example-host", target: "shop" } });
+    assert.equal(result.runId, runId);
+    assert.equal(result.started, true);
+  });
+}
+
+for (const runId of ["../x", "a/b", "a".repeat(129), "", "_abc", "-abc"]) {
+  test(`deploy result refuses invalid run ID ${JSON.stringify(runId)}`, async () => {
+    const f = await fixture();
+    const loaded = f.registry.get("example-host")!;
+    const platform = { ...loaded, module: { ...loaded.module, deploy: async () => ({ platform: "example-host", target: "shop", started: true, summary: "Accepted", runId }) } };
+    f.deps.loadDeployOps = async () => ({ ...f.registry, get: () => platform });
+    await assert.rejects(runDeploy({ deps: f.deps, input: { platform: "example-host", target: "shop" } }), {
+      name: "ToolInputError", message: "Deployment ops platform 'example-host' returned an invalid run id.",
+    });
+  });
+}
+
 test("explicit and single-host credential resolution issue only audited GETs", async () => {
   for (const credentialLabel of [undefined, "ops"]) {
     const f = await fixture();

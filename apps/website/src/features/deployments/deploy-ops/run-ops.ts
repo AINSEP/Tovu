@@ -192,7 +192,7 @@ export interface DeployRequest { platform: string; target: string; ref?: string;
 const clip = (value: unknown) => String(value).slice(0, 2000);
 function validateDeployResult({ input, result }: { input: DeployRequest; result: DeployOpsDeployResult }, _optional = {}): void {
   if (typeof result?.started !== "boolean" || typeof result.summary !== "string") throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid deploy result.` });
-  if (result.runId !== undefined && !/^[0-9]+$/.test(String(result.runId))) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid run id.` });
+  if (result.runId !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(String(result.runId))) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid run id.` });
 }
 
 /** Keep only the documented fields; platform/target come from the request, never from the module. O(machineIds). */
