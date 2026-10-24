@@ -22,6 +22,21 @@ describe("VisitorAssistantTabs", () => {
     expect(screen.getByRole("tabpanel", { name: "Visitor tools" }).textContent).toBe("tools screen");
     expect(screen.queryByText("provider screen")).toBeNull();
   });
+
+  it("draws as the Auto | Ask first | Off segmented pill and keeps arrow-key tab navigation", async () => {
+    render(<VisitorAssistantTabs t={t} providerPanel={<p>provider screen</p>} toolsPanel={<p>tools screen</p>} />);
+    expect(screen.getByRole("tablist").classList.contains("jini-chat-settings-segmented")).toBe(true);
+    const provider = screen.getByRole("tab", { name: "AI provider" });
+    expect(provider.classList.contains("jini-chat-settings-segment")).toBe(true);
+    expect(provider.tabIndex).toBe(0);
+    expect(screen.getByRole("tab", { name: "Visitor tools" }).tabIndex).toBe(-1);
+    provider.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    const tools = screen.getByRole("tab", { name: "Visitor tools" });
+    expect(tools.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tools);
+    expect(screen.getByText("tools screen")).toBeTruthy();
+  });
 });
 
 describe("parseLimitsDraft", () => {
