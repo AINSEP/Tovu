@@ -5,6 +5,7 @@ import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/c
 import { ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { readInstalledAgentPluginIdentity } from "#src/features/agent-plugins/identity";
 import { resolveThemeLayout } from "#src/features/theme/index";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import { readSiteGuideFacts, loadSiteGuideContributions, type CapabilityCard, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
@@ -45,7 +46,7 @@ export function resolveSiteGuideEngine(_input: Record<string, never>, _options: 
  */
 export function siteGuideFactDeps(
   { deps, lifecycle }: { deps: TovuSiteGuideDeps; lifecycle: TovuAgentPluginLifecycle },
-  _options: Record<string, never> = {},
+  options: { readIdentity?: typeof readInstalledAgentPluginIdentity } = {},
 ) {
   return {
     ...deps,
@@ -63,7 +64,9 @@ export function siteGuideFactDeps(
       if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
       return Promise.all(installed.map(async plugin => {
         const activation = await lifecycle.resolveAgentPluginActivation({ workspaceRoot: layout.root, pluginId: plugin.pluginId });
+        const { maturity } = await (options.readIdentity ?? readInstalledAgentPluginIdentity)({ plugin });
         return {
+          ...(maturity ? { maturity } : {}),
           id: plugin.id ?? plugin.pluginId, name: plugin.displayName ?? plugin.pluginId, version: plugin.version ?? null,
           // Names alone hide what a disabled bundled provider can do; expose metadata, not code.
           pluginId: plugin.pluginId, description: plugin.description ?? null, provides: plugin.provides ?? [],

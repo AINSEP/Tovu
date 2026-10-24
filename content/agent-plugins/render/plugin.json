@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "maturity": "untested",
       "vendorAliases": ["render.com", "render.yaml", "onrender.com", "RENDER_API_KEY"],
       "displayName": "Render",
       "summary": "Writes the settings file for running the Tovu server on Render. You follow its notes to finish the deploy.",
@@ -21,7 +22,7 @@
           "label": "Render API",
           "ownedApiLabel": "Render API",
           "category": "hosting",
-          "intro": "Save a Render API key for deploying this site from Tovu. Deploys from Tovu are being added; until then the assistant can only look up your Render services with it. Writing the deployment settings file needs no key.",
+          "intro": "Save a Render API key for deploying this site from Tovu. Deploys from Tovu are being added; until then the assistant can only look up your Render services with it. Writing the deployment settings file needs no key. Untested: this connection hasn't been tried end to end yet.",
           "usedFor": [
             "Looks up your Render services",
             "Deploys your server (being added)"

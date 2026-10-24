@@ -156,7 +156,7 @@ function AgentPluginList({
           onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
           stateControl={stateControlFor(plugin)}
           onInspect={() =>
-            controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin) })
+            controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity })
           }
           manage={plugin.enabled ? (
             <AgentPluginManageButton
@@ -164,7 +164,7 @@ function AgentPluginList({
               displayName={agentPluginDisplayName(plugin)}
               t={controller.t}
               agentHandleBase={rowHandles[index]!}
-              onManage={(surfaces) => controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), surfaces })}
+              onManage={(surfaces) => controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity, surfaces })}
             />
           ) : undefined}
           uninstallNoteId={uninstallNoteId}

@@ -1,4 +1,5 @@
 import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
+import { AgentPluginMaturity } from "./AgentPluginMaturity";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
@@ -54,6 +55,7 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
   return (
     <PackageFilesModal
       title={view.title}
+      headerExtras={<AgentPluginMaturity maturity={plugin.maturity} t={t} />}
       onView={view.onView}
       initialViewId={firstSurface ? `plugin-surface-${firstSurface.id}` : undefined}
       files={files}

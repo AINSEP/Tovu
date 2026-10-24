@@ -2214,6 +2214,8 @@ export interface AdminPluginFiles {
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
+  /** Tovu host maturity; absent means normal. */
+  maturity?: "untested" | "soon";
   provides?: string[];
   origin?: "bundled" | "operator-installed";
   hostOk?: boolean;

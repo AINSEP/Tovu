@@ -11,7 +11,7 @@ import { siteGuideFactDeps } from "../site-guide.js";
 /** The site guide's fact ports, exercised without a guide engine: registries are projected by key,
  * and the agent-plugin inventory is field-projected with activation mapped to enabled/disabled/unknown. */
 
-type Plugin = { pluginId: string; id?: string; displayName?: string; version?: string; description?: string; provides?: string[] };
+type Plugin = { pluginId: string; id?: string; displayName?: string; version?: string; description?: string; provides?: string[]; maturity?: 'untested' | 'soon' };
 
 function harness(installed: Plugin[], verdicts: Record<string, string>) {
   const reads: string[] = [];
@@ -29,8 +29,18 @@ function harness(installed: Plugin[], verdicts: Record<string, string>) {
     marker: "site-own-dep",
     agentPluginLayout: { forWorkspace: (workspaceId: string) => ({ root: `/plugins/${workspaceId}` }) },
   };
-  return { reads, facts: siteGuideFactDeps({ deps: deps as never, lifecycle: lifecycle as never }) as ReturnType<typeof siteGuideFactDeps> & { marker: string } };
+  return { reads, facts: siteGuideFactDeps({ deps: deps as never, lifecycle: lifecycle as never }, {
+    readIdentity: async ({ plugin }) => ({ id: plugin.pluginId, keywords: [], provides: [], warnings: [], maturity: installed.find(item => item.pluginId === plugin.pluginId)?.maturity }),
+  }) as ReturnType<typeof siteGuideFactDeps> & { marker: string } };
 }
+
+test("site-guide plugin facts preserve both maturity flags and omit normal maturity", async () => {
+  const { facts } = harness([{ pluginId: 'a', maturity: 'untested' }, { pluginId: 'b', maturity: 'soon' }, { pluginId: 'c' }], { a: 'active', b: 'inactive', c: 'active' });
+  const plugins = await facts.readAgentPlugins();
+  assert.equal(plugins[0]?.maturity, 'untested');
+  assert.equal(plugins[1]?.maturity, 'soon');
+  assert.equal(Object.hasOwn(plugins[2]!, 'maturity'), false);
+});
 
 test("registry projections list type keys, field types, unique markers and both theme layouts; membership state is unknown", async () => {
   const { facts } = harness([], {});

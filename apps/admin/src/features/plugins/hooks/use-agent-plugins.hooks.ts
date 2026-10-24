@@ -43,6 +43,7 @@ import { AGENT_PLUGINS_RESOURCE } from "../rules";
  *  `agent-plugin-catalog.ts`, since nothing about it is bundle-specific anymore: any installed
  *  plugin's id plus a human-readable label is enough to open the inspector. */
 export interface InspectedAgentPlugin {
+  readonly maturity?: AdminAgentPlugin["maturity"];
   readonly id: string;
   readonly displayName: string;
   /** Set by the row's "Manage" button: the screens it already listed, so the modal opens on the first. */

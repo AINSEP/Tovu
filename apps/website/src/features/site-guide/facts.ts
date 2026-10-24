@@ -1,5 +1,6 @@
 import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import type { SiteFact } from "./contracts.js";
+import type { PluginMaturity } from "#src/features/agent-plugins/identity";
 
 /** Only read ports: live registries and host module status. No settings or credential values. */
 export interface SiteGuideFactsDeps extends SiteProfileSourceDeps {
@@ -8,7 +9,7 @@ export interface SiteGuideFactsDeps extends SiteProfileSourceDeps {
   readonly listMarkers: () => readonly string[];
   readonly listLayouts: () => readonly string[];
   readonly readMembersEnabled: () => Promise<boolean | null>;
-  readonly readAgentPlugins: () => Promise<readonly { id: string; name: string; version: string | null; enabled: boolean | null; pluginId?: string; description?: string | null; provides?: readonly string[] }[]>;
+  readonly readAgentPlugins: () => Promise<readonly { id: string; name: string; version: string | null; enabled: boolean | null; pluginId?: string; description?: string | null; provides?: readonly string[]; maturity?: PluginMaturity }[]>;
 }
 
 /** Read a registry/status only after its domain permission passes. A failed read reports unknown.
