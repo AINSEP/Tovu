@@ -15,10 +15,10 @@
     "measure:bundles": "node scripts/measure-bundles.mjs"
   },
   "dependencies": {
-    "@jini-ai/agentic": "^0.6.10",
-    "@jini-ai/chat": "^0.6.10",
-    "@jini-ai/protocol": "^0.6.10",
-    "@jini-ai/ui": "^0.6.10",
+    "@jini-ai/agentic": "^0.6.11",
+    "@jini-ai/chat": "^0.6.11",
+    "@jini-ai/protocol": "^0.6.11",
+    "@jini-ai/ui": "^0.6.11",
     "@mcp-ui/client": "7.1.1",
     "@radix-ui/react-checkbox": "^1.3.11",
     "@radix-ui/react-label": "^2.1.15",
@@ -46,6 +46,6 @@
   },
   "overrides": {
     "@jini-ai/ui": "$@jini-ai/ui",
-    "@jini-ai/core": "^0.6.10"
+    "@jini-ai/core": "^0.6.11"
   }
 }
