@@ -115,6 +115,7 @@ import {
 import { renderBareEntryDocument } from "../../http/site/bare-page.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { injectFormAttemptTokens } from "../../http/site/form-render.js";
+import { injectMemberAuthScript } from "../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -2628,7 +2629,10 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
   const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
-  return isStaticExportRequest(req) ? finished : injectFormAttemptTokens(finished, { newToken: randomUUID });
+  // Member sign-in needs this server's API, which an exported file never has: its header keeps the
+  // theme's plain "Sign in" link.
+  if (isStaticExportRequest(req)) return finished;
+  return injectMemberAuthScript({ html: injectFormAttemptTokens(finished, { newToken: randomUUID }), workspaceId: deps.workspaceId });
 }
 
 /**
@@ -2885,6 +2889,32 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
   });
   const homeHtml = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead, { preserveThemeTitle }), siteAssistantEnabled);
   await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse(req, res) });
+}
+
+/**
+ * Serve a page that has no row of its own (core's member sign-in pages, `member-pages.ts`) through
+ * the same path an html-format Page takes, so it wears the active theme's page template, header and
+ * footer on every tier. `post` lives only in memory: on the template branch its body reaches the
+ * content slot through `renderViaTemplate`'s pending-body override (keyed to its id, the one the
+ * admin preview uses), so no repo lookup runs for it. Errors propagate to the caller.
+ */
+export async function serveVirtualPage({ req, res, deps, post }: {
+  req: Request; res: Response; deps: RouteDeps; post: PostRecord;
+}): Promise<void> {
+  const [activeThemeId, siteAssistantEnabled] = await Promise.all([
+    resolveRenderThemeId(res, deps),
+    resolveSiteAssistantWidgetForRequest({ request: req, deps }),
+  ]);
+  const resolved = resolveActiveTheme(deps, activeThemeId);
+  if (resolved === null) return sendNoThemesInstalled(res);
+  const theme = resolved === NO_THEME_ID ? null : resolved;
+  const branch = theme ? resolveTemplateBranchChoice({ theme, post }) : { kind: "ineligible" as const };
+  const perVisitor = resolvePerVisitorResponse(req, res);
+  const html = theme && branch.kind !== "ineligible"
+    ? await renderViaTemplate(deps, theme, branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post,
+      await resolveStaticMenusForRender(deps, theme, req.path), undefined, post.bodyHtml ?? "", undefined, siteAssistantEnabled)
+    : await renderGenericPostPage(deps, theme, post, [], siteAssistantEnabled);
+  await sendPublicPage({ req, res, deps, html, perVisitor });
 }
 
 /**

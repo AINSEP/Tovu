@@ -39,6 +39,7 @@ export interface MailActivityRecord {
   outcome: MailActivityOutcome;
   providerMessageId: string | null;
   errorCode: string | null;
+  message: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,7 +72,7 @@ export interface MailActivityRepo {
 
 type Row = {
   activity_id: string; effective_recipient: string; delivery_mode: "off" | "capture" | "redirect"; idempotency_key: string; recipient: string; lane: "transactional" | "bulk"; provider_id: string; use_id: MailActivityUse;
-  activity_outcome: MailActivityOutcome; provider_message_id: string | null; error_code: string | null; created_at: string; updated_at: string;
+  activity_outcome: MailActivityOutcome; provider_message_id: string | null; error_code: string | null; message: string | null; created_at: string; updated_at: string;
 };
 
 const USE_PREFIXES = [
@@ -124,13 +125,13 @@ function activitySources(required: SourceQuery, _optional: Record<string, never>
   const limit = required.limit === undefined ? sql`` : sql`LIMIT ${required.limit}`;
   return sql`SELECT * FROM (
     SELECT a.id AS activity_id, a.workspace_id, a.idempotency_key, a.recipient, a.effective_recipient, a.delivery_mode,
-      a.lane, a.provider_id, a.outcome, a.provider_message_id, a.error_code, a.created_at, a.updated_at, a.use_id
+      a.lane, a.provider_id, a.outcome, a.provider_message_id, a.error_code, a.message, a.created_at, a.updated_at, a.use_id
       FROM mail_activity_attempts a WHERE ${sourceConditions({ ...required, legacy: false })}
       ORDER BY a.created_at DESC, a.id DESC ${limit}
     ) attempts
     UNION ALL SELECT * FROM (
       SELECT old.activity_id, old.workspace_id, old.idempotency_key, old.recipient, old.recipient AS effective_recipient, 'off' AS delivery_mode,
-        old.lane, old.provider_id, old.outcome, old.provider_message_id, old.error_code, old.created_at, old.updated_at, ${legacyUse()} AS use_id
+        old.lane, old.provider_id, old.outcome, old.provider_message_id, old.error_code, NULL AS message, old.created_at, old.updated_at, ${legacyUse()} AS use_id
       FROM mail_send_ledger old WHERE ${sourceConditions({ ...required, legacy: true })}
         AND old.activity_retained = 1 AND NOT EXISTS (SELECT 1 FROM mail_activity_attempts a
           WHERE a.workspace_id = old.workspace_id AND a.idempotency_key = old.idempotency_key AND a.recipient = old.recipient)
@@ -154,7 +155,7 @@ function toRecord(row: Row): MailActivityRecord {
   return {
     cursorKey: row.activity_id, idempotencyKey: row.idempotency_key, recipient: row.effective_recipient,
     ...(row.delivery_mode === "off" ? {} : { originalRecipient: row.recipient, deliveryMode: row.delivery_mode }), lane: row.lane, providerId: row.provider_id, use: row.use_id,
-    outcome: row.activity_outcome, providerMessageId: row.provider_message_id, errorCode: row.error_code, createdAt: row.created_at, updatedAt: row.updated_at,
+    outcome: row.activity_outcome, providerMessageId: row.provider_message_id, errorCode: row.error_code, message: row.message, createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
 

@@ -49,6 +49,8 @@ export interface MailActivityItem {
   providerId: string;
   providerMessageId?: string | null;
   errorCode: string | null;
+  /** Full access only: provider diagnostics can contain recipient addresses. */
+  message?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,7 +158,7 @@ export async function resolveMailActivityAccess(
 function toItem({ record, access }: { record: MailActivityRecord; access: MailActivityAccess }, _options = {}): MailActivityItem {
   const base = { use: record.use, outcome: record.outcome, lane: record.lane, providerId: record.providerId, errorCode: record.errorCode, createdAt: record.createdAt, updatedAt: record.updatedAt };
   if (access === "masked") return { recipient: maskRecipient({ address: record.recipient }), ...base };
-  return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, ...(record.deliveryMode ? { deliveryMode: record.deliveryMode, originalRecipient: record.originalRecipient } : {}), providerMessageId: record.providerMessageId, ...base };
+  return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, ...(record.deliveryMode ? { deliveryMode: record.deliveryMode, originalRecipient: record.originalRecipient } : {}), providerMessageId: record.providerMessageId, message: record.message, ...base };
 }
 
 /** The next page's opaque cursor: the page's last timestamp, skipping every row already shown at it.

@@ -23,8 +23,9 @@
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
+import type { MailStatus } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -47,6 +48,10 @@ import type {
 export interface MemberRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<MemberRecord | null>;
   findByEmail(required: { workspaceId: UUID; email: string }): Promise<MemberRecord | null>;
+  /** Credential-only read; missing, passwordless or trashed members return null. Never a profile field. */
+  findPasswordHash(required: { workspaceId: UUID; memberId: UUID }, options?: Record<string, never>): Promise<string | null>;
+  /** Update only the hash; reject a missing/trashed member. Profile saves never write this column. */
+  setPasswordHash(required: { workspaceId: UUID; memberId: UUID; passwordHash: string }, options?: Record<string, never>): Promise<void>;
   list(required: {
     workspaceId: UUID;
     /** Keyset cursor (ULID id) for stable pagination; omit for first page. */
@@ -85,19 +90,28 @@ export interface MemberSessionRepoPort {
   save(record: MemberSessionRecord): Promise<void>;
   /** Server-side revocation (single session or all a member's sessions). */
   revoke(required: { workspaceId: UUID; id: UUID; revokedAt: ISODateTime }): Promise<void>;
+  /** Revoke sessions; optionally preserve the presenting session. */
   revokeAllForMember(required: {
     workspaceId: UUID;
     memberId: UUID;
     revokedAt: ISODateTime;
-  }): Promise<void>;
+  }, options?: { exceptSessionId?: UUID }): Promise<void>;
 }
 
 export interface MagicLinkTokenRepoPort {
+  /** Challenge handle lookup for code entry, scoped to the member workspace. */
+  findById(required: { workspaceId: UUID; id: UUID }, options?: Record<string, never>): Promise<MagicLinkTokenRecord | null>;
   findByTokenHash(required: {
     workspaceId: UUID;
     tokenHash: string;
   }): Promise<MagicLinkTokenRecord | null>;
   save(record: MagicLinkTokenRecord): Promise<void>;
+  /**
+   * Spend one code attempt BEFORE the code is verified: one conditional UPDATE increments
+   * `failedAttempts` only while the challenge is unconsumed, unexpired at `nowIso` and under
+   * `maxAttempts` (default 5). False when none remain, so parallel guesses cannot outrun the limit.
+   */
+  reserveCodeAttempt(required: { workspaceId: UUID; id: UUID; nowIso: ISODateTime }, options?: { maxAttempts?: number }): Promise<boolean>;
   /** Mark consumed (single-use); consuming an already-consumed token is denied. */
   consume(required: { workspaceId: UUID; id: UUID; consumedAt: ISODateTime }): Promise<void>;
 }
@@ -195,7 +209,11 @@ export interface MembersWriteServiceDeps {
   subscriptions: MemberSubscriptionRepoPort;
   sessions: MemberSessionRepoPort;
   magicLinks: MagicLinkTokenRepoPort;
+  /** Inject the staff Argon2 adapter; omitted legacy compositions use that same adapter. */
+  passwordHasher?: PasswordHasherPort;
   mailer: MailerPort;
+  /** Site-wide status; checked before reading any address. */
+  mailStatus?: () => Promise<MailStatus>;
   /**
    * The identity principal store. A member signing up gets a `kind: "member"` principal row with
    * the member's own id (`MemberRecord.id` is a principal id, ADR-021 §5), so `authorize()` can
@@ -205,13 +223,7 @@ export interface MembersWriteServiceDeps {
    */
   principals: Pick<PrincipalRepoPort, "save">;
   /**
-   * ADR-040 canonical-origin registry (ADR-PIPE-013 Decision §3) — optional:
-   * no composition root in this repo wires a real `OriginRegistryPort`
-   * instance into `members` yet. `requestSignInLink` treats an absent
-   * `origin` exactly like `OriginNotVerifiedError` (relative-link fallback,
-   * no warning log — an unwired dependency isn't an operator
-   * misconfiguration). When present, a workspace with a verified origin gets
-   * an absolute magic-link URL instead of today's relative path.
+   * ADR-040 canonical-origin registry. Sign-in refuses without trusted origin evidence.
    */
   origin?: OriginRegistryPort;
   /**
@@ -223,18 +235,31 @@ export interface MembersWriteServiceDeps {
   senderIdentity?: MailSenderIdentityPort;
 }
 
+/** Exactly one challenge credential; the link and code spend the same consumption stamp. */
+export type MemberSignInInput = { workspaceId: UUID; userAgent?: string; ip?: string } & (
+  | { token: string; challengeId?: never; code?: never }
+  | { token?: never; challengeId: string; code: string }
+);
+
+export interface MemberSignInResult {
+  member: MemberRecord;
+  session: MemberSessionRecord;
+  /** Cookie bearer; never persisted or included in a member profile. */
+  rawSessionToken: string;
+}
+
 export interface MembersWriteService {
-  /** Begin passwordless sign-in/up: mint a hashed magic token + mail the link. */
+  /** Begin email sign-in/up: mint a shared challenge and mail its link plus code. */
   requestSignInLink(required: {
     deps: MembersWriteServiceDeps;
     input: { workspaceId: UUID; email: string; redirectPath?: string };
-  }): Promise<{ delivered: true }>;
+  }): Promise<{ delivered: boolean; challengeId: string }>;
 
-  /** Consume a magic token: verify email, upsert member, mint a member session. */
+  /** Consume a link or code: verify email, upsert member, mint a member session. */
   completeSignIn(required: {
     deps: MembersWriteServiceDeps;
-    input: { workspaceId: UUID; token: string; userAgent?: string; ip?: string };
-  }): Promise<{ member: MemberRecord; session: MemberSessionRecord }>;
+    input: MemberSignInInput;
+  }): Promise<MemberSignInResult>;
 
   /** Operator/self profile update (validated, revision-recorded). */
   updateProfile(required: {

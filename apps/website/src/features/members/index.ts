@@ -38,6 +38,8 @@ export type {
 
 export {
   MemberAuthError,
+  MemberReauthenticationRequiredError,
+  MemberSignInUnavailableError,
   MemberValidationError,
   MemberConflictError,
   MemberNotFoundError,
@@ -53,6 +55,8 @@ export type {
   MemberAccessResolver,
   MembersWriteServiceDeps,
   MembersWriteService,
+  MemberSignInInput,
+  MemberSignInResult,
 } from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
@@ -95,6 +99,7 @@ export {
   disableMember,
   membersWriteService,
   requestSignInLink,
+  prepareMemberChallenge,
   setSubscriptionStatus,
   updateProfile,
 } from "./write-service.js";
@@ -113,3 +118,8 @@ export {
   MembersSubscriberDirectory,
   type MembersSubscriberDirectoryDeps,
 } from "./subscriber-directory.js";
+
+export { trashMember } from "./trash-member.js";
+
+export { signInWithPassword, requestPasswordReset, resetPassword, setMemberPassword } from "./password-auth.js";
+export { resolveMemberSession } from "./access-resolver.js";

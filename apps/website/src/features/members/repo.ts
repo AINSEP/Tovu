@@ -88,6 +88,22 @@ export class SqlMemberRepo implements MemberRepoPort {
     return row ? toMemberRecord(row) : null;
   }
 
+  /** Credential-only lookup; the hash never enters a MemberRecord. Missing/passwordless/Trash returns null. */
+  async findPasswordHash(required: { workspaceId: string; memberId: string }, _options: Record<string, never> = {}): Promise<string | null> {
+    const row = await this.kernel.run(db => db.selectFrom("members").select("password_hash")
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.memberId)
+      .where("status", "<>", "trash").executeTakeFirst());
+    return row?.password_hash ?? null;
+  }
+
+  /** Change only the credential column, without racing a profile upsert into erasing the hash. */
+  async setPasswordHash(required: { workspaceId: string; memberId: string; passwordHash: string }, _options: Record<string, never> = {}): Promise<void> {
+    const row = await this.kernel.run(db => db.updateTable("members").set({ password_hash: required.passwordHash })
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.memberId)
+      .where("status", "<>", "trash").returning("id").executeTakeFirst());
+    if (!row) throw new MemberAuthError("member was not found or is in Trash");
+  }
+
   /**
    * Members ordered by id. `afterId` resumes strictly after that member; an id that is not a member
    * of the workspace is ignored (first page), as before. Page size is capped at {@link MAX_PAGE}.
@@ -323,7 +339,11 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
     );
   }
 
-  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string }): Promise<void> {
+  /** Atomically advance the cutoff and revoke live sessions, optionally excluding one id.
+   * @complexity O(s) affected sessions in one bulk update; database failures propagate.
+   */
+  async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string },
+    options: { exceptSessionId?: string } = {}): Promise<void> {
     await this.kernel.transaction(async () => {
       // Same lock as Trash and session minting: all sessions and the pending-link cutoff commit
       // together. A late request may persist a token after this update, but the cutoff rejects it.
@@ -337,6 +357,8 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
       await this.kernel.run(db => db.updateTable("member_sessions")
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+        // Exclude in SQL: revoking then restoring the current row could resurrect a concurrent sign-out.
+        .$if(options.exceptSessionId !== undefined, query => query.where("id", "!=", options.exceptSessionId!))
         .where("revoked_at", "is", null).execute());
     });
   }
@@ -346,6 +368,13 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
   protected readonly kernel: ContentKernel;
   constructor(kernel: ContentKernel) {
     this.kernel = kernel;
+  }
+
+  /** Resolve a code-entry handle inside the member realm; missing/foreign handles return null. */
+  async findById(required: { workspaceId: string; id: string }, _options: Record<string, never> = {}): Promise<MagicLinkTokenRecord | null> {
+    const row = await this.kernel.run(db => db.selectFrom("member_magic_tokens").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.id).executeTakeFirst());
+    return row ? toMagicLinkTokenRecord(row) : null;
   }
 
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
@@ -372,6 +401,17 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     );
   }
 
+  /** The conditional UPDATE is atomic on both dialects, so no lock or read-then-write is needed.
+   * `expires_at` is written as `toISOString()` UTC text, so the string comparison is time order. */
+  async reserveCodeAttempt(required: { workspaceId: string; id: string; nowIso: string }, { maxAttempts = 5 }: { maxAttempts?: number } = {}): Promise<boolean> {
+    const row = await this.kernel.run(db => db.updateTable("member_magic_tokens")
+      .set(eb => ({ failed_attempts: eb("failed_attempts", "+", 1) }))
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.id)
+      .where("consumed_at", "is", null).where("expires_at", ">", required.nowIso)
+      .where("failed_attempts", "<", maxAttempts).returning("id").executeTakeFirst());
+    return row !== undefined;
+  }
+
   /**
    * Single-use: the check and the stamp run in one transaction holding the workspace's token lock, so
    * of two concurrent consumes exactly one wins and the other throws "already consumed". The UPDATE
@@ -384,7 +424,7 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
       const existing = await this.kernel.run((db) =>
         db
           .selectFrom("member_magic_tokens")
-          .select("consumed_at")
+          .select(["consumed_at", "expires_at"])
           .where("workspace_id", "=", required.workspaceId)
           .where("id", "=", required.id)
           .limit(1)
@@ -392,6 +432,9 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
       );
       if (!existing) {
         throw new Error(`magic link token '${required.id}' was not found`);
+      }
+      if (existing.expires_at <= required.consumedAt) {
+        throw new Error(`magic link token '${required.id}' has expired`);
       }
       if (existing.consumed_at) {
         throw new Error(`magic link token '${required.id}' was already consumed`);
@@ -403,6 +446,7 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
           .where("workspace_id", "=", required.workspaceId)
           .where("id", "=", required.id)
           .where("consumed_at", "is", null)
+          .where("expires_at", ">", required.consumedAt)
           .execute()
       );
     });

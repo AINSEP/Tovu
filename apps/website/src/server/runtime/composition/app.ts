@@ -288,6 +288,7 @@ import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/r
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import { registerMailFeedbackRoute } from "../../inbound/public-http/routes/mail-feedback.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
+import { registerMemberPageRoutes } from "../../inbound/public-http/routes/site/member-pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
@@ -320,6 +321,7 @@ import {
   createRateLimiter,
   MAGIC_LINK_COMPLETE_ATTEMPT,
   MAGIC_LINK_PER_EMAIL,
+  LOGIN_STRICT,
   MAGIC_LINK_PER_IP,
   SITE_ASSISTANT_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
@@ -2010,6 +2012,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
     mailer: routeDeps.mailer,
+    mailStatus: routeDeps.mailStatus,
+    origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
@@ -2017,6 +2021,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     magicLinkPerEmailLimiter,
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,
+    passwordHasher: routeDeps.passwordHasher,
+    passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
   };
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
@@ -2471,6 +2479,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     },
   });
 
+  // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
+  registerMemberPageRoutes(app, routeDeps);
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes(app, routeDeps);
 

@@ -1,9 +1,8 @@
 import type { Express, Response } from "express";
-
-import { completeSignIn, MemberAuthError, MemberNotFoundError } from "#src/features/members/index";
+import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
 import { toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
+import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
  * ADR-030 §3: a DISTINCT cookie name from the admin `tovu_session` (which
@@ -18,84 +17,73 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
  * hand-copied string that could silently drift from it.
  */
 export const MEMBER_SESSION_COOKIE = "tovu_member_session";
+const MEMBER_COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax", secure: true } as const;
 
-function setMemberSessionCookie(res: Response, rawToken: string, expiresAtIso: string): void {
+/** The sole member cookie setter, shared by password and challenge completion. O(1). */
+export function setMemberSessionCookie({ res, rawToken, expiresAtIso }: {
+  res: Response; rawToken: string; expiresAtIso: string;
+}, _options = {}): void {
   const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
-  res.cookie(MEMBER_SESSION_COOKIE, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "lax", secure: true });
+  res.cookie(MEMBER_SESSION_COOKIE, rawToken, { ...MEMBER_COOKIE_OPTIONS, maxAge });
 }
 
-/** Enforces `MAGIC_LINK_COMPLETE_ATTEMPT` on this public route. Writes the 429 itself and returns
- *  whether the caller should proceed. @complexity O(1). */
-async function checkCompleteSignInRateLimit(deps: MemberPublicRouteDeps, clientIp: string, res: Response): Promise<boolean> {
-  const rateLimitResult = await deps.magicLinkCompleteAttemptLimiter.check({ key: clientIp });
-  if (rateLimitResult.allowed) return true;
-  res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-  res.status(429).json({
-    error: "too many sign-in completion attempts from this address",
-    code: "RATE_LIMIT_EXCEEDED",
-    details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-  });
-  return false;
+/** Clear exactly the attributes used to set the cookie, so sign-out removes it reliably. O(1). */
+export function clearMemberSessionCookie({ res }: { res: Response }, _options = {}): void {
+  res.clearCookie(MEMBER_SESSION_COOKIE, MEMBER_COOKIE_OPTIONS);
 }
 
-/** Maps this route's thrown error types onto the public error envelope. @complexity O(1). */
-function sendCompleteSignInError(res: Response, err: unknown): void {
-  if (err instanceof MemberAuthError) {
-    res.status(401).json({ error: err.message, code: "MEMBER_AUTH_ERROR" });
+/** Credential failures share one body across password, link, code and reset; no exception text leaks. */
+export function sendMemberAuthError({ res, error }: { res: Response; error: unknown }, options: { reset?: boolean } = {}): void {
+  if (error instanceof MemberReauthenticationRequiredError) {
+    res.status(401).json({ error: "sign in again to set a password", code: "REAUTHENTICATION_REQUIRED" });
     return;
   }
-  if (err instanceof MemberNotFoundError) {
-    res.status(404).json({ error: err.message, code: "MEMBER_NOT_FOUND" });
+  if (error instanceof MemberAuthError) {
+    res.status(401).json({ error: "invalid credentials", code: "INVALID_CREDENTIALS" });
+    return;
+  }
+  if (options.reset && error instanceof MemberValidationError) {
+    res.status(400).json({ error: error.message });
     return;
   }
   res.status(500).json({ error: "internal error" });
 }
 
+/** Exactly one credential form, with no missing/empty handle passed to the repository. O(1). */
+function completionCredential({ body, workspaceId }: { body: unknown; workspaceId: string }, _options = {}): MemberSignInInput | null {
+  const token = memberStringBody({ body, kind: "token" });
+  if (token?.token) return { workspaceId, token: token.token };
+  const code = memberStringBody({ body, kind: "code" });
+  if (code?.challengeId && /^\d{6}$/.test(code.code)) return { workspaceId, challengeId: code.challengeId, code: code.code };
+  return null;
+}
+
 /**
- * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in/complete` — the
- * new PUBLIC complete-sign-in route (ADR-PIPE-013 Decision §2-3, C-013).
+ * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in/complete` — the PUBLIC
+ * complete-sign-in route (ADR-PIPE-013 Decision §2-3, C-013).
  *
- * Purpose:
- * `completeSignIn` (`src/members/write-service.ts`) has existed since ADR-030
- * but had zero HTTP callers anywhere in this codebase — this route is that
- * caller. Deliberately unauthenticated (no `requireAdminSession`, no
- * `authorize()`) and gated by the lighter `MAGIC_LINK_COMPLETE_ATTEMPT`
- * profile (defense-in-depth only — the 256-bit raw token makes brute force
- * computationally infeasible regardless, per ADR-PIPE-013 Decision §2-3).
+ * Deliberately unauthenticated (no `requireAdminSession`, no `authorize()`) and gated by the
+ * lighter `MAGIC_LINK_COMPLETE_ATTEMPT` per-IP profile. That limit is defense-in-depth: the
+ * 256-bit raw link token makes brute force infeasible, and a six-digit code is bounded by the
+ * per-challenge attempt reservation in `consumeMemberChallenge`, not by this IP counter.
  *
- * INV-NEW-01 (cookie isolation): sets ONLY `tovu_member_session`, never reads
- * or writes `tovu_session` (the admin cookie) — a request carrying only a
- * `tovu_session` cookie (no token) is still treated as anonymous/rejected by
- * this route; the admin cookie has zero effect here.
+ * INV-NEW-01 (cookie isolation): sets ONLY `tovu_member_session`, never reads or writes
+ * `tovu_session` (the admin cookie) — a request carrying only a `tovu_session` cookie (no token)
+ * is still rejected by this route; the admin cookie has zero effect here.
  */
+
+/** Complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
 export function registerPublicMemberCompleteSignInRoute(app: Express, deps: MemberPublicRouteDeps): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in/complete", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
     try {
-      const clientIp = resolveClientIp(req);
-      if (!(await checkCompleteSignInRateLimit(deps, clientIp, res))) {
-        return;
-      }
-
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const result = await completeSignIn({
-        deps: toPublicMembersWriteServiceDeps(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          token: String(body.token ?? ""),
-          userAgent: req.get("user-agent") ?? undefined,
-          ip: clientIp,
-        },
-      });
-
-      setMemberSessionCookie(res, result.rawSessionToken, result.session.expiresAt);
+      if (!checkMemberPost({ req, res, deps })) return;
+      const credential = completionCredential({ body: req.body, workspaceId: deps.workspaceId });
+      if (!credential) { res.status(400).json({ error: "expected token or challengeId and six-digit code strings" }); return; }
+      if (!await checkMemberRequestLimits({ req, res, deps, ipLimiter: deps.magicLinkCompleteAttemptLimiter })) return;
+      const result = await completeSignIn({ deps: toPublicMembersWriteServiceDeps(deps),
+        input: { ...credential, userAgent: req.get("user-agent"), ip: resolveClientIp(req) } });
+      setMemberSessionCookie({ res, rawToken: result.rawSessionToken, expiresAtIso: result.session.expiresAt });
       res.json({ member: toPublicMemberResponse(result.member) });
-    } catch (err) {
-      sendCompleteSignInError(res, err);
-    }
+    } catch (error) { sendMemberAuthError({ res, error }); }
   });
 }

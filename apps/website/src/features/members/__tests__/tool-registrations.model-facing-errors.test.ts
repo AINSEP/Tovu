@@ -51,6 +51,7 @@ function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean }
       sendBatch: async () => [],
     },
     // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
+    originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: NOW, source: "dev-capability" }), isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false },
     mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },
     magicLinkPerEmailLimiter: {
       check: async ({ key: _key }) => (options.allowEveryRequest === false ? { allowed: false, retryAfterSeconds: 42 } : { allowed: true }),
@@ -204,7 +205,7 @@ test("list, get, disable and magic-link success preserve the model-facing payloa
   assert.deepEqual(output(await call(harness, "members_disable", { memberId: "m-1" })), { member: disabled });
   assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.status, "disabled");
   assert.deepEqual(output(await call(harness, "members_request_magic_link", { email: "other@example.com" })), { delivered: true, mailDeliveryAvailable: true });
-  assert.equal((await deps.memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: "other@example.com" }))?.status, "pending");
+  assert.equal(await deps.memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: "other@example.com" }), null, "no member before the link is used");
 });
 
 test("magic-link limiter shares normalized email budget and authorization denial spends none", async () => {

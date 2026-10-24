@@ -31,7 +31,7 @@ function mkTempDbPath(): string {
 for (const hasCerts of [true, false]) {
   test(`a fresh boot derives ${hasCerts ? "https" : "http"} from controlled TLS material`, async (t) => {
     const dbPath = mkTempDbPath();
-    const names = ["TOVU_DISABLE_DEV_TLS", "TOVU_PUBLIC_URL", "TOVU_RUNTIME_MODE", "PORT"];
+    const names = ["TOVU_DISABLE_DEV_TLS", "TOVU_PUBLIC_URL", "TOVU_RUNTIME_MODE", "PORT", "TOVU_SITE_LISTENER_ORIGIN"];
     const original = new Map(names.map(name => [name, process.env[name]]));
     const exists = fs.existsSync;
     const read = fs.readFileSync;
@@ -41,6 +41,7 @@ for (const hasCerts of [true, false]) {
     syncBuiltinESMExports();
     delete process.env.TOVU_DISABLE_DEV_TLS;
     delete process.env.TOVU_PUBLIC_URL;
+    delete process.env.TOVU_SITE_LISTENER_ORIGIN;
     process.env.TOVU_RUNTIME_MODE = "local";
     process.env.PORT = "3000";
     try {
@@ -93,4 +94,25 @@ test("REGRESSION: the dev-capability origin's scheme is http, not hardcoded http
     else process.env.TOVU_DISABLE_DEV_TLS = originalDisableFlag;
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
+});
+
+// The listener is pinned before composition by both boot entrypoints; it wins over TLS discovery
+// (serve can choose HTTP even when certs exist) and over inherited PORT.
+test("signin-lab: a restart follows the pinned https:3001 listener after the initial http boot", async t => {
+  const dbPath = mkTempDbPath();
+  const names = ["TOVU_SITE_LISTENER_ORIGIN", "PORT", "TOVU_PUBLIC_URL", "TOVU_RUNTIME_MODE", "TOVU_DISABLE_DEV_TLS"];
+  const saved = new Map(names.map(name => [name, process.env[name]]));
+  t.after(() => { for (const [name, value] of saved) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }); });
+  delete process.env.TOVU_PUBLIC_URL; process.env.TOVU_RUNTIME_MODE = "local";
+  process.env.TOVU_DISABLE_DEV_TLS = "1"; process.env.PORT = "3000";
+  process.env.TOVU_SITE_LISTENER_ORIGIN = "http://localhost:3000";
+  const first = await createSiteRouteDeps(dbPath);
+  await Promise.all(Object.values(first).filter(value => value instanceof Promise));
+  assert.equal((await first.originRegistry.canonicalOrigin({ workspaceId: first.workspaceId })).scheme, "http");
+  process.env.TOVU_SITE_LISTENER_ORIGIN = "https://localhost:3001";
+  const second = await createSiteRouteDeps(dbPath);
+  await Promise.all(Object.values(second).filter(value => value instanceof Promise));
+  const origin = await second.originRegistry.canonicalOrigin({ workspaceId: second.workspaceId });
+  assert.equal(origin.scheme, "https"); assert.equal(origin.port, 3001);
 });

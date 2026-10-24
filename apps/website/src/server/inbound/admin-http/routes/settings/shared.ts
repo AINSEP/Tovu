@@ -165,11 +165,21 @@ const SETTINGS_PERMISSIONS: SettingsPermissions = {
 export function createTovuSettingsService(required: { deps: SettingsRouteDeps }): SettingsService {
   const deps = toWriteServiceDeps(required.deps);
   const service = createCmsSettingsService({ deps, permissions: SETTINGS_PERMISSIONS });
+  // Mail provider readiness is cached (mail-status-cache.ts); any core.mail write must drop it so a
+  // cleared provider stops accepting sign-ins at once. A reset can commit earlier clears before a
+  // later failure, so invalidation runs on settlement either way.
+  const afterWrite = async <T>(input: { namespace: string }, write: () => Promise<T>): Promise<T> => {
+    try { return await write(); } finally {
+      if (input.namespace === "core.mail") required.deps.mailProviderControl?.invalidate?.();
+    }
+  };
   // Clear and reset keep the CMS service's own authorization; the comments provider is refused first
   // because restoring its default re-enables comments behind `comments_set_provider`'s card.
-  return { ...service, set: (input) => (required.deps.set ?? set)({ deps, input }),
-    clear: async (input) => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); },
-    reset: async (input) => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); } };
+  return { ...service,
+    set: input => afterWrite(input, () => (required.deps.set ?? set)({ deps, input })),
+    clear: input => afterWrite(input, async () => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); }),
+    reset: input => afterWrite(input, async () => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); }),
+  };
 }
 
 /** Only deliberate HTTP rejections carry caller-visible text; other errors use CMS mappings. */

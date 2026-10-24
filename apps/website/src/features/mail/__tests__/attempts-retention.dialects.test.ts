@@ -37,6 +37,22 @@ describeEachDialect("mail observations and retention", { tables: ["mail_activity
     assert.doesNotMatch(JSON.stringify(rows), /Private auth|private|sign-in/);
   });
 
+  test("failed sends retain bounded redacted diagnostics in activity and a successful retry clears them", async () => {
+    const db = make(); await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES ('w','W','w',${iso(NOW)})`);
+    const observe = createMailAttemptObserver({ db }, { nowIso: () => iso(NOW) });
+    const failure = { ok: false as const, retryable: false, errorCode: "validation_error", message: `The sender domain is not verified. Authorization: Bearer private-token ${"x".repeat(1500)}` };
+    await observe({ message, options, providerId: "hosted", mode: { mode: "off" }, result: failure });
+    const repo = createMailActivityRepo({ db }, { now: () => NOW });
+    const [row] = await repo.list({ workspaceId: "w", limit: 5 });
+    assert.equal(row!.errorCode, "validation_error"); assert.match(row!.message!, /^The sender domain is not verified/);
+    assert.ok(!row!.message!.includes("private-token")); assert.equal(row!.message!.length, 1000);
+    assert.equal((await repo.get({ workspaceId: "w", idempotencyKey: options.idempotencyKey, recipient: message.to.email }))!.record.message, row!.message);
+    assert.equal((await db.query<{ message: string }>(sql`SELECT message FROM mail_activity_attempts`))[0]!.message, row!.message);
+    await observe({ message, options, providerId: "hosted", mode: { mode: "off" }, result: { ok: true, providerMessageId: "fixed", acceptedAt: iso(NOW) } });
+    const [retried] = await repo.list({ workspaceId: "w", limit: 5 });
+    assert.equal(retried!.message, null); assert.equal(retried!.errorCode, null);
+  });
+
   test("expiry deletes final send identities and bodies while preserving unresolved reservations, recent retries and suppression protection", async () => {
     const db = make(); await db.execute(sql`INSERT INTO workspaces (id,name,slug,created_at) VALUES ('w','W','w',${iso(NOW)})`);
     const capture = createMailCaptureRepo({ db }, { nowIso: () => iso(NOW - MAIL_CAPTURE_RETENTION_MS) }); await capture.capture({ message, lane: "transactional", idempotencyKey: "capture-old" });

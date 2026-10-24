@@ -36,6 +36,7 @@ export type MemberConsentRow = Selectable<ContentDatabase["member_consents"]>;
 export type MemberRevisionRow = Selectable<ContentDatabase["member_revisions"]>;
 
 export function toMemberRecord(row: MemberRow): MemberRecord {
+  // Deliberate allowlist: password_hash is credential-only and must never reach admin/tool profiles.
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -53,6 +54,7 @@ export function toMemberRecord(row: MemberRow): MemberRecord {
 }
 
 export function toMemberRow(record: MemberRecord): Insertable<ContentDatabase["members"]> {
+  // Omit password_hash so ordinary profile upserts cannot erase a stored password.
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -177,12 +179,17 @@ export function toMemberSessionRow(record: MemberSessionRecord): Insertable<Cont
   };
 }
 
+/** Maps legacy/new-address challenge rows without adding an undefined identity to legacy records. @complexity O(1). */
 export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
     memberId: row.member_id,
+    ...(row.email === null ? {} : { email: row.email }),
     tokenHash: row.token_hash,
+    ...(row.code_hash === null ? {} : { codeHash: row.code_hash }),
+    // Keep the legacy record shape; an absent counter has always meant no failed attempts.
+    ...(row.failed_attempts === 0 ? {} : { failedAttempts: Number(row.failed_attempts) }),
     purpose: row.purpose as MagicLinkTokenRecord["purpose"],
     createdAt: row.created_at,
     expiresAt: row.expires_at,
@@ -190,12 +197,16 @@ export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord
   };
 }
 
+/** Stores new-address identity on the challenge only; legacy links retain a null email. @complexity O(1). */
 export function toMagicLinkTokenRow(record: MagicLinkTokenRecord): Insertable<ContentDatabase["member_magic_tokens"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
     member_id: record.memberId,
+    email: record.email ?? null,
     token_hash: record.tokenHash,
+    code_hash: record.codeHash ?? null,
+    failed_attempts: record.failedAttempts ?? 0,
     purpose: record.purpose,
     created_at: record.createdAt,
     expires_at: record.expiresAt,
