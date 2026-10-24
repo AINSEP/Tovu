@@ -6,7 +6,7 @@ import { assistantCliPermissions } from "@tovu/headless";
 import { useDockAgentPermissions } from "../hooks/use-admin-subagents.hooks";
 import type { AssistantSubagentsPort, AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 
-function fixture(initial: AssistantSubagentsSettings = { ...assistantCliPermissions({ enabled: true }), canEdit: true }) {
+function fixture(initial: AssistantSubagentsSettings = { ...assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }), canEdit: true }) {
   let stored = initial;
   const write = vi.fn<AssistantSubagentsPort["write"]>(async input => {
     stored = { ...assistantCliPermissions(input), canEdit: true };
@@ -48,7 +48,7 @@ describe("dock permission port", () => {
     expect(screen.getByRole("switch", { name: "Full CLI access" })).not.toBeChecked();
   });
 
-  it("persists one override, then lets the master reset every dimension", async () => {
+  it("persists one override, then lets the master restore capability defaults", async () => {
     const f = fixture();
     const { result } = renderHook(() => useDockAgentPermissions({ t: key => key, port: f.port }));
     await waitFor(() => expect(result.current.canEdit).toBe(true));
@@ -65,7 +65,20 @@ describe("dock permission port", () => {
     expect(result.current.capabilities.filter(item => item.key !== "shell").every(item => !item.enabled)).toBe(true);
     await waitFor(() => expect(result.current.busy).toBe(false));
     act(() => result.current.onChange({ enabled: true }));
-    await waitFor(() => expect(result.current.capabilities.every(item => item.enabled)).toBe(true));
+    await waitFor(() => expect(result.current.capabilities.filter(item => item.key !== "userMcp").every(item => item.enabled)).toBe(true));
+    expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(false);
+  });
+  it("personal MCP defaults OFF and the owner can persist both ON and OFF", async () => {
+    const f = fixture({ ...assistantCliPermissions({ enabled: true }), canEdit: true });
+    const { result } = renderHook(() => useDockAgentPermissions({ t: key => key, port: f.port }));
+    await waitFor(() => expect(result.current.canEdit).toBe(true));
+    expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(false);
+    for (const enabled of [true, false]) {
+      await waitFor(() => expect(result.current.busy).toBe(false));
+      act(() => result.current.onChange({ key: "userMcp", enabled }));
+      await waitFor(() => expect(result.current.capabilities.find(item => item.key === "userMcp")?.enabled).toBe(enabled));
+      expect(await f.port.read({})).toMatchObject({ capabilities: { userMcp: enabled, shell: true } });
+    }
   });
   it("retains server truth on write failure and denies non-owner changes", async () => {
     const f = fixture({ ...assistantCliPermissions({ enabled: false }), canEdit: false, unavailableReason: "Not available on hosted sites" });

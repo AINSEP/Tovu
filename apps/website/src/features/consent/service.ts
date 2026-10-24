@@ -1,5 +1,6 @@
 /** @file Shared site consent use cases for HTTP and assistant adapters. */
 import type { ConsentConfig } from '@jini-ai/cms/consent';
+import type { ConsentGateOptions } from '@jini-ai/cms/consent/html';
 import type { ConsentReceiptStorageHealth } from '@jini-ai/cms/consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { ToolInputError } from '@jini-ai/core';
@@ -23,7 +24,8 @@ export interface ConsentServicePorts {
   readLegacy(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentConfig>;
   privacyPageExists(required: { url: string }, optional?: Record<string, never>): Promise<boolean>;
   renderPage(required: { path: string }, optional?: Record<string, never>): Promise<{ html: string; ok: boolean; truncated: boolean }>;
-  necessaryScripts: readonly { content: string }[];
+  /** Resolve the current active theme for every sample, so theme switches cannot leave stale grants. */
+  necessaryScripts(required: Record<string, never>, optional?: Record<string, never>): Promise<NonNullable<ConsentGateOptions['necessaryScripts']>>;
   /** Inspect the live receipt backend without saving a visitor choice; errors block readiness. */
   receiptStorage(required: Record<string, never>, optional?: Record<string, never>): Promise<ConsentReceiptStorageHealth>;
   /** The engine consent gate used by dry runs; omitted means the real `gateConsentHtml`. */
@@ -91,7 +93,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     try {
       const page = await ports.renderPage({ path });
       if (!isCompleteConsentPage({ page })) blockingProblems.push({ code: 'PAGE_UNAVAILABLE', message: 'The rendered page is unavailable or exceeds the 1 MB audit limit.' });
-      const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts }, { gate: ports.consentGate });
+      const dryRun = consentDryRun({ html: page.html, config, necessaryScripts: await ports.necessaryScripts({}) }, { gate: ports.consentGate });
       blockingProblems.push(...dryRun.problems);
       return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, detected: dryRun.items, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
@@ -108,7 +110,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     path = consentPagePath({ path });
     const page = await ports.renderPage({ path });
     if (!isCompleteConsentPage({ page })) throw new ToolInputError({ message: 'Preview requires one complete rendered page of at most 1 MB.' });
-    const result = consentDryRun({ html: page.html, config, necessaryScripts: ports.necessaryScripts }, { gate: ports.consentGate });
+    const result = consentDryRun({ html: page.html, config, necessaryScripts: await ports.necessaryScripts({}) }, { gate: ports.consentGate });
     if (result.gatedHtml === null) throw new ToolInputError({ message: 'The consent engine could not safely render the preview.' });
     return { html: result.gatedHtml, blockingProblems: [...await problems({ config }), ...result.problems], sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
   };

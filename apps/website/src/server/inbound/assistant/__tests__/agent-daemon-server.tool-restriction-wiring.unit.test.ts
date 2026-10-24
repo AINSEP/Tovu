@@ -173,10 +173,10 @@ test("catalog grants survive a parser continuation using the pre-existing reques
 
 
 test("the real prompt augmenter receives the same fresh grant as each concurrent launch", async () => {
-  const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+  const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
     daemonInitializer("assistantPromptAugmenter"), {
-      buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantSubagentsContext,
+      buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },
       buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
@@ -184,7 +184,7 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
   const observed: { enabled: boolean; overlay: string; tools: readonly string[] }[] = [];
   await Promise.all([true, false].map(enabled => captureDaemonRun({ prompt: "Import posts" }, { bindings: {
     routeDeps: { ownerPrincipalId: Promise.resolve("daemon-test-principal"), siteBinding: { dir: "/site" }, workspaceId: "ws", toolAttemptAuditSink: { append: async () => {} } },
-    assistantSubagentsContext, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
+    assistantCliCapabilitiesContext, readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
     agentExecutor: { run: async (_required: unknown, optional: { disallowedTools: readonly string[] }) => {
       // Read after an async boundary so a process-wide last-value cache cannot satisfy this test.
       await Promise.resolve();
@@ -195,10 +195,10 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
   assert.equal(observed.length, 2);
   for (const { enabled, overlay, tools } of observed) {
     assert.ok(overlay.includes(enabled
-      ? "Full CLI access is ON."
-      : "Native agents/subagents/Task and workflows are unavailable for this chat."));
+      ? "Native agents/subagents/Task are available for this chat."
+      : "Native agents/subagents/Task are unavailable for this chat."));
     assert.ok(overlay.includes("Owner custom guidance"));
     for (const tool of ["Agent", "Task"]) assert.equal(tools.includes(tool), !enabled);
   }
-  assert.equal(assistantSubagentsContext.getStore(), undefined);
+  assert.equal(assistantCliCapabilitiesContext.getStore(), undefined);
 });

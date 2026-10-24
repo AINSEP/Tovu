@@ -1,7 +1,7 @@
 import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { InMemorySettingsRepo, getEffective } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
@@ -19,6 +19,7 @@ import { createSettingsPrincipalLookup, set } from '../../features/settings/inde
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
+import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
 import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../automatic-agent-plugins.js';
 
 // Real catalog, activation, ranker, skill resolution and effective settings. No daemon boot.
@@ -240,17 +241,51 @@ test('CLI onStarted places the relevance note, without guidance bodies, into the
 
 test('load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor', async t => {
   const f = await fixture(t);
-  await f.runs.start({ runId: 'explicit', context: f.context });
+  await f.runs.start({ runId: 'explicit', context: { ...f.context, query: 'unrelated' } });
   assert.equal(f.published.length, 0);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
   const executor = createToolExecutor({ registry }, { prepareGuidance: f.runs.prepareGuidance });
   const result = await executor.execute({ principal: f.context.principal, run: { id: 'explicit' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(result.status, 'completed');
+  assert.equal((result.output as { status: string }).status, 'loaded');
   assert.match(JSON.stringify(result.output), /Use holographic layout discipline/);
   assert.deepEqual(f.published.at(-1)?.plugins, [{ id: f.pluginId, name: 'Synthetic Author' }]);
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'explicit' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
+  const missing = await executor.execute({ principal: f.context.principal, run: { id: 'explicit' }, toolId: 'load_agent_plugin', input: { pluginId: 'not-installed' } });
+  assert.equal(missing.status, 'completed');
+  assert.equal((missing.output as { status: string }).status, 'missing');
+  assert.doesNotMatch((missing.output as { note: string }).note, /plugins_set_enabled|enabled:true|agent_plugin_not_installed/);
   f.runs.forget({ runId: 'explicit' });
+});
+
+test('inactive Higgsfield returns the exact activation and retry calls without activating it', async t => {
+  const f = await fixture(t, { pluginId: 'higgsfield-media' });
+  await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: false, actor: 'fixture' });
+  await f.runs.start({ runId: 'inactive', context: f.context });
+  const registry = createToolRegistry({});
+  registry.register(f.runs.loadRegistration);
+  const executor = createToolExecutor({ registry });
+  const input = { principal: f.context.principal, run: { id: 'inactive' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } };
+  const result = await executor.execute(input);
+  assert.equal(result.status, 'completed');
+  const output = result.output as { status: string; guidance: string; note: string };
+  assert.equal(output.status, 'installed-but-inactive');
+  assert.equal(output.guidance, '');
+  assert.ok(output.note.includes('plugins_set_enabled({family:"agent-plugin",pluginId:"higgsfield-media",enabled:true})'));
+  assert.ok(output.note.includes('load_agent_plugin({pluginId:"higgsfield-media"})'));
+  assert.doesNotMatch(output.note, /agent_plugin_higgsfield_media/);
+  assert.equal(f.published.length, 0);
+  const stillInactive = await executor.execute(input);
+  assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
+  await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: true, actor: 'fixture' });
+  const retry = await executor.execute(input);
+  assert.equal((retry.output as { status: string }).status, 'loaded');
+  assert.match((retry.output as { guidance: string }).guidance, /Use holographic layout discipline/);
+  const again = await executor.execute(input);
+  assert.equal((again.output as { status: string }).status, 'already-loaded');
+  assert.doesNotMatch((again.output as { note: string }).note, /plugins_set_enabled|enabled:true/);
+  f.runs.forget({ runId: 'inactive' });
 });
 
 test('the first theme write loads installed tovu-theme after a note-only preflight', async t => {
@@ -276,6 +311,8 @@ test('the loader cannot use another principal’s run, an excluded plugin, or a 
   await f.runs.start({ runId: 'excluded', context: { ...f.context, state: { decision: null, excluded: [f.pluginId] } } });
   const excluded = await executor.execute({ principal: f.context.principal, run: { id: 'excluded' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
   assert.equal(excluded.status, 'completed');
+  assert.equal((excluded.output as { status: string }).status, 'excluded');
+  assert.doesNotMatch((excluded.output as { note: string }).note, /plugins_set_enabled|enabled:true/);
   assert.doesNotMatch(JSON.stringify(excluded.output), /Use holographic layout discipline/);
   assert.equal(f.published.length, 0);
   await writeFile(path.join(f.workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { [f.pluginId]: { enabled: false, origin: 'operator-installed', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' } } }));
@@ -329,10 +366,11 @@ test('50 relevant ids are discoverable by paging the existing search tool and al
   f.runs.forget({ runId: 'paged' });
 });
 
-for (const denied of ['ask', 'off', 'untrusted'] as const) {
+for (const denied of ['ask', 'off', 'untrusted', 'unavailable'] as const) {
   test(`explicit loader and guarded write refuse ${denied} through the real executor`, async t => {
     const f = await fixture(t, { trusted: denied !== 'untrusted' });
-    if (denied !== 'untrusted') {
+    if (denied === 'unavailable') await unlink(path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId, 'SKILL.md'));
+    if (denied === 'ask' || denied === 'off') {
       await f.principalRepo.save({ id: 'alice', workspaceId: f.workspaceId, kind: 'user', displayName: 'Alice', status: 'active', createdAt: f.clock.nowIso() });
       const { createSettingsPrincipalLookup } = await import('../../features/settings/index.js');
       await set({ deps: { repo: f.settingsRepo, clock: f.clock, ids: f.idGen, principals: createSettingsPrincipalLookup({ repo: f.principalRepo }), authorize: async () => ({ allowed: true, reason: 'fixture' }) },
@@ -340,7 +378,7 @@ for (const denied of ['ask', 'off', 'untrusted'] as const) {
     }
     const context = { ...f.context, state: { decision: { selected: [], asked: true }, excluded: [] } };
     const note = await f.runs.start({ runId: denied, context });
-    if (denied !== 'untrusted') assert.equal(note, '');
+    if (denied === 'ask' || denied === 'off') assert.equal(note, '');
     const registry = createToolRegistry({});
     registry.register(f.runs.loadRegistration);
     registry.register({ descriptor: { id: 'guarded_write', description: 'Fixture theme write', metadata: themeMetadata.theme_reset_file }, policy: { authorize: async () => 'allow' as const }, handler: async () => ({ written: true }) });
@@ -348,6 +386,8 @@ for (const denied of ['ask', 'off', 'untrusted'] as const) {
     const result = await executor.execute({ principal: context.principal, run: { id: denied }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
     assert.equal(result.status, 'completed');
     assert.equal((result.output as { guidance: string }).guidance, '');
+    assert.equal((result.output as { status: string }).status, denied === 'ask' ? 'excluded' : denied);
+    assert.doesNotMatch((result.output as { note: string }).note, /plugins_set_enabled|enabled:true|agent_plugin_synthetic_author/);
     const write = await executor.execute({ principal: context.principal, run: { id: denied }, toolId: 'guarded_write', input: {} });
     assert.equal(write.status, 'completed');
     assert.doesNotMatch(JSON.stringify(write.output), /Use holographic layout discipline|agentPluginGuidance/);

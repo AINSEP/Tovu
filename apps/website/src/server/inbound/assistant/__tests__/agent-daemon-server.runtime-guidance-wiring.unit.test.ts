@@ -21,10 +21,10 @@ type Overlay = { systemOverlay(input: { agentId: string; turnIndex: number }): s
 async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChrome = false, replyLength = "normal", owner = "daemon-test-principal", chromeProbed = true }: { enabled: boolean; agentId: string; preferSubagents: unknown; useClaudeInChrome?: boolean; replyLength?: unknown; owner?: string; chromeProbed?: boolean }) {
   const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome, replyLength };
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
-  const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+  const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
-    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
-    assistantSubagentsContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
+    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
+    assistantCliCapabilitiesContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
   });
   const reads: unknown[] = [];
@@ -37,7 +37,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
       toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
       getEffective: async (_deps: unknown, input: { key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
     },
-    assistantRuntimeGuidanceContext, assistantSubagentsContext, probeAssistantChrome: async () => chromeProbed,
+    assistantRuntimeGuidanceContext, assistantCliCapabilitiesContext, probeAssistantChrome: async () => chromeProbed,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => {
       launchedAgentId = required.agentId;

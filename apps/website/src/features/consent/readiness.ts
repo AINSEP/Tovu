@@ -1,6 +1,6 @@
 /** @file Read-only projection of Jini's denied-visitor gate, never a second classifier. */
 import { CONSENT_CATEGORIES, type ConsentConfig } from '@jini-ai/cms/consent';
-import { gateConsentHtml } from '@jini-ai/cms/consent/html';
+import { gateConsentHtml, type ConsentGateOptions } from '@jini-ai/cms/consent/html';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import type { ConsentProblem } from './validation.js';
 
@@ -52,7 +52,7 @@ export type ConsentDryRunGate = typeof gateConsentHtml;
  * @param options.gate the engine gate (default `gateConsentHtml`); injectable so the fail-closed path is testable.
  * @example consentDryRun({ html, config, necessaryScripts: [] })
  * @complexity O(n) time/space for at most 1 MB of rendered HTML. */
-export function consentDryRun({ html, config, necessaryScripts }: { html: string; config: ConsentConfig; necessaryScripts: readonly { content: string }[] }, options: { gate?: ConsentDryRunGate } = {}) {
+export function consentDryRun({ html, config, necessaryScripts }: { html: string; config: ConsentConfig; necessaryScripts: NonNullable<ConsentGateOptions['necessaryScripts']> }, options: { gate?: ConsentDryRunGate } = {}) {
   const problems: ConsentProblem[] = [];
   const gate = options.gate ?? gateConsentHtml;
   try {

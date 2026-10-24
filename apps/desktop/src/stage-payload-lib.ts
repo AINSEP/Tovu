@@ -67,12 +67,10 @@ interface PrebuildBuilt {
  * Top-level `node_modules` entries never staged, each for a reason that was checked rather than
  * assumed:
  *
- * - `playwright` / `playwright-core` / `@playwright` — a production dependency of Tovu, but its ONLY
- *   importer is `apps/website/src/features/site-evidence/playwright-browser.ts:144`, which reaches
- *   it through a DYNAMIC `await import("playwright")` inside a try/catch and degrades to
- *   `{available: false, reason}`. A static import would crash the server at load; a dynamic one
- *   does not. The driver is ~12 MB and the browser it drives is a separate ~150 MB download that a
- *   desktop app has no business shipping.
+ * - `@playwright` — test tooling only. Keep the production `playwright` / `playwright-core` driver:
+ *   rendered fetch, screenshots and site evidence all use it through the host's dynamic loader.
+ *   Browser downloads are separate; `stageDir` omits `.local-browsers` so desktop can use system
+ *   Chrome without shipping a downloaded Chromium binary.
  * - `@oven` — 132 MB of Bun runtimes, `optionalDependencies` of `@modelcontextprotocol/ext-apps`,
  *   which uses Bun only to build and test ITSELF. Reached only through the `@jini-ai/*` pnpm store.
  * - `@rollup` — same package, same root cause: every `@rollup/rollup-<platform>` native listed under
@@ -83,7 +81,7 @@ interface PrebuildBuilt {
  *   importers were three shadcn primitives in `@jini-ai/ui`, which now use vendored icons, so no Jini
  *   compiled code imports it. `@jini-ai/ui` 0.3.7 and earlier still declare it.
  */
-export const EXCLUDED_PACKAGES = new Set(["playwright", "playwright-core", "@playwright", "@oven", "@rollup", "lucide-react"]);
+export const EXCLUDED_PACKAGES = new Set(["@playwright", "@oven", "@rollup", "lucide-react"]);
 
 export function isExcluded(name: string): boolean {
   // `!`: `split` always returns at least one element, even for a separator-free string.
@@ -91,12 +89,16 @@ export function isExcluded(name: string): boolean {
   return EXCLUDED_PACKAGES.has(head!) || EXCLUDED_PACKAGES.has(name);
 }
 
+/** Copies a package tree, always omitting browser downloads and optionally nested dependencies.
+ * Filesystem failures propagate to staging; source files are never modified.
+ * @complexity O(entries copied), with filesystem-managed copy buffers. */
 export function stageDir(src: string, dest: string, dropNestedModules: boolean): void {
   mkdirSync(path.dirname(dest), { recursive: true });
   cpSync(src, dest, {
     recursive: true,
     dereference: true,
-    filter: dropNestedModules ? (from) => path.basename(from) !== "node_modules" : undefined,
+    // Hermetic Playwright installs put browser downloads inside playwright-core; keep only the driver.
+    filter: (from) => path.basename(from) !== ".local-browsers" && (!dropNestedModules || path.basename(from) !== "node_modules"),
   });
 }
 

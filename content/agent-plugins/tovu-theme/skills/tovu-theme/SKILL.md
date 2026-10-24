@@ -12,6 +12,15 @@ or the operator's terminal. If a compiled build needs that environment, hand it 
 
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
 
+## Motion by default
+
+Every new theme, converted site and reference match gets light kUInetic motion by default.
+Read [references/motion.md](references/motion.md): a brief hero fade/blur-in, staggered heading
+and card reveals on scroll, and count-up for existing stats. Keep body text still; no parallax
+or loops. Honor reduced motion and keep all content visible with JavaScript off or blocked.
+Load the vendored runtime once from the shared footer. If the owner asks for no or less motion,
+skip or reduce it. Apply this recipe when duplicating a theme too; inherited effects may be heavier.
+
 This plugin covers three jobs that share one theme format:
 
 - **Job A — a new theme** (Part A below): by default a `theme_duplicate` copy of a working
@@ -581,8 +590,8 @@ Create no CMS Page rows in this branch.
    page by page — do not force a partial where the source doesn't actually share one.
 5. **Pages**: for each source `.html` file you're converting, write `render/pages/<id>.html`
    with the partial markers substituted in and every asset/script/stylesheet path fixed per
-   Rules 3/5. Preserve everything else byte-for-byte — a theme page's job is to be a faithful,
-   working copy, not a rewrite.
+   Rules 3/5. Apart from the default motion recipe (or the owner's motion preference), preserve
+   everything else byte-for-byte — a theme page's job is to be a faithful, working copy.
 6. **Vendor scripts/stylesheets** the pages actually load (survey step 2's usage check) into
    `scripts/`/`css/` (or a `vendor/` subfolder for a clearly third-party library, matching
    `basic`'s own `scripts/vendor/kuinetic.all.js` precedent) — copy via `fs_read_file`/
@@ -808,6 +817,8 @@ live site:
 
 # References
 
+- `references/motion.md` — default kUInetic recipe for all three jobs, including reduced motion,
+  visible no-JS content and the shared-footer vendor path. Read before adding motion.
 - `references/theme-v2-contract.md` — condensed, code-verified field/path reference for the
   apiVersion-2 static-tier shape (the load-bearing facts from `theme.ts`/`theme-layout.ts`/
   `static-asset-contract.ts`, kept short on purpose — read the source files themselves for

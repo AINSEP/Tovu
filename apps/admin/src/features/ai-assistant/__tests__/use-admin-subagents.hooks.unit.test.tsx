@@ -7,7 +7,7 @@ import {
 import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 
-const ALL_ON = { ...assistantCliPermissions({ enabled: true }), canEdit: true };
+const ALL_ON = { ...assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }), canEdit: true };
 
 /** Typed fake port; reads or writes can be failed mid-test to reach stale-cache and error states. */
 function fakePort(initial: AssistantSubagentsSettings = ALL_ON) {

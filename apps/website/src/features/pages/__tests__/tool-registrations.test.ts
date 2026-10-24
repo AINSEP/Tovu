@@ -129,12 +129,12 @@ test("all four Pages tools are registered with the input schemas the model needs
     const schema = entry.descriptor.inputSchema as { type: string; required: string[]; properties: Record<string, { type: string; minimum?: number }> };
     assert.ok(schema, `${name} must publish an input schema`);
     // why: N3 (42773ffa) made regionId the canonical region field; handle/region are executor-side aliases only.
-    const required = name === "pages_read_html" ? ["id"] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "regionId", "html"] : ["id", "regionId"];
+    const required = name === "pages_read_html" ? [] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "regionId", "html"] : ["id", "regionId"];
     assert.equal(schema.type, "object");
-    assert.deepEqual(schema.required, required);
+    assert.deepEqual(schema.required ?? [], required);
     for (const field of required) assert.equal(schema.properties[field].type, "string", `${name}.${field}`);
     const validate = new Ajv().compile(schema);
-    const valid = Object.fromEntries(required.map((field) => [field, field === "html" ? "<p>Hi</p>" : "hero"]));
+    const valid: Record<string, string> = name === "pages_read_html" ? { id: "hero" } : Object.fromEntries(required.map((field) => [field, field === "html" ? "<p>Hi</p>" : "hero"]));
     assert.equal(validate(valid), true, `${name}: ${JSON.stringify(validate.errors)}`);
     for (const field of required) {
       const missing = { ...valid }; delete missing[field];

@@ -5,7 +5,7 @@ import { createAutomaticPluginRuns } from "../../../assistant/automatic-agent-pl
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
-import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { assistantCliPermissions, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
@@ -731,7 +731,7 @@ const customInstructionsCache = createCustomInstructionsCache(
 
 // Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
 // concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
-const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+const assistantCliCapabilitiesContext = new AsyncLocalStorage<AssistantCliPermissions["capabilities"]>();
 const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
 // Same per-launch scoping for the person's runtime preferences (`assistant-runtime-guidance.ts`).
 const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGuidanceInput>();
@@ -749,12 +749,12 @@ const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGu
 const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
-  systemOverlay: ({ agentId }) => {
+  systemOverlay: () => {
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
     const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, { nativeToolAccess: assistantNativeToolsContext.getStore() === true }) +
-      buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: assistantSubagentsContext.getStore() === true }, {}) +
+      buildAssistantSubagentsOverlay({ capabilities: assistantCliCapabilitiesContext.getStore() ?? assistantCliPermissions({ enabled: false }).capabilities }, {}) +
       buildAssistantRuntimeGuidance({ input: assistantRuntimeGuidanceContext.getStore() }, {});
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
@@ -1329,7 +1329,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome });
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: process.env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
-    await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
+    await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
       prompt,

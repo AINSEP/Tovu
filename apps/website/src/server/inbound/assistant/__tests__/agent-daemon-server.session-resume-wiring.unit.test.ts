@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
+import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
+import type { AgentExecutorRunInput } from "@jini-ai/daemon";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 
 // Load the source-evaluation dependencies before test deadlines start: their cold import
 // includes TypeScript and the Jini barrels and can exceed the cleanup test's 2-second limit.
-import { captureDaemonRun } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for the H1/H2 fixes, in the same style as
@@ -150,7 +156,7 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
     assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
     assert.ok(
       hasConcurrentIndex < runCallIndex && getSessionIdIndex < runCallIndex,
@@ -207,7 +213,7 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory({ agentId: agentId }, {})");
     assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory({ agentId: agentId }, {}) into the decision — without it every run would look non-resume-capable and the check would never fire");
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
 
     assert.ok(
@@ -361,5 +367,62 @@ test("onStarted registers the conversation synchronously while instruction refre
     assert.equal(input.resumeSessionId, "session-before-refresh");
     await fixture.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: false }, { sessionRef: "session-before-refresh" });
     await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+});
+
+for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app launches honor user MCP ${String(userMcp)} and disclose native permissions`, async () => {
+  const capabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
+  const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
+  const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
+  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter"), {
+    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
+    assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
+    bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
+  });
+  const key = { conversationId: "isolated-mcp-chat", agentId: "claude" };
+  const first = await sessionFixture();
+  for (const resumed of [false, true]) {
+    const fixture = resumed ? await sessionFixture() : first;
+    let launched: AgentExecutorRunInput | undefined;
+    let overlay = "";
+    await assert.rejects(captureDaemonRun({ prompt: "Continue", conversationId: key.conversationId }, {
+      lifecycle: fixture.lifecycle, request: { agentId: "claude" }, bindings: {
+        ...fixture.bindings,
+        routeDeps: { ...fixture.bindings.routeDeps, agentSessions: first.agentSessions,
+          ownerPrincipalId: Promise.resolve("daemon-test-principal"), toolAttemptAuditSink: { append: async () => {} } },
+        assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
+        readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: {
+          shell: !resumed, ...(userMcp === undefined ? {} : { userMcp }),
+        } }),
+        agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => {
+          launched = { ...required, ...optional };
+          await Promise.resolve();
+          overlay = augmenter.systemOverlay({ agentId: "claude" });
+          throw new Error("captured launch");
+        } },
+      },
+    }), /captured launch/);
+    assert.ok(launched);
+    assert.equal(launched.nativeToolAccess, true);
+    assert.equal(launched.cliParity, true);
+    assert.equal(launched.nativeCapabilities?.userMcp, userMcp === true);
+    assert.equal(launched.nativeCapabilities?.shell, !resumed);
+    assert.equal(launched.resumeSessionId, resumed ? "unused-session-id" : undefined);
+    const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, {
+      options: launched, runtimeContext: { mcpJsonPath: "/staged/tovu-mcp.json",
+        ...(launched.resumeSessionId ? { resumeSessionId: launched.resumeSessionId } : {}),
+        ...(launched.newSessionId ? { newSessionId: launched.newSessionId } : {}) },
+    });
+    assert.equal(args.includes("--strict-mcp-config"), userMcp !== true, "only an explicit user MCP grant permits inherited MCP");
+    assert.equal(args.includes("--resume"), resumed);
+    assert.equal(args[args.indexOf("--mcp-config") + 1], "/staged/tovu-mcp.json");
+    assert.equal(args.includes("Bash"), resumed, "shell choice must reach actual CLI arguments");
+    assert.doesNotMatch(overlay, /Full CLI access is ON/);
+    assert.match(overlay, /Native agents\/subagents\/Task are available/);
+    assert.equal(overlay.includes("Your MCP servers"), userMcp !== true);
+    assert.equal(overlay.includes("Bash/shell"), resumed);
+    assert.equal(capabilitiesContext.getStore(), undefined);
+    await fixture.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: true }, { sessionRef: "unused-session-id" });
+    await new Promise<void>(resolve => setImmediate(resolve));
   }
 });

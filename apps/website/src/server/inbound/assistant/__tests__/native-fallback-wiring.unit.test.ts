@@ -70,8 +70,8 @@ test('non-owner and hosted owner launches explicitly lock native tools', async (
 test('prompt and runtime share the per-run grant across concurrent contexts', async () => {
   const native = new AsyncLocalStorage<boolean>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer('assistantPromptAugmenter'), {
-    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantNativeToolsContext: native,
-    assistantSubagentsContext: new AsyncLocalStorage<boolean>(), bashProhibitionEnabled: false,
+    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
+    assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(), bashProhibitionEnabled: false,
     customInstructionsCache: { readOverlay: () => null },
     buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
   });
@@ -138,7 +138,7 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
       readAssistantCliPermissions: async () => settings,
     }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
     assert.equal(input.nativeCapabilities?.[key], false);
-    assert.deepEqual(input.nativeCapabilities, settings.capabilities, 'one OFF must preserve every unrelated ON');
+    assert.deepEqual(input.nativeCapabilities, settings.capabilities, 'the launch preserves every owner capability choice');
     assert.equal(input.env?.PATH, key === 'loginEnvironment' ? undefined : '/test/login-shell');
     assert.equal(input.settingSources === undefined, key !== 'userSettings');
     const args = def.buildArgs({ prompt: input.prompt, imagePaths: [] }, { options: input });

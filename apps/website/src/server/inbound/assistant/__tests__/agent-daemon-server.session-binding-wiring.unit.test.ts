@@ -91,7 +91,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
     console: { error: (...args: unknown[]) => failures.push(args), log() {}, warn() {} },
     AbortController, automaticPluginRuns: { start: async () => "", forget() {} },
-    assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
+    assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     resolveAssistantRuntimeLaunch, getAgentDef, probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
@@ -267,7 +267,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "the awaited agentExecutor.run call must exist");
     const preDispatch = onStartedSource.slice(0, runCallIndex);
     const bindingFnIndex = preDispatch.indexOf("async function resolveSessionBinding(");
@@ -291,7 +291,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the minted id is both persisted and handed to AgentExecutor.run — one id, not two", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     const mintIndex = onStartedSource.indexOf("resolveHostMintedSessionId({");
     assert.ok(mintIndex > -1, "onStarted must call resolveHostMintedSessionId to decide whether to mint");
     assert.ok(mintIndex < runCallIndex, "the mint decision must be made before agentExecutor.run is called");
@@ -333,7 +333,7 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
       "onStarted must run its session-binding section through conversationStartLock.run — without it two near-simultaneous turns both read an empty session slot and both mint, forking the conversation",
     );
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
     assert.ok(lockCallIndex < runCallIndex, "the lock must be entered before agentExecutor.run is reached");
 
     // The critical section is the function handed to the lock. Both halves of the read-modify-write
