@@ -149,13 +149,20 @@ jobs:
           # verdict. An .app electron-builder could not staple (CloudKit drop, see the job env) is judged
           # online by spctl, over the same unreachable CloudKit; its notarization verdict is
           # @electron/notarize's, which throws on anything but Accepted before it staples.
+          # `stapler validate` runs FIRST so it is the notarization proof when spctl itself breaks:
+          # on macos-15-intel spctl printed "internal error in Code Signing subsystem" with no
+          # `source=` line for a .app that codesign, notarytool and a real staple all passed
+          # (desktop-v0.1.24 run 40021989222, and an earlier attempt). That one spctl error only
+          # warns, and only when the ticket validated for real (no CloudKit-skipped validate below).
+          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.app }}"
           out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)" || true; echo "$out"
           if grep -qE '^staple .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
             grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled .app: spctl could not confirm notarization offline"
+          elif grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            echo "::warning::.app: spctl hit an internal Code Signing error; stapler validate passed, so the stapled ticket is the notarization proof"
           else
             grep -q "source=Notarized Developer ID" <<<"$out"
           fi
-          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.app }}"
           test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
       - if: runner.os == 'macOS'
         name: Notarize + staple the dmg itself
@@ -170,8 +177,11 @@ jobs:
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" staple "${{ matrix.out }}"
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.out }}"
           out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)" || true; echo "$out"
+          # Same spctl "internal error in Code Signing subsystem" rule as the .app step above.
           if grep -qE '^staple .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
             grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled dmg: spctl could not confirm notarization offline (notarytool said Accepted)"
+          elif grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            echo "::warning::dmg: spctl hit an internal Code Signing error; notarytool said Accepted and stapler validate passed"
           else
             grep -q "source=Notarized Developer ID" <<<"$out"
           fi
