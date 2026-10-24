@@ -67,7 +67,7 @@ function rewriteNavigation({ element, page, prefix }: { element: Element; page: 
   const href = element.attrs.find(attribute => attribute.name === "href");
   if (!href || href.value.startsWith("#")) return;
   const base = new URL(page.path, page.origin ?? "https://tovu-preview.invalid");
-  if (!URL.canParse(href.value, base)) return;
+  if (!URL.canParse(href.value, base.href)) return;
   const target = new URL(href.value, base);
   if (target.origin !== base.origin || /^\/(?:_themes|theme-assets|m|api|admin|agent-icons)(?:\/|$)/.test(target.pathname)) return;
   target.searchParams.delete("theme");

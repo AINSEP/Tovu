@@ -7,7 +7,10 @@ description: Work against a GitHub repository through this workspace's own saved
 
 ## Connection card
 
-For repository files, Actions and site backups, open **Connect GitHub** with `credential_save {kind:"plugin-provider",target:"github"}`; it saves the API credential labelled `github`. For the rendered-export source-control flow, use `credential_save {kind:"plugin-provider",target:"github-source-control"}`; it saves through the source-control owner. For Pages hosting use the `github-pages` plugin’s card. These remain distinct save contracts. Each card names the repository permissions and links to fine-grained token creation. Never collect a token in chat.
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
+Open **Connect GitHub** with `credential_save {kind:"plugin-provider",target:"github"}`; it saves the API credential labelled `github`. For `github-source-control`, use `credential_save {kind:"plugin-provider",target:"github-source-control"}`; it saves through the source-control owner. For Pages hosting use the `github-pages` plugin’s card. These remain distinct save contracts. Each card names the repository permissions and links to fine-grained token creation. Never collect a token in chat.
 
 ## Scope
 

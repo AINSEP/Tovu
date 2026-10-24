@@ -74,10 +74,12 @@ export class SqlOutboxAdapter implements OutboxPort {
    * @param kernel the content database holding `outbox_events`.
    * @param optional.claimLeaseMs claim lease length (default {@link DEFAULT_OUTBOX_CLAIM_LEASE_MS}).
    */
+  protected readonly kernel: ContentKernel;
   constructor(
-    protected readonly kernel: ContentKernel,
+    kernel: ContentKernel,
     optional: { claimLeaseMs?: number } = {}
   ) {
+    this.kernel = kernel;
     this.claimLeaseMs = optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS;
   }
 

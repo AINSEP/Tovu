@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
+import { AgentPluginMaturity } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
@@ -246,6 +247,8 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
           </span>
         </button>
 
+        {/* Outside the summary button so the tappable pill is never a nested control. */}
+        <AgentPluginMaturity maturity={plugin.maturity} t={t} />
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
         <div className="agent-plugin-row-actions">

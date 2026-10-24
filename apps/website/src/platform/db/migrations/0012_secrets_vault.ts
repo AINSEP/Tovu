@@ -121,14 +121,20 @@ function freeLabel({ preferred, taken }: { preferred: string; taken: Set<string>
 function metadata({ table, row }: { table: string; row: LegacyRow }): VaultMeta {
   switch (table) {
     case "site_assistant_credentials": case "media_provider_credentials":
+      // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
       return { baseUrl: row.base_url, model: row.model };
     case "admin_execution_credentials":
+      // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
       return { protocol: row.protocol, baseUrl: row.base_url, model: row.model, maxTokens: row.max_tokens };
     case "custom_credential_sets":
+      // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
       return { category: row.category, baseUrl: row.base_url, additionalHosts: row.additional_hosts_json === null ? [] : JSON.parse(String(row.additional_hosts_json)), username: row.username };
+    // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
     case "publish_content_peers": return { baseUrl: row.base_url, remoteWorkspaceId: row.remote_workspace_id };
+    // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
     case "database_transfer_destinations": return { description: { host: row.host, port: row.port, database: row.database_name, user: row.user_name },
       lastRun: row.last_run_json === null ? null : JSON.parse(String(row.last_run_json)) };
+    // @ts-ignore frozen step (ADR-066, checksum-pinned code): `SELECT *` of this case's table has the column; only the strict desktop config flags the index read.
     case "vendor_credential_sets": case "source_control_credential_sets": case "publish_credential_sets": return { accountLabel: row.account_label };
     default: return {};
   }

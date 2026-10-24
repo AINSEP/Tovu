@@ -8,7 +8,7 @@ afterEach(() => window.history.replaceState(null, "", "/"));
 
 describe("media tab resolution", () => {
   // F4.3/F6.2: a resolver always returning all, or permitting arbitrary raw query values, fails.
-  it.each(["all", "images", "videos", "external-providers"] as const)("accepts the %s deep link", (tab) => {
+  it.each(["all", "images", "videos", "external-providers", "trash"] as const)("accepts the %s deep link", (tab) => {
     expect(resolveActiveTab(tab)).toBe(tab);
     const { result } = renderHook(() => useMediaTabs(tab));
     expect(result.current.activeTab).toBe(tab);

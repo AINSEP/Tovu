@@ -26,6 +26,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
+import { OAuthError } from "../../platform/oauth/errors.js";
 
 /**
  * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
@@ -150,7 +151,8 @@ function isOAuthServer(config: McpServerConfig): config is RemoteMcpServerConfig
 /**
  * Starts the sign-in and returns the link the card shows.
  *
- * @throws {ToolInputError} The OAuth service refused the request as invalid input.
+ * @throws {ToolInputError} The OAuth service refused the request, or OAuth discovery/registration failed,
+ *   with the no-card note the model must relay.
  * @throws {Error} A `device_code` grant: the card has no place for the user code, and nothing in this
  *   call polls `pollDeviceAuthorization`, so the row would never flip to connected. Provisioned rows
  *   always use `authorization_code` (`federate-mcp.ts`), so this is a fail-loud guard.
@@ -160,7 +162,9 @@ async function beginSignIn(oauth: ExternalMcpOAuthService, serverId: string, der
   try {
     start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin) });
   } catch (err) {
-    throw err instanceof ExternalMcpValidationError ? new ToolInputError({ message: err.message }) : err;
+    // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
+    if (!(err instanceof ExternalMcpValidationError) && !(err instanceof OAuthError)) throw err;
+    throw new ToolInputError({ message: `${err.message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
   }
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
@@ -214,7 +218,7 @@ const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
   "Call this once you know which plugin needs connecting (e.g. from search_agent_plugin_local, whose result names an " +
     "OAuth-authenticated MCP server that is not yet connected) — it needs no prior setup, this provisions the connection " +
     "itself the first time it is called for a given plugin.",
-  "Shows the human a card with a sign-in link and parks until they finish. Returns { status: 'connected' } once the " +
+  "Attempts sign-in first; only a successful start shows the human a card with a sign-in link and parks until they finish. Do not promise a card before it is emitted. If sign-in fails, explain that no card opened and use the plugin's declared credential_save key card when available. Never ask the person to restart Tovu. Returns { status: 'connected' } once the " +
     "sign-in completes, or { status: 'waiting-for-sign-in' } if nobody finished within a few minutes — call this again " +
     "with the same pluginId once the human says they're back; never loop on your own.",
   "For a plugin that declares its own API connection, the result also carries connectionRef: pass it unchanged as " +
@@ -335,15 +339,14 @@ export async function runAgentPluginConnect(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${refusal.serverKey}' connection could not be set up in this Tovu version.` });
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
+  const [server] = pending;
   // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
-  if (pending.length === 0) return { status: "connected" };
+  if (!server) return { status: "connected" };
   if (pending.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
-  const [server] = pending;
 
-  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
-  const credentialCard = cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
 }
 
@@ -429,6 +432,12 @@ async function waitForMcpConnection(
  * @throws {Error} No interactive channel to show the sign-in card on.
  * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
  */
+/** The plugin's own `oauth` card copy for its sign-in card, shared by the MCP and API-connection branches. O(cards). */
+async function findPluginOAuthCard(routeDeps: AgentPluginConnectToolDeps, pluginId: string): Promise<PluginCredentialCard | undefined> {
+  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+  return cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+}
+
 async function connectDeclaredApiConnectionOrRefuse(
   routeDeps: AgentPluginConnectToolDeps,
   surfaces: AssistantSurfaceDeps,
@@ -436,26 +445,29 @@ async function connectDeclaredApiConnectionOrRefuse(
   pluginId: string,
   optional: ToolExecutionOptions,
 ): Promise<ApiConnectionConnectStatus> {
-  const declared: readonly DeclaredApiConnection[] = routeDeps.apiConnections ? await routeDeps.apiConnections.host.listConnections({ pluginId }) : [];
-  if (declared.length === 0) {
+  const apiConnections = routeDeps.apiConnections;
+  const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.host.listConnections({ pluginId }) : [];
+  const [connection] = declared;
+  if (!apiConnections || !connection) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
   }
   if (declared.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
   }
   const pluginDisplayName = titleCaseFromPluginId(pluginId);
+  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   let exchange: ReturnType<AssistantSurfaceDeps["surfaceExchanges"]["open"]> | undefined;
   const closeOnAbort = () => exchange?.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
     const result = await runApiConnectionConnect({
-      deps: routeDeps.apiConnections!, connection: declared[0], actorId: ctx.principal.id, signal: ctx.signal,
+      deps: apiConnections, connection, actorId: ctx.principal.id, signal: ctx.signal,
       pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
       showSignIn: async ({ signInUrl }) => {
         const emitSurface = optional.emitSurface;
         if (!emitSurface) throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
         exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
-        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) } } });
+        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) } } });
       },
     });
     if (result.status === "connected" && exchange) {

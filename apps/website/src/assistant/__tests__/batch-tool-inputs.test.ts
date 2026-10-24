@@ -9,8 +9,8 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
  * 3. Partial failure: a failing item never stops the rest; its error drops the appended schema.
  * 4. Malformed `items` is refused before any item runs, with the exact message.
  * 5. The published descriptor: `items` added, top-level `required` moved into its description.
- * 6. The guard: every production tool is batchable by default, on `BATCH_OPT_OUT` with a reason, or a
- *    read-only list; no tool that asks per call is batched (it would ask once per item).
+ * 6. The guard: every pure read is batchable, owns native items, or is opted out; opt-outs carry a reason.
+ *    Writes that ask per call stay single-call, avoiding one approval per item.
  * 7. The real composition: every batchable tool publishes `items` with its cap, and a real theme batch
  *    reads and writes several files in one call through the same handlers a single call uses.
  */
@@ -156,18 +156,39 @@ function productionContributions() {
   return contributions;
 }
 
-test("guard: every production tool is batchable by default, explicitly opted out, or a list read", () => {
+test("a pure read with only optional selectors batches by default; native items stay unshadowed", async () => {
+  const inputs: unknown[] = [];
+  const read = { ...fakeRegistration("pure_list_read", async ctx => { inputs.push(ctx.input); return ctx.input; }, {
+    type: "object", additionalProperties: false, properties: { query: { type: "string" } },
+  }), descriptor: { id: "pure_list_read", sideEffects: "none" as const, readOnly: true,
+    inputSchema: { type: "object", additionalProperties: false, properties: { query: { type: "string" } } } } };
+  const native = fakeRegistration("native_items", async () => ({}), { type: "object", properties: { items: { type: "array" } } });
+  const [wrapped, untouched] = applyBatchInputs({ registrations: [read, native] });
+  assert.equal(untouched, native, "native items must not be shadowed");
+  const output = await invokeRegistration(wrapped!, executionContext({ items: [{}, { query: "own" }, { invented: true }, { query: "last" }] })) as BatchResult;
+  assert.deepEqual(output.results.map(item => item.ok), [true, true, false, true]);
+  assert.deepEqual(inputs, [{}, { query: "own" }, { query: "last" }]);
+  const cap = Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({}));
+  await assert.rejects(invokeRegistration(wrapped!, executionContext({ items: cap })), /most one call takes is 25/);
+  assert.equal(inputs.length, 3, "the cap fails before any item runs");
+});
+
+test("guard: every production pure read batches; other tools retain explicit write opt-outs", () => {
   // Raw, pre-batch registrations with every permanent delete granted, so the guard sees them all.
   const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, {
     contributions: productionContributions(), includeContentReadCollapse: false, batchableTools: [], permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
   });
   const optOut = new Set(BATCH_OPT_OUT.map(entry => entry.toolId));
   const ids = new Set(raw.map(registration => registration.descriptor.id));
-  const unclassified = raw.filter(registration => !["batchable", "opted-out", "list-read"].includes(batchEligibilityFor({ registration }, { optOut })));
+  const selected = new Set(resolveBatchableTools({ registrations: raw }).map(tool => tool.toolId));
+  assert.deepEqual(raw.filter(registration => registration.descriptor.sideEffects === "none" && !selected.has(registration.descriptor.id)
+    && batchEligibilityFor({ registration }, { optOut }) === "list-read").map(registration => registration.descriptor.id), [], "every pure read must accept items unless opted out");
+  const unclassified = raw.filter(registration => !selected.has(registration.descriptor.id) && !optOut.has(registration.descriptor.id)
+    && !["no-object-schema", "takes-items"].includes(batchEligibilityFor({ registration })));
   assert.deepEqual(unclassified.map(registration => registration.descriptor.id), [], "add these to BATCH_OPT_OUT with a one-line reason, or make them batchable");
   const asking = raw.filter(registration => {
     const policy = toolApprovalPolicyFor({ registration });
-    return (policy.rule !== undefined || approvalClassAsks({ class: policy.class })) && !optOut.has(registration.descriptor.id);
+    return registration.descriptor.sideEffects !== "none" && (policy.rule !== undefined || approvalClassAsks({ class: policy.class })) && !optOut.has(registration.descriptor.id);
   });
   assert.deepEqual(asking.map(registration => registration.descriptor.id), [], "a tool that asks per call would ask once per item: opt it out");
   assert.deepEqual(BATCH_OPT_OUT.filter(entry => !ids.has(entry.toolId)).map(entry => entry.toolId), [], "stale opt-out entries");

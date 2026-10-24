@@ -54,7 +54,8 @@ export async function resolveWorkspace(
   const selected = await required.kernel.run((db) => db.selectFrom("workspaces").selectAll().execute());
   const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at }));
 
-  if (rows.length === 0) {
+  const [only] = rows;
+  if (only === undefined) {
     throw new SiteCorruptError("resolveWorkspace: the content.db has zero workspace rows (expected at least one)");
   }
 
@@ -67,10 +68,11 @@ export async function resolveWorkspace(
   }
 
   if (rows.length === 1) {
-    return rows[0];
+    return only;
   }
 
-  const [primary, ...rest] = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  // `rows` is non-empty (checked above), so the sorted copy always has a first element.
+  const [primary = only, ...rest] = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   // eslint-disable-next-line no-console
   console.warn(
     `resolveWorkspace: content.db has ${rows.length} workspace rows; defaulting to the oldest (id="${primary.id}"). ` +

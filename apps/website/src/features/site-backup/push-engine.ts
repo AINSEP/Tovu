@@ -81,7 +81,10 @@ function asUtf8Text(content: Uint8Array): string | null {
 class EntryBuilder {
   private readonly uploads = new Map<string, Promise<{ ok: true; blobSha: string } | PushFailure>>();
   private inlineBytes = 0;
-  constructor(private readonly input: UploadPlannedContentInput) {}
+  private readonly input: UploadPlannedContentInput;
+  constructor(input: UploadPlannedContentInput) {
+    this.input = input;
+  }
 
   /** @complexity O(bytes) to hash and decode; at most one upload per distinct content. */
   async entryFor(path: string, content: Uint8Array): Promise<BackupTreeEntry | PushFailure> {

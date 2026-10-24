@@ -23,6 +23,11 @@
           "label": "github",
           "category": "source-control",
           "intro": "Connect GitHub for repository files, Actions and site backups.",
+          "usedFor": [
+            "Reads and updates repository files",
+            "Starts workflows and checks their results and logs",
+            "Backs up your site to a private repository"
+          ],
           "keyHint": "Select only the repositories you need. Contents → Read and write for commits; Workflows → Read and write for workflow files; Actions → Read for runs or Read and write for dispatch. Reading secret names needs Secrets → Read. Never grant secret-writing access for this flow.",
           "saveKind": "api",
           "helpUrl": "https://github.com/settings/personal-access-tokens/new",
@@ -35,6 +40,9 @@
           "label": "default",
           "category": "source-control",
           "intro": "Connect GitHub to commit this site’s rendered static export to a repository.",
+          "usedFor": [
+            "Commits your site's exported website files to a repository"
+          ],
           "keyHint": "Select only the destination repository, with Contents → Read and write. A classic token with repo scope also works but has broader access.",
           "saveKind": "source-control",
           "saveTarget": "github",

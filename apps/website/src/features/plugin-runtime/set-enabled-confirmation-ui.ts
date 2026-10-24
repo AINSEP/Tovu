@@ -66,15 +66,12 @@ const FAMILY_COPY: Record<PluginFamily, { readonly noun: string; readonly warnin
   "agent-plugin": {
     noun: "Agent Plugin",
     warning:
-      "Enabling this injects the plugin's own instructions into the assistant's prompt and registers its tool, so the " +
-      "assistant can act on guidance you have not read. It takes effect for the assistant's own tools only after the " +
-      "agent daemon restarts.",
+      "This lets the assistant use this plugin's guidance and tools. Each action still follows your access settings.",
   },
   "site-runtime": {
     noun: "site plugin",
     warning:
-      "It gets full server access. Enabling this runs the plugin's own code in this site. If it declares a data module, enabling applies schema " +
-      "changes to the live database (ADR-023 — snapshot-protected and transactional, but not a metadata-only flip).",
+      "It gets full server access: it can run code on your site and change its database. Enable it only if you trust it.",
   },
 };
 
@@ -94,7 +91,7 @@ export function describeEnableApproval({ subject }: { subject: EnableConfirmatio
     details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
       ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
       ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : [])],
-    warning: copy.warning + " This escalation approval is saved for this plugin identity, version and digest. It also covers the six assistant execution settings; every action still checks its current permissions.", confirmLabel: "Enable",
+    warning: copy.warning + " Your approval is remembered for this version. It also permits changes to the assistant's access and the service receiving your requests, within your access limits.", confirmLabel: "Enable",
     // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
     cancelLabel: "Cancel",
   };

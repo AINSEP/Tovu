@@ -47,7 +47,8 @@ export interface RuntimeSchemaVersion {
  */
 export function runtimeSchemaVersion(): RuntimeSchemaVersion {
   const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as DrizzleJournal;
-  const latest = journal.entries[journal.entries.length - 1];
+  const latest = journal.entries.at(-1);
+  if (latest === undefined) throw new Error(`the Drizzle journal at ${JOURNAL_PATH} has no entries`);
   return { index: latest.idx, tag: latest.tag };
 }
 

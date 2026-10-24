@@ -59,8 +59,8 @@ import { createSkillRefreshMiddleware } from "#src/features/skills/live-registra
  * owner. Enforcement is here rather than in the proxy because this is the process that owns run
  * state, so the ownership record and the run it protects live and die together.
  *
- * Authentication: every route mounted here is gated by `daemon-auth.ts`'s
- * `requireAgentDaemonToken()`, applied globally as the FIRST `app.use` — before `express.json()`,
+ * Authentication: the relay claim POST has its own live-run credential gate; all other routes use
+ * `daemon-auth.ts`'s `requireAgentDaemonToken()`. Both gates run before their `express.json()`,
  * so an unauthenticated caller's body is never even parsed. It requires an exact
  * `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` match, has no loopback exemption (binding to
  * `127.0.0.1` keeps remote hosts out but does nothing about other local processes, which is the
@@ -94,7 +94,8 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
-import { createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { bearerTokenFromHeader } from "@jini-ai/http-kit";
 import type { AdapterContext } from "@jini-ai/http-kit";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
@@ -751,10 +752,17 @@ const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
   systemOverlay: ({ agentId }) => {
+    const def = getAgentDef({ id: agentId });
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
-    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, { nativeToolAccess: assistantNativeToolsContext.getStore() === true }) +
+    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, {
+      nativeToolAccess: assistantNativeToolsContext.getStore() === true,
+      // Mirrors Jini's `supportsMessageRelay` (agent-executor/message-relay.ts), which the package
+      // does not export: MCP-bridged defs relay, native stream-json input (Claude) always wins and
+      // never relays. Keep the two aligned or the sentence names a tool the run does not have.
+      messageRelayEnabled: def?.externalMcpInjection !== undefined && !(def.promptViaStdin === true && def.promptInputFormat === "stream-json"),
+    }) +
       buildAssistantSubagentsOverlay({ capabilities: assistantCliCapabilitiesContext.getStore() ?? assistantCliPermissions({ enabled: false }).capabilities }, {}) +
       buildAssistantRuntimeGuidance({ input: assistantRuntimeGuidanceContext.getStore() }, {}) +
       buildAssistantFilesystemNotices({ agentId, capabilities: assistantCliCapabilitiesContext.getStore() ?? assistantCliPermissions({ enabled: false }).capabilities }, { platform: process.platform });
@@ -1403,7 +1411,21 @@ const resolvePrincipal = ({ request }: { readonly request: DelegatedToolExecuteR
 
 const app = express();
 
-// FIRST, and before `express.json()` — an unauthenticated caller's body is never parsed. See this
+// Only this POST uses Jini's credential-bound claim authorization instead of the proxy/owner gates.
+// Authenticate before parsing; the handler re-resolves the live credential and checks the URL run.
+// Mount before requireRunOwnership: no proxy principal header or retained owner record is needed.
+app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
+  authorizationHeaderName: "authorization",
+  authorize: ({ request }) => {
+    const token = bearerTokenFromHeader({ header: request.headers.authorization });
+    const caller = token ? runCredentials.resolveCaller({ token }) : undefined;
+    return caller ? { allowed: true } : { allowed: false, status: 401,
+      body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
+  },
+}), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
+registerMessageRelayRoutes({ app, agentExecutor, runScopedCallers: runCredentials });
+
+// Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
 // file's module doc and `daemon-auth.ts` for the fail-closed contract. No exemptions: the spawned
 // bridge now presents JINI_DAEMON_TOKEN on delegated calls too. BYOK dispatches in process, and
 // the proxy does not expose the delegated route (`daemon-auth.ts`'s DELEGATED_TOOL_CALLS_PATH).
@@ -1454,16 +1476,16 @@ if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecyc
  * @complexity O(b) time/space in attachment bytes, bounded by the existing upload limits.
  */
 async function deliverRunUserMessage(
-  { runId, text, attachmentIds = [] }: RunMessageRequest, _optional = {},
+  { runId, text, id, attachmentIds = [] }: RunMessageRequest, _optional = {},
 ): Promise<UserMessageDelivery> {
-  if (attachmentIds.length === 0) return agentExecutor.sendUserMessage({ runId, text });
+  if (attachmentIds.length === 0) return agentExecutor.sendUserMessage({ runId, text, id });
   const principal = principalByRunId.get(runId);
   if (principal === undefined) return "not-running";
   const prepared = await prepareByokMessageAttachments({
     refs: attachmentIds, principalId: principal.id, uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY,
   }, {});
   if (prepared.notice !== "") return "unsupported";
-  return agentExecutor.sendUserMessage({ runId, text }, { imageContents: prepared.images });
+  return agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
 }
 
 registerRunRoutes({ app, deps: { lifecycle, onStarted,

@@ -56,7 +56,10 @@ const SITE_FIELD_KEY = /^[A-Za-z0-9_]+$/;
 const siteFieldPath = (field: string): string[] => ["ext", "site", field];
 
 export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort, EntryListExcludingTypesPort, EntryPublishReadPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /** `entries` in the workspace, the Trash hidden unless `includeTrashed`. */
   private scoped(db: Kysely<ContentDatabase>, workspaceId: string, includeTrashed = false): EntriesSelect {

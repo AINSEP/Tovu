@@ -10,7 +10,7 @@ function harness({ mime = "image", delivery = "delivered", owner = "alice" }: {
   const reads: unknown[] = [];
   const sends: unknown[] = [];
   const principalByRunId = new Map([["live-run", { id: "alice" }]]);
-  const deliver = evaluateDaemonExpression<(input: { runId: string; text: string; attachmentIds?: string[] }, options: {}) => Promise<string>>(
+  const deliver = evaluateDaemonExpression<(input: { runId: string; text: string; id?: string; attachmentIds?: string[] }, options: {}) => Promise<string>>(
     daemonFunction("deliverRunUserMessage"), {
       principalByRunId, ATTACHMENT_UPLOAD_DIRECTORY: "/booted-site/chat-attachments",
       prepareByokMessageAttachments: (input: Parameters<typeof prepareByokMessageAttachments>[0]) => {
@@ -29,11 +29,18 @@ function harness({ mime = "image", delivery = "delivered", owner = "alice" }: {
 
 test("mid-run screenshot refs become authorized pixels on the same message as its text", async () => {
   const h = harness();
-  assert.equal(await h.deliver({ runId: "live-run", text: "see screenshot", attachmentIds: ["attachment:image"] }, {}), "delivered");
+  assert.equal(await h.deliver({ runId: "live-run", text: "see screenshot", id: "message-image", attachmentIds: ["attachment:image"] }, {}), "delivered");
   assert.deepEqual(h.reads, [{ ref: "attachment:image", ownerId: "alice" }]);
-  assert.deepEqual(h.sends, [[{ runId: "live-run", text: "see screenshot" }, {
+  assert.deepEqual(h.sends, [[{ runId: "live-run", text: "see screenshot", id: "message-image", attachmentIds: ["attachment:image"] }, {
     imageContents: [{ mimeType: "image/png", data: "iVBORw0KGgoB" }],
   }]]);
+});
+
+test("text-only live messages preserve the accepted ID without reading uploads", async () => {
+  const h = harness();
+  assert.equal(await h.deliver({ runId: "live-run", text: "keep going", id: "message-text" }, {}), "delivered");
+  assert.deepEqual(h.sends, [[{ runId: "live-run", text: "keep going", id: "message-text" }]]);
+  assert.deepEqual(h.reads, []);
 });
 
 test("unreadable or foreign screenshots never deliver their text alone", async () => {

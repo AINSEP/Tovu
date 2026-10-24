@@ -53,7 +53,10 @@ function toItem(row: TrashRow): TrashItem {
 }
 
 export class SqlTrashRepo implements TrashRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   /**
    * Insert-or-ignore on any unique conflict (`trashed_items_identity_unique`, or the id) —

@@ -41,7 +41,7 @@ export const catalog: AgentToolDefinition[] = [{ name: CREDENTIAL_COPY_TOOL_ID,
   sideEffects: 'mutates-durable-state', authorization: { permission: 'system.write' },
   inputSchema: { type: 'object', additionalProperties: false, properties: {} } }];
 export const credentialCopyDerivedRisk: DerivedRiskByToolId = new Map([[CREDENTIAL_COPY_TOOL_ID, 'mutates-durable-state']]);
-const failureMessages: Record<string, string> = {
+const failureMessages: { 'copy-failed': string; [reasonCode: string]: string } = {
   'copy-refused': 'Copy is no longer authorized.', 'copy-failed': 'Copying keys failed. Try again.',
   'invalid-selection': 'Choose an available source and its keys.', 'source-unavailable': 'The source is no longer available.',
   'source-missing': 'A selected key is no longer available. Choose it again.', 'source-busy': 'The source is busy. Try again.',

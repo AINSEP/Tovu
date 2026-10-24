@@ -41,10 +41,15 @@ export interface PostSearchProjection {
 }
 
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
+  protected readonly kernel: ContentKernel;
+  private readonly search: PostSearchProjection;
   constructor(
-    protected readonly kernel: ContentKernel,
-    private readonly search: PostSearchProjection
-  ) {}
+    kernel: ContentKernel,
+    search: PostSearchProjection
+  ) {
+    this.kernel = kernel;
+    this.search = search;
+  }
 
   async findById(required: { workspaceId: string; id: string }): Promise<PostRecord | null> {
     const row = await this.kernel.run((db) =>

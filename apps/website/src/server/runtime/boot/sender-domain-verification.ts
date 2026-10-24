@@ -3,6 +3,7 @@ import type { MailAdapterCredential, MailProviderCallContext, MailProviderModule
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { SenderDomainVerification, SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
+import { isDomainReadPermissionRefused, readMailDomain, type MailDomainReadCredentialPort } from "./mail-domain-read.js";
 
 /**
  * @file The sender domain's state at the active transactional provider (its own `domainStatus`),
@@ -19,6 +20,7 @@ export interface SenderDomainVerificationDeps {
   findProvider: (required: { id: string }) => Promise<MailProviderModule | undefined>;
   /** The provider's saved key, or `null` when none is saved (`resolveMailCredential`). */
   resolveCredential: (required: { id: string }) => Promise<MailAdapterCredential | null>;
+  resolveDomainReadCredential?: MailDomainReadCredentialPort;
   /** `core.mail.provider`'s transactional lane. */
   readProviderId: () => Promise<string | null>;
   /** `core.mail.senderEmail`. */
@@ -31,28 +33,34 @@ async function senderDomain(deps: SenderDomainVerificationDeps): Promise<string 
   return email?.split("@")[1]?.trim().toLowerCase() || undefined;
 }
 
-/** One `domainStatus` call with the resolved key; any failure is `unknown`, never `failed`. */
+/** Read domain status, trying the plugin's account on permission refusal; failures stay `unknown`. */
 async function askProvider(required: { deps: SenderDomainVerificationDeps; provider: MailProviderModule; providerId: string; domain: string }): Promise<SenderDomainVerification> {
   const { deps, provider, providerId, domain } = required;
   const credential = await deps.resolveCredential({ id: providerId }).catch(() => null);
   if (!credential) return { state: "unknown", domain, providerId, reason: "the provider's key is not saved" };
   // Same call context `resolve-mailer.ts` builds for a provider call: this workspace, live, its key.
   const ctx: MailProviderCallContext = { workspaceId: deps.workspaceId, mode: "live", credential, httpClient: deps.httpClient as unknown as MailProviderCallContext["httpClient"] };
-  const result = await provider.domainStatus!(ctx, { domain }).catch(() => null);
+  const result = await readMailDomain({ ctx, providerId, read: context => provider.domainStatus!(context, { domain }), resolveDomainReadCredential: deps.resolveDomainReadCredential }).catch(() => null);
   if (result?.status === "ok") return { state: result.value.state, domain, providerId };
-  const reason = result ? safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential }) }) : "the provider did not answer the domain check";
+  // A refusal both keys hit is named plainly; any other provider answer keeps its code+message,
+  // secret-redacted (the sending key's exact values plus Jini's patterns) and capped.
+  const reason = !result
+    ? "the provider did not answer the domain check"
+    : isDomainReadPermissionRefused({ result })
+      ? "the sending key can't check domains, and no connected account could check it either"
+      : safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential }) });
   return { state: "unknown", domain, providerId, reason };
 }
 
 /**
  * The sender domain's state at the transactional provider: `null` = no sender configured
  * (`sender_unknown`); undefined = the provider cannot verify domains or the check failed.
- * @complexity At most one provider call.
+ * @complexity At most two provider calls, with the account fallback.
  */
 
 /**
  * Build the never-throwing port.
- * @complexity Per call: two settings reads, one catalog load, at most one key lookup and one provider call.
+ * @complexity Per call: two settings reads, one catalog load, at most two key lookups and two provider calls.
  * @example createSenderDomainVerification(deps)()
  */
 export function createSenderDomainVerification(required: SenderDomainVerificationDeps, options: { timeoutMs?: number } = {}): SenderDomainVerificationPort {

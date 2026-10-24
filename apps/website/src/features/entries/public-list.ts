@@ -392,10 +392,10 @@ export function humanizeFieldName(name: string): string {
     .filter((word) => word.length > 0)
     .map((word) => word.toLowerCase());
 
-  if (words.length === 0) {
+  const [first, ...rest] = words;
+  if (first === undefined) {
     return "";
   }
-  const [first, ...rest] = words;
   const capitalizedFirst = first.charAt(0).toUpperCase() + first.slice(1);
   return rest.length > 0 ? `${capitalizedFirst} ${rest.join(" ")}` : capitalizedFirst;
 }

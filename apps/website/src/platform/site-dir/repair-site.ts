@@ -87,11 +87,13 @@ export type SiteRepairRefusalReason =
  *  Never thrown mid-write — every check this error can report runs before anything is written, so a
  *  caught `SiteRepairRefusedError` always means the target directory is untouched. */
 export class SiteRepairRefusedError extends Error {
+  public readonly reason: SiteRepairRefusalReason;
   constructor(
     message: string,
-    public readonly reason: SiteRepairRefusalReason
+    reason: SiteRepairRefusalReason
   ) {
     super(message);
+    this.reason = reason;
     this.name = "SiteRepairRefusedError";
   }
 }

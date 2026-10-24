@@ -70,10 +70,15 @@ function normalizeHostList(hosts: string[] | undefined): string[] {
 
 export class SqlOriginSettingRepo implements OriginSettingRepoPort {
   /** @param options.after - Reads wait for it (the composition root's boot write); see the file header. */
+  protected readonly kernel: ContentKernel;
+  private readonly options: { after?: Promise<unknown> };
   constructor(
-    protected readonly kernel: ContentKernel,
-    private readonly options: { after?: Promise<unknown> } = {}
-  ) {}
+    kernel: ContentKernel,
+    options: { after?: Promise<unknown> } = {}
+  ) {
+    this.kernel = kernel;
+    this.options = options;
+  }
 
   private async row(workspaceId: UUID): Promise<Row | undefined> {
     await this.options.after;

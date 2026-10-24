@@ -88,7 +88,10 @@ export interface MemberAccessResolverDeps {
  * @overallScore 100
  */
 export class DefaultMemberAccessResolver implements MemberAccessResolver {
-  constructor(private readonly deps: MemberAccessResolverDeps) {}
+  private readonly deps: MemberAccessResolverDeps;
+  constructor(deps: MemberAccessResolverDeps) {
+    this.deps = deps;
+  }
 
   /**
    * Resolve the request's `MemberContext` from a raw session token.

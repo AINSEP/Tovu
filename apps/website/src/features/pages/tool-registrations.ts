@@ -7,7 +7,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { EXPECTED_VERSION_REJECTION, getAdminPostByIdOrSlug, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -443,17 +443,13 @@ function normalizePageRegionInput(
   return { input: { ...rest, regionId }, notes: [`${selector}→regionId`] };
 }
 
-/** The reader resolves slugs after site selection; other tools still require a page id.
- * Region aliases still pass through the existing domain normalizer.
+/** Shared assistant target inputs own slug lookup after site selection and authorization.
+ * Region aliases remain owned by Pages.
  * @returns Canonical input and value-free alias notes.
- * @throws ToolInputError with accepted properties and an id-based example for unsupported slug calls.
+ * @throws ToolInputError for competing region selectors.
  * @complexity O(k) time/space in supplied keys for region aliases; otherwise O(1), no I/O.
  */
 function normalizePageInput({ input, toolId }: { input: Record<string, unknown>; toolId: string }, _options = {}) {
-  if (toolId !== "pages_read_html" && Object.hasOwn(input, "slug")) {
-    const properties = CATALOG_BY_ID.get(toolId)!.inputSchema!.properties as Record<string, unknown>;
-    throw new ToolInputError({ message: `Unknown input 'slug'. Accepted properties: ${Object.keys(properties).join(", ")}; also site if listed in this tool's input schema. ${toolId} requires the page's id, not its slug. Call content_read.content_post({"kind":"page"}) and use the matching row's id. Example target: {"id":"<page id>"}; include this tool's other required fields and retain site when targeting another site.` });
-  }
   if (toolId === "pages_read_html" || toolId === "pages_write_region" || toolId === "pages_move_region") return normalizePageRegionInput({ input });
   return { input, notes: [] };
 }
@@ -466,20 +462,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
-      const hasId = Object.hasOwn(input, "id");
-      if (hasId === Object.hasOwn(input, "slug")) {
-        throw new ToolInputError({ message: "pages_read_html: send exactly one of id or slug." });
-      }
-      let id: string;
-      if (hasId) id = requireString({ input, key: "id" });
-      else {
-        const { post } = await getAdminPostByIdOrSlug({
-          deps: { repo: routeDeps.postRepo },
-          input: { workspaceId: routeDeps.workspaceId, idOrSlug: requireString({ input, key: "slug" }) },
-        });
-        if (post.kind !== "page") throw new PageNotFoundError(`page '${input.slug}' was not found`);
-        id = post.id;
-      }
+      const id = requireString({ input, key: "id" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let page;

@@ -38,6 +38,11 @@
           "label": "Cloudflare Workers connection",
           "category": "hosting",
           "intro": "Connect Cloudflare Workers to publish this site, with optional forms and approved custom-domain changes.",
+          "usedFor": [
+            "Publishes your website on Cloudflare Workers",
+            "Collects your site's form submissions",
+            "Checks your domain and applies domain changes you approve"
+          ],
           "keyHint": "Scope to the selected account: Account → Workers Scripts → Edit. Forms also need D1 → Edit. Custom domains need Zone, DNS, Workers Routes, Workers Scripts and Cloudflare Pages reads; certificate polling needs SSL and Certificates → Read. Grant DNS or Workers Routes edit only for the corresponding approved changes.",
           "saveKind": "publish-host",
           "helpUrl": "https://dash.cloudflare.com/profile/api-tokens",
@@ -50,6 +55,10 @@
           "label": "Cloudflare Pages connection",
           "category": "hosting",
           "intro": "Connect Cloudflare Pages to publish this site, with optional approved custom-domain changes.",
+          "usedFor": [
+            "Publishes your website on Cloudflare Pages",
+            "Checks your domain and applies domain changes you approve"
+          ],
           "keyHint": "Scope to the selected account: Account → Cloudflare Pages → Edit. Custom domains need Zone, DNS, Workers Routes and Workers Scripts reads; attaching a domain needs DNS → Edit. Grant Workers Scripts or Workers Routes edit only for corresponding approved transfers.",
           "saveKind": "publish-host",
           "helpUrl": "https://dash.cloudflare.com/profile/api-tokens",

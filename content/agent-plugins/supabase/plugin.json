@@ -19,6 +19,11 @@
           "label": "Supabase account",
           "category": "general",
           "intro": "Connect Supabase to set up and work with this site’s database.",
+          "usedFor": [
+            "Finds your accounts and databases",
+            "Reads the selected database",
+            "Sets up databases and applies database changes you approve"
+          ],
           "keyHint": "Review the account and project access requested on the Supabase sign-in page.",
           "saveKind": "oauth",
           "saveTarget": "supabase",
@@ -31,6 +36,11 @@
           "label": "Supabase account",
           "category": "general",
           "intro": "Use this fallback only when browser sign-in cannot start. The token connects the Supabase account, not a site mailer or a project’s public API.",
+          "usedFor": [
+            "Finds your accounts and databases",
+            "Reads the selected database",
+            "Sets up databases and applies database changes you approve"
+          ],
           "keyHint": "Use a Management API personal access token, not an anon or service-role key. Discovery: Organizations, Projects (account-wide), Organization Settings and Project Settings → Read. Database tools: Database, Migrations, API Keys, Advisors and Logs → Read. Add Organization Projects → Read-write only to create a project, Project Settings → Read-write to pause/restore, and Migrations → Read-write to apply migrations. Tool write grants are still required separately.",
           "saveKind": "agent-plugin-token",
           "helpUrl": "https://supabase.com/dashboard/account/tokens",

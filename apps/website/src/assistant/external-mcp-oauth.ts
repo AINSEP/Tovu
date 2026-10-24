@@ -410,6 +410,8 @@ interface StoredOAuthEndpoints {
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   deviceAuthorizationEndpoint?: string;
+  /** RFC 8707 audience advertised by the protected server; legacy rows omit it. */
+  resource?: string;
   /**
    * How the token endpoint expects this client to authenticate.
    *
@@ -552,10 +554,11 @@ function needsEndpointDiscovery(record: ExternalMcpServerRecord, endpoints: Stor
  *
  * @complexity O(1).
  */
-function toStoredEndpoints(discovered: DiscoveredOAuthConfiguration): StoredOAuthEndpoints {
+function toStoredEndpoints(discovered: DiscoveredOAuthConfiguration & { readonly resource?: string | null }): StoredOAuthEndpoints {
   const server = discovered.server;
   return {
     tokenEndpoint: server.tokenEndpoint,
+    ...(discovered.resource == null ? {} : { resource: discovered.resource }),
     ...(server.authorizationEndpoint === null ? {} : { authorizationEndpoint: server.authorizationEndpoint }),
     ...(server.deviceAuthorizationEndpoint === null ? {} : { deviceAuthorizationEndpoint: server.deviceAuthorizationEndpoint }),
   };
@@ -738,7 +741,8 @@ async function selfConfigureConnection(
   if (!mustDiscover && !mustResolveGrant && keepClient) return record;
 
   const discovered = await discoverConnectionAuthorizationServer(deps, record);
-  const endpoints: StoredOAuthEndpoints = mustDiscover ? toStoredEndpoints(discovered) : { ...stored };
+  const discoveredEndpoints = toStoredEndpoints(discovered);
+  const endpoints: StoredOAuthEndpoints = mustDiscover ? discoveredEndpoints : { ...stored, resource: discoveredEndpoints.resource ?? stored.resource };
   const grant = selfConfiguredGrant({ record, discovered });
   const scopes = selfConfiguredScopes({ record, discovered });
 
@@ -1069,7 +1073,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
         return withTovuOAuthCopy({ call: async () => refreshAccessToken(
           { ...deps.httpPorts, clock: deps.clock, tokenEndpoint: provider.tokenEndpoint,
             client: await resolveClient(deps, record, provider), refreshToken },
-          { scopes: readStoredScopes(record), timeoutMs: CONNECT_TIMEOUT_MS },
+          { scopes: readStoredScopes(record), resource: readStoredEndpoints(record).resource, timeoutMs: CONNECT_TIMEOUT_MS },
         ) });
       },
 
@@ -1108,11 +1112,13 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
       const scopes = readStoredScopes(record);
+      // Keep the advertised audience across grants; the MCP URL need not be the resource id.
+      const resource = readStoredEndpoints(record).resource;
 
       if (record.oauthGrant === "device_code") {
         const authorization = await withTovuOAuthCopy({ call: () => beginDeviceAuthorization(
           { ...deps.httpPorts, provider, clock: deps.clock, client },
-          { scopes, timeoutMs: CONNECT_TIMEOUT_MS },
+          { scopes, resource, timeoutMs: CONNECT_TIMEOUT_MS },
         ) });
         await deps.devices.put(record.serverId, authorization);
         await setOAuthStatus(deps, record.serverId, "pending");
@@ -1152,6 +1158,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
           redirectUri,
         }, {
           scopes,
+          resource,
           messages: tovuOAuthMessages,
         },
       ) });
@@ -1207,6 +1214,8 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _o
             deviceCode: authorization.deviceCode,
             expiresAt: authorization.expiresAt,
           }, {
+            // The token request names the same audience the device start asked for (RFC 8707).
+            resource: readStoredEndpoints(record).resource,
             timeoutMs: CONNECT_TIMEOUT_MS,
           },
         ) });

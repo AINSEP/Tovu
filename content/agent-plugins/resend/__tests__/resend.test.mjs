@@ -38,6 +38,7 @@ test('the module is a valid Jini mail provider and matches its v2 descriptor', a
     id: 'resend', label: 'Resend', module: 'adapters/resend.mjs', credentialLabel: 'Tovu Mail — Resend API', credentialKeys: ['token'], feedback: true,
     credentialCard: {
       title: 'Connect Resend',
+      usedFor: ["Sends your site's emails (sign-in links, form notices, newsletters)"],
       intro: 'Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).',
       helpUrl: 'https://resend.com/api-keys', helpLabel: 'Get a key at resend.com/api-keys',
       keyHint: 'Create a key with Sending access', baseUrl: 'https://api.resend.com',
@@ -170,6 +171,11 @@ test('domainRequirements: an unknown domain, a failed detail read, and odd list/
   assert.deepEqual((await resend.domainRequirements(ctxWith(noRecords), { domain: 'a.test' })).value.records, []);
   const listDown = await resend.domainRequirements(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '' } })), { domain: 'a.test' });
   assert.equal(listDown.error.code, 'unauthorized');
+  // A Sending access key is a permission refusal, which the host may retry with the account key.
+  const restricted = await resend.domainStatus(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '{"statusCode":401,"name":"restricted_api_key","message":"This API key is restricted to only send emails"}' } })), { domain: 'a.test' });
+  assert.equal(restricted.error.code, 'forbidden');
+  const badKey = await resend.domainStatus(ctxWith(fakeHttp({ '/domains': { status: 401, bodyText: '{"name":"invalid_api_key"}' } })), { domain: 'a.test' });
+  assert.equal(badKey.error.code, 'unauthorized');
 });
 
 test('domainStatus maps Resend states and the custom base URL is used', async () => {
@@ -242,8 +248,8 @@ test('sendBatch sends one message per key suffix and capabilities stay as before
   assert.deepEqual(mailer.capabilities(), { driver: 'resend', supportsIdempotencyKey: true, supportsWebhookFeedback: true, maxBatchSize: 1, supportsAttachments: true });
 });
 
-test('domain errors preserve Resend name and human-readable message for restricted API keys', async () => {
+test('domain errors keep the canonical code and carry Resend name and human-readable message for restricted API keys', async () => {
   const http = { send: async () => ({ status: 403, bodyText: JSON.stringify({ name: 'restricted_api_key', message: 'This API key is restricted to sending emails. Use a full-access key to list domains.' }) }) };
   const result = await resend.domainStatus(ctxWith(http), { domain: 'a.test' });
-  assert.deepEqual(result, { status: 'rejected', error: { code: 'restricted_api_key', message: 'This API key is restricted to sending emails. Use a full-access key to list domains.' } });
+  assert.deepEqual(result, { status: 'rejected', error: { code: 'forbidden', message: 'restricted_api_key: This API key is restricted to sending emails. Use a full-access key to list domains.' } });
 });

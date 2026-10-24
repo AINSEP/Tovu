@@ -66,6 +66,8 @@ export interface MailProviderCatalogDeps {
   httpClient: HttpClientPort;
   /** This workspace's plugin-contributed mail adapters (`loadMailAdapterRegistry` in production). */
   loadMailAdapters: () => Promise<MailAdapterRegistry>;
+  /** Reads only the named plugin's own enabled static account connection in this workspace. */
+  resolvePluginAccountToken?: (required: { pluginId: string; serverId: string }) => Promise<string | null>;
   /** Injected for tests; defaults to the real `createNodemailerSmtpTransport`. */
   createSmtpTransport?: (config: CreateNodemailerSmtpTransportConfig) => SmtpTransport;
   /** Console provider output; defaults to `console.log`. */
@@ -158,6 +160,24 @@ export async function resolveMailCredential(
   const username = resolved.connection.username;
   if (id === "smtp" && !username) return null;
   return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+}
+
+/** Resolve a trusted plugin's domain-read key without changing its sending credential.
+ * @complexity O(a) loaded adapters, one account lookup and at most one decrypt. */
+export async function resolveMailDomainReadCredential(
+  required: { deps: MailProviderCatalogDeps; id: string },
+  _options: Record<string, never> = {},
+): Promise<MailAdapterCredential | null> {
+  const { deps, id } = required;
+  const owner = (await loadMailProviderCatalog(deps)).registry.get({ id })?.pluginId;
+  if (!owner) return null;
+  const adapter = (await loadAdapters(deps)).list().find(item => item.descriptor.id === id && item.pluginId === owner);
+  const connection = adapter?.module.domainReadConnection;
+  if (!adapter || !connection || !deps.resolvePluginAccountToken) return null;
+  // The account key goes only to the plugin-declared API, never a sending key's custom base URL.
+  if (new URL(connection.baseUrl).protocol !== "https:") return null;
+  const token = await deps.resolvePluginAccountToken({ pluginId: adapter.pluginId, serverId: connection.serverId });
+  return token ? { token, baseUrl: connection.baseUrl } : null;
 }
 
 /** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */

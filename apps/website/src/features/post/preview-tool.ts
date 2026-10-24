@@ -5,7 +5,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type De
 import { type JsonObject } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { getAdminPostByIdOrSlug, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
+import { getAdminPostById, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 
@@ -67,7 +67,7 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
       const options = readPageBodyOptions(input);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
       let post: PostRecord;
-      try { ({ post } = await getAdminPostByIdOrSlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, idOrSlug: postId } })); }
+      try { ({ post } = await getAdminPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: postId } })); }
       catch (error) {
         if (error instanceof PostNotFoundError) throw new ToolInputError({ message: `content_post_preview: no post or page with id or slug '${postId}'. Use content_read.content_post to find it.` });
         throw error;

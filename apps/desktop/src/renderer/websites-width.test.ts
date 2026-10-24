@@ -34,6 +34,7 @@ test('Websites fits at 375px with every nav control and header action inside the
     useDismissibleDropdown: () => ({ open: false, setOpen() {}, containerRef: { current: null } }),
     useSiteStorageSettings: () => settings, settingsControlHandlers, navAvailability, GearIcon, SitesFoldersDialog,
     useMenuKeyboard: () => ({ menuRef: { current: null }, triggerRef: { current: null }, onMenuKeyDown() {} }),
+    useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
   });
   const TopNav = sourceFunction(source, 'TopNav', {
     useAppVersion: () => ({ version: '0.1.13-preview-long-version', error: null }), visibleSections, NavLink, SettingsControl,

@@ -15,6 +15,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { PluginCredentialCard } from '../plugin-credential-card.js';
 
 
 /**
@@ -214,6 +215,45 @@ test("returns an empty list, not an error, when nothing is saved yet", async () 
   const { deps } = fakeRouteDeps();
   const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: unknown[] };
   assert.deepEqual(result.credentials, []);
+});
+
+test('list annotates exact active API card labels with display metadata, keeping purposes and worksFor separate', async () => {
+  const { deps, writeDeps, sealer } = fakeRouteDeps();
+  const labels = ['Sending key', 'Account key', 'Legacy key', 'Domain key', 'sending key'];
+  for (const label of labels) await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE_ID, label, category: 'general', baseUrl: 'https://api.example.com',
+    worksFor: ['vercel'], connection: { token: `secret-for-${label.replaceAll(' ', '-')}` },
+  });
+  const base = { category: 'general', baseUrl: 'https://api.example.com', title: 'Plugin key', pluginId: 'example' };
+  let activeCards: readonly PluginCredentialCard[] = [
+    { ...base, providerId: 'sending', label: 'Sending key', usedFor: ['Send mail'] },
+    { ...base, providerId: 'account', label: 'Account key', ownedApiLabel: 'Account key', saveKind: 'api', usedFor: ['Read domains'] },
+    { ...base, providerId: 'legacy', label: 'Legacy key', saveKind: 'api' },
+    { ...base, providerId: 'domain', label: 'Domain key', saveKind: 'publish-host', usedFor: ['Publish'] },
+  ];
+  const registrations = buildRegistrations({ ...deps, loadPluginCredentialCards: async workspaceId => {
+    assert.equal(workspaceId, WORKSPACE_ID); return activeCards;
+  } }, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }));
+  const result = await call(tool(registrations, TOOL_ID)) as { credentials: Array<Record<string, unknown>> };
+  const byLabel = new Map(result.credentials.map(row => [row.label, row]));
+  for (const [label, usedFor] of [['Sending key', ['Send mail']], ['Account key', ['Read domains']], ['Legacy key', []]] as const) {
+    assert.equal(byLabel.get(label)!.pluginId, 'example');
+    assert.deepEqual(byLabel.get(label)!.usedFor, usedFor);
+  }
+  for (const label of ['Domain key', 'sending key']) {
+    assert.equal('pluginId' in byLabel.get(label)!, false);
+    assert.equal('usedFor' in byLabel.get(label)!, false);
+  }
+  for (const row of result.credentials) {
+    assert.deepEqual(row.worksFor, ['vercel']);
+    assert.equal('tokenHint' in row, false);
+  }
+  activeCards = [];
+  const inactive = await call(tool(registrations, TOOL_ID)) as { credentials: Array<Record<string, unknown>> };
+  assert.ok(inactive.credentials.every(row => !('pluginId' in row) && !('usedFor' in row)), 'deactivated card metadata must disappear');
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(JSON.stringify(result).includes('secret-for-'), false);
+  assert.match(catalogEntry(TOOL_ID).description, /pluginId\/usedFor/);
 });
 
 test("is workspace-scoped: a credential saved in a different workspace is never returned", async () => {

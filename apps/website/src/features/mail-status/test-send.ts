@@ -207,7 +207,8 @@ const SAFE_SEND_FAILURES: Readonly<Record<string, string>> = {
 
 /** Fixed copy by code, without reading the provider's message. @complexity O(1). */
 function testSendFailureMessage({ errorCode }: { errorCode: string }, _optional: Record<string, never> = {}): string {
-  return Object.hasOwn(SAFE_SEND_FAILURES, errorCode) ? SAFE_SEND_FAILURES[errorCode] : `The provider refused the message (code ${errorCode}).`;
+  const safe = Object.hasOwn(SAFE_SEND_FAILURES, errorCode) ? SAFE_SEND_FAILURES[errorCode] : undefined;
+  return safe ?? `The provider refused the message (code ${errorCode}).`;
 }
 
 /** Defaults: 5 deliberate tests in a burst, one more every 12 minutes; a second click within 15 s is a duplicate. */

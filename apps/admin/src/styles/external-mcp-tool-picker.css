@@ -504,3 +504,80 @@
   }
   .external-mcp-tool-search { flex-basis: 100%; }
 }
+
+/* The row's "Connect" button (2026-10-23) — an OAuth row that isn't signed in. Same band and size
+   as Tools beside it, but filled, because signing in is the one thing that row is waiting on. */
+.external-mcp-source-connect {
+  flex: 0 0 auto;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-ink);
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.external-mcp-source-connect:disabled {
+  color: var(--primary-ink);
+  background: var(--primary);
+  opacity: 0.6;
+  cursor: progress;
+}
+.external-mcp-connect-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--fg-2);
+}
+.external-mcp-connect-status--error {
+  color: var(--danger);
+}
+.external-mcp-connect-status code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--fg);
+}
+.external-mcp-connect-cancel {
+  padding: 0;
+  font: inherit;
+  color: var(--accent-text);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* The built-in row (`ExternalMcpConnectionCard`): Jini's card head shape with a static name, a
+   small badge and an ⓘ in place of the expandable summary button. */
+.external-mcp-builtin-summary {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+}
+.external-mcp-builtin-badge {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+}
+/* Same head height as a server row, whose Remove button sets it; a built-in row has no Remove. */
+.external-mcp-builtin-card .source-config-item-card-head {
+  min-height: calc(26px + 20px); /* Remove button + the head's 10px top/bottom padding */
+}
+/* The phone/one-card row above puts Tools on a second line at the name's indent; Connect leads that
+   line when present, with Tools beside it. */
+@container admin-content (max-width: 620px) {
+  .external-mcp-source-connect { margin: 0 0 0 42px; }
+  .external-mcp-source-connect + .external-mcp-source-tools-open { margin-left: 8px; }
+}

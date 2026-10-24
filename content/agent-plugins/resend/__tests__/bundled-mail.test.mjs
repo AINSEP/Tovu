@@ -6,7 +6,7 @@ import { createTovuAgentPluginLifecycle } from "../../../../apps/website/src/fea
 import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -20,6 +20,7 @@ import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistr
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
 import { seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { buildMailProviderRegistrations } from "../../../../apps/website/src/features/mail-status/provider-tool-registrations.ts";
 
 /**
  * @file The bundled `resend` Agent Plugin: a valid package, installed but disabled until explicitly enabled, and its adapter behaving exactly as the core
@@ -106,6 +107,32 @@ test("an operator who switched resend off stays switched off across boots, and t
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.resend?.enabled, false);
     assert.deepEqual((await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).list(), []);
+  });
+});
+
+test("mail_list_providers discovers the seeded, disabled resend plugin without loading or enabling its adapter", async () => {
+  await withAgentPluginsDir(async (layout) => {
+    // Only this package: another bundled mail plugin would make the list order-dependent.
+    const sourceRoot = await mkdtemp(path.join(tmpdir(), "tovu-resend-source-"));
+    try {
+      await cp(PACKAGE_ROOT, path.join(sourceRoot, "resend"), { recursive: true });
+      await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+      const describe = async () => ({ setting: { transactional: "smtp", bulk: "smtp" }, providers: [], refusals: [] });
+      const [list] = buildMailProviderRegistrations({
+        workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "fixture grant" }), agentPluginLayout: layout,
+        mailProviderControl: { check: async () => ({ ok: true, label: "SMTP" }), select: async () => {}, describe },
+      }).filter((registration) => registration.descriptor.id === "mail_list_providers");
+      const result = await list.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal });
+      assert.deepEqual(result.providers, [], "discovery does not activate the delivery adapter");
+      assert.equal(result.availablePlugins.length, 1);
+      const [resend] = result.availablePlugins;
+      assert.deepEqual({ pluginId: resend.pluginId, enabled: resend.enabled, mcpServers: resend.mcpServers }, { pluginId: "resend", enabled: false, mcpServers: ["resend"] });
+      assert.match(resend.description, /domains/);
+      assert.ok(!JSON.stringify(result).includes(layout.root), "discovery must not expose filesystem paths");
+      assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root })).plugins.resend?.enabled, false);
+    } finally {
+      await forceRemove(sourceRoot);
+    }
   });
 });
 
@@ -375,6 +402,7 @@ test("the bundled descriptor owns the Resend key-card contract", async () => {
   const registry = await loadMailAdapterRegistryFromSource({ pluginId: "resend", packageRoot: PACKAGE_ROOT });
   assert.deepEqual(registry.list()[0].descriptor.credentialCard, {
     title: "Connect Resend",
+    usedFor: ["Sends your site's emails (sign-in links, form notices, newsletters)"],
     intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
     helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys",
     keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com",

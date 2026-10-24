@@ -15,3 +15,25 @@ persistent disk and secret names. Secret values are never emitted; `sync: false`
 for the human to supply in Render. Follow the command's stderr notes before the first deploy.
 This plugin contributes config generation only, with no deployment, status, logs or secrets adapter.
 Deploying ships code, not site content. Keep one server instance for Tovu's SQLite state.
+
+## Render API key
+
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
+Writing `render.yaml` needs **no key**. Do not open a key card for that task.
+
+Deploying through Render's API is being added. Until then you cannot deploy, redeploy or
+change Render services: say so and use the manual notes above. Saving a key deploys nothing.
+
+Only when the person wants to save a Render key, or asks you to look something up in Render,
+first check `content_read { resource: "custom_credential" }` for a saved one and reuse it.
+Otherwise open **Connect Render** with
+`credential_save { kind: "plugin-provider", target: "render" }`; it saves as `Render API`.
+The person creates the key under Account Settings → API Keys. A deploy hook URL is not a key.
+
+To look something up, use `custom_credential_make_request` with label `Render API` and
+`GET` requests under `https://api.render.com/v1`, such as `/services?limit=20`. The server adds
+the key. A refusal may mean the account lacks access, not that the key is bad.
+
+Never ask for a key in chat. Never offer to replace a working key unless asked.

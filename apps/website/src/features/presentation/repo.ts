@@ -9,7 +9,10 @@ import { toPresentationRecord, toPresentationRow } from "./repo.rows.js";
  * Every statement goes through `kernel.run` and is awaited.
  */
 export class SqlPresentationSettingsRepo implements PresentationSettingsRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  constructor(kernel: ContentKernel) {
+    this.kernel = kernel;
+  }
 
   async findByWorkspaceId({ workspaceId }: { workspaceId: string }): Promise<PresentationSettingsRecord | null> {
     const row = await this.kernel.run((db) =>

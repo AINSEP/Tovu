@@ -36,11 +36,18 @@ function domainFailureFallback({ status }) {
   return { errorCode: REJECTED_CODES[status] ?? 'provider_error', message: `Resend refused the request (HTTP ${status})` };
 }
 
-/** HTTP status to a rejected/unknown result. @param {HttpResponse} response @returns {ProviderResult} */
+/** HTTP status to a rejected/unknown result. The code stays Jini's canonical one for the status;
+ * Resend's own error name and message ride in `message` so the owner sees what Resend said.
+ * A 401 `restricted_api_key` is a valid Sending access key without domain permission. The host
+ * retries only permission refusals with the account key, so it must be `forbidden`, not the
+ * `unauthorized` a bad key gets. @param {HttpResponse} response @returns {ProviderResult} */
 function failure(response) {
   const { status } = response;
-  const parsed = parseErrorBody({ status, bodyText: response.bodyText }, { fallback: domainFailureFallback({ status }) });
-  const detail = { code: parsed.errorCode, message: parsed.message };
+  const fallback = domainFailureFallback({ status });
+  const parsed = parseErrorBody({ status, bodyText: response.bodyText }, { fallback });
+  const restricted = status === 401 && parsed.errorCode === 'restricted_api_key';
+  const named = parsed.errorCode !== fallback.errorCode;
+  const detail = { code: restricted ? 'forbidden' : fallback.errorCode, message: named ? `${parsed.errorCode}: ${parsed.message}` : parsed.message };
   if (status === 429) {
     const wait = retryAfterMs(response.headers);
     return { status: 'rejected', error: { ...detail, ...(wait === undefined ? {} : { retryAfterMs: wait }) } };

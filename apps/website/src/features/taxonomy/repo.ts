@@ -93,7 +93,12 @@ function termIsLive(eb: ExpressionBuilder<ContentDatabase, "terms">) {
 export class SqlTaxonomyRepo
   implements TaxonomyRepoPort, TaxonomyListPort, ImportableTaxonomyRepoPort, TaxonomyPublishReadPort
 {
-  constructor(protected readonly kernel: ContentKernel, protected readonly workspaceId: string) {}
+  protected readonly kernel: ContentKernel;
+  protected readonly workspaceId: string;
+  constructor(kernel: ContentKernel, workspaceId: string) {
+    this.kernel = kernel;
+    this.workspaceId = workspaceId;
+  }
 
   async insert(row: Taxonomy): Promise<unknown> {
     await this.kernel.run((db) => db.insertInto("taxonomies").values(toTaxonomyRow(this.workspaceId, row)).execute());
@@ -206,7 +211,12 @@ export class SqlTaxonomyRepo
 }
 
 export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRepoPort, TermPublishReadPort {
-  constructor(protected readonly kernel: ContentKernel, protected readonly workspaceId: string) {}
+  protected readonly kernel: ContentKernel;
+  protected readonly workspaceId: string;
+  constructor(kernel: ContentKernel, workspaceId: string) {
+    this.kernel = kernel;
+    this.workspaceId = workspaceId;
+  }
 
   async insert(row: Term): Promise<unknown> {
     await this.kernel.run((db) => db.insertInto("terms").values(toTermRow(this.workspaceId, row)).execute());
@@ -370,7 +380,12 @@ export class SqlTermRepo implements TermRepoPort, TermListPort, ImportableTermRe
 }
 
 export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, UnassignableEntryTermRepoPort {
-  constructor(protected readonly kernel: ContentKernel, protected readonly workspaceId: string) {}
+  protected readonly kernel: ContentKernel;
+  protected readonly workspaceId: string;
+  constructor(kernel: ContentKernel, workspaceId: string) {
+    this.kernel = kernel;
+    this.workspaceId = workspaceId;
+  }
 
   /** Idempotent upsert keyed by `entry_terms_unique` (`workspace_id`, `content_type`, `content_id`,
    *  `term_id`) — mirrors `InMemoryEntryTermRepo.upsert`'s find-or-replace behavior. */
@@ -534,7 +549,12 @@ export class SqlEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort, U
 }
 
 export class SqlTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
-  constructor(protected readonly kernel: ContentKernel, protected readonly workspaceId: string) {}
+  protected readonly kernel: ContentKernel;
+  protected readonly workspaceId: string;
+  constructor(kernel: ContentKernel, workspaceId: string) {
+    this.kernel = kernel;
+    this.workspaceId = workspaceId;
+  }
 
   async insert(row: TaxonomyRevisionRow): Promise<unknown> {
     await this.kernel.run((db) =>

@@ -23,7 +23,7 @@ import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.
 import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../automatic-agent-plugins.js';
 
 // Real catalog, activation, ranker, skill resolution and effective settings. No daemon boot.
-async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true } = {}) {
+async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true, maturity }: { pluginId?: string; count?: number; trusted?: boolean; maturity?: 'untested' | 'soon' } = {}) {
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
   const workspaceId = 'workspace-auto';
@@ -33,7 +33,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   for (const id of pluginIds) {
     const packageDir = path.join(workspace.pluginPackagesDir({ pluginId: id }), 'a'.repeat(64));
     await mkdir(path.join(packageDir, 'skills', id), { recursive: true });
-    await writeFile(path.join(packageDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: '1.0.0', keywords: ['holography'], extensions: { tovu: { id: `test/${id}`, displayName: count === 1 ? 'Synthetic Author' : id, provides: ['theme-authoring'] } } }));
+    await writeFile(path.join(packageDir, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: id, version: '1.0.0', keywords: ['holography'], extensions: { tovu: { id: `test/${id}`, displayName: count === 1 ? 'Synthetic Author' : id, provides: ['theme-authoring'], maturity } } }));
     await writeFile(path.join(packageDir, 'skills', id, 'SKILL.md'), `---\nname: ${id}\ndescription: Holography instructions\n---\nUse holographic layout discipline.\n`);
   }
   await writeFile(path.join(workspace.root, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: Object.fromEntries(pluginIds.map(id => [id, { enabled: true, origin: 'bundled', updatedAt: '2026-10-18T00:00:00.000Z', updatedBy: 'fixture' }])) }));
@@ -237,6 +237,33 @@ test('CLI onStarted places the relevance note, without guidance bodies, into the
   assert.doesNotMatch(input.prompt, /Use holographic layout discipline/);
   assert.match(input.prompt, /Design holography/);
   f.runs.forget({ runId: 'daemon-test-run' });
+});
+
+for (const maturity of ['untested', 'soon', undefined] as const) {
+  test(`load_agent_plugin carries maturity ${maturity ?? '(absent)'}`, async t => {
+    const f = await fixture(t, { maturity });
+    t.after(() => f.runs.forget({ runId: 'maturity' }));
+    await f.runs.start({ runId: 'maturity', context: { ...f.context, query: 'unrelated' } });
+    const registry = createToolRegistry({});
+    registry.register(f.runs.loadRegistration);
+    const executor = createToolExecutor({ registry }, { prepareGuidance: f.runs.prepareGuidance });
+    const result = await executor.execute({ principal: f.context.principal, run: { id: 'maturity' }, toolId: 'load_agent_plugin', input: { pluginId: f.pluginId } });
+    assert.equal(result.status, 'completed');
+    const output = result.output as { status: string; maturity?: string };
+    assert.equal(output.status, 'loaded');
+    assert.equal(output.maturity, maturity);
+    assert.equal(Object.hasOwn(output, 'maturity'), maturity !== undefined);
+    assert.equal(JSON.stringify(output).includes("Before saving keys or acting with this plugin"), maturity === 'untested');
+  });
+}
+
+test('automatic tool guidance warns before actions for an untested plugin', async t => {
+  const f = await fixture(t, { maturity: 'untested' });
+  t.after(() => f.runs.forget({ runId: 'maturity-auto' }));
+  await f.runs.start({ runId: 'maturity-auto', context: f.context });
+  const guidance = await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'maturity-auto' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal });
+  assert.match(guidance, /Before saving keys or acting with this plugin/);
+  assert.match(guidance, /Use holographic layout discipline/);
 });
 
 test('load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor', async t => {

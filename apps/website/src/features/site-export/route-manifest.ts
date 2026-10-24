@@ -321,7 +321,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   const homePageRouteIndex = themeAndPostRoutes.findIndex((route) => route.path === "/");
   if (homePageRouteIndex !== -1) {
     const [homePageRoute] = themeAndPostRoutes.splice(homePageRouteIndex, 1);
-    routes[0] = homePageRoute;
+    if (homePageRoute) routes[0] = homePageRoute;
   }
   routes.push(...themeAndPostRoutes);
 

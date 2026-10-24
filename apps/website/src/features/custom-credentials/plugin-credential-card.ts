@@ -37,6 +37,8 @@ export interface PluginCredentialCard {
   readonly helpLabel?: string;
   /** Hint under the key field, e.g. which access the key needs. */
   readonly keyHint?: string;
+  /** Plain-text purposes for people and the assistant; never selects or authorizes a key in code. */
+  readonly usedFor?: readonly string[];
   readonly fields?: readonly PluginCredentialField[];
   readonly additionalHosts?: readonly string[];
   /** Absent preserves the original mail/API save path. */
@@ -126,7 +128,8 @@ export async function findPluginCredentialCard({ loadCards, workspaceId, saveKin
 /** API rows have a fixed label; domain owners choose their own connection identity. */
 function pluginCardDetails({ card }: { card: PluginCredentialCard }, _options = {}): SecretCardForm['details'] {
   const help = card.helpUrl ? [{ label: card.helpLabel ?? 'Get a key', value: card.helpUrl }] : [];
-  return card.saveKind && card.saveKind !== 'api' ? help : [...help, { label: 'Saved as', value: card.label }];
+  const details = [...help, ...(card.usedFor?.length ? [{ label: 'Used for', value: card.usedFor.join('; ') }] : [])];
+  return card.saveKind && card.saveKind !== 'api' ? details : [...details, { label: 'Saved as', value: card.label }];
 }
 
 /** Optional display data cannot prevent a domain's authorized credential operation. O(cards).

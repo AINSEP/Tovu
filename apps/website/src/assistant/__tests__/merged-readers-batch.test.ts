@@ -2,7 +2,7 @@ import { invokeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file Batch the five merged get/list readers through their production cards and real domain
- * handlers. A missing item id must fail as a get, never disclose the list instead. Authorization,
+ * handlers. With default-on read batching, an item without an id explicitly selects the list. Authorization,
  * workspace isolation and peer-site refusal still run inside each original scoped handler.
  */
 import assert from "node:assert/strict";
@@ -140,6 +140,14 @@ for (const reader of READERS) {
     const result = await invokeRegisteredTool(h.find(h.registrations, reader.card), context({ ...reader.shared, items: [
       h.input(reader, "first"), missingField ? {} : { [reader.id]: "missing" }, h.input(reader, "third"),
     ] })) as BatchResult;
+    if (missingField) {
+      // All read operations now batch, including the card's list operation. Its existing
+      // permission-filtered list handler remains the owner of the returned data.
+      assert.deepEqual(result.results.map(item => item.ok), [true, true, true]);
+      assert.deepEqual((result.results[1] as { result: unknown }).result,
+        await h.find(h.baseline, reader.card).handler(context(reader.shared)));
+      return;
+    }
     assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 3, 2, 1]);
     assert.deepEqual(result.results.map(item => item.ok), [true, false, true]);
     const failed = result.results[1]!;
@@ -170,11 +178,10 @@ for (const reader of READERS) {
   test(`${reader.source}: accepts 25 and refuses 26 items before authorization`, async () => {
     const h = await harness();
     const registration = h.find(h.registrations, reader.card);
-    // why: canonical card ids — a legacy item selector is renamed to `id` and the executor appends that note.
-    const notes = legacyIdNotes(reader, Array.from({ length: 26 }, (_, index) => `items[${index}].`));
+    // The card owns the batch cap now, so it refuses before normalizing any item's legacy id.
     await assert.rejects(invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 26 }, () => h.input(reader, "first")),
-    })), { message: `${reader.source}: 'items' has 26 entries; the most one call takes is 25. Split them into several calls.${notes.length ? `\nnormalized: ${notes.join("; ")}` : ""}` });
+    })), { message: `${reader.card}: 'items' has 26 entries; the most one call takes is 25. Split them into several calls.` });
     assert.deepEqual(h.checks, []);
     const result = await invokeRegisteredTool(registration, context({ ...reader.shared,
       items: Array.from({ length: 25 }, () => h.input(reader, "first")),
@@ -188,7 +195,7 @@ for (const reader of READERS) {
     const registration = h.find(h.registrations, reader.card);
     for (const items of [undefined, null, [], "first"]) {
       await assert.rejects(invokeRegisteredTool(registration, context({ ...reader.shared, items })), {
-        message: `${reader.source}: 'items' must be a non-empty array of inputs`,
+        message: `${reader.card}: 'items' must be a non-empty array of inputs`,
       });
     }
     assert.deepEqual(h.checks, []);
@@ -235,7 +242,10 @@ test("all five merged reader cards refuse non-owner peer-site items before openi
       { [reader.id]: "first" }, { [reader.id]: "second", site: "B" },
     ] }, "admin")) as BatchResult;
     assert.deepEqual([result.batch, result.total, result.succeeded, result.failed], [true, 2, 0, 2], reader.card);
-    assert.deepEqual(result.results, [0, 1].map(index => ({ index, ok: false, error: "Only this installation's owner can read other sites." })), reader.card);
+    // Cards canonicalize legacy ids before the site scope refuses, so the executor appends that note.
+    const notes = legacyIdNotes(reader, [""]);
+    const error = `Only this installation's owner can read other sites.${notes.length ? `\nnormalized: ${notes.join("; ")}` : ""}`;
+    assert.deepEqual(result.results, [0, 1].map(index => ({ index, ok: false, error })), reader.card);
   }
   assert.deepEqual(f.contentHandles, []);
   assert.deepEqual(f.audits, []);

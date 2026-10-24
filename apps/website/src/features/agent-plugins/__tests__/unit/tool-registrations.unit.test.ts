@@ -536,6 +536,21 @@ function invokeFixtureHandler(
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
 
+test("plugin guidance carries maturity and warns before keys/actions only when untested", async () => {
+  for (const maturity of ['untested', 'soon', undefined] as const) {
+    const [registration] = buildAgentPluginToolRegistrations([{
+      id: 'agent_plugin_fixture', pluginId: 'fixture', archiveDigest: 'a'.repeat(64), description: 'Fixture',
+      defaultSkillName: 'fixture', maturity, skills: [{ name: 'fixture', summary: 'Fixture', markdown: 'GUIDANCE' }],
+    }], { isCallable: async () => true });
+    const result = await registration!.handler(fakeCtx(), {}) as { maturity?: string; guidance: string };
+    assert.equal(result.maturity, maturity);
+    assert.equal(Object.hasOwn(result, 'maturity'), maturity !== undefined);
+    if (maturity === 'untested') {
+      assert.match(result.guidance, /^Before saving keys or acting with this plugin, tell the user this integration hasn't been tested end to end yet\. It may not work\.\n\nGUIDANCE$/);
+    } else assert.equal(result.guidance, 'GUIDANCE');
+  }
+});
+
 test("L025b guidance pins selection guards, reader recovery and sanitized unknown names", async () => {
   const source: import("../../tool-registrations.js").AgentPluginToolSource = {
     id: "agent_plugin_pinned", pluginId: "pinned", archiveDigest: "a".repeat(64), description: "Pinned guidance", defaultSkillName: "pinned",

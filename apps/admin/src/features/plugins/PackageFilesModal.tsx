@@ -30,6 +30,7 @@ import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-ic
 
 export interface PackageFilesModalProps {
   readonly title: string;
+  readonly headerExtras?: ReactNode;
   readonly subtitle?: string | undefined;
   readonly files: readonly PackageFileView[];
   readonly selectedFile: PackageFileView | null;
@@ -218,6 +219,7 @@ function PackageFileBody({ file, wrap }: { file: PackageFileView; wrap: boolean 
 
 export function PackageFilesModal({
   title,
+  headerExtras,
   subtitle,
   files,
   selectedFile,
@@ -243,6 +245,7 @@ export function PackageFilesModal({
       className="agent-plugin-source-modal"
       icons={CODE_PREVIEW_MODAL_ICONS}
       title={title}
+      headerExtras={headerExtras}
       subtitle={subtitle}
       onView={onView}
       initialViewId={initialViewId}

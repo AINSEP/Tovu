@@ -25,7 +25,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
-    buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
+    getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
     assistantCliCapabilitiesContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
   });
@@ -62,6 +62,23 @@ test("the launch reads preferSubagents fresh for the launching person", async ()
     { namespace: "core.interface", key: "useClaudeInChrome", scopeContext },
     { namespace: "core.interface", key: "replyLength", scopeContext },
   ]);
+});
+
+test("the real overlay enables message relay guidance for Codex and excludes native Claude input", async () => {
+  for (const agentId of ["codex", "claude"]) {
+    const { overlay } = await launchOverlay({ enabled: true, agentId, preferSubagents: false });
+    assert.equal(overlay.includes("When `check_messages` is available"), agentId === "codex");
+  }
+});
+
+test("the real overlay excludes engines without an injected MCP bridge", () => {
+  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
+    getAgentDef: () => ({ ...getAgentDef({ id: "codex" }), externalMcpInjection: undefined }),
+    buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
+    assistantRuntimeGuidanceContext: new AsyncLocalStorage(), assistantCliCapabilitiesContext: new AsyncLocalStorage(),
+    assistantNativeToolsContext: new AsyncLocalStorage(), bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
+  });
+  assert.equal(augmenter.systemOverlay({ agentId: "codex", turnIndex: 0 }).includes("When `check_messages` is available"), false);
 });
 
 test("ON + Claude Code + Task/Agent allowed: the run's overlay carries the delegation guidance", async () => {
@@ -129,8 +146,12 @@ test("reply length reaches each run's actual overlay without leaking into the ne
   for (const agentId of ["claude", "codex"]) {
     const input = { enabled: false, agentId, preferSubagents: false };
     const normal = (await launchOverlay(input)).overlay;
-    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${normal}${SHORT_REPLY_GUIDANCE} `);
-    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${normal}${DETAILED_REPLY_GUIDANCE} `);
+    // Filesystem notices are appended after runtime guidance, so reply guidance lands before them.
+    const notices = buildAssistantFilesystemNotices({ agentId, capabilities: assistantCliPermissions({ enabled: false }).capabilities }, {});
+    assert.ok(normal.endsWith(notices));
+    const beforeNotices = normal.slice(0, normal.length - notices.length);
+    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${beforeNotices}${SHORT_REPLY_GUIDANCE} ${notices}`);
+    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${beforeNotices}${DETAILED_REPLY_GUIDANCE} ${notices}`);
     assert.equal((await launchOverlay({ ...input, replyLength: "normal" })).overlay, normal);
     assert.equal((await launchOverlay({ ...input, replyLength: "invalid" })).overlay, normal);
   }

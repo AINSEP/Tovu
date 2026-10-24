@@ -1,6 +1,7 @@
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { OAuthError } from "@jini-ai/oauth";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -271,6 +272,22 @@ test("agent_plugin_connect: a device-code grant is refused rather than showing a
     /device_code/,
   );
   assert.equal(emissions.length, 0, "no card with an unusable link");
+});
+
+test("OAuth metadata failure reports that no card opened and points to the plugin key card", async () => {
+  const store = makeStoreDeps();
+  const emissions: SurfaceEmission[] = [];
+  const deps = baseDeps(store, {
+    externalMcpOAuth: { ...fakeOAuth(store.repo, "unused"), beginConnect: async () => {
+      throw new OAuthError({ code: "OAUTH_MALFORMED_RESPONSE", message: "the OAuth metadata endpoint did not return a JSON object", operatorAction: "Check OAuth metadata" });
+    } },
+    resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+  });
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  await assert.rejects(runAgentPluginConnect(deps, surfaces, fakeCtx(emissions), "widget-store"),
+    /OAuth metadata endpoint did not return a JSON object\. Sign-in could not start; no sign-in card was opened.*credential_save.*Do not ask the person to restart Tovu/);
+  assert.equal(emissions.length, 0);
+  assert.equal(surfaces.surfaceExchanges.size(), 0);
 });
 
 test("agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure", async () => {

@@ -21,6 +21,10 @@
           "label": "S3-compatible storage connection",
           "category": "hosting",
           "intro": "Connect your storage provider to upload this site to an existing public bucket. Create the bucket and public hosting first.",
+          "usedFor": [
+            "Publishes your website to your public storage bucket",
+            "Stores and retrieves site media in your configured private bucket"
+          ],
           "keyHint": "Use an access key ID and secret access key limited to the selected bucket: ListBucket and GetObject, PutObject, DeleteObject on its objects. If using a separate private media bucket, grant only the required read/write access there too.",
           "saveKind": "publish-host",
           "baseUrl": "https://s3.amazonaws.com"
