@@ -64,11 +64,12 @@ test("onStarted hands the executor the enforced tool restrictions", async () => 
 
 test('native Windows shell launches emit the required value-free limitation notice', async () => {
   const warnings: unknown[][] = [];
+  // Owner launches subscribe to tool-gap events before dispatch, including on Windows.
   await captureDaemonRun({ prompt: 'Review this page' }, { bindings: {
     process: { platform: 'win32', env: {} },
     routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), toolAttemptAuditSink: { append: async () => {} } },
     console: { warn: (...args: unknown[]) => warnings.push(args), error() {}, log() {} },
-  } });
+  }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
   assert.deepEqual(warnings, [['[agent-daemon] shell is not folder-limited on this platform']]);
 });
 

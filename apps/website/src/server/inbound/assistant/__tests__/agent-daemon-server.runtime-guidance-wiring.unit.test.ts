@@ -146,8 +146,12 @@ test("reply length reaches each run's actual overlay without leaking into the ne
   for (const agentId of ["claude", "codex"]) {
     const input = { enabled: false, agentId, preferSubagents: false };
     const normal = (await launchOverlay(input)).overlay;
-    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${normal}${SHORT_REPLY_GUIDANCE} `);
-    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${normal}${DETAILED_REPLY_GUIDANCE} `);
+    // Filesystem notices are appended after runtime guidance, so reply guidance lands before them.
+    const notices = buildAssistantFilesystemNotices({ agentId, capabilities: assistantCliPermissions({ enabled: false }).capabilities }, {});
+    assert.ok(normal.endsWith(notices));
+    const beforeNotices = normal.slice(0, normal.length - notices.length);
+    assert.equal((await launchOverlay({ ...input, replyLength: "short" })).overlay, `${beforeNotices}${SHORT_REPLY_GUIDANCE} ${notices}`);
+    assert.equal((await launchOverlay({ ...input, replyLength: "detailed" })).overlay, `${beforeNotices}${DETAILED_REPLY_GUIDANCE} ${notices}`);
     assert.equal((await launchOverlay({ ...input, replyLength: "normal" })).overlay, normal);
     assert.equal((await launchOverlay({ ...input, replyLength: "invalid" })).overlay, normal);
   }
