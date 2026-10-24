@@ -11,7 +11,7 @@ import { siteGuideFactDeps } from "../site-guide.js";
 /** The site guide's fact ports, exercised without a guide engine: registries are projected by key,
  * and the agent-plugin inventory is field-projected with activation mapped to enabled/disabled/unknown. */
 
-type Plugin = { pluginId: string; id?: string; displayName?: string; version?: string };
+type Plugin = { pluginId: string; id?: string; displayName?: string; version?: string; description?: string; provides?: string[] };
 
 function harness(installed: Plugin[], verdicts: Record<string, string>) {
   const reads: string[] = [];
@@ -47,13 +47,13 @@ test("registry projections list type keys, field types, unique markers and both 
 test("agent-plugin inventory is field-projected; an undetermined activation is unknown, not disabled", async () => {
   const { facts, reads } = harness([
     { pluginId: "p-active", id: "id-a", displayName: "Active", version: "1.2.0" },
-    { pluginId: "p-off" },
+    { pluginId: "p-off", description: "Sends email and manages domains", provides: ["outbound-mail"] },
     { pluginId: "p-unknown" },
   ], { "p-active": "active", "p-off": "inactive", "p-unknown": "undetermined" });
   assert.deepEqual(await facts.readAgentPlugins(), [
-    { id: "id-a", name: "Active", version: "1.2.0", enabled: true },
-    { id: "p-off", name: "p-off", version: null, enabled: false },
-    { id: "p-unknown", name: "p-unknown", version: null, enabled: null },
+    { id: "id-a", name: "Active", version: "1.2.0", enabled: true, pluginId: "p-active", description: null, provides: [] },
+    { id: "p-off", name: "p-off", version: null, enabled: false, pluginId: "p-off", description: "Sends email and manages domains", provides: ["outbound-mail"] },
+    { id: "p-unknown", name: "p-unknown", version: null, enabled: null, pluginId: "p-unknown", description: null, provides: [] },
   ]);
   assert.deepEqual(reads.slice(0, 3), ["list:/plugins/ws-1", "digests:/plugins/ws-1", "prefer:digests"]);
 });

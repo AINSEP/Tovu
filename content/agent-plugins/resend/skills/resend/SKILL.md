@@ -50,12 +50,15 @@ tool on under Settings for this connection.
 
 ## Connect the Resend account (before any `mcp__resend__*` tool)
 
-Call `agent_plugin_connect { pluginId: "resend" }` first, every time; it returns at once when it is
-already connected. It shows the person a button to sign in to Resend and approve access.
+Call `agent_plugin_connect { pluginId: "resend" }` first; it returns at once when already connected.
+Say you are checking the connection. Only say a sign-in card is open after the tool emits it:
+OAuth discovery can fail before any card exists. Never promise a card or ask the person to restart Tovu.
 
 - `{ status: "connected" }`: go ahead.
 - It fails because sign-in cannot start, or the person would rather use a key: open the secure key
-  form with `credential_save { kind: "agent-plugin-token", target: "resend" }`. Tell the person:
+  form with `credential_save { kind: "plugin-provider", target: "resend-mcp" }`. Explain first:
+  "This is a separate Full access key so I can add and verify your domain. It keeps your site's
+  existing sending key." Then tell the person:
   1. Sign in at [resend.com/api-keys](https://resend.com/api-keys) and choose **Create API Key**.
   2. Permission: **Full access** (managing domains, contacts and broadcasts needs it; a "Sending
      access" key is refused). Domain: all domains.
@@ -73,20 +76,21 @@ Never ask for the key in chat, and never put it in any tool argument.
    different key from the Full access one above.
 2. **Save it through the Connect Resend card:** `credential_save { kind: "plugin-provider", target: "resend" }`.
    The card asks only for the key and saves it where Tovu looks for it ("Tovu Mail — Resend API").
-   Never ask for the key in chat. If the card says a key is already saved, replace it as below.
+   Never ask for the key in chat. If a sending key is already saved, reuse it. Only open a replacement
+   card if the person explicitly asks to replace that key; explain that it REPLACES the saved key.
 3. **Verify the sending domain.** Until it is verified, Resend only sends to the account's own
    address. Check with `system_get_mail_status`; add records with `dns_*` (or, when the account is
    connected, `mcp__resend__create-domain` then `mcp__resend__verify-domain`).
-4. **No restart needed** when no mail was going out yet: Tovu picks the key up on the next email it
-   sends. If mail was already going out through a saved SMTP server, restart Tovu to switch to Resend.
+4. **Select Resend** with `mail_set_provider { providerId: "resend" }`. The change and saved key
+   take effect on the next email. Never ask the person to restart Tovu.
 5. Prove it with `mail_send_test`.
 
 ## What a failure means
 
 - `validation_error`: a bad address or an unverified sending domain. Fix the address or verify the domain.
 - `missing_api_key`, `invalid_api_key`, `restricted_api_key`: the saved key is wrong or lacks sending
-  access. Create a new key and replace the saved one (`credential_save { kind: "api", target: "Tovu
-  Mail — Resend API" }`).
+  access. Explain the failure and ask whether the person wants to replace the key. Only after an
+  explicit replacement request, use `credential_save { kind: "api", target: "Tovu Mail — Resend API" }`.
 - `rate_limit_exceeded`, HTTP 5xx, `TRANSPORT_ERROR`: temporary. Tovu retries these.
 
 ## Bounces and complaints (webhook)

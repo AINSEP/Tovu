@@ -56,6 +56,13 @@ test("mail_list_providers returns the shared DTO; it needs admin.forms.manage an
   await assert.rejects(providerTools({ mailProviderControl: undefined }).call("mail_list_providers"), { name: "ToolInputError", message: /configuration is unavailable on this server/ });
 });
 
+test("mail setup uses its plugin-owned key card when available, with generic creation as the fallback", async () => {
+  const result = await providerTools({ loadPluginCredentialCards: async () => [{
+    providerId: "fakemail", label: "Tovu Mail — Fake API", category: "ops", baseUrl: "https://api.fake.test", title: "Connect Fake",
+  }] }).call("mail_configure_provider", { providerId: "fakemail" }) as { credentialSetup: { prefill: unknown } };
+  assert.deepEqual(result.credentialSetup.prefill, { kind: "plugin-provider", target: "fakemail" });
+});
+
 test("mail_configure_provider hands creation to credential_save with only non-secret prefill, and never activates", async () => {
   const result = await providerTools().call("mail_configure_provider", { providerId: " fakemail " }) as Record<string, unknown>;
   assert.equal(result.activated, false);
@@ -65,7 +72,8 @@ test("mail_configure_provider hands creation to credential_save with only non-se
   const saved = { ...PROVIDER, credential: { required: true, saved: true, label: "Tovu Mail — Fake API", credentialId: "cred-1" }, setup: { fields: [] } };
   const rotation = await providerTools({ mailProviderControl: { check: async () => ({ ok: true, label: "Fake" }), select: async () => {}, describe: async () => report([saved]) } }).call("mail_configure_provider", { providerId: "fakemail" }) as Record<string, unknown>;
   assert.deepEqual(rotation.credential, { action: "rotate", label: "Tovu Mail — Fake API", category: "ops", credentialId: "cred-1" });
-  assert.match(JSON.stringify(rotation.credentialSetup), /"target":"Tovu Mail — Fake API"/);
+  assert.equal(rotation.credentialSetup, undefined, "a saved working key must not trigger replacement setup");
+  assert.match(String(rotation.note), /explicitly asks to replace it, call credential_save \{kind:"api",target:"Tovu Mail — Fake API"\}/);
   assert.deepEqual(result.followUps, []);
   assert.deepEqual(rotation.followUps, []);
 });

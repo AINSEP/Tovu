@@ -26,6 +26,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
+import { OAuthError } from "../../platform/oauth/errors.js";
 
 /**
  * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
@@ -150,7 +151,8 @@ function isOAuthServer(config: McpServerConfig): config is RemoteMcpServerConfig
 /**
  * Starts the sign-in and returns the link the card shows.
  *
- * @throws {ToolInputError} The OAuth service refused the request as invalid input.
+ * @throws {ToolInputError} The OAuth service refused the request, or OAuth discovery/registration failed,
+ *   with the no-card note the model must relay.
  * @throws {Error} A `device_code` grant: the card has no place for the user code, and nothing in this
  *   call polls `pollDeviceAuthorization`, so the row would never flip to connected. Provisioned rows
  *   always use `authorization_code` (`federate-mcp.ts`), so this is a fail-loud guard.
@@ -160,7 +162,9 @@ async function beginSignIn(oauth: ExternalMcpOAuthService, serverId: string, der
   try {
     start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin) });
   } catch (err) {
-    throw err instanceof ExternalMcpValidationError ? new ToolInputError({ message: err.message }) : err;
+    // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
+    if (!(err instanceof ExternalMcpValidationError) && !(err instanceof OAuthError)) throw err;
+    throw new ToolInputError({ message: `${err.message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
   }
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
@@ -214,7 +218,7 @@ const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
   "Call this once you know which plugin needs connecting (e.g. from search_agent_plugin_local, whose result names an " +
     "OAuth-authenticated MCP server that is not yet connected) — it needs no prior setup, this provisions the connection " +
     "itself the first time it is called for a given plugin.",
-  "Shows the human a card with a sign-in link and parks until they finish. Returns { status: 'connected' } once the " +
+  "Attempts sign-in first; only a successful start shows the human a card with a sign-in link and parks until they finish. Do not promise a card before it is emitted. If sign-in fails, explain that no card opened and use the plugin's declared credential_save key card when available. Never ask the person to restart Tovu. Returns { status: 'connected' } once the " +
     "sign-in completes, or { status: 'waiting-for-sign-in' } if nobody finished within a few minutes — call this again " +
     "with the same pluginId once the human says they're back; never loop on your own.",
   "For a plugin that declares its own API connection, the result also carries connectionRef: pass it unchanged as " +

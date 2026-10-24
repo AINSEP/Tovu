@@ -168,17 +168,19 @@ function rowFingerprint(record: CustomCredentialSetRecord | undefined): string {
   return record ? `${record.id}:${record.vaultRecord?.revision ?? ""}:${record.updatedAt}` : "absent";
 }
 
-/** Records the failures a provider itself reports, for status `lastError`. Results pass through unchanged. */
-function observeFailures(required: { mailer: MailerPort; providerId: string; record: RecordError }): MailerPort {
-  const { mailer, providerId, record } = required;
-  const seen = (result: MailerSendResult): MailerSendResult => {
-    if (!result.ok) record({ providerId, source: "send", code: result.errorCode, message: result.message });
-    return result;
+/** Observe one send or batch without changing results. Any failed recipient keeps the failure;
+ * only a wholly accepted operation clears a prior send failure. O(messages) time, O(1) space. */
+function observeFailures(required: { mailer: MailerPort; providerId: string; record: RecordError; accepted: () => void }): MailerPort {
+  const { mailer, providerId, record, accepted } = required;
+  const seen = (results: readonly MailerSendResult[]): void => {
+    const failure = results.find(result => !result.ok);
+    if (failure && !failure.ok) record({ providerId, source: "send", code: failure.errorCode, message: failure.message });
+    else if (results.length > 0) accepted();
   };
   return {
     capabilities: () => mailer.capabilities(),
-    send: async (message, options) => seen(await mailer.send(message, options)),
-    sendBatch: async (messages, options) => (await mailer.sendBatch(messages, options)).map(seen),
+    send: async (message, options) => { const result = await mailer.send(message, options); seen([result]); return result; },
+    sendBatch: async (messages, options) => { const results = await mailer.sendBatch(messages, options); seen(results); return results; },
   };
 }
 
@@ -220,6 +222,8 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const nowMs = () => (deps.clock ?? { nowMs: () => Date.now() }).nowMs();
   let lastError: MailProviderError | undefined;
   const recordError: RecordError = ({ providerId, source }) => {
+    // Every status refresh re-runs the checks. A check note must not hide a failed send.
+    if (source === "check" && lastError?.source === "send") return;
     lastError = { providerId, source, message: source === "send" ? "The provider did not confirm acceptance. Check provider configuration." : "The provider configuration check could not complete.", at: new Date(nowMs()).toISOString() };
   };
   const fingerprintFor = async (label: string | undefined): Promise<string> => {
@@ -297,7 +301,8 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     const credential = found.credential;
     const latest = await fingerprintFor(label).catch(() => fingerprint);
     if (latest !== fingerprint) return resolveProvider(id, generation);
-    const observed = observeFailures({ mailer: createProviderMailer({ deps, provider: entry.provider, credential }), providerId: id, record: recordError });
+    const observed = observeFailures({ mailer: createProviderMailer({ deps, provider: entry.provider, credential }), providerId: id, record: recordError,
+      accepted: () => { if (lastError?.source === "send" && lastError.providerId === id) lastError = undefined; } });
     const mailer = wrap({ providerId: id, provider: entry.provider, mailer: observed });
     if (startedIn === generation) resolved.set(id, { mailer, fingerprint, ...(label === undefined ? {} : { label }) });
     return mailer;
@@ -363,7 +368,9 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   }, { minRefreshIntervalMs: 5_000 });
   const status = async (optional: { refresh?: boolean } = {}): Promise<MailStatusReport> => {
     const report = await statusCache.get(optional);
-    return lastError ? { ...report, lastError } : report;
+    // A saved key proves configuration, not sending. A later accepted send clears this failure.
+    const sendFailed = lastError?.source === "send" && report.lanes.some(lane => lane.providerId === lastError?.providerId);
+    return lastError ? { ...report, state: sendFailed && report.state === "ready" ? "degraded" : report.state, lastError } : report;
   };
   const describeProviders = async (): Promise<MailProviderConfigurationReport> => {
     const [setting, catalog, records] = await Promise.all([currentSetting(), loadMailProviderCatalog(deps), deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId })]);
@@ -454,6 +461,8 @@ async function computeStatusReport(
   const [setting, catalog, rows, domain] = await Promise.all([required.setting(), loadMailProviderCatalog(deps), records, readSenderDomain(deps)]);
   const credentials = await laneCredentials({ deps, catalog, setting, recordError });
   const verdict = await required.senderDomainVerification();
+  // `null` is "no sender address is set". An unanswered domain check (e.g. a send-only key) has no warning
+  // of its own, so it stays undefined rather than telling a verified site its sender is missing.
   const domainState = verdict.state === "no_sender" ? null : ["verified", "pending", "failed", "not_found"].includes(verdict.state) ? verdict.state as MailDomainState : undefined;
   if (verdict.state === "unknown") recordError({ providerId: verdict.providerId, source: "check", message: "Provider domain check unavailable." });
   const status = computeMailStatus(

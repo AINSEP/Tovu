@@ -153,15 +153,15 @@
       "credentialCards": [
         {
           "target": "resend-mcp",
-          "title": "Connect Resend account tools",
+          "title": "Connect Resend with a Full access key",
           "label": "Resend account",
           "category": "ops",
-          "intro": "Use an account key only when browser sign-in cannot start. This connects account tools; the site’s sending key is saved separately.",
-          "keyHint": "Use a Full access account key for domain and account management; a Sending access key cannot manage domains.",
+          "intro": "Let the assistant add and verify your email domain in Resend. This saves a separate account key and keeps your site's sending key.",
+          "keyHint": "In Resend, open API Keys → Create API Key. Choose Full access and all domains. Sending access cannot add or verify domains.",
           "saveKind": "agent-plugin-token",
           "saveTarget": "resend",
           "helpUrl": "https://resend.com/api-keys",
-          "helpLabel": "Create an account key",
+          "helpLabel": "Create a Full access key in Resend",
           "baseUrl": "https://api.resend.com"
         }
       ]

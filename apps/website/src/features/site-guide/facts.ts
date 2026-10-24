@@ -8,7 +8,7 @@ export interface SiteGuideFactsDeps extends SiteProfileSourceDeps {
   readonly listMarkers: () => readonly string[];
   readonly listLayouts: () => readonly string[];
   readonly readMembersEnabled: () => Promise<boolean | null>;
-  readonly readAgentPlugins: () => Promise<readonly { id: string; name: string; version: string | null; enabled: boolean | null }[]>;
+  readonly readAgentPlugins: () => Promise<readonly { id: string; name: string; version: string | null; enabled: boolean | null; pluginId?: string; description?: string | null; provides?: readonly string[] }[]>;
 }
 
 /** Read a registry/status only after its domain permission passes. A failed read reports unknown.

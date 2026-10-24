@@ -65,6 +65,8 @@ export function siteGuideFactDeps(
         const activation = await lifecycle.resolveAgentPluginActivation({ workspaceRoot: layout.root, pluginId: plugin.pluginId });
         return {
           id: plugin.id ?? plugin.pluginId, name: plugin.displayName ?? plugin.pluginId, version: plugin.version ?? null,
+          // Names alone hide what a disabled bundled provider can do; expose metadata, not code.
+          pluginId: plugin.pluginId, description: plugin.description ?? null, provides: plugin.provides ?? [],
           // An unreadable activation is unknown, not an operator's decision to disable it.
           enabled: activation.verdict === "undetermined" ? null : activation.verdict === "active",
         };

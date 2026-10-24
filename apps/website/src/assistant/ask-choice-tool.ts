@@ -138,6 +138,7 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "Asks the administrator a real question through an interactive form in the chat pane, and " +
       "blocks until they answer — a single choice (radio buttons), a multi-select (checkboxes), or " +
       "both. Call this for missing information or a choice needed to complete the request. " +
+      "Answer direct questions in words first, including what a key or token is and why it is needed. Do not turn a request for an explanation into a choice card. " +
       "Do not use it to reconfirm ordinary writes, overwrites, publishing, commits or reversible trash. " +
       "Only permanent deletes, sends to real people, and changes to the assistant's own privacy, " +
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +

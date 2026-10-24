@@ -496,7 +496,7 @@ test("status: an unknown lane provider has no credential; with no provider the s
   assert.deepEqual(failingSender.warnings, ["sender_unknown"]);
 });
 
-test("status: a failed or rejected domain check raises no warning; a provider without a saved key is not asked", async () => {
+test("status: a failed or rejected domain check never claims the sender is missing; a provider without a saved key is not asked", async () => {
   const credentialDeps = makeCredentialWriteDeps();
   await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
   let calls = 0;
@@ -516,6 +516,61 @@ test("status: a failed or rejected domain check raises no warning; a provider wi
   const status = await createResolvedMailer(keyless).status();
   assert.deepEqual(status.warnings, []);
   assert.equal(status.state, "degraded");
+});
+
+test("status: a failed send or partial batch needs attention until a whole operation is accepted", async () => {
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
+  const accepted = { ok: true as const, providerMessageId: "postal-accepted", acceptedAt: "2026-10-24T00:00:00Z" };
+  const failed = { ok: false as const, retryable: false, errorCode: "validation_error", message: "Not accepted" };
+  let single: typeof accepted | typeof failed = failed;
+  let batch: (typeof accepted | typeof failed)[] = [failed, accepted];
+  const registry = fixtureRegistry({ create: () => ({ ...FIXTURE_MAILER, send: async () => single, sendBatch: async () => batch }) });
+  const resolved = createResolvedMailer(makeResolveDeps({
+    customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, loadMailAdapters: async () => registry, readSenderEmail: async () => "news@example.com",
+    providerSetting: memorySetting({ transactional: "postal", bulk: "postal" }),
+  }));
+  await resolved.ready;
+  assert.equal((await resolved.status()).state, "ready");
+  await resolved.mailer.send(MESSAGE, OPTIONS);
+  assert.equal((await resolved.status()).state, "degraded");
+  single = accepted;
+  await resolved.mailer.send(MESSAGE, OPTIONS);
+  assert.equal((await resolved.status()).state, "ready");
+  assert.equal((await resolved.status()).lastError, undefined);
+  for (const results of [[failed, accepted], [accepted, failed]]) {
+    batch = results;
+    await resolved.mailer.sendBatch([MESSAGE, MESSAGE], OPTIONS);
+    assert.equal((await resolved.status()).state, "degraded", "a later accepted recipient must not hide a batch failure");
+  }
+  batch = [accepted, accepted];
+  await resolved.mailer.sendBatch([MESSAGE, MESSAGE], OPTIONS);
+  assert.equal((await resolved.status()).state, "ready");
+});
+
+test("status: an unanswered domain check on every refresh never hides a failed send", async () => {
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, { workspaceId: WORKSPACE, label: "Postal key", category: "ops", baseUrl: "https://api.postal.test", connection: { token: "pk" } });
+  const failed = { ok: false as const, retryable: false, errorCode: "validation_error", message: "Not accepted" };
+  const registry = fixtureRegistry({
+    capabilities: { hosted: true, feedback: false, domainVerification: true },
+    // A send-only key cannot read domains, so the provider rejects every domain check.
+    domainRequirements: async () => ({ status: "ok", value: { purpose: "mail", domain: "example.com", providerId: "postal", records: [] } }),
+    domainStatus: async () => ({ status: "rejected", error: { code: "restricted_api_key", message: "send only" } }),
+    create: () => ({ ...FIXTURE_MAILER, send: async () => failed }),
+  });
+  const resolved = createResolvedMailer(makeResolveDeps({
+    customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, loadMailAdapters: async () => registry, statusTtlMs: 0,
+    readSenderEmail: async () => "news@example.com", providerSetting: memorySetting({ transactional: "postal", bulk: "postal" }),
+  }));
+  await resolved.ready;
+  const before = await resolved.status();
+  assert.equal(before.state, "ready");
+  assert.equal(before.lastError?.source, "check");
+  await resolved.mailer.send(MESSAGE, OPTIONS);
+  const after = await resolved.status();
+  assert.equal(after.state, "degraded", "the refresh's check note must not overwrite the send failure");
+  assert.equal(after.lastError?.source, "send");
 });
 
 test("first boot: neither a keyless nor a v1 plugin with a saved key selects delivery", async () => {
