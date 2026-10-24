@@ -10,6 +10,20 @@ Docs, Slides, Drive, Gmail and Calendar come later on the same sign-in.
 
 Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
 
+## Choose the connection for the task
+
+For anything with spreadsheets or form submissions to Sheets, use **Connect Google Workspace**:
+`agent_plugin_connect { pluginId: "google-workspace" }`. It reuses a working sign-in. Choose it
+yourself; never ask the person to pick between sign-in and a key. There is no API-key route.
+
+Only if sign-in fails from a self-hosted site's address, or the person asks to use their own
+Google Cloud project, open **Use your own Google sign-in app**:
+`credential_save { kind: "plugin-provider", target: "google-workspace-oauth-client" }`.
+It saves the client ID and secret; then the person signs in as usual. See
+[connection](references/connection.md).
+
+Never ask for a secret in chat. Never offer to replace a working sign-in or saved app unless asked.
+
 ## What Tovu can and cannot see
 
 - Tovu asks only for **`drive.file`**: the files the person picks with Google's file picker or that
@@ -25,9 +39,10 @@ Say it simply: "Connect Google Workspace, then choose or create a spreadsheet."
 
 1. The plugin ships **switched off**. Offer to turn it on (`plugins_set_enabled`, family
    `agent-plugin`, `pluginId: "google-workspace"`), or the person uses the Agent Plugins screen.
-2. Connect: `agent_plugin_connect { pluginId: "google-workspace" }`. It shows a sign-in card; Google's
-   consent page opens in the system browser. Its result carries `connectionRef`: keep it and pass it
-   unchanged as `connectionRef` to every tool below. See [connection](references/connection.md).
+2. Connect: `agent_plugin_connect { pluginId: "google-workspace" }`. If sign-in is needed and starts
+   successfully, it shows a card; Google's consent page opens in the system browser. Its result
+   carries `connectionRef`: keep it and pass it unchanged as `connectionRef` to every tool below.
+   See [connection](references/connection.md).
 3. Check who is signed in with `p_google_workspace__account_info { connectionRef }` and name that
    account before you change anything.
 4. Sheets itself starts **off**: until the person turns Sheets on in the Google Workspace panel,

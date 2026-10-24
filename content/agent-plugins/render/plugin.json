@@ -13,6 +13,21 @@
       "id": "tovu/render",
       "provides": [
         "deploy-config:render"
+      ],
+      "credentialCards": [
+        {
+          "target": "render",
+          "title": "Connect Render",
+          "label": "Render API",
+          "ownedApiLabel": "Render API",
+          "category": "hosting",
+          "intro": "Save a Render API key for deploying this site from Tovu. Deploys from Tovu are being added; until then the assistant can only look up your Render services with it. Writing the deployment settings file needs no key.",
+          "keyHint": "In Render, open Account Settings → API Keys → Create API Key. The key has the same access as your Render account, so use an account that can deploy the site's service.",
+          "saveKind": "api",
+          "helpUrl": "https://render.com/docs/api#1-create-an-api-key",
+          "helpLabel": "Create a Render API key",
+          "baseUrl": "https://api.render.com/v1"
+        }
       ]
     }
   },
