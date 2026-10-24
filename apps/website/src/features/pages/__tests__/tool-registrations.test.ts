@@ -559,6 +559,25 @@ test("an unclosed region is refused with repair guidance and its stored HTML sur
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "unclosed" }), before);
 });
 
+// Owner rule (2026-10-24): malformed HTML warns per region and never refuses; the other region stays editable.
+test("a full write with one unclosed region saves, warns about that region only, and the rest stays editable", async () => {
+  const { repo, call } = harness();
+  await seedPage(repo, "malformed", "Malformed");
+  const html = '<section data-agent-element="cta"><p>Talk</p></section><section data-agent-element="hero"><p>Open';
+
+  const written = (await call("pages_write_html", { id: "malformed", html })) as { written: boolean; regions: string[]; warning?: string };
+  assert.equal(written.written, true);
+  assert.deepEqual(written.regions, ["cta", "hero"]);
+  assert.match(written.warning ?? "", /^Written, but pages_write_region and pages_move_region will refuse these/);
+  assert.match(written.warning ?? "", /"hero"/);
+  assert.doesNotMatch(written.warning ?? "", /"cta"/);
+  assert.equal((await repo.findById({ workspaceId: WS, id: "malformed" }))?.bodyHtml, html);
+
+  const region = (await call("pages_write_region", { id: "malformed", regionId: "cta", html: "<p>Call</p>" })) as { written: boolean; warning?: string };
+  assert.equal(region.written, true);
+  assert.match(region.warning ?? "", /"hero"/);
+});
+
 // L254: pin the old read handler's fallback before flattening its nested catch.
 for (const { bodyJson, hasDocContent } of [
   { bodyJson: { type: "doc" }, hasDocContent: false },

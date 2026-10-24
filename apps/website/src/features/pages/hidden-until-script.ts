@@ -12,7 +12,7 @@ import { maskNonRenderableRegions } from "@jini-ai/cms/widgets/markers";
  * and return these findings as a warning so the model fixes them on its next turn.
  *
  * PURE: string in, findings out. A tolerant scan over markup the assistant just wrote, not an HTML
- * parser; comments and raw-text elements are masked first (the same mask `regions.ts` uses).
+ * parser; comments and raw-text elements are masked first through the shared widget-marker mask.
  */
 
 /** Findings listed before the rest are summarised as a count. */

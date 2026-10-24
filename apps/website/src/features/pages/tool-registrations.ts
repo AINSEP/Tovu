@@ -23,6 +23,8 @@ import {
   type PagesHtmlDocumentStorePort,
 } from "./html-document-store.sqlite.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
+import { toSlug } from "../../platform/html/slug.js";
+import { scanHtmlRegions } from "@jini-ai/vibecoding/html/node";
 import {
   handlesMadeAmbiguous,
   locateRegion,
@@ -30,10 +32,11 @@ import {
   regionHandlesIn,
   replaceRegionInner,
   untaggedTopLevelSections,
-  type PageRegion,
+  type HtmlRegionScan,
+  type ScannedRegion,
   type RegionLookupProblem,
   type RegionMoveProblem,
-} from "./regions.js";
+} from "@jini-ai/vibecoding/html";
 
 /**
  * @file Maps the Pages catalog onto `PagesHtmlDocumentStore`, as `ToolRegistration`s.
@@ -167,13 +170,21 @@ function toModelFacingWriteError(err: unknown): unknown {
  * The suggested handles are ADVICE, not an edit: they come from each section's own heading text
  * (`suggestRegionHandle`), so they are stable across turns and across insertions, and a suggestion
  * that would collide with a handle already in the document is withheld rather than offered.
+ * Positional handles would address a different section after an insertion or move; a section
+ * without a heading gets no suggestion rather than an unstable positional fallback.
+ *
+ * Only top-level content needs a handle. Requiring one on every nested div would silently impose
+ * a stricter contract; requiring one on a stylesheet would invent an address nobody edits.
  *
  * @throws {ToolInputError} Naming every offending element and, where one can be derived, the handle
  * it should carry.
  * @complexity O(n) in the markup's length.
  */
-function assertTopLevelSectionsAreTagged(html: string): void {
-  const offenders = untaggedTopLevelSections(html);
+function assertTopLevelSectionsAreTagged(
+  { html, scan }: { html: string; scan: HtmlRegionScan },
+  _options: Record<string, never> = {},
+): void {
+  const offenders = untaggedTopLevelSections({ html, scan }, { slugify: toSlug });
   if (offenders.length === 0) return;
   const listed = offenders
     .map((offender) =>
@@ -228,12 +239,48 @@ function describeRegionProblem(id: string, handle: string, problem: RegionLookup
  *
  * @throws {ToolInputError} With {@link describeRegionProblem}'s sentence when it is absent, ambiguous
  * or unclosed.
- * @complexity O(n) in `html`'s length.
+ *
+ * A handle is an address: choosing the first duplicate could silently edit the wrong section.
+ * Nesting remains legal; writing an outer region removes its nested handles, so writers report
+ * the surviving handles. A problem on another region never locks this one out.
+ *
+ * @complexity O(r) in the scan's region count; no I/O or parsing.
  */
-function requireRegion(html: string, id: string, handle: string): PageRegion {
-  const lookup = locateRegion(html, handle);
+function requireRegion(
+  { scan, id, handle }: { scan: HtmlRegionScan; id: string; handle: string },
+  _options: Record<string, never> = {},
+): ScannedRegion {
+  const lookup = locateRegion({ scan, handle });
   if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
   return lookup.region;
+}
+
+/**
+ * The saved document's unsafe regions as one warning, or undefined when every region is safe.
+ *
+ * Owner rule (2026-10-24): malformed HTML WARNS per region and never refuses the save. A legacy page
+ * with one stray tag must stay writable; only the unsafe handle is later refused by
+ * {@link requireRegion}, so the model is told now which handles that will be.
+ *
+ * @complexity O(r) in the scan's region count.
+ */
+function describeUnsafeRegions(
+  { scan }: { scan: HtmlRegionScan },
+  _options: Record<string, never> = {},
+): string | undefined {
+  const problems = scan.regions.flatMap((region) => (region.problem === undefined ? [] : [region.problem]));
+  if (scan.documentProblem !== undefined) problems.push(scan.documentProblem);
+  if (problems.length === 0) return undefined;
+  return `Written, but pages_write_region and pages_move_region will refuse these until the markup is repaired: ${problems.join("; ")}`;
+}
+
+/** Join the optional warnings a write reports, keeping the field absent when there are none. */
+function joinWarnings(
+  { warnings }: { warnings: readonly (string | undefined)[] },
+  _options: Record<string, never> = {},
+): { warning?: string } {
+  const present = warnings.filter((warning): warning is string => warning !== undefined);
+  return present.length === 0 ? {} : { warning: present.join(" ") };
 }
 
 /**
@@ -330,13 +377,17 @@ type FullWriteOpening = { readonly basis: number | null } | { readonly madeAmbig
  * @throws {PageKindMismatchError} If the id names a post.
  * @throws {ToolInputError} If a stated `expectedVersion` does not match an existing `doc` row's
  * real version (via {@link assertExpectedVersion}).
- * @complexity O(1) — one indexed read, plus (on the conversion path) one indexed lookup and one
- * indexed update.
+ * @complexity O(n + r log r) for the stored HTML scan, plus one indexed read and (on the conversion
+ * path) one indexed lookup and one indexed update. The proposed HTML scan is supplied by the caller.
  */
 async function openForFullWrite(
-  store: PagesHtmlDocumentStorePort,
-  seedHtml: string,
-  guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined }
+  { store, seedHtml, scan, guard }: {
+    store: PagesHtmlDocumentStorePort;
+    seedHtml: string;
+    scan: HtmlRegionScan;
+    guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined };
+  },
+  _options: Record<string, never> = {},
 ): Promise<FullWriteOpening> {
   let current: string | null = null;
   try {
@@ -344,7 +395,8 @@ async function openForFullWrite(
   } catch (err) {
     if (!(err instanceof PageNotFoundError)) throw err;
   }
-  const madeAmbiguous = handlesMadeAmbiguous(current ?? "", seedHtml);
+  const before = current === seedHtml ? scan : scanHtmlRegions({ html: current ?? "" });
+  const madeAmbiguous = handlesMadeAmbiguous({ before, after: scan });
   if (madeAmbiguous.length > 0) return { madeAmbiguous };
   if (current !== null) return { basis: requireCapturedVersion(store) };
 
@@ -471,13 +523,15 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         // `version` is the basis a writer states back as `expectedVersion` — see
         // `PagesHtmlDocumentStorePort.capturedVersion` for why it comes off the store rather than off
         // a second row read.
-        page = { id, html, regions: regionHandlesIn(html), version: requireCapturedVersion(store), theme: await readPageTheme({ deps: routeDeps }) };
+        page = { id, html, version: requireCapturedVersion(store), theme: await readPageTheme({ deps: routeDeps }) };
       } catch (err) {
         page = await readDocPageFallback({ deps: routeDeps, id, err });
       }
-      if (input.regionId === undefined) return page;
-      const region = requireRegion(page.html, id, requireString({ input, key: "regionId" }));
-      return { ...page, html: page.html.slice(region.start, region.end) };
+      const scan = scanHtmlRegions({ html: page.html });
+      const result = { ...page, regions: regionHandlesIn({ scan }) };
+      if (input.regionId === undefined) return result;
+      const region = requireRegion({ scan, id, handle: requireString({ input, key: "regionId" }) });
+      return { ...result, html: page.html.slice(region.start, region.end) };
     },
 
     pages_write_html: async (ctx) => {
@@ -490,12 +544,14 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       // Before anything is opened or converted, so a refused write leaves the row exactly as it was
       // — including a `doc`-format row that would otherwise have been converted one-way by
       // `ensureHtmlFormat` on the way to a rejection.
-      assertTopLevelSectionsAreTagged(html);
+      // Malformed HTML adds no refusal here; it is warned about per region after the write.
+      const scan = scanHtmlRegions({ html });
+      assertTopLevelSectionsAreTagged({ html, scan });
 
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       try {
-        const opening = await openForFullWrite(store, html, { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion });
+        const opening = await openForFullWrite({ store, seedHtml: html, scan, guard: { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion } });
         // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
         if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision(id, opening.madeAmbiguous) };
         if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
@@ -518,8 +574,8 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
       // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
-      const warning = describeScriptRevealedContent({ html });
-      return { written: true, id, regions: regionHandlesIn(html), version: requireCapturedVersion(store), ...(warning ? { warning } : {}) };
+      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan })] });
+      return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
     },
 
     /**
@@ -560,11 +616,17 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const basis = requireCapturedVersion(store);
       assertExpectedVersion({ id, expectedVersion, basis });
 
-      const lookup = locateRegion(current, handle);
+      const scan = scanHtmlRegions({ html: current });
+      const lookup = locateRegion({ scan, handle });
       if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
 
-      const next = replaceRegionInner(current, lookup.region, fragment);
-      const madeAmbiguous = handlesMadeAmbiguous(current, next);
+      // Inner-only replacement preserves the address, classes and aria attributes by construction;
+      // asking the model to re-emit the whole element would let a typo erase the address being edited.
+      const next = replaceRegionInner({ html: current, region: lookup.region, fragment });
+      const nextScan = next === current ? scan : scanHtmlRegions({ html: next });
+      // Check every handle brought in by the fragment, not only the target. Comparing with the
+      // stored scan keeps legacy duplicates editable elsewhere; only worsened ambiguity is refused.
+      const madeAmbiguous = handlesMadeAmbiguous({ before: scan, after: nextScan });
       if (madeAmbiguous.length > 0) {
         // Returned, not thrown, like the other refusals the model fixes by changing its own input:
         // here it only has to drop or rename the reused handle in its fragment.
@@ -576,7 +638,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         throw toModelFacingWriteError(err);
       }
 
-      const warning = describeScriptRevealedContent({ html: fragment });
+      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html: fragment }), describeUnsafeRegions({ scan: nextScan })] });
       return {
         written: true,
         id,
@@ -584,9 +646,9 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         // The handles that SURVIVED this write, not the ones that went in. Replacing a region that
         // contained other regions removes them, and a model targeting a handle it saw two turns ago
         // is the failure that makes handle churn worse than no handles at all.
-        regions: regionHandlesIn(next),
+        regions: regionHandlesIn({ scan: nextScan }),
         version: requireCapturedVersion(store),
-        ...(warning ? { warning } : {}),
+        ...warning,
       };
     },
 
@@ -618,7 +680,8 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       }
       assertExpectedVersion({ id, expectedVersion, basis: requireCapturedVersion(store) });
 
-      const moved = moveRegion(current, requireRegion(current, id, handle), requireRegion(current, id, targetHandle), placement);
+      const scan = scanHtmlRegions({ html: current });
+      const moved = moveRegion({ html: current, moving: requireRegion({ scan, id, handle }), target: requireRegion({ scan, id, handle: targetHandle }), placement });
       if ("problem" in moved) {
         return { written: false, reason: describeMoveProblem({ handle, targetHandle, placement, problem: moved.problem }) };
       }
@@ -627,7 +690,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
           written: false,
           reason:
             `Nothing was written: '${handle}' already sits immediately ${placement} '${targetHandle}'. ` +
-            `Current order: ${regionHandlesIn(current).join(", ")}.`,
+            `Current order: ${regionHandlesIn({ scan }).join(", ")}.`,
         };
       }
       try {
@@ -635,7 +698,8 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       } catch (err) {
         throw toModelFacingWriteError(err);
       }
-      return { written: true, id, handle, regions: regionHandlesIn(moved.html), version: requireCapturedVersion(store) };
+      const movedScan = scanHtmlRegions({ html: moved.html });
+      return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store) };
     },
   };
 
