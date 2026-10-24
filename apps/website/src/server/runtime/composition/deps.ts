@@ -1,5 +1,5 @@
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
-import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
+import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
@@ -1995,13 +1995,7 @@ async function composeSiteRouteDeps(
     sealer: siteAssistantSecretSealer,
     httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-    resolvePluginAccountToken: async ({ pluginId, serverId }: { pluginId: string; serverId: string }) => {
-      const row = await externalMcpServerRepo.findByServerId({ workspaceId, serverId });
-      // A mail plugin may read only its own enabled account, never another plugin's saved key.
-      if (!row?.enabled || row.provisionedByPluginId !== pluginId) return null;
-      if (row.authMode === "oauth") return routeDeps.externalMcpOAuth?.tokenResolver.resolveAccessToken({ serverId }) ?? null;
-      return (await openExternalMcpOAuthPayload(siteAssistantSecretSealer, row)).staticAccessToken ?? null;
-    },
+    resolvePluginAccountToken: createPluginAccountTokenResolver({ workspaceId, repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer }),
     mode: runtimeMode,
   };
   const resolvedMailer = createSiteMailer({

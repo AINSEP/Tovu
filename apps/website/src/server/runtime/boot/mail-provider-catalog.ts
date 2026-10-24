@@ -65,7 +65,7 @@ export interface MailProviderCatalogDeps {
   httpClient: HttpClientPort;
   /** This workspace's plugin-contributed mail adapters (`loadMailAdapterRegistry` in production). */
   loadMailAdapters: () => Promise<MailAdapterRegistry>;
-  /** Reads only the named plugin's own account connection in this workspace. */
+  /** Reads only the named plugin's own enabled static account connection in this workspace. */
   resolvePluginAccountToken?: (required: { pluginId: string; serverId: string }) => Promise<string | null>;
   /** Injected for tests; defaults to the real `createNodemailerSmtpTransport`. */
   createSmtpTransport?: (config: CreateNodemailerSmtpTransportConfig) => SmtpTransport;
@@ -162,7 +162,7 @@ export async function resolveMailCredential(
 }
 
 /** Resolve a trusted plugin's domain-read key without changing its sending credential.
- * @complexity O(a) loaded adapters, one account lookup and at most one decrypt/refresh. */
+ * @complexity O(a) loaded adapters, one account lookup and at most one decrypt. */
 export async function resolveMailDomainReadCredential(
   required: { deps: MailProviderCatalogDeps; id: string },
   _options: Record<string, never> = {},
