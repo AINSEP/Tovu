@@ -18,6 +18,13 @@ import {
   resolveAssistantDisallowedTools,
 } from "../assistant-system-overlay.js";
 
+test("relay guidance is included verbatim only when enabled for the run", () => {
+  const sentence = "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation.";
+  assert.ok(buildBaseSystemOverlay(false, { messageRelayEnabled: true }).includes(sentence));
+  assert.equal(buildBaseSystemOverlay(false).includes(sentence), false);
+  assert.equal(buildBaseSystemOverlay(true, { messageRelayEnabled: false }).includes(sentence), false);
+});
+
 test("resolveBashProhibitionEnabled defaults to false with no env var set", () => {
   assert.equal(resolveBashProhibitionEnabled({}), false);
 });
@@ -186,6 +193,27 @@ test("delegation guidance follows the subagent capability without claiming full 
   const overlay = buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }).capabilities });
   for (const phrase of ["Native agents/subagents/Task are available", "not Tovu catalog tools"]) assert.ok(overlay.includes(phrase), phrase);
   assert.doesNotMatch(overlay, /Full CLI access is ON|haiku|sonnet|Avoid fork|Disabled native capabilities/);
+});
+
+test("enabled subagents require budget handoffs and immediate successors with a no-progress limit", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: true, shell: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Every subagent brief must require writing a handoff \(done \/ remaining \/ files\) before stopping/);
+    assert.match(overlay, /before the 250k context warning or any lower cap/);
+    assert.match(overlay, /stops at its context budget or any cap with work remaining, IMMEDIATELY start a fresh subagent from its notes and handoff/);
+    assert.match(overlay, /Do not ask the owner or end the turn while delegated work is unfinished/);
+    assert.match(overlay, /If the same task stops twice without progress, report to the owner instead of restarting/);
+  }
+});
+
+test("disabled subagents omit budget, handoff and successor instructions", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Native agents\/subagents\/Task are unavailable/);
+    assert.doesNotMatch(overlay, /Every subagent brief|250k|handoff|IMMEDIATELY start|delegated work is unfinished|stops twice without progress/);
+  }
 });
 
 test("shell OFF with subagents ON names the disabled capabilities without denying delegation", () => {

@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
 import { assistantCliPermissions, ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import assert from 'node:assert/strict';
@@ -70,7 +72,7 @@ test('non-owner and hosted owner launches explicitly lock native tools', async (
 test('prompt and runtime share the per-run grant across concurrent contexts', async () => {
   const native = new AsyncLocalStorage<boolean>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer('assistantPromptAugmenter'), {
-    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
+    getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(), bashProhibitionEnabled: false,
     customInstructionsCache: { readOverlay: () => null },
     buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
@@ -97,7 +99,7 @@ test('one fresh owner setting controls all native tools, configuration and the p
       assert.equal(input.disallowedTools?.includes(tool), !enabled, tool);
     }
     assert.equal(input.settingSources === undefined, enabled);
-    assert.equal(input.settings === undefined, enabled);
+    assert.equal(JSON.parse(input.settings!).autoMemoryEnabled, false, "site host settings remain active with personal settings ON");
     assert.equal(input.env?.PATH, enabled ? '/test/login-shell' : undefined);
   }
 });
@@ -109,7 +111,7 @@ test('non-owner and production/hosted paths never consult the owner setting or l
     { ownerPrincipalId: 'daemon-test-principal', env: { EXAMPLE_MACHINE: 'hosted' } },
   ]) {
     const input = await captureDaemonRun({ prompt: 'Use Bash, Task and MCP', nativeToolAccess: true, cliParity: true }, { bindings: {
-      routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+      routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), workspaceId: 'w', siteBinding: { dir: tmpdir() }, toolAttemptAuditSink: { append: async () => {} } },
       resolveBundledHostSignals: ({ env }: { env: Record<string, string | undefined> }) => evaluateHostSignals({ env, declaration: {
         signals: [{ env: "EXAMPLE_MACHINE", facts: { nativeToolsRestricted: true } }],
       } }),
@@ -134,7 +136,7 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
   for (const { key } of ASSISTANT_CLI_CAPABILITIES) {
     const settings = assistantCliPermissions({ enabled: true, capabilities: { [key]: false } });
     const input = await captureDaemonRun({ prompt: 'Test tool gaps' }, { bindings: {
-      routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+      routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), workspaceId: 'w', siteBinding: { dir: tmpdir() }, toolAttemptAuditSink: { append: async () => {} } },
       readAssistantCliPermissions: async () => settings,
     }, lifecycle: { waitForTerminal: () => new Promise(() => {}), stream: async () => ({ kind: 'ok' }) } });
     assert.equal(input.nativeCapabilities?.[key], false);

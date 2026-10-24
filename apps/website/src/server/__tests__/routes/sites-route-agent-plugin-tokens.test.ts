@@ -84,6 +84,17 @@ test("a plugin that takes no token is a 400 AGENT_PLUGIN_TOKEN_UNSUPPORTED: no s
   assert.deepEqual(env.created, []);
 });
 
+test('a token permission refusal is a 400 without creating a site, sealing or calling the token invalid', async t => {
+  const env = setup({ checkAgentPluginAccessToken: async () => 'refused' });
+  const res = await create(env.deps, t, { name: 'new-site', agentPluginTokens: { supabase: TOKEN } });
+  assert.equal(res.status, 400);
+  const body = JSON.parse(res.text);
+  assert.equal(body.code, 'AGENT_PLUGIN_TOKEN_REFUSED');
+  assert.match(body.error, /refused for this purpose/);
+  assert.ok(!res.text.includes(TOKEN));
+  assert.deepEqual([env.created, env.sealed], [[], []]);
+});
+
 test("a checked token: 201, the site is made, and the token is sealed with the new site's key into its folder", async (t) => {
   const env = setup();
   const res = await create(env.deps, t, { name: "new-site", agentPluginTokens: { supabase: `  ${TOKEN}  `, other: "   " } });

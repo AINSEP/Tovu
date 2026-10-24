@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import sharp from "sharp";
 
@@ -103,32 +103,12 @@ function refusal(message: string): ToolInputError {
   return new ToolInputError({ message: `${MEDIA_VIEW_IMAGE_TOOL_ID}: ${message}` });
 }
 
-type AssetLookup = { by: "id"; value: string } | { by: "slug"; value: string };
-
-/**
- * Reads the one lookup key the caller supplied.
- *
- * @throws {ToolInputError} Unless exactly one of `mediaId`/`slug` is a non-empty string.
- */
-function readLookup(input: unknown): AssetLookup {
-  const record = requireInputRecord({ input: input });
-  const keys = (["mediaId", "slug"] as const).filter((key) => record[key] !== undefined);
-  const key = keys.length === 1 ? keys[0]! : undefined;
-  const value = key === undefined ? undefined : record[key];
-  if (key === undefined || typeof value !== "string" || value.length === 0) {
-    throw refusal("pass exactly one of 'mediaId' or 'slug' (a non-empty string).");
-  }
-  return key === "mediaId" ? { by: "id", value } : { by: "slug", value };
-}
-
 /** @throws {ToolInputError} When no asset matches. */
-async function findAsset(deps: MediaViewImageToolDeps, lookup: AssetLookup): Promise<MediaRecord> {
-  const found =
-    lookup.by === "id"
-      ? await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: lookup.value })
-      : await deps.mediaRepo.findBySlug({ workspaceId: deps.workspaceId, slug: lookup.value });
+async function findAsset({ deps, mediaId }: { deps: MediaViewImageToolDeps; mediaId: string }, _options = {}): Promise<MediaRecord> {
+  // The shared assistant adapter resolves slugs; this domain reads only the authorized id.
+  const found = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: mediaId });
   if (!found) {
-    throw refusal(`no media asset with ${lookup.by} '${lookup.value}'. Use content_read.media_asset to list the library and find the right id or slug.`);
+    throw refusal(`no media asset with id or slug '${mediaId}'. Use content_read.media_asset to list the library and find the right id or slug.`);
   }
   return found;
 }
@@ -207,10 +187,10 @@ function assertStillImage(asset: MediaRecord, contentType: string): void {
 export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [MEDIA_VIEW_IMAGE_TOOL_ID]: async (ctx) => {
-      const lookup = readLookup(ctx.input);
+      const mediaId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "mediaId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "media.read" }, { entityType: "media" });
 
-      const asset = await findAsset(deps, lookup);
+      const asset = await findAsset({ deps, mediaId });
       const bytes = await readStoredBytes(deps, asset);
       const contentType = sniffContentType({ bytes });
       assertStillImage(asset, contentType);

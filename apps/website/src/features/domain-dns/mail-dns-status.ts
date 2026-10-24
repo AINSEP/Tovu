@@ -191,7 +191,7 @@ type Resolved = { kind: "records"; requirement: DomainRequirement } | { kind: "n
 const NO_RECORDS: Readonly<Record<string, { state: MailDnsState; message: string }>> = {
   no_sender: { state: "no_sender", message: "Set the site's sender address first; its domain is the one that needs mail DNS records." },
   no_provider: { state: "no_provider", message: "Choose a transactional mail provider first; its records depend on which provider sends." },
-  unknown: { state: "requirements_unavailable", message: "The mail provider's DNS records cannot be read right now (is its key saved under Access Tokens?)." },
+  unknown: { state: "requirements_unavailable", message: "The mail provider's DNS records can't be read right now. Check that its key, or a connected account, can read domains." },
 };
 const UNSUPPORTED = { state: "verification_unavailable" as const, message: "DNS verification is unavailable for this provider: it publishes no domain records to check." };
 

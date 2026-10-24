@@ -160,9 +160,9 @@ const SET_ENABLED_SCHEMA = {
         "with changed:true. Disabling is not confirmed (it only removes capability). For family 'site-runtime', enabling a plugin whose " +
         "manifest declares a data module runs schema DDL against the live database (ADR-023's snapshot-protected, transactional core-mediated " +
         "engine) and is refused unless the plugin's discovery status is 'valid'; disabling has no such precondition. For family 'agent-plugin', " +
-        "enabling reports restartRequired:true — the activation is durable and takes effect immediately for prompt injection, but the plugin's " +
-        "own agent_plugin_<id> tool is registered only when the agent daemon starts, so relay that restart note to the user instead of " +
-        "claiming the plugin's tool is available now.",
+        "enabling reports restartRequired:true for the legacy agent_plugin_<id> registration only. Load its guidance now with " +
+        "load_agent_plugin and use agent_plugin_connect if it needs account sign-in. Continue with available tools; do not ask the person " +
+        "to restart Tovu or claim an unavailable tool is ready.",
     },
   },
 } as const;

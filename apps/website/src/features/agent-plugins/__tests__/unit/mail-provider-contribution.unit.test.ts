@@ -111,6 +111,19 @@ test("parseMailAdaptersFile v1 still refuses a non-array list, a non-object entr
 
 const CARD = { title: "Connect Postal", intro: "Connect Postal to send mail.", helpUrl: "https://postal.example/keys", helpLabel: "Get a key", keyHint: "Sending access", baseUrl: "https://api.postal.example" };
 
+test('mail cards preserve bounded usedFor text and refuse bad copy without dropping the adapter', () => {
+  const usedFor = [' Send site mail ', ...Array(7).fill('x'.repeat(120))];
+  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor } }] }));
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.descriptors[0]!.credentialCard?.usedFor, usedFor.map(value => value.trim()));
+  for (const invalid of [null, 'Send mail', [7], [''], ['   '], ['x'.repeat(121)], Array(9).fill('Send mail')]) {
+    const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor: invalid } }] }));
+    assert.ok(result.ok, 'invalid optional copy must not disable mail');
+    assert.equal(result.descriptors[0]!.credentialCard, undefined);
+    assert.match(result.descriptors[0]!.credentialCardRefusal!, /usedFor/);
+  }
+});
+
 test("parseMailAdaptersFile keeps a v2 credentialCard, and a descriptor without one has none", () => {
   const withCard = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: CARD }] }));
   assert.deepEqual(withCard.ok && withCard.descriptors[0]!.credentialCard, CARD);

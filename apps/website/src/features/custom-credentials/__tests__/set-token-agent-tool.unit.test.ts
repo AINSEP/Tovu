@@ -374,6 +374,8 @@ test("the call stays open after the form is shown, and nothing is sealed while i
 
   assert.equal(ui.type, "resource");
   assert.equal(ui.resource.mimeType, MCP_UI_MIME_TYPE);
+  assert.match(ui.resource.text, /This REPLACES the saved key/);
+  assert.match(ui.resource.text, /Replace saved key/);
   assert.equal(surfaceExchanges.size(), 1);
   assert.equal(
     await Promise.race([pending, Promise.resolve("still-waiting" as const)]),

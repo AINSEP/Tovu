@@ -17,6 +17,7 @@ import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { PluginCredentialCard } from '../../../custom-credentials/plugin-credential-card.js';
 
 
 /**
@@ -64,7 +65,7 @@ class FakeVendorApi implements HttpClientPort {
 }
 
 async function setup(
-  options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string; allowedToolNames?: string; pluginOffByOperator?: boolean; switchOnFails?: boolean; permissionDenied?: boolean } = {},
+  options: { servers?: Readonly<Record<string, McpServerConfig>> | null; rowUrl?: string; allowedToolNames?: string; pluginOffByOperator?: boolean; switchOnFails?: boolean; permissionDenied?: boolean; credentialCard?: PluginCredentialCard } = {},
 ) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
@@ -99,6 +100,7 @@ async function setup(
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
     customCredentialsHttpClient: http,
+    loadPluginCredentialCards: async () => options.credentialCard ? [options.credentialCard] : [],
     resolveInstalledPlugin: async (pluginId) => (pluginId === "supabase" && servers !== null ? { servers } : null),
     // Stands in for apply-connect-defaults: switches on only a row nobody edited (empty lists).
     onConnected: async (serverId) => {
@@ -259,6 +261,37 @@ test("an unreachable vendor stores nothing and says the plugin is unavailable", 
   const { result } = await submit(env, { token: TOKEN });
   assert.deepEqual(result, { saved: false, reason: "unavailable", message: "Supabase is unavailable right now. Try again shortly." });
   assert.equal((await env.readRow())?.sealedOAuth, null);
+});
+
+test('a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token', async () => {
+  const keyHint = 'Use an account key with project-list access.';
+  const env = await setup({ credentialCard: {
+    pluginId: 'supabase', providerId: 'supabase', saveKind: 'agent-plugin-token', label: 'Account key',
+    title: 'Account connection', category: 'ops', baseUrl: 'https://api.supabase.com', keyHint,
+  } });
+  assert.equal((await submit(env, { token: 'previous-working-token' })).result.saved, true);
+  const before = await env.readRow();
+  const connectedBefore = [...env.connected];
+  env.http.respond = () => ({ status: 403, headers: {}, bodyText: RAW_VENDOR_BODY });
+  const { result, emitted } = await submit(env, { token: TOKEN });
+  assert.deepEqual(result, { saved: false, reason: 'refused', message: `This token was refused for this purpose. This card needs: ${keyHint}` });
+  assert.deepEqual(await env.readRow(), before, 'a permission refusal must not replace the working token');
+  assert.deepEqual(env.connected, connectedBefore);
+  assert.ok(JSON.stringify(emitted).includes('refused for this purpose'));
+  assert.ok(JSON.stringify(emitted).includes(keyHint));
+  assert.ok(!JSON.stringify([result, emitted]).includes(TOKEN));
+  assert.ok(!JSON.stringify([result, emitted]).includes(RAW_VENDOR_BODY));
+});
+
+test('a 403 without optional plugin copy is still a refusal rather than an invalid token', async () => {
+  const env = await setup();
+  const before = await env.readRow();
+  env.http.respond = () => ({ status: 403, headers: {}, bodyText: RAW_VENDOR_BODY });
+  const { result } = await submit(env, { token: TOKEN });
+  assert.equal(result.reason, 'refused');
+  assert.match(String(result.message), /refused for this purpose/);
+  assert.doesNotMatch(String(result.message), /invalid/i);
+  assert.deepEqual(await env.readRow(), before);
 });
 
 test("a blank token is refused without a probe, and a cancel stores nothing", async () => {

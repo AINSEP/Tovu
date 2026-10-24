@@ -7,11 +7,12 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import { bareDeps, barePost } from "#src/server/inbound/admin-http/routes/posts/__tests__/preview-fixtures";
 import { renderPostPreview } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
+import { withContentTargets } from "../../../assistant/__tests__/fixtures/content-target-inputs.js";
 function context(input: unknown) { return { principal: { id: 'p' }, input, signal: new AbortController().signal } as never; }
 test("preview passes unsaved fields, shapes the page and is readOnly with no repo writes", async () => {
   const { deps, repo, writes } = bareDeps();
   const bodyJson = { type: 'doc', content: [] }; let received: unknown;
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview: async (_deps, input) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview: async (_deps, input) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } }) })[0]!;
   assert.equal(registration.descriptor.readOnly, true); assert.equal(postPreviewDerivedRisk.get('content_post_preview'), 'none');
   const result = await registration.handler(context({ postId: 'draft-slug', templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>', find: 'needle', textOnly: true }));
   assert.deepEqual(received, { post: barePost, templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>' });
@@ -52,7 +53,7 @@ test("preview body output strips before capping and preserves explicit empty uns
 });
 test("tool uses the REAL extracted renderer for an unsaved bare-page draft", async () => {
   const { deps, repo, writes } = bareDeps();
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview }) })[0]!;
   const html = '<!doctype html><html><body><p>New text</p></body></html>';
   assert.deepEqual(await registration.handler(context({ postId: 'draft-slug', bodyHtml: html })), { postId: 'draft-1', title: 'Draft title', status: 'draft', templateChoice: '', availableTemplates: [], bodyBytes: Buffer.byteLength(html), truncated: false, body: html });
   assert.equal(writes(), 0); assert.deepEqual(await repo.findById({ workspaceId: 'w', id: 'draft-1' }), barePost);
@@ -60,7 +61,7 @@ test("tool uses the REAL extracted renderer for an unsaved bare-page draft", asy
 
 test("preview accepts id or legacy postId; id takes precedence and invalid id never falls back", async () => {
   const { deps, writes } = bareDeps();
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview }) })[0]!;
   const expected = await registration.handler(context({ postId: "draft-slug", find: "<p>" }));
   assert.deepEqual(await registration.handler(context({ id: "draft-1", find: "<p>" })), expected);
   assert.deepEqual(await registration.handler(context({ id: "draft-slug", postId: "missing", find: "<p>" })), expected);

@@ -20,6 +20,9 @@
           "label": "Vercel connection",
           "category": "hosting",
           "intro": "Connect Vercel to publish this site as a production deployment.",
+          "usedFor": [
+            "Publishes and updates your live website on Vercel"
+          ],
           "keyHint": "Create an access token for the personal account or team that owns the project, with permission to create projects and production deployments. Select that team as the token scope when publishing to a team.",
           "saveKind": "publish-host",
           "helpUrl": "https://vercel.com/account/tokens",

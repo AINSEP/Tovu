@@ -10,6 +10,7 @@
       "feedback": true,
       "credentialCard": {
         "title": "Connect Resend",
+        "usedFor": ["Sends your site's emails (sign-in links, form notices, newsletters)"],
         "intro": "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
         "helpUrl": "https://resend.com/api-keys",
         "helpLabel": "Get a key at resend.com/api-keys",

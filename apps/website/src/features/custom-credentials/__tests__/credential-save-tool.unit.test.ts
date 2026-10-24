@@ -2,7 +2,7 @@ import '../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
-import { buildCredentialSaveRegistrations, type CredentialSaveAdapters } from '../credential-save-tool.js';
+import { buildCredentialSaveRegistrations, credentialSaveCatalog, type CredentialSaveAdapters } from '../credential-save-tool.js';
 import { SECRET_FORM_TOOL_IDS } from '../../../contracts/headless/secret-form-cards.js';
 import { isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import { approvalClassFor, applyToolApprovalPolicy } from '../../../assistant/tool-approval-policy.js';
@@ -16,6 +16,11 @@ const cases = [
   { adapter: 'agentPluginToken', input: { kind: 'agent-plugin-token', target: 'supabase' }, forwarded: { pluginId: 'supabase' } },
   { adapter: 'pluginProvider', input: { kind: 'plugin-provider', target: 'mail-host' }, forwarded: { provider: 'mail-host' } },
 ] as const;
+
+test('save guidance chooses a card or saved key by its displayed purpose without asking the person', () => {
+  assert.match(credentialSaveCatalog[0]!.description, /choose the card or saved key whose usedFor covers the task; do not ask the person/i);
+  assert.match(credentialSaveCatalog[0]!.description, /unless the person explicitly asked to replace that key/);
+});
 
 /** Inject observable adapters; no domain store, module mock or renderer is needed to test routing. */
 function fixture() {

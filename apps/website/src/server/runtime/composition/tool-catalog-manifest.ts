@@ -6,6 +6,7 @@ import type { LoadPluginCredentialCards } from "#src/features/custom-credentials
 import path from "node:path";
 import { resolveProductRoot } from "#src/platform/site-dir/index";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
+import { bindContentTargetInputs } from "./content-target-inputs.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
@@ -353,6 +354,7 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });

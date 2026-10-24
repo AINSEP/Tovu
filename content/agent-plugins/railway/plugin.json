@@ -7,11 +7,31 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "maturity": "untested",
       "displayName": "Railway",
       "summary": "Writes the settings file for running the Tovu server on Railway. You follow its notes to finish the deploy.",
       "id": "tovu/railway",
       "provides": [
         "deploy-config:railway"
+      ],
+      "credentialCards": [
+        {
+          "target": "railway",
+          "title": "Connect Railway",
+          "label": "Railway API",
+          "ownedApiLabel": "Railway API",
+          "category": "hosting",
+          "intro": "Save a Railway token for deploying this site from Tovu. Deploys from Tovu are being added; until then the assistant can only look up your Railway projects with it. Writing the deployment settings file needs no token. Untested: this connection hasn't been tried end to end yet.",
+          "usedFor": [
+            "Looks up your Railway projects",
+            "Deploys your server (being added)"
+          ],
+          "keyHint": "In Railway, open Account Settings → Tokens → Create Token and select the workspace that holds the site. The token can do anything in that workspace; Railway has no read-only option.",
+          "saveKind": "api",
+          "helpUrl": "https://railway.com/account/tokens",
+          "helpLabel": "Create a Railway token",
+          "baseUrl": "https://backboard.railway.com/graphql/v2"
+        }
       ]
     }
   },

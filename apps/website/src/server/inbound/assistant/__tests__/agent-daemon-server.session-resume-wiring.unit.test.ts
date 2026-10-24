@@ -1,3 +1,4 @@
+import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { getAgentDef } from "@jini-ai/agent-runtime";
@@ -375,7 +376,7 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
   const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter"), {
-    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
+    getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
     assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
   });
@@ -413,7 +414,9 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
         ...(launched.resumeSessionId ? { resumeSessionId: launched.resumeSessionId } : {}),
         ...(launched.newSessionId ? { newSessionId: launched.newSessionId } : {}) },
     });
-    assert.equal(args.includes("--strict-mcp-config"), userMcp !== true, "only an explicit user MCP grant permits inherited MCP");
+    assert.equal(args.includes("--strict-mcp-config"), userMcp !== true, "the owner MCP opt-in survives both fresh and resumed site launches");
+    assert.equal(overlay.includes("Personal MCP servers are not folder-limited."), userMcp === true);
+    assert.match(overlay, /does not inherit your personal Claude hooks or permissions/);
     assert.equal(args.includes("--resume"), resumed);
     assert.equal(args[args.indexOf("--mcp-config") + 1], "/staged/tovu-mcp.json");
     assert.equal(args.includes("Bash"), resumed, "shell choice must reach actual CLI arguments");

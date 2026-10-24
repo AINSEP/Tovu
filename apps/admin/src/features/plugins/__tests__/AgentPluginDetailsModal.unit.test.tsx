@@ -20,6 +20,16 @@ const PLUGIN: InspectedAgentPlugin = { id: "ui-ux-design", displayName: "UI/UX D
 const identity = (key: string) => key;
 
 describe("AgentPluginDetailsModal details-hook injection", () => {
+  it("shows the maturity pill in the package inspector", async () => {
+    render(<AgentPluginDetailsModal
+      plugin={{ ...PLUGIN, maturity: "untested" }} onClose={vi.fn()} t={identity}
+      useDetails={() => ({ files: [], selectedFile: null, selectFile: vi.fn() })}
+    />);
+    const pill = screen.getByRole("button", { name: "Untested" });
+    await userEvent.setup().click(pill);
+    expect(pill).toHaveAttribute("aria-expanded", "true");
+    expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Not yet tested end to end. It may not work.");
+  });
   it("renders purely off an injected fake, proving useAgentPluginDetailsModal is not hardcoded", () => {
     // A fake with a file no real listing for this plugin would carry is proof this render used the
     // fake, not the real hook.

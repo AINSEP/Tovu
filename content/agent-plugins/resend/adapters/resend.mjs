@@ -169,6 +169,8 @@ function create({ credential, kit }) {
 export default {
   id: 'resend',
   label: 'Resend',
+  // Sending access cannot read domains; the plugin's separate account key can.
+  domainReadConnection: { serverId: 'resend', baseUrl: DEFAULT_BASE_URL },
   credentialKeys: ['token'],
   webhookSecretKey: 'webhookSecret',
   capabilities: { hosted: true, feedback: true, domainVerification: true, rateLimit: { perSecond: 2, burst: 2 } },

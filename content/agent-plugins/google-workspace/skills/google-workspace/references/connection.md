@@ -75,18 +75,20 @@ in from this site's address"), or an organisation that wants its own Google Clou
 its own OAuth client instead of Tovu's. The client secret is typed only into Tovu's secure credential
 form, never into chat. Never ask for it in chat and never accept one pasted there.
 
-1. In their own Google Cloud project, the person creates an OAuth client: **Web application** for a
+1. In their own Google Cloud project, under **Google Auth platform → Clients → Create client**, the
+   person creates an OAuth client: **Web application** for a
    hosted site, with the authorized redirect URI
    `<this site's address>/api/agent-plugins/connections/oauth/callback`; **Desktop app** for the
    desktop app. They enable the Google Sheets API, Google Drive API and Google Picker API there and
    set the consent screen up.
-2. In Tovu, a site admin saves it under **Admin → Access Tokens → Add custom provider**. You may
-   instead open the secure "Save an API credential" card (`custom_credential_create`) with the label
-   and base URL prefilled; the person types the rest into the card:
+2. Open the plugin's **Use your own Google sign-in app** card with
+   `credential_save { kind: "plugin-provider", target: "google-workspace-oauth-client" }`.
+   It fixes the label and address; the person enters only the client ID and client secret:
    - **Label:** exactly `google-workspace/account OAuth client`
    - **Base URL:** `https://oauth2.googleapis.com/token`
    - **Username:** the OAuth client ID
    - **Token:** the client secret
+   Use **Admin → Access Tokens → Add custom provider** only if the plugin card is unavailable.
 3. The person reconnects in the Google Workspace panel. Until then it shows **Reconnect required**:
    a sign-in made with one client cannot be used with another. Spreadsheets chosen before must be
    chosen again with the picker, because Google ties each picked file to the Cloud project whose client picked it.

@@ -9,6 +9,7 @@ import type { MailProviderSetup } from "#src/platform/mail/mail-status";
 
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
 import { parseMailProviderSetupProperty } from "./mail-provider-setup.js";
+import { parseCredentialCardUsedFor } from "./credential-cards.js";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
@@ -75,6 +76,8 @@ export interface MailCredentialCard {
   readonly helpUrl?: string;
   readonly helpLabel?: string;
   readonly keyHint?: string;
+  /** Display-only purpose copy, validated by the same parser as manifest credential cards. */
+  readonly usedFor?: readonly string[];
   readonly baseUrl: string;
 }
 
@@ -228,7 +231,7 @@ const MAX_URL_LENGTH = 500;
 /** A declared key card, or the note saying why it is ignored. Unknown keys are ignored. @complexity O(1). */
 function parseCredentialCard(value: unknown, at: string): { credentialCard: MailCredentialCard } | { credentialCardRefusal: string } {
   if (!isPlainObject(value)) return { credentialCardRefusal: `${at} must be an object` };
-  const card: Record<string, string> = {};
+  const card: Record<string, string | readonly string[]> = {};
   for (const [key, required, valid, rule] of [
     ["title", true, isLabel, "a non-empty string"],
     ["intro", false, isCardText, "a non-empty string"],
@@ -241,6 +244,13 @@ function parseCredentialCard(value: unknown, at: string): { credentialCard: Mail
     if (field === undefined && !required) continue;
     if (!valid(field)) return { credentialCardRefusal: `${at}.${key} must be ${rule}` };
     card[key] = field;
+  }
+  try {
+    const usedFor = parseCredentialCardUsedFor({ value: value.usedFor });
+    if (usedFor !== undefined) card.usedFor = usedFor;
+  } catch {
+    // Bad optional copy must not disable a provider that can still send mail.
+    return { credentialCardRefusal: `${at}.usedFor must be an array of at most 8 non-empty strings (at most 120 characters each)` };
   }
   return { credentialCard: card as unknown as MailCredentialCard };
 }

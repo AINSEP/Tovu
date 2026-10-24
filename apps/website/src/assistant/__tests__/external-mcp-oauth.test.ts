@@ -154,6 +154,70 @@ async function readRow(repo: InMemoryExternalMcpServerRepo) {
   return row;
 }
 
+for (const typedEndpoints of [false, true]) {
+  test(`beginConnect persists the discovered protected resource (${typedEndpoints ? "typed" : "discovered"} endpoints)`, async () => {
+    const resource = "https://mcp.example.com/mcp";
+    const { repo, service, http } = await makeHarness({ script: [
+      { json: { resource, authorization_servers: ["https://auth.example.com"] } },
+      { json: {
+        issuer: "https://auth.example.com", authorization_endpoint: PROVIDER.authorizationEndpoint,
+        token_endpoint: PROVIDER.tokenEndpoint, grant_types_supported: ["authorization_code"],
+      } },
+    ] });
+    const tokenEndpoint = typedEndpoints ? "https://auth.example.com/custom-token" : PROVIDER.tokenEndpoint;
+    await repo.upsert({ ...await readRow(repo), transport: "streamable_http", url: resource,
+      oauthProviderId: null, oauthGrant: null,
+      oauthEndpointsJson: typedEndpoints ? JSON.stringify({ tokenEndpoint }) : null });
+
+    const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+
+    assert.equal(started.kind, "redirect_required");
+    assert.equal(new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("resource"), resource);
+    const stored = JSON.parse((await readRow(repo)).oauthEndpointsJson!);
+    assert.equal(stored.resource, resource);
+    assert.equal(stored.tokenEndpoint, tokenEndpoint, "discovery must preserve operator-typed endpoints");
+    assert.equal(http.callCount(), 2, "resource and endpoints come from the same discovery");
+  });
+}
+
+for (const resource of ["https://vendor.example.com/protected-api", undefined]) {
+  test(`redirect, code exchange and refresh ${resource ? "retain the stored resource" : "support legacy rows without a resource"}`, async () => {
+    const { repo, service, http, clock } = await makeHarness({ script: [
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { json: { token_type: "Bearer", access_token: "at-2", refresh_token: "rt-2", expires_in: 3600 } },
+    ] });
+    await repo.upsert({ ...await readRow(repo), oauthEndpointsJson: JSON.stringify({ resource }) });
+    const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+    assert.equal(started.kind, "redirect_required");
+    const authorizationUrl = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "");
+    assert.equal(authorizationUrl.searchParams.get("resource"), resource ?? null);
+    await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI,
+      params: { state: authorizationUrl.searchParams.get("state")!, code: "auth-code" } });
+    clock.advance(60 * 60 * 1000);
+
+    assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), "at-2");
+    assert.equal(http.requests.length, 2);
+    for (const request of http.requests) {
+      assert.equal(new URLSearchParams(String(request.init?.body)).get("resource"), resource ?? null);
+    }
+  });
+
+  test(`device start and poll ${resource ? "use the stored resource" : "support legacy rows without a resource"}`, async () => {
+    const { repo, service, http } = await makeHarness({ grant: "device_code", script: [
+      { json: { device_code: "dc-1", user_code: "UC-1", verification_uri: "https://auth.example.com/device", expires_in: 600, interval: 1 } },
+      { json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+    ] });
+    await repo.upsert({ ...await readRow(repo), oauthEndpointsJson: JSON.stringify({ resource }) });
+
+    assert.equal((await service.beginConnect({ serverId: SERVER })).kind, "device_code");
+    assert.deepEqual(await service.pollDeviceAuthorization({ serverId: SERVER }), { status: "connected" });
+    assert.equal(http.requests.length, 2);
+    for (const request of http.requests) {
+      assert.equal(new URLSearchParams(String(request.init?.body)).get("resource"), resource ?? null);
+    }
+  });
+}
+
 /** Runs a full redirect handshake: start it, read the `state` back off the authorization URL the
  *  browser would have followed, and complete the callback with it. */
 async function connect(service: ReturnType<typeof createExternalMcpOAuthService>, code = "auth-code"): Promise<void> {

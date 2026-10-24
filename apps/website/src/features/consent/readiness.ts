@@ -1,6 +1,6 @@
 /** @file Read-only projection of Jini's denied-visitor gate, never a second classifier. */
 import { CONSENT_CATEGORIES, type ConsentConfig } from '@jini-ai/cms/consent';
-import { gateConsentHtml, type ConsentGateOptions } from '@jini-ai/cms/consent/html';
+import { gateConsentHtml } from '@jini-ai/cms/consent/html';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import type { ConsentProblem } from './validation.js';
 
@@ -50,13 +50,13 @@ export type ConsentDryRunGate = typeof gateConsentHtml;
 
 /** A bounded rendered sample; failures are blocking evidence, never a green readiness result.
  * @param options.gate the engine gate (default `gateConsentHtml`); injectable so the fail-closed path is testable.
- * @example consentDryRun({ html, config, necessaryScripts: [] })
+ * @example consentDryRun({ html, config })
  * @complexity O(n) time/space for at most 1 MB of rendered HTML. */
-export function consentDryRun({ html, config, necessaryScripts }: { html: string; config: ConsentConfig; necessaryScripts: NonNullable<ConsentGateOptions['necessaryScripts']> }, options: { gate?: ConsentDryRunGate } = {}) {
+export function consentDryRun({ html, config }: { html: string; config: ConsentConfig }, options: { gate?: ConsentDryRunGate } = {}) {
   const problems: ConsentProblem[] = [];
   const gate = options.gate ?? gateConsentHtml;
   try {
-    const gated = gate({ html, config: { ...config, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }, { necessaryScripts });
+    const gated = gate({ html, config: { ...config, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
     const inventory = consentGateInventory({ html: gated });
     if (inventory.truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 gated items. Inspect a smaller page sample.' });
     return { ...inventory, gatedHtml: gated, problems, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })) };

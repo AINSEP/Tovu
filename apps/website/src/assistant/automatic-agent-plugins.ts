@@ -4,6 +4,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import type { PrepareToolGuidance } from '@jini-ai/daemon';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { loadAgentPluginSearchCandidates } from '../features/agent-plugins/tool-registrations.js';
+import type { PluginMaturity } from '../features/agent-plugins/identity.js';
 import { createSettingsPrincipalLookup } from '../features/settings/index.js';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '../features/settings/admin-interface.js';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -38,7 +39,7 @@ function chatAgentPluginsMode({ value }: { value: unknown }, _options = {}): Cha
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
  */
 export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticPluginDeps; surfaces: AssistantSurfaceDeps }, _options = {}) {
-  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string> };
+  type Entry = { turnId: string; controller: ReturnType<typeof createAutomaticAgentPluginUse>; context: AutomaticPluginRun; abort: AbortController; pending: boolean; attempts: Set<string>; maturities: Map<string, PluginMaturity | undefined> };
   const turns = new Map<string, Entry>();
   const runs = new Map<string, Entry>();
   // A terminal attempt cannot publish its late answer. Hand it to the next turn in this chat.
@@ -92,9 +93,15 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
   /** One logical turn's controller wired to the existing catalog, resolver, consent card and settings ports. */
   function createEntry({ mode, context, turnId, runId }: { mode: ChatAgentPlugins; context: AutomaticPluginRun; turnId: string; runId: string }): Entry {
     const abort = new AbortController();
+    const maturities = new Map<string, PluginMaturity | undefined>();
     let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
-      list: () => loadAgentPluginSearchCandidates(deps),
+      list: async () => {
+        const candidates = await loadAgentPluginSearchCandidates(deps);
+        maturities.clear();
+        for (const candidate of candidates) maturities.set(candidate.pluginId, candidate.maturity);
+        return candidates;
+      },
       rank: (input) => rankInstalledAgentPlugins(input.query.slice(0, 16000), input.candidates, input.limit, { automatic: true }),
       resolve: ({ pluginId }) => resolveAgentPluginRefs([pluginId], deps.agentPluginLayout.forWorkspace(deps.workspaceId), 'inject'),
       ask: async ({ matches }) => {
@@ -114,7 +121,7 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
         await entry.context.publish({ conversationId: context.conversationId, ...value });
       },
     } });
-    entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]) };
+    entry = { turnId, controller, context, abort, pending: false, attempts: new Set([runId]), maturities };
     return entry;
   }
   const prepareGuidance: PrepareToolGuidance = async ({ run, tool, signal }) => {
@@ -150,7 +157,8 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
         cancelled: 'The plugin load was cancelled. No guidance was loaded.',
         unavailable: 'This plugin’s guidance could not be resolved. No guidance was loaded.',
       };
-      return { pluginId, ...result, ...(result.status !== 'loaded' ? { note: notes[result.status] } : {}) };
+      const maturity = entry.maturities.get(pluginId);
+      return { pluginId, ...result, ...(maturity ? { maturity } : {}), ...(result.status !== 'loaded' ? { note: notes[result.status] } : {}) };
     } },
   })[0]!;
   /** Dispose an attempt alias. Durable attempt replacement retains a pending exchange until its

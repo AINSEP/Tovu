@@ -112,7 +112,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
 
 // Capture the real executor boundary: cwd must stay site-bound even when a session resumes.
 for (const override of [undefined, "/explicit/agent-workdir"]) {
-  test(`runtime: cold and resumed CLI cwd ${override === undefined ? "defaults to the site directory" : "honors TOVU_AGENT_CWD"}`, async () => {
+  test(`runtime: cold and resumed CLI cwd ${override === undefined ? "defaults to the site directory" : "ignores TOVU_AGENT_CWD (owner 2026-10-23)"}`, async () => {
     const harness = sessionHarness(undefined, { env: override === undefined ? {} : { TOVU_AGENT_CWD: override } });
     harness.start("cold");
     harness.releaseWrite();
@@ -121,7 +121,7 @@ for (const override of [undefined, "/explicit/agent-workdir"]) {
     assert.equal(harness.launches.length, 1);
     assert.equal(harness.launches[0]!.newSessionId, "minted-1");
     assert.equal(harness.launches[0]!.resumeSessionId, undefined);
-    assert.equal(harness.launches[0]!.cwd, override ?? "/external/site");
+    assert.equal(harness.launches[0]!.cwd, "/external/site");
 
     harness.start("resumed");
     await harness.flush();
@@ -129,7 +129,7 @@ for (const override of [undefined, "/explicit/agent-workdir"]) {
     assert.equal(harness.launches.length, 2);
     assert.equal(harness.launches[1]!.newSessionId, undefined);
     assert.equal(harness.launches[1]!.resumeSessionId, "minted-1");
-    assert.equal(harness.launches[1]!.cwd, override ?? "/external/site");
+    assert.equal(harness.launches[1]!.cwd, "/external/site");
   });
 }
 

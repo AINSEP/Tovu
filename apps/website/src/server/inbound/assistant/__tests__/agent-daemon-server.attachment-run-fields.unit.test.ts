@@ -26,6 +26,8 @@ function resolver({ claim, def, attachmentStoreMissing = false }: {
   const attachmentStore: Pick<AttachmentStore, "claim"> = { claim: claim ?? (async () => assert.fail("the store must not be consulted")) };
   const resolve = evaluateDaemonExpression<Resolve>(daemonFunction("resolveAttachmentRunFields"), {
     attachmentStore: attachmentStoreMissing ? undefined : attachmentStore,
+    routeDeps: { siteBinding: { dir: '/site' } }, stagedAttachmentCleanupByRunId: new Map(),
+    stageAttachmentClaim: async ({ claim }: { claim: unknown }) => ({ claim, cleanup: async () => {} }),
     DEFAULT_AGENT_ID: "default-agent", agentReceivesImageAttachments,
     getAgentDef: (input: unknown) => { calls.defs.push(input); return def; },
     prepareMessageAttachments: async (_required: unknown, options: PrepareOptions) => {
@@ -74,10 +76,10 @@ describe("resolveAttachmentRunFields", () => {
     assert.deepEqual(calls.errors, [["[agent-daemon] run attachment-run: attachment claim failed", "expired"]]);
   });
 
-  test("a claimed batch grants its directory and returns the prepared paths, pixels and notice", async () => {
+  test("a staged batch returns prepared paths, pixels and notice without adding directories", async () => {
     const { resolve } = resolver({ claim: claimedBatch, def: { imageDelivery: "native" } });
     assert.deepEqual(await resolve({ run: RUN, attachmentIds: ["ref"], runLifecycle: LIFECYCLE, agentId: "claude" }, {}), {
-      imagePaths: ["/batch/a.png"], imageContents: [], attachmentNotice: "notice", extraAllowedDirs: ["/batch"], uploadRoot: "/batch",
+      imagePaths: ["/batch/a.png"], imageContents: [], attachmentNotice: "notice", uploadRoot: "/batch",
     });
   });
 

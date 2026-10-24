@@ -72,6 +72,10 @@
           "label": "Higgsfield account",
           "category": "media",
           "intro": "Connect Higgsfield to generate images or video and save the finished files in this site’s Media library.",
+          "usedFor": [
+            "Checks available image and video models and generation progress",
+            "Generates images and videos using your account's credits"
+          ],
           "keyHint": "Browser sign-in only; this connection does not accept a pasted API key.",
           "saveKind": "oauth",
           "permissions": "Model discovery and job status can be read. Generation tools require a separate write grant and use the models and credits available on your account. Review the permissions on the sign-in page.",

@@ -9,7 +9,7 @@ import { createToolRegistry, type Principal, type ToolRegistration } from "@jini
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, prepareMessageAttachments } from "@jini-ai/daemon";
-import { createDiskAttachmentStore, delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
+import { createDiskAttachmentStore, stageAttachmentClaim, delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool-constraint";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
@@ -59,17 +59,18 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     // This is the contract the old unit test bypassed: get() exposes status, never contextRef.
     assert.equal("contextRef" in (await lifecycle.get({ runId: run.id }))!, false);
     const registration = discoveryRegistration({ lifecycle, attachmentStore: store, messageAttachmentRefsByRunId });
+    const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
     const resolveAttachmentRunFields = evaluateDaemonExpression<(required: unknown, optional: {}) => Promise<unknown>>(
       daemonFunction("resolveAttachmentRunFields"),
-      { attachmentStore: store, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
+      { attachmentStore: store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
     );
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {
-        principalByRunId, messageAttachmentRefsByRunId, attachmentStore: store, resolveAttachmentRunFields,
+        principalByRunId, messageAttachmentRefsByRunId, attachmentStore: store, resolveAttachmentRunFields, stagedAttachmentCleanupByRunId,
         liveRunTracker: createLiveRunTracker({}, {}), waitForStoppingRuns, STOPPING_RUN_WAIT_MS,
         extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume,
         runCredentials: { revoke() {} }, runOwners: { record() {}, forget() {} }, RUN_OWNER_RETENTION_MS: 0,
-        routeDeps: { workspaceId: "ws-attachment-regression", chatRunLedger: {}, agentSessions: {
+        routeDeps: { workspaceId: "ws-attachment-regression", siteBinding: { dir: root }, chatRunLedger: {}, agentSessions: {
           getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {},
         } },
       },

@@ -55,8 +55,12 @@ export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens:
 export function describeNewSiteAgentPluginTokenRefusal(
   pluginId: string,
   outcome: TokenCheckOutcome,
-): { code: "AGENT_PLUGIN_TOKEN_INVALID" | "AGENT_PLUGIN_TOKEN_UNSUPPORTED"; error: string } | null {
+): { code: "AGENT_PLUGIN_TOKEN_INVALID" | "AGENT_PLUGIN_TOKEN_REFUSED" | "AGENT_PLUGIN_TOKEN_UNSUPPORTED"; error: string } | null {
   const name = titleCaseFromPluginId(pluginId);
+  // A purpose refusal must still stop a pre-save check, without mislabelling a usable key.
+  if (outcome === "refused") {
+    return { code: "AGENT_PLUGIN_TOKEN_REFUSED", error: `That ${name} access token was refused for this purpose. Check its permissions, or leave it empty and connect ${name} later from chat. No site was created.` };
+  }
   if (outcome === "invalid") {
     return { code: "AGENT_PLUGIN_TOKEN_INVALID", error: `That ${name} access token didn't work. Check it, or leave it empty and connect ${name} later from chat. No site was created.` };
   }

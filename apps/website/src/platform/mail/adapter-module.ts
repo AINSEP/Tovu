@@ -19,4 +19,6 @@ export interface MailAdapterCreateContext {
 /** A loaded Tovu plugin receives guarded HTTP and returns the existing host mail port. */
 export interface MailAdapterModule {
   create(context: MailAdapterCreateContext): MailerPort;
+  /** Plugin-owned account connection and API origin for domain reads a sending key cannot do. */
+  readonly domainReadConnection?: { readonly serverId: string; readonly baseUrl: string };
 }

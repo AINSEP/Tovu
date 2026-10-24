@@ -7,6 +7,9 @@ description: Publish the site's static export to GitHub Pages with the workspace
 
 ## Connection card
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Open the plugin’s **Connect GitHub Pages** card with `credential_save {kind:"plugin-provider",target:"github-pages"}`. Select only the destination repository and grant Contents and Pages **Read and write**. The card links to token creation; the hosting owner verifies and seals it.
 
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
@@ -34,7 +37,7 @@ This file is what is particular to GitHub Pages.
 |---|---|---|
 | `GitHub token is required.` | No token in the saved credential. | Open the plugin card above. |
 | `invalid GitHub owner '...'` / `invalid GitHub repo '...'` / `invalid branch name '...'` | A config field has a typo or bad characters. | Correct the owner, repo, or branch name. |
-| `Bad credentials` / `Resource not accessible by personal access token` (401/403) | The token is wrong, expired, or lacks the permissions above. | Make a new token for this repo with Contents and Pages write access. |
+| `Bad credentials` / `Resource not accessible by personal access token` (401/403) | The token is wrong, expired, or lacks the permissions above. | Check this repo's Contents and Pages access; replace the token only if asked. |
 | `Not Found` (404) | The repo does not exist, or the token cannot see it. | Check the owner and repo names and the token's repository access. |
 | `GitHub Pages build errored.` | GitHub accepted the files but its Pages build failed. | Retry once; if it repeats, check the repo's Pages settings. |
 | `... attempted to redirect an authenticated request ...` | Something redirected the call; Tovu refused to send the token on. | Retry later; if it repeats, check the server's network or proxy. |

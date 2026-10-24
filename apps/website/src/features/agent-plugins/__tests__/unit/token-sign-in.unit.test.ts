@@ -56,9 +56,9 @@ test("a token the vendor accepts is ok: one GET to the declared probe URL with t
   assert.equal(http.requests[0]?.headers?.authorization, `Bearer ${TOKEN}`);
 });
 
-test("401 and 403 are invalid; any other failure or an unreachable vendor is unavailable", async () => {
+test("401 is invalid and 403 is refused; any other failure or an unreachable vendor is unavailable", async () => {
   assert.equal(await check(new FakeVendorApi(status(401)), { supabase: tokenServer() }), "invalid");
-  assert.equal(await check(new FakeVendorApi(status(403)), { supabase: tokenServer() }), "invalid");
+  assert.equal(await check(new FakeVendorApi(status(403)), { supabase: tokenServer() }), "refused");
   assert.equal(await check(new FakeVendorApi(status(503)), { supabase: tokenServer() }), "unavailable");
   const unreachable = new FakeVendorApi(() => Promise.reject(new Error("ECONNREFUSED")));
   assert.equal(await check(unreachable, { supabase: tokenServer() }), "unavailable");

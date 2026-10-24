@@ -83,7 +83,7 @@ test('chat-input regression: empty theme replacement is valid input but still re
   assert.equal(authorized, 2);
 });
 
-test('chat-input regression: media slug is not silently treated as an id or discarded filter', async () => {
+test('a raw media card without the host target adapter refuses unsupported filters', async () => {
   const inputs: unknown[] = [];
   const [registration] = deriveContentReadRegistrations([
     recordingRegistration({ id: 'media_list_assets', schema: { type: 'object', additionalProperties: false, properties: { site: { type: 'string' } } }, inputs }),
@@ -91,8 +91,7 @@ test('chat-input regression: media slug is not silently treated as an id or disc
   assert.ok(registration);
   const result = await executeRegisteredTool({ registration, input: { slug: 'tovu-promo-01' } });
   assert.equal(result.errorKind, 'validation');
-  assert.match(result.error!, /Unknown input 'slug'.*Accepted properties:.*site.*id/);
-  assert.match(result.error!, /content_read\.media_asset\(\{\}\).*matching slug.*returned assets/);
+  assert.match(result.error!, /Unknown input 'slug'.*Declared inputs:.*site.*id/);
   assert.deepEqual(inputs, []);
   const listed = await executeRegisteredTool({ registration, input: { site: 'peer' } });
   assert.equal(listed.status, 'completed');
@@ -114,12 +113,11 @@ test('chat-input regression: media lookup retains the peer site selector and ref
   assert.equal(conflicted.errorKind, 'validation');
   assert.match(conflicted.error!, /Conflicting inputs/);
   const slug = await executeRegisteredTool({ registration, input: { slug: 'photo', site: 'peer' } });
-  assert.match(slug.error!, /Unknown input 'slug'.*Accepted properties:.*site.*id/);
-  assert.match(slug.error!, /peer site.*site selector/);
+  assert.match(slug.error!, /Unknown input 'slug'.*Declared inputs:.*site.*id/);
   assert.equal(inputs.length, 1);
 });
 
-test('chat-input regression: page writes still require a real id, with the tool properties and a recovery example', async () => {
+test('raw page writers leave slug resolution to the shared host adapter', async () => {
   let reads = 0;
   const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo([]),
     authorize: async () => ({ allowed: true, reason: 'test' }),
@@ -128,9 +126,7 @@ test('chat-input regression: page writes still require a real id, with the tool 
   for (const registration of registrations.filter(tool => tool.descriptor.id !== 'pages_read_html')) {
     const result = await executeRegisteredTool({ registration, input: { slug: '/' } });
     assert.equal(result.errorKind, 'validation');
-    assert.match(result.error!, /Unknown input 'slug'.*Accepted properties:.*id/);
-    assert.match(result.error!, /content_read\.content_post.*"kind":"page"/);
-    assert.match(result.error!, /"id":"<page id>"/);
+    assert.match(result.error!, /Unknown input 'slug'.*Declared inputs:.*id/);
   }
   assert.equal(reads, 0);
 });
@@ -145,14 +141,14 @@ test('chat-input regression: filesystem reads explain unsupported find and listi
   const found = await executeRegisteredTool({ registration: read, input: { root: 'repo', path: 'development/docs/themes/themes-guide.md', find: 'post-previews' } });
   assert.equal(found.errorKind, 'validation');
   assert.match(found.error!, /Unknown input 'find'.*Accepted properties: root, path/);
-  assert.match(found.error!, /"root":"repo","path":".*"/);
+  assert.match(found.error!, /"root":"site","path":".*"/);
   assert.match(found.error!, /full.*content/);
   for (const registration of registrations) {
     for (const root of [undefined, '', 42]) {
       const result = await executeRegisteredTool({ registration, input: { root } });
       assert.equal(result.errorKind, 'validation');
       assert.match(result.error!, /root.*repo, site, custom/);
-      assert.match(result.error!, /"root":"repo"/);
+      assert.match(result.error!, /"root":"site"/);
     }
   }
   assert.equal(resolutions, 0);

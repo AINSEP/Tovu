@@ -523,7 +523,8 @@ test("enabling an Agent Plugin reports restartRequired:true and says why — its
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
     const out = result as { restartRequired: boolean; note: string };
     assert.equal(out.restartRequired, true);
-    assert.match(out.note, /restart/i, "reporting success without the restart caveat is what left operators confused");
+    assert.match(out.note, /load_agent_plugin/);
+    assert.match(out.note, /Do not ask the person to restart Tovu/);
   });
 });
 

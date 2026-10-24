@@ -508,6 +508,8 @@ export interface AdminServerLogsQuery {
 /** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
+  /** Provider-side sender-domain verdict, independent of whether the sending key is saved. */
+  senderDomainVerification?: import("../features/email/email-api").ProviderDomainVerification;
   mailDeliveryAvailable: boolean;
   /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
    *  admin's blocking banner. */
@@ -2218,6 +2220,8 @@ export interface AdminPluginFiles {
  *  `description` are nullable, not optional-absent: the wire always sends the key, `null` when the
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
+  /** Tovu host maturity; absent means normal. */
+  maturity?: "untested" | "soon";
   provides?: string[];
   origin?: "bundled" | "operator-installed";
   hostOk?: boolean;

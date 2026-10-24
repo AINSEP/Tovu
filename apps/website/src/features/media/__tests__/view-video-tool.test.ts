@@ -13,6 +13,7 @@ import { runByokProviderTurn } from '../../../assistant/byok-provider-turn.js';
 import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
 import { applyBatchInputs, type BatchResult } from '../../../assistant/batch-tool-inputs.js';
 import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
+import { withContentTargets } from '../../../assistant/__tests__/fixtures/content-target-inputs.js';
 
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md.
 // Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
@@ -39,7 +40,7 @@ async function harness() {
     authorize: async () => ({ allowed: true, reason: 'matched' }),
     readAttachment: async (input) => { reads++; return input.ownerId === owner && input.ref === attachmentRef ? { ok: true, bytes: mp4 } : { ok: false, refusal: 'not-owner' }; },
   };
-  const registrations = buildMediaViewVideoRegistrations(deps, {});
+  const registrations = withContentTargets({ registrations: buildMediaViewVideoRegistrations(deps, {}), deps });
   const tool = registrations[0]!;
   const call = (input: unknown, principalId = owner) => tool.handler({ executionId: 'video-exec', principal: { id: principalId }, run: { id: 'video-run' }, input, signal: new AbortController().signal } satisfies ToolExecutionContext);
   const seed = async (principal = owner) => (await uploadMedia({ deps: {

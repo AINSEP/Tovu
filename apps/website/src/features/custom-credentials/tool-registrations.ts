@@ -1040,13 +1040,18 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
   const handlers: Record<string, ToolHandler> = {
     // Non-decrypting read-back through the existing store, scoped by the read permission and
     // empty-input contract. Saved origins and usernames reach the model; token hints remain
-    // on human surfaces. One workspace read plus O(n) projection, n saved credentials.
-    custom_credential_list: async (ctx): Promise<{ credentials: Omit<CustomCredentialSummary, "tokenHint">[] }> => {
+    // on human surfaces. One workspace read plus O(n + c) projection for saved rows and active cards.
+    custom_credential_list: async (ctx): Promise<{ credentials: (Omit<CustomCredentialSummary, "tokenHint"> & { pluginId?: string; usedFor?: readonly string[] })[] }> => {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: READ_PERMISSION }, { entityType: DOMAIN });
       const credentials = await listCustomCredentials({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId });
-      // Hints are human-only, as on the create card; retain the model's existing field contract.
-      return { credentials: credentials.map(({ tokenHint: _humanHint, ...credential }) => credential) };
+      const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+      const apiCards = new Map(cards.filter(card => card.saveKind === undefined || card.saveKind === 'api').map(card => [card.ownedApiLabel ?? card.label, card]));
+      // Exact owned labels attach display copy only; usedFor never participates in key selection.
+      return { credentials: credentials.map(({ tokenHint: _humanHint, ...credential }) => {
+        const card = apiCards.get(credential.label);
+        return card ? { ...credential, pluginId: card.pluginId, usedFor: card.usedFor ?? [] } : credential;
+      }) };
     },
 
     custom_credential_verify: async (ctx) => {

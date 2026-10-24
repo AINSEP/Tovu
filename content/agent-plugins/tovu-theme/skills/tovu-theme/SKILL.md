@@ -86,6 +86,8 @@ path name if a doc and what you see on disk seem to disagree.
 
 # Shared rules (every job)
 
+Analytics, tracking, or marketing scripts you add must carry `data-consent-category="analytics"` or `data-consent-category="marketing"`, including first-party and inline scripts.
+
 ## Rule 1 — Build as apiVersion 2. The v1 flat layout is legacy, not a safe default.
 
 Every theme actually served by a real site today (`sites/*/themes/static/basic`, and every

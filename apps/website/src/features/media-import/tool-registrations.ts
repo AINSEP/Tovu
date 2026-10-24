@@ -21,8 +21,9 @@ import {
 } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
+import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
-import { FS_ROOT_IDS, resolveFsRoots, type FsRootId } from "../fs-files/layout.js";
+import type { FsRootId } from "../fs-files/layout.js";
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
@@ -192,25 +193,20 @@ export interface ImportedMediaView {
   sourceUrl: string;
 }
 
-/**
- * Selects one existing fs-files root id. Only the owner can configure its directory.
- * @throws {MediaImportValidationError} For an unknown id or an unset custom folder.
- * @complexity O(1), one workspace root resolution.
+/** Resolve a site-only source through the same execution boundary as fs-files.
+ * Returns the site as the final I/O root, so a custom symlink cannot become a trusted base.
+ * @throws MediaImportValidationError for unavailable roots; FsFilePathError for unsafe source paths.
+ * @complexity O(path depth), bounded guarded-reader filesystem checks.
  */
-export function resolveLocalImportRoot(
-  required: { routeDeps: Pick<MediaImportToolDeps, "siteBinding" | "workspaceId" | "resolveRoots">; root: string },
+export function resolveLocalImportRequest(
+  required: { routeDeps: Pick<MediaImportToolDeps, "siteBinding" | "workspaceId" | "resolveRoots">; root: string; relativePath: string },
   _optional: Record<string, never> = {},
-): string {
-  const { routeDeps, root } = required;
-  if (!(FS_ROOT_IDS as readonly string[]).includes(root)) {
-    throw new MediaImportValidationError({ message: `'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}` });
+): { rootPath: string; relativePath: string } {
+  try { return resolveSiteFileRequest(required, {}); }
+  catch (error) {
+    if (error instanceof FsFilePathError) throw error;
+    throw new MediaImportValidationError({ message: error instanceof Error ? error.message : `Source must be inside this site folder. ${LOCAL_FILE_IMPORT_RECOVERY}` });
   }
-  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))();
-  const rootPath = roots[root as FsRootId];
-  if (rootPath === undefined) {
-    throw new MediaImportValidationError({ message: `no folder has been set for the '${root}' root yet. ${LOCAL_FILE_IMPORT_RECOVERY}` });
-  }
-  return rootPath;
 }
 
 /**
@@ -246,10 +242,10 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
  * @throws FsFilePathError or MediaImportValidationError for unsafe paths or unsupported bytes.
  * @complexity O(b) time/space for b file bytes, bounded by the host upload ceiling. */
 async function readLocalReplacement({ routeDeps, input }: { routeDeps: MediaImportToolDeps; input: Record<string, unknown> }, _optional = {}) {
-  const rootPath = resolveLocalImportRoot({ routeDeps, root: requireString({ input, key: "root" }) });
   const relativePath = requireString({ input, key: "path" });
+  const request = resolveLocalImportRequest({ routeDeps, root: requireString({ input, key: "root" }), relativePath }, {});
   const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
-  const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
+  const bytes = await openFsFileForRead({ ...request, maxBytes });
   const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
   return { bytes, contentType };
 }
@@ -316,9 +312,9 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
         isShapeRejection: ({ error }) => error instanceof FsFilePathError || error instanceof MediaImportValidationError || error instanceof MediaValidationError,
         fn: async () => {
-          const rootPath = resolveLocalImportRoot({ routeDeps, root });
+          const request = resolveLocalImportRequest({ routeDeps, root, relativePath }, {});
           const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
-          const bytes = await openFsFileForRead({ rootPath, relativePath, maxBytes });
+          const bytes = await openFsFileForRead({ ...request, maxBytes });
           const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
           const title = optionalString({ input, key: "title" });
           // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets

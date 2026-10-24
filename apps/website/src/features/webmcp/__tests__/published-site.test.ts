@@ -21,7 +21,7 @@ test('opt-out removes a marked script even when the marker follows other attribu
 test('injection respects an uppercase closing body and preserves the remaining document bytes', () => {
   const html = '<HTML><BODY>Text</BODY></HTML>';
   const injected = injectPublishedWebMcp({ html, enabled: true }, {});
-  assert.ok(injected.startsWith('<HTML><BODY>Text<script data-tovu-webmcp-script>'));
+  assert.ok(injected.startsWith('<HTML><BODY>Text<script data-tovu-webmcp-script data-consent-category="functional">'));
   assert.ok(injected.endsWith('</script></BODY></HTML>'));
   assert.equal(injectPublishedWebMcp({ html: injected, enabled: false }), html);
 });

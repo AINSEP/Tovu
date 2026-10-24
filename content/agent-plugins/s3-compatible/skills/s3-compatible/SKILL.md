@@ -7,6 +7,9 @@ description: Publish the site's static export to S3-compatible storage (AWS S3, 
 
 ## Connection card
 
+Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+task. Never offer a replacement unless the person asks.
+
 Open the plugin’s **Connect S3-compatible storage** card with `credential_save {kind:"plugin-provider",target:"s3-compatible"}`. It collects the bucket, region, endpoint, access key ID, public URL and masked secret access key, plus optional private-media settings. Scope the key to the selected bucket. Key creation belongs to your storage provider’s console; no single key-creation URL covers all compatible services.
 
 The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a

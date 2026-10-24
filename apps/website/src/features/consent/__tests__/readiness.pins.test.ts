@@ -59,7 +59,7 @@ test('200 body items report truncation for the remaining empty head (reported, n
 test('a dry run whose engine gate throws is blocking evidence with every optional category still denied', () => {
   const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } as Parameters<typeof consentDryRun>[0]['config'];
   const seen: unknown[] = [];
-  const result = consentDryRun({ html: '<p>page</p>', config, necessaryScripts: [] }, { gate: (input) => { seen.push(input.config.enabled); throw new Error('cannot normalize'); } });
+  const result = consentDryRun({ html: '<p>page</p>', config }, { gate: (input) => { seen.push(input.config.enabled); throw new Error('cannot normalize'); } });
   assert.deepEqual(seen, [true], 'the dry run always gates as if consent were enabled');
   assert.deepEqual(result, {
     items: [], gatedHtml: null, truncated: false,
@@ -70,8 +70,8 @@ test('a dry run whose engine gate throws is blocking evidence with every optiona
 
 test('a dry run over more than 200 gated items reports a truncated inventory as a blocking problem', () => {
   const config = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy' } as Parameters<typeof consentDryRun>[0]['config'];
-  const html = `<!doctype html><html><head></head><body>${'<button onclick="go()">Go</button>'.repeat(201)}</body></html>`;
-  const result = consentDryRun({ html, config, necessaryScripts: [] });
+  const html = `<!doctype html><html><head></head><body>${'<button data-consent-category="analytics" onclick="go()">Go</button>'.repeat(201)}</body></html>`;
+  const result = consentDryRun({ html, config });
   assert.equal(result.truncated, true);
   assert.equal(result.items.length, 200);
   assert.deepEqual(result.problems, [{ code: 'INVENTORY_TRUNCATED', message: 'More than 200 gated items. Inspect a smaller page sample.' }]);

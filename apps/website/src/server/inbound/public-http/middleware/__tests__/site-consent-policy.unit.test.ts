@@ -2,12 +2,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
-import { InMemoryPresentationSettingsRepo } from '@jini-ai/cms/presentation';
 import { gateConsentHtml } from '@jini-ai/cms/consent/html';
 import { JSDOM } from 'jsdom';
-import type { DiscoveredTheme } from '#src/features/theme/index';
+import { decoratePreviewPage } from '#src/features/theme/preview-switcher-html';
+import { injectPublishedWebMcp } from '#src/features/webmcp/published-html';
+import { renderLazySiteChatMarkup } from '../../http/site/site-chat-markup.js';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
-import { resolveSiteConsentOrigin, resolveSiteConsentNecessaryScripts } from '../site-consent.js';
+import { resolveSiteConsentOrigin } from '../site-consent.js';
 
 test('consent origin uses only same-scheme, same-port loopback Host aliases', t => {
   const original = process.env.TOVU_PUBLIC_URL;
@@ -38,44 +39,58 @@ test('consent origin uses only same-scheme, same-port loopback Host aliases', t 
   assert.equal(resolveSiteConsentOrigin({ request }), 'https://site.example:3000');
 });
 
-test('only active theme script sources survive the denied-visitor gate, including after a theme switch', async () => {
-  const theme = (id: string): DiscoveredTheme => ({
-    manifest: { id, apiVersion: 2 }, status: 'valid',
-    pages: { index: '<script src="../scripts/nav.js"></script>' },
-    partials: { footer: `<script src="/theme-assets/${id}/scripts/mode.js"></script>
-      <script src="https://tracker.example/track.js"></script>
-      <script src="//tracker.example/theme-assets/${id}/scripts/remote.js"></script>
-      <script src="/theme-assets/other/scripts/other.js"></script>
-      <script src="/theme-assets/${id}/scripts/../../other/scripts/escape.js"></script>` },
-    liquidTemplates: {}, handlebarsTemplates: {},
-  } as DiscoveredTheme);
-  const presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [
-    { workspaceId: 'ws', activeThemeId: 'active', updatedAt: '2026-10-23T00:00:00Z' },
-  ] });
-  const deps = { workspaceId: 'ws', presentationRepo, themes: [theme('active'), theme('other')] };
-  const html = `<html><head></head><body>
-    <script src="/theme-assets/active/scripts/nav.js"></script>
-    ${deps.themes[0].partials.footer}</body></html>`;
-  const necessaryScripts = await resolveSiteConsentNecessaryScripts({ deps });
-  assert.deepEqual(necessaryScripts.flatMap(entry => entry.src === undefined ? [] : [entry.src]).sort(), [
-    '/theme-assets/active/scripts/mode.js', '/theme-assets/active/scripts/nav.js',
-  ]);
-  const gated = gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
-    record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }, { necessaryScripts });
-  const dom = new JSDOM(gated);
+test('active and preview theme script sources survive rejection without a theme exemption list', () => {
+  const html = '<html><head></head><body><script src="/theme-assets/active/scripts/nav.js"></script>' +
+    '<script src="/theme-assets/preview/scripts/nav.js"></script><script src="https://tracker.example/track.js"></script>' +
+    '<script data-consent-category="analytics" src="/theme-assets/preview/scripts/analytics.js"></script></body></html>';
+  const record = { id: 'rejected_0123456789012345', timestamp: '2026-10-24T00:00:00Z', policyVersion: '1',
+    regionMode: 'opt-in' as const, gpc: false, action: 'reject' as const,
+    choices: { necessary: true as const, functional: false, analytics: false, marketing: false } };
+  for (const choice of [null, record]) {
+    const gated = gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
+      record: choice, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+    const dom = new JSDOM(gated);
+    try {
+      const document = dom.window.document;
+      assert.ok(document.querySelector('script[src="/theme-assets/active/scripts/nav.js"]'));
+      assert.ok(document.querySelector('script[src="/theme-assets/preview/scripts/nav.js"]'));
+      assert.equal(document.querySelector('script[src="https://tracker.example/track.js"]'), null);
+      assert.equal(document.querySelector('script[src="/theme-assets/preview/scripts/analytics.js"]'), null);
+      assert.equal(document.querySelectorAll('template[data-jini-consent-script]').length, 2);
+    } finally { dom.window.close(); }
+  }
+});
+
+test('the real preview-switcher banner script mounts its shadow UI after reject', () => {
+  const html = decoratePreviewPage({ html: '<html><head></head><body>Site</body></html>',
+    config: { enabled: true, position: 'top', themes: [{ themeId: 'active', label: 'Active' }, { themeId: 'preview', label: 'Preview' }] },
+    activeThemeId: 'active', currentThemeId: 'preview', path: '/', preview: true, delivery: 'live' });
+  const record = { id: 'rejected_0123456789012345', timestamp: '2026-10-24T00:00:00Z', policyVersion: '1',
+    regionMode: 'opt-in' as const, gpc: false, action: 'reject' as const,
+    choices: { necessary: true as const, functional: false, analytics: false, marketing: false } };
+  const dom = new JSDOM(gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
+    record, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }), { runScripts: 'dangerously', url: 'https://site.example/' });
+  try {
+    const host = dom.window.document.querySelector('.tovu-theme-preview-host');
+    assert.ok(host?.shadowRoot?.querySelector('nav[aria-label="Theme preview"]'));
+    assert.equal(host.shadowRoot.querySelectorAll('a').length, 2);
+    assert.equal(host.querySelector('template'), null, 'BANNER_SCRIPT consumes the fallback shadow template');
+    assert.equal(dom.window.document.documentElement.style.getPropertyValue('--tovu-theme-preview-height'), '0px');
+  } finally { dom.window.close(); }
+});
+
+test('WebMCP and site chat remain functional-category features under first-party defaults', () => {
+  const chat = renderLazySiteChatMarkup({ enabled: true, variant: 'vanilla', assetsReady: true, mountId: 'tovu-site-assistant-root' });
+  assert.ok(chat);
+  const html = injectPublishedWebMcp({ html: `<html><head>${chat.head}</head><body>${chat.body}</body></html>`, enabled: true });
+  const dom = new JSDOM(gateConsentHtml({ html, config: { ...SITE_CONSENT_DEFAULTS, enabled: true },
+    record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }));
   try {
     const document = dom.window.document;
-    assert.ok(document.querySelector('script[src="/theme-assets/active/scripts/nav.js"]'));
-    assert.ok(document.querySelector('script[src="/theme-assets/active/scripts/mode.js"]'));
-    const blocked = [...document.querySelectorAll('template[data-jini-consent-script]')].map(node => node.innerHTML);
-    assert.ok(blocked.some(script => script.includes('https://tracker.example/track.js')));
-    assert.ok(blocked.some(script => script.includes('//tracker.example/theme-assets/active/scripts/remote.js')));
-    assert.ok(blocked.some(script => script.includes('/theme-assets/other/scripts/other.js')));
-    assert.ok(blocked.some(script => script.includes('/../../other/scripts/escape.js')));
+    assert.equal(document.querySelector('[data-tovu-webmcp-script]'), null);
+    assert.equal(document.querySelector('script[src="/site-chat/site-assistant-loader.js"]'), null);
+    const scripts = [...document.querySelectorAll<HTMLTemplateElement>('template[data-jini-consent-script]')];
+    assert.equal(scripts.length, 2);
+    assert.ok(scripts.every(script => script.dataset.category === 'functional'));
   } finally { dom.window.close(); }
-  await presentationRepo.save({ workspaceId: 'ws', activeThemeId: 'other', updatedAt: '2026-10-23T01:00:00Z' });
-  assert.ok((await resolveSiteConsentNecessaryScripts({ deps })).some(entry => entry.src === '/theme-assets/other/scripts/nav.js'));
-  assert.ok(!(await resolveSiteConsentNecessaryScripts({ deps })).some(entry => entry.src === '/theme-assets/active/scripts/nav.js'));
-  await presentationRepo.save({ workspaceId: 'ws', activeThemeId: 'none', updatedAt: '2026-10-23T02:00:00Z' });
-  assert.ok(!(await resolveSiteConsentNecessaryScripts({ deps })).some(entry => 'src' in entry));
 });

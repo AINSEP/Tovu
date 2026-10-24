@@ -9,10 +9,20 @@ const recordOf = ({ value }: { value: unknown }, _options = {}): RecordValue | u
 const saveKinds = ['api', 'publish-host', 'source-control', 'agent-plugin-token', 'oauth'];
 
 /** Bounded display text, never a submitted value. @complexity O(1). */
-function text({ value, name, required = false }: { value: unknown; name: string; required?: boolean }, _options = {}): string | undefined {
+function text({ value, name, required = false, maxLength = 2000 }: { value: unknown; name: string; required?: boolean; maxLength?: number }, _options = {}): string | undefined {
   if (value === undefined && !required) return undefined;
-  if (typeof value !== 'string' || !value.trim() || value.length > 2000) throw new Error(`${name} must be non-empty text (at most 2000 characters)`);
+  if (typeof value !== 'string' || !value.trim() || value.length > maxLength) throw new Error(`${name} must be non-empty text (at most ${maxLength} characters)`);
   return value.trim();
+}
+
+/** Shared by manifest and mail card parsers: purpose copy grants no routing or authority.
+ * @returns Trimmed display strings, or undefined for legacy cards.
+ * @throws Error for malformed or oversized copy. @complexity O(entries), capped at 8 × 120 characters.
+ */
+export function parseCredentialCardUsedFor({ value }: { value: unknown }, _options = {}): readonly string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 8) throw new Error('usedFor must be an array of at most 8 entries');
+  return value.map(value => text({ value, name: 'usedFor entry', required: true, maxLength: 120 })!);
 }
 
 /** Reject active URLs, embedded credentials and non-HTTPS origins in declarations. */
@@ -51,9 +61,10 @@ function cardOf({ value }: { value: unknown }, _options = {}): PluginCredentialC
 function declaredCard({ value }: { value: RecordValue }, _options = {}): PluginCredentialCard {
   const { target, category } = cardIdentity({ value });
   const fields = fieldsOf({ value: value.fields });
+  const usedFor = parseCredentialCardUsedFor({ value: value.usedFor });
   const baseUrl = httpsUrl({ value: value.baseUrl, name: 'baseUrl' });
   validateCardFields({ value, fields, baseUrl });
-  return { providerId: target, category, baseUrl: baseUrl ?? '', ...cardText({ value }), ...ownedApiLabelOf({ value }), ...(fields === undefined ? {} : { fields }), ...additionalOrigins({ value: value.additionalHosts }), ...(value.saveKind === undefined ? {} : { saveKind: value.saveKind as PluginCredentialCard['saveKind'] }) };
+  return { providerId: target, category, baseUrl: baseUrl ?? '', ...cardText({ value }), ...ownedApiLabelOf({ value }), ...(usedFor === undefined ? {} : { usedFor }), ...(fields === undefined ? {} : { fields }), ...additionalOrigins({ value: value.additionalHosts }), ...(value.saveKind === undefined ? {} : { saveKind: value.saveKind as PluginCredentialCard['saveKind'] }) };
 }
 
 /** A card may claim only its own API row, never grant ownership to other cards or domain stores. */
