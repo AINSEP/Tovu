@@ -1,123 +1,66 @@
 import type { Express, Response } from "express";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
-
-import { MemberSignInUnavailableError, MemberValidationError, requestSignInLink } from "#src/features/members/index";
-import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import type { RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
-import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
+import { MemberAuthError, MemberSignInUnavailableError, MemberValidationError, prepareMemberChallenge } from "#src/features/members/index";
+import { sendMemberAuthError } from "./complete-sign-in.js";
+import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
- * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in` — the new
- * PUBLIC, visitor-initiated sign-in-request route (ADR-PIPE-013 Decision §2-3,
- * C-012).
+ * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in` — the PUBLIC, visitor-initiated
+ * sign-in-request route (ADR-PIPE-013 Decision §2-3, C-012).
  *
- * Purpose:
- * The route this remediation adds so a real visitor can originate a sign-in
- * request at all — before this, the only caller of `requestSignInLink` was
- * the operator-triggered admin resend action. Deliberately unauthenticated
- * (no `requireAdminSession`, no `authorize()` — this route family must never
- * import either, see ADR-PIPE-013 Enforcement) and rate-limited on BOTH axes
- * before any token is minted:
- *  - `MAGIC_LINK_PER_EMAIL` (keyed by the normalized target email) — bounds
- *    spam to one inbox regardless of source IP.
- *  - `MAGIC_LINK_PER_IP` (keyed by `resolveClientIp`) — bounds a single
- *    attacker's ability to enumerate many emails.
- * Both checks must pass (W-002/W-003) — this is the primary target of ADR-030
- * OQ-8's hard pre-launch precondition; checking only one of the two would
- * reopen the enumeration/abuse surface. INV-06 (anti-enumeration) is
- * preserved: the public response is `{accepted:true}` regardless of the address
- * or mailer result; site-wide setup failures are checked before member lookup; a
- * `429` here is a volume signal (this email/IP was queried too often), never
- * an existence signal.
+ * Deliberately unauthenticated (no `requireAdminSession`, no `authorize()` — this route family
+ * must never import either, see ADR-PIPE-013 Enforcement) and rate-limited on BOTH axes before any
+ * token is minted:
+ *  - `MAGIC_LINK_PER_EMAIL` (keyed by the normalized target email) — bounds spam to one inbox
+ *    regardless of source IP.
+ *  - `MAGIC_LINK_PER_IP` (keyed by `resolveClientIp`) — bounds a single attacker's ability to
+ *    enumerate many emails.
+ * Both checks must pass (W-002/W-003) — this is the primary target of ADR-030 OQ-8's hard
+ * pre-launch precondition; checking only one of the two would reopen the enumeration/abuse
+ * surface. INV-06 (anti-enumeration) is preserved: the public response is
+ * `{accepted:true, challengeId}` regardless of the address or mailer result; site-wide setup
+ * failures are checked before member lookup; a `429` here is a volume signal (this email/IP was
+ * queried too often), never an existence signal.
  */
 
-/**
- * Finds the first exceeded check among a set of named rate-limit results, or `null` if every
- * check passed. Isolated from `RateLimitResult`'s own discriminated union so the caller gets a
- * flat, always-present `retryAfterSeconds` on the exceeded case (an `Array.find` predicate does
- * NOT narrow the element type it returns, so this has to be a plain loop to keep that field
- * type-checked instead of hand-waved).
- *
- * @complexity O(n) over `checks`; n is fixed at 2 call sites today (email, IP).
+/** Public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
+ * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
  */
-function findExceededRateLimit(
-  checks: ReadonlyArray<{ result: RateLimitResult; message: string }>,
-): { message: string; retryAfterSeconds: number } | null {
-  for (const check of checks) {
-    if (!check.result.allowed) {
-      return { message: check.message, retryAfterSeconds: check.result.retryAfterSeconds };
-    }
-  }
-  return null;
-}
-
 export function registerPublicMemberSignInRequestRoute(app: Express, deps: MemberPublicRouteDeps): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
     try {
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const email = String(body.email ?? "");
-      const emailKey = email.trim().toLowerCase();
+      if (!checkMemberPost({ req, res, deps })) return;
+      const body = memberStringBody({ body: req.body, kind: "signIn" });
+      if (!body) { res.status(400).json({ error: "expected email and optional redirectPath strings" }); return; }
       // Empty emails have no valid counter key; preserve the service's validation response.
-      if (!emailKey) {
-        res.status(400).json({ error: `'${email}' is not a valid email address` });
-        return;
-      }
-      const clientIp = resolveClientIp(req);
-
-      // Both checks must pass before `requestSignInLink` runs (W-002/W-003) —
-      // neither check is skipped, and both consult a shared, app-boot-scoped
-      // limiter instance (C-015), not a per-request one.
-      const exceeded = findExceededRateLimit([
-        { result: await deps.magicLinkPerEmailLimiter.check({ key: emailKey }), message: "too many sign-in requests for this email" },
-        { result: await deps.magicLinkPerIpLimiter.check({ key: clientIp }), message: "too many sign-in requests from this address" },
-      ]);
-      if (exceeded) {
-        res.setHeader("Retry-After", String(exceeded.retryAfterSeconds));
-        res.status(429).json({
-          error: exceeded.message,
-          code: "RATE_LIMIT_EXCEEDED",
-          details: { retryAfterSeconds: exceeded.retryAfterSeconds },
-        });
-        return;
-      }
-
-      await requestSignInLink({
-        deps: toPublicMembersWriteServiceDeps(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          email,
-          redirectPath: body.redirectPath ? String(body.redirectPath) : undefined,
-        },
-      });
-
-      // Acceptance never asserts delivery: disabled, suppressed and failed sends share this
-      // response so per-address facts stay private. Site-wide setup errors are checked first.
-      res.json({ accepted: true });
-    } catch (err) {
-      respondToSignInError({ error: err, res });
-    }
+      if (!body.email.trim()) { res.status(400).json({ error: `'${body.email}' is not a valid email address` }); return; }
+      if (!await checkMemberRequestLimits({ req, res, deps, email: body.email,
+        emailLimiter: deps.magicLinkPerEmailLimiter, ipLimiter: deps.magicLinkPerIpLimiter })) return;
+      const prepared = await prepareMemberChallenge({ deps: toPublicMembersWriteServiceDeps(deps), purpose: "signin",
+        input: { workspaceId: deps.workspaceId, email: body.email, redirectPath: body.redirectPath } });
+      res.json({ accepted: true, challengeId: prepared.challengeId });
+      // Do not await per-address I/O or reflect its outcome in this anti-enumeration response.
+      setImmediate(() => { void prepared.deliver().catch(reportMemberDeliveryFailure); });
+    } catch (error) { respondToSignInError({ error, res }); }
   });
 }
 
-/** Maps site setup, validation and unexpected failures to the public response contract.
+/** Detached failures are observable without logging addresses, bearer tokens or provider details. */
+export function reportMemberDeliveryFailure(_error: unknown): void {
+  console.error("Member authentication delivery failed after acceptance");
+}
+
+/** Setup errors are site-wide; validation is independent of account existence.
  * Per-address delivery outcomes never enter this error path: they use generic acceptance.
  * @complexity O(1); writes one response, without logging credentials or provider detail.
  */
-function respondToSignInError(required: { error: unknown; res: Response }, _options: Record<string, never> = {}): void {
-  const { error, res } = required;
+export function respondToSignInError({ error, res }: { error: unknown; res: Response }, _options = {}): void {
+  if (error instanceof MemberAuthError) { sendMemberAuthError({ res, error }); return; }
   if (error instanceof MemberSignInUnavailableError || error instanceof SenderIdentityNotConfiguredError) {
-    res.status(503).json({ error: error instanceof SenderIdentityNotConfiguredError ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+    res.status(503).json({ error: error instanceof SenderIdentityNotConfiguredError
+      ? "Member sign-in is unavailable: email is not set up for this site." : error.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
     return;
   }
-  if (error instanceof MemberValidationError) {
-    res.status(400).json({ error: error.message });
-    return;
-  }
-
+  if (error instanceof MemberValidationError) { res.status(400).json({ error: error.message }); return; }
   res.status(500).json({ error: "internal error" });
 }

@@ -320,6 +320,7 @@ import {
   createRateLimiter,
   MAGIC_LINK_COMPLETE_ATTEMPT,
   MAGIC_LINK_PER_EMAIL,
+  LOGIN_STRICT,
   MAGIC_LINK_PER_IP,
   SITE_ASSISTANT_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
@@ -2019,6 +2020,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     magicLinkPerEmailLimiter,
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,
+    passwordHasher: routeDeps.passwordHasher,
+    passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
   };
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).

@@ -234,9 +234,12 @@ export function memberChallengeStore(required: {
       try {
         await repo.consume({ workspaceId: input.workspaceId, id: input.id, consumedAt: input.nowIso });
         return true;
-      } catch {
-        // The host repo throws on a lost CAS; Jini's contract returns false for that outcome.
-        return false;
+      } catch (error) {
+        // Only the repo's known single-use rejections are invalid credentials. Outages must surface.
+        const prefix = `magic link token '${input.id}' `;
+        if (error instanceof Error && ["was not found", "has expired", "was already consumed"]
+          .some(reason => error.message === prefix + reason)) return false;
+        throw error;
       }
     },
   };
@@ -283,15 +286,16 @@ async function saveMemberChallenge(required: {
 /**
  * Issue sign-in or link-only reset through the same mail/readiness and challenge lifecycle.
  * Ineligible addresses receive a fresh, unstored handle; requests never create members.
+ * Preparation checks site setup; deliver() owns all per-address work.
  * Secrets enter only the rendered send payload, never a profile, repo row or idempotency key.
  * @throws MemberSignInUnavailableError for site-wide setup; validation/adapter errors propagate.
  * @complexity O(1) reads/writes and one bounded password hash for sign-in codes.
  */
-export async function requestMemberChallenge(required: {
+export async function prepareMemberChallenge(required: {
   deps: MembersWriteServiceDeps;
   input: { workspaceId: string; email: string; redirectPath?: string };
   purpose: "signin" | "password_reset";
-}, _options = {}): Promise<{ delivered: boolean; challengeId: string }> {
+}, _options = {}): Promise<{ challengeId: string; deliver: () => Promise<{ delivered: boolean; challengeId: string }> }> {
   const { deps, input, purpose } = required;
   const email = assertValidEmail(input.email);
   const nowIso = clockNowIso({ clock: deps.clock });
@@ -307,25 +311,34 @@ export async function requestMemberChallenge(required: {
   // distinguish an existing/disabled address, and never store a token for a relative link.
   const link = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
   const challengeId = deps.ids.newId();
-  // Hash before the lookup: ineligible addresses return early, and the Argon2 cost must not tell.
-  const codeHash = purpose === "signin"
-    ? await hashChallengeCode({ code: secrets.code, hasher: memberPasswordHasher({ deps }) }) : null;
-  const member = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
-  if (member?.status === "disabled" || member?.status === "trash") return { delivered: false, challengeId };
-  if (purpose === "password_reset" && !member) return { delivered: false, challengeId };
-  await saveMemberChallenge({ deps, member, email, purpose, challengeId, nowIso,
-    tokenHash: secrets.tokenHash, codeHash, workspaceId: input.workspaceId });
-  const message: OutboundEmail = { workspaceId: input.workspaceId, to: { email }, from,
-    ...renderMemberAuthMail({ purpose, link, code: secrets.code }) };
-  const sendOptions: MailerSendOptions = {
-    // Reuse the sign_in activity/capture-redaction prefix for reset mail too.
-    idempotencyKey: `members:signin:${purpose === "password_reset" ? "reset:" : ""}${secrets.tokenHash}`,
-    workspaceId: input.workspaceId, sourceContext: { module: "members" }, purpose: "transactional",
-    // Interactive auth mail proceeds without a durable outbox (SPEC-022 REQ-09).
-    lane: "interactive",
-  };
-  const result = await deps.mailer.send(message, sendOptions);
-  return { delivered: result.ok && !result.providerMessageId.startsWith("captured:"), challengeId };
+  // Public HTTP can acknowledge setup now; every address-dependent effect stays in deliver().
+  return { challengeId, deliver: async () => {
+    // Hash before the lookup: ineligible addresses return early, and the Argon2 cost must not tell.
+    const codeHash = purpose === "signin"
+      ? await hashChallengeCode({ code: secrets.code, hasher: memberPasswordHasher({ deps }) }) : null;
+    const member = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
+    if (member?.status === "disabled" || member?.status === "trash") return { delivered: false, challengeId };
+    if (purpose === "password_reset" && !member) return { delivered: false, challengeId };
+    await saveMemberChallenge({ deps, member, email, purpose, challengeId, nowIso,
+      tokenHash: secrets.tokenHash, codeHash, workspaceId: input.workspaceId });
+    const message: OutboundEmail = { workspaceId: input.workspaceId, to: { email }, from,
+      ...renderMemberAuthMail({ purpose, link, code: secrets.code }) };
+    const sendOptions: MailerSendOptions = {
+      // Reuse the sign_in activity/capture-redaction prefix for reset mail too.
+      idempotencyKey: `members:signin:${purpose === "password_reset" ? "reset:" : ""}${secrets.tokenHash}`,
+      workspaceId: input.workspaceId, sourceContext: { module: "members" }, purpose: "transactional",
+      // Interactive auth mail proceeds without a durable outbox (SPEC-022 REQ-09).
+      lane: "interactive",
+    };
+    const result = await deps.mailer.send(message, sendOptions);
+    return { delivered: result.ok && !result.providerMessageId.startsWith("captured:"), challengeId };
+  } };
+}
+
+/** Existing callers retain the awaited delivery contract; public HTTP uses the same prepared owner. */
+export async function requestMemberChallenge(required: Parameters<typeof prepareMemberChallenge>[0], _options = {}): Promise<{ delivered: boolean; challengeId: string }> {
+  const prepared = await prepareMemberChallenge(required);
+  return prepared.deliver();
 }
 
 /** Request a link and six-digit code sharing one single-use challenge; O(1) adapter calls. */

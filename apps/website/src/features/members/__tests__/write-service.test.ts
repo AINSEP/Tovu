@@ -722,7 +722,7 @@ test("L298 completeSignIn consumes a valid token before the member lookup and re
   assert.deepEqual(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }), result.session);
 });
 
-test("L298 completeSignIn maps consumption failure to uniform auth failure without changing member/session state", async () => {
+test("L298 completeSignIn propagates a database consumption failure without changing member/session state", async () => {
   const { deps, sent } = makeDeps();
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "consume-failure@example.test" } });
   const rawToken = extractRawToken(sent[0].message.text!);
@@ -738,7 +738,7 @@ test("L298 completeSignIn maps consumption failure to uniform auth failure witho
     save: record => deps.magicLinks.save(record),
     consume: async () => { throw failure; },
   } };
-  await assert.rejects(completeSignIn({ deps: checkedDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), { message: "sign-in credential is invalid" });
+  await assert.rejects(completeSignIn({ deps: checkedDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), failure);
   assert.deepEqual(await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }), issued);
   assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId }), before);
   assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);

@@ -98,6 +98,7 @@ export {
   disableMember,
   membersWriteService,
   requestSignInLink,
+  prepareMemberChallenge,
   setSubscriptionStatus,
   updateProfile,
 } from "./write-service.js";
