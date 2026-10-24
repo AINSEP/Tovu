@@ -6,8 +6,9 @@
  * The theme owns the header markup; this only enhances it. Signed out, the link stays a plain
  * `<a href="/signin">` that works with JS off. Signed in (`GET …/me`), it becomes the member's email
  * (to `/account`) plus a "Sign out" button carrying the link's own classes, so the theme's button
- * look applies. Without JS the forms stay `hidden`: every member POST must be a same-origin JSON
- * fetch (a plain form post is refused 403), and a GET-submitted form would put the password in the URL.
+ * look applies (on phones the link reads "Account" and Sign out moves to /account). Without JS the
+ * forms stay `hidden`: the member API reads JSON bodies only (a plain same-origin form post gets a
+ * 400, a cross-site one a 403), and a GET-submitted form would put the password in the URL.
  *
  * Contract: `SHARD-E-CONTRACT.md` (2026-10-24). Tokens from the emailed links arrive in the URL
  * fragment; the script strips the fragment with `history.replaceState` BEFORE anything else and
@@ -30,23 +31,39 @@ export const MEMBER_AUTH_STYLE =
   ":where(.member-label-row){display:flex;align-items:center;gap:8px;}" +
   ":where(.member-actions){display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:4px;}" +
   ":where(.member-auth .member-submit){padding:8px 16px;border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);color:var(--bg,#fff);font:inherit;font-weight:600;cursor:pointer;}" +
-  ":where(.member-auth button:disabled){opacity:0.6;cursor:progress;}" +
-  ":where(.member-auth-links){display:flex;flex-wrap:wrap;gap:8px 20px;margin:18px 0 0;font-size:0.9rem;}" +
+  // Scoped: a theme `.btn{opacity:1}` would otherwise hide the in-flight state.
+  ".member-auth button:disabled{opacity:0.6;cursor:progress;}" +
+  ":where(.member-auth-links){display:flex;flex-wrap:wrap;gap:8px 20px;font-size:0.9rem;}" +
   ":where(.member-link){background:none;border:0;padding:0;font:inherit;cursor:pointer;}" +
   // Links and link-buttons in one row must look alike, so this one rule is not :where() — it has to
   // beat a theme's bare `a` reset. Same underline-by-border look as the themes' own `.auth-foot a`.
   ".member-auth-links :is(a,.member-link){color:var(--fg,inherit);text-decoration:none;border-bottom:1px solid var(--border-strong,currentColor);}" +
-  ":where(.member-note){margin:0 0 16px;}" +
+  // Vertical rhythm is not :where() either: themes zero `h1`/`p` margins
+  // (tovu-starter's bare `p{margin:0}`), which left the heading and the links row touching the form.
+  ".member-auth h1{margin:0 0 28px;}" +
+  ".member-auth h2{margin:32px 0 16px;font-size:1.15rem;}" +
+  ".member-auth .member-auth-links{margin:24px 0 0;}" +
+  ".member-auth .member-note{margin:0 0 20px;}" +
+  ".member-auth form .member-note{margin:0 0 16px;}" +
+  // Sign out is its own section on /account, not a second button of the password form.
+  ".member-auth .member-signout{margin:32px 0 0;padding-top:24px;border-top:1px solid var(--border,#d1d5db);}" +
+  // A 6-digit code needs a short box, not the full form width.
+  ":where(.member-auth input[autocomplete=\"one-time-code\"]){max-width:12rem;letter-spacing:0.15em;font-variant-numeric:tabular-nums;}" +
   ":where(.member-tip){display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;padding:0;border:1px solid var(--border-strong,#9ca3af);border-radius:50%;background:transparent;color:var(--muted,#6b7280);font:inherit;font-size:0.8rem;line-height:1;cursor:pointer;}" +
   ":where(.member-tip-text:not([hidden])){display:block;flex-basis:100%;padding:8px 10px;border-radius:6px;background:var(--surface-2,#f3f4f6);border:1px solid var(--border,#d1d5db);color:var(--fg,#111827);font-size:0.85rem;font-weight:400;}" +
   ":where([data-member-account]){display:inline-block;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:0.875rem;color:var(--muted,#6b7280);}" +
-  "@media (max-width:600px){:where([data-member-account]){max-width:6.5rem;}}" +
+  // Phones: the email plus a Sign out button pushed the theme's menu button off a 375px header, so
+  // the link reads "Account" there and Sign out lives on /account.
+  ":where(.member-account-short){display:none;}" +
+  "@media (max-width:600px){[data-member-account] .member-account-email{display:none;}" +
+  "[data-member-account] .member-account-short{display:inline;}button[data-member-nav-sign-out]{display:none;}}" +
   // Mode-aware fallbacks for themes with no --danger/--success, same values and contrast reasoning
-  // as FORM_BASELINE_STYLE's private pair.
+  // as FORM_BASELINE_STYLE's private pair. Scoped, not :where(): a theme's bare `p{color:…}` would
+  // otherwise turn errors grey.
   ":root{--member-danger-fallback:#f87171;--member-success-fallback:#4ade80;}" +
   ":root[data-theme=\"light\"]{--member-danger-fallback:#b91c1c;--member-success-fallback:#166534;}" +
-  ":where([data-member-error]){color:var(--danger,var(--member-danger-fallback));font-weight:600;font-size:0.9rem;}" +
-  ":where([data-member-ok]){color:var(--success,var(--member-success-fallback));font-weight:600;font-size:0.9rem;}";
+  ".member-auth [data-member-error]{color:var(--danger,var(--member-danger-fallback));font-weight:600;font-size:0.9rem;}" +
+  ".member-auth [data-member-ok]{color:var(--success,var(--member-success-fallback));font-weight:600;font-size:0.9rem;}";
 
 /** The browser half. `base` is the member API root for this site's workspace. */
 export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
@@ -110,12 +127,19 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
     }
     var account = doc.createElement("a");
     account.href = "/account";
-    account.textContent = m.email;
+    var full = doc.createElement("span");
+    full.className = "member-account-email";
+    full.textContent = m.email;
+    var short = doc.createElement("span");
+    short.className = "member-account-short";
+    short.textContent = "Account";
+    account.append(full, short);
     account.title = m.email;
     account.setAttribute("data-member-account", "");
     var out = doc.createElement("button");
     out.type = "button";
     out.className = link.className;
+    out.setAttribute("data-member-nav-sign-out", "");
     out.textContent = "Sign out";
     out.addEventListener("click", function () { signOut(out); });
     link.replaceWith(account, out);

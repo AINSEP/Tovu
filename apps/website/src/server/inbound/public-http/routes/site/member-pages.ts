@@ -61,9 +61,9 @@ function note(html: string): string {
 }
 
 /** Page templates print the body only (an authored Page brings its own heading), so the h1 is here. */
-function page(kind: string, title: string, views: string[]): string {
-  return `<div class="member-auth" data-member-page="${kind}"><h1>${title}</h1><noscript><p>Turn on JavaScript to use this page.</p></noscript>` +
-    `${views.join("")}</div>`;
+function page(kind: string, title: string, views: string[]): { title: string; body: string } {
+  return { title, body: `<div class="member-auth" data-member-page="${kind}"><h1>${title}</h1><noscript><p>Turn on JavaScript to use this page.</p></noscript>` +
+    `${views.join("")}</div>` };
 }
 
 const EMAIL = (id: string) => field({ id, label: "Email", name: "email", type: "email", autocomplete: "email", extra: " required" });
@@ -110,15 +110,15 @@ const ACCOUNT = page("account", "Your account", [
         field({ id: "member-new-password", label: "New password", name: "password", type: "password", autocomplete: "new-password", extra: " required" }),
       "Save password") +
     '<p class="member-note" data-member-reauth hidden><a href="/signin#view=code&amp;redirect=%2Faccount">Sign in with a code</a></p>' +
-    `<div class="member-actions member-auth-links">${signOutButton}</div>`),
+    `<div class="member-actions member-signout">${signOutButton}</div>`),
 ]);
 
 /** Path → the page's title (the theme prints it as the heading) and body. */
 export const MEMBER_PAGES: Readonly<Record<string, { id: string; title: string; body: string }>> = {
-  "/signin": { id: "6d656d62-6572-4000-8000-000000000001", title: "Sign in", body: SIGN_IN },
-  "/forgot-password": { id: "6d656d62-6572-4000-8000-000000000002", title: "Reset your password", body: FORGOT },
-  "/reset-password": { id: "6d656d62-6572-4000-8000-000000000003", title: "Choose a new password", body: RESET },
-  "/account": { id: "6d656d62-6572-4000-8000-000000000004", title: "Your account", body: ACCOUNT },
+  "/signin": { id: "6d656d62-6572-4000-8000-000000000001", ...SIGN_IN },
+  "/forgot-password": { id: "6d656d62-6572-4000-8000-000000000002", ...FORGOT },
+  "/reset-password": { id: "6d656d62-6572-4000-8000-000000000003", ...RESET },
+  "/account": { id: "6d656d62-6572-4000-8000-000000000004", ...ACCOUNT },
 };
 
 /** The in-memory Page {@link serveVirtualPage} renders for one member path. @complexity O(1). */
