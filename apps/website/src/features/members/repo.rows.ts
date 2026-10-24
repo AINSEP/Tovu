@@ -10,6 +10,7 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
+  MemberExternalIdentityRecord,
   MemberRecord,
   MemberSessionRecord,
   MemberStatus,
@@ -34,6 +35,26 @@ export type MemberSessionRow = Selectable<ContentDatabase["member_sessions"]>;
 export type MagicTokenRow = Selectable<ContentDatabase["member_magic_tokens"]>;
 export type MemberConsentRow = Selectable<ContentDatabase["member_consents"]>;
 export type MemberRevisionRow = Selectable<ContentDatabase["member_revisions"]>;
+
+/** Map only association columns; provider credentials never enter this record. O(1), pure. */
+export function toMemberExternalIdentityRecord(required: { row: Selectable<ContentDatabase["member_external_identities"]> }, _options: Record<string, never> = {}): MemberExternalIdentityRecord {
+  const { row } = required;
+  return {
+    id: row.id, workspaceId: row.workspace_id, memberId: row.member_id,
+    providerId: row.provider_id, issuer: row.issuer, subject: row.subject, linkedAt: row.linked_at,
+    ...(row.unlinked_at === null ? {} : { unlinkedAt: row.unlinked_at }),
+  };
+}
+
+/** Write an absent marker as SQL NULL so explicit reconnect can clear it. O(1), pure. */
+export function toMemberExternalIdentityRow(required: { record: MemberExternalIdentityRecord }, _options: Record<string, never> = {}): Insertable<ContentDatabase["member_external_identities"]> {
+  const { record } = required;
+  return {
+    id: record.id, workspace_id: record.workspaceId, member_id: record.memberId,
+    provider_id: record.providerId, issuer: record.issuer, subject: record.subject,
+    linked_at: record.linkedAt, unlinked_at: record.unlinkedAt ?? null,
+  };
+}
 
 export function toMemberRecord(row: MemberRow): MemberRecord {
   // Deliberate allowlist: password_hash is credential-only and must never reach admin/tool profiles.

@@ -37,6 +37,7 @@ export interface ContentDatabase {
   media: MediaTable;
   media_slug_history: MediaSlugHistoryTable;
   member_consents: MemberConsentsTable;
+  member_external_identities: MemberExternalIdentitiesTable;
   member_magic_tokens: MemberMagicTokensTable;
   member_revisions: MemberRevisionsTable;
   member_sessions: MemberSessionsTable;
@@ -420,6 +421,17 @@ export interface MemberConsentsTable {
   created_at: string;
   updated_at: string;
   version: number;
+}
+
+export interface MemberExternalIdentitiesTable {
+  id: string;
+  workspace_id: string;
+  member_id: string;
+  provider_id: string;
+  issuer: string;
+  subject: string;
+  linked_at: string;
+  unlinked_at: string | null;
 }
 
 export interface MemberMagicTokensTable {

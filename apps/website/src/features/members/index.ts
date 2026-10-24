@@ -16,6 +16,7 @@ export type {
   MemberPrincipalKind,
   MemberStatus,
   MemberRecord,
+  MemberExternalIdentityRecord,
   MemberTierType,
   MemberTierStatus,
   MemberTierRecord,
@@ -47,6 +48,7 @@ export {
 
 export type {
   MemberRepoPort,
+  MemberExternalIdentityRepoPort,
   MemberTierRepoPort,
   MemberSubscriptionRepoPort,
   MemberSessionRepoPort,
@@ -67,6 +69,7 @@ export {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberConsentRepo,
   InMemoryMemberRepo,
+  InMemoryMemberExternalIdentityRepo,
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
@@ -79,10 +82,13 @@ export {
   SqliteMagicLinkTokenRepo,
   SqliteMemberConsentRepo,
   SqliteMemberRepo,
+  SqliteMemberExternalIdentityRepo,
   SqliteMemberSessionRepo,
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
 } from "./repo.sqlite.js";
+
+export { SqlMemberExternalIdentityRepo } from "./repo.js";
 
 export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console.js";
 
