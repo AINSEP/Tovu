@@ -1,6 +1,6 @@
 import { trashMember } from "./trash-member.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
-import { type Clock } from "@jini-ai/core/primitives";
+import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Members' half of ADR-049 Decision 4 (ADR-030/ADR-PIPE-013): maps `agent-tools.ts`'s six
@@ -233,7 +233,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
       return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.principal.id } },
-        { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock });
+        { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clock: deps.clock }) } });
     },
 
     members_disable: async (ctx) => {

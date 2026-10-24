@@ -16,6 +16,29 @@ test("redacts exact credentials, URL tokens and bearer values before capping", (
   assert.equal(safeMailProviderText({ text: "" }), "");
 });
 
+test("redacts bare URL tokens and fragment suffixes before the cap can split their values", () => {
+  for (const url of [
+    "https://site.test/auth?token=private-link",
+    "https://site.test/auth?ok=1&token=private-link#private-fragment",
+    "https://site.test/auth#token=private-link",
+    "https://site.test/auth#access_token=private-link",
+    "https://site.test/auth?refresh_token=private-link#private-fragment",
+    "https://site.test/hook?api_key=private-link",
+    "https://site.test/s3?X-Amz-Signature=private-link&x=1",
+    "https://site.test/cb?code=private-link",
+  ]) {
+    const text = `Verify domain first. ${url}`;
+    const result = safeMailProviderText({ text });
+    assert.match(result, /^Verify domain first/);
+    assert.ok(!result.includes("private-link"));
+    assert.ok(!result.includes("private-fragment"));
+    const prefix = "x".repeat(990 - url.indexOf("private-link"));
+    const capped = safeMailProviderText({ text: `${prefix}${url} ${"x".repeat(1500)}` });
+    assert.equal(capped.length, 1000);
+    assert.ok(!capped.includes("private"));
+  }
+});
+
 test("provider send and batch diagnostics redact their actual credential, retaining useful copy", async () => {
   const secret = "short-key";
   const failure = { ok: false, retryable: false, errorCode: "validation_error", message: `Verify the sender domain. Key ${secret}` };
