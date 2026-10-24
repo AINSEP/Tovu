@@ -9,7 +9,7 @@ import { createCustomCredential, CustomCredentialNotFoundError, type CustomCrede
 import { withCustomCredentialSetup } from "../credential-recovery.js";
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { isIssuedToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
+import { isIssuedToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
 import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 
 /** Authentication failures preserve scheme/username facts and provider output. They never
@@ -218,19 +218,17 @@ test("makeCredentialedRequest: a stored-username 401 carries no remedyToolId —
   assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
-test("a Bearer rejection offers the secure token card through the existing recovery adapter", async () => {
+test("a request Bearer rejection preserves facts without offering token rotation", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
   const result = await withCustomCredentialSetup({ label: "name.com", invoke: () => makeCredentialedRequest(deps, {
     workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains",
   }) });
-  assert.ok("credentialSetup" in result);
-  const diagnostic = result.credentialSetup as ToolFailureDiagnostic;
-  assert.equal(isIssuedToolFailureDiagnostic({ value: diagnostic }, {}), true);
-  assert.equal(isIssuedToolFailureDiagnostic({ value: { ...diagnostic } }, {}), false);
-  assert.equal(diagnostic.remedyToolId, "credential_save");
-  assert.doesNotMatch(diagnostic.hint!, /username|Basic/i);
+  // 26457bd29: a scoped key may reject this request while still serving its intended purpose.
+  assert.ok(!("credentialSetup" in result));
+  assert.equal(result.status, 401);
+  assert.equal(result.bodyText, "unauthorized");
   assert.deepEqual((result as { authDiagnostic: unknown }).authDiagnostic, { schemeSent: "Bearer", usernameStored: false });
 });
 
@@ -335,37 +333,39 @@ for (const authDiagnostic of [
   { usernameStored: true, schemeSent: "Bearer" },
   { usernameStored: false, schemeSent: "Basic" },
 ]) {
-  test(`a rejected request offers rotation for ${authDiagnostic.schemeSent} with usernameStored=${authDiagnostic.usernameStored}`, async () => {
+  test(`a rejected request does not offer rotation for ${authDiagnostic.schemeSent} with usernameStored=${authDiagnostic.usernameStored}`, async () => {
     const output = { status: 401, bodyText: "provider rejection", authDiagnostic };
     const result = await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output });
-    assert.deepEqual(result, { ...output, credentialSetup: {
-      setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", target: "Example provider" },
-      hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
-    } });
-    assert.equal(isIssuedToolFailureDiagnostic({ value: (result as { credentialSetup: unknown }).credentialSetup }, {}), true);
+    // 26457bd29: only explicit verification returning invalid offers replacement.
+    assert.equal(result, output);
+    assert.equal("credentialSetup" in result, false);
     assert.equal("credentialSetup" in output, false, "provider output is not mutated");
   });
 }
 
 for (const authDiagnostic of [undefined, { usernameStored: false }, { usernameStored: false, schemeSent: "Bearer" }]) {
-  test(`a rejected request offers secure rotation regardless of username presence (${JSON.stringify(authDiagnostic)})`, async () => {
+  test(`a rejected request preserves output without rotation regardless of username presence (${JSON.stringify(authDiagnostic)})`, async () => {
     const output = { status: 401, bodyText: "provider rejection", authDiagnostic };
     const result = await withCustomCredentialSetup({ label: "Example provider", invoke: async () => output });
-    assert.deepEqual(result, { ...output, credentialSetup: {
-      setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "api", target: "Example provider" },
-      hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
-    } });
+    // 26457bd29: only explicit verification returning invalid offers replacement.
+    assert.equal(result, output);
     assert.equal("credentialSetup" in output, false);
   });
 }
 
 test("verification rejection offers rotation while preserving the provider result", async () => {
   const output = { status: "invalid", message: "The server rejected this token." };
-  assert.deepEqual(await withCustomCredentialSetup({ label: "Example provider", verification: true, invoke: async () => output }), {
+  const result = await withCustomCredentialSetup({ label: "Example provider", verification: true, invoke: async () => output });
+  assert.deepEqual(result, {
     ...output, credentialSetup: { setupToolId: "credential_save", remedyToolId: "credential_save",
       prefill: { kind: "api", target: "Example provider" },
       hint: "A missing or rejected credential may be fixed by saving it through the secure card." },
   });
+  // Keep issuance/forgery checks on the path that still legitimately issues a recovery card.
+  assert.ok("credentialSetup" in result);
+  assert.equal(isIssuedToolFailureDiagnostic({ value: result.credentialSetup }, {}), true);
+  assert.equal(isIssuedToolFailureDiagnostic({ value: { ...result.credentialSetup } }, {}), false);
+  assert.doesNotMatch(result.credentialSetup.hint!, /username|Basic/i);
 });
 
 test("only verification results treat the invalid status as a rotation signal", async () => {

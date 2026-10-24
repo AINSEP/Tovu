@@ -8,18 +8,17 @@
  * nothing else, which is what stops a bespoke page inventing its own navigation (SPEC-047 §8's
  * OQ-3 resolution).
  *
- * **Regions are `data-agent-element`, not a Tovu-specific attribute.** `@jini-ai/vibecoding/html`'s
- * `createHtmlRegionTarget` addresses parts by exactly this attribute (reusing `@jini-ai/agentic`'s
- * existing handle convention, where `region` is already a defined role), and treats the set of
- * handles present in the document as the allowlist of editable parts. So the handles below are not
- * decoration — they are the addressable surface, and `validate` refuses any candidate edit that
- * changes the handle multiset.
+ * **Regions are `data-agent-element`, not a Tovu-specific attribute.** Jini's HTML scan and pure
+ * edit functions address parts by this attribute (reusing `@jini-ai/agentic`'s existing handle
+ * convention, where `region` is already a defined role). The handles below are the starter page's
+ * addressable surface. Pages permits adding and removing handles and refuses only newly worsened
+ * ambiguity; it does not use Jini's EditTarget handle-multiset policy. This is addressing policy,
+ * not a security boundary: anyone holding `pages.edit_html` can rewrite the whole page.
  *
  * This is the "pre-tagged skeleton" arm of the strategy comparison the owner asked for (both arms
- * to be built and compared): the model only ever fills regions that already exist, so every write
- * is covered by the allowlist-cannot-self-extend guard from the first turn. The competing arm — the
- * model authors the whole document and the regions are whatever it tagged — is not implemented
- * here.
+ * to be built and compared): a new page starts with stable handles so later turns can edit one
+ * section without re-emitting the rest. Pages also supports the competing arm through
+ * `pages_write_html`: the model authors the whole document and tags its own regions.
  */
 
 /** The `data-agent-element` handle for each region a starter Page ships with. */

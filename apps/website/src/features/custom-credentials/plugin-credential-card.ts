@@ -40,6 +40,8 @@ export interface PluginCredentialCard {
   /** Plain-text purposes for people and the assistant; never selects or authorizes a key in code. */
   readonly usedFor?: readonly string[];
   readonly fields?: readonly PluginCredentialField[];
+  /** Optional read-only GET before sealing; absolute HTTPS on the declared baseUrl origin. */
+  readonly probeUrl?: string;
   readonly additionalHosts?: readonly string[];
   /** Absent preserves the original mail/API save path. */
   readonly saveKind?: "api" | "publish-host" | "source-control" | "agent-plugin-token" | "oauth";
@@ -122,7 +124,13 @@ function assertHttpsInput({ value }: { value: string }, _options = {}): void {
 export async function findPluginCredentialCard({ loadCards, workspaceId, saveKind, target }: {
   loadCards?: LoadPluginCredentialCards; workspaceId: string; saveKind: PluginCredentialCard['saveKind']; target: string;
 }, _options = {}): Promise<PluginCredentialCard | undefined> {
-  return (await loadPluginCredentialCardsSafely({ loadCards, workspaceId })).find(card => card.saveKind === saveKind && (saveKind === "api" ? card.label === target : (card.saveTarget ?? card.providerId) === target));
+  return (await loadPluginCredentialCardsSafely({ loadCards, workspaceId })).find(card => cardMatches({ card, saveKind, target }));
+}
+
+/** A missing saveKind keeps the original API-card contract (credential-cards.ts isApiCard). */
+function cardMatches({ card, saveKind, target }: { card: PluginCredentialCard; saveKind: PluginCredentialCard['saveKind']; target: string }, _options = {}): boolean {
+  if (saveKind === "api") return (card.saveKind ?? "api") === "api" && card.label === target;
+  return card.saveKind === saveKind && (card.saveTarget ?? card.providerId) === target;
 }
 
 /** API rows have a fixed label; domain owners choose their own connection identity. */

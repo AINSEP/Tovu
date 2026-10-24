@@ -16,7 +16,10 @@ test("Fly declares deploy candidates and its workflow as data, usable before act
   const candidate = await findCandidateDestination({ resolvePath: value => value, io: {
     read: async file => { reads.push(file); return file === declaration.candidatePaths[0].path ? 'TOVU_PUBLIC_URL="https://site.example.test"' : null; },
     write: async () => { throw new Error("read only"); },
-  } });
+  } }, {
+    // c755ab25a: the host supplies plugin candidates; core defaults to neutral app.json only.
+    candidatePaths: readBundledDeployConfigCandidatePaths(required),
+  });
   assert.equal(candidate, "https://site.example.test");
   assert.deepEqual(reads, ["fly.toml"]);
 });

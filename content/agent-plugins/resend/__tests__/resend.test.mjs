@@ -38,6 +38,8 @@ test('the module is a valid Jini mail provider and matches its v2 descriptor', a
     id: 'resend', label: 'Resend', module: 'adapters/resend.mjs', credentialLabel: 'Tovu Mail — Resend API', credentialKeys: ['token'], feedback: true,
     credentialCard: {
       title: 'Connect Resend',
+      // 7d1f99532 declares each card's display-only purpose.
+      usedFor: ["Sends your site's emails (sign-in links, form notices, newsletters)"],
       intro: 'Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).',
       helpUrl: 'https://resend.com/api-keys', helpLabel: 'Get a key at resend.com/api-keys',
       keyHint: 'Create a key with Sending access', baseUrl: 'https://api.resend.com',

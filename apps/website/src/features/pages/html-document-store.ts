@@ -17,20 +17,16 @@ import { SYSTEM_ACTOR_ID, type PostKind, type PostRepoPort, type PostStatus } fr
 import { announcePendingGoLive } from "../post/go-live.js";
 
 /**
- * @file SPEC-047/ADR-056 REQ-4 — Tovu's implementation of `@jini-ai/vibecoding/html`'s
- * `HtmlDocumentStore` port (`read(): Promise<string>` / `write(html: string): Promise<void>`) over
+ * @file SPEC-047/ADR-056 REQ-4 — Tovu's `PagesHtmlDocumentStorePort`
+ * (`read(): Promise<string>` / `write(html: string): Promise<void>`) over
  * an `"html"`-format Page row in the shared `posts` table. One Kysely query body for every dialect
  * the storage kernel drives (storage plan §4, ADR-066); `html-document-store.sqlite.ts` keeps the
  * `PagesHtmlDocumentStore` name as the thin subclass the composition root builds from the db handle.
  *
- * NOT wired against `@jini-ai/vibecoding`'s own `HtmlDocumentStore` type: the package is not yet a
- * dependency of this repo (`package.json` has no `@jini-ai/vibecoding` entry, and its `./html/node`
- * parser entry — REQ-1, blocking, Jini-side — does not exist yet either; confirmed by grep and by
- * reading the Jini package's own `package.json` directly). This class satisfies the port
- * STRUCTURALLY — the two method names and signatures are copied verbatim from
- * `Jini/packages/vibecoding/src/html/regions.ts`'s `HtmlDocumentStore` interface — so wiring it into
- * `createHtmlRegionTarget({ store, parser })` (REQ-5, out of this dispatch's scope) needs no changes
- * here once that dependency exists; only an `implements HtmlDocumentStore` annotation needs adding.
+ * Pages uses Jini's HTML scan and pure edit functions, not its `HtmlDocumentStore` or EditTarget.
+ * The tool handlers keep the read → compute → write(html) flow here so another read cannot
+ * recapture a newer version between computing an edit and its compare-and-set write (CIC-1).
+ * Jini's store takes `write({ html })`; this Tovu port deliberately keeps `write(html)`.
  *
  * Bypasses `PostRepoPort`/`SqlitePostRepo`/`createPost`/`updatePost` entirely, on purpose (ADR-056
  * Decision 4 & CIC-3): this store is the ONLY writer of `body_html`/`bodyFormat: "html"` anywhere in
@@ -181,9 +177,9 @@ export interface PagesHtmlDocumentStoreScope {
  * private fields nominally, so a structurally identical second implementation is not assignable to
  * the first.
  *
- * `read()` deliberately returns only the string, per `@jini-ai/vibecoding/html`'s `HtmlDocumentStore`
- * contract, which is why the version an implementation conditions its write on is captured on the
- * instance rather than handed back to the caller.
+ * `read()` deliberately returns only the string; the version an implementation conditions its
+ * write on is captured on the instance rather than handed back with the body. Handlers use Jini's
+ * pure edits over that body without another store read.
  */
 export interface PagesHtmlDocumentStorePort {
   /** Births an `"html"`-format Page, or no-ops if the row already is one. */
@@ -203,9 +199,8 @@ export interface PagesHtmlDocumentStorePort {
    * intruder's version and silently clobber it. That is precisely the failure a version guard exists
    * to prevent, so the basis and the predicate must be the same number.
    *
-   * Purely additive to `@jini-ai/vibecoding/html`'s `HtmlDocumentStore` shape: that port needs only
-   * `read`/`write`, and TypeScript's structural typing means an extra method never breaks
-   * assignability (see this file's header on why the port is satisfied structurally).
+   * This is Tovu's concurrency contract, independent of Jini's `HtmlDocumentStore`; pure region
+   * edits never read the store or advance this basis.
    */
   capturedVersion(): number | null;
 }
@@ -224,15 +219,14 @@ export type PagesHtmlDocumentStoreFactory = (
 ) => PagesHtmlDocumentStorePort;
 
 /**
- * Tovu's `HtmlDocumentStore` adapter over one `"html"`-format Page row (SPEC-047/ADR-056 REQ-4).
+ * Tovu's page HTML store over one `"html"`-format Page row (SPEC-047/ADR-056 REQ-4).
  *
- * Stateful by necessity, not by convenience: `HtmlDocumentStore.read()` returns only a string per
- * the port's contract (no version), so the row's `version` at the time of the most recent `read()`
+ * Stateful by necessity, not by convenience: this port's `read()` returns only a string (no version),
+ * so the row's `version` at the time of the most recent `read()`
  * is captured on the instance and is what the next `write()` conditions its compare-and-set on
- * (CIC-1). This matches how `createHtmlRegionTarget` (`regions.ts`, engine, unmodified) actually
- * calls this port: every one of `replacePart`/`restore`/`validate` calls `store.read()` immediately
- * before (or as part of judging) a `store.write()`, with no other store call landing in between — so
- * "condition on the most recently read version" is exactly "condition on the version the content
+ * (CIC-1). Pages handlers read once, compute through Jini's pure functions, then write, with no
+ * other store read landing in between — so "condition on the most recently read version" is
+ * exactly "condition on the version the content
  * being written was computed from," which is the property CIC-1 requires.
  */
 export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
@@ -527,8 +521,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * Writes a new `body_html`, conditioned on the `version` captured by the most recent {@link read}
    * (CIC-1's compare-and-set). On success, `version` is incremented and the instance's captured
    * version advances to match — so a second `write()` on this same instance (no intervening `read()`
-   * call, exactly how `createHtmlRegionTarget`'s `restore()` writes several regions in one pass) is
-   * conditioned on the version this store itself just produced, not a stale one.
+   * call) is conditioned on the version this store itself just produced, not a stale one.
    * Identical normalized HTML leaves the row, ledger and reference index untouched, after checking
    * the current row still matches the captured version and is live HTML.
    *

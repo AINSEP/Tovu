@@ -108,8 +108,11 @@ function assertHeadConsumers({ env, hostSignals, pathExists }, _optional = {}) {
   const permissions = resolveAssistantCliPermissions({ isOwner: true, env, settings: { enabled: true } }, options);
   assert.equal(permissions.enabled, expected.fullCliAccess);
   assert.deepEqual(permissions.capabilities, Object.fromEntries([
-    "shell", "fileWrite", "userMcp", "subagents", "userSettings", "web", "workflows", "loginEnvironment",
-  ].map(key => [key, expected.fullCliAccess])));
+    "shell", "fileWrite", "subagents", "userSettings", "web", "workflows", "loginEnvironment",
+  ].map(key => [key, expected.fullCliAccess]).concat([
+    // 4d39ba523: personal MCP requires its own explicit grant, even with full local CLI access.
+    ["userMcp", false],
+  ])));
   const deploymentSignals = detectDeploymentSignals({ env }, { ...options, pathExists });
   assert.deepEqual(deploymentSignals, expected.labels);
   assert.deepEqual(collectBootReadinessWarnings({ env,

@@ -1,3 +1,4 @@
+import { probeCredentialConnection } from "../custom-credentials/credentialed-request.js";
 import { findPluginCredentialCard, type PluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
@@ -33,7 +34,7 @@ import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSa
  * so no vendor code is left in core: the tokens page and the probe URL now come from the plugin.
  *
  * A Jini secret-card spec with domain copy from `connect-card-ui.ts`; the submitted token is probed with one GET to the declared
- * `probeUrl` (401 = invalid, 403 = refused for this purpose), then saved as the plugin row's sealed `static_env` access token
+ * `probeUrl` (401/403 = refused for this purpose), then saved as the plugin row's sealed `static_env` access token
  * through `saveExternalMcpServer`. The store sends that token to the hosted server as
  * `Authorization: Bearer`, and switching the row's auth mode replaces any unfinished OAuth attempt on
  * it. The save itself carries `enabled` and the tool lists forward; then `switch-on-saved-token.ts`
@@ -51,8 +52,6 @@ import { describeSavedTokenSwitch, switchOnSavedTokenConnection, type SwitchOnSa
 /** Same permission `agent_plugin_connect` restates (`connect-tool.ts`). */
 const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
 
-/** Per-request bound; the guarded client's egress policy separately caps connect time and body size. */
-const PROBE_TIMEOUT_MS = 10_000;
 
 /** What resolving and saving onto a plugin's token row needs — no permission check, no HTTP client.
  *  Shared with `import-access-token.ts`, which saves a token that did not come from this form. */
@@ -151,25 +150,14 @@ export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, plugi
   return { pluginId, displayName: titleCaseFromPluginId(pluginId), connectionId, config };
 }
 
-/** One GET with the token as a Bearer header. Never throws, never returns the token or the body. */
-export async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
+/** Token sign-in keeps its input validation; Jini owns the GET, redirects and status classification.
+ * @returns Invalid only for malformed input; HTTP 401/403 mean refused for this purpose.
+ * @complexity One bounded GET; no persistence, response bodies or transport errors escape.
+ */
+export async function probeToken({ probeUrl, token }: { probeUrl: string; token: string }, { httpClient }: { httpClient: HttpClientPort }): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
   try { assertCredentialToken({ value: token, field: 'token' }); }
   catch { return "invalid"; }
-  let response;
-  try {
-    response = await httpClient.send({
-      method: "GET",
-      url: probeUrl,
-      headers: { authorization: `Bearer ${token}`, accept: "application/json" },
-      timeoutMs: PROBE_TIMEOUT_MS,
-    });
-  } catch {
-    return "unavailable";
-  }
-  if (response.status === 401) return "invalid";
-  // Permission refusal is not evidence that a token is invalid for its other uses.
-  if (response.status === 403) return "refused";
-  return response.status >= 200 && response.status < 300 ? "ok" : "unavailable";
+  return probeCredentialConnection({ connection: { token }, url: probeUrl, schemes: [] }, { httpClient });
 }
 
 function joinStoredList(raw: string | null): string {
@@ -233,7 +221,7 @@ async function saveSubmittedAccessToken(
   catch (err) { if (err instanceof CredentialInputError) return { saved: false, reason: 'invalid', message: credentialText({ id: err.rule, locale }) }; throw err; }
 
   const token = (submitted as string).trim();
-  const probe = await probeToken(routeDeps.customCredentialsHttpClient, target.config.tovuTokenAuth.probeUrl, token);
+  const probe = await probeToken({ probeUrl: target.config.tovuTokenAuth.probeUrl, token }, { httpClient: routeDeps.customCredentialsHttpClient });
   signal.throwIfAborted();
   if (probe === "invalid") return { saved: false, reason: "invalid", message: translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
   if (probe === "refused") return { saved: false, reason: "refused", message: `This token was refused for this purpose.${credentialCard?.keyHint ? ` This card needs: ${credentialCard.keyHint}` : ''}` };

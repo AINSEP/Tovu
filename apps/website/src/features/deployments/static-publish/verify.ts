@@ -330,3 +330,18 @@ export async function verifyPublishCredentialById(
   }
   return result;
 }
+
+/** Check a human-submitted replacement through the existing host verifier before overwriting.
+ * @returns The normal safe verification result; does not write credentials or cache results.
+ * @complexity One registry load and one bounded host check.
+ * @example verifySubmittedPublishCredential({ deps, workspaceId, target, connection, spec });
+ */
+export async function verifySubmittedPublishCredential({ deps, workspaceId, target, connection, spec }: {
+  deps: Pick<VerifyPublishCredentialDeps, 'loadDeployTargets' | 'clock' | 'fetchFn' | 'observability'>;
+  workspaceId: string; target: string; connection: Parameters<typeof projectConnectionForPublish>[0]; spec: DeployTargetCredentialSpec;
+}, _options = {}): Promise<PublishCredentialVerificationResult> {
+  const projected = projectConnectionForPublish(connection, spec);
+  if (!projected.ok) return cannotVerify('the submitted connection is incomplete', deps.clock);
+  const registry = await deps.loadDeployTargets(workspaceId);
+  return computeVerificationResult({ registry, kit: verificationKit(deps), clock: deps.clock }, target, toDeployTargetCredential(projected));
+}

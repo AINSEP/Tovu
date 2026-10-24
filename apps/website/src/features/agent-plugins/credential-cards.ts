@@ -30,8 +30,19 @@ function httpsUrl({ value, name }: { value: unknown; name: string }, _options = 
   const result = text({ value, name });
   if (result === undefined) return undefined;
   const url = new URL(result);
-  if (url.protocol !== 'https:' || url.username || url.password) throw new Error(`${name} must be an HTTPS URL without credentials`);
+  if (url.protocol !== 'https:' || url.username || url.password || /^https:\/\/[^/?#]*@/i.test(result)) throw new Error(`${name} must be an HTTPS URL without credentials`);
   return result;
+}
+
+/** A probe is API-card metadata bound to a fixed base origin, never a submitted destination.
+ * @returns The declared URL, or no field for legacy cards. @throws Error for unsafe declarations.
+ * @complexity O(1), bounded URL text; no I/O.
+ */
+function probeOf({ value, baseUrl }: { value: RecordValue; baseUrl?: string }, _options = {}): Pick<PluginCredentialCard, 'probeUrl'> {
+  if (value.probeUrl === undefined) return {};
+  const probeUrl = httpsUrl({ value: value.probeUrl, name: 'probeUrl' })!;
+  if (!isApiCard({ value }) || !baseUrl || new URL(probeUrl).origin !== new URL(baseUrl).origin) throw new Error('probeUrl requires an API card with a same-origin declared baseUrl');
+  return { probeUrl };
 }
 
 /** Non-secret supplemental inputs; domain owners still validate the submitted connection. */
@@ -64,7 +75,7 @@ function declaredCard({ value }: { value: RecordValue }, _options = {}): PluginC
   const usedFor = parseCredentialCardUsedFor({ value: value.usedFor });
   const baseUrl = httpsUrl({ value: value.baseUrl, name: 'baseUrl' });
   validateCardFields({ value, fields, baseUrl });
-  return { providerId: target, category, baseUrl: baseUrl ?? '', ...cardText({ value }), ...ownedApiLabelOf({ value }), ...(usedFor === undefined ? {} : { usedFor }), ...(fields === undefined ? {} : { fields }), ...additionalOrigins({ value: value.additionalHosts }), ...(value.saveKind === undefined ? {} : { saveKind: value.saveKind as PluginCredentialCard['saveKind'] }) };
+  return { providerId: target, category, baseUrl: baseUrl ?? '', ...probeOf({ value, baseUrl }), ...cardText({ value }), ...ownedApiLabelOf({ value }), ...(usedFor === undefined ? {} : { usedFor }), ...(fields === undefined ? {} : { fields }), ...additionalOrigins({ value: value.additionalHosts }), ...(value.saveKind === undefined ? {} : { saveKind: value.saveKind as PluginCredentialCard['saveKind'] }) };
 }
 
 /** A card may claim only its own API row, never grant ownership to other cards or domain stores. */

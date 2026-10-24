@@ -165,3 +165,29 @@ test('trusted contribution materialization tags ownership and refuses cross-plug
   assert.deepEqual(cards.map(card => [card.providerId, card.pluginId]), [['owner', 'owner'], ['own-dns', 'owner']]);
   assert.equal(refusals.length, 2);
 });
+
+test('probe declarations survive real parsing and trusted card materialization', async () => {
+  const probeUrl = 'https://api.example.com/user';
+  const result = await loadDeclaredCards({ sources: [source({ pluginId: 'owner', cards: [{ ...declaredCard, probeUrl }] })] });
+  assert.deepEqual(result.refusals, []);
+  assert.equal(result.cards[0]?.probeUrl, probeUrl);
+});
+
+for (const probeUrl of ['https://other.example.com/user', 'http://api.example.com/user', 'https://user:password@api.example.com/user', 'https://@api.example.com/user', '/user']) {
+  test(`unsafe probe declaration is refused: ${probeUrl}`, async () => {
+    const result = await loadDeclaredCards({ sources: [source({ pluginId: 'owner', cards: [{ ...declaredCard, probeUrl }] })] });
+    assert.deepEqual(result.cards, []);
+    assert.equal(result.refusals.length, 1);
+  });
+}
+
+test('a fixed probe requires an API card and a fixed declared base origin', async () => {
+  for (const card of [
+    { ...declaredCard, baseUrl: undefined, fields: [{ name: 'baseUrl', label: 'URL', required: true }] },
+    { ...declaredCard, ownedApiLabel: undefined, saveKind: 'source-control' },
+  ]) {
+    const result = await loadDeclaredCards({ sources: [source({ pluginId: 'owner', cards: [{ ...card, probeUrl: 'https://api.example.com/user' }] })] });
+    assert.deepEqual(result.cards, []);
+    assert.equal(result.refusals.length, 1);
+  }
+});
