@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
@@ -29,7 +30,7 @@ import type { OriginSettingsTable } from "../content-database.generated.js";
  * durable adapter:
  *
  * 1. {@link seedDevCapabilityOriginOn} — the idempotent find-or-create dev default
- *    (`http://localhost:3000`), mirroring exactly what the in-memory adapter's constructor-seed did.
+ *    (the current loopback listener), preserving operator registrations.
  * 2. {@link registerConfiguredOriginOn} — the operator-declared public origin, from
  *    `features/origin/configured-origin.ts`'s `TOVU_PUBLIC_URL` resolver (2026-09-18; design note:
  *    `ADS-memory/reports/2026-09-18-public-origin-registration-design.md`). This is what finally
@@ -95,18 +96,20 @@ export class SqlOriginSettingRepo implements OriginSettingRepoPort {
   }
 }
 
+const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"];
+
 /**
- * Idempotent boot-time seed — find-or-create, never overwrites an already-registered origin (so a
- * future real verification flow's write is never silently clobbered by a re-run of this seed).
- * Mirrors `content-db.ts`'s `seedContentDb()`'s own "guarded... never re-seeded or overwritten on
- * restart" convention. One `INSERT … ON CONFLICT DO NOTHING` on the `workspace_id` primary key, so
- * find-or-create is a single atomic statement on every dialect.
+ * Idempotent boot seed. Only a dev-capability loopback row follows a changed listener's scheme
+ * and port. Owner registrations, non-loopback rows, base paths and allowlists are never overwritten.
+ * The conditional upsert is atomic, including when another process registers an origin concurrently.
+ * @complexity O(1), one primary-key upsert.
  */
 export async function seedDevCapabilityOriginOn(
   kernel: ContentKernel,
   seed: { workspaceId: UUID; origin: VerifiedOrigin; redirectAllowlist?: string[]; egressAllowlist?: string[] }
 ): Promise<void> {
   const verified = createVerifiedOrigin(seed.origin);
+  const refreshesLoopback = verified.source === "dev-capability" && LOOPBACK_HOSTS.includes(verified.host);
   await kernel.run((db) =>
     db
       .insertInto("origin_settings")
@@ -121,7 +124,12 @@ export async function seedDevCapabilityOriginOn(
         redirect_allowlist_json: JSON.stringify(normalizeHostList(seed.redirectAllowlist)),
         egress_allowlist_json: JSON.stringify(normalizeHostList(seed.egressAllowlist)),
       })
-      .onConflict((oc) => oc.column("workspace_id").doNothing())
+      .onConflict((oc) => !refreshesLoopback ? oc.column("workspace_id").doNothing() : oc.column("workspace_id").doUpdateSet({
+        scheme: verified.scheme, port: verified.port ?? null, verified_at: verified.verifiedAt,
+      }).where("origin_settings.source", "=", "dev-capability")
+        .where("origin_settings.host", "in", LOOPBACK_HOSTS)
+        // Unchanged listener: no write, so its verification stamp does not churn on every boot.
+        .where(sql<boolean>`(origin_settings.scheme <> ${verified.scheme} OR origin_settings.port IS DISTINCT FROM ${verified.port ?? null})`))
       .execute()
   );
 }
@@ -165,8 +173,8 @@ function sameOrigin(row: Row, origin: VerifiedOrigin): boolean {
  * This is deliberately a different function with a different contract from
  * {@link seedDevCapabilityOriginOn}, not a change to it. The certified idempotency test
  * (`features/origin/__tests__/repo.contract.test.ts`) protects "a re-run of the boot seed can never
- * clobber a real registered origin", and that assertion stands unchanged: the dev seed still never
- * overwrites anything. What this function adds is the one authority that IS allowed to correct the
+ * clobber a real registered origin", and that assertion stands unchanged: the dev seed only refreshes its own loopback listener
+ * scheme and port. What this function adds is the one authority that IS allowed to correct the
  * row — whoever can set this deployment's process environment (the host's secret store /
  * the deploy workflow's non-secret env inputs to the hosting plugin), which is strictly more privileged than an admin-UI login and can already deploy
  * arbitrary code. Without a correcting writer, production's `http://localhost:3000` row — durably

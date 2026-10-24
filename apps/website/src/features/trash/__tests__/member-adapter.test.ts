@@ -1,3 +1,9 @@
+import express from "express";
+import { bindRemoveEntity } from "@jini-ai/cms/trash";
+import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
+import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
+import { buildMembersRegistrations } from "#src/features/members/tool-registrations";
+import { trashMember } from "#src/features/members/trash-member";
 /** @file gapb: member Trash uses the existing registry/table adapter and Jini Trash service.
  * Tests fail without the member entry, credential wrapper, live-read filters and stale-write fence.
  */
@@ -275,5 +281,78 @@ test("member adapter: a refused or no-op marker flip returns verbatim and never 
     assert.deepEqual(await adapter.unhide(input), outcome);
     assert.deepEqual(seen, [["hide", "member-scripted", {}], ["unhide", "member-scripted", {}]], "options default to {} and reach the wrapped adapter");
     assert.deepEqual(credentialState(), before, `outcome ${JSON.stringify(outcome)} must not revoke anything`);
+  }
+});
+
+/** Both product entrypoints share the real adapter; restoring never revives a revoked credential. */
+for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${entrypoint} delete uses Trash, revokes sessions, restores and purges`, async t => {
+  const h = harness(); t.after(() => h.client.close()); h.seed(); h.seed("unrelated");
+  const deps = { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+    removeMember: bindRemoveEntity({ trash: h.trash, entityType: "member" }),
+    authorize: async ({ permission }: { permission: string }) => ({ allowed: h.granted.has(permission), reason: "test" }),
+  };
+  const invoke = async (memberId: string, workspaceId = WS) => {
+    if (entrypoint === "tool") {
+      const registration = buildMembersRegistrations(deps as never).find(r => r.descriptor.id === "members_delete")!;
+      return registration.handler({ principal: { id: "operator" }, input: { memberId } } as ToolExecutionContext);
+    }
+    const app = express(); registerAdminMemberDeleteRoute(app, deps as never);
+    const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
+    await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId, memberId } }, res);
+    return { status: capture.statusCode, body: capture.jsonBody };
+  };
+  h.granted.delete("member.manage");
+  if (entrypoint === "api") assert.equal((await invoke("member-1") as { status: number }).status, 403);
+  else await assert.rejects(invoke("member-1"), /MEMBERS_FORBIDDEN/);
+  assert.ok(await h.members.findById({ workspaceId: WS, id: "member-1" }));
+  h.granted.add("member.manage");
+  if (entrypoint === "api") {
+    assert.equal((await invoke("member-1", "wrong-workspace") as { status: number }).status, 404);
+    assert.equal((await invoke("absent") as { status: number }).status, 404);
+    assert.deepEqual(await invoke("member-1"), { status: 200, body: { deleted: true } });
+  } else assert.deepEqual(await invoke("member-1"), { deleted: true });
+  assert.equal(await h.members.findById({ workspaceId: WS, id: "member-1" }), null);
+  assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-member-1" }))!.revokedAt, AT);
+  assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-unrelated" }))!.revokedAt, undefined);
+  assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 10 })).items.length, 1);
+  if (entrypoint === "api") assert.equal((await invoke("member-1") as { status: number }).status, 404);
+  else await assert.rejects(invoke("member-1"), /MEMBERS_NOT_FOUND/);
+  await h.invoke("trash_restore_item", { entityType: "member", entityId: "member-1" });
+  assert.equal((await h.members.findById({ workspaceId: WS, id: "member-1" }))!.status, "active");
+  assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-member-1" }))!.revokedAt, AT);
+  await invoke("member-1");
+  const page = await h.trash.list({ workspaceId: WS, now: LATER, limit: 10 });
+  const purged = await h.trash.purgeSelected({ workspaceId: WS, ids: page.items.map(item => item.id), actor: { principalId: "operator" }, authorizeItem: async () => true });
+  assert.equal(purged.purged, 1);
+  assert.equal(h.client.prepare("SELECT id FROM members WHERE id = 'member-1'").get(), undefined);
+});
+
+test("member deletion refuses stale/not-found removals and leaves unexpected adapter failures internal", async t => {
+  const h = harness(); t.after(() => h.client.close()); h.seed();
+  const input = { workspaceId: WS, memberId: "member-1", actor: { principalId: "operator" } };
+  const deps = { members: h.members, clock: { nowIso: () => AT } };
+  await assert.rejects(trashMember(input, deps), /Trash is unavailable/);
+  await assert.rejects(trashMember(input, { ...deps, remove: async () => ({ ok: false, reason: "version-changed" }) }), /Member changed/);
+  await assert.rejects(trashMember(input, { ...deps, remove: async () => ({ ok: false, reason: "not-found" }) }), /was not found/);
+  await assert.rejects(trashMember(input, { ...deps, remove: async () => { throw new Error("store failed"); } }), /store failed/);
+  await assert.rejects(trashMember(input, { ...deps, remove: async () => ({ ok: false, reason: "blocked", code: "UNEXPECTED", count: 1 }) }), /unexpectedly reported a blocker/);
+  assert.ok(await h.members.findById({ workspaceId: WS, id: "member-1" }));
+});
+
+test("member DELETE maps stale writes and unavailable runtime, and keeps store failures private", async t => {
+  const h = harness(); t.after(() => h.client.close()); h.seed();
+  const cases = [
+    { remove: async () => ({ ok: false, reason: "version-changed" }), status: 409 },
+    { remove: undefined, status: 400 },
+    { remove: async () => { throw new Error("private database failure"); }, status: 500 },
+  ];
+  for (const entry of cases) {
+    const app = express();
+    registerAdminMemberDeleteRoute(app, { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+      removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never);
+    const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
+    await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId: WS, memberId: "member-1" } }, res);
+    assert.equal(capture.statusCode, entry.status);
+    assert.ok(!JSON.stringify(capture.jsonBody).includes("private database failure"));
   }
 });

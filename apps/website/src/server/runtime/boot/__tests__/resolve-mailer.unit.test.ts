@@ -591,7 +591,7 @@ test("domainRequirements: the active transactional provider's records for the se
   assert.equal(asked.length, 1, "only the configured case reaches the provider");
 
   answer = { status: "rejected", error: { code: "unauthorized", message: "bad key" } };
-  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });
+  await assert.rejects(make({}).domainRequirements({ workspaceId: WORKSPACE }), { message: "unauthorized: bad key" });
   // A provider that never settles must still allow mail_dns_status to return requirements_failed.
   const stalled = fixtureRegistry({ capabilities: { hosted: true, feedback: false, domainVerification: true }, domainRequirements: () => new Promise(() => {}), domainStatus: async () => ({ status: "ok", value: { domain: "example.com", state: "verified" } }), create: () => FIXTURE_MAILER });
   await assert.rejects(make({ loadMailAdapters: async () => stalled, domainRequirementsTimeoutMs: 1 }).domainRequirements({ workspaceId: WORKSPACE }), { message: "The mail provider could not list its required DNS records." });

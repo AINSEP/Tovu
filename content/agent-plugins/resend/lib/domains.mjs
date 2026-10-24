@@ -1,4 +1,5 @@
 // @ts-check
+import { parseErrorBody } from './errors.mjs';
 
 /**
  * @file Resend sending-domain verification over the Domains API (Jini `MailProviderModule`
@@ -28,16 +29,24 @@ export function retryAfterMs(headers) {
   return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds * 1000) : undefined;
 }
 
+/** Legacy fallback when Resend supplies no structured error body. @param {{status: number}} required */
+function domainFailureFallback({ status }) {
+  if (status === 429) return { errorCode: 'rate_limited', message: 'Resend rate limit reached' };
+  if (status >= 500) return { errorCode: 'provider_unavailable', message: `Resend responded with HTTP ${status}` };
+  return { errorCode: REJECTED_CODES[status] ?? 'provider_error', message: `Resend refused the request (HTTP ${status})` };
+}
+
 /** HTTP status to a rejected/unknown result. @param {HttpResponse} response @returns {ProviderResult} */
 function failure(response) {
   const { status } = response;
+  const parsed = parseErrorBody({ status, bodyText: response.bodyText }, { fallback: domainFailureFallback({ status }) });
+  const detail = { code: parsed.errorCode, message: parsed.message };
   if (status === 429) {
     const wait = retryAfterMs(response.headers);
-    return { status: 'rejected', error: { code: 'rate_limited', message: 'Resend rate limit reached', ...(wait === undefined ? {} : { retryAfterMs: wait }) } };
+    return { status: 'rejected', error: { ...detail, ...(wait === undefined ? {} : { retryAfterMs: wait }) } };
   }
-  if (status >= 500) return { status: 'unknown', error: { code: 'provider_unavailable', message: `Resend responded with HTTP ${status}` } };
-  const code = REJECTED_CODES[status] ?? 'provider_error';
-  return { status: 'rejected', error: { code, message: `Resend refused the request (HTTP ${status})` } };
+  if (status >= 500) return { status: 'unknown', error: { ...detail } };
+  return { status: 'rejected', error: detail };
 }
 
 /** One GET, parsed. @param {CallContext} ctx @param {string} path @returns {Promise<ProviderResult>} */

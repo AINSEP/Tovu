@@ -200,16 +200,29 @@ function base(verdict: SenderDomainVerification | null): Pick<MailDnsStatus, "se
   return { senderDomain, providerId: verdict?.providerId ?? null, providerVerification: verdict, untrusted: true };
 }
 
+/** Preserve a caller-safe provider refusal instead of masking it with the generic unknown state. */
+function noRecordsReason(verdict: SenderDomainVerification | null): { state: MailDnsState; message: string } {
+  const fallback = NO_RECORDS[verdict?.state ?? ""] ?? UNSUPPORTED;
+  return verdict?.state === "unknown" ? { ...fallback, message: verdict.reason } : fallback;
+}
+
+/** The verdict's no-records reason, except that a failed records read already carries the
+ * provider's own error, which must not be replaced by the domain check's generic unknown state. */
+function verdictReason(status: Pick<MailDnsStatus, "state">, verdict: SenderDomainVerification): Partial<{ state: MailDnsState; message: string }> {
+  if (!NO_RECORDS[verdict.state]) return {};
+  return verdict.state === "unknown" && status.state === "requirements_failed" ? {} : noRecordsReason(verdict);
+}
+
 /** The provider's records once (the plan step asks the port again through a cached copy). */
 async function resolveRequirement(ports: MailDnsStatusPorts, verdict: SenderDomainVerification | null): Promise<Resolved> {
   if (ports.mailRequirements === undefined) return { kind: "none", status: { ...base(verdict), state: "requirements_unavailable", message: "This server cannot report its mail provider's DNS records." } };
   try {
     const requirement = await ports.mailRequirements({ workspaceId: ports.context.workspaceId });
     if (requirement !== null) return { kind: "records", requirement };
-    const why = NO_RECORDS[verdict?.state ?? ""] ?? UNSUPPORTED;
+    const why = noRecordsReason(verdict);
     return { kind: "none", status: { ...base(verdict), ...why } };
   } catch (err) {
-    return { kind: "none", status: { ...base(verdict), state: "requirements_failed", message: "The mail provider could not list its required DNS records." } };
+    return { kind: "none", status: { ...base(verdict), state: "requirements_failed", message: err instanceof ToolInputError ? err.message : "The mail provider could not list its required DNS records." } };
   }
 }
 
@@ -219,7 +232,7 @@ async function prepare(ports: MailDnsStatusPorts): Promise<{ verdict: SenderDoma
   const requirementRead = resolveRequirement(ports, null);
   const verdict = ports.senderDomainVerification ? await ports.senderDomainVerification() : null;
   let resolved = await requirementRead;
-  if (resolved.kind === "none" && verdict) resolved = { kind: "none", status: { ...resolved.status, ...base(verdict), ...(NO_RECORDS[verdict.state] ?? {}) } };
+  if (resolved.kind === "none" && verdict) resolved = { kind: "none", status: { ...resolved.status, ...base(verdict), ...verdictReason(resolved.status, verdict) } };
   const requirement = resolved.kind === "records" ? resolved.requirement : null;
   return { verdict, resolved, cached: { ...ports, mailRequirements: async () => requirement } };
 }

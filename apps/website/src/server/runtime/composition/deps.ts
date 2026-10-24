@@ -1,3 +1,4 @@
+import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
@@ -1541,14 +1542,15 @@ async function composeSiteRouteDeps(
     if (originBoot.kind === "configured") {
       return registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
     } else if (originBoot.kind === "dev-seed") {
+      const listenerOrigin = readSiteListenerOrigin({ fallbackScheme: devCapabilityScheme });
       return seedDevCapabilityOrigin({
         db: kernel,
         seed: {
           workspaceId: workspaceId,
           origin: createVerifiedOrigin({
-            scheme: devCapabilityScheme,
+            scheme: listenerOrigin.protocol === "https:" ? "https" : "http",
             host: "localhost",
-            port: 3000,
+            port: Number(listenerOrigin.port || (listenerOrigin.protocol === "https:" ? 443 : 80)),
             verifiedAt: clock.nowIso(),
             source: "dev-capability",
           }),
@@ -2449,6 +2451,7 @@ async function composeSiteRouteDeps(
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters — already fully built and
     // contract-tested, wired into a real composition root for the first time.
     memberRepo,
+    removeMember: bindRemoveEntity({ trash, entityType: "member" }),
     memberTierRepo: new SqliteMemberTierRepo(kernel),
     memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
     memberSessionRepo: new SqliteMemberSessionRepo(kernel),

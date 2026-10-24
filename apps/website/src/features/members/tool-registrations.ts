@@ -1,3 +1,4 @@
+import { trashMember } from "./trash-member.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -56,6 +57,7 @@ export interface MagicLinkRateLimiter {
  * `MembersRouteDeps` object; nothing there changes.
  */
 export interface MembersToolDeps {
+  removeMember?: import("@jini-ai/cms/trash").RemoveEntity;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: Clock;
@@ -118,6 +120,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["members_update_profile", "mutates-durable-state"],
   // -> disableMember (write-service.ts): status flip + revokes every live session.
   ["members_disable", "mutates-durable-state"],
+  ["members_delete", "mutates-durable-state"],
   // -> requestSignInLink (write-service.ts): saves a new-address challenge without creating a member, saves a magic-link
   //    token row, and sends mail; settleMailer refreshes configuration without sending.
   ["members_request_magic_link", "mutates-durable-state"],
@@ -224,6 +227,13 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const member = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: memberId });
       if (!member) throw new MemberNotFoundError(`member '${memberId}' was not found`);
       return { member: toMemberToolView(member) };
+    },
+
+    members_delete: async (ctx) => {
+      const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.principal.id } },
+        { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock });
     },
 
     members_disable: async (ctx) => {

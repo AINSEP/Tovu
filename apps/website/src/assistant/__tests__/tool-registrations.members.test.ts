@@ -158,7 +158,7 @@ test("owner-approved Members create/profile tools are wired alongside the existi
     [...membersRegistrations(deps).keys()].sort(),
     // members_get_by_id and members_list MERGE into this single card (2026-09-08,
     // assistant/content-read-tool.ts): one wired tool, dispatching on whether memberId was supplied.
-    ["content_read.member", "members_create", "members_disable", "members_request_magic_link", "members_update_profile"],
+    ["content_read.member", "members_create", "members_delete", "members_disable", "members_request_magic_link", "members_update_profile"],
   );
 });
 

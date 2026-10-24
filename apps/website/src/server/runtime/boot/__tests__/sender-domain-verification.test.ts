@@ -48,7 +48,17 @@ test("a missing key, a provider error and a thrown call are Unknown, never faile
   assert.deepEqual(await createSenderDomainVerification(deps({ resolveCredential: async () => null }))(), unknown("the provider's key is not saved"));
   assert.deepEqual(await createSenderDomainVerification(deps({ resolveCredential: async () => { throw new Error("vault"); } }))(), unknown("the provider's key is not saved"));
   const rejecting = provider(async () => providerRejected({ code: "forbidden", message: "no" }));
-  assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => rejecting }))(), unknown("the provider did not answer the domain check"));
+  assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => rejecting }))(), unknown("forbidden: no"));
   const throwing = provider(async () => { throw new Error("socket"); });
   assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => throwing }))(), unknown("the provider did not answer the domain check"));
+});
+
+test("provider failure details keep code and useful copy while scrubbing the resolved key before capping", async () => {
+  const secret = "saved-credential-value";
+  const refusing = provider(async () => providerRejected({ code: "restricted_api_key", message: `Use a full-access key; received ${secret}. ${"x".repeat(1500)}` }));
+  const result = await createSenderDomainVerification(deps({ findProvider: async () => refusing, resolveCredential: async () => ({ token: secret }) }))();
+  assert.equal(result.state, "unknown");
+  if (result.state !== "unknown") return;
+  assert.match(result.reason, /^restricted_api_key: Use a full-access key/);
+  assert.ok(!result.reason.includes(secret)); assert.equal(result.reason.length, 1000);
 });

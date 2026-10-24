@@ -114,3 +114,5 @@ export {
   MembersSubscriberDirectory,
   type MembersSubscriberDirectoryDeps,
 } from "./subscriber-directory.js";
+
+export { trashMember } from "./trash-member.js";

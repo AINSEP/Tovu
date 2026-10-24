@@ -35,7 +35,7 @@ function suppressionRepo(removed: unknown[] = []): MailSuppressionAdminRepo {
 const ROW: MailActivityRecord = {
   cursorKey: "row-1",
   idempotencyKey: "members:signin:h", recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in",
-  outcome: "delivered", providerMessageId: "m1", errorCode: null, createdAt: "2026-10-22T12:00:00.000Z", updatedAt: "2026-10-22T12:00:01.000Z",
+  outcome: "delivered", providerMessageId: "m1", errorCode: null, message: null, createdAt: "2026-10-22T12:00:00.000Z", updatedAt: "2026-10-22T12:00:01.000Z",
 };
 
 function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {}): AdminMailActivityDeps {

@@ -92,7 +92,7 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
                 {data.activity.originalRecipient ? (
                   <div className="email-fact"><dt className="jini-field-label">{t({ locale, key: "Meant for" })}</dt><dd>{data.activity.originalRecipient}</dd></div>
                 ) : null}
-                {data.activity.errorCode ? <div className="email-fact"><dt className="jini-field-label">{t({ locale, key: "Error" })}</dt><dd><code>{data.activity.errorCode}</code></dd></div> : null}
+                {data.activity.errorCode ? <div className="email-fact"><dt className="jini-field-label">{t({ locale, key: "Error" })}</dt><dd><code>{data.activity.errorCode}</code>{data.activity.message ? <p>{data.activity.message}</p> : null}</dd></div> : null}
                 {data.activity.providerMessageId ? <div className="email-fact"><dt className="jini-field-label">{t({ locale, key: "Message ID" })}</dt><dd><code>{data.activity.providerMessageId}</code></dd></div> : null}
                 <div className="email-fact">
                   <dt className="jini-field-label">{t({ locale, key: "Feedback" })}</dt>

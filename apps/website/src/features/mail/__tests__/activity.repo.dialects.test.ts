@@ -73,7 +73,7 @@ describeEachDialect("mail activity repo", {
     ]);
     assert.deepEqual(rows.at(-1), {
       cursorKey: "members:signin:h1", idempotencyKey: "members:signin:h1", recipient: "a@x.test", lane: "transactional", providerId: "smtp", use: "sign_in",
-      outcome: "accepted", providerMessageId: "m1", errorCode: null, createdAt: T(1), updatedAt: T(2),
+      outcome: "accepted", providerMessageId: "m1", errorCode: null, message: null, createdAt: T(1), updatedAt: T(2),
     });
     assert.deepEqual((await repo.list({ workspaceId: "wb", limit: 50 })).map((r) => r.outcome), ["bounced"]);
   });

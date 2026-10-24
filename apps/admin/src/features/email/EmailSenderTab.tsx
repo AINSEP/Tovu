@@ -117,6 +117,7 @@ function SenderDomain(props: { status: MailDnsStatus; locale: string }) {
       <span className="jini-field-label">{t({ locale, key: "Domain" })}</span>
       <code>{status.senderDomain}</code>
       {verdict ? <Chip tone={verdict.tone}>{t({ locale, key: verdict.label })}</Chip> : null}
+      {status.providerVerification?.state === "unknown" && status.providerVerification.reason ? <p className="jini-field-hint">{status.providerVerification.reason}</p> : null}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import type { MailAdapterCredential, MailProviderCallContext, MailProviderModule } from "@jini-ai/platform/mail";
 
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -38,7 +39,9 @@ async function askProvider(required: { deps: SenderDomainVerificationDeps; provi
   // Same call context `resolve-mailer.ts` builds for a provider call: this workspace, live, its key.
   const ctx: MailProviderCallContext = { workspaceId: deps.workspaceId, mode: "live", credential, httpClient: deps.httpClient as unknown as MailProviderCallContext["httpClient"] };
   const result = await provider.domainStatus!(ctx, { domain }).catch(() => null);
-  return result?.status === "ok" ? { state: result.value.state, domain, providerId } : { state: "unknown", domain, providerId, reason: "the provider did not answer the domain check" };
+  if (result?.status === "ok") return { state: result.value.state, domain, providerId };
+  const reason = result ? safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential }) }) : "the provider did not answer the domain check";
+  return { state: "unknown", domain, providerId, reason };
 }
 
 /**

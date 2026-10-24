@@ -241,3 +241,9 @@ test('sendBatch sends one message per key suffix and capabilities stay as before
   assert.deepEqual(client.calls.map((call) => call.headers['Idempotency-Key']), ['b:0', 'b:1']);
   assert.deepEqual(mailer.capabilities(), { driver: 'resend', supportsIdempotencyKey: true, supportsWebhookFeedback: true, maxBatchSize: 1, supportsAttachments: true });
 });
+
+test('domain errors preserve Resend name and human-readable message for restricted API keys', async () => {
+  const http = { send: async () => ({ status: 403, bodyText: JSON.stringify({ name: 'restricted_api_key', message: 'This API key is restricted to sending emails. Use a full-access key to list domains.' }) }) };
+  const result = await resend.domainStatus(ctxWith(http), { domain: 'a.test' });
+  assert.deepEqual(result, { status: 'rejected', error: { code: 'restricted_api_key', message: 'This API key is restricted to sending emails. Use a full-access key to list domains.' } });
+});

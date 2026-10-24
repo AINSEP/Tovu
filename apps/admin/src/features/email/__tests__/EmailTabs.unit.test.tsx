@@ -186,6 +186,27 @@ describe("Email tab components", () => {
     expect(controller.toggleDetail).toHaveBeenCalledWith(ACTIVITY.id);
   });
 
+  it("shows the stored provider failure message beside its code in Activity details", () => {
+    const controller = createTabHooks().activity();
+    const activity = { ...ACTIVITY, outcome: "failed", errorCode: "validation_error", message: "Verify the sender domain first." };
+    controller.activity.view = { kind: "loaded", data: { items: [activity], nextCursor: null, empty: null, access: "full" } };
+    controller.openId = activity.id!;
+    controller.detail = { kind: "loaded", data: { activity, feedback: [] } };
+    render(<EmailActivityTab controller={controller} locale="en" />);
+    expect(screen.getByText("validation_error")).toBeInTheDocument();
+    expect(screen.getByText("Verify the sender domain first.")).toBeInTheDocument();
+  });
+
+  it("shows the provider's safe DNS error detail", async () => {
+    const api = createEmailFake();
+    api.readDns.mockResolvedValue({ ...DNS, state: "requirements_failed", dns: undefined,
+      message: "restricted_api_key: Use a full-access key", providerVerification: { state: "unknown", providerId: "hosted", reason: "forbidden: Domain access refused" } });
+    function Harness() { return <EmailSenderTab controller={useEmailSender({ api })} locale="en" part="dns" />; }
+    render(<Harness />);
+    expect(await screen.findByText("forbidden: Domain access refused")).toBeInTheDocument();
+    expect(screen.getByText(/restricted_api_key: Use a full-access key/)).toBeInTheDocument();
+  });
+
   it("requires reason then confirmation in the rendered unblock dialog and shows the owner-only refusal", async () => {
     const api = createEmailFake();
     api.listSuppressions.mockResolvedValue({ items: [BLOCK], nextCursor: null, empty: null });

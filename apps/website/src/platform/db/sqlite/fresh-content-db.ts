@@ -1,3 +1,4 @@
+import { MAIL_ACTIVITY_MESSAGE_SQL } from "../migrations/0033_mail_activity_message.js";
 import { MEMBER_SIGNUP_EMAIL_SQL } from "../migrations/0032_member_signup_email.js";
 import { SITE_CONSENT_REVISION_STATEMENTS } from '../migrations/0021_site_consent_revisions.js';
 import { WORKSPACE_MCP_CASCADE_SQLITE } from "../migrations/0022_workspace_mcp_cascade.js";
@@ -193,6 +194,7 @@ export function bootstrapFreshContentDb(
       for (const statement of MAIL_SUPPRESSION_ADMIN_STATEMENTS) client.exec(statement);
     },
     "0032_member_signup_email": () => client.exec(MEMBER_SIGNUP_EMAIL_SQL),
+    "0033_mail_activity_message": () => client.exec(MAIL_ACTIVITY_MESSAGE_SQL),
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },

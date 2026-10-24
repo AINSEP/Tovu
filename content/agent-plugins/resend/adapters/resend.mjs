@@ -1,4 +1,5 @@
 // @ts-check
+import { parseErrorBody } from '../lib/errors.mjs';
 import { domainRequirements, domainStatus, retryAfterMs } from '../lib/domains.mjs';
 import { feedback } from '../lib/feedback.mjs';
 
@@ -73,27 +74,6 @@ function isRetryableStatus(status) {
  * since an installed plugin has no npm imports. Callers defer it instead of failing the recipient. */
 const MAIL_RATE_LIMITED = "MAIL_RATE_LIMITED";
 
-/** A non-empty string field of a parsed body, else the fallback. @param {unknown} value @param {string} fallback */
-function nonEmpty(value, fallback) {
-  return typeof value === "string" && value !== "" ? value : fallback;
-}
-
-/**
- * Resend's error body is `{statusCode, message, name}`; `name` becomes `errorCode`. A non-JSON body
- * (a proxy error page) still yields a usable result. Never throws.
- * @param {number} status @param {string} bodyText @returns {{ errorCode: string, message: string }}
- */
-function parseErrorBody(status, bodyText) {
-  const fallback = { errorCode: `HTTP_${status}`, message: bodyText || `Resend responded with HTTP ${status}` };
-  try {
-    const parsed = JSON.parse(bodyText);
-    return { errorCode: nonEmpty(parsed?.name, fallback.errorCode), message: nonEmpty(parsed?.message, fallback.message) };
-  } catch {
-    // Non-JSON body: keep the raw text above.
-    return fallback;
-  }
-}
-
 /**
  * Maps a non-2xx response to a send result. Never throws.
  * A 429 carries Resend's `Retry-After` as `retryAfterMs` so the caller backs off for that long, and is
@@ -102,7 +82,7 @@ function parseErrorBody(status, bodyText) {
  * @param {number} status @param {string} bodyText @param {Readonly<Record<string, string>>} [headers] @returns {SendResult}
  */
 function classifyError(status, bodyText, headers) {
-  const { errorCode, message } = parseErrorBody(status, bodyText);
+  const { errorCode, message } = parseErrorBody({ status, bodyText });
   if (status !== 429) return { ok: false, retryable: isRetryableStatus(status), errorCode, message };
   const wait = retryAfterMs(headers);
   return { ok: false, retryable: true, errorCode: MAIL_RATE_LIMITED, message: `${message} (${errorCode})`, ...(wait === undefined ? {} : { retryAfterMs: wait }) };
