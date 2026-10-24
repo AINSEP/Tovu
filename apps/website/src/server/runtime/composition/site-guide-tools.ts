@@ -60,7 +60,7 @@ function normalizeGuideInput({ input }: { input: Readonly<Record<string, unknown
 /** Search only the permission-filtered overview; hidden topics and their facts are never read.
  * @complexity O(t*q) for bounded overview text t and at most 200 query characters q; no extra I/O.
  */
-async function searchGuide({ guide, caller, topic }: { guide: ReturnType<typeof createTovuSiteGuide>; caller: { principalId: string }; topic: string }, _options = {}) {
+export async function searchGuide({ guide, caller, topic }: { guide: Pick<ReturnType<typeof createTovuSiteGuide>, "run">; caller: { principalId: string }; topic: string }, _options = {}) {
   const result = await guide.run({ caller, operation: "overview" }) as { topics: Array<{ id: string; title: string; summary: string }> };
   const words = topic.toLowerCase().split(/\s+/u);
   const topics = result.topics.filter(card => {
@@ -89,7 +89,7 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
         const guide = createTovuSiteGuide({ deps }, options);
         const caller = { principalId: ctx.principal.id };
         if (parsed.operation === "search") return await searchGuide({ guide, caller, topic: parsed.topic! });
-        return await guide.run({ caller, ...parsed });
+        return await guide.run({ caller, operation: parsed.operation, topic: parsed.topic });
       } catch (error) {
         if (error instanceof Error && error.name === "SiteGuideInputError") throw new ToolInputError({ message: error.message });
         throw error;
