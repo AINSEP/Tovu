@@ -19,7 +19,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * member deps, so replacing its `send` after boot captures every outbound message.
  */
 
-const SIGN_IN_TEXT_PREFIX = "Sign in using this link (expires in 15 minutes): /auth/magic?token=";
+const SIGN_IN_TEXT_PREFIX = "Sign in using this link (expires in 15 minutes): https://localhost:3000/auth/magic?token=";
 
 function memberRoute(site: BootedSite, suffix: "sign-in" | "sign-in/complete"): string {
   return `/api/members/v1/workspaces/${site.deps.workspaceId}/${suffix}`;
@@ -28,6 +28,14 @@ function memberRoute(site: BootedSite, suffix: "sign-in" | "sign-in/complete"): 
 /** Anonymous JSON POST — the member routes never see the owner's admin cookie. */
 async function anonymousPost(site: BootedSite, route: string, body: unknown): Promise<Response> {
   return fetch(`${site.baseUrl}${route}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+}
+
+/** Explicit working mail/status/origin fixtures are configured before createApp copies its deps. */
+function configureMemberMail(deps: BootedSite["deps"]): void {
+  const caps = deps.mailer.capabilities();
+  deps.mailer.capabilities = () => ({ ...caps, driver: "memory" });
+  deps.mailStatus = async () => ({ state: "ready", lanes: [{ lane: "transactional", providerId: "fixture", state: "ready" }], warnings: [], providers: [], refusals: [], checkedAt: new Date().toISOString() });
+  deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "localhost", port: 3000, source: "dev-capability", verifiedAt: new Date().toISOString() });
 }
 
 /** Replaces the composed mailer's `send` and returns the list every message lands in. */
@@ -50,7 +58,7 @@ function tokenFrom(message: OutboundEmail): string {
 
 /** Requests a link for `email`, completes it, and returns the raw member session token from the cookie. */
 async function signIn(site: BootedSite, mail: OutboundEmail[], email: string): Promise<{ memberId: string; sessionToken: string }> {
-  assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { delivered: true });
+  assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { accepted: true });
   const complete = await anonymousPost(site, memberRoute(site, "sign-in/complete"), { token: tokenFrom(mail[mail.length - 1]) });
   const cookie = complete.headers.get("set-cookie") ?? "";
   const body = await expectJson<{ member: { id: string } }>(complete, 200);
@@ -63,12 +71,12 @@ const sha256 = (raw: string): string => createHash("sha256").update(raw).digest(
 
 for (const dialect of SITE_DIALECTS) {
   test(`[unrun] member magic link [${dialect}]: request mails one link, complete activates the member and persists the session behind tovu_member_session`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     const { workspaceId } = site.deps;
 
     const requested = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "  Reader@Example.com ", redirectPath: "/members/only" });
-    assert.deepEqual(await expectJson(requested, 200), { delivered: true });
+    assert.deepEqual(await expectJson(requested, 200), { accepted: true });
     assert.equal(mail.length, 1);
     const token = tokenFrom(mail[0]);
     assert.deepEqual(
@@ -82,19 +90,20 @@ for (const dialect of SITE_DIALECTS) {
       }
     );
 
-    const pending = await site.deps.memberRepo.findByEmail({ workspaceId, email: "reader@example.com" });
-    assert.equal(pending?.status, "pending", "the request pre-creates a pending member");
+    const memberBeforeConsume = await site.deps.memberRepo.findByEmail({ workspaceId, email: "reader@example.com" });
+    assert.equal(memberBeforeConsume, null, "the request must not create a member");
     const linkRow = await site.deps.magicLinkRepo.findByTokenHash({ workspaceId, tokenHash: sha256(token) });
     assert.deepEqual(
-      { memberId: linkRow?.memberId, purpose: linkRow?.purpose, consumedAt: linkRow?.consumedAt ?? null },
-      { memberId: pending?.id, purpose: "signin", consumedAt: null },
+      { purpose: linkRow?.purpose, consumedAt: linkRow?.consumedAt ?? null },
+      { purpose: "signin", consumedAt: null },
       "only the token HASH is stored, and it is unconsumed"
     );
 
+    assert.equal(linkRow?.email, "reader@example.com", "new-address identity is stored only on the challenge");
     const complete = await anonymousPost(site, memberRoute(site, "sign-in/complete"), { token });
     const setCookie = complete.headers.get("set-cookie") ?? "";
     const body = await expectJson<{ member: { id: string; email: string; status: string } }>(complete, 200);
-    assert.deepEqual({ id: body.member.id, email: body.member.email, status: body.member.status }, { id: pending?.id, email: "reader@example.com", status: "active" });
+    assert.deepEqual({ id: body.member.id, email: body.member.email, status: body.member.status }, { id: linkRow?.memberId, email: "reader@example.com", status: "active" });
     assert.match(setCookie, /^tovu_member_session=[a-f0-9]{64};/);
     const attributes = setCookie.split("; ").slice(1);
     assert.ok(attributes.includes("HttpOnly"));
@@ -108,15 +117,15 @@ for (const dialect of SITE_DIALECTS) {
 
     const sessionToken = setCookie.match(/^tovu_member_session=([a-f0-9]{64});/)![1];
     const session = await site.deps.memberSessionRepo.findByTokenHash({ workspaceId, tokenHash: sha256(sessionToken) });
-    assert.equal(session?.memberId, pending?.id, "the cookie's token hashes to a persisted session row for this member");
-    const active = await site.deps.memberRepo.findById({ workspaceId, id: pending!.id });
+    assert.equal(session?.memberId, linkRow?.memberId, "the cookie's token hashes to a persisted session row for this member");
+    const active = await site.deps.memberRepo.findById({ workspaceId, id: linkRow!.memberId });
     assert.equal(active?.status, "active");
     assert.ok(active?.emailVerifiedAt, "completing the link verifies the email");
     assert.ok((await site.deps.magicLinkRepo.findByTokenHash({ workspaceId, tokenHash: sha256(token) }))?.consumedAt, "the token row is consumed");
   });
 
   test(`[unrun] member magic link [${dialect}]: a link is single-use, and an unknown token is refused`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     await signIn(site, mail, "once@example.com");
     const token = tokenFrom(mail[0]);
@@ -130,7 +139,7 @@ for (const dialect of SITE_DIALECTS) {
   });
 
   test(`[unrun] member magic link [${dialect}]: known, unknown and disabled emails get byte-identical responses; only the disabled one is not mailed`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     const { workspaceId } = site.deps;
     await signIn(site, mail, "known@example.com");
@@ -142,13 +151,11 @@ for (const dialect of SITE_DIALECTS) {
     const unknownText = await unknown.text();
     assert.deepEqual([known.status, unknown.status], [200, 200]);
     assert.equal(unknownText, knownText, "an unregistered email is indistinguishable from a registered one");
-    assert.equal(knownText, JSON.stringify({ delivered: true }));
+    assert.equal(knownText, JSON.stringify({ accepted: true }));
     assert.deepEqual(mail.slice(before).map((message) => message.to.email), ["known@example.com", "nobody@example.com"]);
 
     const created = await site.deps.memberRepo.findByEmail({ workspaceId, email: "nobody@example.com" });
-    assert.equal(created?.status, "pending");
-    const principal = await site.deps.principalRepo.findById({ workspaceId, id: created!.id });
-    assert.equal(principal?.kind, "member", "the unknown email's pre-created member gets a member-kind principal");
+    assert.equal(created, null, "an unknown request creates neither account nor principal");
 
     const knownMember = await site.deps.memberRepo.findByEmail({ workspaceId, email: "known@example.com" });
     await site.deps.memberRepo.save({ ...knownMember!, status: "disabled", version: knownMember!.version + 1, updatedAt: new Date().toISOString() });
@@ -160,7 +167,7 @@ for (const dialect of SITE_DIALECTS) {
   });
 
   test(`[unrun] member magic link [${dialect}]: invalid input and a foreign workspace are refused before any token or mail`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
 
     assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email: "" }), 400), { error: "'' is not a valid email address" });
@@ -174,11 +181,11 @@ for (const dialect of SITE_DIALECTS) {
   });
 
   test(`[unrun] member magic link [${dialect}]: the sixth request for one email within the hour is 429 with Retry-After, case-insensitively; another email still passes`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     const variants = ["limit@example.com", "LIMIT@example.com", " limit@example.com", "Limit@Example.com", "limit@EXAMPLE.com"];
     for (const email of variants) {
-      assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { delivered: true }, email);
+      assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { accepted: true }, email);
     }
     assert.equal(mail.length, 5);
 
@@ -190,12 +197,12 @@ for (const dialect of SITE_DIALECTS) {
     assert.equal(body.details.retryAfterSeconds, retryAfter);
     assert.equal(mail.length, 5, "a limited request mails nothing");
 
-    assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email: "other@example.com" }), 200), { delivered: true });
+    assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email: "other@example.com" }), 200), { accepted: true });
     assert.equal(mail.length, 6);
   });
 
   test(`[unrun] member magic link [${dialect}]: a signed-in member never gets admin access, even holding the "*" grant and a hand-minted operator session (F3144)`, async (t) => {
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     const { workspaceId } = site.deps;
     const { memberId, sessionToken } = await signIn(site, mail, "f3144@example.com");

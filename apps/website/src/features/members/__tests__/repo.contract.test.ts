@@ -307,7 +307,8 @@ function runMemberSessionRepoContractSuite(adapterName: string, makeRepo: () => 
 function runMagicLinkTokenRepoContractSuite(adapterName: string, makeRepo: () => MagicLinkTokenRepoPort) {
   test(`[${adapterName}] MagicLinkTokenRepoPort: save + findByTokenHash + single-use consume`, async () => {
     const repo = makeRepo();
-    await repo.save({ id: "tok-1", workspaceId: "ws-1", memberId: "m-tok", tokenHash: "hash-tok", purpose: "signin", createdAt: NOW, expiresAt: NOW });
+    // Consumption must precede expiry; equality is already expired.
+    await repo.save({ id: "tok-1", workspaceId: "ws-1", memberId: "m-tok", tokenHash: "hash-tok", purpose: "signin", createdAt: NOW, expiresAt: "2026-07-13T00:15:00.000Z" });
     assert.equal((await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-tok" }))?.id, "tok-1");
 
     await repo.consume({ workspaceId: "ws-1", id: "tok-1", consumedAt: NOW });
@@ -320,6 +321,13 @@ function runMagicLinkTokenRepoContractSuite(adapterName: string, makeRepo: () =>
   test(`[${adapterName}] MagicLinkTokenRepoPort: consuming an unknown id rejects`, async () => {
     const repo = makeRepo();
     await assert.rejects(() => repo.consume({ workspaceId: "ws-1", id: "no-such-token", consumedAt: NOW }));
+  });
+
+  test(`[${adapterName}] MagicLinkTokenRepoPort: expiry at exactly now rejects without consumption`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "tok-expired", workspaceId: "ws-1", memberId: "m-tok", tokenHash: "hash-expired", purpose: "signin", createdAt: NOW, expiresAt: NOW });
+    await assert.rejects(repo.consume({ workspaceId: "ws-1", id: "tok-expired", consumedAt: NOW }), /has expired/);
+    assert.equal((await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-expired" }))?.consumedAt, undefined);
   });
 }
 

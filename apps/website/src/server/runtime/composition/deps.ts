@@ -1,3 +1,4 @@
+import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
 import { loadDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createPluginAccountTokenResolver } from "../boot/mail-plugin-account-token.js";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
@@ -1542,14 +1543,15 @@ async function composeSiteRouteDeps(
     if (originBoot.kind === "configured") {
       return registerConfiguredOrigin({ db: kernel, workspaceId: workspaceId, origin: originBoot.origin });
     } else if (originBoot.kind === "dev-seed") {
+      const listenerOrigin = readSiteListenerOrigin({ fallbackScheme: devCapabilityScheme });
       return seedDevCapabilityOrigin({
         db: kernel,
         seed: {
           workspaceId: workspaceId,
           origin: createVerifiedOrigin({
-            scheme: devCapabilityScheme,
+            scheme: listenerOrigin.protocol === "https:" ? "https" : "http",
             host: "localhost",
-            port: 3000,
+            port: Number(listenerOrigin.port || (listenerOrigin.protocol === "https:" ? 443 : 80)),
             verifiedAt: clock.nowIso(),
             source: "dev-capability",
           }),
@@ -2002,7 +2004,7 @@ async function composeSiteRouteDeps(
     resolve: mailResolveDeps,
     settings: { repo: settingsRepo, deps: { clock, ids: idGen, principals: settingsPrincipals }, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID, authorize: identity.authorize },
     settingsReady: siteTitleReady,
-    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel }) },
+    delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
     readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
   }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName) });
@@ -2451,6 +2453,7 @@ async function composeSiteRouteDeps(
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters — already fully built and
     // contract-tested, wired into a real composition root for the first time.
     memberRepo,
+    removeMember: bindRemoveEntity({ trash, entityType: "member" }),
     memberTierRepo: new SqliteMemberTierRepo(kernel),
     memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
     memberSessionRepo: new SqliteMemberSessionRepo(kernel),

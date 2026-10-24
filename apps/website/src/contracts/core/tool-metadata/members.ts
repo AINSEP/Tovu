@@ -12,6 +12,10 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
 
+  "members_delete": {
+    search: { keywords: "member delete remove trash revoke sessions restore" },
+    approval: { class: "trash", confirmation: "policy" },
+  },
   "members_disable": {
     search: {
       keywords: "member block ban suspend revoke deactivate lock out",

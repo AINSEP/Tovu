@@ -1,41 +1,29 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 /**
- * @file `MembersWriteService` implementation (ADR-030 §3/§6).
+ * @file `MembersWriteService` implementation (ADR-030 §3/§6, plus the member sign-in amendment).
  *
- * Purpose:
- * The single write chokepoint for member-domain mutations: passwordless
- * sign-in (request + complete), profile updates, disable-only lifecycle, and
- * comp/subscription-status changes. Mirrors the `updatePost` pattern in
- * `src/features/post/post.ts`: plain async functions taking `{ deps, input }`,
- * typed domain errors from `./types`, grouped into the `MembersWriteService`
- * shape at the bottom of the file.
+ * The single write chokepoint for member-domain mutations: email sign-in (link + code), profile
+ * updates, disable-only lifecycle and comp/subscription changes, plus the host adapters for
+ * Jini's shared email-challenge primitives. Plain async functions taking `{ deps, input }`.
  *
- * Known interface gaps (flagged per task instructions — NOT silently papered
- * over; see file-level comments at each site below):
- *  1. `MagicLinkTokenRecord.memberId` is a non-optional composite FK, but ADR-030's
- *     Round-2 fold flags an unresolved contradiction with "upsert member on first
- *     use" (a brand-new signup has no member row yet when the link is requested).
- *     Resolution taken here: `requestSignInLink` eagerly creates a `pending`
- *     `MemberRecord` (if none exists for the email) so the token always has a
- *     valid `memberId`; `completeSignIn` then promotes `pending -> active` and
- *     sets `emailVerifiedAt` rather than literally creating the row. This satisfies
- *     the port as written without touching `types.ts`/`ports.ts`.
- *  2. `MembersWriteService.completeSignIn`'s declared return type is
- *     `{ member: MemberRecord; session: MemberSessionRecord }` — but the session
- *     token is stored **hashed** (Round-3 audit fold), so there is no way for a
- *     caller to read the raw bearer value back off `session` to set it as a
- *     cookie. This implementation returns an additional `rawSessionToken` field
- *     (structurally a superset of the declared return type, so it still satisfies
- *     `MembersWriteService`) — callers that need the cookie value must consume
- *     this concrete function's richer return type, not the narrower port
- *     signature. Flagged for a follow-up port amendment.
+ * New-address challenges reserve a member id and carry the email, without creating a member or
+ * principal. Consumption resolves that email again and creates the member then. Legacy
+ * challenges without an email remain bound to their existing member id.
  */
-import { createHash, randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
+import {
+  Argon2PasswordHasher, loadArgon2Binding, NodeSessionTokens,
+  newChallengeSecrets, hashChallengeCode, verifyChallengeCode, decideChallenge,
+  type AuthChallengeRecord, type ChallengeStorePort,
+} from "@jini-ai/user-management/server";
+import type { PasswordHasherPort } from "@jini-ai/user-management";
+import { renderMemberAuthMail } from "./auth-mail.js";
 
-import { mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
+import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
 import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
 import {
   MemberAuthError,
+  MemberSignInUnavailableError,
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
@@ -45,7 +33,7 @@ import {
   type MemberSubscriptionRecord,
   type MemberSubscriptionStatus,
 } from "./types.js";
-import type { MembersWriteService, MembersWriteServiceDeps } from "./ports.js";
+import type { MagicLinkTokenRepoPort, MemberSignInInput, MemberSignInResult, MembersWriteService, MembersWriteServiceDeps } from "./ports.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
@@ -65,13 +53,34 @@ const VALID_SUBSCRIPTION_STATUSES: readonly MemberSubscriptionStatus[] = [
   "comped",
 ];
 
-/** SHA-256 hex digest of a raw bearer token. See `access-resolver.ts` for why this is duplicated there. */
+const sessionTokens = new NodeSessionTokens({});
+const legacyPasswordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
+
+/** Legacy compositions stay additive; new compositions inject the existing staff hasher. O(1). */
+export function memberPasswordHasher({ deps }: { deps: MembersWriteServiceDeps }, _options = {}): PasswordHasherPort {
+  return deps.passwordHasher ?? legacyPasswordHasher;
+}
+
+// Cache per adapter: tests and alternate hosts must never verify a hash made by another hasher.
+const dummyHashes = new WeakMap<PasswordHasherPort, Promise<string>>();
+
+/** One cached, unguessable dummy credential per hasher, so a miss costs the same verify as a hit. */
+export function dummyPasswordHash({ hasher }: { hasher: PasswordHasherPort }, _options = {}): Promise<string> {
+  let hash = dummyHashes.get(hasher);
+  if (!hash) {
+    hash = hasher.hash({ password: newRawToken() });
+    dummyHashes.set(hasher, hash);
+  }
+  return hash;
+}
+
+/** High-entropy session/link digest; low-entropy codes use Jini's Argon2 helper instead. */
 function hashToken(rawToken: string): string {
-  return createHash("sha256").update(rawToken).digest("hex");
+  return sessionTokens.hashToken({ rawToken });
 }
 
 function newRawToken(): string {
-  return randomBytes(32).toString("hex");
+  return sessionTokens.newToken({});
 }
 
 function isoPlusMs(nowIso: string, ms: number): string {
@@ -88,20 +97,17 @@ function assertValidEmail(email: string): string {
 }
 
 /**
- * Resolves the member a sign-in request is for: the existing row, or a freshly-created `pending`
- * one when none exists (see file-header gap (1): pre-creates so the magic-link token's required
- * `memberId` FK is always valid at creation time). Returns `null` for a disabled member — the
- * caller's signal to skip issuing a token/mail while still returning the constant
- * `{ delivered: true }` response (see {@link requestSignInLink}'s own doc).
- *
- * @complexity O(1) — one lookup, at most two saves (the member principal, then the member).
+ * Resolves or creates a pending member for operator creation or a consumed email challenge.
+ * Public sign-in requests never call this owner: unverified addresses must not create accounts.
+ * Returns null for a disabled/trashed address. Principal creation precedes the member save.
+ * @complexity O(1) — one lookup and at most two saves.
  */
 async function resolveOrCreateSignInMember(required: {
   deps: MembersWriteServiceDeps;
   workspaceId: string;
   email: string;
   nowIso: string;
-}, optional: { name?: string } = {}): Promise<MemberRecord | null> {
+}, optional: { name?: string; memberId?: string } = {}): Promise<MemberRecord | null> {
   const { deps, workspaceId, email, nowIso } = required;
   const existing = await deps.members.findByEmail({ workspaceId, email });
   if (existing) {
@@ -109,7 +115,7 @@ async function resolveOrCreateSignInMember(required: {
   }
 
   const member: MemberRecord = {
-    id: deps.ids.newId(),
+    id: optional.memberId ?? deps.ids.newId(),
     workspaceId,
     email,
     status: "pending",
@@ -165,22 +171,18 @@ export async function createMember(required: {
 }
 
 /**
- * Resolves the absolute sign-in link path via the verified origin (ADR-PIPE-013 Decision §3),
- * falling back to `relativePath` on any unverified-origin failure — INV-06: a missing/unverified
- * origin must never fail the call or change the caller-facing response, only degrade the link's
- * shape. The gap is surfaced only as an observability signal (workspaceId only — never the email or
- * raw token, both out of scope for this function).
- *
- * @complexity O(1) — at most one `canonicalOrigin` call.
+ * Builds an absolute link from trusted origin evidence, never request headers.
+ * Missing/unverified evidence refuses sign-in for every address before repository writes.
+ * @throws MemberSignInUnavailableError when the site origin is not configured.
+ * @complexity O(1) — one canonical-origin read.
  */
 async function resolveSignInLinkPath(required: {
   deps: MembersWriteServiceDeps;
   workspaceId: string;
   relativePath: string;
-}): Promise<string> {
+}, _options: Record<string, never> = {}): Promise<string> {
   const { deps, workspaceId, relativePath } = required;
-  if (!deps.origin) return relativePath;
-
+  if (!deps.origin) throw new MemberSignInUnavailableError("Member sign-in is unavailable: the site address is not set up.");
   try {
     const origin = await deps.origin.canonicalOrigin({ workspaceId });
     const portSuffix = origin.port ? `:${origin.port}` : "";
@@ -188,168 +190,239 @@ async function resolveSignInLinkPath(required: {
     return `${origin.scheme}://${origin.host}${portSuffix}${basePath}${relativePath}`;
   } catch (err) {
     if (!(err instanceof OriginNotVerifiedError)) throw err;
-    console.warn(
-      `[members] requestSignInLink: no verified origin for workspaceId=${workspaceId}, falling back to a relative sign-in link`
-    );
-    return relativePath;
+    throw new MemberSignInUnavailableError("Member sign-in is unavailable: the site address is not set up.");
   }
 }
 
 /**
- * Begin passwordless sign-in/up: mint a hashed, short-TTL magic-link token and
- * mail the raw token embedded in a link. Always resolves `{ delivered: true }`
- * regardless of whether the email is registered, already disabled, or the
- * mailer accepts the send — a constant response is the anti-enumeration
- * mitigation ADR-030 OQ-8 flags as a launch-gate precondition; a distinguishable
- * response (error vs success) would let a caller probe which emails exist.
- *
- * @throws SenderIdentityNotConfiguredError When a delivering mailer is active and the site has no
- *   sender configured — for every address alike, before any member or token is written.
- * @complexity O(1) — single member lookup/create + one token write + one mail send.
- * @overallScore 100
+ * Checks site-wide mail readiness before any address lookup. Sender resolution settles lazy
+ * configuration first; transactional readiness is independent of the bulk lane.
+ * @throws MemberSignInUnavailableError for an unconfigured/non-delivering transactional lane.
+ * @complexity O(1) status read and capabilities check; no per-address I/O.
  */
-async function requestSignInLink(required: {
+async function requireSignInMail(required: { deps: MembersWriteServiceDeps }, _options: Record<string, never> = {}): Promise<void> {
+  const { deps } = required;
+  const status = await deps.mailStatus?.();
+  const transactional = status?.lanes.find(lane => lane.lane === "transactional");
+  if ((status && transactional?.state !== "ready") || !isMailDeliveryAvailable(deps.mailer)) {
+    throw new MemberSignInUnavailableError("Member sign-in is unavailable: email is not set up for this site.");
+  }
+}
+
+/**
+ * Member-table adapter for Jini's challenge contract. Issuance supplies host identity metadata;
+ * reads retain that metadata for deferred signup. Realm is implicit in this dedicated table.
+ * @complexity O(1) indexed operations; repository CAS owns concurrent consumption/attempts.
+ */
+export function memberChallengeStore(required: {
+  repo: MagicLinkTokenRepoPort;
+  identity?: Pick<MagicLinkTokenRecord, "memberId" | "email" | "createdAt">;
+}, _options = {}): ChallengeStorePort {
+  const { repo, identity } = required;
+  return {
+    save: async record => {
+      if (!identity || record.realm !== "member") throw new Error("Member challenge issuance requires member identity");
+      await repo.save({ ...identity, id: record.id, workspaceId: record.workspaceId,
+        purpose: record.purpose as MagicLinkTokenRecord["purpose"], tokenHash: record.tokenHash,
+        codeHash: record.codeHash ?? undefined, failedAttempts: record.failedAttempts,
+        expiresAt: record.expiresAt, consumedAt: record.consumedAt ?? undefined });
+    },
+    findById: async input => asChallenge(await repo.findById(input)),
+    findByTokenHash: async input => asChallenge(await repo.findByTokenHash(input)),
+    reserveCodeAttempt: input => repo.reserveCodeAttempt(input, { maxAttempts: input.maxAttempts }),
+    consume: async input => {
+      try {
+        await repo.consume({ workspaceId: input.workspaceId, id: input.id, consumedAt: input.nowIso });
+        return true;
+      } catch (error) {
+        // Only the repo's known single-use rejections are invalid credentials. Outages must surface.
+        const prefix = `magic link token '${input.id}' `;
+        if (error instanceof Error && ["was not found", "has expired", "was already consumed"]
+          .some(reason => error.message === prefix + reason)) return false;
+        throw error;
+      }
+    },
+  };
+}
+
+/** Legacy link-only rows normalize to Jini's nullable code hash and zero spent attempts. */
+function asChallenge(record: MagicLinkTokenRecord | null): AuthChallengeRecord | null {
+  return record && { ...record, realm: "member", codeHash: record.codeHash ?? null, failedAttempts: record.failedAttempts ?? 0 };
+}
+
+/**
+ * Only local absolute paths survive; controls/backslashes can change browser URL parsing, and an
+ * encoded slash/backslash becomes `//host` if any later hop decodes the path before redirecting.
+ */
+function safeRedirectPath(path?: string): string | undefined {
+  return path && /^\/(?!\/)/.test(path) && !/[\\\x00-\x1f\x7f]|%(2f|5c)/i.test(path) ? path : undefined;
+}
+
+/** Fragment-only secrets prevent accidental consumption and disclosure through GET request logs. */
+function challengeLinkPath(required: {
+  purpose: "signin" | "password_reset"; token: string; redirectPath?: string;
+}, _options = {}): string {
+  const { purpose, token, redirectPath } = required;
+  if (purpose === "password_reset") return `/reset-password#token=${token}`;
+  const redirect = safeRedirectPath(redirectPath);
+  return `/signin#magic=${token}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`;
+}
+
+/** Persist only challenge hashes and the deferred member identity; O(1) adapter calls. */
+async function saveMemberChallenge(required: {
+  deps: MembersWriteServiceDeps; member: MemberRecord | null; email: string;
+  purpose: "signin" | "password_reset"; challengeId: string; nowIso: string; workspaceId: string;
+  tokenHash: string; codeHash: string | null;
+}, _options = {}): Promise<void> {
+  const { deps, member, email, purpose, challengeId, nowIso, workspaceId, tokenHash, codeHash } = required;
+  const store = memberChallengeStore({ repo: deps.magicLinks, identity: {
+    memberId: member?.id ?? deps.ids.newId(), createdAt: nowIso, ...(member ? {} : { email }),
+  } });
+  await store.save({ id: challengeId, workspaceId, realm: "member", purpose,
+    tokenHash, failedAttempts: 0, codeHash,
+    expiresAt: isoPlusMs(nowIso, MAGIC_LINK_TTL_MS) });
+}
+
+/**
+ * Issue sign-in or link-only reset through the same mail/readiness and challenge lifecycle.
+ * Ineligible addresses receive a fresh, unstored handle; requests never create members.
+ * Preparation checks site setup; deliver() owns all per-address work.
+ * Secrets enter only the rendered send payload, never a profile, repo row or idempotency key.
+ * @throws MemberSignInUnavailableError for site-wide setup; validation/adapter errors propagate.
+ * @complexity O(1) reads/writes and one bounded password hash for sign-in codes.
+ */
+export async function prepareMemberChallenge(required: {
   deps: MembersWriteServiceDeps;
   input: { workspaceId: string; email: string; redirectPath?: string };
-}): Promise<{ delivered: true }> {
-  const { deps, input } = required;
+  purpose: "signin" | "password_reset";
+}, _options = {}): Promise<{ challengeId: string; deliver: () => Promise<{ delivered: boolean; challengeId: string }> }> {
+  const { deps, input, purpose } = required;
   const email = assertValidEmail(input.email);
   const nowIso = clockNowIso({ clock: deps.clock });
   // Resolved before the member lookup: a missing sender must fail the same way for every address,
-  // so the error itself never tells a caller which emails are registered (see doc above), and no
-  // token is minted for a link that could not be sent.
+  // so the error itself never tells a caller which emails are registered, and no token is minted
+  // for a link that could not be sent.
   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
     .resolve({ workspaceId: input.workspaceId, fallback: MEMBERS_FALLBACK_SENDER });
-
-  const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso });
-  if (!member) {
-    // Disabled members cannot sign in; still return the constant `{ delivered: true }`
-    // response (see doc above) and skip issuing a token / sending mail.
-    return { delivered: true };
-  }
-
-  const rawToken = newRawToken();
-  const tokenHash = hashToken(rawToken);
-
-  await deps.magicLinks.save({
-    id: deps.ids.newId(),
-    workspaceId: input.workspaceId,
-    memberId: member.id,
-    tokenHash,
-    purpose: "signin",
-    createdAt: nowIso,
-    expiresAt: isoPlusMs(nowIso, MAGIC_LINK_TTL_MS),
-  });
-
-  // ADR-PIPE-013 Decision §3: `core/origin` (ADR-040) now exists and is the
-  // trusted seam for absolute magic-link URLs — the stale "no core/origin
-  // port exists yet" note this file used to carry is corrected here. `origin`
-  // is an optional dep (see `ports.ts`'s doc): no composition root wires a
-  // real instance in yet, so an absent dep is treated identically to
-  // `OriginNotVerifiedError` (silent relative-path fallback, no warning log —
-  // that's a repo-wiring gap, not an operator misconfiguration to flag). See
-  // `resolveSignInLinkPath` for the fallback logic itself.
-  const relativePath = `/auth/magic?token=${rawToken}${
-    input.redirectPath ? `&redirect=${encodeURIComponent(input.redirectPath)}` : ""
-  }`;
-  const linkPath = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
-
-  const message: OutboundEmail = {
-    workspaceId: input.workspaceId,
-    to: { email },
-    from,
-    subject: "Your sign-in link",
-    text: `Sign in using this link (expires in 15 minutes): ${linkPath}`,
-  };
-  const sendOptions: MailerSendOptions = {
-    // Deterministic from the token hash (never the raw token) — an outbox
-    // redelivery of the same request reuses this key (ADR-037 amendment 1).
-    idempotencyKey: `members:signin:${tokenHash}`,
-    workspaceId: input.workspaceId,
-    sourceContext: { module: "members" },
-    purpose: "transactional",
-    // SPEC-022 REQ-09: interactive lane — proceeds ungated even without a durable outbox path.
-    lane: "interactive",
-  };
-
-  // Result intentionally unobserved by the caller-facing response (see doc
-  // above); a provider failure should surface via observability/alerting, not
-  // by changing this synchronous, constant-shaped return.
-  await deps.mailer.send(message, sendOptions);
-
-  return { delivered: true };
+  await requireSignInMail({ deps });
+  const secrets = newChallengeSecrets({ tokens: sessionTokens, randomInt: ({ min, max }) => randomInt(min, max) });
+  const relativePath = challengeLinkPath({ purpose, token: secrets.token, redirectPath: input.redirectPath });
+  // ADR-040 owns origin evidence. Resolve before the address lookup so a setup error cannot
+  // distinguish an existing/disabled address, and never store a token for a relative link.
+  const link = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
+  const challengeId = deps.ids.newId();
+  // Public HTTP can acknowledge setup now; every address-dependent effect stays in deliver().
+  return { challengeId, deliver: async () => {
+    // Hash before the lookup: ineligible addresses return early, and the Argon2 cost must not tell.
+    const codeHash = purpose === "signin"
+      ? await hashChallengeCode({ code: secrets.code, hasher: memberPasswordHasher({ deps }) }) : null;
+    const member = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
+    if (member?.status === "disabled" || member?.status === "trash") return { delivered: false, challengeId };
+    if (purpose === "password_reset" && !member) return { delivered: false, challengeId };
+    await saveMemberChallenge({ deps, member, email, purpose, challengeId, nowIso,
+      tokenHash: secrets.tokenHash, codeHash, workspaceId: input.workspaceId });
+    const message: OutboundEmail = { workspaceId: input.workspaceId, to: { email }, from,
+      ...renderMemberAuthMail({ purpose, link, code: secrets.code }) };
+    const sendOptions: MailerSendOptions = {
+      // Reuse the sign_in activity/capture-redaction prefix for reset mail too.
+      idempotencyKey: `members:signin:${purpose === "password_reset" ? "reset:" : ""}${secrets.tokenHash}`,
+      workspaceId: input.workspaceId, sourceContext: { module: "members" }, purpose: "transactional",
+      // Interactive auth mail proceeds without a durable outbox (SPEC-022 REQ-09).
+      lane: "interactive",
+    };
+    const result = await deps.mailer.send(message, sendOptions);
+    return { delivered: result.ok && !result.providerMessageId.startsWith("captured:"), challengeId };
+  } };
 }
 
-/** Looks up, validates and consumes a workspace-scoped sign-in credential before member access. */
-async function consumeSignInToken(required: {
+/** Existing callers retain the awaited delivery contract; public HTTP uses the same prepared owner. */
+export async function requestMemberChallenge(required: Parameters<typeof prepareMemberChallenge>[0], _options = {}): Promise<{ delivered: boolean; challengeId: string }> {
+  const prepared = await prepareMemberChallenge(required);
+  return prepared.deliver();
+}
+
+/** Request a link and six-digit code sharing one single-use challenge; O(1) adapter calls. */
+async function requestSignInLink(required: {
   deps: MembersWriteServiceDeps;
-  workspaceId: string;
-  tokenHash: string;
-  nowIso: string;
-}, _options: Record<string, never> = {}): Promise<MagicLinkTokenRecord> {
-  const { deps, workspaceId, tokenHash, nowIso } = required;
-  const tokenRecord = await deps.magicLinks.findByTokenHash({
-    workspaceId,
-    tokenHash,
-  });
-  if (!tokenRecord) {
-    throw new MemberAuthError("sign-in link is invalid");
-  }
-  if (tokenRecord.consumedAt) {
-    throw new MemberAuthError("sign-in link was already used");
-  }
-  if (tokenRecord.expiresAt <= nowIso) {
-    throw new MemberAuthError("sign-in link has expired");
-  }
-
-  await deps.magicLinks.consume({
-    workspaceId,
-    id: tokenRecord.id,
-    consumedAt: nowIso,
-  });
-
-  return tokenRecord;
+  input: { workspaceId: string; email: string; redirectPath?: string };
+}, _options = {}): Promise<{ delivered: boolean; challengeId: string }> {
+  return requestMemberChallenge({ ...required, purpose: "signin" });
 }
 
 /**
- * Consume a magic-link token: verify email, promote the member to `active`,
- * and mint a member session. See file-header gap (2) — the raw session token
- * is returned as `rawSessionToken` in addition to the declared `session` record.
+ * Purpose-bound completion: reserve attempts before checking a code, then CAS-consume.
+ * All invalid credentials (including lost races) give the same MemberAuthError.
+ * @complexity O(1) indexed operations and at most one password verification.
+ */
+export async function consumeMemberChallenge(required: {
+  deps: MembersWriteServiceDeps; input: MemberSignInInput; purpose: "signin" | "password_reset"; nowIso: string;
+}, _options = {}): Promise<MagicLinkTokenRecord> {
+  const { deps, input, purpose, nowIso } = required;
+  const store = memberChallengeStore({ repo: deps.magicLinks });
+  const scope = { workspaceId: input.workspaceId, realm: "member", purpose };
+  const record = input.token !== undefined
+    ? await store.findByTokenHash({ ...scope, tokenHash: hashToken(input.token) })
+    : await store.findById({ ...scope, id: input.challengeId });
+  const hasher = memberPasswordHasher({ deps });
+  if (decideChallenge({ ...scope, record, nowIso }) !== "ok" || !record) {
+    // Disabled/trashed addresses get unstored handles: spend the same verify so timing cannot tell.
+    if (input.token === undefined) await verifyChallengeCode({ code: input.code, hash: await dummyPasswordHash({ hasher }), hasher });
+    throw new MemberAuthError("sign-in credential is invalid");
+  }
+  if (input.token === undefined) {
+    if (!await store.reserveCodeAttempt({ ...scope, id: record.id, nowIso })) throw new MemberAuthError("sign-in credential is invalid");
+    if (!await verifyChallengeCode({ code: input.code, hash: record.codeHash, hasher })) throw new MemberAuthError("sign-in credential is invalid");
+  }
+  if (!await store.consume({ ...scope, id: record.id, nowIso })) throw new MemberAuthError("sign-in credential is invalid");
+  // The host adapter preserves memberId/email/createdAt while normalizing challenge metadata.
+  return record as AuthChallengeRecord & MagicLinkTokenRecord;
+}
+
+/**
+ * Resolves legacy member-bound links or creates the account for a consumed new-address link.
+ * Rechecking email handles two outstanding signup links and accounts created since issuance.
+ * @throws MemberAuthError for an ineligible address or a lost legacy member.
+ * @complexity O(1), one lookup and at most two saves through the existing creation owner.
+ */
+async function resolveConsumedSignInMember(required: {
+  deps: MembersWriteServiceDeps; tokenRecord: MagicLinkTokenRecord; nowIso: string;
+}, _options: Record<string, never> = {}): Promise<MemberRecord> {
+  const { deps, tokenRecord, nowIso } = required;
+  if (tokenRecord.email !== undefined) {
+    const member = await resolveOrCreateSignInMember({
+      deps, workspaceId: tokenRecord.workspaceId, email: tokenRecord.email, nowIso,
+    }, { memberId: tokenRecord.memberId });
+    if (!member) throw new MemberAuthError("sign-in credential is invalid");
+    return member;
+  }
+  const member = await deps.members.findById({ workspaceId: tokenRecord.workspaceId, id: tokenRecord.memberId });
+  if (!member) throw new MemberAuthError("sign-in credential is invalid");
+  return member;
+}
+
+/**
+ * Consume a link or code: create/resolve the member, verify email, promote to active,
+ * and mint a member session. The raw bearer is returned only for setting the member cookie.
  *
  * @complexity O(1) — one token lookup/consume, one member read/write, one session write.
  * @overallScore 100
  */
 async function completeSignIn(required: {
   deps: MembersWriteServiceDeps;
-  input: { workspaceId: string; token: string; userAgent?: string; ip?: string };
-}): Promise<{ member: MemberRecord; session: MemberSessionRecord; rawSessionToken: string }> {
+  input: MemberSignInInput;
+}, _options: Record<string, never> = {}): Promise<MemberSignInResult> {
   const { deps, input } = required;
   const nowIso = clockNowIso({ clock: deps.clock });
-  const tokenHash = hashToken(input.token);
+  const tokenRecord = await consumeMemberChallenge({ deps, input, purpose: "signin", nowIso });
 
-  const tokenRecord = await consumeSignInToken({
-    deps,
-    workspaceId: input.workspaceId,
-    tokenHash,
-    nowIso,
-  });
-
-  const existingMember = await deps.members.findById({
-    workspaceId: input.workspaceId,
-    id: tokenRecord.memberId,
-  });
-  if (!existingMember) {
-    // Should not happen given `requestSignInLink` always pre-creates the member
-    // (gap (1) above) — defensive, not a validation outcome.
-    throw new MemberNotFoundError(`member '${tokenRecord.memberId}' was not found`);
-  }
+  const existingMember = await resolveConsumedSignInMember({ deps, tokenRecord, nowIso });
   if (existingMember.status === "disabled" || existingMember.status === "trash") {
-    throw new MemberAuthError("this account has been disabled");
+    throw new MemberAuthError("sign-in credential is invalid");
   }
   // A link minted before Trash/restore (including a request racing credential revocation) must
   // not sign the restored account back in. Profile edits and other sign-ins keep links valid.
-  if (existingMember.credentialsRevokedAt && existingMember.credentialsRevokedAt > tokenRecord.createdAt) {
-    throw new MemberAuthError("sign-in link predates credential revocation; request a new sign-in link");
+  if (existingMember.credentialsRevokedAt && existingMember.credentialsRevokedAt >= tokenRecord.createdAt) {
+    throw new MemberAuthError("sign-in credential is invalid");
   }
 
   const member: MemberRecord = {
@@ -361,16 +434,28 @@ async function completeSignIn(required: {
   };
   await deps.members.save(member);
 
+  return issueMemberSession({ deps, member, nowIso }, { userAgent: input.userAgent, ip: input.ip });
+}
+
+/**
+ * The sole member session minter, reused by password, link and code sign-in.
+ * Persists only the bearer digest and returns the raw token for the HTTP cookie adapter.
+ * @complexity O(1), one session write.
+ */
+export async function issueMemberSession(required: {
+  deps: MembersWriteServiceDeps; member: MemberRecord; nowIso: string;
+}, options: { userAgent?: string; ip?: string } = {}): Promise<MemberSignInResult> {
+  const { deps, member, nowIso } = required;
   const rawSessionToken = newRawToken();
   const session: MemberSessionRecord = {
     id: deps.ids.newId(),
-    workspaceId: input.workspaceId,
+    workspaceId: member.workspaceId,
     memberId: member.id,
     tokenHash: hashToken(rawSessionToken),
     createdAt: nowIso,
     expiresAt: isoPlusMs(nowIso, SESSION_TTL_MS),
-    userAgent: input.userAgent,
-    ip: input.ip,
+    userAgent: options.userAgent,
+    ip: options.ip,
   };
   await deps.sessions.save(session);
 
@@ -555,9 +640,6 @@ async function setSubscriptionStatus(required: {
 
 /**
  * The `MembersWriteService` implementation, grouped into the port shape.
- * `completeSignIn`'s richer return type (see file header gap (2)) is a
- * structural superset of the declared signature, so this still satisfies
- * `MembersWriteService`.
  */
 export const membersWriteService: MembersWriteService = {
   requestSignInLink,

@@ -22,6 +22,9 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## UI FIX BATCH — queued, one Opus + Chrome pass (owner 2026-10-23 ~11:35: "queue that up… fix a bunch of things at once")
+- **Chat UI:** messages sent mid-run render inside the assistant turn, with no copy button and under that turn's "Done · 3m 42s · $3.95 · total $26.94" footer. More findings: `ADS-memory/reports/2026-10-23-orvellea-chat-errors.md`, "UI findings" section (Opus + Chrome look, in progress).
+
 ## Jini fetch cache → TanStack Query as Jini's default (owner 2026-10-18; LATER, not now)
 Owner: "have Jini use TanStack later… blast radius is pretty high." Today `@jini-ai/ui/fetch-query` has two adapters behind one contract: Jini's built-in ~430-line cache (packages/core/src/fetch/cache.ts, the default) and an optional TanStack adapter (packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx). Tovu's admin ALREADY uses the TanStack adapter (apps/admin/src/lib/fetch-query/provider.tsx, adapter="tanstack") → zero change for Tovu admin. The work = make TanStack the default for other Jini hosts (desktop renderer, Open-Marketing, Zana…) or retire the built-in cache. Risks: key matching (built-in ===, TanStack deep), retry/refetch/gc defaults, any host relying on built-in quirks. Plan first (Codex), per-host test runs, then switch.
 
@@ -44,15 +47,6 @@ Owner: "I want to log in to ChatGPT to use my credits from my account… a third
 - **Defaults:** admin assistant first (not visitor chat); per-user logins, one active account, no cross-site copying.
 
 ## NEXT SESSION: owner asks from 2026-10-09 night (full list: `ADS-memory/.local-artifacts/handoffs/2026-10-09-tovu-8c-to-tovu-16.md`)
-4. **Post author never shows on plannie posts** (from the admin chat "Can You See Last Chat", plannie chat.db `c0b7abd8-cca5-4a72-8fe0-14d993a70f49`, turn 6–7, 00:13): every imported post has its author saved ("Annie Lee" / "Daughter of Design") with Show author ON, but no byline renders. On the Paris post the line under the title shows only "Nov 20, 2022". The in-app assistant said core's post renderer never adds the author and that themes have no author slot. **That's half wrong (checked 10-10 00:20):**
-   - A static-theme author slot EXISTS: the `{"type":"post-author"}` marker, filled by `injectPostAuthor` (`apps/website/src/features/theme/static-render.ts:636`, called at :828; it renders "By <name>" only when Show author is on). Only tailark-quartz-dark's blog pages use it. Plannie's `posts-default.html` and the Tovu Starter theme don't.
-   - The no-theme fallback DOES add a byline (`render.ts` `entryContent` ~:1958). So the gap is the static-theme path: whatever fills the title + date line for a `{"type":"content"}` post marker leaves out the author.
-   **Owner (00:16): it's a bug, fix it in core.** The marker exists in code but was never seen working, and plannie/Starter don't use it. Go with the core fix.
-5. **Visitor AI could be ON with no API key, and then fails silently** (plannie, 00:17–00:19):
-   - On the public site (Paris post), the "Ask this site" panel appeared, took the question "how many articles are on the site? what articles are about minneapolis", and never answered: no reply, no error.
-   - Admin → AI Assistant had NO key and NO model saved (Anthropic selected, empty API key + Model), yet "Enable the AI assistant on the public site" had been ON. Now it shows OFF and greyed out with "Save a key in step 1 first." (correct). Find out how it got turned on without a key (seeded default, an agent, the dock assistant, or an older build without the guard) and close that path on the SERVER too, not just in the UI toggle.
-   - Check whether the public widget still shows on plannie right now with the toggle off (the first screenshot was taken while it was on).
-   - Screenshots: `owner-shots-2026-10-09/10-visitor-ai-toggle-no-key.png` (admin). The public-site shot was already deleted from the Desktop; it showed the panel with the unanswered question.
 
 10b. **Sweep: side nav expanded + assistant dock open (owner 2026-10-10 11:49, "horrendous"):** on narrow content areas the expanded nav overlays/cuts page content (seen on theme explore). Check every admin page in nav collapsed/expanded × dock closed/open + 390px; likely fix: container queries on the main content area instead of viewport media queries, and the nav pushes content rather than overlaying when the dock is open.
 
@@ -70,7 +64,6 @@ Owner: coding agents go overboard and create unnecessary code; review and cut ex
 Each site keeps its own copy of its theme (e.g. Documents/Tovu/tovu-dev/themes/static/tovu-theme), so fixes to Tovu's shipped themes never reach existing sites (10-11: tovu-dev's toggle/form styling was broken until an agent synced theme.css by hand; other sites still have the old copy). Build: when the shipped version of a site's theme changes, offer an update in admin → Themes as a reviewable diff the owner approves (never silent overwrite; keep the site's own edits; backup before apply).
 
 ## Assistant can diagnose page performance itself (owner idea 2026-10-11)
-Owner: can the in-app assistant see problems like the 1 GB tab — look into DevTools / memory and tell the user? Today: a Chrome DevTools MCP preset exists (Jini mcp agent-install) and `packages/diagnostics/docs/ui-performance-check.md` documents an on-demand check, but the in-app assistant has no tool for it. Idea: one on-demand diagnostics tool (Jini diagnostics web-evidence/headless browser) that loads an admin/public page and reports heap, DOM node count, mounted hidden panels, iframes, long tasks, and the top suspects in plain words. On-demand only (owner rule: not automatic).
 
 ## HIGH: admin tab ~1 GB / slow with a long assistant chat (measured 2026-10-11)
 Fresh /admin tab with the 38-message chat "Can You See Last Chat" restored: 254–310 MB JS heap, 13,910 DOM nodes (13,389 in `.jini-message-list`), 713 collapsed tool cards still MOUNTED with 1,420 hidden `<pre>` = 3.45 MB text (+~1,525 svgs). Cause: Jini `packages/chat/src/react/components/ToolCard.tsx:476-491` `ExpandableCard` keeps collapsed panels mounted on purpose (so `page.*` readers can read them); each panel up to 10,000 chars (`core/tool-call-detail.ts:36` DEFAULT_MAX_CHARS); MessageList not virtualized. Fix: mount panel children only when open (give page.* readers the detail via a store lookup/data attr instead), cap collapsed op-output ~1–2k chars, window/virtualize older messages. Dev-mode HMR buildup (2,707 hmr updates tonight) adds more in long-lived tabs. Report: memcheck agent 2026-10-11.
@@ -88,7 +81,6 @@ Owner question: should packages that use UI take components through a getter (`g
 - Next step when picked up: an architect writes a short ADR (exact component list per package, the injection shape, migration order), the owner reviews it, and only then is it built.
 
 ## LOW (Jini): reachability wait stops at the first "protected" candidate
-`waitForReachableDeploymentUrl` (Jini packages/devops/src/deploy/reachability.ts:276-290) returns on the FIRST `protected` candidate instead of trying the rest; it should keep trying and report `protected` only when no candidate is ready. Found through the Vercel "protected" report for a public alias (2026-10-11), already fixed in Tovu's `vercel` plugin by trying `<project>.vercel.app` first; this is the generic root cause, for the next Jini release.
 
 ## HIGH (owner 2026-10-12, start when a real use case appears): custom site plugin code (TS) — design DECIDED, not built
 Owner: wants site-specific TypeScript code (by a developer or the in-app assistant) kept apart from marketplace plugins; "fairly high priority", build once there's a good use case. Design settled by a 2-round debate (Codex gpt-6.1-sol high + Opus 5.5 + Sonnet 5.5 subagents + coordinator, all ≥0.8): `ADS-memory/reports/swarm-consensus/runs/2026-10-12-custom-plugin-code-consensus-report.md`.
@@ -124,7 +116,6 @@ Not built: owner has no content/data for them yet. Full inventory: `ADS-memory/.
 ## AFTER desktop 0.1.13 ships: parked so it doesn't delay a downloadable app (owner, 2026-10-06 night)
 Owner: "if it's not relevant or needed as far as the blocker for the desktop app, let's save it, and then we're gonna do it another time." All of these are Codex 6.1-sol high jobs unless noted.
 3. **Jini CI publishing:** add the npm trusted publisher for `@jini-ai/protocol` and `@jini-ai/agent-runtime` (CI publish 404'd 10-06; the owner published by hand).
-6. **[IN PROGRESS 10-07 22:20: the Jini side is COMMITTED (Jini 2b7252a9 live discovery, c18ca0ef pinned model + receipts, eb401a74 picker, cbe9d633 server catalogs, e60e83fe Gemini CLI def retired, 6ed7ce28 edges); no Tovu adoption commit yet; per-agent remembered model + effort unverified]** **Tovu adoption of Jini dynamic model discovery:** exact model names in the picker (no "Default"), Gemini CLI removed from the UI, and per-agent remembered model + reasoning effort (defaults on first use, then saved per agent). Jini side: built and being verified 10-06 (`ADS-memory/.local-artifacts/codex/2026-10-06-dynamic-models/report.md`, survey in `…-dynamic-models-survey/out/survey.md`); publish Jini, then adopt. Memory: `agent_models_must_be_dynamic`. **Status 10-06 22:00 (SUPERSEDED: the Jini changes were committed 10-07, see the tag above):** the Jini changes are UNCOMMITTED in /Users/la/Programming/Jini, partly verified (typechecks clean; protocol 34/34; agent-runtime and daemon changed files pass; the chat and server suites haven't run). Live discovery works for codex (7, gpt-6.1-sol), claude (15, claude-opus-5-5), antigravity (18), pi (688). Resume from `ADS-memory/.local-artifacts/handoffs/2026-10-06-jini-models-verify.md`. Decisions are needed there: a custom model id not in the catalog now fails; discovery is required on host-defined defs, which breaks examples/minimal-host. **Don't build Jini dist until this is committed:** Tovu's node_modules link to it.
 7. **[OPEN 10-07 22:20: the patch is NOT applied in Jini (no core/agent-failure.ts or AgentFailureCard.tsx there); its gemini.ts hunk is moot because the Gemini CLI def was retired in Jini e60e83fe]** **Jini side of the agent-failure display:** apply `ADS-memory/.local-artifacts/codex/2026-10-06-agent-error-surface/agent-error-surface.jini.patch` (failure hints for every agent def + the chat UI's native failure card). The Tovu side shipped in 1cf13b22f. Drop the gemini hint once Gemini CLI is removed.
 8. **Riskiest untested server routes:** the integration-only coverage + mutation sweep was STOPPED partway on 10-06 (load 23–45, ~8 h at one file at a time). Partial data in `ADS-memory/.local-artifacts/integration-quality/`: route-inventory.{json,tsv} (every registered route), results.tsv + tap/ (per-file results so far, ~30 of 226 files), tools/ (an Express dispatch-log preload that measures routes, because node+tsx lcov line positions are wrong). Known hang: cli/adopt-command (like serve-command). Resume with server/** + the route-hitting assistant files (~110) first; run the mutation sweep in an rsync COPY (never mutate the live tree, the dev server hot-reloads); then write REPORT.md.
 9. **Web journeys findings:** from the 0.1.12 web-journeys run (`ADS-memory/.local-artifacts/web-journeys-0112/`), excluding anything that blocks the desktop release. All 89 web journey tests were tagged `@unrun` before 10-06.
@@ -139,7 +130,6 @@ Owner: "if it's not relevant or needed as far as the blocker for the desktop app
    - KEEP AG-UI (owner).
    - Also from the Ponytail-ladder audit (`ADS-memory/.local-artifacts/cleanup-program/ponytail-ladder-audit-tovu.md`): ~15 hand-built modals → the Jini dialogs; admin api.ts helper; Jini shims (~2k); unused deps and fields; pub/sub buses → EventTarget; 39 isPlainObject copies.
 
-22. **[OPEN, not started: no oauth4webapi anywhere in Jini yet] [HIGH PRIORITY 2026-10-17: step 1 of the ChatGPT provider login above]** **After 0.1.13: rebase `@jini-ai/oauth` on a maintained OAuth library (owner 2026-10-07 ~22:15).** `@jini-ai/oauth` is ~2.25k hand-written, zero-dependency lines (PKCE, authorization code, token refresh, device code, discovery); nobody compared it with existing libraries. Candidate: `oauth4webapi` (panva; also under `openid-client`). First survey bigger-vendor options too (e.g. Auth0/Okta, Microsoft MSAL, Google auth libraries, Ory) for robustness, maintenance and spec coverage, and say which fits a generic client library. Keep what is ours: SSRF/endpoint-safety guards, the DNS-pinned transport, issuer binding and product error copy, plugged in as ports. Own test suite; high-risk auth code, so not mixed into other work.
 
 ## Owner decisions still in force (carried from the retired owner worklist, 2026-10-04)
 
@@ -211,10 +201,6 @@ Source: Codex 6.1-sol review of the 10-04 night commits, fixed by Opus 5.5 lanes
 - Post page `fade-up 600ms … distance:18px` on the `<article>` (tovu-theme `render/pages/posts-default.html:42`)
   makes detailed featured images shimmer while it settles. Option: opacity-only fade.
 - Chat shows no thumbnails for images it generates or imports (Higgsfield → media import).
-- kUInetic lightbox uses text glyphs ‹ › × (off-centre); the landing page overrides it with CSS only. Real fix upstream
-  in kUInetic (SVG icons + a controls-position option).
-- Templated themes (fashion-modern, storefront) use `--ink`/`--line`; the HTML-page contract names the `--fg` set.
-  Give the page tools the ACTIVE theme's token names (d8dec1fbb follow-up).
 
 ---
 
@@ -239,16 +225,12 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Agent Plugins page redesign** (owner-decided 09-14, L696–708/L958): one list, On/Off for every plugin; Tovu-shipped = "Built in", switch-off only; user-added get Uninstall + confirm; drop the Downloaded tab. Needs an uninstall HTTP route + `origin` in the list response; Jini `AgentPluginRow` still disables Uninstall.
 - **Plugin hooks S2–S6** (09-23, L2984–2987): S1 catalog landed `068402eaf`; rest in `ADS-memory/.local-artifacts/handoffs/2026-09-23-hooks-lane.md`. Before the SDK 0.2.0 bump fix plugin ranges (`^0.1.0` excludes 0.2.0).
 - **Plugin-published namespaced hooks** (owner YES 09-23, L2981): runtime publication on top of the typed catalog, after hooks S2–S6.
-- ~~**Installed SKILL.md copies refresh on plugin upgrade?**~~ **DONE 2026-10-04 (`554ec80cd`):** verified, no bug — a SKILL.md-only edit (no version bump) refreshes the installed copy and run-start injection; version-bump upgrades were already covered (`678b4f7b0`).
 
 ### Publish
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
 
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
 - ~~**wm S3 entries**~~ **DONE 2026-10-04 (Jini `50c63960` + Tovu entries commit, needs a cms release + Tovu adoption):** `EntryRepoPort.save(row, { expectedVersion })` is a compare-and-set inside the write's transaction on every adapter (SQLite, PGlite, real Postgres, memory); update/publish/unpublish/import-as-update pass it, a loss is `{ ok: false }`. Left: an import-as-create race (two creates of the same id) stays an unconditional upsert.
-- ~~**wm S4 menus**~~ **DONE 2026-10-04 (Jini `347a91b8` + Tovu `61b8f3305`, needs a cms release + Tovu adoption):** `MenuRepoPort.save(record, { expectedVersion })` is a conditional UPDATE; `updateMenuTree` and both `assignLocation` saves pass it.
-- ~~**wm S5 content types**~~ **DONE 2026-10-04 (Jini `6e754d04`, needs a cms release + Tovu adoption):** `tombstoneContentType` tears down indexes after the save commits.
-- ~~**wm S16 tool failures**~~ **DONE 2026-10-04 (`7fa926257`):** comments handlers wrapped (`COMMENTS_FORBIDDEN`/`_NOT_FOUND`/`_VERSION_CONFLICT`, typed errors). Earlier state — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`). Redirects DONE (wm S16 redirects commit): handlers wrapped (`REDIRECTS_*` codes incl. FORBIDDEN), import `failed[]` redacts unlisted errors.
 
 ### Chat & admin
 - ~~**Typed answers to a pending ask_choice, jl A1a/A1b**~~ **DONE 2026-10-04 (Jini `5b8d9d5e` + `a2dd279b`, needs a chat release + Tovu adoption; live look owed):** Enter while the agent holds a question card open posts the text as `__typedAnswer` to `assistant_ask_choice` (dock `deliverTypedAnswer`); delivered clears the draft; consumed/expired (409) or a failure keeps the draft with a notice and never queues it as a new run. Was (09-24, L3318): typing produces no request; on a consumed answer the client must DROP the text or it starts a second PAID run (L2243).
@@ -258,16 +240,12 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Deep admin translation sweep** (09-22, L2726–2745): many fixes landed (latest `f07a92dcb`); no whole-admin literal/call-site closure.
 - **3b-handoff small follow-ups** (09-14, L1323–1327): footer GET repeats, widget-paste visuals, remaining review comments.
 - **Approval card: record hints at enable time** (09-28, L3686): not built. Needs a hints baseline per site + connection + tool in content.db (new table + migration, written when the tool is enabled in Settings → External MCP) and a Jini `@jini-ai/mcp/federation` check that asks again when a first call's hints differ from it. ~~Expiry countdown~~ (L3626) DONE 10-04 (EW4, Jini `d98c0b7e`): every confirm card counts down "Expires in m:ss" and closes as "This question expired" when the deadline passes.
-- **Public-file protection setting** (09-23, L2917/L2972): the published-referrer media gate exists; the owner's user-changeable setting (default protected), readable-slugs Q1, is not built.
 - **Claude reply leaks an interim line** (found 2026-10-06, conversation `fdfde658`, low priority): "Need to confirm the family via search." showed above the real answer. Evidence: `ADS-memory/.local-artifacts/uninstall-dup-investigate/notes.md`.
-- **Each Claude-run tool_use event is stored twice with the same id** (found 2026-10-06, low priority, predates today: d5e5e346, e35ca861): duplicate rows in chat history only; nothing executes twice. Same notes file.
-- **Migrate-forward never updates `.site-meta.json`** (09-21, L2612) — **STALE:** false claim; SQLite boot rewrites the stamp after a migration (`platform/site-dir/boot-site-dir.ts:137-141`, since `03cc71442`); Postgres/PGlite sites skip it by design.
 
 ### Media
 - **Sound-on pill on the home promo video** (09-26, L3497): owner: for THIS video only, no global rule; owner killed the writer before it landed.
 
 ### DB
-- **PGlite parity acceptance + SQLite/PGlite choice at site creation** (09-28, L3564/L3588): CLI `--storage` exists; no selector in admin/desktop site creation.
 - **Retire the remaining Drizzle tooling after parity** (09-28, L3625/L3693): `package.json` still depends on drizzle-orm/drizzle-kit; `build:server` copies `platform/db/drizzle`.
 - **Real-Postgres concurrency tests (Q1) + post-extraction DB tests C1–C3** (09-28, L3603–3604/L3712): no aggregate lock/race acceptance.
 
@@ -279,11 +257,8 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Make the Supabase live SQL journey repeatable** (chat → card → SQL, 09-27, L3544): passed manually once.
 - **Live Supabase acceptance: DCR, AC-13, ARIA (SPEC-052)** (09-14, L1322/L1344/L3526): needs a real-account run.
 - **BYOK: switching providers back keeps each provider's saved key** (09-14, L1330–1333): needs a live Anthropic + OpenAI switching proof.
-- **kUInetic reduced-motion "shorten" blinks entrance elements ~2 frames** (09-28, L3703): fix in the kUInetic repo.
 
 ### Security
-- **Rotate the GitHub + NVIDIA keys** printed by `pgrep -fl` (owner-only, 10-02, L3724).
-- ~~**List/cursor/branch validation, jl C6a–C6c**~~ **DONE 2026-10-04 (Jini `cee07f66` + Tovu `1c134a148`, `3dc0c22c8`; needs a `@jini-ai/core` + `@jini-ai/db` release before the published typecheck passes):** trash/database/members/comments list `limit`, comments/redirects enum filters, members unknown `afterId`, the ledger's date-only `toDate` and bad cursor, and a non-string commit `branch` are refused with exact `ToolInputError` text (admin timeline: 400). Was (09-24, L3318): plan `ADS-memory/.local-artifacts/fix-plan-jini-leftovers-2026-09-24.md`.
 - **Regenerate a leaked site key from the UI** (09-12, L88): must re-encrypt every sealed credential; an env-set key cannot change from the UI. Recovery routes exist (`82444fec4`), no regenerate flow.
 - **Legal: controller name + desktop AI report link** (09-24, L3042/L3303): the rest landed 10-04 (`a0336c0dc`, see Done below). Still open: the pages say `[[OWNER NAME]]` where the owner's name goes, and the desktop Help menu has no "Report AI content" link (owner-declined for now, 10-04). Form-IP cleanup (`2a41f672e`) stays off until a `@jini-ai/cms-forms` release with `sweepExpiredSubmissionIps` is installed.
 
@@ -316,35 +291,6 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - Already tracked elsewhere in this file, not repeated: admin motifs, admin buffet, EmDash gaps, workerd, public site search bar, Observability instrumentation (monitoring Later), raw-HTML forms/menus/widgets.
 
 ### Done 2026-10-04
-- **Root `build:server` Windows-portable** (L3047): Node script `development/scripts/build-server.mjs` — `bebc5736f`.
-- **`npm start` probe-then-bind race** (L3047): binds the real listener first, retries in auto-port mode — `bebc5736f` (+ Jini `587ebf0b`, unreleased `listenServer`).
-- **js-backslide pre-push hook wired** (L54): `npm prepare` sets `core.hooksPath` (skips CI and non-checkouts) — `bebc5736f`.
-- **Higgsfield docs cover video** (L3483–3485): `generate_video` + its write grant documented — `bebc5736f`.
-- **wm S10 sitemap invalidation** (L3314) — `bebc5736f`.
-- **wm S18 taxonomy unassign** returns only removed ids (L3314) — `bebc5736f` + Jini `587ebf0b`.
-- **jl C2** nested `.git` rejected, executable modes kept (L3318) — `bebc5736f`.
-- **jl C3** rotation keeps a sealed-only username (L3318) — `bebc5736f`.
-- **Media card size + upload date in Jini `MediaCard`** (L2712–2724/L3494) — Jini `587ebf0b`; live page still legacy, see Media above.
-- **Legal owner inputs + web AI disclosure/report link** (L3042/L3303): $0 cap, California / Los Angeles County, tovu.dev, contact form instead of email, 90-day form-IP line — `a0336c0dc`.
-- **Desktop: Cmd+W keeps sites running on macOS** (L2177/L2243): window close keeps the server, Dock reopens it, Cmd+Q quits — `ee199361f`.
-- **Desktop: site Restart control** (L2098): awaits Stop before Start, shows failures — `ee199361f`.
-- **Desktop: minWidth/minHeight 1024×700 on site/admin windows** (L52) — `ee199361f`.
-- **Desktop: Google Fonts vendored + CSP `style-src`/`font-src 'self'`** (L3053) — `ee199361f`.
-- **Desktop: auto-update on/off** (L3042): Settings → Automatically update Tovu, default on — `ee199361f`.
-- **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 screens `87b41d024`.
-- **Publish backstop audit table installed** (10-04): migration `0007_publish_backstop` + fresh-DB step, applied to tovu-dev; no preselected destination, warning-style notice, panel below stats — `ca33c07e4`. tovu.fly.dev gets 0007 on its next deploy.
-- **Plugin-memory layout B** (L704–718/L1014–1020): per-plugin package/memory/data, idempotent boot migration, memory tools, admin Memory pane, Higgsfield learns its account — `852d711e6` + Jini `e4eac924`/`9cac0d86` (unreleased `persistent-state` entry). Owner calls recorded 10-04: `dev.tovu.memory` namespace approved, no shipped learned seeds — `f700c043d`.
-- **Plugin Memory pane styled + Layout B migration unblocks** (10-04): styled form, empty states, tab-aware title — `30127dd29`; rejected legacy entries quarantined so seeding no longer refuses forever — `b0e099fe7` + Jini `c4927575`.
-- **Builder form field errors friendly** (10-04): `/contact` empty email shows "Please enter your email." — `090192e86`.
-- **Footer items are Page links** (10-04): the menu editor opens footer items in the page picker, keeps a `lastKnownHref`, and the public footer renders plain `<a href>` — `3872c6727` + Jini `2c464c82`.
-- **Media cards show the upload date** (10-04) — `a2eede1a2` + Jini `7960c02a`.
-- **Media cards show the file size on the LIVE page** (L2712–2724): media responses carry `byteSize` from the blob store — `adae3e00d`.
-- **wm S1→S2** (L3314): html Page writes append to the post revision ledger — `e0796b1ee`; `pages_read_html` tells the truth about a doc page — `039b55363`, `24b62d121`.
-- **kUInetic auto-upgrade vs pin** (L3519): owner reconfirmed `kuinetic@0` + local fallback, exact pin reverted — `5abcd90ba`. jsDelivr caches `@0` for a week, so freshness is not immediate.
-- **Stray public branch `codex/test-rigor-w01-postwave-20261001`** (L3726): gone from origin (`git ls-remote` 10-04).
-- **Plugin install from a local folder / .zip** — `fb6189fa6`, `2e42797c1`. **Raw-HTML mode for forms, menus, categories/tags** — `5e9f338f6`, `c6d54038e`. **Media `createdBy`** — `c321cd0ca` (adapter dropped `9b2923fee`).
-- **F3144: site members cannot use admin features** (owner decision 10-04, "for now"): sign-up writes a `kind: "member"` principal; Jini `authorize()` denies that kind every permission through one rule, `principalKindMayExercisePermission` (relax it there later); the admin credential gate refuses a member principal; owner counts skip it. Real test replaces the regex invariant — `c83018710` + Jini `a7cbd4d1`. **Owed:** `@jini-ai/user-management` release (registry installs and Fly builds lack the kind bar until then).
-- **Site-key rename jobs 1–2** — `d68afd264`, `86f65486d`, `0cabc9ddd`, `e446b7380`, `7aa95394d`, `5a49a92fd`; rest under Security.
 
 ---
 
@@ -389,51 +335,9 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 
 ## Admin motifs: swap the whole admin look with one theme (owner call, 2026-10-02; NOT before the Tovu→Jini re-architecture lands)
 
-Swap one CSS + design-token set and the whole admin restyles live: glassmorphic, or wildly different designs. Use it
-to prove the admin is truly themeable. It could later ship as downloadable theme plugins (one plugin per motif).
-Builds on the admin-theming work already in Jini: the `AdminTheme` type plus `applyAdminTheme` in `@jini-ai/ui/styles`
-(the variable contract folded in from the deleted `@jini-ai/tokens`).
 
 ## Entries envelope owner is a per-caller parameter, not a property of the content type (found 2026-09-19)
 
-**The defect.** `createEntry` takes `input.owner` (`@jini-ai/cms` `entries/write-service.ts:125`) and feeds it to
-`validateFieldsAgainstSchema` at `:156`, defaulting to `"site"`. The widgets feature passes `owner: "widget"`. The
-generic route never passes one — `routes/entries/create.ts:66-79` spreads `...parsedBody`, and `parseCreateEntryBody`
-(`:29-41`) only returns `type/slug/title/fieldsJson/bodyJson`, defaulting `fieldsJson` to `{ext:{site:{}}}` at `:38`.
-
-So `POST /api/admin/v1/entries {type:"widget", fieldsJson:{ext:{site:{payload:"probe"}}}}` **validates successfully**
-against the `widget` content type — that type declares one required text field `payload`, validation looks for it under
-`site`, finds it, passes — and writes a row that the widgets feature can then never read. This is exactly how the two
-probe rows on production were minted on 2026-08-03 (see the widgets "N rows could not be displayed" investigation).
-
-**The fix.** Not per-route type validation — that hardcodes a widgets fact into a generic route. The real gap is that
-the content-type record carries no owner at all (no `owner` anywhere in `@jini-ai/cms` `content-types/types.ts`). Make
-the namespace a property of the registered type and have `createEntry`/`updateEntry` derive it from `contentType`
-instead of from the caller: one source of truth, every caller correct by construction. Registration site is
-`entry-payload.ts:204-223`.
-
-**Breakage:** none expected. Types registered without an owner keep the `"site"` default byte-for-byte; only
-`widget`/`widget_area` would declare one, and every real widget row already uses `ext.widget`. It also fixes
-`PUT /api/admin/v1/entries/:id`, which today cannot write a widget envelope at all.
-
-**Cost to be honest about:** the change lives in `@jini-ai/cms`, a SEPARATE repo (`/Users/la/Programming/Jini`), so it
-needs a Jini publish + dist rebuild, not just a Tovu commit. That is the real price of this fix.
-
-**Production write:** none. Code-only, ships on the next deploy. It stops recurrence; it does NOT clean the two
-existing production rows — those need their own decision.
-
-**DONE 2026-09-22: `be7c233d6`; `apps/admin/src/features/widgets/WidgetsLibrary.tsx` now carries `skippedIds` and a "Show ids" disclosure.**
-
-**Related, separate UX defects found alongside it (historical notes):**
-- The banner copy. "2 rows could not be displayed", rendered directly above a table, reads as "2 rows are missing from
-  this list". The true statement is "2 widget records in this workspace could not be read at all."
-  (`apps/admin/src/features/widgets/WidgetsLibrary.tsx:45-51`.)
-- The notice is unactionable: it names no ids, and `getWidgetInstance` throws on those same ids so the editor cannot
-  open them either. The ids exist only in a server-side `console.warn` (`read-service.ts:115`) no operator will see.
-- The count itself is CORRECT as written and should be left alone: it counts before the `widgetType`/`includeInactive`
-  filters (`read-service.ts:122-123`) because both of those live inside the payload that failed to parse. A skipped row
-  has no knowable type or status; a "filtered" count would silently become a count of rows it could read, which is the
-  silent-skip bug the counter was added to kill.
 
 ---
 
@@ -450,19 +354,6 @@ existing production rows — those need their own decision.
 
 ## Jini publishes owed — committed but not released (found 2026-09-22)
 
-**DONE** — all three released (tags `release-2026-09-29…`, `release-2026-10-04.only.cms`) and adopted in `74777c87f`.
-
-Changes already committed in the separate `Jini` repo (`/Users/la/Programming/Jini`) that Tovu's
-registry-installed `@jini-ai/*` packages will NOT get until a version bump + publish:
-
-No Tovu code change needed here; this is a reminder that a Jini publish + dist rebuild is owed
-before registry installs pick these up. See also the Jini-publish note in the "Entries envelope
-owner" section above (line ~48), a separate instance of the same publish debt.
-
-**From the owner worklist (2026-10-02):** the post-extraction release step is "npm publish, owner approves
-each package; cms-forms stays private". Progress since: Tovu `9d236f090`/`03709b9af`/`9ed760ce1` adopt cms 0.4.1,
-ui 0.4.1 and cms-forms 0.2.1 (so cms-forms did get published after all); no ledger yet shows every extracted package approved and published.
-Agents cannot publish: give the owner a `!` command run from the Jini root.
 
 ---
 
@@ -558,35 +449,10 @@ as the spec evolves. Why not now, verified 2026-09-17:
 - [x] **Admin prototype first.** (`3be477f86`; real-Chrome test still owed) Turn on the chat-pane `webmcp` switch, and register the `page.*`
       tools through `toWebMcpTool`, requiring confirmation for writes. Test in real Chrome (trial
       token or flag).
-- [x] **Setting.** (`3be477f86`, `98ccfc6e0`; default ON with opt-out) Add an admin Settings switch for browser-agent (WebMCP) access. **Owner decision
-      still open: off until enabled (recommended) vs on by default.**
-- [x] **Front end (published site).** (`98ccfc6e0`) It has no page driver today. Put the declarative attributes
-      on real site forms (contact, search, newsletter, booking), plus a small registration script
-      for non-form actions.
 - [ ] **The admin agent tags the HTML pages it creates.** **PARTLY:** prompt guidance only (`3be477f86`), no post-save pass. When the assistant builds or edits a
       page (page editor: "Ask the assistant to build this page"), the output carries agent tags:
       WebMCP attributes on forms, the site's agent-handle attribute on other actionable
       elements. Decide whether that is prompt/tool guidance, a post-save pass, or both.
-- [x] **Themes people create carry the tags too (`98ccfc6e0`, `theme/validation/webmcp-markup.ts`) — themes use WebMCP `tool*` naming (owner call,
-      2026-09-17).** Unlike the admin, themes bias toward WebMCP now, because agents will act on
-      themes first and foremost on the front end.
-      - Forms in theme markup use the real declarative attributes: `toolname`, `tooldescription`,
-        `toolautosubmit`, and `toolparamdescription` / `toolparamtitle` on their controls.
-      - **Non-form elements use `data-tool*` (DECIDED, owner, 2026-09-17; adjustable later).**
-        Buttons, links, tabs and other non-form elements mirror the WebMCP names with a `data-`
-        prefix: `data-toolname`, `data-tooldescription`, and so on. WebMCP has no attribute for
-        them, and the prefix is valid HTML, can't clash with future spec meanings, and migrates by
-        dropping `data-`.
-      - Update the theme authoring guide, theme scaffolds, and the theme validator
-        (`apps/website/src/features/theme/validation/markup.ts`): validate the `tool*` attributes,
-        keep forbidding `data-agent-element` (admin-only), and retire the unsettled
-        `data-tovu-agent` in favor of the `tool*` convention.
-      - The admin agent building front-end pages (task above) should emit the same `tool*`
-        convention, so site pages and theme markup match.
-- [x] **Security note for the plan.** (`features/webmcp/README.md`) A WebMCP call carries no run and no principal, so ToolExecutor
-      cannot authorize it. Anything that can reach `document.modelContext` (browser extensions,
-      other scripts on the page) can call registered tools. Server-side permissions still apply
-      to the logged-in user. Keep write tools behind confirmation.
 - [ ] **Later: migrate `data-agent-*` → WebMCP `tool*`** once the spec covers non-form elements
       and leaves the origin trial.
 
@@ -822,14 +688,12 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
   `content/agent-plugins/supabase` (unverified; their docs don't state the transport, and Tovu supports streamable-http
   only).
 - **Side findings, unfixed:**
-  - ~~`features/theme/validation/markup.ts:24` `KNOWN_EMBED_TYPES` omits `post-previews`.~~ DONE `9937d5a09`.
   - ~~Page-editor preview iframes had no `sandbox`.~~ DONE 10-04: both carry `PAGE_PREVIEW_IFRAME_SANDBOX`
     (`apps/admin/src/features/pages/rules.ts`: `allow-scripts allow-same-origin allow-forms allow-popups`, no top navigation);
     `update-html.ts`'s false "opaque-origin srcdoc" claim corrected. Still open (owner decision): the template-preview branch is
     same-origin with the admin, so with `allow-same-origin` its script still runs with the admin origin. Dropping that flag isolates it
     but loses preview scroll memory and theme fonts/module scripts (CORS). ~~`PostEditor.tsx`'s preview iframes are not sandboxed either.~~
     DONE 10-04: all three `PostPreviewFrame` iframes import the same `PAGE_PREVIEW_IFRAME_SANDBOX`.
-  - Serve editor previews (page + post) from their own origin, so the sandbox no longer has to strip same-origin (owner 2026-10-04).
 
 **2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
 is needed — the widget/field/menu types involved are app-code unions, not DB schema, and their data
@@ -936,7 +800,6 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 ~97 commits (reports `4e64e467`, `b81d57b1`, `ffc37e59`) and **2026-09-04 → 09-05** over 521 commits
 (`ee304d5e`, `ef79b352`, `552e806d`).
 
-- [x] **2026-09-01 → 2026-09-03 — 292 commits — has never been reviewed by anyone.** Review that window. DONE: `ADS-memory/reports/2026-09-01-to-03-review-{architecture,bugs,excess-code}.md`.
 - [ ] **PARTLY** (2026-09-29 whole-codebase review `reports/2026-09-29-opus-review-p1…p6`, not checked against this list). Review what the reviewed windows deliberately skipped: ~200 `agentHandle` commits; ~100
       docs/content/design/landing commits; test-and-refactor-only commits; ~15 admin
       stale-settlement hook fixes; the desktop shell beyond three `.cjs` files; voice/speech; several
@@ -949,63 +812,16 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 `use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation guards don't fit
 `useSettlementGeneration()`'s contract: the generation is minted by a different call than the one that reads it).
 
-- [x] **Four `<button>` nested inside `<a href>`** — `apps/admin/src/features/collections/CollectionEntries.tsx:74`,
-      `collections/CollectionEntryEditor.tsx:361`, `forms/FormsList.tsx:72`, `forms/FormEditor.tsx:971`.
-      Blocked on a CSS fix (making the `.btn-*` classes work on a bare `<a>`). **That CSS fix is
-      unowned:** `Collections.tsx`'s comment says it is "in flight elsewhere", but two sessions have
-      jointly established it belongs to nobody — **the comment is stale and should be corrected when
-      someone picks this up.** Fix the CSS first, then the four call sites.
-- [x] **`security/AccessTokensTab.tsx`'s `TokenRowDefaultIndicator`** — "Make default" is a `<button>`
-      inside a `<summary>` with no `stopPropagation`, so clicking it also toggles the row open/closed.
-      In-repo fix pattern to copy: `deployment/StaticSiteTab.tsx`'s `CredentialVerifyAction`.
-      **Awaiting Leona's call.**
-- [x] **STALE (by decision):** **11 hand-rolled `*GenerationRef = useRef(0)` stale-settlement guards across 10 admin hook
-      files**, with no shared helper. **PARTLY DONE 2026-09-22:** 3 files left: `use-static-publish`,
-      `use-roles`, `use-users` (checked 2026-09-22 and intentionally NOT migrated because their generation
-      guards don't fit `useSettlementGeneration()`'s contract: the generation is minted by a different call than
-      the one that reads it).
-- [x] **Push-to-talk leaves the mic live** when the key is released during the browser permission
-      prompt — `use-push-to-talk.hooks.ts:150-151` no-ops unless already `recording`, and
-      `push-to-talk-state.hooks.ts:50-59` has no `requesting-mic:stop`. No test covers it.
 
 ### Confirmed defects, found and NOT fixed — website / architecture
 
-- [x] DONE `fix(sites): sites route and duplicate use the served site, not process.cwd()` (List/Create/Activate, `sites_list`, `sites_duplicate_site` all rooted at `siteBinding` via `switcherBaseForBinding`; wrong-cwd tests). **The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()` /
-      `process.env`.** `npx tovu serve /some/site` from the repo root reports `<repo>/sites/tovu-com`
-      as the active site and writes Create/Activate/duplicate under `<cwd>/sites` and `<cwd>/.env`.
-      The desktop arm is masked only by `tovu-server.cjs` setting `TOVU_SITE_DIR`. Proposed fix: a
-      `RouteDeps.siteBinding` set once per composition root.
-- [x] DONE (explicit `createAppPermissionGrants` registry passed to identity wiring; Jini `createPermissionMigrationRegistry`). **Authz grants register into a module-scope `Map` by import side effect** —
-      `apps/website/src/features/identity/builtin-role-grants.ts:13-16`, populated by
-      `pages/permissions.ts:122-146` at module evaluation time.
-      `development/scripts/backfill-reset-admin-password.ts:132` builds identity deps without that
-      import and therefore runs against an **empty permissions registry**.
-- [x] DONE `2b039738e` (server test). **The boot-session token is a module singleton on a security route with no server-side test** —
-      `POST /api/admin/v1/auth/boot-session` is covered only by a store unit test and a desktop client
-      test. Its header claims "no dependency path between them", which is false:
-      `cli/commands/serve.ts` builds the deps bag that route receives.
-- [x] DONE `4c6a07979` (uses Jini's minter). **`dev-auth.ts:297-312` re-implements `@jini-ai/cms/identity`'s private session hashing**
-      because the library exposes only `login()`. The seam belongs in Jini as
-      `createSessionForPrincipal`, not copied here.
 - [x] **DONE 2026-10-04 (`87191c162`):** readiness list shared via `server/runtime/boot/site-boot-readiness.ts`. Was **PARTLY:** `d1eea4b2f` shared the helpers; the readiness `Promise.all` is still duplicated (`index.ts:428`, `serve.ts:483`). **Boot orchestration is hand-copied three times** between `serve.ts` and `index.ts`
       (`agentDaemonWanted`, `logCriticalBootFailures`, the 8-promise readiness list), under a comment
       claiming boot logic is "never shared via import" — contradicted the same day by `4dfbfe80`.
       `export.ts` has none of it yet still boots the real `createApp`, so **the
       crash-interrupted-migration scan never runs before an export.**
-- [x] DONE `e332ec331`. **Every desktop launch mints a 30-day owner session that is never revoked — the live database
-      holds 713 sessions.** There is no logout anywhere in `main.cjs`.
-- [x] DONE `b8f2387ab` (one `escapeHtml` maps `'`). **`form-render.ts`'s `escapeHtml` does not escape `'`.** Left deliberately: changing it moves
-      the output of every form, so it needs its own decision rather than a drive-by fix.
-
 ### Needs a human decision, not an agent — this one is MONEY
 
-- [ ] **lipay webhook refunds may record every partial refund as a full one.** `lipay-plugin.ts:476-478`
-      and `:531-534` treat `data.amount` as the **refund** amount, but the only gateway documents that
-      field as the **charge** total. If the gateway is right, every webhook refund records as a full
-      refund and sets status `refunded` — which is **terminal**, so every later webhook for that
-      charge is silently ignored. The existing test feeds a normalized partial amount in directly, so
-      it passes either way and proves nothing. **Check the real payload contract with the gateway.
-      Do not guess, and do not let an agent settle this.**
 
 ### Rescued from an otherwise-stale report
 
@@ -1016,16 +832,6 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 
 ### Unowned work
 
-- [x] **STALE:** owned and shipped 10-04 (`3be477f86`, `98ccfc6e0`). **WebMCP — nobody owns this.** A W3C Community Group standard (Google + Microsoft), shipped in
-      Chrome 146. It is **tool registration, not DOM tagging**: `navigator.modelContext.registerTool(...)`
-      — and **the getter has moved to `document.modelContext`**, with Chrome 150 deprecating the old
-      name as an alias. Tovu already has the tools (`seo_set_entry_overrides`, `media_upload_asset`,
-      `media_promote_chat_attachment`, the whole registry); they are reachable today only through
-      Tovu's own assistant. Registering them via `document.modelContext` would expose them to any
-      browser agent — which is what the landing page promises. **Any todos or memory text describing
-      WebMCP as a DOM-tagging convention is wrong.** (Checked 2026-09-06: no such description exists
-      in this file, so the incorrect text is elsewhere — most likely a memory file.)
-- [x] **STALE:** desktop is actively worked (10-04 `ee199361f`, `1330b177b`). **`apps/desktop/**` has been unowned** since the `tovu-f6` session shut down.
 
 ---
 
@@ -1040,8 +846,6 @@ identity model), Comments (ADR-031 — the `soon` badge is a **deliberate** owne
 |---|---|---|
 | Database / Storage | 🟡 | The `PENDING_MIGRATION` boot banner and the Tier-3 browser still have no route (`apps/admin/src/features/database/Database.tsx:40`). The drift banner IS built (`SchemaStateWarningBanner`, tested). |
 | Categories & Tags | 🟡 | Reparent, deprecate, and term-slug controls. |
-| Roles & Permissions | ✅ | DONE: one permission can be removed (`0cec83bf9`). |
-| Forms | ✅ | DONE 2026-10-04 (`16ee76855`): row added to `ADS-memory/reports/architecture/ADR-INDEX.md`. Was: SPEC-010 / ADR-PIPE-010 still have no row in `ADR-INDEX.md` (zero hits; the ids do appear in `ADS-memory/specs/043-widgets/feature.spec.md:464`). |
 | Media | 🟡 | `accept` widened to video — DONE `c55da3e1c`. The Images/Videos tabs are real filters now (`rules.ts`'s `filterMediaByTab`). Remaining: this screen's own file-input `accept` still lists image types only while the server accepts `video/mp4`/`video/webm` — a pending **owner decision**, not an oversight (`Media.tsx:900-907`); plus origin-isolation, where-used protection, ingress, and GC behavior now owned by Jini. |
 | Menus | ✅ | Drag-and-drop deferred (no `draggable`/dnd code under `apps/admin/src/features/menus/`); reorder controls exist. |
 | Members | ✅ | Pagination and billing deferred. |
@@ -1107,8 +911,6 @@ the entire e2e suite was non-functional on this branch. All 40 are repointed
 `npm run test:visual` runs `development/e2e/theme-visual.spec.ts`.
 
 **Still open:**
-- **Theme hot-reload in dev**: the server caches the theme at boot with no `themes/**` watch. VRT's
-  fresh per-run `webServer` sidesteps it, but dev iteration still costs a manual restart per edit.
 - **Cross-platform baseline drift** (Mac vs CI Linux) — pinned Docker image or a hosted service
   (Chromatic/Percy/`reg-suit`). Stretch.
 - **Coverage gap inherited from the AW-4 check:** a true non-post `page-shell.html` page was never
@@ -1211,32 +1013,16 @@ sideloaded tier-2; meta description in `ContentEntryDraft`; a plugin admin-UI su
 ## Accomplish (What We Need to Build)
 
 ### Foundation (active)
-- [ ] Add structured logging + request IDs. **Request IDs DONE 2026-10-04 (`6def979c8`):** `x-request-id` reused-or-minted, echoed, passed to `trackRequest`; structured logging still open. Before: neither existed: there is no logging port, and
-      `requestId` appears only in `apps/website/src/server/__specs__/00-foundation/` specs plus one
-      AG-UI module. Note this is NOT the same as the observability work — `platform/observability/`
-      ships a real `ObservabilityPort` with `noop`/`otel` adapters (see Master Build Inventory §1),
-      but it tracks requests without carrying a correlation id and does no structured logging.
 
 ### First real capabilities
-- [ ] Feature-flag support (for safe rollout). `featureFlag` appears only in
-      `server/__specs__/00-foundation/request-context.spec.md` — no implementation.
 
 ### Reliability and safety
-- [x] DONE `0ae3429de`, `9d3b2c12a` (`MAX_OUTBOX_ATTEMPTS=6`, terminal `failed`). **Outbox retry policy with exponential backoff — and an attempt cap.** The schema already
-      supports it (`outbox_events.attempts`, `nextAttemptAt`), but
-      `apps/website/src/contracts/core/events/outbox-worker.ts:34` calls
-      `markFailed(row.id, message, now)` — it re-queues the failed event for retry *immediately*, so a
-      permanently-failing event spins at full batch rate. No `maxAttempts` and no dead-letter path
-      exist anywhere in `contracts/core/events/`.
 - [ ] Idempotency strategy for event handlers. (`operation-lock.ts` guards concurrent mutations; it
       is not handler-level idempotency.)
 - [ ] Error taxonomy + standardized API error responses. `apps/website/src/server/error-mapping/`
       exists but contains **only `INFO.md`** — it names itself "the intended home for the canonical
       error envelope, status mapping helpers, and route-safe translation", with no code. Per-feature
       `errors.ts` files exist but there is no shared envelope.
-- [ ] Safe-mode / rollback concept draft (from architecture §13). Recovery ships one shape of this
-      (restore points, plan→confirm→execute), but "safe mode" itself is only mentioned in
-      `server/__specs__/`.
 
 ### Agent capability surface (added 2026-07-27)
 
@@ -1245,9 +1031,6 @@ Backed by a source-level survey of ten shipped products; full reports in
 `development/tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29 (both verified present).
 Build in this order.
 
-- [ ] **Fail-closed at registration.** Throw at boot if a capability declares no auth policy, so
-      "registered with no auth check" is unreachable rather than discouraged. (Strapi,
-      `McpCapabilityDefinitionRegistry.define()`.) ~20 lines; do this first.
 - [ ] **Make the entity discriminator a per-principal enum**, not a free string. Kills the extra
       discovery round trip and puts least privilege in the contract. Neither Payload nor Strapi
       shipped this combination — it's ours to get right. Cache keys must include principal +
@@ -1265,14 +1048,6 @@ Build in this order.
       returns against a declared output schema (`class-wp-ability.php:677`); Jini validates input
       only. Cheap now, awkward once handlers exist. Relates to `ai-control-plane.md §19.4`, which
       already asks for it under output safety but has no implementation.
-- [ ] **Ship schema-on-error before collapsing tools.** When validation fails, return the entity's
-      full schema in the error so the model self-corrects in one turn. It is a one-line change to an
-      error path and it is what makes a deliberately loose wire schema affordable — collapsing tools
-      to `findDocuments({ collectionSlug })` without it turns every mistake into a dead end.
-- [x] **STALE:** a catalog was built (`assistant/tool-catalog-query.ts`, `595987d69`). **Do not build a tool catalog / search layer yet.** With entity-as-parameter the count lands in
-      the dozens, not hundreds. Build discovery when the *measured* count justifies it. Watch the
-      ratio of distinct-outcome capabilities (which never collapse) to CRUD ones (which do) — when
-      the former dominates, discovery stops being premature.
 
 **Where the evidence lives.** Ten canonical per-repo reports in
 `/Users/la/Programming/OSS-Repos/AI-Capabilities/` (`<repo>.md` + `<repo>.metrics.json`), merged from
@@ -1345,45 +1120,23 @@ signed URLs on a cookie-less origin, GC policy, ingress policy, `entry_refs`).
 - [ ] Define final kernel responsibilities (lifecycle, DI, service registry) — no dedicated kernel/DI
       module exists; ADR-046 (Proposed, pending debate) partially scopes composition-root/module-status
       concerns
-- [ ] Add core error model (typed errors + error codes) — per-domain typed error classes are pervasive
-      (`ForbiddenError`, `ValidationError`, …) but there is no centralized taxonomy;
-      `apps/website/src/server/error-mapping/` is still a placeholder folder (**`INFO.md` only, no code**)
 - [ ] Add config system with typed schema + env validation
-- [ ] Add feature flag system (runtime + env + workspace scope)
 - [ ] Add module loader contract (for plugins/themes/providers) — Tier-1 declarative plugin
       data-modules are built (ADR-023, `features/plugins/data-module.ts`/`snapshot.ts`); a general
       load/init/stop lifecycle contract for Tier-2/3 code plugins is scoped by ADR-024, not built
-- [ ] Extend core observability beyond inbound HTTP. **The port and its adapters now exist** —
-      `apps/website/src/platform/observability/{ports,noop,otel,config,index}.ts`, wired through
-      `server/inbound/shared/observability-middleware.ts`, deliberately shaped as `trackRequest`
-      rather than OTel's `startSpan` so OTel itself stays replaceable. Still to build, named in the
-      port's own header as its natural next additions: `trackDbQuery`, `trackOutboundCall`,
-      `trackAgentRun`. (Correlation/request IDs are a separate, unbuilt concern — see §16.)
 
 ### 2) Eventing / Hybrid Sync + Async
 - [ ] Define event naming conventions and ownership — a consistent `domain.verb` convention is used
       pervasively in code (`entry.created`, `content_type.tombstoned`, …) but is not written down
-- [x] DONE `0ae3429de`. Implement outbox poller/worker with retries and **backoff plus an attempt cap**. The worker
-      exists (`contracts/core/events/outbox-worker.ts`) and the schema already supports backoff
-      (`outbox_events.attempts`, `nextAttemptAt`), but line 34 calls
-      `markFailed(row.id, message, now)` — a failed event is immediately claimable again, and nothing
-      reads `attempts`. A permanently-failing handler spins at full batch rate (20/tick) forever.
 - [ ] Add idempotency support for handlers — idempotency exists for gated mutations
       (`contracts/core/gated-mutations/token.ts` idempotency keys, `contracts/core/operation-lock.ts`)
       but not for event-handler/outbox consumption
-- [x] DONE (terminal `failed` status, `contracts/core/events/outbox-worker.ts`). Add dead-letter strategy for repeatedly failing events — ADR-036 built dead-lettering for
-      **outbound webhook delivery** specifically (`features/integrations/delivery.ts`); the core
-      domain-event outbox has none (`maxAttempts`/`dead-letter`: zero hits under
-      `contracts/core/events/`)
 - [ ] Add event replay strategy for recovery/backfill — explicitly deferred by ADR-022
 
 ### 6) Search / Indexing
 **STALE 10-04:** post full-text search ships (`features/post/search-index*.ts`, `ddacc2093`). Nothing built — no search module exists anywhere under `apps/website/src`. (ADR-022's
 core-provisioned expression indexes, `features/content-types/index-provisioning.ts`, are DB
 query-performance indexes, not a search subsystem, and do not satisfy the first item.)
-- [x] Define search document schema and indexing boundaries (`features/post/search-index.ts`)
-- [ ] Define indexing triggers from domain events
-- [x] Implement index upsert/remove handlers (`search-index.{sqlite,postgres,memory}.ts`)
 - [ ] Define hybrid search strategy (keyword + semantic optional)
 - [ ] Add search relevance tuning strategy
 - [ ] Add search contract tests and latency budgets
@@ -1425,14 +1178,9 @@ query-performance indexes, not a search subsystem, and do not satisfy the first 
 - [ ] Add plugin observability and fault isolation
 
 ### 10) HTTP/API Server
-- [ ] Define transport-agnostic route/handler shape — a consistent pattern is used in practice
-      (`getAuthedPrincipal` → `deps.authorize()` → domain call → `res.json()`) but no formal contract
-      layer has been decided
 - [ ] Decide Fastify vs Hono migration path — no decision made; Express remains
 - [ ] Add request validation and response schema enforcement — ad hoc per-route validation only; no
       schema library adopted (see §24's open Zod evaluation)
-- [ ] Add error mapping strategy (domain → HTTP) — `apps/website/src/server/error-mapping/` exists
-      only as a placeholder (`INFO.md`, no code); mapping is ad hoc per route
 - [ ] Add rate limiting and security headers — per-feature rate limiting exists
       (`features/forms/rate-limit-profile.ts`, ADR-030 magic-link limit) and per-surface CSP exists
       (ADR-025 plugin iframe, ADR-038 egress policy), but no app-wide middleware for either
@@ -1501,10 +1249,6 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Add codegen strategy for typed clients if needed
 
 ### 16) Reliability / Ops / Security
-- [ ] Add structured logging + correlation IDs (request IDs DONE `6def979c8`; logging port still open) — no logging port or correlation/request-id
-      propagation exists (`observability-middleware.ts` tracks requests but carries no correlation id)
-- [ ] Finish metrics and tracing — the `ObservabilityPort` + `noop`/`otel` adapters are built and
-      wired for inbound HTTP (see §1); DB queries, outbound calls and agent runs are not instrumented
 - [ ] Define SLOs and operational dashboards
 - [ ] Define incident response runbooks
 - [ ] Add secrets management policy — explicitly deferred by ADR-028 ("secret gate: reject
@@ -1531,17 +1275,12 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
       individual ADRs
 - [ ] Maintain a roadmap by milestone (M0, M1, M2…) — this file is the closest thing; there is no
       formal milestone doc
-- [x] **STALE 10-04:** 053/055/059/063/064 indexed; 056/057 withheld on purpose (`ADR-INDEX.md:7`). **Index the 7 unindexed ADRs** (053, 055, 056, 057, 059, 063, 064) in `ADR-INDEX.md` — the
-      index is the stated source of truth and is currently incomplete
 
 ### 19) WordPress Parity Gap Checklist (Detailed)
 
 #### Content + publishing
 - [ ] Draft/review/published/future/private status model parity — draft/published exists (`features/entries`, `features/post`); scheduled ("future") and private-visibility states not confirmed built
-- [ ] Scheduled publishing with timezone correctness
 - [ ] Revisions + restore + compare views — append-only revisions exist (ADR-022); restore-to-a-past-revision and compare-views UI not built
-- [x] Autosave and crash recovery (`posts.autosave_json`, admin `use-standing-draft-autosave`)
-- [x] DONE (`features/trash/`, `00ffe9e14`). Trash/restore/delete lifecycle — content-type deprecate/tombstone/cleanup lifecycle is built (ADR-043); a per-entry trash/delete lifecycle is not confirmed
 - [ ] Sticky/featured content behavior
 
 #### Taxonomy + navigation
@@ -1559,14 +1298,12 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Template hierarchy and fallback rules — same gap as §8 item 2 (ADR-017 Proposed, blocked)
 - [ ] Child-theme equivalent strategy
 - [ ] Theme update compatibility checks and rollback
-- [ ] Theme preview and activation flow — activation flow exists (`apps/admin/src/features/themes/Themes.tsx`'s `activate()`); a preview-before-activate step wasn't found
 
 #### Plugin ecosystem parity
 - [ ] Plugin install/activate/deactivate/update/uninstall flows — Tier-1 install/uninstall is built (ADR-023, `features/plugins/data-module.ts`); activate/deactivate/update flows and UI not confirmed
 - [ ] Plugin dependency + compatibility checks — ADR-019 covers theme→plugin declared deps only; general plugin-to-plugin checks not built
 - [ ] Hook/filter-like extension model — ADR-024 decided the hook-priority model conceptually; no general-purpose registry beyond feature-specific hooks
 - [ ] Plugin settings registration and UI mounting — ADR-025 decided the iframe/`postMessage` mechanism; not built yet
-- [ ] **PARTLY:** safe disable/quarantine built (`plugin-runtime/quarantine.ts`); conflict detection backend built 2026-10-04 (`plugin-runtime/claim-conflicts.ts` + `plugin-claims.ts`, `36b97dfdb`): enable refuses (409 `PLUGIN_CONFLICT` / agent `PLUGINS_CONFLICT`), boot quarantines the newer plugin, `PLUGINS_LIST` rows carry `conflicts[]`. REMAINING: admin Plugins row rendering of `conflicts[]` + i18n (18 locales), spec note `specs/005-plugin-system/conflicts.spec.md`. Plugin conflict detection and safe disable/quarantine
 
 #### Admin + operations
 - [ ] Update center and update history
@@ -1602,11 +1339,9 @@ At parity — ADR-032 (XML sitemap + controls, canonical/meta/schema, robots/ind
 
 #### Ghost-like capabilities
 - [ ] Writer-first editing experience quality target
-- [x] SEO + canonical + social cards defaults (`features/seo/page-head-contributor.ts` emits `og:image`, `twitter:card`) — canonical/meta is done (ADR-032); social-card (OG/Twitter card) defaults are not confirmed built
 - [ ] Performance-first defaults for publishing surfaces
 
 #### Strategic additions (beyond parity)
-- [ ] AI-native operations assistant (safe tool-calling) — same gap as §12, nothing built yet
 - [ ] Guided incident remediation — ADR-045's Recovery screen is the closest built analog
 - [ ] Preflight update risk checks + canary + rollback — ADR-041's migrate-forward cost-gating is a partial analog, scoped to DB migrations only
 - [ ] Policy-based governance and provenance controls
@@ -1687,7 +1422,6 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Meta description generation optimized for extraction (complete sentences, factual, 150-160 chars)
 
 ##### Site-level outputs
-- [x] Auto-generate `/llms.txt` from site structure and key pages — `8633b4ef7`
 - [ ] IndexNow integration — ping Bing instantly on publish/update (only proven instant-discovery signal)
 - [ ] robots.txt builder — per-bot allow/block config (OAI-SearchBot, GPTBot, PerplexityBot, Googlebot, bingbot, ChatGPT-User) — a generic `RobotsPolicy`/`buildRobots` exists (ADR-032, `apps/website/src/features/seo/`); per-bot granularity (OAI-SearchBot/GPTBot/etc.) not confirmed
 
@@ -1724,14 +1458,10 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Define end-user AI surface (assistant panel for guided site changes)
 - [ ] Define employee/internal AI surface (operations console with elevated tooling)
 - [ ] Define tool permission tiers (user-safe vs staff-only vs admin-only)
-- [x] Add approval flows for destructive/high-impact tool actions (ADR-055 confirmations)
-- [x] Add audit logs for all AI tool calls and resulting mutations (`features/tool-audit/`)
 - [ ] Add simulation/dry-run mode before applying front-end or back-end changes
-- [x] Add rollback checkpoints for AI-applied changes (`features/change-sets` revert, restore points)
 - [ ] Add dual-surface UX contracts (what users can self-serve vs what staff can perform)
 
 #### AI Tooling for Frontend + Backend Mutation
-- [ ] Tooling: frontend layout/style/content mutation tools
 - [ ] Tooling: backend schema/config/workflow mutation tools
 - [ ] Tooling: safe migration tools (preview diff, impact analysis, revert plan)
 - [ ] Tooling: test-and-verify tools (run checks before apply)
@@ -1807,7 +1537,6 @@ the repo, so the reasoning behind these picks could not be re-read.
 Goal: evaluate/adopt tooling that keeps the codebase modular, maintainable, and flexible (enforces the ports/adapters + spec-first constraints). Ties into existing items 1) "architecture boundary enforcement" and 15) "architecture lint".
 
 Recommended starting five (highest ROI):
-- [ ] Evaluate **knip** — find unused files/exports/deps across the workspace (keeps plugin-heavy platform lean)
 - [ ] Evaluate **Zod** at all boundaries — runtime validation + single source of truth for types (fits SQLite JSON-text ↔ jsonb strategy) — not adopted; relates to §10's still-open request-validation item
 - [ ] Evaluate **ArchUnitTS / ts-arch** — architecture rules as unit tests (fits spec-first / M3 test-contract framework)
 - [ ] Evaluate **Testcontainers** (+ **Pact**) — contract-test each DB/storage/payment adapter against a real backend
@@ -2238,13 +1967,6 @@ the moment the dock opens.
 
 ## LATER — Local Postgres in the desktop app via PGlite (owner, 2026-09-27; NOT now)
 
-**PARTLY (re-audit 10-04):** storage layer over SQLite+PGlite (`cb746a35a`), posts on PGlite (`a81b92084`), per-site pglite dir, duplicate on PGlite (`a483a9ced`). Left: PostGIS/pgvector, disk/RAM measurement.
-Idea: ship PGlite (Postgres compiled to WebAssembly, no outside service) in the desktop app so sites can run on real Postgres locally, then copy to Supabase later Postgres-to-Postgres.
-- Why: Postgres extensions SQLite lacks. Per the PGlite docs (context7, 2026-09-27): pgvector (official), pg_textsearch, PostGIS (`@electric-sql/pglite-postgis`, marked EXPERIMENTAL), plus bundled contrib extensions.
-- Open questions for a measured spike (Opus):
-  - Real disk and RAM in the desktop build, with and without PostGIS.
-- Alternative to compare: bundled real Postgres (`embedded-postgres`, ~50–100 MB per platform, a separate server process to manage).
-- Related: the SQLite→Postgres copy tool (features/database-transfer, commits 681fc0c21…fc3f9de3a) already moves data to Supabase without this.
 
 ## MEDIUM-HIGH — Close the gaps where EmDash is ahead (owner, 2026-09-28)
 Source: `ADS-memory/reports/2026-09-28-emdash-vs-tovu.md` (§3, §4 ranked borrows with EmDash file paths). EmDash is MIT (© 2026 Cloudflare): copied code needs the MIT header + NOTICE entry.
@@ -2304,7 +2026,6 @@ Plain keyword search for visitors (not AI). Verified choice: `minisearch` (no de
 - Platform decisions: runtime-loading plugin React components into the built Vite admin (shared React via import maps/module federation vs sandboxed iframe per library); public-site charts without React → server-side SVG (ECharts SSR); trust = first-party plugin review/integrity rules.
 
 ## AFTER 0.1.13 — Run multiple sites at once on different ports (owner, 2026-10-08)
-- Owner 10-08 (screenshot ADS-memory/.local-artifacts/screenshots/2026-10-08-sites/sites-all.png): Sites cards need START / STOP and DELETE. Delete follows the Trash rule: moves the site folder to Trash (recoverable), permanent delete only from Trash with checkbox + confirm; can't delete the site being served; agent gets trash/restore, no purge. Also: "Serve after restart" needs a built-in restart action in dev/desktop instead of telling the user to SIGTERM dev.mjs.
 
 ## AFTER 0.1.13 — "How Tovu works" agent plugin: a meta tool for learning the site (owner, 2026-10-08)
 - NOT tool search (that finds callable actions). This explains what the site can do, how pieces fit, and where to look next ("for forms look here; for Jini capabilities look here").
@@ -2336,8 +2057,6 @@ Audits: `ADS-memory/.local-artifacts/audits/2026-10-08-hardwiring-broad.md` (25 
 - Owner 10-08 (overrules the REQ-0 non-goal: "that's a mistake… use cases can get more complex than we might see"): the admin can open ANY set of tool calls to visitors ("peruse the site, and just do whatever, honestly"), chosen on https://tovu.dev/admin/ai-assistant (Visitor's AI Assistant tab; UI not designed yet). E.g. search posts, search products when selling. Plugins (e.g. a future commerce plugin's product search) contribute visitor-safe tools to that list; nothing is open until the admin turns it on; rate limits and a clear warning when an admin opens a tool that writes data or reaches private data (design TBD). Needs an ADR replacing REQ-0's non-goal.
 
 ## NEXT — Change a user's username, in the admin UI AND as agent tool calls (owner, 2026-10-08: 0.1.14, NOT 0.1.13)
-- Today impossible: username is fixed at creation; PATCH /api/admin/v1/workspaces/:ws/users/:principalId (apps/website/src/server/inbound/admin-http/routes/users/update.ts) is email-only and silently ignores `username` (SPEC-006 AC-28).
-- Need: rename route (uniqueness check incl. trashed users, owner-only for owner targets, audit entry, sessions stay valid), "Change username" on the Users screen (and own profile), AND agent tools so the assistant can do it (owner: "they will need their own tool calls") — registered in the tool catalog with the same permission gates (user.manage / owner rule), discoverable via search_tools.
 
 ## NEXT — Generic CRUD tool layer: close the 38 tool gaps (owner question 2026-10-08: "don't we have an abstract CRUD tooling system?")
 - Today: read (`content_read.<resource>`, 28 resources), copy (`content_duplicate`) and delete/restore (`trash_item` / `trash_restore_item` + per-type Trash adapters) are generic. Create and update are NOT: each resource has hand-written tools, so gaps are tools nobody wrote. Coverage table: ADS-memory/reports/tool-crud-coverage-2026-10-08.md (38 gaps: read-one 18, restore 9, update 4, delete 4, list 2, create 1). Theme delete closed by `theme_trash` (9d56f5f3d).
@@ -2368,9 +2087,6 @@ Switching restarts the whole :3000 server (activateSite → .env TOVU_SITE → d
 
 ## CODEX QUEUE (owner 2026-10-17 ~16:25): failed tool calls in the zoran chat (msg 1ee2b105…, "v2 landing + kUI animations")
 1. Delegated-tool args shape: the model called `execute_readonly_delegated_tool` with `{"toolId":"search_agent_plugin_local","query":"kui","input":{...}}` → "invalid arguments … Property "query" does not match additional properties schema". Make the wrapper tolerate/fold stray top-level args into `input` (or return a precise "put args inside input" hint) so it doesn't burn a turn. Add a test.
-2. Oversized tool result: `theme_read_file` batch with `find` over scripts/vendor/kuinetic.all.js (991 KB, 1 line per match window?) returned 272,087 chars → host spilled it to a file. Cap `find` result windows/size per item (and total batch) with `returned.truncated`, so a find never returns the whole minified file. Add a test.
-3. The model reached for a `Grep` tool that isn't in the in-app session ("No such tool available: Grep"). Either expose a generic grep/search over theme/site files (tools-first) or say in the tool catalog that `theme_read_file` `find` is the search. Add a test that the catalog covers it.
-4. (10-17 ~17:55) In-app agent called `mcp__chrome-devtools__navigate_page {pageId:2}` → "No page found": the page id went stale after a server/daemon restart (the chrome-devtools MCP restarts with the run, so earlier page ids die). Fix in the assistant's guidance/skill for browser checks: prefer Tovu's own `web_screenshot_page`/`web_fetch_page` (tools-first); if chrome-devtools is used, call list_pages/new_page first and never reuse a pageId from an earlier run. Add a test on the guidance text.
 
 ## LATER: Semgrep first run + triage (owner 2026-10-20: "leave it for later")
 Config + custom rules are already in both integration branches (Jini 9fb71257, Tovu 4e0e764ff: `.semgrep/`, `quality:semgrep`, `quality:semgrep:test`, diff-aware report-only CI). Not yet run locally: `brew install semgrep` compiles from source on this macOS (OCaml → LLVM → Rust, hours) — killed 2026-10-20. When resumed: install via `pipx install semgrep` (prebuilt wheel), run `quality:semgrep:test` then `quality:semgrep` in both repos, triage like SonarJS. gitleaks: use the pinned, checksum-verified binary the Jini CI script downloads (no brew).
@@ -2386,14 +2102,11 @@ Config + custom rules are already in both integration branches (Jini 9fb71257, T
 - [x] (DONE 2026-10-22, on main + deployed code; prod theme on the volume still needs updating) Stock themes (tovu-starter 54 pages, tovu-theme 13 pages) repeat a jsDelivr `kuinetic@0` CDN tag + `document.write` fallback on every page. Replace with ONE local tag in the shared footer partial: `<script src="…/scripts/vendor/kuinetic.all.min.js" defer></script>` (no CDN, no document.write, no unreviewed @0 updates). Remove the per-page copies; update the tovu-theme agent plugin guidance (local file only); quick Chrome check that animations still run. Existing site themes (tovu-dev, plannie, zoran, …) updated per site on request. (Alternative the owner may still pick: an add-kuinetic.js loader with pinned CDN + fallback + a kuinetic:ready event.)
 
 ## Admin accent: add "Tovu gold" (owner 2026-10-22)
-- [ ] Settings → Admin UI → Appearance → Accent color: add Tovu gold `#ffba3e` (the stock tovu-theme `--gold`) as a swatch. Tovu-specific, so add it in Tovu's AdminAppearance swatch list, not Jini's generic ACCENT_SWATCHES. Check contrast: buttons/text on a gold accent need dark foreground (verify resolveAccentColor/accentVars picks a readable on-accent colour) — light + dark, in Chrome.
 
 ## CRITICAL: email (owner 2026-10-22)
 - [ ] **CRITICAL** — tovu.dev sends NO email: no mail provider selected since the mail contract v1 deploy (sign-in links, confirmations, form notifications all silently dropped; before, they only went to the console log). Pick a provider (Resend plugin, or SMTP from a free-tier service), save its key under Access Tokens, verify the sending domain (DNS), send a test. Also local dev. The "Email is not set up" banner is now dismissible — dismissing it does not fix email.
-- [ ] Wire Resend's own MCP into the Resend agent plugin (`content/agent-plugins/resend/mcp.json` is empty today) — plugin-only change. First check what Resend's MCP covers (send, domains/verification, API keys); it still authenticates with a Resend API key, and DNS records still go in at name.com (Tovu's name.com MCP is read-only — ManageDNS refused by the operator allowlist).
 
 ## Admin UI consistency check (owner 2026-10-22, small)
-- [ ] Opus + Chrome subagent: Cookie Consent, Import/Export and Analytics screens — font, text size/weight and spacing look off vs the rest of the admin ("it should all be the same text"). Find why (screen-local CSS / missing shared classes) and align them to the shared admin typography. Morning UI round, with Tovu gold.
 
 ## New-site password — proper fix LATER (owner 2026-10-22)
 - [ ] For now (owner, ~10:15 AM PT): when "different admin password" is left blank, onboarding SHOWS the starter password so people messing around can sign in. Later: decide the real flow (require the field, or force a change-password step on first sign-in) — showing a shared default password is not OK for real/deployed sites. Context: bug-analysis A-3 (CreateSiteOnboarding.tsx ~313-320, DEFAULT_OWNER_PASSWORD).
@@ -2405,10 +2118,7 @@ Config + custom rules are already in both integration branches (Jini 9fb71257, T
 - [ ] Codex plugin audit (2026-10-22, `.cloud-coord/plugin-audit.md` on branch codex/nonui-2026-10-22, commit 46a03a47d) lists vendor code still in core: GitHub deploy provider (`features/deployments/providers/github.ts`, JWT/API/status mapping), closed GitHub/GitLab/Bitbucket list + credential union (`features/source-control/store.ts`, `types.ts`), hard-coded `github` staging dir (`commit-site.ts`), GitHub-only source selection (`composition/app.ts`), Cloudflare DNS-over-HTTPS resolver (`composition/domain-dns-adapters.ts`), plus earlier leftovers (FLY_* env reads, vendor search keywords, LiPay in core, Supabase options in admin/desktop). Owner rule: ALL vendor code/tests/workflow steps live in the plugin; core consumes generic declarations. Keep deploy-split-activation.ts / bundled-catalog.ts for the owner's own review.
 
 ## Small UI leftovers — next local UI round (Opus + Chrome)
-- [x] Desktop site tabs: the × sits too close to the tab's slanted right edge (owner screenshot 2026-10-22 11:09 AM) — give it more right padding so it sits inside the tab shape.
-- [x] MiddleTruncate stray space; dark-mode scroll buttons contrast; Git backup card gap (tovu-6e leftovers).
 - [ ] Email page "needs attention" line still says "See Provider and Sender below" — now tabs, not below.
-- [x] Media and SEO card titles still slightly larger than the shared 14px/600 card title.
 
 ## Email — PARKED (owner 2026-10-22 night: "let's not focus on email right now")
 - The admin "Email is not set up" banner is unmounted while email is parked (2026-10-23). Re-mount MailStatusBanner in apps/admin/src/App.tsx when email resumes.

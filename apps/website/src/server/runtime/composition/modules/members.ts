@@ -1,3 +1,4 @@
+import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
 import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
 import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
 import { registerAdminMemberDisableRoute } from "#src/server/inbound/admin-http/routes/members/disable";
@@ -5,6 +6,12 @@ import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/ad
 import type { MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
 import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
 import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import { registerPublicMemberPasswordSignInRoute } from "#src/server/inbound/public-http/routes/members/password-sign-in";
+import { registerPublicMemberForgotPasswordRoute } from "#src/server/inbound/public-http/routes/members/forgot-password";
+import { registerPublicMemberResetPasswordRoute } from "#src/server/inbound/public-http/routes/members/reset-password";
+import { registerPublicMemberSetPasswordRoute } from "#src/server/inbound/public-http/routes/members/set-password";
+import { registerPublicMemberMeRoute } from "#src/server/inbound/public-http/routes/members/me";
+import { registerPublicMemberSignOutRoute } from "#src/server/inbound/public-http/routes/members/sign-out";
 import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -12,10 +19,10 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-038) — the `members` server module (ADR-030 Members admin CRUD +
  * ADR-PIPE-013 public sign-in).
  *
- * Owns 6 registrations: 4 admin CRUD/list routes (list/get/disable/request-magic-link) plus 2
- * public, unauthenticated sign-in routes (sign-in-request/complete-sign-in) — moved here verbatim
- * from `app.ts`'s `createApp()`, same registrar function bodies, no behavior change, same relative
- * order.
+ * Owns 13 registrations: 5 admin routes (list/get/disable/delete/request-magic-link) plus 8
+ * public member auth routes — moved here verbatim
+ * from `app.ts`'s `createApp()`; the original routes retain their relative order. Owner 2026-10-24
+ * adds DELETE-to-Trash alongside Disable.
  *
  * Genuinely needs TWO deps objects, not one: `MembersRouteDeps`/`MemberPublicRouteDeps` already
  * existed pre-slice as a deliberate split (`routes/admin/members/deps.ts`/`routes/members/deps.ts`)
@@ -40,9 +47,16 @@ export function createMembersModule(deps: {
       registerAdminMemberListRoute(app, deps.admin);
       registerAdminMemberGetRoute(app, deps.admin);
       registerAdminMemberDisableRoute(app, deps.admin);
+      registerAdminMemberDeleteRoute(app, deps.admin);
       registerAdminMemberRequestMagicLinkRoute(app, deps.admin);
       registerPublicMemberSignInRequestRoute(app, deps.public);
       registerPublicMemberCompleteSignInRoute(app, deps.public);
+      registerPublicMemberPasswordSignInRoute(app, deps.public);
+      registerPublicMemberForgotPasswordRoute(app, deps.public);
+      registerPublicMemberResetPasswordRoute(app, deps.public);
+      registerPublicMemberSetPasswordRoute(app, deps.public);
+      registerPublicMemberMeRoute(app, deps.public);
+      registerPublicMemberSignOutRoute(app, deps.public);
     },
   };
 }

@@ -223,3 +223,12 @@ test("mailDnsPorts carries only the seams the composition supplied", () => {
   const { mailRequirements: _drop, ...noMail } = toolDeps([]);
   assert.equal("mailRequirements" in mailDnsPorts(noMail as DnsChangeToolDeps), false);
 });
+
+test("signin-lab: DNS status exposes safe provider code and message without the generic unknown overwrite", async () => {
+  const verdict: SenderDomainVerification = { state: "unknown", domain: "example.com", providerId: "mailer", reason: "forbidden: Sending-only keys cannot list domains" };
+  const failed = await readMailDnsStatus({}, portsFor({ verdict, requirement: new ToolInputError({ message: "restricted_api_key: Use a full-access key" }) }));
+  assert.equal(failed.state, "requirements_failed");
+  assert.equal(failed.message, "restricted_api_key: Use a full-access key");
+  const unavailable = await readMailDnsStatus({}, portsFor({ verdict, requirement: null }));
+  assert.equal(unavailable.message, verdict.reason);
+});

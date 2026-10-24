@@ -9,8 +9,10 @@ import { createCapturingResponse, extractRouteHandler, startTestServer } from ".
 
 import express from "express";
 
+import { requestSignInLink } from "#src/features/members/index";
+import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
+import { createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { registerPublicMemberCompleteSignInRoute } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
@@ -25,6 +27,8 @@ import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-htt
 
 function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: MemberPublicRouteDeps } {
   const routeDeps = createRouteDeps();
+  const capabilities = routeDeps.mailer.capabilities();
+  routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   const deps: MemberPublicRouteDeps = {
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
@@ -33,9 +37,14 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
     memberSessionRepo: routeDeps.memberSessionRepo,
     magicLinkRepo: routeDeps.magicLinkRepo,
     mailer: routeDeps.mailer,
+    origin: routeDeps.originRegistry,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
     principalRepo: routeDeps.principalRepo,
+    passwordHasher: routeDeps.passwordHasher,
+    passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
+    passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
     magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock }),
     magicLinkPerIpLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock }),
     magicLinkCompleteAttemptLimiter: createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock: routeDeps.clock }),
@@ -54,25 +63,16 @@ async function requestAndExtractToken(
   deps: MemberPublicRouteDeps,
   email: string
 ): Promise<string> {
-  const originalLog = console.log;
   let capturedBody = "";
-  console.log = (...args: unknown[]) => {
-    const text = args.map(String).join(" ");
-    if (text.includes("token=")) capturedBody = text;
-  };
+  const send = deps.mailer.send.bind(deps.mailer);
+  deps.mailer.send = async (message, options) => { capturedBody = message.text ?? ""; return send(message, options); };
   try {
-    const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    assert.equal(res.status, 200);
-  } finally {
-    console.log = originalLog;
-  }
-  const match = capturedBody.match(/token=([a-f0-9]+)/);
-  assert.ok(match, "expected the console mailer to log a token= query param");
-  return match![1];
+    // Completion tests arrange a fully persisted challenge; detached HTTP acceptance is covered separately.
+    await requestSignInLink({ deps: toPublicMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, email } });
+  } finally { deps.mailer.send = send; }
+  const match = capturedBody.match(/#magic=([a-f0-9]+)/);
+  assert.ok(match, "expected the sign-in secret in a URL fragment");
+  return match[1];
 }
 
 /**
@@ -144,9 +144,7 @@ test("INV-NEW-01: a request carrying only a tovu_session (admin) cookie, no toke
     headers: { "content-type": "application/json", cookie: "tovu_session=some-admin-session-value" },
     body: JSON.stringify({}),
   });
-  assert.equal(res.status, 401);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "MEMBER_AUTH_ERROR");
+  assert.equal(res.status, 400);
 });
 
 test("PublicMemberResponse excludes emailVerifiedAt/workspaceId/version/note/fields", async (t) => {
@@ -227,15 +225,9 @@ test("a user-agent header on the completing request is recorded on the minted se
   assert.equal(sessions[0]?.userAgent, "regression-test-agent/1.0");
 });
 
-test("the member record backing a valid, unexpired token having vanished is refused 404 MEMBER_NOT_FOUND — a data-integrity guard, not a validation outcome", async (t) => {
-  // `completeSignIn` (write-service.ts) treats this as "should not happen given
-  // requestSignInLink always pre-creates the member" — defensive, not reachable through any
-  // normal request. It IS reachable at this route's boundary, though: the route only depends on
-  // whatever `deps.members.findById` returns, and a `MemberRepoPort` implementation that (for
-  // whatever reason — a concurrent hard-delete, a backing-store inconsistency) can't find the
-  // row the token points at is a real, if rare, production shape. Simulated here by wrapping the
-  // real in-memory repo and making ONLY `findById` report "not found", so `requestSignInLink`
-  // still pre-creates the member via `findByEmail`/`save` exactly as it always does.
+test("a vanished legacy member is refused with the uniform 401", async (t) => {
+  // An existing-member link remains bound to its row: a later deletion must not recreate it.
+  // Wrap findById only so this exercises the legacy member-bound path at the route boundary.
   const { app, deps } = buildPublicApp();
   const realFindById = deps.memberRepo.findById.bind(deps.memberRepo);
   let suppressFindById = false;
@@ -244,7 +236,13 @@ test("the member record backing a valid, unexpired token having vanished is refu
     return realFindById(required);
   };
   const baseUrl = await startTestServer(app, t);
+  await deps.memberRepo.save({ id: "vanished", workspaceId: deps.workspaceId, email: "vanished-member@example.com", status: "active", createdAt: "2026-10-24T00:00:00.000Z", updatedAt: "2026-10-24T00:00:00.000Z", version: 1 });
   const token = await requestAndExtractToken(baseUrl, deps, "vanished-member@example.com");
+  const findToken = deps.magicLinkRepo.findByTokenHash.bind(deps.magicLinkRepo);
+  deps.magicLinkRepo.findByTokenHash = async input => {
+    const record = await findToken(input);
+    return record ? { ...record, email: undefined } : null;
+  };
   suppressFindById = true;
 
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in/complete`, {
@@ -252,9 +250,8 @@ test("the member record backing a valid, unexpired token having vanished is refu
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ token }),
   });
-  assert.equal(res.status, 404);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "MEMBER_NOT_FOUND");
+  assert.equal(res.status, 401);
+  assert.deepEqual(await res.json(), { error: "invalid credentials", code: "INVALID_CREDENTIALS" });
 });
 
 test("a session-repo failure surfaces as a 500 internal error, past a valid token", async (t) => {
@@ -310,7 +307,7 @@ test("req.params.workspaceId ?? \"\": an unpopulated param (impossible via real 
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
-test("req.body ?? {}: an undefined body (impossible with express.json() mounted) still resolves to an invalid-token 401 rather than throwing", async () => {
+test("req.body ?? {}: an undefined body (impossible with express.json() mounted) still resolves to a body-validation 400 rather than throwing", async () => {
   const { app, deps } = buildPublicApp();
   const handler = extractRouteHandler(app, "post", "/api/members/v1/workspaces/:workspaceId/sign-in/complete");
   const { res, capture } = createCapturingResponse();
@@ -318,11 +315,11 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
     params: { workspaceId: deps.workspaceId },
     body: undefined,
     get: () => undefined,
+    is: () => "application/json",
   } as unknown as Parameters<typeof handler>[0];
 
   await handler(req, res);
-  assert.equal(capture.statusCode, 401);
-  assert.equal((capture.jsonBody as { code: string }).code, "MEMBER_AUTH_ERROR");
+  assert.equal(capture.statusCode, 400);
 });
 
 test("member sign-in appends its cookie without replacing an earlier cookie", async t => {

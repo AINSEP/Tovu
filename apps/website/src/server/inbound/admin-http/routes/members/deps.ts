@@ -41,6 +41,8 @@ export function toMembersWriteServiceDeps(deps: MembersRouteDeps): MembersWriteS
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    mailStatus: deps.mailStatus,
+    origin: deps.originRegistry,
     principals: deps.principalRepo,
     senderIdentity: deps.mailSenderIdentity,
   };

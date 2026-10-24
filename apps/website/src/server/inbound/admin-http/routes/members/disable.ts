@@ -6,9 +6,8 @@ import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
 
 /**
- * POST disable a member (ADR-021 §5 disable-only, never hard-delete — there
- * is intentionally no DELETE route for members, matching the write-service's
- * `disableMember` being the sole lifecycle-removal path). Idempotent at the
+ * POST disable a member (ADR-021 §5): retain it in the roster while revoking access.
+ * Owner 2026-10-24 adds a separate DELETE-to-Trash route; neither route hard-deletes. Idempotent at the
  * write-service layer: disabling an already-disabled member returns 200 with
  * the unchanged record rather than erroring.
  *

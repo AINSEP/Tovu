@@ -1,3 +1,4 @@
+import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import type { MailAdapterCredential, MailProviderCallContext, MailProviderModule } from "@jini-ai/platform/mail";
 
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -41,9 +42,13 @@ async function askProvider(required: { deps: SenderDomainVerificationDeps; provi
   const ctx: MailProviderCallContext = { workspaceId: deps.workspaceId, mode: "live", credential, httpClient: deps.httpClient as unknown as MailProviderCallContext["httpClient"] };
   const result = await readMailDomain({ ctx, providerId, read: context => provider.domainStatus!(context, { domain }), resolveDomainReadCredential: deps.resolveDomainReadCredential }).catch(() => null);
   if (result?.status === "ok") return { state: result.value.state, domain, providerId };
-  const reason = result && isDomainReadPermissionRefused({ result })
-    ? "the sending key can't check domains, and no connected account could check it either"
-    : "the provider did not answer the domain check";
+  // A refusal both keys hit is named plainly; any other provider answer keeps its code+message,
+  // secret-redacted (the sending key's exact values plus Jini's patterns) and capped.
+  const reason = !result
+    ? "the provider did not answer the domain check"
+    : isDomainReadPermissionRefused({ result })
+      ? "the sending key can't check domains, and no connected account could check it either"
+      : safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential }) });
   return { state: "unknown", domain, providerId, reason };
 }
 

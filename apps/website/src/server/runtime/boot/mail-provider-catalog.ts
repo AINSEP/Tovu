@@ -1,3 +1,4 @@
+import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import {
@@ -199,5 +200,22 @@ export function createProviderMailer(
 ): MailerPort {
   const { deps, provider, credential } = required;
   const httpClient = deps.httpClient as unknown as JiniHttpClientPort;
-  return toTovuMailer({ mailer: provider.create({ credential, kit: { httpClient } }) });
+  const mailer = toTovuMailer({ mailer: provider.create({ credential, kit: { httpClient } }) });
+  const secrets = credentialSecrets({ credential });
+  const safeResult = (result: Awaited<ReturnType<MailerPort["send"]>>) => result.ok ? result : {
+    ...result,
+    errorCode: safeMailProviderText({ text: result.errorCode }, { secrets }),
+    message: safeMailProviderText({ text: result.message }, { secrets }),
+  };
+  // Policy turns throws into unknown outcomes; scrub here while the actual credential is in scope.
+  const safeCall = async <T>(call: () => Promise<T>): Promise<T> => {
+    try { return await call(); } catch (error) {
+      throw new Error(safeMailProviderText({ text: error instanceof Error ? error.message : String(error) }, { secrets }));
+    }
+  };
+  return {
+    capabilities: () => mailer.capabilities(),
+    send: async (message, options) => safeResult(await safeCall(() => mailer.send(message, options))),
+    sendBatch: async (messages, options) => (await safeCall(() => mailer.sendBatch(messages, options))).map(safeResult),
+  };
 }
