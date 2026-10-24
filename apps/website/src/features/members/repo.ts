@@ -403,7 +403,7 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
       const existing = await this.kernel.run((db) =>
         db
           .selectFrom("member_magic_tokens")
-          .select("consumed_at")
+          .select(["consumed_at", "expires_at"])
           .where("workspace_id", "=", required.workspaceId)
           .where("id", "=", required.id)
           .limit(1)
@@ -411,6 +411,9 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
       );
       if (!existing) {
         throw new Error(`magic link token '${required.id}' was not found`);
+      }
+      if (existing.expires_at <= required.consumedAt) {
+        throw new Error(`magic link token '${required.id}' has expired`);
       }
       if (existing.consumed_at) {
         throw new Error(`magic link token '${required.id}' was already consumed`);
@@ -422,6 +425,7 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
           .where("workspace_id", "=", required.workspaceId)
           .where("id", "=", required.id)
           .where("consumed_at", "is", null)
+          .where("expires_at", ">", required.consumedAt)
           .execute()
       );
     });

@@ -117,8 +117,8 @@ function makeOriginRegistry(overrides: Partial<OriginRegistryPort> = {}): Origin
 }
 
 function extractRawToken(linkText: string): string {
-  const match = linkText.match(/token=([a-f0-9]+)/);
-  assert.ok(match, "expected a token= query param in the sign-in link body");
+  const match = linkText.match(/magic=([a-f0-9]+)/);
+  assert.ok(match, "expected a magic= fragment in the sign-in link body");
   return match![1];
 }
 
@@ -143,7 +143,8 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
     deps,
     input: { workspaceId: WORKSPACE_ID, email: "Jane@Example.com" },
   });
-  assert.deepEqual(requestResult, { delivered: true });
+  assert.equal(requestResult.delivered, true);
+  assert.ok(requestResult.challengeId);
   assert.equal(sent.length, 1);
   assert.deepEqual(sent[0].message.to, { email: "jane@example.com" });
   assert.equal(sent[0].message.workspaceId, WORKSPACE_ID);
@@ -280,7 +281,7 @@ test("completeSignIn rejects a token whose member was disabled AFTER the link wa
     () => completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
     (err: unknown) => {
       assert.ok(err instanceof MemberAuthError);
-      assert.equal(err.message, "this account has been disabled");
+      assert.equal(err.message, "sign-in credential is invalid");
       return true;
     }
   );
@@ -334,7 +335,9 @@ test("requestSignInLink for a disabled member is a silent no-op and never claims
     input: { workspaceId: WORKSPACE_ID, email: "disabled@example.com" },
   });
 
-  assert.deepEqual(result, { delivered: false });
+  assert.equal(result.delivered, false);
+  assert.ok(result.challengeId);
+  assert.equal(await deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: result.challengeId }), null);
   assert.equal(sent.length, 0, "no mail should be sent for a disabled member");
 });
 
@@ -359,11 +362,12 @@ test("T013: requestSignInLink builds an absolute link when the workspace has a v
 
   const result = await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "verified@example.com" } });
 
-  assert.deepEqual(result, { delivered: true });
+  assert.equal(result.delivered, true);
+  assert.ok(result.challengeId);
   assert.equal(sent.length, 1);
   assert.match(
     sent[0].message.text!,
-    /Sign in using this link \(expires in 15 minutes\): https:\/\/members\.example\.com\/auth\/magic\?token=/
+    /Sign in using this link \(expires in 15 minutes\): https:\/\/members\.example\.com\/signin#magic=/
   );
 });
 
@@ -382,7 +386,7 @@ test("T013: requestSignInLink includes a non-default port and a basePath when th
 
   assert.match(
     sent[0].message.text!,
-    /https:\/\/members\.example\.com:8443\/portal\/auth\/magic\?token=/
+    /https:\/\/members\.example\.com:8443\/portal\/signin#magic=/
   );
 });
 
@@ -679,7 +683,7 @@ for (const scenario of [
       } }),
       (error: unknown) => {
         assert.ok(error instanceof MemberAuthError);
-        assert.equal(error.message, scenario.message);
+        assert.equal(error.message, "sign-in credential is invalid");
         return true;
       },
     );
@@ -703,6 +707,8 @@ test("L298 completeSignIn consumes a valid token before the member lookup and re
       return members.findById(required);
     },
     findByEmail: required => members.findByEmail(required),
+    findPasswordHash: required => members.findPasswordHash(required),
+    setPasswordHash: required => members.setPasswordHash(required),
     list: required => members.list(required),
     save: record => members.save(record),
   } };
@@ -716,7 +722,7 @@ test("L298 completeSignIn consumes a valid token before the member lookup and re
   assert.deepEqual(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }), result.session);
 });
 
-test("L298 completeSignIn propagates consumption failure without changing member/session state", async () => {
+test("L298 completeSignIn maps consumption failure to uniform auth failure without changing member/session state", async () => {
   const { deps, sent } = makeDeps();
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "consume-failure@example.test" } });
   const rawToken = extractRawToken(sent[0].message.text!);
@@ -726,17 +732,19 @@ test("L298 completeSignIn propagates consumption failure without changing member
   const before = await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId });
   const failure = new Error("token consumption rejected");
   const checkedDeps: MembersWriteServiceDeps = { ...deps, magicLinks: {
+    findById: required => deps.magicLinks.findById(required),
+    reserveCodeAttempt: (required, options) => deps.magicLinks.reserveCodeAttempt(required, options),
     findByTokenHash: required => deps.magicLinks.findByTokenHash(required),
     save: record => deps.magicLinks.save(record),
     consume: async () => { throw failure; },
   } };
-  await assert.rejects(completeSignIn({ deps: checkedDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), error => error === failure);
+  await assert.rejects(completeSignIn({ deps: checkedDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), { message: "sign-in credential is invalid" });
   assert.deepEqual(await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }), issued);
   assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: issued.memberId }), before);
   assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: issued.memberId }), []);
 });
 
-test("L298 completeSignIn accepts an email_change-purpose token (reported, not fixed)", async () => {
+test("L298 completeSignIn rejects an email_change-purpose token without consumption", async () => {
   const { deps, sent } = makeDeps();
   await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "purpose@example.test" } });
   const rawToken = extractRawToken(sent[0].message.text!);
@@ -744,9 +752,8 @@ test("L298 completeSignIn accepts an email_change-purpose token (reported, not f
   const issued = await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash });
   assert.ok(issued);
   await deps.magicLinks.save({ ...issued, purpose: "email_change" });
-  const result = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } });
-  assert.equal(result.member.status, "active");
-  assert.ok(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }));
+  await assert.rejects(completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }), MemberAuthError);
+  assert.equal((await deps.magicLinks.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash }))?.consumedAt, undefined);
 });
 
 // ---- sender identity (platform/mail/sender-identity.ts) ----
@@ -802,7 +809,7 @@ test("requestSignInLink's missing-sender refusal is the same for a disabled memb
   );
 });
 
-test("completeSignIn refuses with MemberNotFoundError when the token's member row is gone, and opens no session", async () => {
+test("completeSignIn refuses with MemberAuthError when the token's member row is gone, and opens no session", async () => {
   // A legacy/existing-member link stays bound to its member, even if that row is lost.
   // The token is consumed first (single-use holds even here).
   const { deps, sent } = makeDeps();
@@ -816,14 +823,16 @@ test("completeSignIn refuses with MemberNotFoundError when the token's member ro
   const lostRowDeps: MembersWriteServiceDeps = { ...deps, members: {
     findById: async () => null,
     findByEmail: required => members.findByEmail(required),
+    findPasswordHash: required => members.findPasswordHash(required),
+    setPasswordHash: required => members.setPasswordHash(required),
     list: required => members.list(required),
     save: record => members.save(record),
   } };
   await assert.rejects(
     completeSignIn({ deps: lostRowDeps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
     (error: unknown) => {
-      assert.ok(error instanceof MemberNotFoundError);
-      assert.equal(error.message, `member '${issued.memberId}' was not found`);
+      assert.ok(error instanceof MemberAuthError);
+      assert.equal(error.message, "sign-in credential is invalid");
       return true;
     },
   );
@@ -849,6 +858,8 @@ test("createMember refuses as a conflict when a disabled row with the same email
       }
       return members.findByEmail(required);
     },
+    findPasswordHash: required => members.findPasswordHash(required),
+    setPasswordHash: required => members.setPasswordHash(required),
     list: required => members.list(required),
     save: record => members.save(record),
   } };
@@ -874,7 +885,7 @@ test("requestSignInLink carries an encoded redirectPath in the mailed link", asy
   });
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].message.text!, /\/auth\/magic\?token=[a-f0-9]+&redirect=%2Fmembers%2Farea%3Ftab%3Da%20b/);
+  assert.match(sent[0].message.text!, /\/signin#magic=[a-f0-9]+&redirect=%2Fmembers%2Farea%3Ftab%3Da%20b/);
 });
 
 test("requestSignInLink propagates an origin failure that is NOT OriginNotVerifiedError instead of masking it as a relative link", async () => {
@@ -888,7 +899,7 @@ test("requestSignInLink propagates an origin failure that is NOT OriginNotVerifi
   assert.equal(sent.length, 0, "no mail is sent when the origin lookup fails unexpectedly");
 });
 
-test("completeSignIn on a valid token whose member row is gone fails with MemberNotFoundError", async () => {
+test("completeSignIn on a valid token whose member row is gone fails with MemberAuthError", async () => {
   const { deps } = makeDeps();
   const rawToken = "orphan-token";
   await deps.magicLinks.save({
@@ -903,7 +914,7 @@ test("completeSignIn on a valid token whose member row is gone fails with Member
 
   await assert.rejects(
     () => completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
-    (err: unknown) => err instanceof MemberNotFoundError && /member-missing/.test(err.message),
+    (err: unknown) => err instanceof MemberAuthError && err.message === "sign-in credential is invalid",
   );
   assert.deepEqual(await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: "member-missing" }), []);
 });
@@ -948,7 +959,7 @@ for (const outcome of ["failed", "suppressed", "captured"] as const) {
     deps.mailer.send = async () => outcome === "captured"
       ? { ok: true, providerMessageId: "captured:one", acceptedAt: "2026-07-10T00:00:00.000Z" }
       : { ok: false, retryable: false, errorCode: outcome === "suppressed" ? "MAIL_RECIPIENT_SUPPRESSED" : "MAIL_SEND_FAILED", message: "private provider detail" };
-    assert.deepEqual(await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }), { delivered: false });
+    assert.equal((await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } })).delivered, false);
     assert.equal(await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "new@example.com" }), null);
     assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
   });
@@ -966,8 +977,8 @@ for (const state of ["unconfigured", "missing_credential", "local_only", "unknow
 
 test("step 1: bulk degradation does not block ready transactional sign-in", async () => {
   const { deps, sent } = makeDeps({ mailStatus: async () => ({ state: "degraded", lanes: [{ lane: "transactional", providerId: "smtp", state: "ready" }, { lane: "bulk", providerId: null, state: "unconfigured" }], warnings: [] }) });
-  assert.deepEqual(await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } }), { delivered: true });
-  assert.match(sent[0].message.text!, /https:\/\/localhost:3000\/auth\/magic\?token=/);
+  assert.equal((await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "new@example.com" } })).delivered, true);
+  assert.match(sent[0].message.text!, /https:\/\/localhost:3000\/signin#magic=/);
 });
 
 for (const status of ["disabled", "trash"] as const) {
@@ -984,3 +995,139 @@ for (const status of ["disabled", "trash"] as const) {
     assert.equal((await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "race@example.com" }))?.id, member.id);
   });
 }
+
+/** Shard C challenge tests use a deterministic hasher to observe attempt reservations directly. */
+function challengeDeps() {
+  const h = makeDeps();
+  let verified = 0;
+  h.deps.passwordHasher = {
+    hash: async ({ password }) => `test:${hashToken(password)}`,
+    verify: async ({ hash, password }) => { verified++; return hash === `test:${hashToken(password)}`; },
+  };
+  return { ...h, verifications: () => verified };
+}
+
+function extractCode(text: string): string {
+  const code = /one-time code:\s*(\d{6})/.exec(text)?.[1];
+  assert.ok(code, "one email contains a six-digit code and the link");
+  return code;
+}
+
+for (const first of ["link", "code"] as const) {
+  test(`shard C: ${first} consumes the shared challenge and prevents both kinds of replay`, async () => {
+    const { deps, sent } = challengeDeps();
+    const { challengeId } = await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "otp@example.test" } });
+    const token = extractRawToken(sent[0].message.text!);
+    const code = extractCode(sent[0].message.text!);
+    const linkInput = { workspaceId: WORKSPACE_ID, token };
+    const codeInput = { workspaceId: WORKSPACE_ID, challengeId, code };
+    const result = await completeSignIn({ deps, input: first === "link" ? linkInput : codeInput });
+    assert.equal(result.member.status, "active");
+    await assert.rejects(completeSignIn({ deps, input: linkInput }), { message: "sign-in credential is invalid" });
+    await assert.rejects(completeSignIn({ deps, input: codeInput }), { message: "sign-in credential is invalid" });
+    const record = await deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
+    assert.ok(record?.codeHash);
+    assert.notEqual(record.codeHash, code);
+    assert.equal(JSON.stringify(record).includes(token), false);
+    assert.equal(Object.values(record).includes(code), false);
+    assert.doesNotMatch(JSON.stringify(sent[0].opts), new RegExp(token));
+  });
+}
+
+test("shard C: parallel wrong codes spend at most five attempts", async () => {
+  const h = challengeDeps();
+  const { challengeId } = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "attempts@example.test" } });
+  const code = extractCode(h.sent[0].message.text!);
+  const wrong = code === "000000" ? "111111" : "000000";
+  const results = await Promise.allSettled(Array.from({ length: 12 }, () => completeSignIn({ deps: h.deps,
+    input: { workspaceId: WORKSPACE_ID, challengeId, code: wrong } })));
+  assert.ok(results.every(r => r.status === "rejected" && r.reason instanceof MemberAuthError && r.reason.message === "sign-in credential is invalid"));
+  assert.equal(h.verifications(), 5, "reservation precedes expensive verification");
+  const record = await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
+  assert.equal(record?.failedAttempts, 5);
+  await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code } }), MemberAuthError);
+  await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(h.sent[0].message.text!) } }), MemberAuthError);
+  assert.equal(await h.deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "attempts@example.test" }), null);
+});
+
+test("shard C: malformed code still spends one attempt and cannot use another challenge or workspace", async () => {
+  const h = challengeDeps();
+  const first = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "one@example.test" } });
+  const second = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "two@example.test" } });
+  for (const input of [
+    { workspaceId: "foreign", challengeId: first.challengeId, code: extractCode(h.sent[0].message.text!) },
+    { workspaceId: WORKSPACE_ID, challengeId: "missing", code: extractCode(h.sent[0].message.text!) },
+    { workspaceId: WORKSPACE_ID, challengeId: first.challengeId, code: "12\n3456" },
+  ]) await assert.rejects(completeSignIn({ deps: h.deps, input }), { message: "sign-in credential is invalid" });
+  assert.equal((await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: first.challengeId }))?.failedAttempts, 1);
+  assert.equal((await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: second.challengeId }))?.failedAttempts, 0);
+  // Missing/foreign handles pay one dummy verify (timing parity); malformed codes never reach it.
+  assert.equal(h.verifications(), 2);
+});
+
+test("shard C: a disabled address costs the same hash on request and the same verify on a wrong code", async () => {
+  const h = challengeDeps();
+  let hashes = 0;
+  const hash = h.deps.passwordHasher!.hash;
+  h.deps.passwordHasher!.hash = async input => { hashes++; return hash(input); };
+  await h.deps.members.save({ id: "off", workspaceId: WORKSPACE_ID, email: "off@example.test", status: "disabled",
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 });
+  const live = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "live@example.test" } });
+  const afterLive = hashes;
+  const off = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "off@example.test" } });
+  assert.equal(hashes - afterLive, 1, "the ineligible request hashes a code too");
+  assert.equal(typeof off.challengeId, typeof live.challengeId);
+  const wrong = extractCode(h.sent[0].message.text!) === "000000" ? "111111" : "000000";
+  for (const { challengeId } of [live, off]) {
+    const before = h.verifications();
+    await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code: wrong } }),
+      { message: "sign-in credential is invalid" });
+    assert.equal(h.verifications() - before, 1, challengeId);
+  }
+});
+
+for (const purpose of ["password_reset", "email_change", "signup"] as const) {
+  test(`shard C: sign-in denies ${purpose} by link and by code before any mutation`, async () => {
+    const h = challengeDeps();
+    const { challengeId } = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "purpose@example.test" } });
+    const issued = await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
+    await h.deps.magicLinks.save({ ...issued!, purpose });
+    await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(h.sent[0].message.text!) } }), { message: "sign-in credential is invalid" });
+    await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code: extractCode(h.sent[0].message.text!) } }), { message: "sign-in credential is invalid" });
+    assert.deepEqual(await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId }), { ...issued, purpose });
+    assert.equal(h.verifications(), 1, "the code path pays only the dummy verify; no attempt is spent");
+  });
+}
+
+for (const redirectPath of ["https://evil.test/", "//evil.test/", "/\\evil.test/", "/\n/evil.test/", "relative", "javascript:alert(1)", "/%2F%2Fevil.test/", "/%5cevil.test/"]) {
+  test(`shard C: unsafe redirect ${JSON.stringify(redirectPath)} is omitted`, async () => {
+    const h = challengeDeps();
+    await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "redirect@example.test", redirectPath } });
+    assert.doesNotMatch(h.sent[0].message.text!, /redirect=/);
+    const link = /https:\/\/[^\s]+#magic=[a-f0-9]+/.exec(h.sent[0].message.text!)![0];
+    const url = new URL(link);
+    assert.equal(url.pathname, "/signin");
+    assert.equal(url.search, "", "GET URLs carry no credential query");
+  });
+}
+
+test("shard C: concurrent link and code completions mint exactly one session", async () => {
+  const h = challengeDeps();
+  const { challengeId } = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "cas@example.test" } });
+  const results = await Promise.allSettled([
+    completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(h.sent[0].message.text!) } }),
+    completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code: extractCode(h.sent[0].message.text!) } }),
+  ]);
+  const successes = results.filter(r => r.status === "fulfilled");
+  assert.equal(successes.length, 1);
+  const member = await h.deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "cas@example.test" });
+  assert.equal((await h.deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: member!.id })).length, 1);
+});
+
+test("shard C: storage consume rejects exact expiry independently of the service decision", async () => {
+  const h = challengeDeps();
+  const { challengeId } = await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "expiry@example.test" } });
+  const record = await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
+  await assert.rejects(h.deps.magicLinks.consume({ workspaceId: WORKSPACE_ID, id: challengeId, consumedAt: record!.expiresAt }));
+  assert.equal((await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId }))?.consumedAt, undefined);
+});

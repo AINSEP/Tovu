@@ -25,7 +25,7 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, U
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailStatus } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
+import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -208,6 +208,8 @@ export interface MembersWriteServiceDeps {
   subscriptions: MemberSubscriptionRepoPort;
   sessions: MemberSessionRepoPort;
   magicLinks: MagicLinkTokenRepoPort;
+  /** Inject the staff Argon2 adapter; omitted legacy compositions use that same adapter. */
+  passwordHasher?: PasswordHasherPort;
   mailer: MailerPort;
   /** Site-wide status; checked before reading any address. */
   mailStatus?: () => Promise<MailStatus>;
@@ -232,18 +234,31 @@ export interface MembersWriteServiceDeps {
   senderIdentity?: MailSenderIdentityPort;
 }
 
+/** Exactly one challenge credential; the link and code spend the same consumption stamp. */
+export type MemberSignInInput = { workspaceId: UUID; userAgent?: string; ip?: string } & (
+  | { token: string; challengeId?: never; code?: never }
+  | { token?: never; challengeId: string; code: string }
+);
+
+export interface MemberSignInResult {
+  member: MemberRecord;
+  session: MemberSessionRecord;
+  /** Cookie bearer; never persisted or included in a member profile. */
+  rawSessionToken: string;
+}
+
 export interface MembersWriteService {
-  /** Begin passwordless sign-in/up: mint a hashed magic token + mail the link. */
+  /** Begin email sign-in/up: mint a shared challenge and mail its link plus code. */
   requestSignInLink(required: {
     deps: MembersWriteServiceDeps;
     input: { workspaceId: UUID; email: string; redirectPath?: string };
-  }): Promise<{ delivered: boolean }>;
+  }): Promise<{ delivered: boolean; challengeId: string }>;
 
-  /** Consume a magic token: verify email, upsert member, mint a member session. */
+  /** Consume a link or code: verify email, upsert member, mint a member session. */
   completeSignIn(required: {
     deps: MembersWriteServiceDeps;
-    input: { workspaceId: UUID; token: string; userAgent?: string; ip?: string };
-  }): Promise<{ member: MemberRecord; session: MemberSessionRecord }>;
+    input: MemberSignInInput;
+  }): Promise<MemberSignInResult>;
 
   /** Operator/self profile update (validated, revision-recorded). */
   updateProfile(required: {

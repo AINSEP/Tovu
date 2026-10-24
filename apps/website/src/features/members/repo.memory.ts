@@ -358,6 +358,9 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     if (index === -1) {
       throw new Error(`magic link token '${required.id}' was not found`);
     }
+    if (this.rows[index].expiresAt <= required.consumedAt) {
+      throw new Error(`magic link token '${required.id}' has expired`);
+    }
     if (this.rows[index].consumedAt) {
       throw new Error(`magic link token '${required.id}' was already consumed`);
     }

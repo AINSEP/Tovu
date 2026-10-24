@@ -54,6 +54,8 @@ export type {
   MemberAccessResolver,
   MembersWriteServiceDeps,
   MembersWriteService,
+  MemberSignInInput,
+  MemberSignInResult,
 } from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
@@ -116,3 +118,5 @@ export {
 } from "./subscriber-directory.js";
 
 export { trashMember } from "./trash-member.js";
+
+export { signInWithPassword, requestPasswordReset, resetPassword } from "./password-auth.js";
