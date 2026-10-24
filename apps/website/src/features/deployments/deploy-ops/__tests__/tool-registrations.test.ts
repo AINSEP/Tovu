@@ -6,6 +6,48 @@ import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { waitForDeployOps } from "../run-ops.js";
 import { fixture, execution } from "./example-ops-fixture.js";
 import { AT } from "./module-fixture.js";
+
+test("observation schemas accept bounded opaque and numeric run IDs and refuse path fragments", async () => {
+  const f = await fixture();
+  const tools = buildDeployOpsRegistrations(f.deps);
+  for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait"]) {
+    const schema = tools.find(tool => tool.descriptor.id === id)!.descriptor.inputSchema as any;
+    assert.equal(schema.properties.runId.type, "string");
+    const pattern = new RegExp(schema.properties.runId.pattern);
+    for (const runId of ["dep-abc123", "550e8400-e29b-41d4-a716-446655440000", "42", "A" + "_".repeat(127)]) assert.equal(pattern.test(runId), true, runId);
+    for (const runId of ["../x", "a/b", "a".repeat(129), "", "_abc", "-abc"]) assert.equal(pattern.test(runId), false, runId);
+  }
+  const deploy = tools.find(tool => tool.descriptor.id === "deployment_ops_deploy")!;
+  assert.equal((deploy.descriptor.inputSchema as any).properties.ref.description, "Branch, tag or commit, as the platform supports; the hosting plugin's skill says which.");
+});
+
+for (const runId of ["dep-abc123", "550e8400-e29b-41d4-a716-446655440000", "42"]) {
+  test(`deploy run ID ${runId} reaches status and wait unchanged`, async () => {
+    const f = await fixture();
+    const loaded = f.registry.get("example-host")!;
+    const observed: string[] = [];
+    const platform = { ...loaded, module: { ...loaded.module,
+      deploy: async () => ({ platform: "example-host", target: "shop", started: true, summary: "Accepted", runId }),
+      status: async (_ctx: unknown, input: { target: string; runId?: string }) => {
+        assert.equal(input.runId, runId);
+        observed.push(input.runId!);
+        return { platform: "example-host", target: input.target, state: "healthy" as const, summary: "Deployed", items: [], checkedAt: AT };
+      },
+    } };
+    f.deps.loadDeployOps = async () => ({ ...f.registry, get: () => platform });
+    const tools = new Map(buildDeployOpsRegistrations(f.deps).map(tool => [tool.descriptor.id, tool]));
+    const deployed = await tools.get("deployment_ops_deploy")!.handler(execution({ platform: "example-host", target: "shop" })) as { runId: string };
+    assert.equal(deployed.runId, runId);
+    const input = { platform: "example-host", target: "shop", runId: deployed.runId };
+    assert.equal((await tools.get("deployment_ops_status")!.handler(execution(input)) as { state: string }).state, "healthy");
+    const waited = await tools.get("deployment_ops_wait")!.handler(execution({ ...input, until: "finished", timeoutSeconds: 10 })) as { reached: boolean; polls: number };
+    assert.equal(waited.reached, true);
+    assert.equal(waited.polls, 1);
+    assert.deepEqual(observed, [runId, runId]);
+    assert.deepEqual(f.calls, []);
+  });
+}
+
 test("five read-only tools, the deploy tool and the two secret writers are wired with platform enum from registry", async () => {
   const f = await fixture();
   const registrations = buildDeployOpsRegistrations(f.deps);

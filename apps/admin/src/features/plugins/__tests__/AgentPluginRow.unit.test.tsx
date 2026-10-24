@@ -39,14 +39,14 @@ function renderExpandedRow(plugin: {
   keywords?: string[];
   skills?: { name: string; summary: string }[];
   mcpServerIds?: string[];
-}) {
+}, onToggleExpanded = vi.fn()) {
   render(<ul><AgentPluginRow
     plugin={{ pluginId: "tovu-theme", version: "1.0.0", enabled: true, keywords: [], skills: [], mcpServerIds: [], ...plugin }}
     t={(key) => key}
     locale="en"
     expanded
     busy={false}
-    onToggleExpanded={vi.fn()}
+    onToggleExpanded={onToggleExpanded}
     stateControl={{ kind: "toggle", onToggleEnabled: vi.fn() }}
     onInspect={vi.fn()}
     uninstallNoteId="uninstall-note"
@@ -55,12 +55,15 @@ function renderExpandedRow(plugin: {
   return screen.getByRole("listitem", { name: "Tovu Theme" });
 }
 
-it.each([["untested", "Untested"], ["soon", "Soon"]] as const)("renders the %s pill with a warning that stays open after a tap", (maturity, label) => {
-  const row = renderExpandedRow({ description: null, maturity });
+it.each([["untested", "Untested"], ["soon", "Soon"]] as const)("renders the %s pill beside the version with a warning that stays open after a tap", (maturity, label) => {
+  const onToggleExpanded = vi.fn();
+  const row = renderExpandedRow({ description: null, maturity }, onToggleExpanded);
   const trigger = within(row).getByRole("button", { name: label });
   expect(trigger.querySelector(".soon")).toHaveTextContent(label);
-  expect(trigger.closest("button")).toBeNull();
+  expect(trigger.closest(".agent-plugin-row-maturity")?.previousElementSibling).toHaveClass("agent-plugin-row-version");
+  expect(within(row).getByRole("button", { name: `Tovu Theme v1.0.0 ${label}` })).toHaveClass("agent-plugin-row-summary");
   fireEvent.click(trigger);
+  expect(onToggleExpanded).not.toHaveBeenCalled();
   fireEvent.mouseLeave(trigger);
   expect(trigger).toHaveAttribute("aria-expanded", "true");
   expect(document.querySelector(".info-tip-bubble")).toHaveTextContent("Not yet tested end to end. It may not work.");

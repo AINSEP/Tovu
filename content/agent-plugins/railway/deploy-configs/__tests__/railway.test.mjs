@@ -117,7 +117,7 @@ test("renderRailwayConfig: pins numReplicas to 1 for every documented region —
 });
 
 
-test("railway is a seeded-disabled config-only package with its descriptor, module and skill packed", async () => {
+test("railway is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const { readFile } = await import("node:fs/promises");
   const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../../../../apps/website/src/features/agent-plugins/lifecycle.ts");
   const { loadDeployConfigGeneratorsFromSource } = await import("../../../../../apps/website/src/features/deployments/deploy-config-registry.ts");
@@ -126,14 +126,13 @@ test("railway is a seeded-disabled config-only package with its descriptor, modu
   assert.equal(manifest.name, "railway");
   assert.equal(manifest.extensions.tovu.id, "tovu/railway");
   assert.equal(manifest.extensions.tovu.displayName, "Railway");
-  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-config:railway"]);
+  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-config:railway", "deploy-ops:railway"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(packageRoot, "mcp.json"), "utf8")).mcpServers, {});
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["railway"]);
   const packed = await packAgentPluginDirectory(packageRoot);
-  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md"]) assert.ok(packed.files.includes(file), file);
-  assert.ok(!packed.files.includes("tovu-deploy-ops.json"));
+  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md", "tovu-deploy-ops.json", "deploy-ops/railway.mjs"]) assert.ok(packed.files.includes(file), file);
   assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("railway"), false);
 });
