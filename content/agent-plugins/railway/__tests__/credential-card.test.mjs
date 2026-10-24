@@ -17,7 +17,8 @@ test('Railway declares one owned API card with a fixed destination, accepted by 
   assert.equal(card.ownedApiLabel, card.label, 'the trusted loader requires ownership of the API row');
   assert.equal(card.saveKind, 'api');
   assert.equal(card.baseUrl, 'https://backboard.railway.com/graphql/v2');
-  assert.match(card.intro, /Deploys from Tovu are being added/);
+  assert.doesNotMatch(card.intro, /being added/);
+  assert.match(card.intro, /Untested/);
   const form = buildPluginCredentialForm({ card });
   assert.deepEqual(form.fields.map(field => [field.name, field.required, field.secret]), [['token', true, true]]);
   assert.deepEqual(readPluginCredentialValues({ card, values: { token: 'test-value', baseUrl: 'https://other.invalid' } }), {
@@ -25,10 +26,11 @@ test('Railway declares one owned API card with a fixed destination, accepted by 
   });
 });
 
-test('Railway guidance opens its own card, claims no deploys and never offers an unasked replacement', () => {
+test('Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement', () => {
   assert.ok(skill.includes('credential_save { kind: "plugin-provider", target: "railway" }'));
   assert.ok(skill.includes('Writing `railway.json` needs **no'));
-  assert.match(skill, /Until then you cannot deploy, redeploy or\s+change Railway services/);
+  assert.ok(skill.includes('deployment_ops_deploy'));
+  assert.doesNotMatch(skill, /being added|Config generation only/);
   assert.match(skill, /Never offer to replace a working (token|key) unless asked/);
 });
 
@@ -40,7 +42,7 @@ test('every credential card parses its task purposes', () => {
       "providerId": "railway",
       "usedFor": [
         "Looks up your Railway projects",
-        "Deploys your server (being added)"
+        "Deploys your server"
       ]
     }
   ]);
