@@ -117,6 +117,13 @@ jobs:
           for v in CSC_LINK CSC_KEY_PASSWORD P8 KID ISS; do test -n "${!v}" || { echo "missing $v"; exit 1; }; done
           printf '%s' "$P8" > "$RUNNER_TEMP/AuthKey.p8"
           echo "APPLE_API_KEY=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - if: matrix.id == 'mac-x64'
+        name: Force Apple connections over TCP on Intel
+        # GitHub confirmed CloudKit HTTP/3 drops on Intel; blocking UDP/443 forces working TCP.
+        # https://github.com/actions/runner-images/issues/14924
+        run: |
+          echo "block return out quick proto udp from any to any port 443" | sudo pfctl -f -
+          sudo pfctl -E
       - name: electron-builder
         working-directory: apps/desktop
         env:
@@ -140,27 +147,74 @@ jobs:
         working-directory: apps/desktop
         run: node scripts/smoke-bridge.ts --platform-dir release
       - if: runner.os == 'macOS'
+        name: Prepare shared macOS assessment checks
+        # Assess both shipped copies with the same policy; diagnostics never dump the environment/key.
+        # Apple recommends syspolicy_check distribution for apps on macOS 14+:
+        # https://developer.apple.com/forums/thread/130560
+        run: |
+          cat > "$RUNNER_TEMP/mac-assessment.sh" <<'SH'
+          set -euo pipefail
+          app="$2"
+          if [ "$1" = diagnostics ]; then
+            xattr -l "$app" || true
+            sw_vers || true
+            log show --last 5m --predicate 'process == "syspolicyd"' | tail -50 || true
+            exit 0
+          fi
+          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "$app"
+          if ! command -v syspolicy_check >/dev/null 2>&1; then
+            echo "::warning::syspolicy_check missing on runner; distribution check skipped for $app"
+            bash "$0" diagnostics "$app"
+            exit 0
+          fi
+          status=0
+          out="$(syspolicy_check distribution "$app" 2>&1)" || status=$?
+          echo "$out"
+          if [ "$status" -ne 0 ]; then
+            # Same rules as spctl in the .app step: an .app whose staple CloudKit dropped (mac-x64's
+            # soft mode only) cannot be confirmed offline, so it warns; its notarization verdict is
+            # @electron/notarize's. Otherwise the Intel-only exception needs a real validate.
+            if grep -qE '^staple .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+              echo "::warning::$app: unstapled .app: syspolicy_check could not confirm notarization offline"
+              bash "$0" diagnostics "$app"
+            elif [ "${{ matrix.id }}" = mac-x64 ] && grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+              echo "::warning::$app: syspolicy_check hit an internal Code Signing error; stapler validate passed"
+              bash "$0" diagnostics "$app"
+            else
+              exit "$status"
+            fi
+          fi
+          SH
+      - if: runner.os == 'macOS'
         name: App is signed, notarized, stapled, right arch
         working-directory: apps/desktop
         run: |
           codesign --verify --deep --strict --verbose=2 "${{ matrix.app }}"
-          # Captured, not piped: `grep -q` exiting early can SIGPIPE a `tee` under pipefail. `|| true`
-          # keeps a rejecting spctl from ending the step before its output is printed; the grep is the
-          # verdict. An .app electron-builder could not staple (CloudKit drop, see the job env) is judged
+          # Captured, not piped: `grep -q` exiting early can SIGPIPE a `tee` under pipefail. Saving status
+          # keeps a rejecting spctl from ending the step before its output is printed; normal success
+          # requires both exit 0 and the source verdict. An .app electron-builder could not staple
+          # (CloudKit drop, see the job env) is judged
           # online by spctl, over the same unreachable CloudKit; its notarization verdict is
           # @electron/notarize's, which throws on anything but Accepted before it staples.
           # `stapler validate` runs FIRST so it is the notarization proof when spctl itself breaks:
           # on macos-15-intel spctl printed "internal error in Code Signing subsystem" with no
           # `source=` line for a .app that codesign, notarytool and a real staple all passed
           # (desktop-v0.1.24 run 40021989222, and an earlier attempt). That one spctl error only
-          # warns, and only when the ticket validated for real (no CloudKit-skipped validate below).
+          # warns on mac-x64 only, and only when the ticket validated for real (no CloudKit-skipped
+          # validate below). That failed run never reached standalone validation; require it here.
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.app }}"
-          out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)" || true; echo "$out"
+          spctl_status=0
+          out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)" || spctl_status=$?; echo "$out"
           if grep -qE '^staple .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
-            grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled .app: spctl could not confirm notarization offline"
-          elif grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            grep -q "source=Notarized Developer ID" <<<"$out" || {
+              echo "::warning::unstapled .app: spctl could not confirm notarization offline"
+              bash "$RUNNER_TEMP/mac-assessment.sh" diagnostics "${{ matrix.app }}"
+            }
+          elif [ "${{ matrix.id }}" = mac-x64 ] && grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.app$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
             echo "::warning::.app: spctl hit an internal Code Signing error; stapler validate passed, so the stapled ticket is the notarization proof"
+            bash "$RUNNER_TEMP/mac-assessment.sh" diagnostics "${{ matrix.app }}"
           else
+            test "$spctl_status" -eq 0
             grep -q "source=Notarized Developer ID" <<<"$out"
           fi
           test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
@@ -170,19 +224,26 @@ jobs:
         env: { KID: "${{ secrets.APPLE_API_KEY_ID }}", ISS: "${{ secrets.APPLE_API_ISSUER }}" }
         # `notarytool submit --wait` can exit 0 on an `Invalid` submission, so its exit code is not
         # the verdict: its JSON `status` (mandatory, never softened), the stapled ticket
-        # (`stapler validate`) and spctl's `source=` line are.
+        # (`stapler validate`) and spctl's `source=` line are. Normal spctl success also requires exit 0.
         run: |
           sub="$(xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "$KID" --issuer "$ISS" --wait --output-format json)"; echo "$sub"
           grep -qE '"status" *: *"Accepted"' <<<"$sub"
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" staple "${{ matrix.out }}"
           "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "${{ matrix.out }}"
-          out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)" || true; echo "$out"
-          # Same spctl "internal error in Code Signing subsystem" rule as the .app step above.
+          spctl_status=0
+          out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)" || spctl_status=$?; echo "$out"
+          # Same spctl "internal error in Code Signing subsystem" rule as the .app step above:
+          # mac-x64 only, with a real validated ticket; diagnostics describe the app inside this dmg.
           if grep -qE '^staple .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
-            grep -q "source=Notarized Developer ID" <<<"$out" || echo "::warning::unstapled dmg: spctl could not confirm notarization offline (notarytool said Accepted)"
-          elif grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
+            grep -q "source=Notarized Developer ID" <<<"$out" || {
+              echo "::warning::unstapled dmg: spctl could not confirm notarization offline (notarytool said Accepted)"
+              bash "$RUNNER_TEMP/mac-assessment.sh" diagnostics "$GITHUB_WORKSPACE/apps/desktop/${{ matrix.app }}"
+            }
+          elif [ "${{ matrix.id }}" = mac-x64 ] && grep -q "internal error in Code Signing subsystem" <<<"$out" && ! grep -qE '^validate .*\.dmg$' "$RUNNER_TEMP/stapler-cloudkit-degraded.txt" 2>/dev/null; then
             echo "::warning::dmg: spctl hit an internal Code Signing error; notarytool said Accepted and stapler validate passed"
+            bash "$RUNNER_TEMP/mac-assessment.sh" diagnostics "$GITHUB_WORKSPACE/apps/desktop/${{ matrix.app }}"
           else
+            test "$spctl_status" -eq 0
             grep -q "source=Notarized Developer ID" <<<"$out"
           fi
       - if: always() && runner.os == 'macOS'
@@ -194,6 +255,7 @@ jobs:
         run: |
           hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/dmg" "release/${{ matrix.out }}"
           trap 'hdiutil detach "$RUNNER_TEMP/dmg"' EXIT
+          bash "$RUNNER_TEMP/mac-assessment.sh" distribution "$RUNNER_TEMP/dmg/Tovu.app"
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/dmg/Tovu.app/Contents/Resources/app.asar"
           node scripts/smoke-bridge.ts --app "$RUNNER_TEMP/dmg/Tovu.app"
           test "$(lipo -archs "$RUNNER_TEMP/dmg/Tovu.app/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
@@ -216,7 +278,7 @@ jobs:
           test -s "$zip" && test -s "$zip.blockmap" && test -s release/latest-mac.yml
           ditto -x -k "$zip" "$RUNNER_TEMP/zip"
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/zip/Tovu.app"
-          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-retry.sh" validate "$RUNNER_TEMP/zip/Tovu.app"
+          bash "$RUNNER_TEMP/mac-assessment.sh" distribution "$RUNNER_TEMP/zip/Tovu.app"
           test "$(lipo -archs "$RUNNER_TEMP/zip/Tovu.app/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/zip/Tovu.app/Contents/Resources/app.asar"
           grep -q "url: Tovu-mac-${{ matrix.arch }}.zip" release/latest-mac.yml
