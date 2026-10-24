@@ -1,3 +1,5 @@
+import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
+import { tmpdir } from "node:os";
 import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -23,7 +25,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
-    buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
+    buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
     assistantCliCapabilitiesContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
   });
@@ -33,7 +35,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
   let launchedAgentId = "";
   await captureDaemonRun({ prompt: "Port this theme" }, { request: { agentId }, bindings: {
     routeDeps: {
-      ownerPrincipalId: Promise.resolve(owner), siteBinding: { dir: "/site" }, workspaceId: "ws",
+      ownerPrincipalId: Promise.resolve(owner), siteBinding: { dir: tmpdir() }, workspaceId: "ws",
       toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
       getEffective: async (_deps: unknown, input: { key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
     },

@@ -15,7 +15,13 @@ import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
  * read and adapted by the agent installing it) are unreachable, because nothing exposes a plugin's
  * own directory to the model that is supposed to use it.
  *
- * ## Default-allow with a denylist, not a curated allowlist (2026-09-10 owner decision)
+ * ## Site-agent boundary (2026-10-23 owner decision, supersedes September 10 for these callers)
+ *
+ * Site-agent execution now refuses `repo`, outside `custom` roots, and other-site selectors.
+ * `site` and an in-site `custom` root still use Jini's guarded reader and the secret denylist.
+ * The historical rationale below is retained to explain why the broader roots still exist.
+ *
+ * ## Historical default-allow with a denylist (2026-09-10 owner decision)
  *
  * This domain shipped (commit `68d7e525`) as a five-member named-root allowlist scoped to
  * `<site>/agent-plugins`, `<site>/themes`, `<site>/skills`, `<site>/uploads`, and the bundled

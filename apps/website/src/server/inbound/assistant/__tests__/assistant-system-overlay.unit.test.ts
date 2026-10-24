@@ -188,6 +188,27 @@ test("delegation guidance follows the subagent capability without claiming full 
   assert.doesNotMatch(overlay, /Full CLI access is ON|haiku|sonnet|Avoid fork|Disabled native capabilities/);
 });
 
+test("enabled subagents require budget handoffs and immediate successors with a no-progress limit", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: true, shell: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Every subagent brief must require writing a handoff \(done \/ remaining \/ files\) before stopping/);
+    assert.match(overlay, /before the 250k context warning or any lower cap/);
+    assert.match(overlay, /stops at its context budget or any cap with work remaining, IMMEDIATELY start a fresh subagent from its notes and handoff/);
+    assert.match(overlay, /Do not ask the owner or end the turn while delegated work is unfinished/);
+    assert.match(overlay, /If the same task stops twice without progress, report to the owner instead of restarting/);
+  }
+});
+
+test("disabled subagents omit budget, handoff and successor instructions", () => {
+  for (const enabled of [false, true]) {
+    const capabilities = assistantCliPermissions({ enabled, capabilities: { subagents: false } }).capabilities;
+    const overlay = buildAssistantSubagentsOverlay({ capabilities });
+    assert.match(overlay, /Native agents\/subagents\/Task are unavailable/);
+    assert.doesNotMatch(overlay, /Every subagent brief|250k|handoff|IMMEDIATELY start|delegated work is unfinished|stops twice without progress/);
+  }
+});
+
 test("shell OFF with subagents ON names the disabled capabilities without denying delegation", () => {
   const capabilities = assistantCliPermissions({ enabled: true, capabilities: { shell: false, userMcp: false, workflows: false } }).capabilities;
   const overlay = buildAssistantSubagentsOverlay({ capabilities });

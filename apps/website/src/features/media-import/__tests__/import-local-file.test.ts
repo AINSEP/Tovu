@@ -38,6 +38,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   let resolutions = 0;
   let ids = 0;
   const deps: MediaImportToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
+    siteBinding: { ...siteLayouts.deps.siteBinding, dir: rootPath },
     workspaceId: "ws-local", clock: createFakeClock({ startIso: "2026-10-01T00:00:00.000Z" }), idGen: { newId: () => `local-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
@@ -97,11 +98,11 @@ test("local import batches eleven images, preserves per-item errors and keeps th
   assert.match(registration.descriptor.description ?? "", /Batch:.*items:/);
   const ctx: ToolExecutionContext = { input: {}, executionId: "exec-batch", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal };
   // Jini 9ba8a52e requires merged items to re-enter the executor's policy/approval gate.
-  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "repo", path: "photo.png" })) } }), /the most one call takes is 25/);
+  await assert.rejects(invokeRegisteredTool(registration, { ...ctx, input: { items: Array.from({ length: DEFAULT_MAX_BATCH_ITEMS + 1 }, () => ({ root: "site", path: "photo.png" })) } }), /the most one call takes is 25/);
   await f.noWrites();
   assert.equal(f.resolutions(), 0);
   const items = Array.from({ length: 11 }, (_, index) => ({ path: "photo.png", title: `Photo ${index}`, alt: `Alt ${index}` }));
-  const result = await invokeRegisteredTool(registration, { ...ctx, input: { root: "repo", items: [...items.slice(0, 5), { path: "../outside.png" }, ...items.slice(5)] } }) as BatchResult;
+  const result = await invokeRegisteredTool(registration, { ...ctx, input: { root: "site", items: [...items.slice(0, 5), { path: "../outside.png" }, ...items.slice(5)] } }) as BatchResult;
   assert.deepEqual({ batch: result.batch, total: result.total, succeeded: result.succeeded, failed: result.failed }, { batch: true, total: 12, succeeded: 11, failed: 1 });
   assert.deepEqual(result.results.map(item => item.index), Array.from({ length: 12 }, (_, index) => index));
   const failed = result.results[5]!;
@@ -120,7 +121,7 @@ test("local import batches eleven images, preserves per-item errors and keeps th
 test("batching local imports cannot bypass each item's upload permission", async (t) => {
   const f = await setup(t, { allow: false });
   const registration = applyBatchInputs({ registrations: [f.registration()] })[0]!;
-  const result = await invokeRegisteredTool(registration, { input: { root: "repo", items: [{ path: "a.png" }, { path: "b.png" }] }, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal }) as BatchResult;
+  const result = await invokeRegisteredTool(registration, { input: { root: "site", items: [{ path: "a.png" }, { path: "b.png" }] }, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal }) as BatchResult;
   assert.deepEqual(result.results.map(item => item.ok), [false, false]);
   assert.equal(f.authorizeCalls.length, 2);
   assert.equal(f.resolutions(), 0);
@@ -130,7 +131,7 @@ test("batching local imports cannot bypass each item's upload permission", async
 test("local imports stamp the authenticated owner, ignoring caller attribution", async (t) => {
   const fixture = await setup(t);
   fs.writeFileSync(path.join(fixture.rootPath, "created-by.png"), PNG);
-  const result = await fixture.run({ root: "repo", path: "created-by.png", createdBy: "forged" });
+  const result = await fixture.run({ root: "site", path: "created-by.png", createdBy: "forged" });
   assert.equal((result.media as { createdBy?: string }).createdBy, "owner");
   const stored = await fixture.deps.mediaRepo.findById({ workspaceId: "ws-local", id: result.media.id });
   assert.ok(stored);
@@ -140,7 +141,7 @@ test("local imports stamp the authenticated owner, ignoring caller attribution",
 test("an omitted root resolver reads the booted site through the existing filesystem root owner", async (t) => {
   const f = await setup(t);
   delete f.deps.resolveRoots;
-  fs.writeFileSync(path.join(f.parent, "site-photo.png"), PNG);
+  fs.writeFileSync(path.join(f.rootPath, "site-photo.png"), PNG);
   const result = await f.run({ root: "site", path: "site-photo.png" });
   assert.equal(result.media.title, "site-photo");
   assert.equal(result.media.sourceUrl, "");
@@ -221,7 +222,7 @@ for (const [relativePath, message] of [
     fs.writeFileSync(target, PNG);
     const readSpy = t.mock.method(fs, "createReadStream");
     const syncReadSpy = t.mock.method(fs, "readFileSync");
-    await assert.rejects(() => f.run({ root: "repo", path: relativePath }), rejection(message));
+    await assert.rejects(() => f.run({ root: "site", path: relativePath }), rejection(message));
     assert.equal(readSpy.mock.callCount(), 0);
     assert.equal(syncReadSpy.mock.callCount(), 0);
     await f.noWrites();
@@ -277,10 +278,10 @@ test("permission denial happens before root resolution, stat or reading", async 
   await f.noWrites();
 });
 
-test("unset custom root gives the two owner-controlled ways forward", async (t) => {
+test("unset custom root gives the shared site-root recovery guidance", async (t) => {
   const f = await setup(t, { unsetCustom: true });
   const statSpy = t.mock.method(fs, "statSync");
-  await assert.rejects(() => f.run({ root: "custom", path: "photo.png" }), rejection(`no folder has been set for the 'custom' root yet. ${RECOVERY}`));
+  await assert.rejects(() => f.run({ root: "custom", path: "photo.png" }), rejection("no folder has been set for the 'custom' root yet — ask the operator to set one from the chat composer, then retry"));
   assert.equal(statSpy.mock.callCount(), 0);
   await f.noWrites();
 });
@@ -329,7 +330,7 @@ test("a file removed after stat is a model-facing refusal and persists nothing",
 test("empty files are refused without writing media", async (t) => {
   const f = await setup(t);
   fs.writeFileSync(path.join(f.rootPath, "empty.png"), Buffer.alloc(0));
-  await assert.rejects(() => f.run({ root: "repo", path: "empty.png" }), rejection("file 'empty.png' is empty — there is nothing to import."));
+  await assert.rejects(() => f.run({ root: "site", path: "empty.png" }), rejection("file 'empty.png' is empty — there is nothing to import."));
   await f.noWrites();
 });
 
@@ -373,5 +374,25 @@ test("an injected local cap cannot widen the production 50 MiB ceiling", async (
   const readSpy = t.mock.method(fs, "createReadStream");
   await assert.rejects(() => f.run({ root: "custom", path: "huge.mp4" }), rejection("file 'huge.mp4' is 52428801 bytes and exceeds the 52428800-byte import limit"));
   assert.equal(readSpy.mock.callCount(), 0);
+  await f.noWrites();
+});
+
+test("site local import refuses repo, outside custom and symlink sources before reading canaries", async t => {
+  const f = await setup(t);
+  const hidden = 'OUTSIDE_CANARY_NAME.png';
+  fs.writeFileSync(path.join(f.parent, 'payload.png'), Buffer.concat([PNG, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
+  fs.writeFileSync(path.join(f.parent, hidden), PNG);
+  f.deps.resolveRoots = () => ({ repo: f.parent, custom: f.parent, site: f.rootPath });
+  const reads = t.mock.method(fs, 'createReadStream');
+  for (const root of ['repo', 'custom']) {
+    await assert.rejects(() => f.run({ root, path: 'payload.png' }), error => {
+      assert.ok(error instanceof Error);
+      assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);
+      return true;
+    });
+  }
+  fs.symlinkSync(f.parent, path.join(f.rootPath, 'outside-link'));
+  await assert.rejects(() => f.run({ root: 'site', path: 'outside-link/payload.png' }));
+  assert.equal(reads.mock.callCount(), 0);
   await f.noWrites();
 });

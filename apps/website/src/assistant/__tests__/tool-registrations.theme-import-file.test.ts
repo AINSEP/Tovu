@@ -191,7 +191,9 @@ test("theme_import_file_from_url: with no refusal log wired, the egress refusal'
 test("theme_import_local_file: uses the same contributor, theme.edit gate, discovery and reload", async (t) => {
   const deps = fakeDeps();
   t.after(() => fs.rmSync(deps.themesDir, { recursive: true, force: true }));
-  fs.writeFileSync(path.join(deps.themesDir, "font.woff2"), WOFF2);
+  const custom = path.join(deps.themesDir, "custom"); fs.mkdirSync(custom);
+  deps.resolveRoots = () => ({ site: deps.themesDir, custom, repo: deps.themesDir });
+  fs.writeFileSync(path.join(custom, "font.woff2"), WOFF2);
   const result = await handlerFor(deps, "theme_import_local_file")(ctxFor({ themeId: "match", path: "assets/local.woff2", root: "custom", sourcePath: "font.woff2" }));
   assert.deepEqual(result, { themeId: "match", path: "assets/local.woff2", contentType: "font/woff2", bytes: WOFF2.length, sourcePath: "font.woff2", status: "valid", errors: [] });
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(deps.themesDir, "match/assets/local.woff2"))), WOFF2);
@@ -245,4 +247,25 @@ test("theme_import_local_file: preview, trash and compiled destinations refuse v
     });
     assert.equal(fs.existsSync(path.join(deps.themesDir, "match", destination)), false, destination);
   }
+});
+
+test("site theme import refuses repo and outside custom roots before reading or creating output", async t => {
+  const deps = fakeDeps();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'theme-import-outside-'));
+  t.after(() => { fs.rmSync(outside, { recursive: true, force: true }); fs.rmSync(deps.themesDir, { recursive: true, force: true }); });
+  fs.writeFileSync(path.join(outside, 'payload.woff2'), Buffer.concat([WOFF2, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
+  fs.writeFileSync(path.join(outside, 'OUTSIDE_CANARY_NAME.woff2'), WOFF2);
+  deps.resolveRoots = () => ({ repo: outside, custom: outside, site: deps.themesDir });
+  const readSpy = t.mock.method(fs, 'createReadStream');
+  for (const root of ['repo', 'custom']) {
+    await assert.rejects(() => handlerFor(deps, 'theme_import_local_file')(ctxFor({
+      themeId: 'match', path: 'assets/private.woff2', root, sourcePath: 'payload.woff2',
+    })), error => {
+      assert.ok(error instanceof Error);
+      assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);
+      return true;
+    });
+  }
+  assert.equal(readSpy.mock.callCount(), 0);
+  assert.equal(fs.existsSync(path.join(deps.themesDir, 'match/assets/private.woff2')), false);
 });

@@ -51,7 +51,12 @@ export function buildAssistantSubagentsOverlay(required: {
   const delegation = required.capabilities.subagents
     ? "Native agents/subagents/Task are available for this chat. Use them when useful, " +
       "including other local agent CLIs. These are native tools, not Tovu catalog tools. " +
-      "Subagents follow the same catalog authorization and permanent-delete confirmation rules. "
+      "Subagents follow the same catalog authorization and permanent-delete confirmation rules. " +
+      "Every subagent brief must require writing a handoff (done / remaining / files) before stopping, " +
+      "before the 250k context warning or any lower cap. If a subagent stops at its context budget " +
+      "or any cap with work remaining, IMMEDIATELY start a fresh subagent from its notes and handoff. " +
+      "Do not ask the owner or end the turn while delegated work is unfinished. " +
+      "If the same task stops twice without progress, report to the owner instead of restarting. "
     : "Native agents/subagents/Task are unavailable for this chat. ";
   return delegation + (disabled.length ? `Disabled native capabilities for this chat: ${disabled.join(", ")}. ` : "");
 }

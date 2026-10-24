@@ -145,14 +145,14 @@ test('chat-input regression: filesystem reads explain unsupported find and listi
   const found = await executeRegisteredTool({ registration: read, input: { root: 'repo', path: 'development/docs/themes/themes-guide.md', find: 'post-previews' } });
   assert.equal(found.errorKind, 'validation');
   assert.match(found.error!, /Unknown input 'find'.*Accepted properties: root, path/);
-  assert.match(found.error!, /"root":"repo","path":".*"/);
+  assert.match(found.error!, /"root":"site","path":".*"/);
   assert.match(found.error!, /full.*content/);
   for (const registration of registrations) {
     for (const root of [undefined, '', 42]) {
       const result = await executeRegisteredTool({ registration, input: { root } });
       assert.equal(result.errorKind, 'validation');
       assert.match(result.error!, /root.*repo, site, custom/);
-      assert.match(result.error!, /"root":"repo"/);
+      assert.match(result.error!, /"root":"site"/);
     }
   }
   assert.equal(resolutions, 0);

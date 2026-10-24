@@ -9,7 +9,7 @@ import ts from "typescript";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { sniffContentType } from "@jini-ai/cms/media";
 import { prepareMessageAttachments, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
-import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon/http";
+import { createDiskAttachmentStore, stageAttachmentClaim, detectAttachmentKind } from "@jini-ai/daemon/http";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
 import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
@@ -130,7 +130,7 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     const resolve = evaluateDaemonExpression<(required: {
       run: { id: string }; attachmentIds: readonly string[]; runLifecycle: RunLifecycle; agentId?: string;
     }, optional: {}) => Promise<Partial<AgentExecutorRunInput> | null>>(daemonFunction("resolveAttachmentRunFields"), {
-      attachmentStore: store,
+      attachmentStore: store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: uploadDirectory } }, stagedAttachmentCleanupByRunId: new Map(),
       // Source evaluation does not inherit imports. Use the exact production dependencies rather
       // than replacing preparation or MIME detection, so this covers the real binary delivery path.
       DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, agentReceivesImageAttachments,
@@ -142,14 +142,17 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     const input = await captureDaemonRun({ prompt: "Read both attachments", attachmentIds: [second.path, image.path] }, {
       bindings: { resolveAttachmentRunFields: resolve },
     });
-    assert.deepEqual(input.imagePaths, [imagePath], "only actual images become native CLI image arguments");
+    assert.equal(input.imagePaths?.length, 1, "only actual images become native CLI image arguments");
+    assert.equal(path.dirname(input.imagePaths![0]!), input.uploadRoot);
+    assert.deepEqual(fs.readFileSync(input.imagePaths![0]!), imageBytes);
     assert.deepEqual(input.imageContents, [{ mimeType: "image/png", data: imageBytes.toString("base64") }],
       "the image's exact bytes must reach the executor as normalized pixels");
-    const notice = `\n\nAttachments to this message:\nsecond-report.pdf: read the attached file at ${secondPath}.`;
+    const notice = `\n\nAttachments to this message:\nsecond-report.pdf: read the attached file at ${path.join(input.uploadRoot!, path.basename(secondPath))}.`;
     assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\nRead both attachments${notice}`,
       "the real PDF must be explicitly named to the agent, not merely granted directory access");
-    assert.deepEqual(input.extraAllowedDirs, [batchDirectory]);
-    assert.equal(input.uploadRoot, batchDirectory);
+    assert.equal(input.extraAllowedDirs, undefined);
+    assert.ok(input.uploadRoot?.startsWith(fs.realpathSync(uploadDirectory) + path.sep));
+    assert.notEqual(input.uploadRoot, batchDirectory);
     assert.deepEqual(fs.readFileSync(secondPath), pdfBytes);
   });
 });

@@ -1,3 +1,4 @@
+import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
 import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save-attachment";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
@@ -93,7 +94,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
-import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { AdapterContext } from "@jini-ai/http-kit";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
@@ -749,13 +750,14 @@ const assistantRuntimeGuidanceContext = new AsyncLocalStorage<AssistantRuntimeGu
 const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
-  systemOverlay: () => {
+  systemOverlay: ({ agentId }) => {
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
     const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, { nativeToolAccess: assistantNativeToolsContext.getStore() === true }) +
       buildAssistantSubagentsOverlay({ capabilities: assistantCliCapabilitiesContext.getStore() ?? assistantCliPermissions({ enabled: false }).capabilities }, {}) +
-      buildAssistantRuntimeGuidance({ input: assistantRuntimeGuidanceContext.getStore() }, {});
+      buildAssistantRuntimeGuidance({ input: assistantRuntimeGuidanceContext.getStore() }, {}) +
+      buildAssistantFilesystemNotices({ agentId, capabilities: assistantCliCapabilitiesContext.getStore() ?? assistantCliPermissions({ enabled: false }).capabilities }, { platform: process.platform });
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
     // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
@@ -852,6 +854,8 @@ const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId
  * `undefined` here should still fail the one run it affects, not crash the process.
  */
 let attachmentStore: AttachmentStore | undefined;
+// Only copies handed to a CLI live here; the store retains its own promotion/read-back records.
+const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
 
 /**
  * This boot's federation runtime plus the installed-extension registration promise — see
@@ -921,8 +925,12 @@ async function resolveAttachmentRunFields(
     // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
     // trust.
     const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
-    const claimed = await attachmentStore.claim({ attachments: refs, runId: run.id });
-    if (claimed.batchDirectory === undefined) return {};
+    const originalClaim = await attachmentStore.claim({ attachments: refs, runId: run.id });
+    if (originalClaim.batchDirectory === undefined) return {};
+    // Register cleanup before yielding so terminalization during the copy still reaps it.
+    const staging = stageAttachmentClaim({ claim: originalClaim, filesystemRoot: routeDeps.siteBinding.dir }, {});
+    stagedAttachmentCleanupByRunId.set(run.id, async () => (await staging).cleanup());
+    const claimed = (await staging).claim;
     const def = getAgentDef({ id: agentId });
     const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
     const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
@@ -930,10 +938,10 @@ async function resolveAttachmentRunFields(
       const bytes = await readFile(attachment.path);
       return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
     } }, { fileAccess: true, imageAccess: agentReceivesImageAttachments({ def }, {}) });
-    // Non-image uploads need an explicit prompt notice as well as directory access; otherwise a
+    // Non-image uploads need an explicit prompt notice as well as site-contained staging; otherwise a
     // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
     return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
-      extraAllowedDirs: [claimed.batchDirectory], uploadRoot: claimed.batchDirectory };
+      uploadRoot: claimed.batchDirectory };
 
   } catch (error) {
     // Fails the run outright rather than silently continuing without the image: the same severity
@@ -1031,6 +1039,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // could theoretically have claimed. Best-effort: a cleanup failure must not resurface as a run
     // failure this late in the run's life, and the store's own `retentionMs`/`pruneExpired` is the
     // backstop if this never runs at all (process crash, etc.).
+    const cleanupStaged = stagedAttachmentCleanupByRunId.get(run.id);
+    stagedAttachmentCleanupByRunId.delete(run.id);
+    void cleanupStaged?.().catch(() => console.error('[agent-daemon] staged attachment cleanup failed'));
     void attachmentStore?.cleanupRun({ runId: run.id }).catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
     });
@@ -1313,6 +1324,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
       settings }, { hostSignals });
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
+    if (sessionBinding.agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
+      console.warn('[agent-daemon] shell is not folder-limited on this platform');
+    }
     // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
     if (isOwner) {
       const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
@@ -1335,8 +1349,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       prompt,
       // In dev the server starts from the repo root, where CLIs auto-load Codex AGENTS.md
       // and Claude CLAUDE.md; use the site so the in-app assistant avoids developer bootstrap.
-      cwd: process.env.TOVU_AGENT_CWD ?? routeDeps.siteBinding.dir,
+      // 2026-10-23: the former dev override could widen this boundary to the whole repo.
+      cwd: routeDeps.siteBinding.dir,
     }, {
+      filesystemRoot: routeDeps.siteBinding.dir,
       permissionMode: resolvePermissionMode(),
       nativeToolAccess,
       nativeCapabilities,
@@ -1345,11 +1361,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // Explicit capability denies are applied by the runtime after this legacy native grant.
       // Read path denies remain defense in depth for owner-authorized local filesystem access.
       disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled, nativeToolAccess }, {}),
+      // Site chat excludes personal hooks and permissions even when personal configuration is on.
       // Keep the locked settings policy when the owner switches personal configuration off.
       // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
       ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
-      // Locked runs retain the host's auto-memory/no-system-search policy rather than user hooks.
-      ...(nativeCapabilities.userSettings ? {} : { settings: resolveAssistantRunSettings(homedir(), existsSync) }),
+      // Site runs retain the host's auto-memory/no-system-search policy rather than user hooks; Full CLI cannot omit it.
+      settings: resolveAssistantRunSettings(homedir(), existsSync),
       ...(model !== undefined ? { model } : {}),
       // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
       // def's own `buildArgs` options, which is where it becomes real argv.
