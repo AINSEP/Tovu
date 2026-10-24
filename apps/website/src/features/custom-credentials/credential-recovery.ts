@@ -22,7 +22,8 @@ export async function withCustomCredentialSetup<T>(
     return { executed: false, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill }, {}) };
   }
   const output = result as { status?: unknown };
-  const rotation = (verification && output.status === "invalid") ||
-    output.status === 401;
+  // A scoped key can get a request 401 while still working for its intended purpose.
+  // Only explicit verification can establish invalidity and offer replacement.
+  const rotation = verification && output.status === "invalid";
   return rotation ? { credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", target: label } }, {}), ...result } : result;
 }

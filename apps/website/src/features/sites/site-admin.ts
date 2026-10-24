@@ -60,6 +60,7 @@ export type SiteAdminRefusalCode =
   | "SITE_ALREADY_EXISTS"
   | "SITE_NOT_FOUND"
   | "AGENT_PLUGIN_TOKEN_INVALID"
+  | "AGENT_PLUGIN_TOKEN_REFUSED"
   | "AGENT_PLUGIN_TOKEN_UNSUPPORTED";
 
 export interface SiteAdminRefusal {

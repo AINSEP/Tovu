@@ -346,8 +346,7 @@ export async function runAgentPluginConnect(
   }
   const [server] = pending;
 
-  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
-  const credentialCard = cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
 }
 
@@ -433,6 +432,12 @@ async function waitForMcpConnection(
  * @throws {Error} No interactive channel to show the sign-in card on.
  * @complexity One sign-in round trip bounded by `waitTimeoutMs`.
  */
+/** The plugin's own `oauth` card copy for its sign-in card, shared by the MCP and API-connection branches. O(cards). */
+async function findPluginOAuthCard(routeDeps: AgentPluginConnectToolDeps, pluginId: string): Promise<PluginCredentialCard | undefined> {
+  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+  return cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
+}
+
 async function connectDeclaredApiConnectionOrRefuse(
   routeDeps: AgentPluginConnectToolDeps,
   surfaces: AssistantSurfaceDeps,
@@ -448,6 +453,7 @@ async function connectDeclaredApiConnectionOrRefuse(
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${declared.length} API connections — this Tovu version connects one per plugin.` });
   }
   const pluginDisplayName = titleCaseFromPluginId(pluginId);
+  const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   let exchange: ReturnType<AssistantSurfaceDeps["surfaceExchanges"]["open"]> | undefined;
   const closeOnAbort = () => exchange?.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
@@ -459,7 +465,7 @@ async function connectDeclaredApiConnectionOrRefuse(
         const emitSurface = optional.emitSurface;
         if (!emitSurface) throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
         exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
-        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) } } });
+        await exchange.send({ emission: { channel: "mcp-ui", payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl, credentialCard }) } } });
       },
     });
     if (result.status === "connected" && exchange) {

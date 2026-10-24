@@ -6,6 +6,33 @@ import { applyPluginCredentialCard, buildPluginCredentialForm, readPluginCredent
 const declaration = { target: 'example', label: 'Example key', category: 'hosting', baseUrl: 'https://api.example.com', title: 'Connect Example', intro: 'Publish this site.', keyHint: 'Grant deployment write access.' };
 const manifest = (cards: unknown) => JSON.stringify({ extensions: { tovu: { credentialCards: cards } } });
 
+test('usedFor is bounded display text on API and domain cards, never saved connection metadata', () => {
+  for (const saveKind of [undefined, 'api', 'publish-host', 'source-control', 'agent-plugin-token', 'oauth']) {
+    const usedFor = [' Publish this site ', ...Array(7).fill('x'.repeat(120))];
+    const parsed = parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind, usedFor }]) });
+    assert.ok(parsed.ok);
+    const card = parsed.descriptors[0]!;
+    assert.deepEqual(card.usedFor, usedFor.map(value => value.trim()));
+    assert.deepEqual(buildPluginCredentialForm({ card }).details?.find(detail => detail.label === 'Used for'), {
+      label: 'Used for', value: card.usedFor!.join('; '),
+    });
+    assert.equal('usedFor' in readPluginCredentialValues({ card, values: { token: 'key', usedFor: ['Other task'] } }), false);
+  }
+  for (const usedFor of [undefined, []]) {
+    const parsed = parsePluginCredentialCards({ raw: manifest([{ ...declaration, usedFor }]) });
+    assert.ok(parsed.ok);
+    assert.equal(buildPluginCredentialForm({ card: parsed.descriptors[0]! }).details?.some(detail => detail.label === 'Used for'), false);
+  }
+});
+
+test('usedFor rejects malformed or oversized declarations instead of silently truncating them', () => {
+  for (const usedFor of [null, 'Publish', {}, [7], [''], ['   '], ['x'.repeat(121)], Array(9).fill('Publish')]) {
+    const result = parsePluginCredentialCards({ raw: manifest([{ ...declaration, usedFor }]) });
+    assert.equal(result.ok, false, JSON.stringify(usedFor));
+    if (!result.ok) assert.match(result.reason, /usedFor/);
+  }
+});
+
 test('an owned API label is explicit, preserved and limited to that card destination', () => {
   for (const saveKind of [undefined, 'api']) {
     const parsed = parsePluginCredentialCards({ raw: manifest([{ ...declaration, saveKind, ownedApiLabel: 'Example key' }]) });
