@@ -48,6 +48,10 @@ import type {
 export interface MemberRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<MemberRecord | null>;
   findByEmail(required: { workspaceId: UUID; email: string }): Promise<MemberRecord | null>;
+  /** Credential-only read; missing, passwordless or trashed members return null. Never a profile field. */
+  findPasswordHash(required: { workspaceId: UUID; memberId: UUID }, options?: Record<string, never>): Promise<string | null>;
+  /** Update only the hash; reject a missing/trashed member. Profile saves never write this column. */
+  setPasswordHash(required: { workspaceId: UUID; memberId: UUID; passwordHash: string }, options?: Record<string, never>): Promise<void>;
   list(required: {
     workspaceId: UUID;
     /** Keyset cursor (ULID id) for stable pagination; omit for first page. */
@@ -94,11 +98,19 @@ export interface MemberSessionRepoPort {
 }
 
 export interface MagicLinkTokenRepoPort {
+  /** Challenge handle lookup for code entry, scoped to the member workspace. */
+  findById(required: { workspaceId: UUID; id: UUID }, options?: Record<string, never>): Promise<MagicLinkTokenRecord | null>;
   findByTokenHash(required: {
     workspaceId: UUID;
     tokenHash: string;
   }): Promise<MagicLinkTokenRecord | null>;
   save(record: MagicLinkTokenRecord): Promise<void>;
+  /**
+   * Spend one code attempt BEFORE the code is verified: one conditional UPDATE increments
+   * `failedAttempts` only while the challenge is unconsumed, unexpired at `nowIso` and under
+   * `maxAttempts` (default 5). False when none remain, so parallel guesses cannot outrun the limit.
+   */
+  reserveCodeAttempt(required: { workspaceId: UUID; id: UUID; nowIso: ISODateTime }, options?: { maxAttempts?: number }): Promise<boolean>;
   /** Mark consumed (single-use); consuming an already-consumed token is denied. */
   consume(required: { workspaceId: UUID; id: UUID; consumedAt: ISODateTime }): Promise<void>;
 }

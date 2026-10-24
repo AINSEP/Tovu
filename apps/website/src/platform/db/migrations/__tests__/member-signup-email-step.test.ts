@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMagicLinkTokenRepo } from "#src/features/members/repo";
+import { memberAuthStatements } from "../0034_member_auth.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 
 for (const adapter of eachDialect({ tables: ["member_magic_tokens"], make: db => db })) {
@@ -20,6 +21,10 @@ for (const adapter of eachDialect({ tables: ["member_magic_tokens"], make: db =>
     const options = { ledgerTable: "signup_email_test_migrations" };
     assert.deepEqual((await runMigrations(db, [step], options)).applied, [step.id]);
     assert.deepEqual(await db.query(sql`SELECT * FROM member_magic_tokens`), [{ ...legacy, email: null }]);
+    // Only the challenge table was reconstructed; members already has its 0034 column.
+    for (const statement of memberAuthStatements({ dialect: db.dialect }).filter(ddl => ddl.startsWith("ALTER TABLE member_magic_tokens "))) {
+      await db.execute(sql.raw(statement));
+    }
     const repo = new SqlMagicLinkTokenRepo(db);
     const token = { id: "new", workspaceId: "w", memberId: "reserved", email: "new@example.com", tokenHash: "newhash", purpose: "signin" as const, createdAt: "2026-10-24", expiresAt: "2026-10-25" };
     await repo.save(token);

@@ -85,6 +85,22 @@ export class SqlMemberRepo implements MemberRepoPort {
     return row ? toMemberRecord(row) : null;
   }
 
+  /** Credential-only lookup; the hash never enters a MemberRecord. Missing/passwordless/Trash returns null. */
+  async findPasswordHash(required: { workspaceId: string; memberId: string }, _options: Record<string, never> = {}): Promise<string | null> {
+    const row = await this.kernel.run(db => db.selectFrom("members").select("password_hash")
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.memberId)
+      .where("status", "<>", "trash").executeTakeFirst());
+    return row?.password_hash ?? null;
+  }
+
+  /** Change only the credential column, without racing a profile upsert into erasing the hash. */
+  async setPasswordHash(required: { workspaceId: string; memberId: string; passwordHash: string }, _options: Record<string, never> = {}): Promise<void> {
+    const row = await this.kernel.run(db => db.updateTable("members").set({ password_hash: required.passwordHash })
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.memberId)
+      .where("status", "<>", "trash").returning("id").executeTakeFirst());
+    if (!row) throw new MemberAuthError("member was not found or is in Trash");
+  }
+
   /**
    * Members ordered by id. `afterId` resumes strictly after that member; an id that is not a member
    * of the workspace is ignored (first page), as before. Page size is capped at {@link MAX_PAGE}.
@@ -333,6 +349,13 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
 export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
 
+  /** Resolve a code-entry handle inside the member realm; missing/foreign handles return null. */
+  async findById(required: { workspaceId: string; id: string }, _options: Record<string, never> = {}): Promise<MagicLinkTokenRecord | null> {
+    const row = await this.kernel.run(db => db.selectFrom("member_magic_tokens").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.id).executeTakeFirst());
+    return row ? toMagicLinkTokenRecord(row) : null;
+  }
+
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
     const row = await this.kernel.run((db) =>
       db
@@ -355,6 +378,17 @@ export class SqlMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
         .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
         .execute()
     );
+  }
+
+  /** The conditional UPDATE is atomic on both dialects, so no lock or read-then-write is needed.
+   * `expires_at` is written as `toISOString()` UTC text, so the string comparison is time order. */
+  async reserveCodeAttempt(required: { workspaceId: string; id: string; nowIso: string }, { maxAttempts = 5 }: { maxAttempts?: number } = {}): Promise<boolean> {
+    const row = await this.kernel.run(db => db.updateTable("member_magic_tokens")
+      .set(eb => ({ failed_attempts: eb("failed_attempts", "+", 1) }))
+      .where("workspace_id", "=", required.workspaceId).where("id", "=", required.id)
+      .where("consumed_at", "is", null).where("expires_at", ">", required.nowIso)
+      .where("failed_attempts", "<", maxAttempts).returning("id").executeTakeFirst());
+    return row !== undefined;
   }
 
   /**

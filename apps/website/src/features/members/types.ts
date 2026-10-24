@@ -41,6 +41,7 @@ export type MemberStatus = "pending" | "active" | "disabled" | "trash";
 /**
  * Front-end member account. `id` is the member's principal id (ULID); the row
  * is the member's profile, analogous to ADR-021's `users` table for operators.
+ * Password hashes are credential-only and never enter this profile/view model.
  */
 export interface MemberRecord {
   /** Principal id (ULID). Root of identity + audit; disable-only (ADR-021 §5). */
@@ -157,8 +158,8 @@ export interface MemberSessionRecord {
 }
 
 /**
- * A single-use, short-TTL magic-link credential (Ghost's passwordless sign-in).
- * Stored hashed; consumed exactly once, then tombstoned.
+ * A single-use, short-TTL member challenge shared by its link and optional sign-in code.
+ * Stored hashed; consumed exactly once, then tombstoned. Staff uses a separate realm.
  */
 export interface MagicLinkTokenRecord {
   id: UUID;
@@ -168,8 +169,12 @@ export interface MagicLinkTokenRecord {
   /** New-address challenge identity; absent on legacy/existing-member links. */
   email?: string;
   tokenHash: string;
+  /** Absent for legacy links and link-only password resets; never the raw code. */
+  codeHash?: string;
+  /** Absent on legacy records means zero; incremented atomically by the repository. */
+  failedAttempts?: number;
   /** What the click authorizes — first sign-in also verifies the email. */
-  purpose: "signin" | "signup" | "email_change";
+  purpose: "signin" | "signup" | "email_change" | "password_reset";
   createdAt: ISODateTime;
   expiresAt: ISODateTime;
   consumedAt?: ISODateTime;

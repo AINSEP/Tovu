@@ -10,10 +10,10 @@
  *
  * Architectural role:
  * Rule-of-two adapter #1 for each port; the SQLite adapter (Drizzle) is the ADR-030
- * follow-up build. Kept dumb on purpose: repos never throw domain errors
- * (`MemberNotFoundError` etc.) — only the write service and resolver do.
+ * follow-up build. Repos enforce persistence invariants; the write service and
+ * resolver own member lifecycle and authentication decisions.
  */
-import { MemberConflictError } from "./types.js";
+import { MemberAuthError, MemberConflictError } from "./types.js";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -51,6 +51,8 @@ const DEFAULT_LIST_LIMIT = 100;
  */
 export class InMemoryMemberRepo implements MemberRepoPort {
   private rows: MemberRecord[];
+  // Separate credential storage preserves the same profile boundary as the durable adapter.
+  private passwordHashes = new Map<string, string>();
 
   constructor(initialRows: MemberRecord[] = []) {
     this.rows = [...initialRows];
@@ -73,6 +75,19 @@ export class InMemoryMemberRepo implements MemberRepoPort {
         (row) => row.workspaceId === required.workspaceId && row.email.toLowerCase() === normalized
       ) ?? null
     );
+  }
+
+  /** Match the durable credential-only lookup; missing/passwordless/Trash returns null. */
+  async findPasswordHash(required: { workspaceId: string; memberId: string }, _options: Record<string, never> = {}): Promise<string | null> {
+    const member = this.rows.find(row => row.workspaceId === required.workspaceId && row.id === required.memberId && row.status !== "trash");
+    return member ? this.passwordHashes.get(member.id) ?? null : null;
+  }
+
+  /** Only the credential map changes, so saving a profile cannot erase or reveal a password hash. */
+  async setPasswordHash(required: { workspaceId: string; memberId: string; passwordHash: string }, _options: Record<string, never> = {}): Promise<void> {
+    const member = this.rows.find(row => row.workspaceId === required.workspaceId && row.id === required.memberId && row.status !== "trash");
+    if (!member) throw new MemberAuthError("member was not found or is in Trash");
+    this.passwordHashes.set(member.id, required.passwordHash);
   }
 
   async list(required: {
@@ -300,6 +315,11 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     this.rows = [...initialRows];
   }
 
+  /** Match workspace-scoped code-entry handle lookup; missing/foreign handles return null. */
+  async findById(required: { workspaceId: string; id: string }, _options: Record<string, never> = {}): Promise<MagicLinkTokenRecord | null> {
+    return this.rows.find(row => row.workspaceId === required.workspaceId && row.id === required.id) ?? null;
+  }
+
   async findByTokenHash(required: {
     workspaceId: string;
     tokenHash: string;
@@ -319,6 +339,16 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     }
 
     this.rows[index] = record;
+  }
+
+  /** Same-tick check-and-increment mirrors the durable conditional UPDATE: no await can split them. */
+  async reserveCodeAttempt(required: { workspaceId: string; id: string; nowIso: string }, { maxAttempts = 5 }: { maxAttempts?: number } = {}): Promise<boolean> {
+    const index = this.rows.findIndex(row => row.workspaceId === required.workspaceId && row.id === required.id);
+    const existing = this.rows[index];
+    const failedAttempts = existing?.failedAttempts ?? 0;
+    if (!existing || existing.consumedAt || existing.expiresAt <= required.nowIso || failedAttempts >= maxAttempts) return false;
+    this.rows[index] = { ...existing, failedAttempts: failedAttempts + 1 };
+    return true;
   }
 
   async consume(required: { workspaceId: string; id: string; consumedAt: string }): Promise<void> {

@@ -728,6 +728,7 @@ export const members = sqliteTable(
     emailVerifiedAt: text("email_verified_at"),
     /** Cutoff for pending credentials; ordinary profile edits and sign-ins do not change it. */
     credentialsRevokedAt: text("credentials_revoked_at"),
+    passwordHash: text("password_hash"),
     status: text("status").notNull(),
     note: text("note"),
     fieldsJson: text("fields_json"),
@@ -821,6 +822,8 @@ export const memberMagicTokens = sqliteTable(
     memberId: text("member_id").notNull(),
     email: text("email"),
     tokenHash: text("token_hash").notNull(),
+    codeHash: text("code_hash"),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
     purpose: text("purpose").notNull(),
     createdAt: text("created_at").notNull(),
     expiresAt: text("expires_at").notNull(),
