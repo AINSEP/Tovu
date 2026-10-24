@@ -194,7 +194,7 @@ test("the real prompt augmenter receives the same fresh grant as each concurrent
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
     daemonInitializer("assistantPromptAugmenter"), {
-      buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
+      getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantCliCapabilitiesContext,
       assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
       bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },
       buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),

@@ -179,7 +179,7 @@ const SEARCH_SCOPE_GUIDANCE =
  *
  * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
  */
-export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean } = {}): string {
+export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
   return (
     SITE_GUIDE_POINTER +
     "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
@@ -215,6 +215,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
     BATCH_GUIDANCE +
+    (optional.messageRelayEnabled ? "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation. " : "") +
     "For visual site checks, prefer Tovu's web_screenshot_page; use web_fetch_page for public-page HTML/text or render:true with screenshot:true. " +
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +

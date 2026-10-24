@@ -18,6 +18,13 @@ import {
   resolveAssistantDisallowedTools,
 } from "../assistant-system-overlay.js";
 
+test("relay guidance is included verbatim only when enabled for the run", () => {
+  const sentence = "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation.";
+  assert.ok(buildBaseSystemOverlay(false, { messageRelayEnabled: true }).includes(sentence));
+  assert.equal(buildBaseSystemOverlay(false).includes(sentence), false);
+  assert.equal(buildBaseSystemOverlay(true, { messageRelayEnabled: false }).includes(sentence), false);
+});
+
 test("resolveBashProhibitionEnabled defaults to false with no env var set", () => {
   assert.equal(resolveBashProhibitionEnabled({}), false);
 });

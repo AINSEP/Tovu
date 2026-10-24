@@ -376,7 +376,7 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
   const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter"), {
-    buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
+    getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
     assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
   });

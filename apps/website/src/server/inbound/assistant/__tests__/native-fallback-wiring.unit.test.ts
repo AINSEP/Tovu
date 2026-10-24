@@ -72,7 +72,7 @@ test('non-owner and hosted owner launches explicitly lock native tools', async (
 test('prompt and runtime share the per-run grant across concurrent contexts', async () => {
   const native = new AsyncLocalStorage<boolean>();
   const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer('assistantPromptAugmenter'), {
-    buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
+    getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, assistantNativeToolsContext: native,
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(), bashProhibitionEnabled: false,
     customInstructionsCache: { readOverlay: () => null },
     buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
