@@ -107,7 +107,8 @@ function token(id: string, overrides: Partial<MagicLinkTokenRecord> = {}): Magic
     tokenHash: `hash-${id}`,
     purpose: "signin",
     createdAt: T0,
-    expiresAt: "2026-09-28T01:00:00.000Z",
+    // Both racing consumes must be unexpired, so only the single-use fence decides the winner.
+    expiresAt: "2026-09-28T10:00:00.000Z",
     consumedAt: undefined,
     ...overrides,
   };

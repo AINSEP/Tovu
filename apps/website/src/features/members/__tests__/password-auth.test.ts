@@ -213,6 +213,9 @@ for (const password of ["", "🙂".repeat(513)]) {
 test("password login gives every invalid account class one verify and the same error; dummy hash is cached", async () => {
   const h = harness();
   for (const scenario of ["missing", "passwordless", "pending", "disabled", "trash", "wrong"] as const) {
+    // Account classes are independent fixtures: saving over Trash must never resurrect a member.
+    // Keep the same hasher so the cached dummy-credential assertion still spans every request.
+    h.deps.members = new InMemoryMemberRepo();
     if (scenario !== "missing") await h.seed(
       scenario === "pending" || scenario === "disabled" || scenario === "trash" ? scenario : "active",
       scenario === "passwordless" ? null : "old",

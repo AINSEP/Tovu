@@ -89,8 +89,11 @@ describeEachDialect("member credential cutoff", {
     await assert.rejects(h.members.save({ ...stale, name: "Stale Edit", version: stale.version + 1 }),
       { message: "member changed or is in Trash; re-read it before updating" });
     h.clock.set(AFTER);
+    // Revocation remains enforced without exposing why a bearer was refused.
     await assert.rejects(h.signIn("old"),
-      { message: "sign-in link predates credential revocation; request a new sign-in link" });
+      { message: "sign-in credential is invalid" });
+    assert.equal((await h.magicLinks.findByTokenHash({ workspaceId: WS, tokenHash: hash("old") }))?.consumedAt,
+      AFTER, "the valid challenge reached consumption before the member cutoff refused sign-in");
     assert.deepEqual(await h.sessions.listByMember({ workspaceId: WS, memberId: "member" }), []);
     await h.link("new", AFTER);
     const fresh = await h.signIn("new");

@@ -175,31 +175,38 @@ test("gapb member: memory reader retains email reservation but prevents list/get
 });
 
 
-test("gapb member: sign-in request for a trashed email keeps the neutral response without mail or token mint", async () => {
+test("gapb member: sign-in request for a trashed email returns an unstored handle without mail or persisted credentials", async () => {
   const blocked = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
   const fail = async () => { assert.fail("a trashed account must not mint a credential or send mail"); };
   const deps = {
     clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo([blocked]),
-    magicLinks: { save: fail }, mailer: { send: fail, capabilities: () => ({ driver: "smtp" }) }, ids: { newId: () => { assert.fail("must not mint"); } },
+    magicLinks: { save: fail }, mailer: { send: fail, capabilities: () => ({ driver: "smtp" }) },
+    // All addresses receive a handle and pay the hashing cost; blocked ones never persist it.
+    ids: { newId: () => "unstored-challenge" },
+    passwordHasher: { hash: async () => "unused-code-hash", verify: fail },
     // The sender and site origin are resolved before the member lookup, for every address alike.
     senderIdentity: { resolve: async ({ fallback }: { fallback: unknown }) => fallback },
     origin: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000 }) },
   } as unknown as MembersWriteServiceDeps;
-  // The service reports no send; public HTTP maps every per-address outcome to `{ accepted: true }`.
-  assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }), { delivered: false });
+  // Public HTTP returns the same accepted response and handle shape for every address.
+  assert.deepEqual(await membersWriteService.requestSignInLink({ deps, input: { workspaceId: WS, email: blocked.email } }),
+    { delivered: false, challengeId: "unstored-challenge" });
 });
 
 
 test("gapb member: a late link minted before restore cannot sign the restored account in", async () => {
   const restored = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "active" as const, credentialsRevokedAt: LATER, createdAt: AT, updatedAt: LATER, version: 3 };
+  let consumed = false;
   const deps = {
     clock: createFakeClock({ startIso: LATER }), members: new InMemoryMemberRepo([restored]),
     magicLinks: { findByTokenHash: async () => ({ id: "late-link", workspaceId: WS, memberId: restored.id,
-      tokenHash: "fake-hash", purpose: "signin", createdAt: AT, expiresAt: "2027-01-01T00:00:00.000Z" }), consume: async () => {} },
+      tokenHash: "fake-hash", purpose: "signin", createdAt: AT, expiresAt: "2027-01-01T00:00:00.000Z" }), consume: async () => { consumed = true; } },
     sessions: { save: async () => { assert.fail("must not mint a session"); } },
   } as unknown as MembersWriteServiceDeps;
+  // Cutoff rejection shares the invalid-credential response; the session-save trap pins denial.
   await assert.rejects(membersWriteService.completeSignIn({ deps, input: { workspaceId: WS, token: "fake-link" } }),
-    { message: "sign-in link predates credential revocation; request a new sign-in link" });
+    { message: "sign-in credential is invalid" });
+  assert.equal(consumed, true, "a valid challenge must reach the member cutoff, not fail metadata validation");
 });
 
 
@@ -232,15 +239,17 @@ test("member restore cutoff rejects a link minted late while hidden without revi
   await assert.rejects(h.sessions.save({ id: "hidden-session", workspaceId: WS, memberId: "member-1",
     tokenHash: "hidden-session-hash", createdAt: "2026-10-09T12:00:30.000Z", expiresAt: "2027-01-01T00:00:00.000Z" }),
     { message: "member changed before the session was saved; request a new sign-in link" });
+  let consumed = false;
   const deps = {
     clock: createFakeClock({ startIso: LATER }), members: h.members,
     magicLinks: { findByTokenHash: async () => ({ id: "late-hidden", workspaceId: WS, memberId: restored.id,
       tokenHash: "hidden-hash", purpose: "signin", createdAt: "2026-10-09T12:00:30.000Z", expiresAt: "2027-01-01T00:00:00.000Z" }),
-      consume: async () => {} },
+      consume: async () => { consumed = true; } },
     sessions: { save: async () => { assert.fail("must not mint a session from a hidden-period link"); } },
   } as unknown as MembersWriteServiceDeps;
   await assert.rejects(membersWriteService.completeSignIn({ deps, input: { workspaceId: WS, token: "late-hidden-token" } }),
-    { message: "sign-in link predates credential revocation; request a new sign-in link" });
+    { message: "sign-in credential is invalid" });
+  assert.equal(consumed, true, "the restored member cutoff rejects an otherwise valid hidden-period challenge");
 });
 
 test("member restore cutoff failure rolls back status, marker and Trash index", async t => {
@@ -287,7 +296,8 @@ test("member adapter: a refused or no-op marker flip returns verbatim and never 
 /** Both product entrypoints share the real adapter; restoring never revives a revoked credential. */
 for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${entrypoint} delete uses Trash, revokes sessions, restores and purges`, async t => {
   const h = harness(); t.after(() => h.client.close()); h.seed(); h.seed("unrelated");
-  const deps = { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+  // The tool reads Jini's nowMs clock; the HTTP adapter also accepts this shared fake clock.
+  const deps = { workspaceId: WS, memberRepo: h.members, clock: createFakeClock({ startIso: AT }),
     removeMember: bindRemoveEntity({ trash: h.trash, entityType: "member" }),
     authorize: async ({ permission }: { permission: string }) => ({ allowed: h.granted.has(permission), reason: "test" }),
   };
