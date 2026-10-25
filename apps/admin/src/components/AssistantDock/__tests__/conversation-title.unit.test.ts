@@ -11,7 +11,7 @@ describe('dock conversation title', () => {
     initialMessages: [{ id: 'message', role: 'user', content: prompt }],
   };
   it('uses sentence case for the known automatic title', () => {
-    expect(resolveAssistantConversationTitle({ chats, fallback: 'Tovu assistant' })).toBe('I want connect Mailchimp account');
+    expect(resolveAssistantConversationTitle({ chats, fallback: 'Tovu assistant' })).toBe('I want to connect a Mailchimp account');
   });
   it('keeps a manual title verbatim', () => {
     expect(resolveAssistantConversationTitle({ chats: { ...chats, conversations: [{ ...chats.conversations[0]!, title: 'MY name', titleSource: 'manual' }] }, fallback: 'Tovu assistant' })).toBe('MY name');
