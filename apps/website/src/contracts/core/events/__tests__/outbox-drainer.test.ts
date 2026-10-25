@@ -4,6 +4,7 @@ import test from "node:test";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 import { InMemoryEventBus, InMemoryOutbox, startOutboxDrainer } from "../index.js";
+import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
 
 /**
  * @file `startOutboxDrainer`: the background loop that is the single owner of outbox delivery in a
@@ -271,4 +272,53 @@ test("a handler that never settles cannot stall the loop: the event behind it is
     retry.map((row) => [row.id, row.lastError]),
     [["never-settles", 'delivery of outbox event "entry.updated" (never-settles) timed out after 20ms']]
   );
+});
+
+/** A recording observability port (fake; no vendor): which operations started and how they ended. */
+function recordingPort(): { port: ObservabilityPort; log: string[] } {
+  const log: string[] = [];
+  const noop = createNoopObservabilityPort({});
+  return { log, port: { ...noop,
+    trackOperation: ({ name, attributes }) => {
+      log.push(`start:${name}:${JSON.stringify(attributes ?? {})}`);
+      return { end: ({ outcome, failed }) => { log.push(`end:${name}:${outcome}:${failed}`); } };
+    },
+    reportError: ({ context }) => { log.push(`error:${context.operation}`); },
+  } };
+}
+
+test("observability: each background delivery is one outbox.deliver operation named by the event only; a failure is reported and retried as before", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  let fail = true;
+  await bus.subscribe({ eventName: "entry.updated", handler: async () => { if (fail) { fail = false; throw new Error("handler down"); } } });
+  const { port, log } = recordingPort();
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: port });
+  t.after(() => drainer.stop());
+  await outbox.enqueue({ ...makeEvent("traced-1"), payload: { secret: "never-a-label" } });
+  assert.ok(await waitFor(() => log.includes("end:outbox.deliver:error:true")), log.join("\n"));
+  assert.deepEqual(log.slice(0, 3), ['start:outbox.deliver:{"event.name":"entry.updated"}', "error:outbox.deliver", "end:outbox.deliver:error:true"]);
+  assert.ok(!log.join("\n").includes("never-a-label"));
+});
+
+test("observability: the noop port leaves delivery untraced and unchanged", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const received: string[] = [];
+  await bus.subscribe({ eventName: "entry.updated", handler: async (event) => { received.push(event.id); } });
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: createNoopObservabilityPort({}) });
+  t.after(() => drainer.stop());
+  await outbox.enqueue(makeEvent("plain-1"));
+  assert.ok(await waitFor(() => received.length === 1));
+});
+
+test("observability: a successful delivery ends as delivered", async (t) => {
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  await bus.subscribe({ eventName: "entry.updated", handler: async () => {} });
+  const { port, log } = recordingPort();
+  const drainer = startOutboxDrainer({ outbox, bus, clock }, { intervalMs: 10, observability: port });
+  t.after(() => drainer.stop());
+  await outbox.enqueue(makeEvent("ok-1"));
+  assert.ok(await waitFor(() => log.includes("end:outbox.deliver:delivered:false")), log.join("\n"));
 });

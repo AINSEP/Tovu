@@ -8,6 +8,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
+import { trackAsyncOperation } from "#src/platform/observability/operation";
 import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 // Leaf modules, not the category barrel: this file is on an eagerly loaded graph (see below), and
 // the barrel would add the plugin loader and the credential vault to it.
@@ -473,6 +474,15 @@ async function publishAndMapOutcome(
  *   in-process app) plus one `DeployTarget.publish()` call (bounded by that target's own poll budget).
  */
 export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishOutcome> {
+  // Publish/deploy chokepoint: one `site.publish` operation per run (target id only; the outcome
+  // is `published` or the failure code), with its export and host egress as child spans.
+  return trackAsyncOperation({ observability: deps.observability, name: "site.publish", work: () => publishStaticSiteSteps(deps, input),
+    outcomeOf: (outcome) => outcome.ok ? { outcome: "published", failed: false } : { outcome: outcome.code, failed: true } },
+  { attributes: { "publish.target": input.config.target } });
+}
+
+/** {@link publishStaticSite}'s steps, inside its operation. */
+async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishOutcome> {
   if (input.projectName.trim() === "" || input.projectName.length > MAX_PROJECT_NAME_LENGTH) {
     return { ok: false, code: "INVALID_CONFIG", message: `projectName must be 1-${MAX_PROJECT_NAME_LENGTH} characters` };
   }

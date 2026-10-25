@@ -2,6 +2,8 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
+import { trackAsyncOperation } from "#src/platform/observability/operation";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
 
 /**
@@ -40,6 +42,7 @@ export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
  * @param optional.intervalMs idle wait between drains (default {@link DEFAULT_OUTBOX_DRAIN_INTERVAL_MS}).
  * @param optional.batchSize rows claimed per drain (default 20).
  * @param optional.deliveryTimeoutMs how long one row's delivery may run (default: `processOutbox`'s own).
+ * @param optional.observability traces each delivery as an `outbox.deliver` operation (default: untraced).
  * @param optional.onError receives any error a drain throws (default: `console.error`). If it throws
  *   itself, that is swallowed, so a broken reporter can never end the loop.
  * @returns a handle whose `stop()` ends the loop.
@@ -49,7 +52,20 @@ export type { OutboxDrainer } from "@jini-ai/infra/events/outbox";
  */
 export function startOutboxDrainer(
   required: { outbox: OutboxPort; bus: EventBusPort; clock: ClockPort },
-  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void } = {}
+  optional: { intervalMs?: number; batchSize?: number; deliveryTimeoutMs?: number; onError?: (error: unknown) => void; observability?: ObservabilityPort } = {}
 ): OutboxDrainer {
-  return startJiniOutboxDrainer(outboxWorkerArgs(required), { ...optional, retryPolicyForEvent: outboxRetryPolicyForEvent });
+  const { observability, ...drainOptions } = optional;
+  const args = outboxWorkerArgs(required);
+  return startJiniOutboxDrainer({ ...args, bus: trackedDelivery({ bus: args.bus, observability }) }, { ...drainOptions, retryPolicyForEvent: outboxRetryPolicyForEvent });
+}
+
+type DeliveryBus = ReturnType<typeof outboxWorkerArgs>["bus"];
+
+/** Outbox/job-queue chokepoint: each background delivery is one `outbox.deliver` operation labelled
+ * with the event's stable name only (never its payload); a failed delivery is reported and still
+ * rethrown, so retry/backoff stays `processOutbox`'s. Without a port the bus is used as-is. */
+function trackedDelivery({ bus, observability }: { bus: DeliveryBus; observability: ObservabilityPort | undefined }): DeliveryBus {
+  if (!observability) return bus;
+  return { publish: (input) => trackAsyncOperation({ observability, name: "outbox.deliver", work: () => bus.publish(input),
+    outcomeOf: () => ({ outcome: "delivered", failed: false }) }, { attributes: { "event.name": input.event.name } }) };
 }
