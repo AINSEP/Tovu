@@ -76,6 +76,10 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
+  // Reviewed FU-A 2026-10-25: binding.executionId is never visitor input. visitor-confirmation-gate.ts
+  // copies it from Jini's ToolConfirmationRequest; ToolExecutor.openAudit mints it with randomUUID()
+  // (@jini-ai/daemon tool-executor.ts), and visitor-executor.ts invoke() passes no id into execute().
+  ["assistant/site/visitor-confirmations.ts", new Set(["binding.executionId"])],
 ]);
 
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
