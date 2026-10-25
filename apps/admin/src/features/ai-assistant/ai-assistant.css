@@ -85,9 +85,15 @@
 .visitor-step .jini-byok-advanced { max-width: 30rem; }
 .visitor-step .jini-byok-key-actions .info-tip { margin-left: -0.15rem; margin-right: 0.25rem; }
 .visitor-step .jini-byok-key-footer:has(> .assistant-key-footer:empty) { display: none; }
-/* The model control gets the same measure as the key input; long picker labels wrap inside it.
-   A width, not a flex-basis: the mobile column layout would read a 30rem basis as height. */
-.settings-ui-section--page-flow .visitor-step .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 30rem; max-width: 100%; min-width: 0; }
+/* The model control is as wide as the chosen model id, like the Provider select, capped at the key
+   input's measure; long picker labels wrap inside it. Width, not a flex-basis: the mobile column
+   layout would read a basis as height, and align-self keeps that column from stretching it. */
+.settings-ui-section--page-flow .visitor-step .jini-byok-model-row > .jini-field {
+  flex: 0 1 auto; width: auto; max-width: min(30rem, 100%); min-width: 0; align-self: flex-start;
+}
+/* The portal menu copies the trigger's width, so a compact picker would squeeze its search box and
+   wrap every model id. A floor keeps the list readable; the cap stops it running off a phone. */
+.jini-select-menu.portal:has(> .jini-searchable-select-search-row) { min-width: min(20rem, calc(100vw - 5rem)); }
 .visitor-step .jini-searchable-select { width: 100%; max-width: 100%; }
 .visitor-step .jini-select { width: 100%; max-width: 100%; }
 .visitor-step .jini-select-trigger { max-width: min(30rem, 100%); }
