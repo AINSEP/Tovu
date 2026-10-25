@@ -75,8 +75,9 @@ Content failures are logged and retried next open; the in-memory test compositio
 
 Tovu public delivery fixes `reopen: 'link'`; older revision snapshots need no migration.
 The public HTTP adapter adds `<a href="#jini-consent" data-jini-consent-open>Cookie settings</a>`
-as a centred row at the end of the page footer (the last-closing one, never an article footer), or
-near the end of the body when there is no live footer. A theme's own live control is never duplicated. It runs
+inline in the page footer's last row (the last-closing footer, never an article footer; its
+innermost trailing `<div>`, e.g. the "© Site" line), or as a centred row near the end of the body
+when there is no live footer. A theme's own live control is never duplicated. It runs
 at the final response boundary after Jini's gate, including streamed HTML and file delivery.
 The control follows the policy actually delivered, including Jini's last-good policy during a
 configuration outage. Disabled consent adds no control. Source-offset insertion preserves metadata.
