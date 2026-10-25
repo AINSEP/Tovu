@@ -1,0 +1,60 @@
+{
+ "testRunner": "tap",
+ "tap": {
+  "nodeArgs": [
+   "--import",
+   "tsx",
+   "--experimental-test-module-mocks",
+   "--test-reporter=tap"
+  ],
+  "testFiles": [
+   "apps/website/src/features/members/__tests__/access-resolver.test.ts",
+   "apps/website/src/features/members/__tests__/consent-service.test.ts",
+   "apps/website/src/features/members/__tests__/credentials-revocation.dialects.test.ts",
+   "apps/website/src/features/members/__tests__/invariants.test.ts",
+   "apps/website/src/features/members/__tests__/magic-link-mail-off.test.ts",
+   "apps/website/src/features/members/__tests__/mailer.console.test.ts",
+   "apps/website/src/features/members/__tests__/member-auth-repo.dialects.test.ts",
+   "apps/website/src/features/members/__tests__/member-external-identities.dialects.test.ts",
+   "apps/website/src/features/members/__tests__/password-auth.test.ts",
+   "apps/website/src/features/members/__tests__/password-lifecycle.dialects.test.ts",
+   "apps/website/src/features/members/__tests__/repo.contract.test.ts",
+   "apps/website/src/features/members/__tests__/repo.dialects.test.ts",
+   "apps/website/src/features/members/__tests__/repo.memory.test.ts",
+   "apps/website/src/features/members/__tests__/repo.rows.test.ts",
+   "apps/website/src/features/members/__tests__/restart.integration.test.ts",
+   "apps/website/src/features/members/__tests__/subscriber-directory.test.ts",
+   "apps/website/src/features/members/__tests__/tool-registrations.model-facing-errors.test.ts",
+   "apps/website/src/features/members/__tests__/write-service.test.ts"
+  ]
+ },
+ "mutate": [
+  "apps/website/src/features/members/**/*.ts",
+  "!apps/website/src/features/members/**/__tests__/**",
+  "!apps/website/src/features/members/**/*.test.ts",
+  "!apps/website/src/features/members/**/*.d.ts",
+  "!apps/website/src/features/members/**/types.ts",
+  "!apps/website/src/features/members/index.ts",
+  "!apps/website/src/features/members/**/*-types.ts",
+  "!apps/website/src/features/members/**/ports.ts"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/l7-members.json"
+ },
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": true,
+ "disableTypeChecks": true,
+ "incremental": false
+}

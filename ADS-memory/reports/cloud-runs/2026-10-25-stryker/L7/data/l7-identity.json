@@ -1,0 +1,59 @@
+{
+ "testRunner": "tap",
+ "tap": {
+  "nodeArgs": [
+   "--import",
+   "tsx",
+   "--experimental-test-module-mocks",
+   "--test-reporter=tap"
+  ],
+  "testFiles": [
+   "apps/website/src/features/identity/__tests__/api-key-secret.test.ts",
+   "apps/website/src/features/identity/__tests__/api-key-service.test.ts",
+   "apps/website/src/features/identity/__tests__/boot-session-token.test.ts",
+   "apps/website/src/features/identity/__tests__/builtin-role-grants.test.ts",
+   "apps/website/src/features/identity/__tests__/change-username-tool.test.ts",
+   "apps/website/src/features/identity/__tests__/default-credential-exposure.test.ts",
+   "apps/website/src/features/identity/__tests__/delete-user-service.test.ts",
+   "apps/website/src/features/identity/__tests__/hasher.test.ts",
+   "apps/website/src/features/identity/__tests__/permission-migrations.test.ts",
+   "apps/website/src/features/identity/__tests__/repo.contract.test.ts",
+   "apps/website/src/features/identity/__tests__/repo.sqlite-kernel.test.ts",
+   "apps/website/src/features/identity/__tests__/repo.sqlite.test.ts",
+   "apps/website/src/features/identity/__tests__/reset-admin-password-self-verified.test.ts",
+   "apps/website/src/features/identity/__tests__/role-manage-permission.test.ts",
+   "apps/website/src/features/identity/__tests__/site-key-permission.test.ts",
+   "apps/website/src/features/identity/__tests__/tool-registrations.human-confirm.test.ts",
+   "apps/website/src/features/identity/__tests__/user-purge.test.ts"
+  ]
+ },
+ "mutate": [
+  "apps/website/src/features/identity/**/*.ts",
+  "!apps/website/src/features/identity/**/__tests__/**",
+  "!apps/website/src/features/identity/**/*.test.ts",
+  "!apps/website/src/features/identity/**/*.d.ts",
+  "!apps/website/src/features/identity/**/types.ts",
+  "!apps/website/src/features/identity/index.ts",
+  "!apps/website/src/features/identity/**/*-types.ts",
+  "!apps/website/src/features/identity/**/ports.ts"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/l7-identity.json"
+ },
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": true,
+ "disableTypeChecks": true,
+ "incremental": false
+}

@@ -1,0 +1,112 @@
+file|mutants|killed|surv|nocov|timeout|score
+settings/chart-provider.ts|5|0|0|5|0|0.0
+settings/visitor-tools-agent-tools.ts|31|17|14|0|0|54.8
+settings/tool-registrations.ts|105|82|23|0|0|78.1
+settings/feature-flags.ts|30|24|6|0|0|80.0
+settings/site-title-write.ts|127|103|24|0|0|81.1
+settings/admin-interface.ts|36|30|6|0|0|83.3
+settings/form-destination.ts|13|11|2|0|0|84.6
+settings/publish-content.ts|156|132|24|0|0|84.6
+settings/site-timezone.ts|32|29|3|0|0|90.6
+settings/visitor-tools-registrations.ts|89|78|8|0|3|91.0
+settings/repo.ts|142|132|10|0|0|93.0
+settings/form-delivery.ts|200|186|14|0|0|93.0
+settings/chat-execution-write.ts|101|96|5|0|0|95.0
+settings/site-title.ts|85|81|4|0|0|95.3
+settings/visitor-tools-write.ts|60|58|2|0|0|96.7
+settings/visitor-tools-service.ts|159|154|5|0|0|96.9
+settings/mail-provider.ts|85|83|2|0|0|97.6
+settings/visitor-tools-configure.ts|98|89|2|0|7|98.0
+settings/form-delivery-write.ts|22|22|0|0|0|100.0
+settings/mail-sender.ts|22|22|0|0|0|100.0
+settings/site-title-preservation.ts|11|11|0|0|0|100.0
+settings/ui-locales-tool.ts|24|24|0|0|0|100.0
+settings/visitor-tools-permissions.ts|4|4|0|0|0|100.0
+settings/repo.sqlite.ts|1|1|0|0|0|100.0
+settings/site-title-preservation.sqlite.ts|1|1|0|0|0|100.0
+
+### settings/chart-provider.ts (5 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":3,"ArrayDeclaration":1}
+N 12:18 BlockStatement: ): Promise<void> { => {}
+N 13:41 ObjectLiteral: return ensureSettingDefinitions(deps, { => {}
+N 15:18 ArrayDeclaration: definitions: [{ key: "provider", schema: { type: "string" }, defaultValue: "plugin.rechart => []
+N 15:19 ObjectLiteral: definitions: [{ key: "provider", schema: { type: "string" }, defaultValue: "plugin.rechart => {}
+N 15:46 ObjectLiteral: definitions: [{ key: "provider", schema: { type: "string" }, defaultValue: "plugin.rechart => {}
+
+### settings/form-delivery.ts (14 survivors/no-cov)
+by mutator: {"Regex":12,"ConditionalExpression":1,"EqualityOperator":1}
+S 34:20 Regex: const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey|credentia => /token|secret|password|passphrase|apikey|privateke
+S 34:20 Regex: const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey|credentia => /token|secret|password|passphrase|apikey|privateke
+S 34:20 Regex: const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey|credentia => /token|secret|password|passphrase|apikey|privateke
+S 37:43 Regex: const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./,  => /\s*bearer\s+\S/i
+S 37:43 Regex: const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./,  => /^\S*bearer\s+\S/i
+S 37:43 Regex: const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./,  => /^\s*bearer\s\S/i
+S 38:21 Regex: const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i; => /\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i
+S 38:21 Regex: const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i; => /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*/i
+S 38:21 Regex: const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i; => /^\S*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i
+S 38:21 Regex: const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i; => /^\s*basic\s([A-Za-z0-9+/]+={0,2})\s*$/i
+
+### settings/publish-content.ts (24 survivors/no-cov)
+by mutator: {"Regex":12,"MethodExpression":1,"ConditionalExpression":5,"ArrayDeclaration":2,"LogicalOperator":2,"ObjectLiteral":2}
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+)
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d)
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 69:20 Regex: const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1 => /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+
+S 74:37 Regex: if (typeof value !== "string" || !/^[a-z][a-z\d+.-]*:\/\//i.test(value.trim())) return fal => /[a-z][a-z\d+.-]*:\/\//i
+S 74:37 Regex: if (typeof value !== "string" || !/^[a-z][a-z\d+.-]*:\/\//i.test(value.trim())) return fal => /^[a-z][a-z\D+.-]*:\/\//i
+
+### settings/repo.ts (10 survivors/no-cov)
+by mutator: {"ConditionalExpression":10}
+S 45:7 ConditionalExpression: if (text == null) return null; => false
+S 64:19 ConditionalExpression: defaultValue: row.default_json == null ? null : (JSON.parse(row.default_json) as JsonValue => false
+S 86:19 ConditionalExpression: default_json: record.defaultValue == null ? null : JSON.stringify(record.defaultValue), => false
+S 104:16 ConditionalExpression: valueJson: row.value_json == null ? null : (JSON.parse(row.value_json) as JsonValue), => false
+S 137:17 ConditionalExpression: beforeJson: row.before_json == null ? null : (JSON.parse(row.before_json) as JsonValue), => false
+S 138:16 ConditionalExpression: afterJson: row.after_json == null ? null : (JSON.parse(row.after_json) as JsonValue), => false
+S 164:32 ConditionalExpression: .where("workspace_id", required.workspaceId === null ? "is" : "=", required.workspaceId) => true
+S 195:32 ConditionalExpression: .where("workspace_id", required.workspaceId === null ? "is" : "=", required.workspaceId) => true
+S 360:26 ConditionalExpression: before_json: record.beforeJson == null ? null : JSON.stringify(record.beforeJson), => false
+S 361:25 ConditionalExpression: after_json: record.afterJson == null ? null : JSON.stringify(record.afterJson), => false
+
+### settings/site-title-write.ts (24 survivors/no-cov)
+by mutator: {"ConditionalExpression":9,"OptionalChaining":1,"ObjectLiteral":4,"BlockStatement":3,"EqualityOperator":2,"LogicalOperator":4,"ArrowFunction":1}
+S 60:18 ConditionalExpression: workspaceId: required.input.scope === "global" ? null : required.input.workspaceId ?? null => false
+S 62:40 ConditionalExpression: if (required.input.value === true && definition?.namespace === "site.assistant" && definit => true
+S 62:40 OptionalChaining: if (required.input.value === true && definition?.namespace === "site.assistant" && definit => definition.namespace
+S 134:59 ObjectLiteral: const definition = await resolveDefinitionRaw({ repo }, { => {}
+S 132:35 BlockStatement: }, _optional = {}): Promise<void> { => {}
+S 135:62 ConditionalExpression: namespace: input.namespace, key: input.key, workspaceId: input.scope === "global" ? null : => true
+S 135:62 ConditionalExpression: namespace: input.namespace, key: input.key, workspaceId: input.scope === "global" ? null : => false
+S 135:62 EqualityOperator: namespace: input.namespace, key: input.key, workspaceId: input.scope === "global" ? null : => input.scope !== "global"
+S 135:96 LogicalOperator: namespace: input.namespace, key: input.key, workspaceId: input.scope === "global" ? null : => input.workspaceId && null
+S 152:35 BlockStatement: }, _optional = {}): Promise<void> { => {}
+
+### settings/tool-registrations.ts (23 survivors/no-cov)
+by mutator: {"MethodExpression":1,"ConditionalExpression":8,"LogicalOperator":2,"ArrayDeclaration":5,"ObjectLiteral":4,"EqualityOperator":3}
+S 75:6 MethodExpression: ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"), => ASSISTANT_EXECUTION_APPROVAL_SETTINGS
+S 75:59 ConditionalExpression: ...ASSISTANT_EXECUTION_APPROVAL_SETTINGS.filter(rule => rule.key !== "localCli.agentId"), => true
+S 89:10 LogicalOperator: return namespace === ADMIN_INTERFACE_NAMESPACE && ALWAYS_ASK_INTERFACE_KEYS.has(key); => namespace === ADMIN_INTERFACE_NAMESPACE || ALWAYS_
+S 89:10 ConditionalExpression: return namespace === ADMIN_INTERFACE_NAMESPACE && ALWAYS_ASK_INTERFACE_KEYS.has(key); => true
+S 99:64 ArrayDeclaration: extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: "core.consent => ["Stryker was here"]
+S 101:74 ObjectLiteral: ...DEDICATED_SETTINGS_WRITERS.map(({ namespace, key, reason }) => ({ namespace, key, reaso => {}
+S 115:69 ObjectLiteral: const identity = await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }); => {}
+S 119:18 ConditionalExpression: title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this as => true
+S 119:18 ConditionalExpression: title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this as => false
+S 119:18 EqualityOperator: title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this as => toolId !== "settings_set_value"
+
+### settings/visitor-tools-agent-tools.ts (14 survivors/no-cov)
+by mutator: {"ArrayDeclaration":3,"ObjectLiteral":10,"BooleanLiteral":1}
+S 11:75 ArrayDeclaration: inputSchema: { type: "object", additionalProperties: false, required: ["toolId", "expected => []
+S 11:122 ObjectLiteral: inputSchema: { type: "object", additionalProperties: false, required: ["toolId", "expected => {}
+S 12:15 ObjectLiteral: toolId: { type: "string", pattern: "^[a-z][a-z0-9_]{0,127}$" }, expectedRevisionSeq: { typ => {}
+S 12:92 ObjectLiteral: toolId: { type: "string", pattern: "^[a-z][a-z0-9_]{0,127}$" }, expectedRevisionSeq: { typ => {}
+S 13:37 ArrayDeclaration: mode: { type: "string", enum: ["auto", "ask", "off"] }, => []
+S 13:13 ObjectLiteral: mode: { type: "string", enum: ["auto", "ask", "off"] }, => {}
+S 14:15 ObjectLiteral: limits: { type: "object", additionalProperties: false, minProperties: 1, properties: { => {}
+S 14:55 BooleanLiteral: limits: { type: "object", additionalProperties: false, minProperties: 1, properties: { => true
+S 14:92 ObjectLiteral: limits: { type: "object", additionalProperties: false, minProperties: 1, properties: { => {}
+S 15:23 ObjectLiteral: perIpPerHour: { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER }, => {}

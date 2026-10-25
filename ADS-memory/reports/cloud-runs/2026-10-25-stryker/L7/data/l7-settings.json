@@ -1,0 +1,11 @@
+{
+  "testRunner": "tap",
+  "tap": { "nodeArgs": ["--import","tsx","--experimental-test-module-mocks","--test-reporter=tap"], "testFiles": ["apps/website/src/features/settings/__tests__/**/*.test.ts"] },
+  "mutate": ["apps/website/src/features/settings/**/*.ts","!apps/website/src/features/settings/**/__tests__/**","!apps/website/src/features/settings/**/*.test.ts","!apps/website/src/features/settings/**/*.d.ts","!apps/website/src/features/settings/**/types.ts","!apps/website/src/features/settings/index.ts","!apps/website/src/features/settings/**/*-types.ts","!apps/website/src/features/settings/**/ports.ts"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 3,
+  "reporters": ["json","clear-text","progress-append-only"],
+  "jsonReporter": { "fileName": "/root/stryker/reports/l7-settings.json" },
+  "mutator": { "excludedMutations": ["StringLiteral"] },
+  "tempDirName": ".stryker-tmp", "cleanTempDir": true, "disableTypeChecks": true, "incremental": false
+}

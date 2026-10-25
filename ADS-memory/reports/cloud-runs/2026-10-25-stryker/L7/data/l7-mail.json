@@ -1,0 +1,49 @@
+{
+ "testRunner": "tap",
+ "tap": {
+  "nodeArgs": [
+   "--import",
+   "tsx",
+   "--experimental-test-module-mocks",
+   "--test-reporter=tap"
+  ],
+  "testFiles": [
+   "apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts",
+   "apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts",
+   "apps/website/src/features/mail/__tests__/capture-auth.dialects.test.ts",
+   "apps/website/src/features/mail/__tests__/feedback-route.test.ts",
+   "apps/website/src/features/mail/__tests__/repos.dialects.test.ts",
+   "apps/website/src/features/mail/__tests__/retention.unit.test.ts",
+   "apps/website/src/features/mail/__tests__/suppression-admin.repo.dialects.test.ts"
+  ]
+ },
+ "mutate": [
+  "apps/website/src/features/mail/**/*.ts",
+  "!apps/website/src/features/mail/**/__tests__/**",
+  "!apps/website/src/features/mail/**/*.test.ts",
+  "!apps/website/src/features/mail/**/*.d.ts",
+  "!apps/website/src/features/mail/**/types.ts",
+  "!apps/website/src/features/mail/index.ts",
+  "!apps/website/src/features/mail/**/*-types.ts",
+  "!apps/website/src/features/mail/**/ports.ts"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/l7-mail.json"
+ },
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": true,
+ "disableTypeChecks": true,
+ "incremental": false
+}

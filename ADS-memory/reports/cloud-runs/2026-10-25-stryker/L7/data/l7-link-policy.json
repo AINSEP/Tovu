@@ -1,0 +1,17 @@
+{
+  "testRunner": "tap",
+  "tap": {
+    "nodeArgs": ["--import", "tsx", "--experimental-test-module-mocks", "--test-reporter=tap"],
+    "testFiles": ["apps/website/src/features/member-login/__tests__/link-policy.test.ts"]
+  },
+  "mutate": ["apps/website/src/features/member-login/link-policy.ts"],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": ["json", "clear-text", "progress-append-only"],
+  "jsonReporter": { "fileName": "/root/stryker/reports/l7-link-policy.json" },
+  "mutator": { "excludedMutations": ["StringLiteral"] },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "disableTypeChecks": true,
+  "incremental": false
+}

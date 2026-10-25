@@ -1,0 +1,58 @@
+file|mutants|killed|surv|nocov|timeout|score
+member-login/ready-providers.ts|11|0|0|11|0|0.0
+member-login/providers.ts|190|106|70|14|0|55.8
+member-login/oidc-login.ts|242|152|75|15|0|62.8
+member-login/link-service.ts|147|112|27|8|0|76.2
+member-login/credentials.ts|30|25|5|0|0|83.3
+
+### member-login/link-service.ts (35 survivors/no-cov)
+by mutator: {"ObjectLiteral":11,"ArrowFunction":1,"BlockStatement":3,"LogicalOperator":2,"ConditionalExpression":14,"BooleanLiteral":2,"OptionalChaining":1,"EqualityOperator":1}
+N 41:129 ObjectLiteral: if (target.subject && (!target.member || target.subject.providerId !== input.identity.prov => {}
+N 42:124 ObjectLiteral: if (target.pair && !target.pair.unlinkedAt && target.pair.subject !== input.identity.subje => {}
+N 57:81 ObjectLiteral: if (!Number.isFinite(Date.parse(input.startedAt))) throw new MemberLoginError({ code: "LOG => {}
+N 63:98 ObjectLiteral: if (proof.email !== (target.member?.email ?? input.identity.email)) throw new MemberLoginE => {}
+N 64:82 ObjectLiteral: if (target.member && proof.id !== target.member.id) throw new MemberLoginError({ code: "LO => {}
+N 150:29 ArrowFunction: return deps.transaction(async () => linkInTransaction(deps, input, proof)); => () => undefined
+N 163:11 BlockStatement: } catch { => {}
+N 164:32 ObjectLiteral: throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" }); => {}
+S 41:26 LogicalOperator: if (target.subject && (!target.member || target.subject.providerId !== input.identity.prov => !target.member && target.subject.providerId !== in
+S 40:79 BlockStatement: function assertSubjectOwner(target: LoginTarget, input: MemberLoginLinkInput) { => {}
+
+### member-login/oidc-login.ts (90 survivors/no-cov)
+by mutator: {"ObjectLiteral":23,"BlockStatement":2,"BooleanLiteral":2,"ConditionalExpression":36,"Regex":2,"LogicalOperator":12,"ArrayDeclaration":2,"OptionalChaining":1,"MethodExpression":2,"EqualityOperator":7,"ArithmeticOperator":1}
+N 74:131 ObjectLiteral: if (client.authMethod !== provider.clientAuthentication || !client.clientId || !client.cli => {}
+N 118:57 ObjectLiteral: if (bytes.length !== 32) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" }); => {}
+N 126:11 BlockStatement: } catch { => {}
+N 127:32 ObjectLiteral: throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" }); => {}
+N 140:54 BooleanLiteral: if (email.length > 320 || /\s/.test(email)) return false; => true
+N 142:47 BooleanLiteral: if (parts.length !== 2 || !parts[0]) return false; => true
+N 151:54 ObjectLiteral: if (!validEmail(email)) throw new MemberLoginError({ code: "LOGIN_INVALID" }); => {}
+N 183:118 ObjectLiteral: if (current.version !== config.version || current.redirectUri !== config.redirectUri) thro => {}
+N 215:86 ObjectLiteral: || login.connectMemberId !== input.connectMemberId) throw new MemberLoginError({ code: "LO => {}
+N 217:100 ObjectLiteral: if (!Number.isFinite(expiresAt) || expiresAt <= deps.clock.nowMs()) throw new MemberLoginE => {}
+
+### member-login/providers.ts (84 survivors/no-cov)
+by mutator: {"ObjectLiteral":16,"ArrayDeclaration":3,"ConditionalExpression":29,"EqualityOperator":7,"Regex":9,"LogicalOperator":11,"MethodExpression":2,"BlockStatement":1,"ArrowFunction":2,"OptionalChaining":3,"BooleanLiteral":1}
+N 15:101 ObjectLiteral: if (typeof value !== "string" || !value.trim() || value.length > 2048) throw new MemberLog => {}
+N 27:54 ArrayDeclaration: const domains = value.authoritativeEmailDomains ?? []; => ["Stryker was here"]
+N 28:82 ObjectLiteral: if (!Array.isArray(domains) || domains.length > 16) throw new MemberLoginError({ code: "LO => {}
+N 29:111 ObjectLiteral: if (!domains.every(domain => typeof domain === "string" && DOMAIN.test(domain))) throw new => {}
+N 31:102 ObjectLiteral: if (claim !== undefined && !/^[a-z][a-z0-9_]{0,63}$/.test(text(claim))) throw new MemberLo => {}
+N 36:108 ObjectLiteral: if (!Array.isArray(value) || value.length !== 3 || new Set(value).size !== 3) throw new Me => {}
+N 42:95 ObjectLiteral: if (!value || typeof value !== "object" || Array.isArray(value)) throw new MemberLoginErro => {}
+N 45:48 ObjectLiteral: if (!ID.test(id)) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" }); => {}
+N 60:65 ObjectLiteral: if (required.raw.length > 32768) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" }) => {}
+N 62:125 ObjectLiteral: if (file.schemaVersion !== 1 || !Array.isArray(file.providers) || file.providers.length >  => {}
+
+### member-login/ready-providers.ts (11 survivors/no-cov)
+by mutator: {"BlockStatement":2,"ObjectLiteral":3,"ArrowFunction":2,"MethodExpression":1,"ConditionalExpression":2,"EqualityOperator":1}
+N 13:123 BlockStatement: }, _options = {}): (input: { workspaceId: string }, options?: Record<string, never>) => Pr => {}
+N 14:52 BlockStatement: return async ({ workspaceId }, _options = {}) => { => {}
+N 15:62 ObjectLiteral: const bundledProviders = await loadBundledLoginProviders({ sourceRoot: required.sourceRoot => {}
+N 16:48 ObjectLiteral: const providers = await loadLoginProviders({ workspaceId, bundledProviders, loadContributi => {}
+N 17:56 ArrowFunction: const configured = await Promise.all(providers.map(async provider => => () => undefined
+N 18:33 ObjectLiteral: await hasLoginCredentials({ deps: required.credentials, workspaceId, provider }) ? provide => {}
+N 19:12 MethodExpression: return configured.filter(provider => provider !== null); => configured
+N 19:30 ArrowFunction: return configured.filter(provider => provider !== null); => () => undefined
+N 19:42 ConditionalExpression: return configured.filter(provider => provider !== null); => true
+N 19:42 ConditionalExpression: return configured.filter(provider => provider !== null); => false
