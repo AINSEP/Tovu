@@ -1,0 +1,1361 @@
+content/agent-plugins/cloudflare/lib/api.mjs:11:68 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:5:38 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:7:29 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:17:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:17:7 LogicalOperator -> status === 401 && status === 403
+content/agent-plugins/cloudflare/lib/api.mjs:17:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:17:25 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:25:44 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:27:53 LogicalOperator -> jwt && credential.token
+content/agent-plugins/cloudflare/lib/api.mjs:29:62 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:31:33 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/api.mjs:29:75 LogicalOperator -> options.timeoutMs && kit.timeouts.QUICK
+content/agent-plugins/cloudflare/lib/api.mjs:31:9 LogicalOperator -> options.allowMissing || resp.status === 404
+content/agent-plugins/cloudflare/lib/api.mjs:42:24 EqualityOperator -> page < maxPages
+content/agent-plugins/cloudflare/lib/api.mjs:48:11 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:48:11 EqualityOperator -> items.length >= maxPages * perPage
+content/agent-plugins/cloudflare/lib/api.mjs:59:84 MethodExpression -> Math.min(previous.pages, Number(info?.total_pages)
+content/agent-plugins/cloudflare/lib/api.mjs:59:109 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/api.mjs:59:109 LogicalOperator -> Number(info?.total_pages) && 0
+content/agent-plugins/cloudflare/lib/api.mjs:59:109 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:68:9 BlockStatement -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:62:70 EqualityOperator -> pagination.pages >= 1
+content/agent-plugins/cloudflare/lib/api.mjs:62:51 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:70:19 OptionalChaining -> json.success
+content/agent-plugins/cloudflare/lib/api.mjs:77:61 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/api.mjs:78:140 OptionalChaining -> item.message
+content/agent-plugins/cloudflare/lib/api.mjs:83:19 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/api.mjs:85:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/api.mjs:86:12 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/api.mjs:93:50 ArithmeticOperator -> page / (info.per_page ?? perPage)
+content/agent-plugins/cloudflare/lib/api.mjs:93:58 LogicalOperator -> info.per_page && perPage
+content/agent-plugins/cloudflare/lib/assets.mjs:15:10 MethodExpression -> createHash('sha256').update(`${Buffer.from(data).t
+content/agent-plugins/cloudflare/lib/assets.mjs:23:38 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/assets.mjs:23:38 EqualityOperator -> Object.keys(responseHeaders).length >= 0
+content/agent-plugins/cloudflare/lib/assets.mjs:24:34 MethodExpression -> normalized
+content/agent-plugins/cloudflare/lib/assets.mjs:24:60 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/assets.mjs:42:47 LogicalOperator -> file.contentType && 'application/octet-stream'
+content/agent-plugins/cloudflare/lib/assets.mjs:56:18 ArithmeticOperator -> Math.ceil(file.data.length / 3) * 4 + Buffer.byteL
+content/agent-plugins/cloudflare/lib/assets.mjs:56:18 ArithmeticOperator -> Math.ceil(file.data.length / 3) / 4
+content/agent-plugins/cloudflare/lib/assets.mjs:56:28 ArithmeticOperator -> file.data.length * 3
+content/agent-plugins/cloudflare/lib/assets.mjs:56:18 ArithmeticOperator -> Math.ceil(file.data.length / 3) * 4 - Buffer.byteL
+content/agent-plugins/cloudflare/lib/assets.mjs:57:9 EqualityOperator -> size + 2 >= maxBytes
+content/agent-plugins/cloudflare/lib/assets.mjs:57:9 ArithmeticOperator -> size - 2
+content/agent-plugins/cloudflare/lib/assets.mjs:58:37 EqualityOperator -> bytes + size >= maxBytes
+content/agent-plugins/cloudflare/lib/dns.mjs:14:47 MethodExpression -> createHash('sha256').update(value).digest('hex')
+content/agent-plugins/cloudflare/lib/dns.mjs:14:17 ArrowFunction -> () => undefined
+content/agent-plugins/cloudflare/lib/dns.mjs:19:39 Regex -> /https?:\/\//
+content/agent-plugins/cloudflare/lib/dns.mjs:19:39 Regex -> /^https:\/\//
+content/agent-plugins/cloudflare/lib/dns.mjs:28:20 MethodExpression -> records
+content/agent-plugins/cloudflare/lib/dns.mjs:28:45 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:28:101 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/dns.mjs:28:101 LogicalOperator -> record.type === 'CAA' || hostname.endsWith(`.${rec
+content/agent-plugins/cloudflare/lib/dns.mjs:28:101 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:28:101 EqualityOperator -> record.type !== 'CAA'
+content/agent-plugins/cloudflare/lib/dns.mjs:31:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/dns.mjs:32:21 MethodExpression -> relevant
+content/agent-plugins/cloudflare/lib/dns.mjs:32:47 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:32:47 LogicalOperator -> record.name === hostname || ['A', 'AAAA', 'CNAME']
+content/agent-plugins/cloudflare/lib/dns.mjs:32:47 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:33:17 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:33:104 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:33:77 LogicalOperator -> record.type === 'CNAME' || record.content.replace(
+content/agent-plugins/cloudflare/lib/dns.mjs:33:77 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/dns.mjs:34:34 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/dns.mjs:36:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/dns.mjs:36:42 BooleanLiteral -> exact
+content/agent-plugins/cloudflare/lib/dns.mjs:36:103 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/dns.mjs:36:166 BooleanLiteral -> false
+content/agent-plugins/cloudflare/lib/domain-status.mjs:6:16 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/domain-status.mjs:7:25 EqualityOperator -> attempt <= attempts
+content/agent-plugins/cloudflare/lib/domain-status.mjs:11:9 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/domain-status.mjs:11:22 ArrowFunction -> () => undefined
+content/agent-plugins/cloudflare/lib/domain-status.mjs:11:31 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/domain-status.mjs:11:31 EqualityOperator -> state.status !== 'ready'
+content/agent-plugins/cloudflare/lib/domain-status.mjs:19:120 BooleanLiteral -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:25:42 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domain-status.mjs:27:81 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/domain-status.mjs:25:68 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 LogicalOperator -> binding.hostname === hostname && binding.service =
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 LogicalOperator -> binding.hostname === hostname && binding.service =
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 LogicalOperator -> binding.hostname === hostname || binding.service =
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:51 EqualityOperator -> binding.hostname !== hostname
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:84 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:125 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:165 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:37:185 BooleanLiteral -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:38:85 OptionalChaining -> pack.hosts.some
+content/agent-plugins/cloudflare/lib/domain-status.mjs:38:129 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domain-status.mjs:42:7 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:42:7 EqualityOperator -> host !== hostname
+content/agent-plugins/cloudflare/lib/domain-status.mjs:43:10 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:43:10 LogicalOperator -> host.startsWith('*.') && hostname.split('.').lengt
+content/agent-plugins/cloudflare/lib/domain-status.mjs:43:10 LogicalOperator -> host.startsWith('*.') || hostname.split('.').lengt
+content/agent-plugins/cloudflare/lib/domain-status.mjs:43:10 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:43:35 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:46:89 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domain-status.mjs:47:96 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domain-status.mjs:47:96 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/domain-status.mjs:47:96 EqualityOperator -> domain.status !== 'active'
+content/agent-plugins/cloudflare/lib/domains.mjs:14:65 LogicalOperator -> zoneId && api.zoneId
+content/agent-plugins/cloudflare/lib/domains.mjs:22:91 ArrowFunction -> () => undefined
+content/agent-plugins/cloudflare/lib/domains.mjs:22:104 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domains.mjs:32:21 MethodExpression -> [...bindings.changes, ...dns.changes]
+content/agent-plugins/cloudflare/lib/domains.mjs:32:76 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domains.mjs:39:46 ArrowFunction -> () => undefined
+content/agent-plugins/cloudflare/lib/domains.mjs:39:64 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domains.mjs:40:7 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domains.mjs:40:78 MethodExpression -> Object.keys(value)
+content/agent-plugins/cloudflare/lib/domains.mjs:55:33 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domains.mjs:63:71 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domains.mjs:77:7 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domains.mjs:77:7 LogicalOperator -> change.method === 'DELETE' || change.path.includes
+content/agent-plugins/cloudflare/lib/domains.mjs:82:44 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/domains.mjs:91:63 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/domains.mjs:92:117 BooleanLiteral -> true
+content/agent-plugins/cloudflare/lib/domains.mjs:93:51 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:12:14 Regex -> /^[a-z0-9][a-z0-9-]{0,99}/
+content/agent-plugins/cloudflare/lib/forms.mjs:11:19 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:32:32 EqualityOperator -> forms.length >= MAX_FORMS
+content/agent-plugins/cloudflare/lib/forms.mjs:40:37 EqualityOperator -> secret.length <= 32
+content/agent-plugins/cloudflare/lib/forms.mjs:44:86 MethodExpression -> String(form?.slug)
+content/agent-plugins/cloudflare/lib/forms.mjs:44:18 OptionalChaining -> form.slug
+content/agent-plugins/cloudflare/lib/forms.mjs:44:93 OptionalChaining -> form.slug
+content/agent-plugins/cloudflare/lib/forms.mjs:52:66 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:52:66 EqualityOperator -> form.fields.length >= MAX_FIELDS
+content/agent-plugins/cloudflare/lib/forms.mjs:57:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:57:43 Regex -> /^\/(?![/\\])[^\\\s]{0,499}/
+content/agent-plugins/cloudflare/lib/forms.mjs:69:34 EqualityOperator -> max > 1
+content/agent-plugins/cloudflare/lib/forms.mjs:69:46 EqualityOperator -> max < 5000
+content/agent-plugins/cloudflare/lib/forms.mjs:69:46 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:89:9 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:101:60 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/forms.mjs:108:68 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/forms.mjs:108:103 Regex -> /CLOUDFLARE_D1_PERMISSION_REQUIRED: /
+content/agent-plugins/cloudflare/lib/forms.mjs:112:7 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:121:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:121:7 LogicalOperator -> typeof database?.uuid !== 'string' && !database.uu
+content/agent-plugins/cloudflare/lib/forms.mjs:121:14 OptionalChaining -> database.uuid
+content/agent-plugins/cloudflare/lib/forms.mjs:130:10 OptionalChaining -> error.details.alreadyExists
+content/agent-plugins/cloudflare/lib/forms.mjs:136:86 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:137:74 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/forms.mjs:137:80 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/forms.mjs:171:31 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/cloudflare/lib/forms.mjs:172:72 Regex -> /^\.\//
+content/agent-plugins/cloudflare/lib/forms.mjs:195:78 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:204:45 OptionalChaining -> destination.url
+content/agent-plugins/cloudflare/lib/forms.mjs:205:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:205:49 EqualityOperator -> destination.secret.length <= 32
+content/agent-plugins/cloudflare/lib/forms.mjs:209:9 BlockStatement -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:213:149 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:219:30 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:225:40 BlockStatement -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:230:32 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:230:67 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:230:53 OptionalChaining -> item.seq
+content/agent-plugins/cloudflare/lib/forms.mjs:230:32 LogicalOperator -> Number.isSafeInteger(item?.seq) || typeof item.id 
+content/agent-plugins/cloudflare/lib/forms.mjs:230:120 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:230:98 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:230:98 EqualityOperator -> item.id.length >= 0
+content/agent-plugins/cloudflare/lib/forms.mjs:230:120 EqualityOperator -> item.id.length < 64
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 LogicalOperator -> typeof item.formSlug === 'string' && item.answers 
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 LogicalOperator -> typeof item.formSlug === 'string' && item.answers 
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 LogicalOperator -> typeof item.formSlug === 'string' || item.answers 
+content/agent-plugins/cloudflare/lib/forms.mjs:231:28 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:231:65 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:231:90 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:233:27 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/forms.mjs:233:27 LogicalOperator -> hasRowIdentity(item) || hasRowBody(item)
+content/agent-plugins/cloudflare/lib/forms.mjs:242:17 OptionalChaining -> page.items
+content/agent-plugins/cloudflare/lib/forms.mjs:243:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:243:7 LogicalOperator -> !Array.isArray(items) && items.length > 100
+content/agent-plugins/cloudflare/lib/forms.mjs:243:32 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/forms.mjs:243:32 EqualityOperator -> items.length >= 100
+content/agent-plugins/cloudflare/lib/forms.mjs:249:116 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/forms.mjs:250:33 OptionalChaining -> result.acknowledged
+content/agent-plugins/cloudflare/lib/zones.mjs:5:16 MethodExpression -> String(domain)
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 LogicalOperator -> (name.length > 253 || !name.includes('.')) && !nam
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 LogicalOperator -> name.length > 253 && !name.includes('.')
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:6:7 EqualityOperator -> name.length >= 253
+content/agent-plugins/cloudflare/lib/zones.mjs:6:52 MethodExpression -> name.split('.').some(label => /^[a-z0-9](?:[a-z0-9
+content/agent-plugins/cloudflare/lib/zones.mjs:6:83 Regex -> /[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+content/agent-plugins/cloudflare/lib/zones.mjs:6:83 Regex -> /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?/
+content/agent-plugins/cloudflare/lib/zones.mjs:6:83 Regex -> /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])$/
+content/agent-plugins/cloudflare/lib/zones.mjs:14:97 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/lib/zones.mjs:15:59 ConditionalExpression -> true
+content/agent-plugins/cloudflare/lib/zones.mjs:16:8 OptionalChaining -> selected.id
+content/agent-plugins/cloudflare/lib/zones.mjs:22:77 BlockStatement -> {}
+content/agent-plugins/cloudflare/lib/zones.mjs:23:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:23:7 LogicalOperator -> zone?.name !== domain && zone.account?.id !== api.
+content/agent-plugins/cloudflare/lib/zones.mjs:23:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:23:7 OptionalChaining -> zone.name
+content/agent-plugins/cloudflare/lib/zones.mjs:23:32 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:23:32 OptionalChaining -> zone.account.id
+content/agent-plugins/cloudflare/lib/zones.mjs:24:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:24:7 LogicalOperator -> zone.status !== 'active' && zone.type !== 'full'
+content/agent-plugins/cloudflare/lib/zones.mjs:24:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/lib/zones.mjs:24:35 ConditionalExpression -> false
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:13:21 Regex -> /\/forms\/([a-z0-9][a-z0-9-]{0,99})\/submit\/?$/
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:13:21 Regex -> /^\/forms\/([a-z0-9][a-z0-9-]{0,99})\/submit\/?/
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:21:175 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:22:185 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:50:17 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:72:57 MethodExpression -> value
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:97:22 MethodExpression -> type.endsWith('application/x-www-form-urlencoded')
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:110:7 EqualityOperator -> entries.length >= LIMITS.maxFields
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:116:7 EqualityOperator -> Number(request.headers.get('Content-Length')) >= L
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:122:9 EqualityOperator -> size >= LIMITS.maxBodyBytes
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:133:9 BlockStatement -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:153:47 ConditionalExpression -> true
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:153:47 MethodExpression -> value
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:156:31 EqualityOperator -> value.length >= max
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:162:23 ArithmeticOperator -> Math.floor(nowMs / 1000 / LIMITS.windowSeconds) / 
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:162:34 ArithmeticOperator -> nowMs / 1000 * LIMITS.windowSeconds
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:162:34 ArithmeticOperator -> nowMs * 1000
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:185:59 MethodExpression -> referer.pathname.endsWith('//')
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:186:11 BlockStatement -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:200:48 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:204:49 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:211:7 ConditionalExpression -> false
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:211:37 EqualityOperator -> secret.length <= 32
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:217:23 EqualityOperator -> index <= left.length
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:222:77 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:224:80 ObjectLiteral -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:237:50 EqualityOperator -> ids.length < LIMITS.maxPage
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:237:82 MethodExpression -> ids.some(id => typeof id === 'string' && id.length
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:237:98 ConditionalExpression -> true
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:237:141 EqualityOperator -> id.length < 64
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:243:46 BlockStatement -> {}
+content/agent-plugins/cloudflare/worker/forms-receiver.mjs:245:60 ObjectLiteral -> {}
+content/agent-plugins/fly/deploy-configs/fly.mjs:42:10 Regex -> /[A-Za-z_][A-Za-z0-9_]*$/
+content/agent-plugins/fly/deploy-configs/fly.mjs:61:18 MethodExpression -> options.region
+content/agent-plugins/fly/deploy-ops/fly.mjs:15:10 MethodExpression -> started.some(m => (m.checks ?? []).every(c => c.st
+content/agent-plugins/fly/deploy-ops/fly.mjs:29:101 MethodExpression -> machines
+content/agent-plugins/fly/deploy-ops/fly.mjs:45:130 EqualityOperator -> String(typeof e === "string" ? e : e.message ?? e.
+content/agent-plugins/fly/deploy-ops/fly.mjs:50:63 OptionalChaining -> response.json.apps
+content/agent-plugins/fly/deploy-ops/fly.mjs:45:86 EqualityOperator -> entries.length >= limit
+content/agent-plugins/fly/deploy-ops/fly.mjs:58:7 ConditionalExpression -> false
+content/agent-plugins/fly/deploy-ops/fly.mjs:53:38 MethodExpression -> apps
+content/agent-plugins/fly/deploy-ops/fly.mjs:64:66 OptionalChaining -> response.json.secrets
+content/agent-plugins/fly/deploy-ops/fly.mjs:65:34 MethodExpression -> secrets.every(s => !s || typeof s.name !== "string
+content/agent-plugins/fly/deploy-ops/fly.mjs:66:239 EqualityOperator -> secrets.length >= 500
+content/agent-plugins/fly/deploy-ops/fly.mjs:71:8 MethodExpression -> (await listSecrets(ctx, {   target })).secrets.eve
+content/agent-plugins/fly/deploy-ops/fly.mjs:79:33 OptionalChaining -> response.json.version
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:26:14 Regex -> /^#>> (!?)([a-z0-9-]+)/
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:26:14 Regex -> /#>> (!?)([a-z0-9-]+)$/
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:27:15 Regex -> /#<< (!?)([a-z0-9-]+)$/
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:27:15 Regex -> /^#<< (!?)([a-z0-9-]+)/
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:76:77 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:88:58 ConditionalExpression -> true
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:116:5 ConditionalExpression -> true
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:116:5 ConditionalExpression -> false
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:116:5 LogicalOperator -> process.argv[1] || import.meta.url === pathToFileU
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:116:24 EqualityOperator -> import.meta.url !== pathToFileURL(process.argv[1])
+content/agent-plugins/fly/scripts/render-deploy-workflow.mjs:116:24 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:27:23 Regex -> /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/
+content/agent-plugins/github-pages/targets/github-pages.mjs:130:72 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:133:20 LogicalOperator -> link.url && candidates[0]
+content/agent-plugins/github-pages/targets/github-pages.mjs:137:19 ConditionalExpression -> false
+content/agent-plugins/github-pages/targets/github-pages.mjs:137:52 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:156:21 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:156:89 MethodExpression -> input.projectName
+content/agent-plugins/github-pages/targets/github-pages.mjs:169:36 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:171:11 OptionalChaining -> build.status
+content/agent-plugins/github-pages/targets/github-pages.mjs:203:23 LogicalOperator -> typeof json?.message === 'string' || json.message
+content/agent-plugins/github-pages/targets/github-pages.mjs:203:23 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:203:23 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:203:30 OptionalChaining -> json.message
+content/agent-plugins/github-pages/targets/github-pages.mjs:224:48 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:231:19 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:261:48 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:268:19 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:276:48 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:283:19 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:291:48 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:313:48 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:336:52 ObjectLiteral -> {}
+content/agent-plugins/github-pages/targets/github-pages.mjs:351:11 ConditionalExpression -> false
+content/agent-plugins/github-pages/targets/github-pages.mjs:378:22 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:411:23 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:411:23 EqualityOperator -> i <= 5
+content/agent-plugins/github-pages/targets/github-pages.mjs:411:23 EqualityOperator -> i >= 5
+content/agent-plugins/github-pages/targets/github-pages.mjs:417:26 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:430:11 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:430:11 LogicalOperator -> site || typeof site.html_url === 'string'
+content/agent-plugins/github-pages/targets/github-pages.mjs:430:19 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:432:11 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:432:11 LogicalOperator -> site || typeof site.url === 'string'
+content/agent-plugins/github-pages/targets/github-pages.mjs:432:19 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:434:26 MethodExpression -> urls.map(normalizeDeploymentUrl)
+content/agent-plugins/github-pages/targets/github-pages.mjs:483:11 ConditionalExpression -> true
+content/agent-plugins/github-pages/targets/github-pages.mjs:507:69 MethodExpression -> owner
+content/agent-plugins/github-pages/targets/github-pages.mjs:508:37 ConditionalExpression -> false
+content/agent-plugins/github-pages/targets/github-pages.mjs:508:99 MethodExpression -> repo
+content/agent-plugins/github-pages/targets/github-pages.mjs:509:116 MethodExpression -> asText(config.branch)
+content/agent-plugins/github/deployments/github.mjs:45:38 BooleanLiteral -> true
+content/agent-plugins/github/deployments/github.mjs:46:9 ConditionalExpression -> false
+content/agent-plugins/github/deployments/github.mjs:165:7 EqualityOperator -> response.status > 400
+content/agent-plugins/github/deployments/github.mjs:170:20 EqualityOperator -> response.status > 500
+content/agent-plugins/github/deployments/github.mjs:192:7 LogicalOperator -> !appId && !installationId
+content/agent-plugins/github/deployments/github.mjs:192:7 ConditionalExpression -> false
+content/agent-plugins/github/deployments/github.mjs:229:7 EqualityOperator -> response.status > 400
+content/agent-plugins/github/deployments/github.mjs:234:20 EqualityOperator -> response.status > 500
+content/agent-plugins/github/deployments/github.mjs:352:7 EqualityOperator -> response.status > 400
+content/agent-plugins/github/deployments/github.mjs:375:56 EqualityOperator -> candidate.id >= best.id
+content/agent-plugins/github/deployments/github.mjs:390:8 Regex -> /^[1-9][0-9]$/
+content/agent-plugins/github/deployments/github.mjs:411:21 ArrayDeclaration -> []
+content/agent-plugins/github/source-control/backup-push.mjs:64:9 ConditionalExpression -> true
+content/agent-plugins/github/source-control/backup-push.mjs:64:9 EqualityOperator -> current.length >= 0
+content/agent-plugins/github/source-control/backup-push.mjs:64:76 EqualityOperator -> bytes + size >= TREE_CHUNK_MAX_BYTES
+content/agent-plugins/github/source-control/backup-push.mjs:85:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/backup-push.mjs:109:9 ConditionalExpression -> true
+content/agent-plugins/github/source-control/backup-push.mjs:130:61 OptionalChaining -> refBody.json.object
+content/agent-plugins/github/source-control/backup-push.mjs:185:15 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:36:25 Regex -> /^(?:[0-9a-f]{40}|[0-9a-f]{64})/i
+content/agent-plugins/github/source-control/commit-site.mjs:36:25 Regex -> /(?:[0-9a-f]{40}|[0-9a-f]{64})$/i
+content/agent-plugins/github/source-control/commit-site.mjs:36:25 Regex -> /^(?:[0-9a-f]{40}|[0-9a-f])$/i
+content/agent-plugins/github/source-control/commit-site.mjs:36:25 Regex -> /^(?:[0-9a-f]{40}|[^0-9a-f]{64})$/i
+content/agent-plugins/github/source-control/commit-site.mjs:50:43 BlockStatement -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:51:10 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:66:10 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:66:10 LogicalOperator -> typeof value === "object" || value !== null
+content/agent-plugins/github/source-control/commit-site.mjs:66:10 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:66:39 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:89:11 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:89:36 LogicalOperator -> err.name === "TimeoutError" && err.name === "Abort
+content/agent-plugins/github/source-control/commit-site.mjs:89:36 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:89:67 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:108:9 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:108:9 LogicalOperator -> body.ok && typeof body.json.message === "string" |
+content/agent-plugins/github/source-control/commit-site.mjs:108:9 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:108:9 LogicalOperator -> body.ok || typeof body.json.message === "string"
+content/agent-plugins/github/source-control/commit-site.mjs:108:20 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:108:61 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:108:61 MethodExpression -> body.json.message
+content/agent-plugins/github/source-control/commit-site.mjs:120:91 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:125:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:126:17 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:127:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:133:88 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:136:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:139:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:141:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:142:27 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:142:27 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:142:27 EqualityOperator -> typeof body.json.default_branch !== "string"
+content/agent-plugins/github/source-control/commit-site.mjs:150:121 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:154:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:156:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:158:17 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:158:17 LogicalOperator -> isPlainObject(object) || typeof object.sha === "st
+content/agent-plugins/github/source-control/commit-site.mjs:158:42 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:159:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:166:118 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:167:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:169:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:171:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:173:17 LogicalOperator -> isPlainObject(tree) || typeof tree.sha === "string
+content/agent-plugins/github/source-control/commit-site.mjs:173:17 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:173:40 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:174:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:181:150 ObjectLiteral -> {}
+content/agent-plugins/github/source-control/commit-site.mjs:182:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:184:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:185:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:188:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:189:21 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:190:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:401:7 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:401:7 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:401:7 EqualityOperator -> liveResult.kind !== "unverifiable"
+content/agent-plugins/github/source-control/commit-site.mjs:407:7 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:407:7 LogicalOperator -> !isPlainObject(entry) && typeof entry.path !== "st
+content/agent-plugins/github/source-control/commit-site.mjs:407:32 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:408:15 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:408:15 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:408:15 LogicalOperator -> typeof entry.sha === "string" || GIT_SHA_PATTERN.t
+content/agent-plugins/github/source-control/commit-site.mjs:415:7 ConditionalExpression -> false
+content/agent-plugins/github/source-control/commit-site.mjs:416:7 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:416:7 ConditionalExpression -> true
+content/agent-plugins/github/source-control/commit-site.mjs:416:7 LogicalOperator -> parsed.version === 2 || Array.isArray(parsed.files
+content/agent-plugins/github/source-control/commit-site.mjs:421:11 ConditionalExpression -> false
+content/agent-plugins/github/source-control/github.mjs:72:25 ConditionalExpression -> true
+content/agent-plugins/github/source-control/github.mjs:72:25 LogicalOperator -> typeof body === "object" || body !== null
+content/agent-plugins/github/source-control/github.mjs:72:25 ConditionalExpression -> true
+content/agent-plugins/github/source-control/github.mjs:72:53 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:53:10 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:53:36 EqualityOperator -> response.status <= 300
+content/agent-plugins/github/source-control/write-files.mjs:75:45 OptionalChaining -> body.json.message
+content/agent-plugins/github/source-control/write-files.mjs:93:12 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:93:12 LogicalOperator -> entry !== null || typeof entry === "object"
+content/agent-plugins/github/source-control/write-files.mjs:93:12 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:93:30 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:103:10 ConditionalExpression -> false
+content/agent-plugins/github/source-control/write-files.mjs:108:29 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:129:45 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:129:45 EqualityOperator -> status < 599
+content/agent-plugins/github/source-control/write-files.mjs:132:7 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:153:31 ArrowFunction -> () => undefined
+content/agent-plugins/github/source-control/write-files.mjs:164:35 EqualityOperator -> waitMs >= policy.maxWaitMs
+content/agent-plugins/github/source-control/write-files.mjs:168:9 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:208:9 ConditionalExpression -> false
+content/agent-plugins/github/source-control/write-files.mjs:229:19 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:361:12 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:361:12 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:361:12 LogicalOperator -> entry.type === "tree" || typeof entry.sha === "str
+content/agent-plugins/github/source-control/write-files.mjs:361:37 ConditionalExpression -> true
+content/agent-plugins/github/source-control/write-files.mjs:385:15 ConditionalExpression -> false
+content/agent-plugins/google-workspace/form-destinations/dedupe.mjs:36:7 EqualityOperator -> rowCount - 1 >= DEDUPE_LIMITS.maxScannedRows
+content/agent-plugins/google-workspace/form-destinations/dedupe.mjs:36:7 ArithmeticOperator -> rowCount + 1
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:33:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:55:43 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:55:43 OptionalChaining -> range.sheetId
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:55:106 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:59:17 OptionalChaining -> metadata?.location.dimensionRange
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:60:20 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:59:17 OptionalChaining -> metadata.location
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:60:20 LogicalOperator -> metadata?.metadataKey === FIELD_MARKER_KEY || type
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:60:20 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:60:20 OptionalChaining -> metadata.metadataKey
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:60:66 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:73:33 OptionalChaining -> match.developerMetadata
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:79:30 MethodExpression -> String(cell ?? '')
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:98:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:98:7 EqualityOperator -> positions.length >= 1
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:128:81 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:128:108 ArithmeticOperator -> index - 1
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:142:26 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/form-destinations/mapping.mjs:142:54 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:42:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:42:79 EqualityOperator -> tab.sheetId <= 0
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:57:89 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:58:27 OptionalChaining -> body.sheets
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:58:43 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:58:62 OptionalChaining -> sheet.properties
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:58:97 OptionalChaining -> entry.sheetId
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:65:14 OptionalChaining -> (await send({   kind: 'read',   url: valuesUrl(ran
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:65:72 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:71:51 OptionalChaining -> body.matchedDeveloperMetadata
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:71:117 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:79:14 OptionalChaining -> body.updates
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:111:100 ArithmeticOperator -> index - 1
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:122:9 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:122:9 EqualityOperator -> layout.width >= tab.columnCount
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:126:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/form-destinations/sheets.mjs:126:7 EqualityOperator -> changes.length >= 0
+content/agent-plugins/google-workspace/lib/auth.mjs:32:54 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/auth.mjs:52:27 EqualityOperator -> response.status > 500
+content/agent-plugins/google-workspace/lib/auth.mjs:58:44 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/lib/drive-files.mjs:29:16 OptionalChaining -> body.user
+content/agent-plugins/google-workspace/lib/drive-files.mjs:27:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/drive-files.mjs:30:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/drive-files.mjs:30:14 OptionalChaining -> user.permissionId
+content/agent-plugins/google-workspace/lib/drive-files.mjs:31:71 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:19:34 Regex -> /^[a-z0-9][a-z0-9_-]{0,63}/
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:19:34 Regex -> /[a-z0-9][a-z0-9_-]{0,63}$/
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:24:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:24:10 LogicalOperator -> slug !== null || FORM_SLUG_PATTERN.test(slug)
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:24:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:30:19 OptionalChaining -> tabs[formSlug]
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:31:17 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:31:17 LogicalOperator -> typeof spreadsheetId === 'string' || typeof accoun
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:31:17 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:31:54 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:31:145 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/form-destination-settings.mjs:45:25 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:33:46 OptionalChaining -> cause.retryAfterMs
+content/agent-plugins/google-workspace/lib/http.mjs:34:10 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:48:39 OptionalChaining -> cause.code
+content/agent-plugins/google-workspace/lib/http.mjs:66:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:66:7 LogicalOperator -> typeof value !== 'string' && value === ''
+content/agent-plugins/google-workspace/lib/http.mjs:66:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:66:36 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:81:16 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:82:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/http.mjs:92:85 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/http.mjs:92:85 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/http.mjs:92:85 EqualityOperator -> body !== INVALID_JSON
+content/agent-plugins/google-workspace/lib/http.mjs:103:36 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/lib/http.mjs:114:11 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/http.mjs:114:11 LogicalOperator -> error instanceof GoogleWorkspaceError || error.cod
+content/agent-plugins/google-workspace/lib/http.mjs:114:52 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:33:38 ArithmeticOperator -> 15 / 60_000
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:53:73 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:54:8 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:59:52 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:59:93 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:34 MethodExpression -> stored
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:59 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:59 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:59 LogicalOperator -> typeof entry?.spreadsheetId === 'string' || typeof
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:66 OptionalChaining -> entry.spreadsheetId
+content/agent-plugins/google-workspace/lib/picker-flow.mjs:157:103 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/picker-selection.mjs:50:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/picker-selection.mjs:52:7 OptionalChaining -> file.id
+content/agent-plugins/google-workspace/lib/picker-selection.mjs:63:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/picker-selection.mjs:65:7 OptionalChaining -> sheet.spreadsheetId
+content/agent-plugins/google-workspace/lib/product-state.mjs:20:22 Regex -> /https:\/\/www\.googleapis\.com\/auth\/[a-z.]+$/
+content/agent-plugins/google-workspace/lib/product-state.mjs:24:34 MethodExpression -> scopes.some(scope => GOOGLE_SCOPE.test(scope))
+content/agent-plugins/google-workspace/lib/request-policy.mjs:34:28 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:34:41 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:35:24 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:35:37 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:36:24 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:36:37 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:38:20 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:38:33 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:39:34 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:39:21 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:40:38 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:40:25 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:41:39 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:41:26 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:61:9 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:72:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:73:41 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:73:3 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:73:83 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:74:3 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:75:3 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:74:54 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:75:51 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:78:3 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:78:58 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:78:82 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:79:3 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:79:22 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:79:41 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/request-policy.mjs:85:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:85:59 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/lib/request-policy.mjs:95:15 MethodExpression -> required.header
+content/agent-plugins/google-workspace/lib/request-policy.mjs:98:14 Regex -> /\d+$/
+content/agent-plugins/google-workspace/lib/request-policy.mjs:96:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/request-policy.mjs:98:14 Regex -> /^\d+/
+content/agent-plugins/google-workspace/lib/request-policy.mjs:98:14 Regex -> /^\d$/
+content/agent-plugins/google-workspace/lib/request-policy.mjs:109:33 EqualityOperator -> ms > 0
+content/agent-plugins/google-workspace/lib/request-policy.mjs:117:43 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/lib/request-policy.mjs:118:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/request-policy.mjs:119:48 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:119:48 EqualityOperator -> required.status > 500
+content/agent-plugins/google-workspace/lib/request-policy.mjs:129:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/request-policy.mjs:129:34 EqualityOperator -> status <= 500
+content/agent-plugins/google-workspace/lib/request-policy.mjs:144:103 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/request-policy.mjs:146:60 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/request-policy.mjs:146:117 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:31:22 Regex -> /(?<sheet>.+)!(?<startColumn>[A-Z]+)(?<startRow>\d
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:31:22 Regex -> /^(?<sheet>.+)!(?<startColumn>[A-Z]+)(?<startRow>\
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:31:22 Regex -> /^(?<sheet>.+)!(?<startColumn>[A-Z]+)(?<startRow>\
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:39:18 OptionalChaining -> GOOGLE_RANGE.exec(required.range ?? '').groups
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:40:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:41:138 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:44:22 Regex -> /([A-Z]{1,3})([1-9]\d{0,6}):([A-Z]{1,3})([1-9]\d{0
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:44:22 Regex -> /^([A-Z]{1,3})([1-9]\d{0,6}):([A-Z]{1,3})([1-9]\d{
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:56:18 EqualityOperator -> bounds.lastRow <= bounds.firstRow
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:56:54 EqualityOperator -> bounds.lastColumn <= bounds.firstColumn
+content/agent-plugins/google-workspace/lib/sheets-a1.mjs:57:63 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:20:83 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:33:7 EqualityOperator -> rows >= MAX_EXPORT_ROWS
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:34:7 EqualityOperator -> rows * columns >= MAX_EXPORT_CELLS
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:61:38 ConditionalExpression -> false
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:75:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:75:10 EqualityOperator -> used >= 0
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:76:16 MethodExpression -> required.rows
+content/agent-plugins/google-workspace/lib/sheets-admin-csv.mjs:80:7 EqualityOperator -> bytes >= MAX_CSV_BYTES
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:39:44 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:41:38 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:42:42 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:43:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:44:27 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:45:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:46:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:48:28 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:49:25 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:50:27 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:51:26 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:52:27 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:53:29 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:54:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:55:28 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:56:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:57:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:58:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:59:34 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:60:37 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:61:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:62:38 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:63:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:64:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:65:34 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:66:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:67:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:68:45 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:69:26 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:70:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:71:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:72:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:73:34 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:74:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:75:46 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:76:46 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:77:26 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:78:34 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:80:31 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:81:36 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:82:37 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:83:37 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:84:37 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:85:27 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:86:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:87:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:88:29 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:89:30 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:90:42 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:91:40 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:92:40 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:93:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:94:36 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:95:39 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:96:37 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:97:31 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:98:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:99:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:100:28 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:101:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:102:27 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:103:28 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:104:28 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:115:76 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:121:32 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:122:59 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:122:59 MethodExpression -> body.fields
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:136:72 ArithmeticOperator -> index - 1
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:140:64 ArithmeticOperator -> index - 1
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:146:7 EqualityOperator -> requests.length >= MAX_BATCH_REQUESTS
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:147:7 EqualityOperator -> Buffer.byteLength(JSON.stringify(requests)) >= MAX
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:161:16 BooleanLiteral -> true
+content/agent-plugins/google-workspace/lib/sheets-admin-request-kinds.mjs:165:16 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:34:50 ArithmeticOperator -> 64 / 1024
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:50:39 Regex -> /[A-Za-z0-9_-]{10,200}$/
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:50:39 Regex -> /^[A-Za-z0-9_-]{10,200}/
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:62:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:62:7 LogicalOperator -> typeof required.id === 'string' || SPREADSHEET_ID_
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:62:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:76:20 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:76:108 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:76:99 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:77:48 LogicalOperator -> optional.method && ''
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:185:10 ConditionalExpression -> true
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:185:10 EqualityOperator -> byteLength(required.value) < SHEETS_LIMITS.maxOutp
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:185:40 ArithmeticOperator -> SHEETS_LIMITS.maxOutputBytes + (optional.headroomB
+content/agent-plugins/google-workspace/lib/sheets-client.mjs:199:22 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:15:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:25:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:24:144 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:25:45 LogicalOperator -> input.sheetId && input.range.sheetId
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:28:19 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/basic-filter.mjs:29:18 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs:14:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs:17:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs:17:50 EqualityOperator -> input.metadataId <= 0
+content/agent-plugins/google-workspace/tools/sheets-admin/developer-metadata.mjs:17:130 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:19:22 OptionalChaining -> tabsOf({   body,   sheetId: input.sheetId })[0].pr
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:18:203 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:20:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:20:14 OptionalChaining -> properties.title
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:33:16 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:37:80 LogicalOperator -> input.valueRenderOption && 'FORMATTED_VALUE'
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:46:32 OptionalChaining -> body?.valueRanges?.[0].values
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:46:32 OptionalChaining -> body?.valueRanges[0]
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:46:32 OptionalChaining -> body.valueRanges
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:47:105 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:52:16 MethodExpression -> title.replace(/[^\p{L}\p{N} ._-]+/gu, '_').trim()
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:52:16 MethodExpression -> title.replace(/[^\p{L}\p{N} ._-]+/gu, '_')
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:53:13 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/export-csv.mjs:65:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:12:8 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:13:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:14:14 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:11:18 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:15:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:34:20 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:34:104 MethodExpression -> `filter view ${input.filterViewId ?? ''}`
+content/agent-plugins/google-workspace/tools/sheets-admin/filter-views.mjs:35:18 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:14:22 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:18:52 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:44:5 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:45:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:46:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:46:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:46:5 LogicalOperator -> input.frozenRowCount === undefined || input.frozen
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:46:43 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:47:5 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:47:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:47:5 EqualityOperator -> input.columnWidth !== undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:54:5 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:55:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:56:5 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:57:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:58:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:64:175 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/format.mjs:65:12 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:15:8 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:14:18 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:11:23 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:16:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:17:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:36:58 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:36:58 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/named-ranges.mjs:36:58 EqualityOperator -> input.name !== undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/protected-ranges-get.mjs:14:174 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/protected-ranges-get.mjs:15:86 OptionalChaining -> sheet.properties.sheetId
+content/agent-plugins/google-workspace/tools/sheets-admin/protected-ranges-get.mjs:15:120 OptionalChaining -> sheet.properties.title
+content/agent-plugins/google-workspace/tools/sheets-admin/sort.mjs:12:224 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:13:32 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:13:72 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:13:46 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:13:72 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:13:72 EqualityOperator -> input.index !== undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:15:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:16:14 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:14:11 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:17:9 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:29:208 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:33:17 ConditionalExpression -> false
+content/agent-plugins/google-workspace/tools/sheets-admin/tab-modify.mjs:34:85 ConditionalExpression -> true
+content/agent-plugins/google-workspace/tools/sheets/get.mjs:17:29 OptionalChaining -> input.ranges.length
+content/agent-plugins/google-workspace/tools/sheets/get.mjs:17:9 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:20:28 BooleanLiteral -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:26:10 EqualityOperator -> Date.now() <= Date.parse(expiresAt)
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:42:49 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:42:49 OptionalChaining -> error.retryable
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:79:24 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:80:21 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:81:47 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:94:17 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:106:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:23 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:42 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:42 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:42 EqualityOperator -> entry.action !== 'disconnect'
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:91 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:91 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:91 LogicalOperator -> index === 0 || summary.tone !== 'ok'
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:91 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:91 EqualityOperator -> index !== 0
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:106 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:118:106 EqualityOperator -> summary.tone === 'ok'
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:119:23 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:120:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:121:17 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:126:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:128:5 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:134:23 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:135:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:135:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:136:15 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:136:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:139:13 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:139:58 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:140:16 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:140:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:141:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:141:19 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:141:60 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:142:19 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:142:66 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:147:19 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:176:26 BooleanLiteral -> true
+content/agent-plugins/google-workspace/ui/connection-panel.mjs:183:95 OptionalChaining -> error.retryable
+content/agent-plugins/google-workspace/ui/connection-view.mjs:101:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-view.mjs:102:7 BooleanLiteral -> connected
+content/agent-plugins/google-workspace/ui/connection-view.mjs:102:7 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/connection-view.mjs:102:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:36:19 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:36:19 OptionalChaining -> error.retryable
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:44:54 LogicalOperator -> tabs[0]?.sheetId && null
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:48:53 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:49:18 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:52:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:57:92 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:58:19 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:59:159 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:82:70 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:84:69 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:98:17 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:98:17 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:98:44 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:99:23 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:98:44 EqualityOperator -> bootstrap.mode === 'unavailable'
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:100:33 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:101:15 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:100:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:101:38 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:102:63 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:102:79 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:107:16 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:108:14 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:112:88 OptionalChaining -> draft.spreadsheet.spreadsheetId
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:123:17 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:127:30 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:128:20 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:128:84 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:128:109 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/destination-panel.mjs:142:52 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/ui/dom.mjs:22:6 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/dom.mjs:32:47 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/ui/dom.mjs:54:3 AssignmentOperator -> nextTip -= 1
+content/agent-plugins/google-workspace/ui/dom.mjs:65:176 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/dom.mjs:98:94 MethodExpression -> element.textContent
+content/agent-plugins/google-workspace/ui/dom.mjs:103:79 MethodExpression -> control.textContent
+content/agent-plugins/google-workspace/ui/dom.mjs:123:7 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/picker-flow.mjs:82:50 ArrowFunction -> () => undefined
+content/agent-plugins/google-workspace/ui/picker.mjs:26:18 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:27:16 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:28:17 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:28:43 ArrayDeclaration -> []
+content/agent-plugins/google-workspace/ui/picker.mjs:30:26 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:35:36 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:35:87 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:35:136 ObjectLiteral -> {}
+content/agent-plugins/google-workspace/ui/picker.mjs:78:19 BooleanLiteral -> true
+content/agent-plugins/google-workspace/ui/picker.mjs:79:12 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/google-workspace/ui/picker.mjs:85:107 OptionalChaining -> error.retryable
+content/agent-plugins/google-workspace/ui/surface-client.mjs:23:21 Regex -> /--jini-[a-z0-9-]{1,60}$/
+content/agent-plugins/google-workspace/ui/surface-client.mjs:23:21 Regex -> /^--jini-[a-z0-9-]{1,60}/
+content/agent-plugins/google-workspace/ui/surface-client.mjs:38:9 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:41:12 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:44:9 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:47:12 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:47:12 LogicalOperator -> typeof error.code === 'string' || typeof error.mes
+content/agent-plugins/google-workspace/ui/surface-client.mjs:47:12 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:47:46 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:57:12 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:57:61 EqualityOperator -> token.length < 200
+content/agent-plugins/google-workspace/ui/surface-client.mjs:72:9 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:72:9 LogicalOperator -> !body && !scope.ResizeObserver
+content/agent-plugins/google-workspace/ui/surface-client.mjs:95:69 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:116:22 UnaryOperator -> +1
+content/agent-plugins/google-workspace/ui/surface-client.mjs:119:13 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:131:21 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:149:30 OptionalChaining -> init.origin
+content/agent-plugins/google-workspace/ui/surface-client.mjs:149:79 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:175:13 ConditionalExpression -> true
+content/agent-plugins/google-workspace/ui/surface-client.mjs:201:45 ConditionalExpression -> false
+content/agent-plugins/google-workspace/ui/surface-client.mjs:204:49 EqualityOperator -> nowMs() <= expiresAt
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:92:25 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:89:24 ObjectLiteral -> {}
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:91:25 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:95:24 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:100:81 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:100:81 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:100:81 EqualityOperator -> retryAfterMs !== undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:102:17 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:154:37 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:154:66 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:154:66 MethodExpression -> value
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:159:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:159:7 LogicalOperator -> !isNonEmptyString(host) && !isNonEmptyString(apiKe
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:160:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:160:8 Regex -> /https?:\/\//i
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:160:8 Regex -> /^https:\/\//i
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:161:16 MethodExpression -> host
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:162:10 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:162:10 MethodExpression -> origin.startsWith("/")
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:196:20 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:199:21 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:236:60 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:236:86 ObjectLiteral -> {}
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:236:60 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:236:60 EqualityOperator -> body !== undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:237:9 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:246:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:246:7 LogicalOperator -> response.status < 200 && response.status >= 300
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:246:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:246:32 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:246:32 EqualityOperator -> response.status > 300
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:250:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:255:20 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:255:38 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:255:38 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:255:38 BooleanLiteral -> result.ok
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:255:38 LogicalOperator -> !result.ok || result.code === code
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:258:25 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:273:15 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:261:19 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:352:13 BlockStatement -> {}
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:353:9 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:353:9 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:382:26 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:353:9 EqualityOperator -> lanes.get(index) !== tail
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:390:7 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:412:7 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:412:7 LogicalOperator -> item.visibility !== undefined || item.visibility.k
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:412:7 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:412:40 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:431:27 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:431:43 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:436:9 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:443:33 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:447:45 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:447:55 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:447:90 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:456:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:457:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:457:7 EqualityOperator -> items.length >= MAX_BATCH
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:469:19 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:470:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:472:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:474:7 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:485:22 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:492:31 BlockStatement -> {}
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:493:19 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:494:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:495:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:7 LogicalOperator -> (!Number.isInteger(limit) || limit < 1) && limit >
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:7 LogicalOperator -> !Number.isInteger(limit) && limit < 1
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:35 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:35 EqualityOperator -> limit <= 1
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:48 EqualityOperator -> limit >= MAX_LIMIT
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:503:48 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:505:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:505:8 Regex -> /\d{1,9}$/
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:505:8 Regex -> /^\d{1,9}/
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:505:8 Regex -> /^\d$/
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:506:10 ObjectLiteral -> {}
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:514:19 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:540:15 ArrowFunction -> () => undefined
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:559:62 ArithmeticOperator -> page.limit - 1
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:560:23 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:560:81 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:561:56 BooleanLiteral -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:565:7 ConditionalExpression -> true
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:565:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:566:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:568:7 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:567:16 OptionalChaining -> response.json.hits
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:568:7 LogicalOperator -> !Array.isArray(hits) && !hits.every(isHit)
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:569:16 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:569:16 EqualityOperator -> hits.length >= page.limit
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:570:21 MethodExpression -> hits
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:581:19 ArrayDeclaration -> []
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:582:60 BooleanLiteral -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:582:118 BooleanLiteral -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:623:9 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:623:9 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:623:9 LogicalOperator -> typeof query.text !== "string" && query.text.trim(
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:623:43 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:623:43 MethodExpression -> query.text
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:625:9 ConditionalExpression -> false
+content/agent-plugins/meilisearch/providers/meilisearch.mjs:627:9 ConditionalExpression -> false
+content/agent-plugins/netlify/targets/netlify.mjs:62:14 MethodExpression -> files
+content/agent-plugins/netlify/targets/netlify.mjs:62:37 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:91:20 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:95:22 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:103:70 ObjectLiteral -> {}
+content/agent-plugins/netlify/targets/netlify.mjs:107:12 LogicalOperator -> link.url && candidates[0]
+content/agent-plugins/netlify/targets/netlify.mjs:111:11 ConditionalExpression -> false
+content/agent-plugins/netlify/targets/netlify.mjs:111:44 ObjectLiteral -> {}
+content/agent-plugins/netlify/targets/netlify.mjs:125:54 MethodExpression -> created.required
+content/agent-plugins/netlify/targets/netlify.mjs:125:88 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:125:116 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/netlify/targets/netlify.mjs:140:8 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:158:10 MethodExpression -> kit.safeDnsLabel(`jini-${label}`)
+content/agent-plugins/netlify/targets/netlify.mjs:177:19 LogicalOperator -> typeof json?.message === "string" || json.message
+content/agent-plugins/netlify/targets/netlify.mjs:177:19 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:177:26 OptionalChaining -> json.message
+content/agent-plugins/netlify/targets/netlify.mjs:191:30 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:190:45 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/netlify/targets/netlify.mjs:191:30 LogicalOperator -> typeof site?.name === "string" || site.name.toLowe
+content/agent-plugins/netlify/targets/netlify.mjs:191:30 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:191:37 OptionalChaining -> site.name
+content/agent-plugins/netlify/targets/netlify.mjs:191:64 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:199:61 ObjectLiteral -> {}
+content/agent-plugins/netlify/targets/netlify.mjs:234:10 MethodExpression -> filePath.split("/")
+content/agent-plugins/netlify/targets/netlify.mjs:258:61 ObjectLiteral -> {}
+content/agent-plugins/netlify/targets/netlify.mjs:275:60 ArrowFunction -> () => undefined
+content/agent-plugins/netlify/targets/netlify.mjs:318:11 ConditionalExpression -> true
+content/agent-plugins/netlify/targets/netlify.mjs:321:22 MethodExpression -> urls.map(url => kit.normalizeDeploymentUrl(url))
+content/agent-plugins/netlify/targets/netlify.mjs:355:14 BlockStatement -> {}
+content/agent-plugins/railway/deploy-configs/railway.mjs:47:18 MethodExpression -> options.region
+content/agent-plugins/railway/deploy-configs/railway.mjs:48:16 BlockStatement -> {}
+content/agent-plugins/railway/deploy-configs/railway.mjs:48:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:3:14 Regex -> /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[
+content/agent-plugins/railway/deploy-ops/railway.mjs:3:14 Regex -> /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-
+content/agent-plugins/railway/deploy-ops/railway.mjs:42:53 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:46:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:51:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:51:7 LogicalOperator -> typeof target !== "string" && target.split(":").le
+content/agent-plugins/railway/deploy-ops/railway.mjs:51:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:51:37 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:56:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:62:7 LogicalOperator -> !Array.isArray(connection?.edges) && typeof connec
+content/agent-plugins/railway/deploy-ops/railway.mjs:62:44 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:62:51 OptionalChaining -> connection?.pageInfo.hasNextPage
+content/agent-plugins/railway/deploy-ops/railway.mjs:62:51 OptionalChaining -> connection.pageInfo
+content/agent-plugins/railway/deploy-ops/railway.mjs:63:42 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:63:42 EqualityOperator -> connection.edges.length >= cap
+content/agent-plugins/railway/deploy-ops/railway.mjs:64:38 OptionalChaining -> edge.node
+content/agent-plugins/railway/deploy-ops/railway.mjs:64:52 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:68:7 LogicalOperator -> typeof value !== "string" && !value
+content/agent-plugins/railway/deploy-ops/railway.mjs:68:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:68:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:76:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:76:7 EqualityOperator -> targets.length >= 500
+content/agent-plugins/railway/deploy-ops/railway.mjs:105:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:111:26 ConditionalExpression -> true
+content/agent-plugins/railway/deploy-ops/railway.mjs:112:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:112:7 LogicalOperator -> !result && typeof result.status !== "string"
+content/agent-plugins/railway/deploy-ops/railway.mjs:112:18 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:121:86 ObjectLiteral -> {}
+content/agent-plugins/railway/deploy-ops/railway.mjs:121:235 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/railway/deploy-ops/railway.mjs:125:29 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:129:67 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:132:17 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:136:48 EqualityOperator -> limit >= 500
+content/agent-plugins/railway/deploy-ops/railway.mjs:138:7 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:59 ConditionalExpression -> true
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:59 LogicalOperator -> entries.length > limit && entries.slice(0, limit).
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:59 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:59 EqualityOperator -> entries.length >= limit
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:85 MethodExpression -> entries.slice(0, limit).every(entry => entry.messa
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:59 EqualityOperator -> entries.length <= limit
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:85 MethodExpression -> entries
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:114 ArrowFunction -> () => undefined
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:123 ConditionalExpression -> true
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:123 ConditionalExpression -> false
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:123 EqualityOperator -> entry.message.length >= 2000
+content/agent-plugins/railway/deploy-ops/railway.mjs:151:100 EqualityOperator -> names.length >= 500
+content/agent-plugins/railway/deploy-ops/railway.mjs:144:123 EqualityOperator -> entry.message.length <= 2000
+content/agent-plugins/railway/deploy-ops/railway.mjs:163:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-configs/render.mjs:64:18 MethodExpression -> options.region
+content/agent-plugins/render/deploy-configs/render.mjs:65:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-configs/render.mjs:65:16 BlockStatement -> {}
+content/agent-plugins/render/deploy-configs/render.mjs:103:31 ArrowFunction -> () => undefined
+content/agent-plugins/render/deploy-ops/render.mjs:7:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:7:7 LogicalOperator -> typeof value !== "string" && !value.startsWith(pre
+content/agent-plugins/render/deploy-ops/render.mjs:7:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:8:7 LogicalOperator -> value.length <= prefix.length && value.length > 12
+content/agent-plugins/render/deploy-ops/render.mjs:8:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:8:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:8:7 EqualityOperator -> value.length < prefix.length
+content/agent-plugins/render/deploy-ops/render.mjs:8:40 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:8:40 EqualityOperator -> value.length >= 128
+content/agent-plugins/render/deploy-ops/render.mjs:18:29 OptionalChaining -> found.id
+content/agent-plugins/render/deploy-ops/render.mjs:31:57 OptionalChaining -> row[field]
+content/agent-plugins/render/deploy-ops/render.mjs:39:53 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:43:16 OptionalChaining -> rows.at(-1).cursor
+content/agent-plugins/render/deploy-ops/render.mjs:44:7 LogicalOperator -> (typeof next !== "string" || !next || next.length 
+content/agent-plugins/render/deploy-ops/render.mjs:44:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:44:7 LogicalOperator -> typeof next !== "string" && !next
+content/agent-plugins/render/deploy-ops/render.mjs:44:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:44:44 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:44:44 EqualityOperator -> next.length >= 2000
+content/agent-plugins/render/deploy-ops/render.mjs:44:66 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:48:25 OptionalChaining -> value.id
+content/agent-plugins/render/deploy-ops/render.mjs:49:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:49:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:49:7 LogicalOperator -> typeof value.name !== "string" && typeof value.typ
+content/agent-plugins/render/deploy-ops/render.mjs:49:41 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:50:32 MethodExpression -> value.name
+content/agent-plugins/render/deploy-ops/render.mjs:68:25 OptionalChaining -> value.id
+content/agent-plugins/render/deploy-ops/render.mjs:69:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:77:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:79:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:81:35 OptionalChaining -> response.json[0].deploy
+content/agent-plugins/render/deploy-ops/render.mjs:84:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:86:116 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/render/deploy-ops/render.mjs:87:110 MethodExpression -> run.status
+content/agent-plugins/render/deploy-ops/render.mjs:87:168 MethodExpression -> run.status
+content/agent-plugins/render/deploy-ops/render.mjs:90:29 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:90:57 Regex -> /[0-9a-fA-F]{40}$/
+content/agent-plugins/render/deploy-ops/render.mjs:90:57 Regex -> /^[0-9a-fA-F]{40}/
+content/agent-plugins/render/deploy-ops/render.mjs:98:88 ConditionalExpression -> true
+content/agent-plugins/render/deploy-ops/render.mjs:98:88 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:98:88 EqualityOperator -> ref !== undefined
+content/agent-plugins/render/deploy-ops/render.mjs:100:17 OptionalChaining -> response.json.id
+content/agent-plugins/render/deploy-ops/render.mjs:101:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:101:37 Regex -> /dep-[A-Za-z0-9_-]{1,124}$/
+content/agent-plugins/render/deploy-ops/render.mjs:101:37 Regex -> /^dep-[A-Za-z0-9_-]{1,124}/
+content/agent-plugins/render/deploy-ops/render.mjs:102:66 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:106:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:106:7 LogicalOperator -> (typeof entry?.message !== "string" || typeof entr
+content/agent-plugins/render/deploy-ops/render.mjs:106:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:106:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:106:7 LogicalOperator -> typeof entry?.message !== "string" && typeof entry
+content/agent-plugins/render/deploy-ops/render.mjs:106:14 OptionalChaining -> entry.message
+content/agent-plugins/render/deploy-ops/render.mjs:106:45 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:107:44 ConditionalExpression -> true
+content/agent-plugins/render/deploy-ops/render.mjs:107:44 OptionalChaining -> label.name
+content/agent-plugins/render/deploy-ops/render.mjs:108:16 MethodExpression -> entry.timestamp
+content/agent-plugins/render/deploy-ops/render.mjs:108:89 MethodExpression -> level
+content/agent-plugins/render/deploy-ops/render.mjs:112:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:113:48 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:113:48 EqualityOperator -> limit >= 1000
+content/agent-plugins/render/deploy-ops/render.mjs:115:7 LogicalOperator -> typeof found.ownerId !== "string" && !found.ownerI
+content/agent-plugins/render/deploy-ops/render.mjs:115:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:119:19 OptionalChaining -> response.json.logs
+content/agent-plugins/render/deploy-ops/render.mjs:120:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:125:10 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:125:33 BooleanLiteral -> false
+content/agent-plugins/render/deploy-ops/render.mjs:125:75 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:125:75 EqualityOperator -> entries.length >= limit
+content/agent-plugins/render/deploy-ops/render.mjs:125:101 MethodExpression -> entries
+content/agent-plugins/render/deploy-ops/render.mjs:125:139 ConditionalExpression -> true
+content/agent-plugins/render/deploy-ops/render.mjs:125:139 EqualityOperator -> entry.message.length >= 2000
+content/agent-plugins/render/deploy-ops/render.mjs:128:7 LogicalOperator -> typeof value?.key !== "string" && !value.key
+content/agent-plugins/render/deploy-ops/render.mjs:128:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:128:14 OptionalChaining -> value.key
+content/agent-plugins/render/deploy-ops/render.mjs:128:55 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:128:55 EqualityOperator -> value.key.length >= 128
+content/agent-plugins/render/deploy-ops/render.mjs:137:7 ConditionalExpression -> false
+content/agent-plugins/render/deploy-ops/render.mjs:137:44 EqualityOperator -> name.length >= 128
+content/agent-plugins/resend/adapters/resend.mjs:61:7 ConditionalExpression -> true
+content/agent-plugins/resend/adapters/resend.mjs:62:7 ConditionalExpression -> true
+content/agent-plugins/resend/adapters/resend.mjs:63:7 ConditionalExpression -> true
+content/agent-plugins/resend/adapters/resend.mjs:64:30 ConditionalExpression -> true
+content/agent-plugins/resend/adapters/resend.mjs:64:30 EqualityOperator -> message.attachments.length >= 0
+content/agent-plugins/resend/adapters/resend.mjs:70:10 ConditionalExpression -> false
+content/agent-plugins/resend/adapters/resend.mjs:116:9 ConditionalExpression -> false
+content/agent-plugins/resend/adapters/resend.mjs:116:34 EqualityOperator -> response.status > 300
+content/agent-plugins/resend/adapters/resend.mjs:153:25 ObjectLiteral -> {}
+content/agent-plugins/resend/lib/domains.mjs:28:19 MethodExpression -> raw
+content/agent-plugins/resend/lib/domains.mjs:29:38 EqualityOperator -> seconds > 0
+content/agent-plugins/resend/lib/domains.mjs:35:7 EqualityOperator -> status > 500
+content/agent-plugins/resend/lib/domains.mjs:48:22 ConditionalExpression -> true
+content/agent-plugins/resend/lib/domains.mjs:55:7 EqualityOperator -> status > 500
+content/agent-plugins/resend/lib/domains.mjs:71:7 ConditionalExpression -> false
+content/agent-plugins/resend/lib/domains.mjs:71:32 EqualityOperator -> response.status > 300
+content/agent-plugins/resend/lib/domains.mjs:83:30 OptionalChaining -> listed.value.data
+content/agent-plugins/resend/lib/domains.mjs:83:72 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/resend/lib/domains.mjs:85:78 OptionalChaining -> row.name
+content/agent-plugins/resend/lib/domains.mjs:122:34 OptionalChaining -> detail.value.records
+content/agent-plugins/resend/lib/domains.mjs:122:82 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/resend/lib/domains.mjs:123:58 OptionalChaining -> record.type
+content/agent-plugins/resend/lib/domains.mjs:132:16 MethodExpression -> domain.toUpperCase()
+content/agent-plugins/resend/lib/feedback.mjs:20:39 ArithmeticOperator -> 5 / 60
+content/agent-plugins/resend/lib/feedback.mjs:32:10 MethodExpression -> header.split(' ').map(entry => entry.split(','))
+content/agent-plugins/resend/lib/feedback.mjs:32:90 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:32:90 LogicalOperator -> version === 'v1' || value
+content/agent-plugins/resend/lib/feedback.mjs:32:90 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:38:10 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:50:9 ConditionalExpression -> false
+content/agent-plugins/resend/lib/feedback.mjs:50:9 LogicalOperator -> (!id || !timestamp || !signature) && !/^\d+$/.test
+content/agent-plugins/resend/lib/feedback.mjs:50:9 ConditionalExpression -> false
+content/agent-plugins/resend/lib/feedback.mjs:50:9 LogicalOperator -> (!id || !timestamp) && !signature
+content/agent-plugins/resend/lib/feedback.mjs:50:9 ConditionalExpression -> false
+content/agent-plugins/resend/lib/feedback.mjs:50:9 LogicalOperator -> !id && !timestamp
+content/agent-plugins/resend/lib/feedback.mjs:50:45 Regex -> /\d+$/
+content/agent-plugins/resend/lib/feedback.mjs:50:45 Regex -> /^\d+/
+content/agent-plugins/resend/lib/feedback.mjs:77:33 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:77:62 MethodExpression -> entry
+content/agent-plugins/resend/lib/feedback.mjs:81:30 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:106:7 ConditionalExpression -> false
+content/agent-plugins/resend/lib/feedback.mjs:114:17 ConditionalExpression -> true
+content/agent-plugins/resend/lib/feedback.mjs:118:25 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:87:10 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:87:10 EqualityOperator -> end >= 0
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:116:11 BlockStatement -> {}
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:229:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:229:31 Regex -> /^\d+/
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:271:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs:272:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:213:129 Regex -> /\/$/
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:225:18 MethodExpression -> await resp.text()
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:265:141 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:227:13 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:265:141 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:265:141 EqualityOperator -> resp.status < 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:265:141 EqualityOperator -> resp.status > 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:292:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:320:150 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:320:150 EqualityOperator -> resp.status < 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:320:150 EqualityOperator -> resp.status > 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:320:150 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:336:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:336:11 LogicalOperator -> typeof entry !== "object" && entry === null
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:336:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:336:40 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:341:20 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:341:50 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:341:20 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:341:20 LogicalOperator -> typeof e.etag === "string" || e.etag.length > 0
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:341:50 EqualityOperator -> e.etag.length >= 0
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:346:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:346:11 LogicalOperator -> obj.version !== 2 && !Array.isArray(obj.keys)
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:346:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:367:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:407:13 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:422:189 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:420:21 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:420:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:422:189 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:422:189 EqualityOperator -> resp.status < 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:422:189 EqualityOperator -> resp.status > 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:444:103 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:444:82 EqualityOperator -> a.key <= b.key
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:444:103 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:444:103 EqualityOperator -> a.key >= b.key
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:448:23 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:444:103 EqualityOperator -> a.key <= b.key
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:449:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:486:140 EqualityOperator -> resp.status > 500
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:509:34 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:539:19 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:539:19 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:574:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:574:11 LogicalOperator -> currentKeys.has(previous.key) && previous.key === 
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:576:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:574:44 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:576:40 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:582:11 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:582:35 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:606:20 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:601:28 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:620:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:617:18 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:622:14 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:651:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:663:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:651:11 EqualityOperator -> staleKeys.length >= 0
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:663:11 EqualityOperator -> divergedKeys.length >= 0
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:664:27 MethodExpression -> divergedKeys
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:665:198 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:665:198 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:693:20 Regex -> /_share\/[0-9a-f]{64}\/[a-z0-9][a-z0-9-]{0,79}\.to
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:693:20 Regex -> /^_share\/[0-9a-f]{64}\/[a-z0-9][a-z0-9-]{0,79}\.t
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:665:198 EqualityOperator -> divergedKeys.length >= 3
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:695:71 Regex -> /\/$/
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:702:56 MethodExpression -> Object.entries(headers)
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:702:99 Regex -> /(?:content-type|content-disposition|cache-control
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:702:99 Regex -> /^(?:content-type|content-disposition|cache-contro
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:26 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:26 LogicalOperator -> response.status === 200 && Number(response.headers
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:26 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:26 LogicalOperator -> response.status === 200 || Number(response.headers
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:26 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:712:53 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:713:23 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:714:23 Regex -> /attachment(?:;|$)/i
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:714:23 Regex -> /^attachment(?:;)/i
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:665:198 EqualityOperator -> divergedKeys.length <= 3
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:667:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:753:15 OptionalChaining -> input.files.some
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:759:30 ArrayDeclaration -> ["Stryker was here"]
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:754:55 ArrowFunction -> () => undefined
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:799:49 LogicalOperator -> check.statusMessage && (check.reachable ? "Reachab
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:839:16 MethodExpression -> endpoint ?? ""
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:859:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:859:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:859:7 EqualityOperator -> provider !== "aws"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:861:7 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:863:20 ArrayDeclaration -> []
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:859:27 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:863:21 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:876:9 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:880:9 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:870:9 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:889:7 EqualityOperator -> provider !== "cloudflare-r2"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:889:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:889:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:889:37 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:902:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:902:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:902:36 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:902:7 EqualityOperator -> provider !== "backblaze-b2"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:915:7 EqualityOperator -> provider !== "digitalocean-spaces"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:915:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:915:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:915:43 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:928:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:928:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:928:7 EqualityOperator -> provider !== "wasabi"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:928:30 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:944:7 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:935:13 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:935:49 ArrayDeclaration -> []
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:935:50 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:944:7 EqualityOperator -> provider !== "minio"
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:944:29 BlockStatement -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:944:7 ConditionalExpression -> false
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:978:17 OptionalChaining -> fields[name].trim
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:1000:11 ConditionalExpression -> true
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:1017:98 Regex -> /\/$/
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:1018:96 ObjectLiteral -> {}
+content/agent-plugins/s3-compatible/targets/s3-compatible.mjs:1024:14 BlockStatement -> {}
+content/agent-plugins/vercel/targets/vercel.mjs:111:24 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:111:24 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:111:24 LogicalOperator -> resp.headers?.get?.('server') && ''
+content/agent-plugins/vercel/targets/vercel.mjs:111:24 OptionalChaining -> resp.headers?.get('server')
+content/agent-plugins/vercel/targets/vercel.mjs:111:24 OptionalChaining -> resp.headers.get
+content/agent-plugins/vercel/targets/vercel.mjs:111:72 OptionalChaining -> resp.headers?.get('set-cookie')
+content/agent-plugins/vercel/targets/vercel.mjs:111:72 OptionalChaining -> resp.headers.get
+content/agent-plugins/vercel/targets/vercel.mjs:153:78 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:163:19 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:163:19 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:163:19 EqualityOperator -> link.reachableAt === undefined
+content/agent-plugins/vercel/targets/vercel.mjs:163:52 ObjectLiteral -> {}
+content/agent-plugins/vercel/targets/vercel.mjs:178:95 ObjectLiteral -> {}
+content/agent-plugins/vercel/targets/vercel.mjs:181:23 OptionalChaining -> created.error
+content/agent-plugins/vercel/targets/vercel.mjs:196:30 OptionalChaining -> ready.error
+content/agent-plugins/vercel/targets/vercel.mjs:212:90 LogicalOperator -> ready && undefined
+content/agent-plugins/vercel/targets/vercel.mjs:218:87 ArrayDeclaration -> []
+content/agent-plugins/vercel/targets/vercel.mjs:236:18 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:236:18 LogicalOperator -> resp.status >= 300 || resp.status < 400
+content/agent-plugins/vercel/targets/vercel.mjs:236:18 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:236:18 EqualityOperator -> resp.status > 300
+content/agent-plugins/vercel/targets/vercel.mjs:236:40 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:236:40 EqualityOperator -> resp.status <= 400
+content/agent-plugins/vercel/targets/vercel.mjs:238:13 BlockStatement -> {}
+content/agent-plugins/vercel/targets/vercel.mjs:274:46 MethodExpression -> Math.max(VERCEL_UPLOAD_CONCURRENCY, queue.length)
+content/agent-plugins/vercel/targets/vercel.mjs:279:21 OptionalChaining -> err.cause
+content/agent-plugins/vercel/targets/vercel.mjs:279:44 OptionalChaining -> err.cause
+content/agent-plugins/vercel/targets/vercel.mjs:280:60 OptionalChaining -> err.message
+content/agent-plugins/vercel/targets/vercel.mjs:300:81 OptionalChaining -> err.message
+content/agent-plugins/vercel/targets/vercel.mjs:301:31 ArithmeticOperator -> 1000 / attempt
+content/agent-plugins/vercel/targets/vercel.mjs:312:75 EqualityOperator -> resp.status > 500
+content/agent-plugins/vercel/targets/vercel.mjs:314:27 ArithmeticOperator -> 1000 / attempt
+content/agent-plugins/vercel/targets/vercel.mjs:344:23 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:344:23 EqualityOperator -> i <= 5
+content/agent-plugins/vercel/targets/vercel.mjs:368:16 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:390:14 LogicalOperator -> json?.error || typeof json.error === 'object'
+content/agent-plugins/vercel/targets/vercel.mjs:390:14 OptionalChaining -> json.error
+content/agent-plugins/vercel/targets/vercel.mjs:390:29 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:395:11 OptionalChaining -> json.message
+content/agent-plugins/vercel/targets/vercel.mjs:403:19 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:403:19 LogicalOperator -> (json?.url || json?.alias?.[0]) && ''
+content/agent-plugins/vercel/targets/vercel.mjs:403:19 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:403:19 LogicalOperator -> json?.url && json?.alias?.[0]
+content/agent-plugins/vercel/targets/vercel.mjs:403:19 OptionalChaining -> json.url
+content/agent-plugins/vercel/targets/vercel.mjs:403:32 OptionalChaining -> json.alias
+content/agent-plugins/vercel/targets/vercel.mjs:404:11 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:406:14 Regex -> /https?:\/\//i
+content/agent-plugins/vercel/targets/vercel.mjs:406:14 Regex -> /^https:\/\//i
+content/agent-plugins/vercel/targets/vercel.mjs:411:16 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:411:16 LogicalOperator -> alias || typeof alias === 'object'
+content/agent-plugins/vercel/targets/vercel.mjs:411:25 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:415:20 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:421:15 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:444:15 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:444:15 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:444:15 EqualityOperator -> typeof json.url !== 'string'
+content/agent-plugins/vercel/targets/vercel.mjs:448:38 MethodExpression -> [...urls, ...deploymentUrls].map(normalizeDeployme
+content/agent-plugins/vercel/targets/vercel.mjs:454:62 MethodExpression -> candidates
+content/agent-plugins/vercel/targets/vercel.mjs:454:80 ArrowFunction -> () => undefined
+content/agent-plugins/vercel/targets/vercel.mjs:454:89 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:454:89 ConditionalExpression -> false
+content/agent-plugins/vercel/targets/vercel.mjs:454:89 EqualityOperator -> url === publicUrl
+content/agent-plugins/vercel/targets/vercel.mjs:479:48 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:489:66 ConditionalExpression -> true
+content/agent-plugins/vercel/targets/vercel.mjs:508:14 BlockStatement -> {}

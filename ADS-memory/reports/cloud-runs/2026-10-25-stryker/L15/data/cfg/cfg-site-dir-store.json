@@ -1,0 +1,4 @@
+{"testRunner":"tap","tap":{"nodeArgs":["--experimental-test-module-mocks","--import","./scripts/resolve-ts-ext.ts","--test-skip-pattern=through Tovu's actual CLI|desktop source CLI creation","--test-reporter=tap"],"testFiles":["src/add-site-button-wiring.test.ts","src/add-site-pointer.test.ts","src/agent-plugin-tokens.test.ts","src/project-ipc-dispatch.test.ts","src/project-ipc.test.ts","src/shared-sites-home.test.ts","src/site-create-admin-password.test.ts","src/site-dir-store.test.ts","src/site-relocation.test.ts","src/store-cross-process.test.ts","src/tracked-sites.test.ts"]},
+"mutate":["src/site-dir-store.ts"],"coverageAnalysis":"off","concurrency":3,"reporters":["json","clear-text","progress-append-only"],
+"jsonReporter":{"fileName":"/root/stryker/l15/site-dir-store.json"},"mutator":{"excludedMutations":["StringLiteral"]},
+"tempDirName":".stryker-tmp","cleanTempDir":false,"disableTypeChecks":true,"incremental":false,"timeoutMS":20000}
