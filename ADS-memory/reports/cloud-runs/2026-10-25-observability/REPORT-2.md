@@ -117,4 +117,4 @@ branches). Product analytics noop `capture` 0.03 µs.
 - Vitest 2 in Jini needs `--maxWorkers=2 --minWorkers=1` (tinypool rejects maxWorkers alone).
 - `npm install posthog-node` required `unlink:jini` → install → `link:jini` (run 1's `workspace:` protocol note).
 
-OBS2 DONE 2026-10-25T20:20Z — wall ≈ 0 h 48 m (19:32 → 20:20 UTC). Tokens: roughly 0.25M (session counter delta; excludes cached re-reads, so a lower bound). No subagents.
+OBS2 DONE 2026-10-25T20:28Z — wall ≈ 0 h 56 m (19:32 → 20:28 UTC). Tokens: roughly 0.25M (session counter delta; excludes cached re-reads, so a lower bound). No subagents.
