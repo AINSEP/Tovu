@@ -16,3 +16,6 @@ Part 2 (admin-surfaces) done: 2085 mutants. Anomaly: 6 files show 0 kills / 666 
 
 ## 2026-10-25T18:26:48Z — PROGRESS
 ROOT CAUSE of the 666 NoCoverage in part 2: my wrapper vitest config used a relative alias for @jini-ai/plugins/host (resolved against sandbox dir) -> test files importing lifecycle/tools/__tests__/support.ts failed to collect silently (dry run: 102 of 1242 tests ran...). Fixed with absolute alias; part 2 rerun (incremental): 90.60%, 0 nocov. Re-running part 1 incrementally with the fixed config (earlier part-1 numbers understated for files hit by those tests).
+
+## 2026-10-25T18:55:16Z — DONE
+All parts done; report STRYKER-RUN-2.md. Jini cloud/stryker-1025-jini @ 9fa38851 (part 0 tests).
