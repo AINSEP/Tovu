@@ -6,6 +6,7 @@ import {
   type MailSendLedgerPort,
   type MailSuppressionRepoPort,
 } from "@jini-ai/platform/mail";
+import type { MailAttemptObserver } from "#src/features/mail/attempts.repo";
 import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
 import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
 import { toJiniMailer, toTovuMailer } from "#src/platform/mail/purpose-scoped-mailer";
@@ -27,7 +28,7 @@ export interface MailPolicyWrapperDeps {
   suppression: MailSuppressionRepoPort;
   /** Fresh `core.mail.testMode` read (`features/settings/mail-provider.ts`). */
   readTestMode: () => Promise<MailTestModeSetting>;
-  observe?: (required: { message: OutboundEmail; options: MailerSendOptions; providerId: string; mode: MailTestModeSetting; result: MailerSendResult }) => Promise<void>;
+  observe?: MailAttemptObserver;
 }
 
 export interface MailPolicyWrapperOptions {
