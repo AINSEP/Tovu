@@ -121,7 +121,7 @@ What these numbers do NOT catch: StringLiteral excluded, type checks off, perTes
 - `dd3eac5a` test(mcp): relay nonce gate negatives, secret-file default port (0600/owner-only/createParent), tokens __proto__ guard
 - `e7470f19` test(mcp): pin tool descriptor contracts (inputSchema/required/additionalProperties/annotations), reset run-tools mocks, relay route/case tests
 
-F3 DONE 2026-10-25T23:58Z — wall ≈ 2 h 25 m, tokens ≈ 0.5 M (rough).
+F3 DONE 2026-10-25T23:51Z — wall ≈ 2 h 17 m, tokens ≈ 0.5 M (rough).
 
 ## Run log
 ## 2026-10-25T21:34Z — STARTED
@@ -137,5 +137,5 @@ mcp Stryker re-score (8 files): component-catalog 64.3→100, run-tools 70.2→9
 ## 2026-10-25T23:16Z — PROGRESS
 agent-runtime round-2 re-score done; chat L5 re-score (1936 mutants) still running since 22:07; mcp round-2 started. Jini HEAD pushed through scope-option test.
 
-## 2026-10-25T23:58Z — DONE
+## 2026-10-25T23:51Z — DONE
 Finished inside caps. Jini HEAD 36bd0ee2 pushed and confirmed. Final report above.
