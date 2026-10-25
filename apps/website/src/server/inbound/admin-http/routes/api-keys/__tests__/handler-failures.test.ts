@@ -40,13 +40,13 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
   return deps;
 }
 
-async function invoke(register: ApiKeysRouteRegistrar, deps: ApiKeysRouteDeps, path: string, body: unknown, params: unknown = {}) {
+async function invoke(register: ApiKeysRouteRegistrar, deps: ApiKeysRouteDeps, path: string, body: unknown, params: unknown = {}, credentialKind = "session") {
   const app = express();
   register(app, deps);
   const handler = extractRouteHandler(app, "post", path);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-9" };
-  res.locals.authCredentialKind = "session";
+  res.locals.authCredentialKind = credentialKind;
   res.end = (() => res) as typeof res.end;
   await handler({ body, params }, res);
   return capture;
@@ -120,6 +120,22 @@ for (const [label, register, path] of [
     const capture = await invoke(register, deps, path, undefined);
     assert.equal(capture.statusCode, 400, JSON.stringify(capture.jsonBody));
     assert.notDeepEqual(capture.jsonBody, { error: "internal error" });
+    assert.equal(await deps.principalRepo.findById({ workspaceId: "ws-7", id: "new-1" }), null);
+    assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: "ws-7", principalId: "machine-3" }), []);
+  });
+}
+
+// F6 fix wave (Stryker re-score: the route-level `rejectApiKeyCredential` survived): an api-key
+// credential can never mint principals or keys, even for a valid body — 403 before any write.
+for (const [label, register, path, body] of [
+  ["API-key issuance", registerAdminApiKeyIssueRoute, "/api/admin/v1/api-keys", { principalId: "machine-3", label: "Export", policyIds: ["manage-keys"] }],
+  ["API-key principal create", registerAdminApiKeyPrincipalCreateRoute, "/api/admin/v1/api-keys/principals", { displayName: "Nightly Export" }],
+] as const) {
+  test(`${label} refuses an api-key credential with 403 and writes nothing`, async () => {
+    const deps = await depsForHandler();
+    const capture = await invoke(register, deps, path, body, {}, "api_key");
+    assert.equal(capture.statusCode, 403);
+    assert.deepEqual((capture.jsonBody as { details?: unknown }).details, { permission: "apikey.manage", reason: "credential_kind_not_permitted" });
     assert.equal(await deps.principalRepo.findById({ workspaceId: "ws-7", id: "new-1" }), null);
     assert.deepEqual(await deps.apiKeyRepo.listByPrincipalId({ workspaceId: "ws-7", principalId: "machine-3" }), []);
   });
