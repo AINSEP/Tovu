@@ -7,6 +7,8 @@ import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
+import { createExpiringSurfaces } from "../../../../__tests__/support/expiring-surfaces.js";
+import { buildPluginsRegistrations } from "../../tool-registrations.js";
 import { ABANDONED_NOTE, CAPABILITIES, PLUGIN_ID, PRINCIPAL_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
 
 /**
@@ -203,6 +205,35 @@ test("a declined card writes and records nothing", async () => {
   assert.deepEqual(await outcome, { changed: false, family: "site-runtime", pluginId: PLUGIN_ID, restartRequired: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.deepEqual(h.events, ["discover", "isSealedHere:site-rules@1.0.0", "readApproval:site-rules"]);
 });
+
+for (const family of ['site-runtime', 'agent-plugin'] as const) {
+  test(`expired_plugin_approval_reports_stop_without_effect: ${family}`, { timeout: 1_000 }, async t => {
+    const h = harness({ source: { isSealedHere: async () => false }, confirmEnable: () => true });
+    const surfaces = createExpiringSurfaces({});
+    const controller = new AbortController();
+    t.after(() => controller.abort());
+    let grants = 0;
+    const registration = buildPluginsRegistrations({ ...h.deps, nativeApprovalMemory: {
+      has: async () => false, grant: async () => { grants++; },
+    } }, surfaces).find(tool => tool.descriptor.id === 'plugins_set_enabled')!;
+    const pluginId = family === 'site-runtime' ? PLUGIN_ID : 'higgsfield';
+    const pending = registration.handler(context({ family, pluginId, enabled: true }, controller.signal), { emitSurface: surfaces.emitSurface });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(surfaces.emitted.length, 1);
+    assert.equal(surfaces.surfaceExchanges.size(), 1);
+    surfaces.expire();
+    assert.deepEqual(await pending, { changed: false, family, pluginId, restartRequired: false, cancelled: false, reason: 'expired',
+      note: 'The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request.',
+    });
+    assert.equal(grants, 0);
+    assert.equal(h.events.some(event => /^(save:|setEnabled:|provisionMcp:|recordApproval:|onEnabled:)/.test(event)), false);
+    assert.equal(await h.activationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID }), null);
+    assert.equal(surfaces.surfaceExchanges.size(), 0);
+    assert.deepEqual(surfaces.surfaceExchanges.deliver({ exchangeId: 'expiry-1', principalId: PRINCIPAL_ID, params: { decision: 'confirm' } },
+      { toolId: 'plugins_set_enabled' }), { ok: false, reason: 'unknown-or-closed' });
+    assert.equal(surfaces.emitted.length, 1);
+  });
+}
 
 test("a version changed while the card was open is refused as PLUGINS_STALE_APPROVAL with no record or write", async () => {
   let reads = 0;

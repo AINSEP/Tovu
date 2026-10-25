@@ -163,7 +163,7 @@ test("a headless call cannot apply, and an expired confirmation resolves execute
   const keepAlive = setInterval(() => {}, 1000);
   try {
     const result = await r.handler(context({ bundleId: f.bundleId }), { emitSurface: async () => undefined });
-    assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed." });
+    assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request." });
   } finally { clearInterval(keepAlive); }
   assert.equal(f.applied.length, 0);
   assert.equal(f.restorePoints.size, 0);

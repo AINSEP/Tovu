@@ -244,7 +244,7 @@ test("G3 card: an expired card sends nothing and says it expired", async () => {
     ran: false,
     cancelled: false,
     reason: "expired",
-    note: "The user did not answer the confirmation dialog before it expired. Nothing was changed.",
+    note: "The user did not answer the confirmation dialog before it expired. Nothing was changed. Do not retry this action or reopen its confirmation automatically. Tell the user it expired and nothing changed, then wait for a new explicit request.",
   });
   assert.equal(cards.length, 1);
   assert.deepEqual(h.sent, []);

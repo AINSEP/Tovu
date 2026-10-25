@@ -10,10 +10,10 @@ import { SYSTEM_PREAMBLE as VISITOR_SYSTEM_PREAMBLE } from "../modules/site-assi
 import { runPublicSiteGuide } from "../public-site-guide.js";
 
 test("anonymous guide exposes public content only, using the real Jini filtering shell", async () => {
-  const result = await runPublicSiteGuide({ input: { operation: "overview" } }) as { topics: { id: string }[]; facts: unknown; callerPermissions: string[] };
+  const result = await runPublicSiteGuide({ input: { operation: "overview" } }) as { topics: { id: string }[]; facts: unknown };
   assert.deepEqual(result.topics.map(topic => topic.id), ["content"]);
   assert.deepEqual(result.facts, {});
-  assert.deepEqual(result.callerPermissions, []);
+  assert.equal(Object.hasOwn(result, "callerPermissions"), false);
   await assert.rejects(runPublicSiteGuide({ input: { operation: "explain", topic: "plugins" } }), { message: "Topic unavailable. Call site_guide with operation overview for topics you may read." });
   const explained = await runPublicSiteGuide({ input: { operation: "explain", topic: "content" } }) as { facts: unknown };
   assert.deepEqual(explained.facts, { content: { status: "ok", data: { visibility: "published-only", administration: false } } });
