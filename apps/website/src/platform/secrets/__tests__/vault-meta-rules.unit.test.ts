@@ -68,7 +68,7 @@ test("each migration label is checked for credentials; non-string labels are ign
 
 test("api-connection metadata is dispatched to the Tovu parser, not Jini's kind parser", () => {
   const untouched: VaultMetaParsers = new Proxy(base, { get: () => () => { throw new Error("base parser must not run"); } });
-  assert.throws(() => parseStructuralMeta({ kind: "api-connection", meta: { nonsense: true }, provider: null, base: untouched }), invalidMeta);
+  assert.throws(() => parseStructuralMeta({ kind: "api-connection", meta: { nonsense: true }, provider: null, base: untouched }), { name: "OAuthTokenStoreError" });
 });
 test("a destination keeps a string savedAt, omits an absent one, and refuses a non-string one", () => {
   const meta = { description, lastRun: null };
