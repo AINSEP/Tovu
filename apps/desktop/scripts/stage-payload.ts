@@ -49,7 +49,7 @@
  * Exit codes: 0 = payload and bundled npm staged; 1 = a precondition or staged-tree check refused.
  */
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -71,7 +71,7 @@ import { stagePayloadCli } from "../src/stage-payload-run.ts";
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, {
-  fs: { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync },
+  fs: { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync },
   steps: {
     stagePayloadFiles, stageDir, stageTransitiveDependencies, stripNonRuntimeFiles, pruneNativePrebuilds,
     assertClosureComplete, assertDistImportsDeclared, stageBundledNpm, diskBytes, newestMtime,
