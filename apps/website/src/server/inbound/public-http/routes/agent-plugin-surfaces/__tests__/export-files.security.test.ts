@@ -45,3 +45,17 @@ test("T1: SVG navigation is sandboxed, nosniff and never serves undeclared files
   assert.equal(result.headers.get("x-content-type-options"), "nosniff");
   assert.match(result.headers.get("content-security-policy")!, /sandbox/);
 });
+
+test("T1: a declared asset with a non-CSS/PNG/SVG extension is refused without a read", async t => {
+  const app = express();
+  let reads = 0;
+  const source = harness().source;
+  registerPluginExportFilesRoute({ app, deps }, { source: { ...source,
+    list: async () => [{ ...owner, exports: { button: { ...owner.exports.button!, assets: { page: "page.html", code: "code.js" } } } }],
+    readAsset: async input => { reads += 1; return source.readAsset(input); } } });
+  const origin = await startTestServer(app, t);
+  for (const name of ["page.html", "code.js"]) {
+    assert.equal((await fetch(`${origin}/api/agent-plugin-exports/v1/demo/button/${name}`)).status, 404);
+  }
+  assert.equal(reads, 0);
+});
