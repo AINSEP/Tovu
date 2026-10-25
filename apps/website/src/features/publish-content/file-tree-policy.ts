@@ -150,14 +150,33 @@ export function isIgnoredTreeFileName(name: string): boolean {
  * @complexity O(1).
  */
 function deniedFileNameReason(name: string): string | null {
-  if (name === ".env" || name.startsWith(".env.")) return "looks like an environment file";
-  if (name === ".npmrc" || name === ".netrc") return "is a package-manager credential file";
-  if (MCP_CONFIG_NAME_PATTERN.test(name)) return "is an MCP server configuration file, which can hold secrets";
-  if (name === ".fs-custom-root.json") return "holds a local filesystem path, never portable across machines";
-  if (name.includes(".storage-secret.json")) return "is a site's sealed database connection string";
-  if (["id_rsa", "id_ed25519"].some((prefix) => name === prefix || name.startsWith(`${prefix}.`))) {
+  // FU-A 2c: judge the name a backup/editor copy would still mean (`.npmrc.bak`, `.env~`, any case).
+  const base = credentialBaseName(name);
+  if (base === ".env" || base.startsWith(".env.")) return "looks like an environment file";
+  if (base === ".npmrc" || base === ".netrc") return "is a package-manager credential file";
+  if (MCP_CONFIG_NAME_PATTERN.test(base)) return "is an MCP server configuration file, which can hold secrets";
+  if (base === ".fs-custom-root.json") return "holds a local filesystem path, never portable across machines";
+  if (base.includes(".storage-secret.json")) return "is a site's sealed database connection string";
+  if (["id_rsa", "id_ed25519"].some((prefix) => base === prefix || base.startsWith(`${prefix}.`))) {
     return "looks like a private SSH key";
   }
+  return null;
+}
+
+/** Editor/backup suffixes that leave a credential file's meaning intact, stacked or alone. */
+const BACKUP_SUFFIX_PATTERN = /(?:\.(?:bak|old|orig)|~)+$/;
+
+/** The lowercased name with trailing backup suffixes removed: `.NPMRC.bak~` → `.npmrc`. Shared with
+ *  the raw-file backstop so both policies recognise the same credential copies. @complexity O(k). */
+export function credentialBaseName(name: string): string {
+  return name.toLowerCase().replace(BACKUP_SUFFIX_PATTERN, "");
+}
+
+/** Key and database files by name, including a stemless `.pem`/`.key` and backups such as
+ *  `site.db.bak` or `content.sqlite3`, which the extension rule alone does not see. @complexity O(k). */
+function deniedKeyOrDatabaseReason(base: string): string | null {
+  if (/\.(?:pem|key|p12|pfx)$/.test(base)) return "looks like a private key or certificate file";
+  if (/\.(?:db|sqlite3?)$/.test(base)) return "looks like a database file";
   return null;
 }
 
@@ -267,6 +286,8 @@ export function checkTreePath(relPath: string): string | null {
 
   const ext = extensionOf(relPath);
   if (DENY_EXTENSIONS.has(ext)) return `"${relPath}" has a '.${ext}' extension, which is never published`;
+  const keyOrDatabase = deniedKeyOrDatabaseReason(credentialBaseName(name));
+  if (keyOrDatabase) return `"${relPath}" ${keyOrDatabase}`;
 
   return null;
 }

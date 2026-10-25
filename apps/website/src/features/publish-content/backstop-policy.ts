@@ -1,4 +1,4 @@
-import { checkTreePath } from "./file-tree-policy.js";
+import { checkTreePath, credentialBaseName } from "./file-tree-policy.js";
 import { scanTextForSecrets } from "#src/features/webhooks/secret-scan-guard";
 
 /** CMS-specific, immutable boundaries, run on BOTH peers. Neither a grant nor a confirmation
@@ -91,7 +91,12 @@ export function gapLabelFor(
 function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
   const lower = part.toLowerCase();
   return BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-") ||
-      lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower) ||
+      isPrivateRawName({ lower }) || isPrivateRawName({ lower: credentialBaseName(part) });
+}
+
+/** FU-A 2c: checked on the name and on its backup-stripped base (`.npmrc.bak`, `tls.key~`). */
+function isPrivateRawName({ lower }: { lower: string }, _optional: Record<string, never> = {}): boolean {
+  return lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower) ||
       [".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower) ||
       /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
 }
