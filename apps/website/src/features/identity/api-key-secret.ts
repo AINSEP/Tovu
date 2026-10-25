@@ -156,9 +156,10 @@ function parseStoredHashParams(rawN: string, rawR: string, rawP: string): Parsed
 
 /** Split a stored `scrypt$...` string. Returns `null` for anything this file did not write. */
 function parseStoredHash(storedHash: string): ParsedDigest | null {
-  const [scheme, rawN, rawR, rawP, rawSalt, rawDigest, ...extra] = storedHash.split("$");
-  if (scheme !== "scrypt" || rawN === undefined || rawR === undefined || rawP === undefined) return null;
-  if (rawSalt === undefined || rawDigest === undefined || extra.length > 0) return null;
+  const fields = storedHash.split("$");
+  // Exactly `scrypt$N$r$p$salt$digest`: a missing or an extra field is not a hash this file wrote.
+  if (fields.length !== 6 || fields[0] !== "scrypt") return null;
+  const [, rawN, rawR, rawP, rawSalt, rawDigest] = fields as [string, string, string, string, string, string];
 
   const params = parseStoredHashParams(rawN, rawR, rawP);
   if (!params) return null;
