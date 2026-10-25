@@ -156,3 +156,61 @@ test("disabling the provider invalidates an emailed-code continuation", async ()
   f.disable();
   await assert.rejects(openLoginEmailContinuation({ deps: f.deps, input: { ...input, continuation } }), invalidLogin);
 });
+
+// --- F6 fix wave (L7 Stryker survivors in oidc-login.ts): every limit at its edge, refusal code asserted. ---
+const unavailableLogin = (error: unknown) => error instanceof MemberLoginError && error.code === "LOGIN_UNAVAILABLE" && !error.cause;
+const at = (local: number) => `${"a".repeat(local)}@gmail.com`;
+
+for (const [email, accepted] of [
+  [at(310), true], [at(311), false], ["  Person@GMAIL.com ", true], ["a\tb@gmail.com", false], ["a b@gmail.com", false],
+  ["@gmail.com", false], ["a@@gmail.com", false], ["a@b@gmail.com", false], ["a@gmail", false], ["a@.com", false], ["a@gmail.", false], ["a@g.c", true],
+] as const) {
+  test(`verified email ${JSON.stringify(email.length > 40 ? `${email.length} chars` : email)} is ${accepted ? "accepted" : "refused"}`, async () => {
+    const f = fixture({ email });
+    const started = await f.start();
+    const outcome = completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } });
+    if (accepted) assert.equal((await outcome).identity.email, email.trim().toLowerCase());
+    else await assert.rejects(outcome, invalidLogin);
+  });
+}
+
+for (const [label, claims, accepted] of [
+  ["a 255-char subject", { sub: "s".repeat(255) }, true], ["a 256-char subject", { sub: "s".repeat(256) }, false],
+] as const) {
+  test(`subject limit: ${label} is ${accepted ? "accepted" : "refused"}`, async () => {
+    const f = fixture(claims);
+    const started = await f.start();
+    const outcome = completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } });
+    if (accepted) assert.equal((await outcome).identity.subject, claims.sub);
+    else await assert.rejects(outcome, invalidLogin);
+  });
+}
+
+test("a browser binding that is not exactly 32 random bytes refuses to start (LOGIN_UNAVAILABLE)", async () => {
+  const f = fixture();
+  const real = f.deps.randomBytesFn;
+  let first = true;
+  f.deps.randomBytesFn = (input) => { if (first) { first = false; return real({ byteLength: 31 }); } return real(input); };
+  await assert.rejects(beginOidcLogin({ deps: f.deps, input: f.input }), unavailableLogin);
+});
+
+test("sealing an emailed-code continuation refuses a login that does not match the request, or is stale", async () => {
+  const f = fixture({ email: "person@custom.example" });
+  const started = await f.start();
+  const input = { ...f.input, browserBinding: started.browserBinding };
+  const login = await completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } });
+  for (const bad of [
+    { ...login, identity: { ...login.identity, providerId: "other" } },
+    { ...login, identity: { ...login.identity, issuer: "https://attacker.example" } },
+    { ...login, connectMemberId: "member-9" },
+    { ...login, startedAt: "not-a-date" },
+  ]) {
+    await assert.rejects(sealLoginEmailContinuation({ deps: f.deps, input, login: bad }), invalidLogin, JSON.stringify(bad));
+  }
+  f.clock.advanceMs(Date.parse(login.startedAt) + 599_999 - f.clock.nowMs());
+  const continuation = await sealLoginEmailContinuation({ deps: f.deps, input, login });
+  assert.deepEqual(await openLoginEmailContinuation({ deps: f.deps, input: { ...input, continuation } }), login);
+  f.clock.advanceMs(1);
+  await assert.rejects(sealLoginEmailContinuation({ deps: f.deps, input, login }), invalidLogin);
+  await assert.rejects(openLoginEmailContinuation({ deps: f.deps, input: { ...input, continuation } }), invalidLogin);
+});
