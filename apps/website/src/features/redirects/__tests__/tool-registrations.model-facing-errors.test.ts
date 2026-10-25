@@ -190,3 +190,22 @@ test("redirects_list refuses an off-enum status, source or matchType naming the 
   await handler(deps, "redirects_list")(ctx({ status: "disabled", source: "import", matchType: "regex" }));
   assert.equal(listed, 1);
 });
+
+// Stryker lane L14 (redirects/tool-registrations.ts L233): the batch-size guard's three clauses were
+// each removable. One case per clause, plus the max boundary, all asserting the exact refusal.
+test("redirects_import: 'rules' must be an array of 1..MAX items — non-array, empty and MAX+1 are refused before any write", async () => {
+  const { MAX_IMPORT_BATCH_SIZE } = await import("@jini-ai/cms/redirects");
+  const { deps, redirectRepo } = makeDeps();
+  const tool = buildRedirectsRegistrations(deps).find((r) => r.descriptor.id === "redirects_import")!;
+  const call = (input: unknown) => tool.handler({ executionId: "e", principal: { id: PRINCIPAL_ID }, run: { id: "r" }, input, signal: new AbortController().signal } as ToolExecutionContext);
+  const message = `'rules' (array of 1-${MAX_IMPORT_BATCH_SIZE} items) is required`;
+  const rule = (i: number) => ({ matchType: "exact", fromPattern: `/old-${i}`, toTarget: `/new-${i}`, statusCode: 301 });
+  for (const rules of [undefined, "x", {}, [], Array.from({ length: MAX_IMPORT_BATCH_SIZE + 1 }, (_, i) => rule(i))]) {
+    await assert.rejects(call({ rules }), (e: unknown) => e instanceof ToolInputError && e.message === message, JSON.stringify(rules)?.slice(0, 40));
+  }
+  assert.equal((await redirectRepo.list({ workspaceId: WORKSPACE_ID })).length, 0, "no refused batch wrote a rule");
+  // Exactly MAX is accepted as a batch (per-rule outcomes are the chokepoint's business; this fixture's
+  // seconds-only clock runs out after ~30 writes, which surfaces as per-rule failures, not a refusal).
+  await call({ rules: Array.from({ length: MAX_IMPORT_BATCH_SIZE }, (_, i) => rule(i)) });
+  assert.ok((await redirectRepo.list({ workspaceId: WORKSPACE_ID })).length > 0, "a MAX-sized batch is processed");
+});
