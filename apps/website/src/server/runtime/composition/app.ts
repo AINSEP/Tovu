@@ -155,6 +155,7 @@ import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters"
 import { analyticsProviderRouteDeps } from "./analytics-providers.js";
 import {
   ConsoleMailerAdapter,
+  createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
@@ -2008,8 +2009,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // file, the hermetic test composition), durable SQL from `deps.ts`'s
   // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
   const memberPublicDeps: MemberPublicRouteDeps = {
-    // Password writes fail closed without the shared store; never mix kernel transactions with memory repos.
-    credentialLifecycle: routeDeps.contentKernel,
+    // Password writes need the SAME store as the member repos: the durable kernel, or (memory-only
+    // composition, no kernel) an in-process mutex. Never mix kernel transactions with memory repos.
+    credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle(),
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
     memberTierRepo: routeDeps.memberTierRepo,

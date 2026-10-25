@@ -66,6 +66,7 @@ export type {
 export type { MailerPort, OutboundEmail } from "../../platform/mail/index.js";
 
 export {
+  createInMemoryCredentialLifecycle,
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberConsentRepo,
   InMemoryMemberRepo,

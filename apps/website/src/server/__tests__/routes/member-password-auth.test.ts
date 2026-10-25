@@ -495,6 +495,29 @@ test("createApp uses the staff hasher and admin routes reject a valid member coo
 });
 
 
+test("memory-only createApp still changes passwords and revalidates concurrent changes", async t => {
+  // No contentKernel: the composition must supply its in-process lifecycle, not fail closed.
+  const deps = createRouteDeps();
+  assert.equal(deps.contentKernel, undefined);
+  const member: MemberRecord = { id: "memory-member", workspaceId: deps.workspaceId,
+    email: "memory@example.test", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 };
+  await deps.memberRepo.save(member);
+  await deps.memberRepo.setPasswordHash({ workspaceId: deps.workspaceId, memberId: member.id,
+    passwordHash: await deps.passwordHasher.hash({ password: "x" }) });
+  const base = await startTestServer(createApp(deps), t);
+  const route = (path: string) => `${base}/api/members/v1/workspaces/${deps.workspaceId}/password/${path}`;
+  const json = (body: object, cookie?: string) => ({ method: "POST",
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  const login = await fetch(route("sign-in"), json({ email: member.email, password: "x" }));
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get("set-cookie")!.split(";")[0];
+  const statuses = (await Promise.all(["y", "z"].map(password =>
+    fetch(route("set"), json({ password, currentPassword: "x" }, cookie))))).map(r => r.status).sort();
+  assert.deepEqual(statuses, [200, 401], "the second change revalidates against the first one's credential");
+  const signIns = await Promise.all(["y", "z"].map(password => fetch(route("sign-in"), json({ email: member.email, password }))));
+  assert.deepEqual(signIns.map(r => r.status).sort(), [200, 401]);
+});
+
 test("expired, consumed, exhausted, wrong-purpose and wrong-code challenges share the same 401", async t => {
   const h = harness(); await h.seed();
   const base = await startTestServer(h.app, t);
