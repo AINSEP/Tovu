@@ -10,6 +10,8 @@ import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { sitesProjectReferences } from "./sites-project-references.js";
 import type { DirectoryRunningRecord } from "@jini-ai/platform/fs";
+import { assertLocalSiteName } from "./local-site-supervisor.js";
+import { ValidationError } from "./errors.js";
 
 export interface MovePlan { from: string; to: string; id: string; name: string; running: DirectoryRunningRecord | null;
   databases: { from: string; to: string }[];
@@ -293,4 +295,35 @@ export async function moveLegacySite({ dir }: { dir: string }, { workspace = cre
   const moved = await moveSitesHome({ repoRoot }, { apply: true, workspace, sites: [path.basename(from)], sourceRoots: [root], projectsPaths });
   if (moved.length !== 1) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
   return moved[0]!.to;
+}
+
+/** Rename a direct child of the configured sites home, preserving display name and identity.
+ * Uses the stopped-site mover, including leases, DB checks, verified rollback and Jini's
+ * registry relocate transaction. Filesystem/planning/move ports permit tests without home I/O.
+ * @returns The old/new folder paths after the verified move commits.
+ * @throws Invalid names, unsafe source, existing target, live owner or relocation failure.
+ * @example await renameSiteFolder({ oldName: "old-site", newName: "new-site" });
+ * @complexity O(site bytes + SQLite verification + catalog/reference bytes), via the mover.
+ */
+export async function renameSiteFolder(
+  { oldName, newName }: { oldName: string; newName: string },
+  { workspace: suppliedWorkspace, filesystem = fs, planMove = planSiteMove, moveSite = moveOneSite }: {
+    workspace?: SitesWorkspace;
+    filesystem?: Pick<typeof fs, "lstatSync" | "realpathSync">;
+    planMove?: typeof planSiteMove;
+    moveSite?: typeof moveOneSite;
+  } = {},
+): Promise<{ from: string; to: string }> {
+  assertLocalSiteName({ name: oldName });
+  assertLocalSiteName({ name: newName });
+  // Windows device names are invalid directories even when the command runs on another OS.
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(newName)) throw new ValidationError("Site folder name is reserved on Windows.");
+  const workspace = suppliedWorkspace ?? createSitesWorkspace({});
+  const home = filesystem.realpathSync(workspace.home({}));
+  const from = path.join(home, oldName), to = path.join(home, newName);
+  if (!filesystem.lstatSync(from).isDirectory()) throw new ValidationError("The source site must be a real directory, not a symlink.");
+  const plan = planMove({ from, to, workspace });
+  if (plan.running) throw new Error(`Site is running in ${plan.running.app}: ${from}. Stop it before renaming it.`);
+  await moveSite({ plan, workspace }, { relocateDirectory: moveDirectoryVerified, verifyDatabase: inspectStoppedDatabase });
+  return { from, to };
 }
