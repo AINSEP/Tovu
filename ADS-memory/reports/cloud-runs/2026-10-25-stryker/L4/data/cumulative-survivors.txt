@@ -1,4 +1,199 @@
 
+### src/media/agent-tools.ts score=33.3 surv+nocov=34 :: BooleanLiteral=5, ObjectLiteral=22, ArrayDeclaration=7
+  83:58 BooleanLiteral `inputSchema: { type: "object", additionalProperties: false, properties: {} },` -> true
+  83:18 ObjectLiteral `inputSchema: { type: "object", additionalProperties: false, properties: {} },` -> {}
+  89:18 ObjectLiteral `inputSchema: { type: "object", additionalProperties: false, required: ["documentId"], prop` -> {}
+  89:58 BooleanLiteral `inputSchema: { type: "object", additionalProperties: false, required: ["documentId"], prop` -> true
+  89:75 ArrayDeclaration `inputSchema: { type: "object", additionalProperties: false, required: ["documentId"], prop` -> []
+  89:103 ObjectLiteral `inputSchema: { type: "object", additionalProperties: false, required: ["documentId"], prop` -> {}
+  90:19 ObjectLiteral `documentId: { type: "string", minLength: 1 }, offset: { type: "integer", minimum: 0, descr` -> {}
+  90:61 ObjectLiteral `documentId: { type: "string", minLength: 1 }, offset: { type: "integer", minimum: 0, descr` -> {}
+  99:18 ObjectLiteral `inputSchema: {` -> {}
+  101:29 BooleanLiteral `additionalProperties: false,` -> true
+
+### src/media/blob-gc.ts score=88.4 surv+nocov=14 :: BlockStatement=3, ConditionalExpression=4, LogicalOperator=1, EqualityOperator=1, MethodExpression=1, ArithmeticOperator=4
+  73:83 BlockStatement `function hasLiveEntryRefs(_input: { workspaceId: UUID; sha256: string }): boolean {` -> {}
+  85:86 BlockStatement `function hasRetainedSnapshot(_input: { workspaceId: UUID; sha256: string }): boolean {` -> {}
+  99:108 BlockStatement `function getOldestRetainedSnapshotAgeMs(_input: { workspaceId: UUID; sha256: string }): nu` -> {}
+  164:48 ConditionalExpression `const hasMediaReference = rows.some((row) => row.source.sha256 === input.sha256);` -> true
+  265:9 LogicalOperator `if (row.status !== "tombstoned" || !row.tombstonedAt) {` -> row.status !== "tombstoned" && !row.tombstonedAt
+  265:9 ConditionalExpression `if (row.status !== "tombstoned" || !row.tombstonedAt) {` -> false
+  271:9 EqualityOperator `if (elapsedMs < graceMs) return { deleted: false, reason: "grace-period-not-elapsed" };` -> elapsedMs <= graceMs
+  385:26 MethodExpression `const tombstonedRows = rows.filter((row) => row.status === "tombstoned");` -> rows
+  385:47 ConditionalExpression `const tombstonedRows = rows.filter((row) => row.status === "tombstoned");` -> true
+  390:9 ConditionalExpression `if (result.deleted) deletedShas.push(row.sha256);` -> true
+
+### src/media/content-type-sniffer.ts score=86.7 surv+nocov=21 :: ConditionalExpression=13, ArithmeticOperator=2, BlockStatement=1, MethodExpression=2, LogicalOperator=3
+  58:7 ConditionalExpression `if (bytes.length < offset + expected.length) return false;` -> false
+  58:22 ArithmeticOperator `if (bytes.length < offset + expected.length) return false;` -> offset - expected.length
+  118:48 BlockStatement `function ftypBoxEnd(bytes: Uint8Array): number {` -> {}
+  120:10 MethodExpression `return Math.min(declared, bytes.length);` -> Math.max(declared, bytes.length)
+  141:9 ConditionalExpression `if (offset + 4 > boxEnd) return false;` -> false
+  141:9 ArithmeticOperator `if (offset + 4 > boxEnd) return false;` -> offset - 4
+  135:7 ConditionalExpression `if (!isIsoBmffFtyp(bytes)) return false;` -> false
+  158:36 MethodExpression `const window = bytes.subarray(0, Math.min(bytes.length, TEXT_SNIFF_WINDOW));` -> Math.max(bytes.length, TEXT_SNIFF_WINDOW)
+  173:7 ConditionalExpression `if (text.startsWith("<?xml")) return text.includes("<html");` -> true
+  181:7 ConditionalExpression `if (text.startsWith("<?xml")) return text.includes("<svg");` -> true
+
+### src/media/document-ingress.ts score=90.0 surv+nocov=36 :: MethodExpression=4, ConditionalExpression=12, EqualityOperator=8, ArrowFunction=1, BooleanLiteral=1, Regex=5, ObjectLiteral=1, LogicalOperator=3, BlockStatement=1
+  29:8 MethodExpression `if (!name.trim() || name.length > 255 || /[\\/\u0000-\u001f\u007f]/u.test(name)) invalid('` -> name
+  29:23 ConditionalExpression `if (!name.trim() || name.length > 255 || /[\\/\u0000-\u001f\u007f]/u.test(name)) invalid('` -> false
+  29:23 EqualityOperator `if (!name.trim() || name.length > 255 || /[\\/\u0000-\u001f\u007f]/u.test(name)) invalid('` -> name.length >= 255
+  33:131 ArrowFunction `if (!Object.hasOwn(DOCUMENT_CONTENT_TYPES, extension)) invalid(`document type must be ${Ob` -> () => undefined
+  40:67 BooleanLiteral `try { text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(required.by` -> false
+  75:98 MethodExpression `const isUnsafeArchivePath = (path: string) => !path || /[\\:\u0000-\u001f\u007f]/u.test(pa` -> path.endsWith('/')
+  78:57 Regex `/vba|macro|activex|(^|\/)embeddings\//i.test(path) || /\.(exe|dll)$/i.test(path) || (exten` -> /\.(exe|dll)/i
+  78:3 Regex `/vba|macro|activex|(^|\/)embeddings\//i.test(path) || /\.(exe|dll)$/i.test(path) || (exten` -> /vba|macro|activex|(\/)embeddings\//i
+  78:112 Regex `/vba|macro|activex|(^|\/)embeddings\//i.test(path) || /\.(exe|dll)$/i.test(path) || (exten` -> /\.bin/i
+  83:18 MethodExpression `const folded = path.toLowerCase();` -> path.toUpperCase()
+
+### src/media/document-read.ts score=78.6 surv+nocov=24 :: ConditionalExpression=10, BooleanLiteral=1, OptionalChaining=1, ObjectLiteral=3, EqualityOperator=6, BlockStatement=1, LogicalOperator=2
+  20:9 ConditionalExpression `if (row.kind === 'document') document = true;` -> false
+  20:45 BooleanLiteral `if (row.kind === 'document') document = true;` -> false
+  30:17 ConditionalExpression `if (!media || media.kind !== 'document' || media.status !== 'active') throw new MediaNotFo` -> false
+  40:22 OptionalChaining `const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });` -> deps.blobStore.sizeOf({   storageKey: blob.storage
+  40:46 ObjectLiteral `const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey });` -> {}
+  41:7 ConditionalExpression `if (size != null && size > MAX_DOCUMENT_BYTES) throw new MediaValidationError({ message: '` -> true
+  41:23 EqualityOperator `if (size != null && size > MAX_DOCUMENT_BYTES) throw new MediaValidationError({ message: '` -> size >= MAX_DOCUMENT_BYTES
+  47:67 BlockStatement `function assertPageStart(bytes: Uint8Array, offset: number): void {` -> {}
+  48:7 ConditionalExpression `if (bytes.byteLength > MAX_DOCUMENT_BYTES || offset > bytes.byteLength || (offset < bytes.` -> false
+  48:7 LogicalOperator `if (bytes.byteLength > MAX_DOCUMENT_BYTES || offset > bytes.byteLength || (offset < bytes.` -> (bytes.byteLength > MAX_DOCUMENT_BYTES || offset >
+
+### src/media/image-transformer.ts score=75.0 surv+nocov=1 :: ObjectLiteral=1
+  54:65 ObjectLiteral `return { bytes: output, contentType: mimeForTransformFormat({ format: input.params.format ` -> {}
+
+### src/media/import/fetch-image.ts score=89.4 surv+nocov=12 :: MethodExpression=2, Regex=4, ArrayDeclaration=1, ConditionalExpression=2, EqualityOperator=2, ObjectLiteral=1
+  57:16 MethodExpression `const slug = rawName` -> rawName.replace(/\.[a-zA-Z0-9]{1,5}$/, "").replace
+  58:14 Regex `.replace(/\.[a-zA-Z0-9]{1,5}$/, "")` -> /\.[a-zA-Z0-9]{1,5}/
+  61:14 Regex `.replace(/\s+/g, "-")` -> /\s/g
+  63:14 Regex `.replace(/^-+|-+$/g, "");` -> /^-|-+$/g
+  63:14 Regex `.replace(/^-+|-+$/g, "");` -> /^-+|-$/g
+  69:19 MethodExpression `const segment = url.pathname.split("/").filter(Boolean).pop() ?? "";` -> url.pathname.split("/")
+  109:17 ArrayDeclaration ``Only ${[...allowedContentTypes].join(", ")} can be imported (${isRemote ? 'the served Con` -> []
+  128:7 ConditionalExpression `if (response.status < 200 || response.status >= 300) {` -> false
+  128:32 EqualityOperator `if (response.status < 200 || response.status >= 300) {` -> response.status > 300
+  149:7 ConditionalExpression `if (reported === undefined) return requested;` -> false
+
+### src/media/media-service.ts score=89.8 surv+nocov=36 :: ObjectLiteral=10, MethodExpression=5, Regex=6, ConditionalExpression=10, EqualityOperator=2, LogicalOperator=2, ArrayDeclaration=1
+  170:41 ObjectLiteral `throw new MediaSourceImmutableError({ message: `source.sha256 is write-once: cannot change` -> {}
+  177:16 MethodExpression `const base = filename.trim().replace(/\.[^./\\]+$/, "");` -> filename
+  177:40 Regex `const base = filename.trim().replace(/\.[^./\\]+$/, "");` -> /\.[^./\\]+/
+  178:10 MethodExpression `return base.trim() || "Untitled";` -> base
+  202:7 ConditionalExpression `if (candidate.length <= maxLength) return candidate;` -> false
+  202:7 EqualityOperator `if (candidate.length <= maxLength) return candidate;` -> candidate.length < maxLength
+  203:61 Regex `return candidate.slice(0, Math.max(maxLength, 0)).replace(/-+$/, "");` -> /-+/
+  203:61 Regex `return candidate.slice(0, Math.max(maxLength, 0)).replace(/-+$/, "");` -> /-$/
+  214:10 MethodExpression `return title` -> title.toLowerCase()
+  217:14 Regex `.replace(/[^a-z0-9]+/g, "-")` -> /[^a-z0-9]/g
+
+### src/media/repo.memory.ts score=79.8 surv+nocov=43 :: ArrayDeclaration=8, ConditionalExpression=24, MethodExpression=3, LogicalOperator=5, ArrowFunction=2, ObjectLiteral=1
+  29:27 ArrayDeclaration `const { initialRows = [] } = optionalArgs;` -> ["Stryker was here"]
+  36:18 ConditionalExpression `(row) => row.workspaceId === required.workspaceId && row.id === required.id` -> true
+  44:18 ConditionalExpression `(row) => row.workspaceId === required.workspaceId && row.slug === required.slug` -> true
+  50:38 ConditionalExpression `return this.rows.filter((row) => row.workspaceId === required.workspaceId);` -> true
+  50:12 MethodExpression `return this.rows.filter((row) => row.workspaceId === required.workspaceId);` -> this.rows
+  71:27 ArrayDeclaration `const { initialRows = [] } = optionalArgs;` -> ["Stryker was here"]
+  72:17 ArrayDeclaration `this.rows = [...initialRows];` -> []
+  84:12 MethodExpression `return this.rows.filter((row) => row.workspaceId === required.workspaceId);` -> this.rows
+  84:38 ConditionalExpression `return this.rows.filter((row) => row.workspaceId === required.workspaceId);` -> true
+  89:16 ConditionalExpression `(row) => row.workspaceId === record.workspaceId && row.sha256 === record.sha256` -> true
+
+### src/media/sanitize-svg.ts score=76.3 surv+nocov=28 :: Regex=8, MethodExpression=2, ConditionalExpression=8, LogicalOperator=3, ObjectLiteral=2, BlockStatement=1, BooleanLiteral=2, ArrayDeclaration=2
+  16:42 Regex `const withoutLocalUrls = value.replace(/url\(\s*(["']?)(#[a-z_][\w:.-]*)\1\s*\)/gi, "");` -> /url\(\S*(["']?)(#[a-z_][\w:.-]*)\1\s*\)/gi
+  16:42 Regex `const withoutLocalUrls = value.replace(/url\(\s*(["']?)(#[a-z_][\w:.-]*)\1\s*\)/gi, "");` -> /url\(\s*([^"']?)(#[a-z_][\w:.-]*)\1\s*\)/gi
+  16:42 Regex `const withoutLocalUrls = value.replace(/url\(\s*(["']?)(#[a-z_][\w:.-]*)\1\s*\)/gi, "");` -> /url\(\s*(["']?)(#[a-z_][\w:.-]*)\1\S*\)/gi
+  17:10 Regex `return /[\\@]|\/\*|(?:url|(?:-webkit-)?image-set|src|expression)\s*\(/i.test(withoutLocalU` -> /[\\@]|\/\*|(?:url|(?:-webkit-)?image-set|src|expr
+  32:19 MethodExpression `const value = attribute.attrValue.trim();` -> attribute.attrValue
+  33:9 ConditionalExpression `if (name.startsWith("on") || name === "xml:base" || hasUnsafeCss(value)) attribute.keepAtt` -> false
+  33:9 LogicalOperator `if (name.startsWith("on") || name === "xml:base" || hasUnsafeCss(value)) attribute.keepAtt` -> name.startsWith("on") && name === "xml:base"
+  33:9 MethodExpression `if (name.startsWith("on") || name === "xml:base" || hasUnsafeCss(value)) attribute.keepAtt` -> name.endsWith("on")
+  33:34 ConditionalExpression `if (name.startsWith("on") || name === "xml:base" || hasUnsafeCss(value)) attribute.keepAtt` -> false
+  36:10 ConditionalExpression `(node.nodeName.toLowerCase() === "image" && isRasterDataImage(value));` -> true
+
+### src/media/tool-registrations.ts score=87.7 surv+nocov=19 :: ObjectLiteral=7, ConditionalExpression=11, EqualityOperator=1
+  224:201 ObjectLiteral `await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.autho` -> {}
+  239:201 ObjectLiteral `await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.autho` -> {}
+  241:42 ConditionalExpression `isShapeRejection: ({ error }) => error instanceof MediaValidationError || error instanceof` -> true
+  243:15 ConditionalExpression `if (input.offset !== undefined && typeof input.offset !== "number") throw new MediaValidat` -> false
+  243:45 ConditionalExpression `if (input.offset !== undefined && typeof input.offset !== "number") throw new MediaValidat` -> true
+  243:45 EqualityOperator `if (input.offset !== undefined && typeof input.offset !== "number") throw new MediaValidat` -> typeof input.offset === "number"
+  250:201 ObjectLiteral `await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.autho` -> {}
+  257:203 ObjectLiteral `await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.autho` -> {}
+  270:18 ConditionalExpression `alt: typeof input.alt === "string" ? input.alt : undefined,` -> true
+  271:22 ConditionalExpression `caption: typeof input.caption === "string" ? input.caption : undefined,` -> true
+
+### src/media/video-frames.ffmpeg.ts score=87.6 surv+nocov=45 :: MethodExpression=2, ConditionalExpression=18, ArrayDeclaration=2, ObjectLiteral=6, BooleanLiteral=4, OptionalChaining=2, EqualityOperator=3, ArithmeticOperator=2, LogicalOperator=4, ArrowFunction=2
+  19:8 MethodExpression `...(env['PATH'] ?? '').split(delimiter).filter(isAbsolute).map(directory => join(directory` -> (env['PATH'] ?? '').split(delimiter)
+  23:9 ConditionalExpression `if (!isAbsolute(candidate)) continue;` -> false
+  24:56 ConditionalExpression `try { await access(candidate, constants.X_OK); if ((await stat(candidate)).isFile()) retur` -> true
+  51:41 ArrayDeclaration `const child = spawnProcess(command, [...args], { detached: true, stdio: ['ignore', 'pipe',` -> []
+  51:52 ObjectLiteral `const child = spawnProcess(command, [...args], { detached: true, stdio: ['ignore', 'pipe',` -> {}
+  51:64 BooleanLiteral `const child = spawnProcess(command, [...args], { detached: true, stdio: ['ignore', 'pipe',` -> false
+  51:77 ArrayDeclaration `const child = spawnProcess(command, [...args], { detached: true, stdio: ['ignore', 'pipe',` -> []
+  51:118 BooleanLiteral `const child = spawnProcess(command, [...args], { detached: true, stdio: ['ignore', 'pipe',` -> false
+  65:11 ConditionalExpression `if (settled) return;` -> false
+  66:17 BooleanLiteral `settled = true;` -> false
+
+### src/media/video-frames.ts score=89.1 surv+nocov=31 :: ConditionalExpression=11, LogicalOperator=5, MethodExpression=4, ArithmeticOperator=3, EqualityOperator=4, OptionalChaining=3, ArrayDeclaration=1
+  67:7 ConditionalExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> false
+  67:7 LogicalOperator `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> (!Array.isArray(times) || times.length < 1) && tim
+  67:7 ConditionalExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> false
+  67:7 LogicalOperator `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> !Array.isArray(times) && times.length < 1
+  67:32 ConditionalExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> false
+  67:52 ConditionalExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> false
+  67:87 MethodExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> times.every(time => typeof time !== 'number' || !N
+  67:106 ConditionalExpression `if (!Array.isArray(times) || times.length < 1 || times.length > VIDEO_MAX_FRAMES || times.` -> false
+  82:61 ConditionalExpression `const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && N` -> true
+  87:7 ConditionalExpression `if (frames !== undefined && frames < 0) throw new Error('Frame count must be nonnegative.'` -> true
+
+### src/content-types/write-service.ts score=93.7 surv+nocov=13 :: MethodExpression=1, ConditionalExpression=4, ObjectLiteral=7, BlockStatement=1
+  157:10 MethodExpression `return fields.filter((f) => f.queryable).length;` -> fields
+  177:7 ConditionalExpression `if (owner !== undefined && !validateIdentifierGrammar({ value: owner })) {` -> true
+  280:43 ObjectLiteral `const authResult = await deps.authorize({` -> {}
+  283:39 ObjectLiteral `workspaceId: input.workspaceId }, { entityType: "content-type" });` -> {}
+  296:25 BlockStatement `if (existingBeforeTx) {` -> {}
+  296:7 ConditionalExpression `if (existingBeforeTx) {` -> false
+  295:54 ObjectLiteral `const existingBeforeTx = await deps.repo.findByKey({ workspaceId: input.workspaceId, key: ` -> {}
+  319:79 ConditionalExpression `throw new ContentTypeAlreadyExistsError({ key: input.key, tombstoned: existingInTx.status ` -> false
+  317:54 ObjectLiteral `const existingInTx = await deps.repo.findByKey({ workspaceId: input.workspaceId, key: inpu` -> {}
+  372:43 ObjectLiteral `const authResult = await deps.authorize({` -> {}
+
+### src/entries/agent-tools.ts score=28.2 surv+nocov=28 :: ObjectLiteral=18, BooleanLiteral=5, ArrayDeclaration=5
+  97:18 ObjectLiteral `inputSchema: {` -> {}
+  99:29 BooleanLiteral `additionalProperties: false,` -> true
+  100:17 ArrayDeclaration `required: [],` -> ["Stryker was here"]
+  101:19 ObjectLiteral `properties: {` -> {}
+  102:15 ObjectLiteral `type: { type: "string", description: "Narrow the list to one content type's entries (its '` -> {}
+  114:18 ObjectLiteral `inputSchema: {` -> {}
+  116:29 BooleanLiteral `additionalProperties: false,` -> true
+  117:17 ArrayDeclaration `required: ["type", "slug", "title"],` -> []
+  118:19 ObjectLiteral `properties: {` -> {}
+  119:15 ObjectLiteral `type: { type: "string", minLength: 1, description: "The owning content type's key. Must be` -> {}
+
+### src/entries/repo.memory.ts score=88.7 surv+nocov=12 :: ArrayDeclaration=1, BlockStatement=1, MethodExpression=1, ConditionalExpression=5, ArrowFunction=1, LogicalOperator=1, EqualityOperator=2
+  15:45 ArrayDeclaration `private revisions: EntryRevisionInput[] = [];` -> ["Stryker was here"]
+  45:69 BlockStatement `async appendRevision(revision: EntryRevisionInput): Promise<void> {` -> {}
+  55:22 MethodExpression `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> this.revisions
+  55:56 ConditionalExpression `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> true
+  55:44 ArrowFunction `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> () => undefined
+  55:56 ConditionalExpression `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> false
+  55:56 LogicalOperator `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> revision.workspaceId !== required.workspaceId && r
+  55:56 ConditionalExpression `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> false
+  55:56 EqualityOperator `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> revision.workspaceId === required.workspaceId
+  55:105 ConditionalExpression `this.revisions = this.revisions.filter(revision => revision.workspaceId !== required.works` -> false
+
+### src/entries/write-service.ts score=94.5 surv+nocov=15 :: ObjectLiteral=14, ConditionalExpression=1
+  231:43 ObjectLiteral `const authResult = await deps.authorize({ principalId: input.actorId, permission: "admin.c` -> {}
+  231:147 ObjectLiteral `const authResult = await deps.authorize({ principalId: input.actorId, permission: "admin.c` -> {}
+  233:51 ObjectLiteral `return { ok: false, error: new ForbiddenError({ message: `principal '${input.actorId}' can` -> {}
+  241:62 ObjectLiteral `return { ok: false, error: new ContentTypeNotActiveError({ message: `content type '${input` -> {}
+  253:59 ObjectLiteral `return { ok: false, error: new EntrySlugConflictError({ message: `an entry with slug '${in` -> {}
+  274:63 ObjectLiteral `await deps.outbox.enqueue({ name: "entry.created", payload: { workspaceId: input.workspace` -> {}
+  308:43 ObjectLiteral `const authResult = await deps.authorize({ principalId: input.actorId, permission: "admin.c` -> {}
+  308:147 ObjectLiteral `const authResult = await deps.authorize({ principalId: input.actorId, permission: "admin.c` -> {}
+  310:51 ObjectLiteral `return { ok: false, error: new ForbiddenError({ message: `principal '${input.actorId}' can` -> {}
+  315:55 ObjectLiteral `return { ok: false, error: new EntryNotFoundError({ message: `entry '${input.id}' was not ` -> {}
+
 ### src/forms/delivery/deliver-job.ts score=69.2 surv+nocov=8 :: OptionalChaining=2, ConditionalExpression=3, LogicalOperator=1, ObjectLiteral=2
   12:7 OptionalChaining `if (untyped?.ok === true) return undefined;` -> untyped.ok
   13:17 OptionalChaining `const error = untyped?.error;` -> untyped.error
@@ -287,3 +482,21 @@
   60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 * 24 * 60 / 60
   60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 * 24 / 60
   60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 / 24
+
+### src/media/blob-gc-lock.ts score=28.6 surv+nocov=5 :: BlockStatement=2, ConditionalExpression=2, EqualityOperator=1
+  55:31 BlockStatement `void settledTail.then(() => {` -> {}
+  56:9 ConditionalExpression `if (lockTails.get(key) === settledTail) {` -> false
+  56:9 ConditionalExpression `if (lockTails.get(key) === settledTail) {` -> true
+  56:9 EqualityOperator `if (lockTails.get(key) === settledTail) {` -> lockTails.get(key) !== settledTail
+  56:45 BlockStatement `if (lockTails.get(key) === settledTail) {` -> {}
+
+### src/media/transform-lock.ts score=37.5 surv+nocov=5 :: ConditionalExpression=2, BlockStatement=2, EqualityOperator=1
+  45:11 ConditionalExpression `if (lockTails.get(key) === settledTail) {` -> true
+  44:33 BlockStatement `void settledTail.then(() => {` -> {}
+  45:11 ConditionalExpression `if (lockTails.get(key) === settledTail) {` -> false
+  45:11 EqualityOperator `if (lockTails.get(key) === settledTail) {` -> lockTails.get(key) !== settledTail
+  45:47 BlockStatement `if (lockTails.get(key) === settledTail) {` -> {}
+
+### src/media/types.ts score=71.4 surv+nocov=2 :: ObjectLiteral=2
+  198:11 ObjectLiteral `super({ message }, optionalArgs);` -> {}
+  213:11 ObjectLiteral `super({ message: message });` -> {}
