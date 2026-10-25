@@ -1,0 +1,13 @@
+{
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+  "mutate": ["src/lifecycle/exports.ts"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 2,
+  "reporters": ["html", "json", "clear-text", "progress-append-only"],
+  "htmlReporter": { "fileName": "/root/stryker/reports/mutation.html" },
+  "jsonReporter": { "fileName": "/root/stryker/reports/mutation.json" },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "disableTypeChecks": true
+}
