@@ -152,12 +152,16 @@ export interface HookAttachOptions {
  */
 // Generic contribution contracts stay with Jini's runtime owner. The SDK declares that package
 // as a dependency so a plugin consumer resolves these types without the host application's deps.
-export type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginRouteInput, PluginRouteResult, PluginAuthContext } from '@jini-ai/plugins/host';
+export type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginRouteInput, PluginRouteResult, PluginAuthContext, PluginProviderContribution, PluginProviderFactory, PluginProviderResource } from '@jini-ai/plugins/host';
 
 export interface PluginSdk {
   readonly routes: { add(required: import('@jini-ai/plugins/host').PluginRouteContribution, optional?: Record<string, never>): void };
   readonly tools: { add(required: import('@jini-ai/plugins/host').PluginToolContribution, optional?: Record<string, never>): void };
   readonly widgets: { add(required: import('@jini-ai/plugins/host').PluginWidgetContribution, optional?: Record<string, never>): void };
+  /** Gated by `providers.register` (tier-3 only). Registers an inert provider factory the manifest
+   * declares under `contributes.providers`; the host initializes it only when the plugin is
+   * installed, enabled and configured, and disposes it on disable or shutdown. */
+  readonly providers: { register(required: import('@jini-ai/plugins/host').PluginProviderContribution, optional?: Record<string, never>): void };
   /** Explicit route/tool/widget record; uses the selected surface capability, not hooks.attach. */
   addContribution(required: import('@jini-ai/plugins/host').PluginContribution, optional?: Record<string, never>): void;
   /** Live metadata lookup supplied by the host, shared with agent plugins. No execution grant. */

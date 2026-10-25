@@ -103,17 +103,20 @@ test("REQ-08/C-001: definePlugin performs no filesystem writes or fetches and th
   }
 });
 
-test("SDK consumer types resolve for sync/async filters and route/tool/widget contributions", () => {
+test("SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions", () => {
   // The compiler API checks this consumer; tsx alone does not check types.
   const fixture = path.resolve(import.meta.dirname, "before-save-consumer.ts");
-  const source = `import type { BeforeSaveFilter, PluginSdk, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "../../index.js";
+  const source = `import type { BeforeSaveFilter, PluginSdk, PluginProviderContribution, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "../../index.js";
     const syncFilter: BeforeSaveFilter = () => ({ count: 1 });
     const asyncFilter: BeforeSaveFilter = async () => ({ count: 1 });
     const route: PluginRouteContribution = { method: 'GET', path: '/items', access: 'public', handler: async ({ auth }) => ({ body: auth.workspaceId }) };
     const emptyRoute: PluginRouteContribution = { method: 'POST', path: '/done', access: 'admin', handler: async () => {} };
     const tool: PluginToolContribution = { name: 'search', description: 'Search items', inputSchema: { type: 'object' }, handler: ({ input }) => input };
     const widget: PluginWidgetContribution = { name: 'banner', render: ({ auth }) => '<b>' + auth.workspaceId + '</b>' };
-    function setup(sdk: PluginSdk) { sdk.routes.add(route); sdk.routes.add(emptyRoute); sdk.tools.add(tool); sdk.widgets.add(widget); }`;
+    const provider: PluginProviderContribution = { contract: 'observability', id: 'example', contractVersion: 1, factory: (required, _optional = {}) => ({ port: required, dispose: () => {} }) };
+    function setup(sdk: PluginSdk) { sdk.routes.add(route); sdk.routes.add(emptyRoute); sdk.tools.add(tool); sdk.widgets.add(widget); sdk.providers.register(provider); }
+    // @ts-expect-error a provider registration requires its factory
+    function badSetup(sdk: PluginSdk) { sdk.providers.register({ contract: 'observability', id: 'example', contractVersion: 1 }); }`;
   const options: ts.CompilerOptions = {
     strict: true, noEmit: true, types: [], skipLibCheck: true,
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext,
