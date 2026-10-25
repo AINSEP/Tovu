@@ -15,6 +15,7 @@ interface OwnerStorePorts {
   pickBackup: (input: { action: 'export' | 'restore' }) => Promise<string | null>;
 }
 interface OwnerStoreEvent { senderFrame: { url: string; parent: unknown } | null }
+type Serialize = <T>(work: () => Promise<T>) => Promise<T>;
 export interface OwnerStoreController {
   execute: (input: { action: OwnerStoreAction; input: unknown }, options?: {}) => Promise<OwnerStoreReply>;
   syncOnStart: (input: { siteDir: string }, options?: {}) => Promise<OwnerStoreReply<'sync'> | null>;
@@ -103,15 +104,17 @@ async function targetRequest({ action, request, ports }: {
 }
 
 /** Native dialogs choose the portable backup, never owner.key/db or a renderer-supplied path.
+ * The dialog can stay open indefinitely, so only the CLI call joins the queue: an open picker must
+ * not stall site-start sync or other shared-key operations.
  * @complexity One dialog plus one bounded CLI call; cancellation never spawns a child.
  */
-async function backupRequest({ action, request, ports }: {
-  action: 'export' | 'restore'; request: Record<string, unknown>; ports: OwnerStorePorts;
+async function backupRequest({ action, request, ports, serialize }: {
+  action: 'export' | 'restore'; request: Record<string, unknown>; ports: OwnerStorePorts; serialize: Serialize;
 }, _options = {}): Promise<OwnerStoreReply> {
   const passphrase = requiredString({ value: request.passphrase });
   const filePath = await ports.pickBackup({ action });
   if (filePath === null) return ownerStoreFailure({ action, code: 'cancelled' });
-  return ports.run({ action, fields: { filePath, passphrase } });
+  return serialize(() => ports.run({ action, fields: { filePath, passphrase } }));
 }
 
 /** Validate required string fields without exposing content in thrown errors. */
@@ -123,8 +126,8 @@ function requiredString({ value }: { value: unknown }, _options = {}): string {
 /** Fixed-action dispatch; vault payload/revision validation stays with the CLI's existing owner.
  * @complexity O(request bytes) plus delegated work. Unknown actions fail before a spawn.
  */
-async function executeRequest({ action, input, ports }: {
-  action: OwnerStoreAction; input: unknown; ports: OwnerStorePorts;
+async function executeRequest({ action, input, ports, serialize }: {
+  action: OwnerStoreAction; input: unknown; ports: OwnerStorePorts; serialize: Serialize;
 }): Promise<OwnerStoreReply> {
   const request = requestInput({ action, input });
   switch (action) {
@@ -132,7 +135,7 @@ async function executeRequest({ action, input, ports }: {
     case 'put': return putAndSync({ request, ports });
     case 'delete': return ports.run({ action, fields: { entryId: requiredString({ value: request.entryId }), expectedRevision: request.expectedRevision as number } });
     case 'grant': case 'revoke': case 'sync': return targetRequest({ action, request, ports });
-    case 'export': case 'restore': return backupRequest({ action, request, ports });
+    case 'export': case 'restore': return backupRequest({ action, request, ports, serialize });
     default: { const exhaustive: never = action; throw new Error(`Invalid shared-key action (${typeof exhaustive}).`); }
   }
 }
@@ -146,10 +149,15 @@ async function executeRequest({ action, input, ports }: {
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
   const queue = createKeyedSerializer();
   return {
-    execute: ({ action, input }, _options = {}) => queue.run('owner-store', async () => {
-      try { return await executeRequest({ action, input, ports }); }
-      catch { return ownerStoreFailure({ action, code: 'operation-failed' }); }
-    }),
+    execute: ({ action, input }, _options = {}) => {
+      const serialize: Serialize = work => queue.run('owner-store', work);
+      const work = async (): Promise<OwnerStoreReply> => {
+        try { return await executeRequest({ action, input, ports, serialize }); }
+        catch { return ownerStoreFailure({ action, code: 'operation-failed' }); }
+      };
+      // Backups queue only their CLI call (backupRequest); everything else runs wholly serialized.
+      return action === 'export' || action === 'restore' ? work() : serialize(work);
+    },
     syncOnStart: ({ siteDir }, _options = {}) => queue.run('owner-store', async () => {
       try {
         const inventory = await ports.run({ action: 'list', fields: {} });
