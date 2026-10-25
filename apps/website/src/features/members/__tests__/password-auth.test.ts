@@ -365,3 +365,36 @@ test("memory credential lifecycle runs transactions one at a time and survives a
   assert.equal(await second, "ok");
   assert.deepEqual(events, ["first:start", "first:end", "second"]);
 });
+
+// --- F6 fix wave (L7 Stryker survivors in password-auth.ts) ---
+test("password login folds the address's case and surrounding spaces before the lookup", async () => {
+  const h = harness(); await h.seed();
+  const result = await h.login("old", "  ADA@Example.TEST ");
+  assert.equal(result.member.id, "ada");
+});
+
+test("a reset link issued AT the credential cutoff is refused; one issued after it works", async () => {
+  const h = harness(); const member = await h.seed();
+  const token = await h.resetToken();
+  await h.deps.members.save({ ...member, credentialsRevokedAt: h.clock.nowIso() });
+  await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "x" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
+  assert.deepEqual(h.hashInputs, []);
+  h.clock.advanceMs(1);
+  const later = await h.resetToken();
+  assert.deepEqual(await resetPassword({ deps: h.deps, input: { workspaceId: WS, token: later, password: "x" } }), { ok: true });
+});
+
+test("a credential cutoff that moves while the new password hashes refuses the reset at commit", async () => {
+  const h = harness(); const member = await h.seed();
+  h.clock.advanceMs(5000);
+  const token = await h.resetToken();
+  const hash = h.deps.passwordHasher.hash.bind(h.deps.passwordHasher);
+  h.deps.passwordHasher.hash = async input => {
+    // An EARLIER cutoff than the link passes the issuance check, so only the moved-cutoff check can refuse.
+    await h.deps.members.save({ ...member, credentialsRevokedAt: "2026-10-24T11:00:00.000Z" });
+    return hash(input);
+  };
+  await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
+  await assert.rejects(h.login("new"), { message: "INVALID_CREDENTIALS" });
+  await h.login("old");
+});
