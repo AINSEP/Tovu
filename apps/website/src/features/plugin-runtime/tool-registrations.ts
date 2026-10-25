@@ -1,3 +1,4 @@
+import type { PluginExportRuntime, PluginExportCatalogRow } from "../agent-plugins/exports/runtime.js";
 import { AGENT_PLUGIN_CONTRACT_VERSION, AgentPluginHostIncompatibleError, AgentPluginUpdateError, checkAgentPluginCompatibility } from "@jini-ai/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
@@ -63,7 +64,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  *
  * No absolute host path (`InstalledAgentPlugin.packageRoot`, or a skill's `skillPath` resolved
  * against it) is ever put on the response — `toAgentPluginListRow()` below reads only `pluginId`,
- * `version`, `archiveDigest`, and skill NAMES, the same "no `handle`-shaped value ever serializes"
+ * `version`, `archiveDigest`, skill NAMES, and public export contracts, the same "no `handle`-shaped value ever serializes"
  * rule `features/agent-plugins/tool-registrations.ts`'s own header states for its tools.
  */
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -132,17 +133,19 @@ async function listInstalledAgentPlugins(deps: PluginsToolDeps): Promise<readonl
 const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
 
 /** One `plugins_list` response row for an installed Agent Plugin — see this file's header,
- *  "`plugins_list` also reports installed Agent Plugins", for why only these four fields (never
+ *  "`plugins_list` also reports installed Agent Plugins", for why only these public fields and export contracts (never
  *  `packageRoot` or a skill's `skillPath`) ever leave this module. */
 interface AgentPluginListRow {
   readonly pluginId: string;
   readonly version: string | null;
   readonly archiveDigest: string;
   readonly skills: readonly string[];
+  readonly exports: readonly PluginExportCatalogRow[];
 }
 
-function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
-  return { pluginId: p.pluginId, version: p.version ?? null, archiveDigest: p.archiveDigest, skills: p.skills.map((s) => s.name) };
+function toAgentPluginListRow(required: { plugin: InstalledAgentPlugin; exports: readonly PluginExportCatalogRow[] }, _options = {}): AgentPluginListRow {
+  const p = required.plugin;
+  return { pluginId: p.pluginId, version: p.version ?? null, archiveDigest: p.archiveDigest, skills: p.skills.map((s) => s.name), exports: required.exports };
 }
 
 /** Reads every installed Agent Plugin for `plugins_list`'s Agent Plugin half. Degrades to `[]` on
@@ -151,7 +154,8 @@ function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
 async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<readonly AgentPluginListRow[]> {
   try {
     const installed = await listInstalledAgentPlugins(routeDeps);
-    return installed.map(toAgentPluginListRow);
+    const exports = await routeDeps.pluginExports?.catalog({ workspaceId: routeDeps.workspaceId }).catch(() => new Map());
+    return installed.map(plugin => toAgentPluginListRow({ plugin, exports: exports?.get(plugin.pluginId) ?? [] }));
   } catch {
     return [];
   }
@@ -166,6 +170,7 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  * passing its existing `RouteDeps` object; nothing there changes.
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
+  readonly pluginExports?: PluginExportRuntime;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;

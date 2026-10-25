@@ -510,6 +510,11 @@ function normalizePageInput({ input, toolId }: { input: Record<string, unknown>;
   return normalized;
 }
 
+/** Store-owned diagnostics share the existing assistant warning projection. */
+function embedWarningMessages({ store }: { store: import("./html-document-store.js").PagesHtmlDocumentStorePort }, _options = {}): readonly string[] {
+  return (store.embedWarnings?.() ?? []).map(warning => warning.message);
+}
+
 export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     // Resolve against this handler's site dependencies, after scope selection and permission checks.
@@ -578,7 +583,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
       // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
-      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan })] });
+      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan }), ...embedWarningMessages({ store })] });
       return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
     },
 
@@ -642,7 +647,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         throw toModelFacingWriteError(err);
       }
 
-      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html: fragment }), describeUnsafeRegions({ scan: nextScan })] });
+      const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html: fragment }), describeUnsafeRegions({ scan: nextScan }), ...embedWarningMessages({ store })] });
       return {
         written: true,
         id,
@@ -703,7 +708,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         throw toModelFacingWriteError(err);
       }
       const movedScan = scanHtmlRegions({ html: moved.html });
-      return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store) };
+      return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };
     },
   };
 
