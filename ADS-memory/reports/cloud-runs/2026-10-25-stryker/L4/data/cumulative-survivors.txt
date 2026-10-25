@@ -1,0 +1,289 @@
+
+### src/forms/delivery/deliver-job.ts score=69.2 surv+nocov=8 :: OptionalChaining=2, ConditionalExpression=3, LogicalOperator=1, ObjectLiteral=2
+  12:7 OptionalChaining `if (untyped?.ok === true) return undefined;` -> untyped.ok
+  13:17 OptionalChaining `const error = untyped?.error;` -> untyped.error
+  15:17 ConditionalExpression `const input = typeof error === "object" && error !== null ? error : { code: "delivery-fail` -> true
+  15:17 LogicalOperator `const input = typeof error === "object" && error !== null ? error : { code: "delivery-fail` -> typeof error === "object" || error !== null
+  15:17 ConditionalExpression `const input = typeof error === "object" && error !== null ? error : { code: "delivery-fail` -> true
+  15:71 ObjectLiteral `const input = typeof error === "object" && error !== null ? error : { code: "delivery-fail` -> {}
+  15:46 ConditionalExpression `const input = typeof error === "object" && error !== null ? error : { code: "delivery-fail` -> true
+  34:82 ObjectLiteral `failure = error instanceof FormDeliveryError ? error : new FormDeliveryError({ code: "deli` -> {}
+
+### src/forms/delivery/types.ts score=0.0 surv+nocov=0 :: 
+
+### src/forms/descriptor-rules.ts score=95.8 surv+nocov=15 :: ConditionalExpression=9, BooleanLiteral=2, LogicalOperator=2, EqualityOperator=1, MethodExpression=1
+  62:3 ConditionalExpression `typeof value === "string" && resolveFormField({ field: { id: "bound", label: "Bound", type` -> true
+  62:117 BooleanLiteral `typeof value === "string" && resolveFormField({ field: { id: "bound", label: "Bound", type` -> false
+  73:7 ConditionalExpression `if (min === undefined || max === undefined) return false;` -> false
+  73:7 LogicalOperator `if (min === undefined || max === undefined) return false;` -> min === undefined && max === undefined
+  73:7 ConditionalExpression `if (min === undefined || max === undefined) return false;` -> false
+  73:28 ConditionalExpression `if (min === undefined || max === undefined) return false;` -> false
+  75:7 ConditionalExpression `if (axis !== "temporal") return false;` -> false
+  77:107 BooleanLiteral `const comparison = resolveFormField({ field: { id: "bound", label: "Bound", type: field.ty` -> false
+  78:10 LogicalOperator `return comparison.kind === "rejected" && comparison.reason === "below_min";` -> comparison.kind === "rejected" || comparison.reaso
+  78:10 ConditionalExpression `return comparison.kind === "rejected" && comparison.reason === "below_min";` -> true
+
+### src/forms/field-registry.ts score=91.3 surv+nocov=48 :: Regex=18, BlockStatement=1, ConditionalExpression=12, EqualityOperator=6, ArithmeticOperator=1, LogicalOperator=2, ArrayDeclaration=7, MethodExpression=1
+  46:55 Regex `const phoneValue = formattedText((value) => fullMatch(/^\+?[0-9() .-]{3,50}$/, value) && /` -> /\+?[0-9() .-]{3,50}$/
+  46:55 Regex `const phoneValue = formattedText((value) => fullMatch(/^\+?[0-9() .-]{3,50}$/, value) && /` -> /^\+?[0-9() .-]{3,50}/
+  46:55 Regex `const phoneValue = formattedText((value) => fullMatch(/^\+?[0-9() .-]{3,50}$/, value) && /` -> /^\+[0-9() .-]{3,50}$/
+  56:22 Regex `return fullMatch(/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/i,` -> /(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])\.)+[a-z0-9](?:[
+  56:22 Regex `return fullMatch(/(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/i,` -> /(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:
+  57:11 BlockStatement `} catch { return false; }` -> {}
+  64:20 Regex `const absolute = /^https?:\/\/[^/]/i.test(address);` -> /https?:\/\/[^/]/i
+  71:23 ConditionalExpression `const numericText = typeof value === "string" && value.length <= 100 && fullMatch(NUMBER, ` -> true
+  71:52 EqualityOperator `const numericText = typeof value === "string" && value.length <= 100 && fullMatch(NUMBER, ` -> value.length < 100
+  80:18 ArithmeticOperator `const units = (number - Number(min ?? 0)) / step;` -> number + Number(min ?? 0)
+
+### src/forms/forms.ts score=95.7 surv+nocov=11 :: ConditionalExpression=5, LogicalOperator=2, EqualityOperator=2, Regex=2
+  45:7 ConditionalExpression `if (typeof descriptor.id !== "string" || !descriptor.id || !FIELD_ID_PATTERN.test(descript` -> false
+  45:7 LogicalOperator `if (typeof descriptor.id !== "string" || !descriptor.id || !FIELD_ID_PATTERN.test(descript` -> typeof descriptor.id !== "string" && !descriptor.i
+  45:7 ConditionalExpression `if (typeof descriptor.id !== "string" || !descriptor.id || !FIELD_ID_PATTERN.test(descript` -> false
+  99:7 EqualityOperator `if (className.length > MAX_CLASS_NAME_LENGTH) {` -> className.length >= MAX_CLASS_NAME_LENGTH
+  114:7 EqualityOperator `if (attrValue.length > MAX_ATTRIBUTE_VALUE_LENGTH) {` -> attrValue.length >= MAX_ATTRIBUTE_VALUE_LENGTH
+  162:22 ConditionalExpression `if (!descriptor || typeof descriptor !== "object" || Array.isArray(descriptor)) return [{ ` -> false
+  206:7 ConditionalExpression `if (!body || typeof body !== "object" || Array.isArray(body)) return { valid: false, field` -> false
+  206:7 LogicalOperator `if (!body || typeof body !== "object" || Array.isArray(body)) return { valid: false, field` -> !body && typeof body !== "object"
+  206:16 ConditionalExpression `if (!body || typeof body !== "object" || Array.isArray(body)) return { valid: false, field` -> false
+  16:33 Regex `export const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]*$/;` -> /^[a-z][a-z0-9_]*/
+
+### src/forms/html/html-authoring.ts score=92.5 surv+nocov=28 :: ArrayDeclaration=1, ObjectLiteral=2, ConditionalExpression=15, MethodExpression=3, LogicalOperator=2, OptionalChaining=4, BooleanLiteral=1
+  14:70 ArrayDeclaration `throw new FormFieldValidationError({ message: reason, fieldErrors: [{ field: "html", reaso` -> []
+  14:71 ObjectLiteral `throw new FormFieldValidationError({ message: reason, fieldErrors: [{ field: "html", reaso` -> {}
+  25:9 ConditionalExpression `if (node.tagName !== "template") stack.push(...[...node.childNodes].reverse());` -> true
+  49:21 MethodExpression `stack.push(...[...child.childNodes].reverse());` -> [...child.childNodes]
+  61:72 ConditionalExpression `const legend = parent.childNodes.find((child): child is Element => "tagName" in child && c` -> true
+  61:72 LogicalOperator `const legend = parent.childNodes.find((child): child is Element => "tagName" in child && c` -> "tagName" in child || child.tagName === "legend"
+  61:94 ConditionalExpression `const legend = parent.childNodes.find((child): child is Element => "tagName" in child && c` -> true
+  72:23 OptionalChaining `.map((element) => element.sourceCodeLocation?.attrs?.required)` -> element.sourceCodeLocation?.attrs.required
+  79:22 OptionalChaining `const location = generated[index]!.sourceCodeLocation?.attrs?.required;` -> generated[index]!.sourceCodeLocation?.attrs.requir
+  79:22 OptionalChaining `const location = generated[index]!.sourceCodeLocation?.attrs?.required;` -> generated[index]!.sourceCodeLocation.attrs
+
+### src/forms/notify-subscriber.ts score=79.5 surv+nocov=8 :: ConditionalExpression=5, BooleanLiteral=1, BlockStatement=2
+  50:58 ConditionalExpression `if (!definition || !definition.notify.enabled || definition.notify.recipients.length === 0` -> false
+  55:13 ConditionalExpression `if (!submission) return;` -> false
+  78:17 BooleanLiteral `if (!result.ok) {` -> result.ok
+  78:17 ConditionalExpression `if (!result.ok) {` -> false
+  78:17 ConditionalExpression `if (!result.ok) {` -> true
+  78:29 BlockStatement `if (!result.ok) {` -> {}
+  92:21 BlockStatement `} catch (err) {` -> {}
+  102:34 ConditionalExpression `try { logger.warn({ message }, error === undefined ? {} : { error }); } catch { /* Host lo` -> false
+
+### src/forms/repo.memory.ts score=94.1 surv+nocov=11 :: ConditionalExpression=7, LogicalOperator=1, OptionalChaining=1, EqualityOperator=2
+  80:9 ConditionalExpression `conflicting.deletedAt !== null` -> true
+  96:9 ConditionalExpression `if (existing && existing.deletedAt !== null) return;` -> false
+  97:66 LogicalOperator `this.rows.set(record.id, cloneStored({ ...record, deletedAt: existing?.deletedAt ?? null }` -> existing?.deletedAt && null
+  97:66 OptionalChaining `this.rows.set(record.id, cloneStored({ ...record, deletedAt: existing?.deletedAt ?? null }` -> existing.deletedAt
+  103:11 ConditionalExpression `if (row.workspaceId === required.workspaceId && row.slug === required.slug) return true;` -> true
+  115:17 ConditionalExpression `if (!row || row.workspaceId !== required.workspaceId) return null;` -> false
+  196:13 ConditionalExpression `if (a.submittedAt !== b.submittedAt) return b.submittedAt.localeCompare(a.submittedAt);` -> true
+  196:13 ConditionalExpression `if (a.submittedAt !== b.submittedAt) return b.submittedAt.localeCompare(a.submittedAt);` -> false
+  196:13 EqualityOperator `if (a.submittedAt !== b.submittedAt) return b.submittedAt.localeCompare(a.submittedAt);` -> a.submittedAt === b.submittedAt
+  219:19 ConditionalExpression `return row && row.workspaceId === required.workspaceId ? cloneSubmission(row) : null;` -> true
+
+### src/forms/submission-attempts.ts score=80.5 surv+nocov=16 :: LogicalOperator=1, ConditionalExpression=4, ArrayDeclaration=1, EqualityOperator=6, BlockStatement=2, ArithmeticOperator=1, ObjectLiteral=1
+  68:9 LogicalOperator `if (!value || typeof value !== "object" || !("bytes" in value) || !(value.bytes instanceof` -> (!value || typeof value !== "object" || !("bytes" 
+  68:9 ConditionalExpression `if (!value || typeof value !== "object" || !("bytes" in value) || !(value.bytes instanceof` -> false
+  71:31 ArrayDeclaration `const digests: string[] = [];` -> ["Stryker was here"]
+  72:26 ConditionalExpression `for (let offset = 0; offset < value.bytes.byteLength; offset += 8192) {` -> false
+  72:26 EqualityOperator `for (let offset = 0; offset < value.bytes.byteLength; offset += 8192) {` -> offset <= value.bytes.byteLength
+  72:26 EqualityOperator `for (let offset = 0; offset < value.bytes.byteLength; offset += 8192) {` -> offset >= value.bytes.byteLength
+  72:75 BlockStatement `for (let offset = 0; offset < value.bytes.byteLength; offset += 8192) {` -> {}
+  73:77 ArithmeticOperator `digests.push(hash(String.fromCharCode(...value.bytes.subarray(offset, offset + 8192))));` -> offset - 8192
+  77:26 EqualityOperator `}).sort(([a], [b]) => (a < b ? -1 : 1));` -> a <= b
+  77:26 EqualityOperator `}).sort(([a], [b]) => (a < b ? -1 : 1));` -> a >= b
+
+### src/forms/types.ts score=0.0 surv+nocov=0 :: 
+
+### src/forms/write-service.ts score=84.2 surv+nocov=32 :: ObjectLiteral=13, ArrayDeclaration=6, EqualityOperator=1, ArrowFunction=4, ConditionalExpression=4, OptionalChaining=1, Regex=3
+  63:7 ObjectLiteral `{ field: "notify.recipients", reason: "must be an array" },` -> {}
+  62:102 ArrayDeclaration `throw new FormFieldValidationError({ message: "notify.recipients must be an array", fieldE` -> []
+  68:7 ObjectLiteral `{ field: "notify.enabled", reason: "must be a boolean" },` -> {}
+  67:100 ArrayDeclaration `throw new FormFieldValidationError({ message: "notify.enabled must be a boolean", fieldErr` -> []
+  72:135 ArrayDeclaration `throw new FormFieldValidationError({ message: `notify.recipients may not exceed ${MAX_NOTI` -> []
+  72:136 ObjectLiteral `throw new FormFieldValidationError({ message: `notify.recipients may not exceed ${MAX_NOTI` -> {}
+  77:9 ObjectLiteral `{ field: "notify.recipients", reason: `'${recipient}' is not a valid email address` },` -> {}
+  76:113 ArrayDeclaration `throw new FormFieldValidationError({ message: `'${recipient}' is not a valid email address` -> []
+  85:7 EqualityOperator `if (name.length < MIN_NAME_LENGTH || name.length > MAX_NAME_LENGTH) {` -> name.length <= MIN_NAME_LENGTH
+  86:129 ArrayDeclaration `throw new FormFieldValidationError({ message: `name must be ${MIN_NAME_LENGTH}-${MAX_NAME_` -> []
+
+### src/redirects/host-config/index.ts score=88.6 surv+nocov=20 :: Regex=7, ConditionalExpression=8, LogicalOperator=2, EqualityOperator=2, MethodExpression=1
+  24:8 Regex `if (!/^\/[a-z0-9_./~-]*$/i.test(rule.fromPattern)) return false;` -> /\/[a-z0-9_./~-]*$/i
+  27:10 ConditionalExpression `return checkSiteRelativeTarget({ raw: rule.fromPattern, reservedSegments }, {}).kind === "` -> true
+  47:7 LogicalOperator `if (rule.matchType !== "exact" && CAPTURE_TOKEN.test(rule.toTarget) && ABSOLUTE_TARGET.tes` -> rule.matchType !== "exact" || CAPTURE_TOKEN.test(r
+  47:7 ConditionalExpression `if (rule.matchType !== "exact" && CAPTURE_TOKEN.test(rule.toTarget) && ABSOLUTE_TARGET.tes` -> true
+  52:7 ConditionalExpression `if (rule.matchType !== "exact" || !isLiteralHostPath(rule, reservedSegments)) return "host` -> false
+  61:79 Regex `if (CAPTURE_TOKEN.test(toTarget) || /[:$][a-z0-9_{]/i.test(toTarget.replace(/^[a-z][a-z0-9` -> /[a-z][a-z0-9+.-]*:\/\//i
+  61:79 Regex `if (CAPTURE_TOKEN.test(toTarget) || /[:$][a-z0-9_{]/i.test(toTarget.replace(/^[a-z][a-z0-9` -> /^[^a-z][a-z0-9+.-]*:\/\//i
+  61:79 Regex `if (CAPTURE_TOKEN.test(toTarget) || /[:$][a-z0-9_{]/i.test(toTarget.replace(/^[a-z][a-z0-9` -> /^[a-z][a-z0-9+.-]:\/\//i
+  61:79 Regex `if (CAPTURE_TOKEN.test(toTarget) || /[:$][a-z0-9_{]/i.test(toTarget.replace(/^[a-z][a-z0-9` -> /^[a-z][^a-z0-9+.-]*:\/\//i
+  88:12 ConditionalExpression `rules: preContent.length > 0 ? preContent : pair,` -> true
+
+### src/redirects/matcher.ts score=92.2 surv+nocov=10 :: ConditionalExpression=5, Regex=1, EqualityOperator=4
+  65:7 ConditionalExpression `if (length < MIN_PATTERN_LENGTH || length > MAX_PATTERN_LENGTH) {` -> false
+  116:27 Regex `return template.replace(/\$(\d+)/g, (whole, indexStr: string) => {` -> /\$(\d)/g
+  146:5 ConditionalExpression `default:` -> default:
+  142:5 ConditionalExpression `case "regex":` -> case "regex":
+  160:37 EqualityOperator `if (aRecency !== bRecency) return aRecency > bRecency ? -1 : 1;` -> aRecency >= bRecency
+  161:10 EqualityOperator `return a.rule.id < b.rule.id ? -1 : a.rule.id > b.rule.id ? 1 : 0;` -> a.rule.id <= b.rule.id
+  161:39 ConditionalExpression `return a.rule.id < b.rule.id ? -1 : a.rule.id > b.rule.id ? 1 : 0;` -> false
+  161:39 ConditionalExpression `return a.rule.id < b.rule.id ? -1 : a.rule.id > b.rule.id ? 1 : 0;` -> true
+  161:39 EqualityOperator `return a.rule.id < b.rule.id ? -1 : a.rule.id > b.rule.id ? 1 : 0;` -> a.rule.id >= b.rule.id
+  161:39 EqualityOperator `return a.rule.id < b.rule.id ? -1 : a.rule.id > b.rule.id ? 1 : 0;` -> a.rule.id <= b.rule.id
+
+### src/redirects/redirects.ts score=93.0 surv+nocov=23 :: MethodExpression=2, Regex=1, EqualityOperator=2, ConditionalExpression=10, LogicalOperator=3, ObjectLiteral=4, BooleanLiteral=1
+  67:10 MethodExpression `return target.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(target);` -> target.endsWith("//")
+  67:37 Regex `return target.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(target);` -> /[a-z][a-z0-9+.-]*:/i
+  144:46 EqualityOperator `if (toTarget.length < MIN_TARGET_LENGTH || toTarget.length > MAX_TARGET_LENGTH) {` -> toTarget.length >= MAX_TARGET_LENGTH
+  192:7 ConditionalExpression `if (isAbsoluteOrProtocolRelative(toTarget)) return toTarget;` -> false
+  194:21 ConditionalExpression `return chained && chained.status === "active" ? chained.toTarget : toTarget;` -> true
+  217:9 ConditionalExpression `if (isAbsoluteOrProtocolRelative(cur)) return;` -> false
+  223:9 ConditionalExpression `if (seen.has(cur)) return;` -> false
+  226:18 ConditionalExpression `if (!rule || rule.status !== "active") return;` -> false
+  417:7 ConditionalExpression `if (finalTarget !== fields.toTarget) {` -> true
+  601:10 LogicalOperator `return input.status === "active" && NON_STATUS_UPDATABLE_FIELDS.every((key) => input[key] ` -> input.status === "active" || NON_STATUS_UPDATABLE_
+
+### src/widgets/html/html-embeds.ts score=92.6 surv+nocov=12 :: EqualityOperator=2, ConditionalExpression=6, BooleanLiteral=2, ArrayDeclaration=1, ObjectLiteral=1
+  195:47 EqualityOperator `if (rawId === null || rawId.length === 0 || rawId.length > MAX_EMBED_ID_LENGTH) return nul` -> rawId.length >= MAX_EMBED_ID_LENGTH
+  429:45 ConditionalExpression `const controlsAttr = attrs.find((attr) => attr.name === "controls");` -> true
+  463:145 BooleanLiteral `return { occurrence: { elementAttributes: withoutControls(parsed), controls }, wrapperAttr` -> false
+  470:131 ConditionalExpression `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> true
+  470:131 EqualityOperator `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> mediaElementAttrs.length >= 0
+  534:14 ConditionalExpression `return typeof output === "string" ? output : undefined;` -> true
+  538:25 ConditionalExpression `const replacement = typeof output === "string" ? output : undefined;` -> true
+  539:9 ConditionalExpression `if (replacement === undefined) return undefined;` -> false
+  541:9 ConditionalExpression `if (ref.type === "widget" && replacement === "") return "";` -> true
+  406:59 ArrayDeclaration `const NO_ELEMENT_ATTRIBUTES: readonly MarkerAttribute[] = [];` -> ["Stryker was here"]
+
+### src/widgets/html/plugin-export.ts score=85.2 surv+nocov=25 :: ConditionalExpression=13, LogicalOperator=4, MethodExpression=2, OptionalChaining=2, Regex=4
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> (value === null || typeof value !== 'object') && !
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> value === null && typeof value !== 'object'
+  57:27 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  60:7 ConditionalExpression `if (!['string', 'number', 'boolean'].includes(typeof value)) throw new Error('non-scalar p` -> false
+  66:33 MethodExpression `if (!value.startsWith('/') || value.startsWith('//') || /[\u0000-\u0020\\]/.test(value)) t` -> value.endsWith('//')
+  79:9 ConditionalExpression `if (url && scope === 'props') throw new Error('plugin export URL props are unsupported');` -> false
+  94:20 OptionalChaining `const source = node.sourceCodeLocation?.attrs?.[attr.name];` -> node.sourceCodeLocation?.attrs[attr.name]
+
+### src/consent/css.ts score=87.2 surv+nocov=50 :: BooleanLiteral=2, Regex=16, ConditionalExpression=15, MethodExpression=4, EqualityOperator=3, LogicalOperator=3, ArithmeticOperator=3, ObjectLiteral=4
+  NOCOV lines: 64,77
+  44:17 Regex `const match = /^(\d+(?:\.\d+)?)px$/.exec(value);` -> /^(\d+(?:\.\d+)?)px/
+  44:17 Regex `const match = /^(\d+(?:\.\d+)?)px$/.exec(value);` -> /^(\d+(?:\.\d)?)px$/
+  57:29 Regex `const parts = value.split(/\s+/);` -> /\s/
+  58:10 ConditionalExpression `return parts.length <= count && parts.every(part => boundedLength(part, min, max));` -> true
+  58:35 MethodExpression `return parts.length <= count && parts.every(part => boundedLength(part, min, max));` -> parts.some(part => boundedLength(part, min, max))
+  64:7 ConditionalExpression `if (isColor(value)) return true;` -> false
+  65:17 Regex `const match = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:` -> /rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3}
+  65:17 Regex `const match = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:` -> /^rgba\(\s*(\d{1,3})\S*,\s*(\d{1,3})\s*,\s*(\d{1,3
+  65:17 Regex `const match = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:` -> /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\S*,\s*(\d{1,3
+  65:17 Regex `const match = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:` -> /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3
+
+### src/consent/html/gate.ts score=87.2 surv+nocov=73 :: BlockStatement=2, BooleanLiteral=7, ConditionalExpression=34, LogicalOperator=5, EqualityOperator=2, MethodExpression=6, Regex=7, ArrayDeclaration=5, ObjectLiteral=3, OptionalChaining=2
+  NOCOV lines: 72,148
+  47:10 MethodExpression `return element.childNodes.filter((child): child is DefaultTreeAdapterMap['textNode'] => ch` -> element.childNodes
+  47:91 ConditionalExpression `return element.childNodes.filter((child): child is DefaultTreeAdapterMap['textNode'] => ch` -> true
+  52:10 ConditionalExpression `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> true
+  52:10 LogicalOperator `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> element.tagName === 'script' && runtimeToken !== u
+  52:10 ConditionalExpression `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> true
+  52:10 LogicalOperator `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> element.tagName === 'script' || runtimeToken !== u
+  52:10 ConditionalExpression `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> true
+  52:42 ConditionalExpression `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> true
+  52:72 ConditionalExpression `return element.tagName === 'script' && runtimeToken !== undefined && attrs.get('data-jini-` -> true
+  62:10 MethodExpression `return (attrs.get('rel') ?? '').toLowerCase().split(/\s+/).filter(Boolean);` -> (attrs.get('rel') ?? '').toLowerCase().split(/\s+/
+
+### src/consent/css-parser.ts score=87.4 surv+nocov=29 :: MethodExpression=2, ArithmeticOperator=1, ConditionalExpression=8, EqualityOperator=1, Regex=13, BooleanLiteral=1, OptionalChaining=3
+  17:37 MethodExpression `if (end === -1 || /[\n\r\f]/.test(css.slice(start, end))) throw new ConsentCssSyntaxError(` -> css
+  27:35 ArithmeticOperator `const end = css.indexOf('*/', start + 2);` -> start - 2
+  38:10 ConditionalExpression `while (state.cursor < css.length && !/[\s{}:;(),!@\[\]"']/.test(css[state.cursor]!) && !cs` -> false
+  38:10 EqualityOperator `while (state.cursor < css.length && !/[\s{}:;(),!@\[\]"']/.test(css[state.cursor]!) && !cs` -> state.cursor <= css.length
+  38:40 Regex `while (state.cursor < css.length && !/[\s{}:;(),!@\[\]"']/.test(css[state.cursor]!) && !cs` -> /[\S{}:;(),!@\[\]"']/
+  38:90 BooleanLiteral `while (state.cursor < css.length && !/[\s{}:;(),!@\[\]"']/.test(css[state.cursor]!) && !cs` -> css.startsWith('/*', state.cursor)
+  38:91 MethodExpression `while (state.cursor < css.length && !/[\s{}:;(),!@\[\]"']/.test(css[state.cursor]!) && !cs` -> css.endsWith('/*', state.cursor)
+  52:7 ConditionalExpression `if (token.kind !== 'symbol') return;` -> false
+  65:9 ConditionalExpression `if (token.kind === 'symbol' && !closing.length && delimiters.includes(token.value)) break;` -> true
+  92:7 OptionalChaining `if (tokens[state.cursor]?.value !== ':') throw new ConsentCssSyntaxError('Expected a CSS p` -> tokens[state.cursor].value
+
+### src/consent/express/index.ts score=89.9 surv+nocov=29 :: Regex=1, ConditionalExpression=13, OptionalChaining=2, ObjectLiteral=7, EqualityOperator=1, BooleanLiteral=4, BlockStatement=1
+  32:55 Regex `return ['GET', 'HEAD'].includes(request.method) && !/^\/(?:admin|api|theme-assets|assets|\` -> /\/(?:admin|api|theme-assets|assets|\.well-known)(
+  41:19 ConditionalExpression `const present = value !== null || cookieHeader.split(';').some(part => part.split('=', 1)[` -> false
+  41:74 OptionalChaining `const present = value !== null || cookieHeader.split(';').some(part => part.split('=', 1)[` -> part.split('=', 1)[0].trim
+  52:26 ObjectLiteral `if (!present) return { record: null, failed: false };` -> {}
+  53:9 ConditionalExpression `if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(id)) throw new Error('The co` -> false
+  57:63 ConditionalExpression `ports.reportError({ operation: 'read', error: new Error(value === null || value === undefi` -> true
+  57:81 ConditionalExpression `ports.reportError({ operation: 'read', error: new Error(value === null || value === undefi` -> false
+  57:81 EqualityOperator `ports.reportError({ operation: 'read', error: new Error(value === null || value === undefi` -> value !== undefined
+  60:30 BooleanLiteral `return { record, failed: false };` -> true
+  73:7 ConditionalExpression `if (!source) return false;` -> false
+
+### src/consent/express/response.ts score=92.8 surv+nocov=10 :: BlockStatement=1, ConditionalExpression=6, EqualityOperator=1, LogicalOperator=1, Regex=1
+  31:41 BlockStatement `try { reportError({ error }); } catch { console.error('Consent error reporter failed; opti` -> {}
+  58:50 ConditionalExpression `if (!Reflect.apply(write, response, [body, typeof done === 'function' ? done : undefined])` -> true
+  67:7 ConditionalExpression `if (Buffer.isBuffer(chunk)) return chunk;` -> false
+  69:37 ConditionalExpression `return Buffer.from(String(chunk), typeof encoding === 'string' ? encoding as BufferEncodin` -> true
+  75:21 EqualityOperator `for (let i = 0; i < values.length; i += 2) response.setHeader(String(values[i]), values[i ` -> i <= values.length
+  78:7 LogicalOperator `if (!values || typeof values !== 'object') return;` -> !values && typeof values !== 'object'
+  78:18 ConditionalExpression `if (!values || typeof values !== 'object') return;` -> false
+  96:72 Regex `return String(type).toLowerCase().includes('text/html') || (!type && /^\s*<[a-z!]/i.test(b` -> /\s*<[a-z!]/i
+  166:51 ConditionalExpression `return chunk === undefined || chunk === null || typeof chunk === 'function' ? Buffer.alloc` -> false
+  173:7 ConditionalExpression `if (!response.destroyed) finish(replacement ?? original);` -> true
+
+### src/consent/html/client.ts score=0.0 surv+nocov=1 :: ArithmeticOperator=1
+  75:101 ArithmeticOperator `document.cookie = withdrawalCookie + '=' + encodeURIComponent(params.toString()) + '; Max-` -> CONSENT_MAX_AGE_MS * 1000
+
+### src/consent/html/render.ts score=89.1 surv+nocov=17 :: MethodExpression=3, ArrayDeclaration=2, ConditionalExpression=6, ObjectLiteral=1, EqualityOperator=3, LogicalOperator=1, ArithmeticOperator=1
+  24:10 MethodExpression `return [privacy, secondary].filter(Boolean).join(' · ');` -> [privacy, secondary]
+  31:33 ArrayDeclaration `if (reopen === 'link') return ['<div class="jini-consent-panel"><a href="#">Close preferen` -> []
+  30:31 ArrayDeclaration `if (record === null) return ['', ''];` -> []
+  44:57 ConditionalExpression `const locked = category === 'necessary' || (gpc && (category === 'analytics' || category =` -> true
+  41:41 ObjectLiteral `const choices = resolveConsentChoices({ choices: record?.choices, gpc, regionMode });` -> {}
+  44:85 ConditionalExpression `const locked = category === 'necessary' || (gpc && (category === 'analytics' || category =` -> false
+  44:85 EqualityOperator `const locked = category === 'necessary' || (gpc && (category === 'analytics' || category =` -> category !== 'marketing'
+  44:49 LogicalOperator `const locked = category === 'necessary' || (gpc && (category === 'analytics' || category =` -> gpc || category === 'analytics' || category === 'm
+  45:160 ArithmeticOperator `return `<label class="jini-consent-category"><input type="checkbox" name="${category}"${ch` -> category[0]!.toUpperCase() - category.slice(1)
+  45:160 MethodExpression `return `<label class="jini-consent-category"><input type="checkbox" name="${category}"${ch` -> category[0]!.toLowerCase()
+
+### src/consent/html/resources.ts score=72.6 surv+nocov=52 :: MethodExpression=3, Regex=29, ConditionalExpression=10, EqualityOperator=7, BlockStatement=2, LogicalOperator=1
+  6:22 MethodExpression `const normalized = url.trim().replace(/[\t\r\n]/g, '').replace(/\\/g, '/');` -> url
+  7:11 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^(?:[?#]|\/(?=\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#
+  7:11 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^(?:[?#]|\/(?!\/)|\.\.?\/|[a-zA-Z0-9_-]+(?:[./?#]
+  7:11 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^(?:[?#]|\/(?!\/)|\.?\.\/|[a-zA-Z0-9_-]+(?:[./?#]
+  7:11 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#
+  7:88 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /[a-z][a-z0-9+.-]*:|^\/\//i
+  7:88 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^[^a-z][a-z0-9+.-]*:|^\/\//i
+  7:88 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^[a-z][a-z0-9+.-]:|^\/\//i
+  7:88 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^[a-z][^a-z0-9+.-]*:|^\/\//i
+  7:88 Regex `return !/^(?:[?#]|\/(?!\/)|\.?\.?\/|[a-zA-Z0-9_-]+(?:[./?#]|$))/.test(normalized) || /^[a-` -> /^[a-z][a-z0-9+.-]*:|\/\//i
+
+### src/consent/html/styles.ts score=0.0 surv+nocov=0 :: 
+
+### src/consent/node/index.ts score=78.0 surv+nocov=44 :: EqualityOperator=6, ConditionalExpression=18, ArrayDeclaration=2, LogicalOperator=6, BlockStatement=5, Regex=3, ArithmeticOperator=2, MethodExpression=2
+  36:40 EqualityOperator `if (!Number.isFinite(retentionMs) || retentionMs < 0) throw new Error('Consent receipt ret` -> retentionMs <= 0
+  57:11 ConditionalExpression `if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') name` -> true
+  57:101 ArrayDeclaration `if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') name` -> ["Stryker was here"]
+  73:45 EqualityOperator `if (retained.size < maximumRecords && timestamp >= cutoff) break;` -> timestamp > cutoff
+  75:29 ConditionalExpression `catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code ` -> true
+  75:29 LogicalOperator `catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code ` -> error && typeof error === 'object' || 'code' in er
+  75:29 LogicalOperator `catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code ` -> error || typeof error === 'object'
+  75:29 ConditionalExpression `catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code ` -> true
+  75:38 ConditionalExpression `catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code ` -> true
+  84:15 ConditionalExpression `if ((await handle.stat()).size > 4096) throw new Error('Consent receipt exceeds 4096 bytes` -> false
+
+### src/consent/policy.ts score=91.5 surv+nocov=13 :: Regex=3, BooleanLiteral=4, ConditionalExpression=6
+  7:10 Regex `return /^US(?:-|$)/i.test(region?.trim() ?? '') ? 'opt-out' : 'opt-in';` -> /US(?:-|$)/i
+  13:79 BooleanLiteral `const effective = { ...(choices ?? (regionMode === 'opt-out' ? { necessary: true, function` -> false
+  23:36 Regex `return typeof id === 'string' && /^[a-zA-Z0-9_-]{16,128}$/.test(id);` -> /[a-zA-Z0-9_-]{16,128}$/
+  23:36 Regex `return typeof id === 'string' && /^[a-zA-Z0-9_-]{16,128}$/.test(id);` -> /^[a-zA-Z0-9_-]{16,128}/
+  43:17 ConditionalExpression `if (!value || typeof value !== 'object') return null;` -> false
+  46:49 ConditionalExpression `if (record.policyVersion !== policyVersion || typeof record.timestamp !== 'string') return` -> false
+  56:7 ConditionalExpression `if (typeof action !== 'string' || !CONSENT_ACTIONS.includes(action)) throw new Error('Choo` -> false
+  58:51 BooleanLiteral `if (action === 'accept') choices = { necessary: true, functional: true, analytics: true, m` -> false
+  59:56 BooleanLiteral `if (action === 'do-not-sell') choices = { necessary: true, functional: fields.functional =` -> false
+  60:49 BooleanLiteral `if (action === 'save') choices = { necessary: true, functional: fields.functional === 'on'` -> false
+
+### src/consent/types.ts score=55.6 surv+nocov=4 :: ArithmeticOperator=4
+  60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 * 24 * 60 * 60 / 1000
+  60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 * 24 * 60 / 60
+  60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 * 24 / 60
+  60:35 ArithmeticOperator `export const CONSENT_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;` -> 180 / 24
