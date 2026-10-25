@@ -407,3 +407,54 @@ test("S3 unlinking an already-unlinked provider is LOGIN_INVALID and issues no s
   assert.deepEqual(await again.json(), { error: "member login failed", code: "LOGIN_INVALID" });
   assert.ok(!cookie(again, "tovu_member_session"));
 });
+
+// F6 fix wave (Stryker re-score of unlink-identity.ts / oidc-verify-email.ts / me.ts): the alternative
+// sign-in rule's two arms, the strict per-IP limiters, the success body and the provider-list fallback.
+async function linkedLogin(t: test.TestContext) {
+  const f = fixture(), member = await f.seed(), base = await startTestServer(f.app, t), start = await f.start(base);
+  const login = await callback(base, start.params, start.binding);
+  return { f, member, base, sessionCookie: cookie(login, "tovu_member_session") };
+}
+const unverified = async (f: ReturnType<typeof fixture>) => {
+  const [current] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  await f.members.memberRepo.save({ ...current!, emailVerifiedAt: undefined });
+};
+
+test("S3 unlink: an active member with a password needs no verified inbox, and the reply is exactly {ok:true}", async t => {
+  const { f, member, base, sessionCookie } = await linkedLogin(t);
+  await f.members.memberRepo.setPasswordHash({ workspaceId: "ws", memberId: member.id, passwordHash: "hash:x" });
+  await unverified(f);
+  const response = await post(base, `${BASE}/identities/google/unlink`, {}, sessionCookie);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+});
+
+test("S3 unlink: with no password and no verified inbox there is no alternative sign-in (LOGIN_BLOCKED)", async t => {
+  const { f, member, base, sessionCookie } = await linkedLogin(t);
+  await unverified(f);
+  const response = await post(base, `${BASE}/identities/google/unlink`, {}, sessionCookie);
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "member login failed", code: "LOGIN_BLOCKED" });
+  assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
+});
+
+test("S3 unlink and verify-email stop at their strict limiters with 429 and change nothing", async t => {
+  const { f, member, base, sessionCookie } = await linkedLogin(t);
+  const deny = { check: async () => ({ allowed: false as const, retryAfterSeconds: 7 }) };
+  f.members.passwordSignInPerIpLimiter = deny;
+  const unlink = await post(base, `${BASE}/identities/google/unlink`, {}, sessionCookie);
+  assert.equal(unlink.status, 429);
+  assert.equal(unlink.headers.get("retry-after"), "7");
+  assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
+  f.members.magicLinkCompleteAttemptLimiter = deny;
+  const verify = await post(base, `${OIDC}/verify-email`, { continuation: "c", challengeId: "ch", code: "123456" });
+  assert.equal(verify.status, 429);
+  assert.equal((await verify.json() as { code: string }).code, "RATE_LIMIT_EXCEEDED");
+});
+
+test("S3 /me still lists linked identities (labelled by provider id) when the provider list cannot load", async t => {
+  const { f, base, sessionCookie } = await linkedLogin(t);
+  f.deps.listProviders = async () => { throw new Error("plugin registry down"); };
+  const me = await fetch(`${base}${BASE}/me`, { headers: { cookie: sessionCookie } });
+  assert.deepEqual((await me.json() as { identities: unknown }).identities, [{ providerId: "google", label: "google" }]);
+});
