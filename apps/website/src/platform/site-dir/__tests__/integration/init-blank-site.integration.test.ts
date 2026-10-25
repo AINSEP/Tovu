@@ -16,7 +16,7 @@ const sampleTitles = [
 
 // Open through the real boot boundary: the fallback demo seed must never repopulate a blank site.
 for (const kind of ["sqlite", "pglite"] as const) {
-  test(`new ${kind} site has zero entries after init and two boots`, async () => {
+  test(`new ${kind} site keeps only the Blog listing page after init and two boots`, async () => {
     const parent = mkdtempSync(path.join(tmpdir(), "tovu-blank-site-"));
     const dir = path.join(parent, "blank");
     try {
@@ -25,7 +25,8 @@ for (const kind of ["sqlite", "pglite"] as const) {
       for (let boot = 0; boot < 2; boot += 1) {
         const store = await openSiteStore({ storage: { kind }, dbPath: paths.contentDbPath, chatDbPath: paths.chatDbPath, role: "owner" });
         try {
-          assert.deepEqual(await store.content.run((db) => db.selectFrom("posts").selectAll().execute()), []);
+          const entries = await store.content.run((db) => db.selectFrom("posts").select(["id", "kind", "slug", "template_choice"]).execute());
+          assert.deepEqual(entries, [{ id: "page-blog", kind: "page", slug: "blog", template_choice: "listing-default.html" }]);
           const workspaces = await store.content.run((db) => db.selectFrom("workspaces").select("id").execute());
           const presentation = await store.content.run((db) => db.selectFrom("presentation_settings").select("active_theme_id").execute());
           assert.deepEqual(workspaces, [{ id: "workspace-local" }]);
@@ -47,7 +48,7 @@ for (const withSampleContent of [false, true]) {
       try {
         const entries = await store.content.run((db) => db.selectFrom("posts").select(["title", "kind"]).execute());
         assert.deepEqual(entries.filter((entry) => entry.kind === "post").map((entry) => entry.title).sort(), withSampleContent ? sampleTitles : []);
-        assert.equal(entries.filter((entry) => entry.kind === "page").length, withSampleContent ? 2 : 0);
+        assert.equal(entries.filter((entry) => entry.kind === "page").length, withSampleContent ? 2 : 1);
       } finally { await store.close(); }
     } finally { rmSync(parent, { recursive: true, force: true }); }
   });
