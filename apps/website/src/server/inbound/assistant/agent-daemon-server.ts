@@ -88,6 +88,7 @@ import express from "express";
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import type { RunAgentPayload } from '@jini-ai/protocol';
+import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
@@ -235,6 +236,7 @@ let daemonExiting = false;
 let daemonStore: SiteStore | undefined;
 let stopDaemonServing: () => Promise<void> = async () => {};
 let stopPluginPolling: () => void = () => {};
+let disposeAiTracing: () => void = () => {};
 const daemonBootWork: Promise<unknown>[] = [];
 
 /** Wait for an in-flight publication before removing our pointer: fsync may reject AFTER rename,
@@ -247,6 +249,8 @@ async function exitDaemon(exitCode: number): Promise<void> {
   await closeWithinBound(async () => {
     stopPluginPolling();
     await stopDaemonServing();
+    // Before the store closes, which flushes and disposes the provider plugins' sinks.
+    disposeAiTracing();
     await registryPublication.catch(() => undefined);
     try {
       await daemonRegistry?.removeIfCurrent({ pid: process.pid });
@@ -477,7 +481,10 @@ stopPluginPolling = pluginPolling.stop;
 // 1000 runs are held), and the durable transcript is `ai_chat_messages.events_json`. Dropping a run's
 // events when the lifecycle evicts its record gives both the same lifetime (memory cause 2, 2026-10-21).
 const eventLog = createInMemoryEventLog({});
-const lifecycle = createRunLifecycle({ eventLog }, { dropEventsOnEviction: true });
+// Assistant runs → AI trace when an AI-trace provider plugin is configured (`run-lifecycle-tracing.ts`).
+const tracing = traceRunLifecycle({ lifecycle: createRunLifecycle({ eventLog }, { dropEventsOnEviction: true }), sink: routeDeps.aiTraceSink });
+disposeAiTracing = tracing.dispose;
+const lifecycle = tracing.lifecycle;
 lifecycle.rehydrate({}).catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
