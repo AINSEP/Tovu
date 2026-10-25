@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 77
+ * Tables: 78
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -419,6 +419,20 @@ export const memberConsents = pgTable("member_consents", {
   version: bigint("version", { mode: "number" }).notNull(),
 }, (t) => [
     uniqueIndex("member_consents_workspace_member_purpose_unique").on(t.workspaceId, t.memberId, t.purpose),
+  ]);
+
+export const memberExternalIdentities = pgTable("member_external_identities", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  memberId: text("member_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  issuer: text("issuer").notNull(),
+  subject: text("subject").notNull(),
+  linkedAt: text("linked_at").notNull(),
+  unlinkedAt: text("unlinked_at"),
+}, (t) => [
+    uniqueIndex("member_external_identities_workspace_subject_unique").on(t.workspaceId, t.issuer, t.subject),
+    uniqueIndex("member_external_identities_workspace_member_provider_unique").on(t.workspaceId, t.memberId, t.providerId),
   ]);
 
 export const memberMagicTokens = pgTable("member_magic_tokens", {

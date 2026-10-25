@@ -48,6 +48,7 @@
 
 import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
 import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "@jini-ai/cms/taxonomy";
+import { htmlToText } from "@jini-ai/platform/web";
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps, type ListPublishedPosts } from "./public-content.js";
 import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
@@ -166,6 +167,17 @@ function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEX
   return out;
 }
 
+/** Visible prose of one entry, capped at {@link MAX_TEXT_CHARS}. An `"html"`-format Page keeps only
+ *  an empty `bodyJson` placeholder, so its prose must come from `bodyHtml` — reading `bodyJson` there
+ *  handed the model empty text for every Page, and it re-read Page after Page until the tool-turn cap
+ *  ended the visitor's turn with no answer. Jini's extractor rather than `features/post`'s twin
+ *  because a value import from `features/post` would close the module cycle described above.
+ *  @complexity O(n) in the body's node count or HTML length. */
+function entryText(post: PostRecord): string {
+  if (post.bodyFormat === "html") return htmlToText({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
+  return extractText(post.bodyJson).join(" ").trim();
+}
+
 export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options = {}) {
   const limit = deps.maxResults ?? DEFAULT_MAX_RESULTS;
 
@@ -225,7 +237,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
       // slug.
       if (!found) return { error: `no published entry with slug "${slug}"` };
 
-      return { ...toSummary(found), text: extractText(found.bodyJson).join(" ").trim() };
+      return { ...toSummary(found), text: entryText(found) };
     },
 
     /**

@@ -19,6 +19,7 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
+  MemberExternalIdentityRecord,
   MemberRecord,
   MemberSessionRecord,
   MemberSubscriptionRecord,
@@ -27,6 +28,7 @@ import type {
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
+  MemberExternalIdentityRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
@@ -40,6 +42,78 @@ import type {
  * fan out to the entire table.
  */
 const DEFAULT_LIST_LIMIT = 100;
+
+/** Memory implementation of the identity persistence contract; returns copies like the SQL repo.
+ * @complexity O(n) reads/writes; list O(n + p log p), n = stored identities, p = member providers.
+ * @example new InMemoryMemberExternalIdentityRepo({})
+ */
+export class InMemoryMemberExternalIdentityRepo implements MemberExternalIdentityRepoPort {
+  private rows: MemberExternalIdentityRecord[];
+
+  constructor(required: { initialRows?: MemberExternalIdentityRecord[] }, _options: Record<string, never> = {}) {
+    this.rows = (required.initialRows ?? []).map(row => ({ ...row }));
+  }
+
+  /** Stable subject lookup includes markers; no caller-owned object can mutate storage. */
+  async findBySubject(required: { workspaceId: string; issuer: string; subject: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord | null> {
+    const row = this.rows.find(entry => entry.workspaceId === required.workspaceId
+      && entry.issuer === required.issuer && entry.subject === required.subject);
+    return row ? { ...row } : null;
+  }
+
+  /** Return the member/provider reservation, including its unlink marker. */
+  async findByMemberAndProvider(required: { workspaceId: string; memberId: string; providerId: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord | null> {
+    const row = this.rows.find(entry => entry.workspaceId === required.workspaceId
+      && entry.memberId === required.memberId && entry.providerId === required.providerId);
+    return row ? { ...row } : null;
+  }
+
+  /** List copied reservations in the same deterministic order as SQL. */
+  async listByMember(required: { workspaceId: string; memberId: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord[]> {
+    return this.rows.filter(row => row.workspaceId === required.workspaceId && row.memberId === required.memberId)
+      .sort((a, b) => {
+        if (a.providerId < b.providerId) return -1;
+        if (a.providerId > b.providerId) return 1;
+        return 0;
+      })
+      .map(row => ({ ...row }));
+  }
+
+  /** Enforce both natural keys and the durable adapter's conditional-upsert fence before writing. */
+  async save(record: MemberExternalIdentityRecord, { allowRelink = false }: { allowRelink?: boolean } = {}): Promise<void> {
+    const existing = this.rows.find(row => row.id === record.id);
+    if (existing) assertIdentityUpdate({ existing, record, allowRelink });
+    const conflict = this.rows.some(row => row.id !== record.id && row.workspaceId === record.workspaceId
+      && identityKeyConflicts({ existing: row, record }));
+    if (conflict) throw new MemberConflictError("member identity already belongs to an association");
+    this.rows = this.rows.filter(row => row.id !== record.id).concat({ ...record });
+  }
+
+  /** Stamp only live, scoped rows; preserve the first unlink time. */
+  async unlink(required: { workspaceId: string; memberId: string; providerId: string; unlinkedAt: string }, _options: Record<string, never> = {}): Promise<void> {
+    this.rows = this.rows.map(row => {
+      if (row.workspaceId !== required.workspaceId || row.memberId !== required.memberId || row.providerId !== required.providerId || row.unlinkedAt !== undefined) return row;
+      return { ...row, unlinkedAt: required.unlinkedAt };
+    });
+  }
+}
+
+/** Both unique keys reserve ownership even when unlinked. Pure, O(1). */
+function identityKeyConflicts({ existing, record }: { existing: MemberExternalIdentityRecord; record: MemberExternalIdentityRecord }): boolean {
+  return (existing.issuer === record.issuer && existing.subject === record.subject)
+    || (existing.memberId === record.memberId && existing.providerId === record.providerId);
+}
+
+/** Reject immutable ownership changes and stale saves; reconnect alone may replace claims. O(1). */
+function assertIdentityUpdate({ existing, record, allowRelink }: { existing: MemberExternalIdentityRecord; record: MemberExternalIdentityRecord; allowRelink: boolean }): void {
+  if (existing.workspaceId !== record.workspaceId || existing.memberId !== record.memberId || existing.providerId !== record.providerId) {
+    throw new MemberConflictError("member identity changed; re-read it before updating");
+  }
+  if (allowRelink) return;
+  if (existing.unlinkedAt !== undefined || existing.issuer !== record.issuer || existing.subject !== record.subject) {
+    throw new MemberConflictError("member identity changed; re-read it before updating");
+  }
+}
 
 /**
  * In-memory `MemberRepoPort`. Keyset-paginates `list()` by lexicographic id order

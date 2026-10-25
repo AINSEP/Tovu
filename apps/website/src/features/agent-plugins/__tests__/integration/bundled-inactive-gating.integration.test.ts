@@ -60,7 +60,7 @@ async function forceRemove(target: string): Promise<void> {
 }
 
 async function withSeededWorkspace<T>(
-  fn: (context: { readonly agentPluginsDir: string; readonly workspaceRoot: string }) => Promise<T>,
+  fn: (context: { readonly agentPluginsDir: string; readonly workspaceRoot: string; readonly seededIds: readonly string[] }) => Promise<T>,
 ): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-bundled-inactive-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
@@ -72,7 +72,8 @@ async function withSeededWorkspace<T>(
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
     assert.deepEqual(failures, [], `bundled plugins must seed cleanly, got: ${JSON.stringify(failures)}`);
 
-    return await fn({ agentPluginsDir: dir, workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
+    return await fn({ agentPluginsDir: dir, workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root,
+      seededIds: result.outcomes.filter(outcome => outcome.status === "seeded").map(outcome => outcome.pluginId) });
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -104,17 +105,18 @@ const SEEDED_ENABLED = ["github", "how-tovu-works", "site-import", "tovu-theme",
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
-test("every bundled plugin not seeded enabled, supabase included, is listed as switched off yet gets no tool and no prompt injection", async () => {
-  await withSeededWorkspace(async () => {
+test("every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection", async () => {
+  await withSeededWorkspace(async ({ seededIds }) => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
     const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
     assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), SEEDED_ENABLED);
-    // google-workspace (2026-10-20) ships disabled until its products and sign-in are reviewed.
-    // meilisearch (2026-10-21) ships disabled: a vendor receives site content only after the owner opts in.
-    assert.deepEqual([...bundledIds].sort(), ["cloudflare", "composio", "fly", "github-pages", "google-workspace", "higgsfield-media", "jev", "meilisearch", "netlify", "railway", "render", "resend", "s3-compatible", "site-compliance", "supabase", "vercel"]);
-    for (const expected of ["supabase", "google-workspace"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
+    // The lifecycle owns bundle discovery; every seeded opt-in package must be installed and gated.
+    // Keep provider inventory out of this generic seam, including when the shipped bundle grows.
+    const expectedInactive = seededIds.filter(pluginId => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId));
+    assert.ok(expectedInactive.length > 0, "the real bundle must exercise inactive gating");
+    assert.deepEqual([...bundledIds].sort(), expectedInactive.sort());
 
     const listed = await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));

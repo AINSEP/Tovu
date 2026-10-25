@@ -34,6 +34,7 @@ import type {
   MemberConsentRevisionRecord,
   MemberContentAccess,
   MemberContext,
+  MemberExternalIdentityRecord,
   MemberRecord,
   MemberSessionRecord,
   MemberSubscriptionRecord,
@@ -59,6 +60,25 @@ export interface MemberRepoPort {
     limit?: number;
   }): Promise<MemberRecord[]>;
   save(record: MemberRecord): Promise<void>;
+}
+
+/** Persistence only: the member-login service owns trusted claims, activation and link policy.
+ * Reads include unlink markers; callers must inspect `unlinkedAt` before authenticating.
+ * @example identities.findBySubject({ workspaceId, issuer, subject })
+ */
+export interface MemberExternalIdentityRepoPort {
+  findBySubject(required: { workspaceId: UUID; issuer: string; subject: string }, options?: Record<string, never>): Promise<MemberExternalIdentityRecord | null>;
+  findByMemberAndProvider(required: { workspaceId: UUID; memberId: UUID; providerId: string }, options?: Record<string, never>): Promise<MemberExternalIdentityRecord | null>;
+  /** Includes unlinked rows, ordered by providerId then id. Public views must filter markers. */
+  listByMember(required: { workspaceId: UUID; memberId: UUID }, options?: Record<string, never>): Promise<MemberExternalIdentityRecord[]>;
+  /** Upsert by id. Ordinary saves cannot change issuer/subject or overwrite an unlink marker.
+   * Only a service handling a signed-in connect may set allowRelink; reuse the existing row's id.
+   * Id, workspace, member and provider ownership never change, even on explicit reconnect.
+   * Natural-key collisions reject; the caller must retry the whole transaction after re-reading.
+   */
+  save(record: MemberExternalIdentityRecord, options?: { allowRelink?: boolean }): Promise<void>;
+  /** Stamp a live association once; missing/foreign/already-unlinked rows are a no-op. */
+  unlink(required: { workspaceId: UUID; memberId: UUID; providerId: string; unlinkedAt: ISODateTime }, options?: Record<string, never>): Promise<void>;
 }
 
 export interface MemberTierRepoPort {

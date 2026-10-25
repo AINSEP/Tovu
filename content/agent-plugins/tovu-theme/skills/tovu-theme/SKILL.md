@@ -86,6 +86,8 @@ path name if a doc and what you see on disk seem to disagree.
 
 # Shared rules (every job)
 
+If a theme uses Alpine's standard build or `new Function` / `eval(`, resolve consent CSP compatibility in this order: first self-host CDN Alpine in the theme (CDN Alpine stays blocked pre-consent even with unsafe-eval enabled); then offer `@alpinejs/csp` for simple expressions; only then offer Cookie Consent → Rules → "Allow dynamic code (unsafe-eval)". Warn that it weakens script protection across the site while optional scripts still wait for consent. Never enable it from detection alone; use the existing draft confirmation and Publish flow.
+
 Analytics, tracking, or marketing scripts you add must carry `data-consent-category="analytics"` or `data-consent-category="marketing"`, including first-party and inline scripts.
 
 ## Rule 1 — Build as apiVersion 2. The v1 flat layout is legacy, not a safe default.

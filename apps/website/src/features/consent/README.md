@@ -70,3 +70,30 @@ Only an empty legacy privacy URL (including saved whitespace) is filled through 
 Existing draft, scheduled, or trashed policies are preserved; `PRIVACY_PAGE_MISSING` still blocks publication.
 Generated copy uses the site title and owner email, highlighting missing contact for the owner to edit.
 Content failures are logged and retried next open; the in-memory test composition skips content creation.
+
+### Host withdrawal control and dynamic code exception
+
+Tovu public delivery fixes `reopen: 'link'`; older revision snapshots need no migration.
+The public HTTP adapter adds `<a href="#jini-consent" data-jini-consent-open>Cookie settings</a>`
+as a centred row at the end of the page footer (the last-closing one, never an article footer), or
+near the end of the body when there is no live footer. A theme's own live control is never duplicated. It runs
+at the final response boundary after Jini's gate, including streamed HTML and file delivery.
+The control follows the policy actually delivered, including Jini's last-good policy during a
+configuration outage. Disabled consent adds no control. Source-offset insertion preserves metadata.
+
+`allowUnsafeEval?: boolean` is an optional revision field, absent = restrictive. It deliberately
+stays outside `SITE_CONSENT_DEFAULTS`, whose fields are required in old snapshots. Only booleans
+are accepted. The existing `settings.workspace.write` permission controls editing and publication;
+there is no additional owner gate. Jini's Rules switch uses the existing autosave/Publish flow.
+Assistant confirmations explain that allowing dynamic code weakens page-wide script protection;
+optional scripts still wait for consent. Read failures retain the published flag in Jini's cache.
+
+For Alpine compatibility, first self-host CDN Alpine, then offer `@alpinejs/csp`, then offer the
+exception with its warning. CDN Alpine remains blocked before consent with either flag value.
+Never enable the exception solely because a theme was detected.
+
+Static delivery limitation (published Jini 0.6.12): enabled consent still refuses export with HTTP
+409 because static hosts cannot save durable receipts. The existing default-only export exemption
+and disabled-consent exports are unchanged. Shipping a functioning banner, withdrawal link and
+receipt lifecycle in enabled static exports requires a Jini-owned static delivery contract; Tovu
+must not bypass that refusal by presenting a static request as live or shipping a broken POST form.

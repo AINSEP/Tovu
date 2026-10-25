@@ -11,7 +11,7 @@ import { parseConsentConfig } from './validation.js';
 export interface ConsentToolDeps { siteConsent?: SiteConsentService }
 const PATH = { type: 'string', description: 'One local public page path, default /; no external URL.' };
 const TOKEN = { type: ['string', 'null'], description: 'The exact revision id from consent_get_settings, or null for no revision.' };
-const CONFIG = { type: 'object', description: 'Full ConsentConfig: banner text, enabled, policyVersion, links, placement, regionMode, appearance tokens, customCss. Four engine-owned categories cannot be changed.' };
+const CONFIG = { type: 'object', description: 'Full ConsentConfig: banner text, enabled, policyVersion, links, placement, regionMode, appearance tokens, customCss, optional allowUnsafeEval boolean. Four engine-owned categories cannot be changed.' };
 /** Full schemas are also checked inside the shared service; no input can approve its own write. */
 export const consentAgentToolCatalog: AgentToolDefinition[] = [
   ...['consent_get_readiness', 'consent_explain_blocked'].map(name => ({ name, description: 'Read a side-effect-free cookie consent dry run for one local rendered page: fixed categories, gated scripts/resources, placement, blocking problems. A sample is not a whole-site compliance verdict.', sideEffects: 'none' as const, authorization: { permission: 'settings.read' }, inputSchema: { type: 'object', properties: { path: PATH }, additionalProperties: false } })),
@@ -50,7 +50,7 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
         await service().read({ principalId: ctx.principal.id });
         return { config: parseConsentConfig({ value: input.config }), expectedDraftId: consentRevisionToken({ input, key: 'expectedDraftId' }) };
       },
-      describe: ({ prepared }) => ({ toolId: 'consent_update_settings', errorCode: 'CONSENT', title: 'Save this cookie consent draft?', details: [{ label: 'Configuration', value: JSON.stringify(prepared.config) }], confirmLabel: 'Save draft' }),
+      describe: ({ prepared }) => ({ toolId: 'consent_update_settings', errorCode: 'CONSENT', title: 'Save this cookie consent draft?', details: [{ label: 'Configuration', value: JSON.stringify(prepared.config) }], warning: unsafeEvalWarning({ config: prepared.config }), confirmLabel: 'Save draft' }),
       run: ({ ctx, prepared }) => service().saveDraft({ principalId: ctx.principal.id, config: prepared.config, expectedDraftId: prepared.expectedDraftId }),
     }, { flag: 'saved' }),
     consent_publish_settings: approvalToolHandler({ surfaces,
@@ -61,7 +61,7 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
         if (!draftId || state.draft?.id !== draftId) throw new ToolInputError({ message: 'Reload the saved consent draft before publishing.' });
         return { draftId, expectedPublishedId: consentRevisionToken({ input, key: 'expectedPublishedId' }), config: parseConsentConfig({ value: state.draft.config }) };
       },
-      describe: ({ prepared }) => ({ toolId: 'consent_publish_settings', errorCode: 'CONSENT', title: 'Publish this cookie consent policy?', details: [{ label: 'Revision', value: prepared.draftId }, { label: 'Configuration', value: JSON.stringify(prepared.config) }], warning: prepared.config.enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and optional-content enforcement will be disabled. Optional scripts may run without a visitor choice.', confirmLabel: 'Publish policy' }),
+      describe: ({ prepared }) => ({ toolId: 'consent_publish_settings', errorCode: 'CONSENT', title: 'Publish this cookie consent policy?', details: [{ label: 'Revision', value: prepared.draftId }, { label: 'Configuration', value: JSON.stringify(prepared.config) }], warning: [unsafeEvalWarning({ config: prepared.config }), prepared.config.enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and optional-content enforcement will be disabled. Optional scripts may run without a visitor choice.'].filter(Boolean).join(' '), confirmLabel: 'Publish policy' }),
       run: ({ ctx, prepared }) => service().publish({ principalId: ctx.principal.id, draftId: prepared.draftId, expectedPublishedId: prepared.expectedPublishedId }),
     }, { flag: 'published' }),
   } });
@@ -70,4 +70,9 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
 /** Explicit composition contribution; no import-time registration or separate tool lifecycle. */
 export function contributeConsentTools(_required = {}, _options = {}): ToolContributor {
   return { domain: 'consent', build: buildConsentRegistrations, risk: consentDerivedRisk };
+}
+
+/** Every confirmation carrying the exception explains its page-wide security cost. */
+function unsafeEvalWarning({ config }: { config: { allowUnsafeEval?: boolean } }, _options = {}): string | undefined {
+  return config.allowUnsafeEval ? 'Allowing dynamic code (unsafe-eval) weakens script protection on this site. Optional scripts still wait for consent.' : undefined;
 }

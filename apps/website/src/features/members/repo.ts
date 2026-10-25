@@ -3,6 +3,7 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
+  MemberExternalIdentityRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
@@ -15,6 +16,8 @@ import {
   toMemberConsentRecord,
   toMemberConsentRevisionRecord,
   toMemberConsentRow,
+  toMemberExternalIdentityRecord,
+  toMemberExternalIdentityRow,
   toMemberRecord,
   toMemberRow,
   toMemberSessionRecord,
@@ -29,6 +32,7 @@ import type {
   MagicLinkTokenRecord,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
+  MemberExternalIdentityRecord,
   MemberRecord,
   MemberSessionRecord,
   MemberSubscriptionRecord,
@@ -47,6 +51,70 @@ import type {
 
 /** A page of members never exceeds this many rows. */
 const MAX_PAGE = 100;
+
+/** External identity persistence on the existing kernel; joins any caller transaction.
+ * Reads intentionally retain unlink markers and do not decide member authentication policy.
+ * Database errors propagate; a rejected conditional upsert raises MemberConflictError.
+ * @complexity Indexed lookups/writes O(log n); list O(log n + p), p = this member's providers.
+ * @example new SqlMemberExternalIdentityRepo({ kernel })
+ */
+export class SqlMemberExternalIdentityRepo implements MemberExternalIdentityRepoPort {
+  private readonly kernel: ContentKernel;
+
+  constructor(required: { kernel: ContentKernel }, _options: Record<string, never> = {}) {
+    this.kernel = required.kernel;
+  }
+
+  /** Resolve the stable subject, including unlink markers and without using an email claim. */
+  async findBySubject(required: { workspaceId: string; issuer: string; subject: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord | null> {
+    const row = await this.kernel.run(db => db.selectFrom("member_external_identities").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("issuer", "=", required.issuer)
+      .where("subject", "=", required.subject).executeTakeFirst());
+    return row ? toMemberExternalIdentityRecord({ row }) : null;
+  }
+
+  /** Read the member/provider reservation, even after unlink. Missing/foreign returns null. */
+  async findByMemberAndProvider(required: { workspaceId: string; memberId: string; providerId: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord | null> {
+    const row = await this.kernel.run(db => db.selectFrom("member_external_identities").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+      .where("provider_id", "=", required.providerId).executeTakeFirst());
+    return row ? toMemberExternalIdentityRecord({ row }) : null;
+  }
+
+  /** Return all reservations in deterministic order; public views filter unlinked rows. */
+  async listByMember(required: { workspaceId: string; memberId: string }, _options: Record<string, never> = {}): Promise<MemberExternalIdentityRecord[]> {
+    const rows = await this.kernel.run(db => db.selectFrom("member_external_identities").selectAll()
+      .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+      .orderBy("provider_id").orderBy("id").execute());
+    return rows.map(row => toMemberExternalIdentityRecord({ row }));
+  }
+
+  /** Single-statement upsert. The predicates fence stale callbacks without a read/write race. */
+  async save(record: MemberExternalIdentityRecord, { allowRelink = false }: { allowRelink?: boolean } = {}): Promise<void> {
+    const row = toMemberExternalIdentityRow({ record });
+    const saved = await this.kernel.run(db => db.insertInto("member_external_identities").values(row)
+      .onConflict(oc => {
+        let update = oc.column("id").doUpdateSet(withoutId(row))
+          .where("member_external_identities.workspace_id", "=", record.workspaceId)
+          .where("member_external_identities.member_id", "=", record.memberId)
+          .where("member_external_identities.provider_id", "=", record.providerId);
+        // Only the signed-in connect service may replace a subject or clear the unlink marker.
+        if (!allowRelink) update = update.where("member_external_identities.unlinked_at", "is", null)
+          .where("member_external_identities.issuer", "=", record.issuer)
+          .where("member_external_identities.subject", "=", record.subject);
+        return update;
+      })
+      .returning("id").executeTakeFirst());
+    if (!saved) throw new MemberConflictError("member identity changed; re-read it before updating");
+  }
+
+  /** Keep the first unlink marker; repeated unlink and foreign workspaces cannot alter it. */
+  async unlink(required: { workspaceId: string; memberId: string; providerId: string; unlinkedAt: string }, _options: Record<string, never> = {}): Promise<void> {
+    await this.kernel.run(db => db.updateTable("member_external_identities").set({ unlinked_at: required.unlinkedAt })
+      .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+      .where("provider_id", "=", required.providerId).where("unlinked_at", "is", null).execute());
+  }
+}
 
 /** The `updated` half of an upsert: every column except the primary key. */
 function withoutId<T extends { id: unknown }>(row: T): Omit<T, "id"> {

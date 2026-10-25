@@ -57,3 +57,14 @@ describe('createConsentRevisionsPort', () => {
 });
 
 afterEach(() => { vi.unstubAllGlobals(); });
+
+describe('unsafe-eval revisions transport', () => {
+  it.each([true, false])('round-trips the optional boolean %s without filtering fields', async allowUnsafeEval => {
+    const config = { ...CONSENT_CONFIG, allowUnsafeEval };
+    const body = { revision: { id: 'd2', config }, blockingProblems: [] };
+    const { calls, request } = fakeRequest(200, body);
+    const port = createConsentRevisionsPort({ request });
+    await expect(port.saveDraft({ config, expectedDraftId: 'd1' })).resolves.toEqual(body);
+    expect(calls[0].body).toEqual({ config, expectedDraftId: 'd1' });
+  });
+});

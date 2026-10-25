@@ -9,6 +9,8 @@ import { COMMON_I18N } from "../../lib/i18n-common";
 
 export const CONSENT_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Allow dynamic code (unsafe-eval)": "Permitir código dinámico (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Algunos temas lo necesitan. Debilita la protección de scripts del sitio. Los scripts opcionales siguen esperando el consentimiento.",
     "Administration": "Administración",
     "Cookie Consent": "Consentimiento de cookies",
     "The banner visitors see, and what waits for their choice.": "El banner que ven los visitantes y lo que espera su elección.",
@@ -95,6 +97,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Escritorio",
   },
   id: {
+    "Allow dynamic code (unsafe-eval)": "Izinkan kode dinamis (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Beberapa tema memerlukannya. Ini melemahkan perlindungan skrip situs. Skrip opsional tetap menunggu persetujuan.",
     "Administration": "Administrasi",
     "Cookie Consent": "Persetujuan Cookie",
     "The banner visitors see, and what waits for their choice.": "Banner yang dilihat pengunjung, dan apa yang menunggu pilihan mereka.",
@@ -181,6 +185,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Desktop",
   },
   de: {
+    "Allow dynamic code (unsafe-eval)": "Dynamischen Code erlauben (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Einige Themes benötigen dies. Es schwächt den Skriptschutz der Website. Optionale Skripte warten weiterhin auf die Einwilligung.",
     "Administration": "Verwaltung",
     "Cookie Consent": "Cookie-Einwilligung",
     "The banner visitors see, and what waits for their choice.": "Das Banner, das Besucher sehen, und was auf ihre Wahl wartet.",
@@ -267,6 +273,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Desktop",
   },
   "zh-CN": {
+    "Allow dynamic code (unsafe-eval)": "允许动态代码 (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "某些主题需要此功能。这会削弱网站的脚本保护。可选脚本仍需等待同意。",
     "Administration": "管理",
     "Cookie Consent": "Cookie 同意",
     "The banner visitors see, and what waits for their choice.": "访客看到的横幅，以及等待他们选择的内容。",
@@ -353,6 +361,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "桌面",
   },
   "zh-TW": {
+    "Allow dynamic code (unsafe-eval)": "允許動態程式碼 (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "某些佈景主題需要此功能。這會削弱網站的指令碼保護。選用指令碼仍需等待同意。",
     "Administration": "管理",
     "Cookie Consent": "Cookie 同意",
     "The banner visitors see, and what waits for their choice.": "訪客看到的橫幅，以及等待他們選擇的內容。",
@@ -439,6 +449,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "桌面",
   },
   "pt-BR": {
+    "Allow dynamic code (unsafe-eval)": "Permitir código dinâmico (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Alguns temas precisam disso. Isso enfraquece a proteção de scripts do site. Scripts opcionais continuam aguardando consentimento.",
     "Administration": "Administração",
     "Cookie Consent": "Consentimento de cookies",
     "The banner visitors see, and what waits for their choice.": "O banner que os visitantes veem e o que aguarda a escolha deles.",
@@ -525,6 +537,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Desktop",
   },
   ru: {
+    "Allow dynamic code (unsafe-eval)": "Разрешить динамический код (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Некоторым темам это необходимо. Это ослабляет защиту скриптов сайта. Необязательные скрипты по-прежнему ждут согласия.",
     "Administration": "Администрирование",
     "Cookie Consent": "Согласие на cookie",
     "The banner visitors see, and what waits for their choice.": "Баннер, который видят посетители, и то, что ждёт их выбора.",
@@ -611,6 +625,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Компьютер",
   },
   fa: {
+    "Allow dynamic code (unsafe-eval)": "اجازه کد پویا (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "برخی پوسته‌ها به این نیاز دارند. حفاظت اسکریپت سایت ضعیف‌تر می‌شود. اسکریپت‌های اختیاری همچنان منتظر رضایت می‌مانند.",
     "Administration": "مدیریت",
     "Cookie Consent": "رضایت کوکی",
     "The banner visitors see, and what waits for their choice.": "نواری که بازدیدکنندگان می‌بینند و آنچه منتظر انتخاب آن‌هاست.",
@@ -697,6 +713,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "دسکتاپ",
   },
   ar: {
+    "Allow dynamic code (unsafe-eval)": "السماح بالكود الديناميكي (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "تحتاج بعض القوالب إلى ذلك. يضعف حماية البرامج النصية للموقع. تظل البرامج النصية الاختيارية تنتظر الموافقة.",
     "Administration": "الإدارة",
     "Cookie Consent": "الموافقة على ملفات تعريف الارتباط",
     "The banner visitors see, and what waits for their choice.": "الشريط الذي يراه الزوار، وما ينتظر اختيارهم.",
@@ -783,6 +801,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "سطح المكتب",
   },
   ja: {
+    "Allow dynamic code (unsafe-eval)": "動的コードを許可 (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "一部のテーマで必要です。サイトのスクリプト保護が弱まります。任意のスクリプトは引き続き同意を待ちます。",
     "Administration": "管理",
     "Cookie Consent": "Cookie の同意",
     "The banner visitors see, and what waits for their choice.": "訪問者に表示するバナーと、その選択を待つもの。",
@@ -869,6 +889,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "デスクトップ",
   },
   ko: {
+    "Allow dynamic code (unsafe-eval)": "동적 코드 허용 (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "일부 테마에 필요합니다. 사이트의 스크립트 보호가 약해집니다. 선택적 스크립트는 계속 동의를 기다립니다.",
     "Administration": "관리",
     "Cookie Consent": "쿠키 동의",
     "The banner visitors see, and what waits for their choice.": "방문자에게 보이는 배너와 그들의 선택을 기다리는 항목.",
@@ -955,6 +977,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "데스크톱",
   },
   pl: {
+    "Allow dynamic code (unsafe-eval)": "Zezwalaj na kod dynamiczny (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Niektóre motywy tego wymagają. Osłabia to ochronę skryptów witryny. Opcjonalne skrypty nadal czekają na zgodę.",
     "Administration": "Administracja",
     "Cookie Consent": "Zgoda na cookies",
     "The banner visitors see, and what waits for their choice.": "Baner widoczny dla odwiedzających i to, co czeka na ich wybór.",
@@ -1041,6 +1065,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Komputer",
   },
   hu: {
+    "Allow dynamic code (unsafe-eval)": "Dinamikus kód engedélyezése (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Egyes témákhoz ez szükséges. Gyengíti a webhely szkriptvédelmét. Az opcionális szkriptek továbbra is beleegyezésre várnak.",
     "Administration": "Adminisztráció",
     "Cookie Consent": "Cookie-hozzájárulás",
     "The banner visitors see, and what waits for their choice.": "A látogatóknak megjelenő sáv, és ami a döntésükre vár.",
@@ -1127,6 +1153,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Asztali",
   },
   fr: {
+    "Allow dynamic code (unsafe-eval)": "Autoriser le code dynamique (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Certains thèmes en ont besoin. Cela affaiblit la protection des scripts du site. Les scripts facultatifs attendent toujours le consentement.",
     "Administration": "Administration",
     "Cookie Consent": "Consentement aux cookies",
     "The banner visitors see, and what waits for their choice.": "La bannière que voient les visiteurs, et ce qui attend leur choix.",
@@ -1213,6 +1241,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Ordinateur",
   },
   uk: {
+    "Allow dynamic code (unsafe-eval)": "Дозволити динамічний код (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Деякі теми цього потребують. Це послаблює захист скриптів сайту. Необов’язкові скрипти й далі чекають на згоду.",
     "Administration": "Адміністрування",
     "Cookie Consent": "Згода на cookie",
     "The banner visitors see, and what waits for their choice.": "Банер, який бачать відвідувачі, і те, що чекає їхнього вибору.",
@@ -1299,6 +1329,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Комп'ютер",
   },
   tr: {
+    "Allow dynamic code (unsafe-eval)": "Dinamik koda izin ver (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Bazı temalar buna ihtiyaç duyar. Sitenin betik korumasını zayıflatır. İsteğe bağlı betikler yine de onay bekler.",
     "Administration": "Yönetim",
     "Cookie Consent": "Çerez İzni",
     "The banner visitors see, and what waits for their choice.": "Ziyaretçilerin gördüğü afiş ve onların seçimini bekleyenler.",
@@ -1385,6 +1417,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Masaüstü",
   },
   th: {
+    "Allow dynamic code (unsafe-eval)": "อนุญาตโค้ดแบบไดนามิก (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "บางธีมจำเป็นต้องใช้ ซึ่งจะลดการป้องกันสคริปต์ของเว็บไซต์ สคริปต์เสริมยังคงรอความยินยอม",
     "Administration": "การดูแลระบบ",
     "Cookie Consent": "ความยินยอมคุกกี้",
     "The banner visitors see, and what waits for their choice.": "แบนเนอร์ที่ผู้เยี่ยมชมเห็น และสิ่งที่รอการเลือกของพวกเขา",
@@ -1471,6 +1505,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "เดสก์ท็อป",
   },
   it: {
+    "Allow dynamic code (unsafe-eval)": "Consenti codice dinamico (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "Alcuni temi ne hanno bisogno. Indebolisce la protezione degli script del sito. Gli script facoltativi attendono comunque il consenso.",
     "Administration": "Amministrazione",
     "Cookie Consent": "Consenso ai cookie",
     "The banner visitors see, and what waits for their choice.": "Il banner che vedono i visitatori e ciò che attende la loro scelta.",
@@ -1557,6 +1593,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "Desktop",
   },
   hi: {
+    "Allow dynamic code (unsafe-eval)": "डायनेमिक कोड की अनुमति दें (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "कुछ थीम को इसकी आवश्यकता होती है। इससे साइट की स्क्रिप्ट सुरक्षा कमज़ोर होती है। वैकल्पिक स्क्रिप्ट अब भी सहमति की प्रतीक्षा करती हैं।",
     "Administration": "प्रशासन",
     "Cookie Consent": "कुकी सहमति",
     "The banner visitors see, and what waits for their choice.": "विज़िटर जो बैनर देखते हैं, और जो उनकी पसंद का इंतज़ार करता है।",
@@ -1643,6 +1681,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "डेस्कटॉप",
   },
   ur: {
+    "Allow dynamic code (unsafe-eval)": "متحرک کوڈ کی اجازت دیں (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "کچھ تھیمز کو اس کی ضرورت ہوتی ہے۔ یہ سائٹ کی اسکرپٹ حفاظت کو کمزور کرتا ہے۔ اختیاری اسکرپٹس اب بھی رضامندی کا انتظار کرتی ہیں۔",
     "Administration": "انتظامیہ",
     "Cookie Consent": "کوکی رضامندی",
     "The banner visitors see, and what waits for their choice.": "وہ بینر جو وزیٹرز دیکھتے ہیں، اور جو ان کے انتخاب کا منتظر ہے۔",
@@ -1729,6 +1769,8 @@ export const CONSENT_DICT: Record<string, Record<string, string>> = {
     "Desktop": "ڈیسک ٹاپ",
   },
   bn: {
+    "Allow dynamic code (unsafe-eval)": "ডায়নামিক কোড অনুমোদন করুন (unsafe-eval)",
+    "Some themes need this. It weakens the site's script protection. Optional scripts still wait for consent.": "কিছু থিমের এটি প্রয়োজন। এটি সাইটের স্ক্রিপ্ট সুরক্ষা দুর্বল করে। ঐচ্ছিক স্ক্রিপ্ট এখনও সম্মতির অপেক্ষায় থাকে।",
     "Administration": "প্রশাসন",
     "Cookie Consent": "কুকি সম্মতি",
     "The banner visitors see, and what waits for their choice.": "দর্শকরা যে ব্যানার দেখেন, আর যা তাঁদের পছন্দের অপেক্ষায় থাকে।",

@@ -60,3 +60,14 @@ test('a secondary link needs both its label and a local or https URL', () => {
     assert.deepEqual(secondary(patch).map(problem => problem.field), ['secondaryLinkUrl'], JSON.stringify(patch));
   }
 });
+
+test('unsafe-eval is optional for old snapshots and accepts only literal booleans', () => {
+  assert.equal(parseConsentConfig({ value: SITE_CONSENT_DEFAULTS }).allowUnsafeEval, undefined);
+  for (const allowUnsafeEval of [true, false]) assert.equal(parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, allowUnsafeEval } }).allowUnsafeEval, allowUnsafeEval);
+  for (const allowUnsafeEval of ['true', 1, null, {}, undefined]) assert.throws(() => parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, allowUnsafeEval } }), /allowUnsafeEval must be a boolean/);
+});
+
+test('host reopen policy accepts link mode and refuses an author-selected corner control', () => {
+  assert.equal(parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' } }).reopen, 'link');
+  assert.throws(() => parseConsentConfig({ value: { ...SITE_CONSENT_DEFAULTS, reopen: 'corner' } }), /reopen through a link/);
+});

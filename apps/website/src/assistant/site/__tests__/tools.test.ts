@@ -19,6 +19,8 @@ interface FakeRow {
   title: string;
   slug: string;
   bodyJson: unknown;
+  bodyFormat?: "doc" | "html";
+  bodyHtml?: string | null;
   memberAccessJson?: string | null;
   status: "draft" | "published";
   kind: "post" | "page";
@@ -172,6 +174,16 @@ describe("site assistant tools", () => {
       const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
       const result = await tools.get_published_entry({ slug: "doc" });
       assert.equal((result as { text: string }).text, "hello world");
+    });
+
+    it("returns the visible text of an html-format Page, whose bodyJson is an empty placeholder", async () => {
+      // Every live Page is html-format. Reading only bodyJson returned "" for each one, and the
+      // visitor model kept reading Page after Page until the tool-turn cap ended with no answer.
+      const port = fakePort([row({ slug: "about", status: "published", kind: "page", bodyJson: {}, bodyFormat: "html",
+        bodyHtml: "<style>.x{color:red}</style><h1>What Is Tovu?</h1><p>Tovu is a content platform you <em>own</em>.</p><script>alert(1)</script>" })]).port;
+      const tools = createSiteAssistantTools(makeDeps({ postRepo: port as never }));
+      const result = await tools.get_published_entry({ slug: "about" });
+      assert.equal((result as { text: string }).text, "What Is Tovu? Tovu is a content platform you own.");
     });
 
     it("degrades to empty text on a malformed body rather than throwing", async () => {
