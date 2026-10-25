@@ -221,3 +221,20 @@ test("the observability validator refuses a port missing any single signal", () 
     assert.equal(observability.validate({ provider: port }), "not an ObservabilityPort", name);
   }
 });
+
+test("without a warn sink, a provider failure (even a non-Error rejection) goes to the console", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const { runtime } = fakeRuntime({ installed: ["observability-sentry"], factories: { "observability-sentry": { contract: "observability", id: "sentry", factory: () => Promise.reject("refused") } } });
+  const ports = await bootProviderPlugins({ runtime, readCredential: readCards(CARDS), serviceName: "tovu", ...consentAlways }, { bindings: [PROVIDER_PLUGIN_BINDINGS[1]!] });
+  assert.equal(isNoopObservabilityPort(ports.observability), true);
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), ["[provider-plugins] provider plugin 'observability-sentry' did not initialize: refused"]);
+});
+
+test("a provider whose dispose fails is reported by phase through the warn sink", async () => {
+  const warnings: string[] = [];
+  const { runtime } = fakeRuntime({ installed: ["observability-sentry"], factories: { "observability-sentry": { contract: "observability", id: "sentry", factory: () => ({ port: recordingObservability([]), dispose: () => { throw new Error("close failed"); } }) } } });
+  const ports = await bootProviderPlugins({ runtime, readCredential: readCards(CARDS), serviceName: "tovu", ...consentAlways }, { bindings: [PROVIDER_PLUGIN_BINDINGS[1]!], warn: (message) => warnings.push(message) });
+  await ports.dispose({});
+  for (let i = 0; i < 20 && warnings.length === 0; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(warnings, ["provider plugin 'observability-sentry' dispose failed"]);
+});
