@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { parse } from "cookie";
 import { MemberLoginError, type LoginProvider, type OidcLoginDeps, type LoginContext,
-  type MemberLoginLinkDeps } from "#src/features/member-login/index";
+  type MemberLoginLinkDeps, type MemberLoginOutcomeCode } from "#src/features/member-login/index";
 import { resolveMemberSession, type MemberSessionRecord, type MemberRecord } from "#src/features/members/index";
 import type { MemberPublicRouteDeps } from "./deps.js";
 import { MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
@@ -65,7 +65,7 @@ export class MemberOidcCancelled extends Error {}
  * to show in plain words. Same fixed codes as the JSON routes; nothing upstream is echoed. O(1).
  */
 export function redirectMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
-  let code = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
+  let code: MemberLoginOutcomeCode | "LOGIN_CANCELLED" = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
   if (error instanceof MemberOidcCancelled) code = "LOGIN_CANCELLED";
   res.redirect(303, `/signin#oidcError=${code}`);
 }
