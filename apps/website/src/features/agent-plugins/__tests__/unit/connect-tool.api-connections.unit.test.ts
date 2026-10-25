@@ -56,7 +56,7 @@ async function connect(composition: AcmeComposition, options: { readonly onCard?
   mountCallback(composition);
   const cards: string[] = [];
   const onCard = options.onCard ?? (async (html: string, index: number) => { if (index === 0) assert.equal((await followConsent(signInUrlOf(html))).status, 200); });
-  const result = await runAgentPluginConnect(depsFor(composition.apiConnections, options.waitTimeoutMs), surfaces(), ctxFor(options.signal), options.pluginId ?? PLUGIN, {
+  const result = await runAgentPluginConnect({ routeDeps: depsFor(composition.apiConnections, options.waitTimeoutMs), surfaces: surfaces(), ctx: ctxFor(options.signal), pluginId: options.pluginId ?? PLUGIN }, {
     emitSurface: async (emission) => { const html = htmlOf(emission); cards.push(html); await onCard(html, cards.length - 1); },
   });
   return { result, cards };
@@ -87,10 +87,10 @@ test('API sign-in displays only the declaring plugin oauth card copy', async () 
     intro: 'Use the files you choose.', permissions: 'Read selected files only.', keyHint: 'Account sign-in' };
   const cards: string[] = [];
   // Assign rather than spread: spreading would evaluate the fixture's lazy layout getters outside the test site.
-  const result = await runAgentPluginConnect(Object.assign(depsFor(composition.apiConnections), { loadPluginCredentialCards: async (workspaceId: string) => {
+  const result = await runAgentPluginConnect({ routeDeps: Object.assign(depsFor(composition.apiConnections), { loadPluginCredentialCards: async (workspaceId: string) => {
     assert.equal(workspaceId, WORKSPACE);
     return [{ ...card, pluginId: 'other-plugin', title: 'Wrong owner copy' }, { ...card, saveKind: 'api', title: 'Wrong kind copy' }, card];
-  } }), surfaces(), ctxFor(), PLUGIN, { emitSurface: async emission => {
+  } }), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }, { emitSurface: async emission => {
     const html = htmlOf(emission); cards.push(html);
     if (cards.length === 1) assert.equal((await followConsent(signInUrlOf(html))).status, 200);
   } });
@@ -110,7 +110,7 @@ test("a plugin declaring more than one API connection is refused before any sign
   const host = Object.assign(Object.create(Object.getPrototypeOf(composition.apiConnections.host)), composition.apiConnections.host, { listConnections: async () => [declared!, declared!] });
   const cards: string[] = [];
   await assert.rejects(
-    runAgentPluginConnect(depsFor({ host }), surfaces(), ctxFor(), PLUGIN, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) }),
+    runAgentPluginConnect({ routeDeps: depsFor({ host }), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) }),
     { name: "ToolInputError", message: `agent_plugin_connect: '${PLUGIN}' declares 2 API connections — this Tovu version connects one per plugin.` },
   );
   assert.deepEqual(cards, []);
@@ -118,7 +118,7 @@ test("a plugin declaring more than one API connection is refused before any sign
 
 test("without an interactive channel the sign-in card cannot be shown and the call fails with that reason", async () => {
   const composition = await compose();
-  await assert.rejects(runAgentPluginConnect(depsFor(composition.apiConnections), surfaces(), ctxFor(), PLUGIN), {
+  await assert.rejects(runAgentPluginConnect({ routeDeps: depsFor(composition.apiConnections), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }), {
     message: "agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.",
   });
 });
@@ -169,7 +169,7 @@ test("an abort before any card exists is harmless: the call still ends as waitin
     statusOf: (input: Parameters<typeof real.statusOf>[0]) => { controller.abort(); return real.statusOf(input); },
   });
   const cards: string[] = [];
-  const result = await runAgentPluginConnect(depsFor({ host }), surfaces(), ctxFor(controller.signal), PLUGIN, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) });
+  const result = await runAgentPluginConnect({ routeDeps: depsFor({ host }), surfaces: surfaces(), ctx: ctxFor(controller.signal), pluginId: PLUGIN }, { emitSurface: async (emission) => void cards.push(htmlOf(emission)) });
   assert.equal(result.status, "waiting-for-sign-in");
   assert.equal(cards.length, 1, "the card is still shown once, then the aborted wait ends at once");
 });
@@ -192,7 +192,7 @@ test("aborting closes the card at once, even while a status read is still in fli
   let closes = 0;
   const transport: AssistantSurfaceDeps = { surfaceExchanges: wrap(store, { open: (input) => { const exchange = store.open(input); return wrap(exchange, { close: (options) => { closes += 1; return exchange.close(options); } }); } }) };
   let closedAtAbort = -1;
-  const result = await runAgentPluginConnect(depsFor({ host }), transport, ctxFor(controller.signal), PLUGIN, {
+  const result = await runAgentPluginConnect({ routeDeps: depsFor({ host }), surfaces: transport, ctx: ctxFor(controller.signal), pluginId: PLUGIN }, {
     emitSurface: async () => { setImmediate(() => { controller.abort(); closedAtAbort = closes; release(); }); },
   });
   assert.equal(closedAtAbort, 1, "the card closed on the abort itself, not when the pending read returned");
@@ -203,7 +203,7 @@ test("with no poll interval or wait bound configured, the built-in defaults stil
   const composition = await compose();
   mountCallback(composition);
   let shown = 0;
-  const result = await runAgentPluginConnect(depsFor(composition.apiConnections, null), surfaces(), ctxFor(), PLUGIN, {
+  const result = await runAgentPluginConnect({ routeDeps: depsFor(composition.apiConnections, null), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }, {
     // The "browser" finishes before the first status read, so the default interval is never slept.
     emitSurface: async (emission) => { if (shown++ === 0) assert.equal((await followConsent(signInUrlOf(htmlOf(emission)))).status, 200); },
   });

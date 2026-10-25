@@ -153,14 +153,14 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
   });
 }
 
-test("the catalog carries exactly one tool, search_agent_plugin_local, with a required 'query' and optional 'limit'", async () => {
+test("the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'", async () => {
   const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
   assert.equal(registrations.length, 1);
   const [registration] = registrations;
   assert.ok(registration);
   assert.equal(registration.descriptor.id, "search_agent_plugin_local");
-  const schema = registration.descriptor.inputSchema as { required: readonly string[]; properties: Record<string, unknown> };
-  assert.deepEqual(schema.required, ["query"]);
+  const schema = registration.descriptor.inputSchema as { required?: readonly string[]; properties: Record<string, unknown> };
+  assert.ok(!schema.required?.includes("query"));
   assert.ok(schema.properties.query);
   assert.ok(schema.properties.limit);
 });
@@ -325,26 +325,35 @@ test("two installed digests of the same plugin id do not crash search — unlike
   });
 });
 
-test("limit is clamped, not rejected — an out-of-range value still returns a result within [1, 25]", async () => {
+test("limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50]", async () => {
   await withAgentPluginsDir(async () => {
-    for (let i = 0; i < 26; i += 1) {
+    for (let i = 0; i < 51; i += 1) {
       await installReal(WORKSPACE_A, `compliance-tool-${i}`, { "plugin.json": manifestJson(`compliance-tool-${i}`, { keywords: ["compliance"] }) }, `archive-limit-${i}`);
     }
 
     const zero = await search(WORKSPACE_A, { query: "compliance", limit: 0 });
-    assert.equal(zero.totalInstalled, 26);
+    assert.equal(zero.totalInstalled, 51);
     assert.equal(zero.matches.length, 1, "limit 0 clamps up to exactly 1");
 
     const huge = await search(WORKSPACE_A, { query: "compliance", limit: 999 });
-    assert.equal(huge.totalInstalled, 26);
-    assert.equal(huge.matches.length, 25, "limit is capped at 25 regardless of what was requested");
+    assert.equal(huge.totalInstalled, 51);
+    assert.equal(huge.matches.length, 50, "limit is capped at 50 regardless of what was requested");
   });
 });
 
-test("a missing 'query' argument throws — query is genuinely required, not merely documented as such", async () => {
+test("blank queries list the existing loader's enabled and disabled plugins", async () => {
   await withAgentPluginsDir(async () => {
-    await assert.rejects(() => search(WORKSPACE_A, {}));
-    await assert.rejects(() => search(WORKSPACE_A, undefined));
+    await installReal(WORKSPACE_A, "zeta", { "plugin.json": manifestJson("zeta") }, "list-zeta");
+    await installReal(WORKSPACE_A, "alpha", { "plugin.json": manifestJson("alpha") }, "list-alpha");
+    await setAgentPluginActivation({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root, pluginId: "zeta", enabled: false, actor: "test-operator" });
+    for (const input of [{}, { query: "" }, { query: " \t\n " }]) {
+      const result = await search(WORKSPACE_A, input);
+      assert.equal(result.totalInstalled, 2);
+      assert.deepEqual(result.matches.map(({ pluginId, enabled }) => ({ pluginId, enabled })), [
+        { pluginId: "alpha", enabled: true }, { pluginId: "zeta", enabled: false },
+      ]);
+    }
+    await assert.rejects(() => search(WORKSPACE_A, undefined), { name: "ToolInputError" });
   });
 });
 

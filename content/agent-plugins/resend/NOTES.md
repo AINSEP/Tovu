@@ -20,12 +20,17 @@ behaviours generically; the vendor detail lives here.
   `resend-mcp@2.25.0` (2026-10-06) and checked unchanged in 2.27.1, which only adds inbox tools.
 - **Why remote, not `npx resend-mcp`.** Core never auto-wires a plugin's `stdio` server
   (`federate-mcp.ts`), and a remote row is what `agent_plugin_connect` and the token form act on.
-- **Auth.** Resend's MCP advertises RFC 9728 metadata pointing at `https://api.resend.com`, which
+- **Auth (2026-10-25).** The account connection uses `tovuAuthMode: "none"` plus the existing
+  `tovuTokenAuth` declaration. The Full access key arrives through the plugin's secure account card,
+  is sealed on the MCP row and sent as `Authorization: Bearer`. `agent_plugin_connect` reuses a saved
+  credential or opens that card; it does not start OAuth for this declaration.
+- **Historical OAuth rationale (superseded 2026-10-25).** Resend's MCP advertises RFC 9728 metadata pointing at `https://api.resend.com`, which
   supports dynamic client registration and PKCE (scopes `full_access`, `emails:send`), so
-  `tovuAuthMode: "oauth"` is the primary sign-in. `tovuTokenAuth` is the fallback: the key arrives
+  the earlier declaration selected `tovuAuthMode: "oauth"` as the primary sign-in and `tovuTokenAuth`
+  as its fallback: the key arrives
   through `credential_save { kind: "agent-plugin-token", target: "resend" }`, is sealed on the row and
   sent as `Authorization: Bearer`, the header Resend documents for headless clients.
-- **OAuth discovery mismatch (2026-10-24).** The server's protected-resource metadata lives only at the origin
+- **Historical OAuth discovery mismatch (2026-10-24).** The server's protected-resource metadata lives only at the origin
   root and names `"resource": "https://mcp.resend.com"`, not the `/mcp` endpoint. RFC 9728 wants an exact
   match and `oauth4webapi` enforces it, so Jini's discovery fails ("did not return a JSON object") and no
   sign-in card opens; the chat falls back to the Full access key card. MCP's own SDK accepts a same-origin
@@ -35,7 +40,7 @@ behaviours generically; the vendor detail lives here.
   malformed key gets 400, which core's generic probe reports as "unavailable", not "rejected"; the
   skill tells the assistant what that usually means.
 - **Two keys on purpose.** The site's mail adapter keeps its own Sending access key
-  (`Tovu Mail — Resend API`); the account tools use the Full access sign-in or key. Site mail keeps
+  (`Tovu Mail — Resend API`); the account tools use the separate Full access key. Site mail keeps
   least privilege, and revoking one never breaks the other.
 - **Default tools.** 62 of the 64 allowed. Left out: every `remove-*`, `batch-remove-suppressions`,
   `send-broadcast`, API key create/update/remove, webhook create/update/rotate/replay, OAuth-grant

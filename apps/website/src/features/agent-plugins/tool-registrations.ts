@@ -22,6 +22,7 @@ import {
   runAgentPluginConnect,
 } from "./connect-tool.js";
 import {
+  saveAgentPluginToken,
   type AgentPluginAccessTokenToolDeps,
 } from "./access-token-tool.js";
 
@@ -758,11 +759,11 @@ export async function registerInstalledAgentPluginTools(
 
 const SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID = "search_agent_plugin_local";
 
-/** Mirrors `component-catalog-tool.ts`'s identical `SEARCH_LIMIT_MAX`/`SEARCH_LIMIT_DEFAULT` — same
+/** Mirrors `component-catalog-tool.ts`'s local limit constants — same
  *  reasoning: the values are the contract this schema states to the model, so restating them (rather
  *  than importing a value from an unrelated domain) keeps the enforced bound and the documented one
  *  from silently drifting apart. */
-const SEARCH_LIMIT_MAX = 25;
+const SEARCH_LIMIT_MAX = 50;
 const SEARCH_LIMIT_DEFAULT = 10;
 
 /** The narrow slice of the route-deps bag this tool's handler reads — only a workspace id, since
@@ -779,7 +780,8 @@ const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
   "Searches the Agent Plugins installed in THIS workspace — agent-plugins.org packages (plugin.json plus " +
   "skills and an optional mcp.json) under this site's own agent-plugins directory. This is a DIFFERENT " +
   "system from plugins_list, which lists the separate .tovu-plugin site/runtime plugin family — use this " +
-  "one to find an Agent Plugin, not a site plugin. Returns ranked matches: id, version, description, " +
+  "one to find an Agent Plugin, not a site plugin. Empty, omitted or whitespace query lists all installed " +
+  "Agent Plugins in plugin-id order, including enabled status. Nonblank queries return ranked matches: id, version, description, " +
   "keywords, whether it is currently enabled for this workspace (plugins_set_enabled with family " +
   "'agent-plugin' changes that), and what it " +
   "contributes (its skills, and any MCP server ids it declares — ids only, never connection details). " +
@@ -789,15 +791,13 @@ const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
 const SEARCH_AGENT_PLUGIN_LOCAL_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["query"],
   properties: {
     query: {
       type: "string",
-      minLength: 1,
       description:
         "What you're looking for, in plain language — e.g. 'a plugin for deploying a server app', " +
         "'accessibility guidance', 'gdpr compliance checks'. Matched against each installed Agent " +
-        "Plugin's id, author-declared keywords, description, and bundled skills. Required.",
+        "Plugin's id, author-declared keywords, description, and bundled skills. Optional; empty, omitted or whitespace lists all installed plugins.",
     },
     offset: { type: "integer", minimum: 0, description: "Zero-based result offset. Start at 0; continue with nextOffset until null." },
     limit: {
@@ -900,34 +900,59 @@ export const agentPluginSearchDerivedRisk: DerivedRiskByToolId = new Map<string,
   [SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID, "none"],
 ]);
 
+/** Validate the paging hint independently of catalog I/O; invalid offsets throw ToolInputError.
+ * @complexity O(1) time and space. */
+function readAgentPluginSearchWindow({ input }: { input: Record<string, unknown> }, _optional = {}): { offset: number; limit: number } {
+  const rawLimit = optionalNumber({ input, key: "limit" });
+  const rawOffset = optionalNumber({ input, key: "offset" });
+  if (rawOffset !== undefined && (!Number.isSafeInteger(rawOffset) || rawOffset < 0)) {
+    throw new ToolInputError({ message: 'offset must be a non-negative safe integer' });
+  }
+  const offset = rawOffset ?? 0;
+  // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
+  // caller is actually asking for, mirroring `component-catalog-tool.ts`'s identical treatment of
+  // `search_components`' own `limit` argument.
+  const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
+
+  return { offset, limit };
+}
+
+type RankedAgentPluginSearchCandidate = IdentifiedAgentPluginSearchCandidate & { readonly score: number };
+
+/** List the existing catalog for blank input; otherwise delegate ranking to its Jini owner.
+ * Does not mutate candidates. Listing assigns score zero because no query was scored.
+ * @complexity Listing O(p log p) time and O(p) space in installed plugins; ranking retains Jini's cost. */
+function selectAgentPluginSearchCandidates(
+  { query, candidates }: { query: string; candidates: readonly IdentifiedAgentPluginSearchCandidate[] },
+  _optional = {},
+): readonly RankedAgentPluginSearchCandidate[] {
+  if (query.trim() === "") {
+    return [...candidates].sort((a, b) => a.pluginId.localeCompare(b.pluginId)).map(candidate => ({ ...candidate, score: 0 }));
+  }
+  // Rank the whole local catalog once, then page it; the response bound is not a discovery cap.
+  // The shared ranker spreads each candidate, preserving Tovu's host metadata.
+  return rankInstalledAgentPlugins(query, candidates, candidates.length) as readonly RankedAgentPluginSearchCandidate[];
+}
+
 /**
  * Builds the `search_agent_plugin_local` registration — pure catalog/schema construction plus one
  * handler closure; the actual disk read happens only when the handler is invoked, matching
  * `plugins_list`'s identical "read fresh on every call" shape.
  *
+ * @param routeDeps Workspace and installed-plugin layout.
+ * @returns One registration; its handler validates input and returns a page without host paths.
+ * @example buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout });
  * @complexity O(1) to build; see {@link loadAgentPluginSearchCandidates} and
- * {@link rankInstalledAgentPlugins} for the handler's own per-call cost.
+ * {@link selectAgentPluginSearchCandidates} for the handler's per-call cost.
  */
 export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [SEARCH_AGENT_PLUGIN_LOCAL_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      const query = requireString({ input: input, key: "query" });
-      const rawLimit = optionalNumber({ input, key: "limit" });
-      const rawOffset = optionalNumber({ input, key: "offset" });
-      if (rawOffset !== undefined && (!Number.isSafeInteger(rawOffset) || rawOffset < 0)) {
-        throw new ToolInputError({ message: 'offset must be a non-negative safe integer' });
-      }
-      const offset = rawOffset ?? 0;
-      // Clamped, not rejected — an out-of-range limit is an optimization hint, not part of what the
-      // caller is actually asking for, mirroring `component-catalog-tool.ts`'s identical treatment of
-      // `search_components`' own `limit` argument.
-      const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
-
+      const query = optionalString({ input, key: "query" }) ?? "";
+      const { offset, limit } = readAgentPluginSearchWindow({ input });
       const candidates = await loadAgentPluginSearchCandidates(routeDeps);
-      // Rank the whole local catalog once, then page it; the response bound is not a discovery cap.
-      // The shared ranker spreads each candidate, preserving Tovu's host metadata.
-      const ranked = rankInstalledAgentPlugins(query, candidates, candidates.length) as readonly (IdentifiedAgentPluginSearchCandidate & { score: number })[];
+      const ranked = selectAgentPluginSearchCandidates({ query, candidates });
       const matches = ranked.slice(offset, offset + limit);
 
       return {
@@ -988,9 +1013,14 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx, optional) => {
       const input = requireInputRecord({ input: ctx.input });
       const pluginId = requireString({ input: input, key: "pluginId" });
-      return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId, optional);
+      return runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, {
+        ...optional,
+        saveToken: ({ ctx, pluginId }, execution = {}) => saveAgentPluginToken({
+          routeDeps, surfaces, ctx: { ...ctx, input: { pluginId } },
+        }, execution),
+      });
     },
-    // The token fallback (`access-token-tool.ts`) for a plugin whose server declares `tovuTokenAuth`.
+    // Token cards reuse credential_save's save lifecycle through the injected adapter above.
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,
@@ -1002,7 +1032,7 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
   });
 }
 
-/** The `agent-plugin-connect` domain wires sign-in and notes; token fallback belongs to credential_save. */
+/** The connect domain wires sign-in and notes; token persistence remains owned by credential_save. */
 export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...pluginNoteCatalog];
 const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...pluginNoteRisk]);
 

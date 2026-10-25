@@ -209,6 +209,119 @@ function baseDeps(store: ReturnType<typeof makeStoreDeps>, overrides: Partial<Ag
   }) as AgentPluginConnectToolDeps;
 }
 
+const TOKEN_SERVER: McpServerConfig = {
+  type: "streamable-http", url: "https://mcp.example.com/mcp", tovuAuthMode: "none",
+  tovuTokenAuth: { helpUrl: "https://example.com/keys", probeUrl: "https://api.example.com/account" },
+};
+
+test("connect_token_only_uses_plugin_card_without_oauth", async () => {
+  const store = makeStoreDeps();
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const ctx = fakeCtx([]);
+  const emitSurface = async () => undefined;
+  const deps = baseDeps(store, {
+    resolveInstalledPlugin: async () => ({ servers: { widget: TOKEN_SERVER } }),
+    externalMcpOAuth: { ...fakeOAuth(store.repo, "https://example.com/sign-in"), beginConnect: async () => { throw new Error("OAuth must not run"); } },
+  });
+  let cards = 0;
+  const result = await runConnectWithOptions({ routeDeps: deps, surfaces, ctx, pluginId: "widget-store" }, {
+    emitSurface,
+    saveToken: async (input, options) => {
+      cards += 1;
+      assert.equal(input.pluginId, "widget-store");
+      assert.equal(input.ctx, ctx);
+      assert.equal(options?.emitSurface, emitSurface);
+      return { saved: true, next: "The account is connected." };
+    },
+  });
+  assert.deepEqual(result, { status: "connected", next: "The account is connected." });
+  assert.equal(cards, 1);
+  assert.equal(surfaces.surfaceExchanges.size(), 0, "the host does not create another exchange");
+});
+
+for (const reason of ["cancelled", "expired", "abandoned", "refused", "invalid", "unavailable", "error"] as const) {
+  test(`token-only card ${reason} is never reported connected`, async () => {
+    const store = makeStoreDeps();
+    const deps = baseDeps(store, { resolveInstalledPlugin: async () => ({ servers: { widget: TOKEN_SERVER } }) });
+    const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+    const result = await runConnectWithOptions({ routeDeps: deps, surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }, {
+      saveToken: async () => ({ saved: false, reason, ...(reason === "refused" ? { message: "Use an account key." } : {}) }),
+    });
+    assert.deepEqual(result, { status: "not-connected", reason, ...(reason === "refused" ? { message: "Use an account key." } : {}) });
+  });
+}
+
+test("token-only connect reuses a stored credential without prompting or changing grants", async () => {
+  const store = makeStoreDeps();
+  await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
+  await saveExternalMcpServer(store, {
+    workspaceId: WORKSPACE_ID, serverId: "widget", transport: "streamable_http", authMode: "static_env",
+    enabled: false, command: "", url: TOKEN_SERVER.url, args: "", allowedToolNames: "list_items", writeAllowedToolNames: "",
+    accessToken: "existing-account-token", principalId: PRINCIPAL_ID,
+  });
+  const before = await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" });
+  const deps = baseDeps(store, { resolveInstalledPlugin: async () => ({ servers: { widget: TOKEN_SERVER } }) });
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  assert.deepEqual(await runConnectWithOptions({ routeDeps: deps, surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }, {
+    saveToken: async () => { throw new Error("must reuse the saved credential"); },
+  }), { status: "connected" });
+  assert.deepEqual(await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }), before);
+});
+
+test("oauth_with_token_fallback_still_starts_oauth", async () => {
+  const store = makeStoreDeps();
+  let starts = 0;
+  const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+  const deps = baseDeps(store, {
+    waitTimeoutMs: 0,
+    resolveInstalledPlugin: async () => ({ servers: { widget: { ...TOKEN_SERVER, tovuAuthMode: "oauth" } } }),
+    externalMcpOAuth: { ...oauth, beginConnect: async input => { starts += 1; return oauth.beginConnect(input); } },
+  });
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const result = await runConnectWithOptions({ routeDeps: deps, surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }, {
+    emitSurface: async () => undefined,
+    saveToken: async () => { throw new Error("an OAuth declaration must start OAuth"); },
+  });
+  assert.deepEqual(result, { status: "waiting-for-sign-in" });
+  assert.equal(starts, 1);
+});
+
+for (const mismatch of ["owner", "endpoint"] as const) {
+  test(`a saved token with a different ${mismatch} cannot report this plugin connected`, async () => {
+    const store = makeStoreDeps();
+    await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
+    await saveExternalMcpServer(store, {
+      workspaceId: WORKSPACE_ID, serverId: "widget", transport: "streamable_http", authMode: "static_env",
+      enabled: false, command: "", url: TOKEN_SERVER.url, args: "", allowedToolNames: "list_items", writeAllowedToolNames: "",
+      accessToken: "existing-account-token", principalId: PRINCIPAL_ID,
+    });
+    const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
+    await store.repo.upsert({ ...row, ...(mismatch === "owner" ? { provisionedByPluginId: "other-plugin" } : { url: "https://mcp.example.com/different" }) });
+    const deps = baseDeps(store, { resolveInstalledPlugin: async () => ({ servers: { widget: TOKEN_SERVER } }) });
+    const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+    let calls = 0;
+    const result = await runConnectWithOptions({ routeDeps: deps, surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }, {
+      saveToken: async () => { calls += 1; return { saved: false, reason: "error", message: "Connection target changed." }; },
+    });
+    assert.equal(calls, 1, "the token owner must validate the target instead of accepting a foreign credential");
+    assert.equal(result.status, "not-connected");
+  });
+}
+
+test("token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter", async () => {
+  const store = makeStoreDeps();
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const cases: readonly { servers: Readonly<Record<string, McpServerConfig>>; message: RegExp }[] = [
+    { servers: { widget: TOKEN_SERVER, second: TOKEN_SERVER }, message: /more than one access-token sign-in/ },
+    { servers: { "!!!": TOKEN_SERVER }, message: /could not be set up/ },
+    { servers: { widget: TOKEN_SERVER }, message: /secure key card with credential_save/ },
+  ];
+  for (const { servers, message } of cases) {
+    const deps = baseDeps(store, { resolveInstalledPlugin: async () => ({ servers }) });
+    await assert.rejects(runConnectWithOptions({ routeDeps: deps, surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }), message);
+  }
+});
+
 test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts", async () => {
   const store = makeStoreDeps();
   let beginCalls = 0;
@@ -459,13 +572,13 @@ test("agent_plugin_connect aborts during the polling sleep and cleans up promptl
 
 /** Moves the test context emitter into the host helper’s optional execution ports. */
 function runAgentPluginConnect(
-  deps: Parameters<typeof runConnectWithOptions>[0],
-  surfaces: Parameters<typeof runConnectWithOptions>[1],
+  deps: Parameters<typeof runConnectWithOptions>[0]["routeDeps"],
+  surfaces: Parameters<typeof runConnectWithOptions>[0]["surfaces"],
   context: ToolExecutionContext & { emitSurface?: import("@jini-ai/core").SurfaceEmitter },
   pluginId: string,
 ) {
   const { emitSurface, ...required } = context;
-  return runConnectWithOptions(deps, surfaces, required, pluginId, emitSurface ? { emitSurface } : {});
+  return runConnectWithOptions({ routeDeps: deps, surfaces: surfaces, ctx: required, pluginId: pluginId }, emitSurface ? { emitSurface } : {});
 }
 
 // L025a: pin all pre-card exits before separating the polling/card lifecycle.
@@ -485,7 +598,7 @@ for (const scenario of ["unknown", "no-oauth-service", "already-connected", "mul
       resolveInstalledPlugin: async () => scenario === "unknown" ? null : { servers },
     });
     const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
-    const call = runConnectWithOptions(deps, surfaces, fakeCtx(emissions), "widget-store");
+    const call = runConnectWithOptions({ routeDeps: deps, surfaces: surfaces, ctx: fakeCtx(emissions), pluginId: "widget-store" });
     if (scenario === "already-connected") assert.deepEqual(await call, { status: "connected" });
     else {
       const messages = {
@@ -508,7 +621,7 @@ test("connect closes its exchange when the initial waiting card fails", async ()
     externalMcpOAuth: fakeOAuth(store.repo, "https://example.com/sign-in"),
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   });
-  await assert.rejects(runConnectWithOptions(deps, surfaces, fakeCtx([]), "widget-store", {
+  await assert.rejects(runConnectWithOptions({ routeDeps: deps, surfaces: surfaces, ctx: fakeCtx([]), pluginId: "widget-store" }, {
     emitSurface: async () => { throw new Error("card unavailable"); },
   }), /card unavailable/);
   assert.equal(surfaces.surfaceExchanges.size(), 0);

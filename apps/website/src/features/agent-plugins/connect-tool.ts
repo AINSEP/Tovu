@@ -29,10 +29,14 @@ import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import { OAuthError } from "../../platform/oauth/errors.js";
 
 /**
- * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
+ * @file agent_plugin_connect connects an Agent Plugin's account through
  * one shared host flow, so plugins do not need vendor-specific connect tools.
  *
- * ## What one call does
+ * Token-only plugins reuse a stored credential or the injected credential_save token card. The
+ * token card owns probing, sealing and cancellation; this module never handles a plaintext token.
+ * Explicit OAuth with token fallback retains the OAuth flow below.
+ *
+ * ## What one OAuth call does
  *
  * Given a `pluginId`, this provisions the plugin's declared OAuth-authenticated MCP server(s) as
  * external-MCP rows (idempotently — `provisionAgentPluginMcpServers`, `federate-mcp.ts`), starts an
@@ -215,16 +219,16 @@ export interface AgentPluginConnectToolDeps {
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
   "Connects an installed Agent Plugin's account by walking the human through its sign-in, then waits until it is done.",
-  "Call this once you know which plugin needs connecting (e.g. from search_agent_plugin_local, whose result names an " +
-    "OAuth-authenticated MCP server that is not yet connected) — it needs no prior setup, this provisions the connection " +
+  "Call this once you know which plugin needs connecting (e.g. from search_agent_plugin_local, whose result names a " +
+    "MCP server that is not yet connected) — it needs no prior setup, this provisions the connection " +
     "itself the first time it is called for a given plugin.",
-  "Attempts sign-in first; only a successful start shows the human a card with a sign-in link and parks until they finish. Do not promise a card before it is emitted. If sign-in fails, explain that no card opened and use the plugin's declared credential_save key card when available. Never ask the person to restart Tovu. Returns { status: 'connected' } once the " +
+  "Token-only plugins reuse a saved credential or show their secure key card. They return connected only after a save succeeds; cancelled, expired or failed cards return not-connected with reason. OAuth plugins attempt sign-in first; only a successful start shows the human a card with a sign-in link and parks until they finish. Do not promise a card before it is emitted. If sign-in fails, explain that no card opened and use the plugin's declared credential_save key card when available. Never ask the person to restart Tovu. Returns { status: 'connected' } once the " +
     "sign-in completes, or { status: 'waiting-for-sign-in' } if nobody finished within a few minutes — call this again " +
     "with the same pluginId once the human says they're back; never loop on your own.",
   "For a plugin that declares its own API connection, the result also carries connectionRef: pass it unchanged as " +
     "connectionRef to that plugin's tools (it is an opaque reference, not a secret, and works only for that plugin).",
-  "Never returns a token, a URL, or any row id — only a status (and that connectionRef). Refused with a plain error if the plugin declares no " +
-    "OAuth-authenticated MCP server, or if it declares more than one still-unconnected one (connect those one at a time).",
+  "Never returns a token, a URL, or any row id — only safe status, outcome guidance and that connectionRef. Refused with a plain error if the plugin has no " +
+    "supported connection, more than one token server, or more than one still-unconnected OAuth server (connect those one at a time).",
 ].join(" ");
 
 /** This tool's one-entry catalog, exported so `assistant/__tests__/tool-registrations.contracts.test.ts`'s
@@ -293,23 +297,80 @@ async function resolvePendingOAuthServers(
   return pending;
 }
 
+/** The injected adapter calls the existing token-card lifecycle without a runtime import cycle. */
+export type AgentPluginConnectOptions = ToolExecutionOptions & {
+  readonly saveToken?: (
+    input: { readonly ctx: ToolExecutionContext; readonly pluginId: string },
+    optional?: ToolExecutionOptions,
+  ) => Promise<
+    | { readonly saved: true; readonly next: string }
+    | { readonly saved: false; readonly reason: string; readonly message?: string }
+  >;
+};
+
+export interface AgentPluginConnectResult {
+  readonly status: "connected" | "waiting-for-sign-in" | "not-connected";
+  readonly connectionRef?: string;
+  readonly reason?: string;
+  readonly message?: string;
+  readonly next?: string;
+}
+
+/** A stored credential is reusable only on the same plugin-owned endpoint. No I/O or mutation.
+ * @complexity O(1) time and space. */
+function hasReusablePluginCredential(
+  { row, pluginId, url }: { row: ExternalMcpServerRecord | null; pluginId: string; url: string },
+  _optional = {},
+): boolean {
+  return row !== null && row.provisionedByPluginId === pluginId && row.url === url && hasStoredAgentPluginCredential(row);
+}
+
+/** Connect a token-only declaration through the existing card, or retain the API-connection path.
+ * @returns Connected only for an existing credential or a successful save; preserves card failures.
+ * @throws {ToolInputError} Ambiguous token servers, invalid server id, or a missing save adapter.
+ * @complexity O(s) time/space in declared servers, one row read, then the card's bounded exchange. */
+async function connectWithoutOAuth(
+  { routeDeps, surfaces, ctx, pluginId, servers }: {
+    routeDeps: AgentPluginConnectToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext;
+    pluginId: string; servers: Readonly<Record<string, McpServerConfig>>;
+  },
+  { saveToken, ...optional }: AgentPluginConnectOptions = {},
+): Promise<AgentPluginConnectResult> {
+  const tokens = Object.entries(servers).filter((entry): entry is [string, RemoteMcpServerConfig] =>
+    entry[1].type !== "stdio" && entry[1].tovuTokenAuth !== undefined);
+  if (tokens.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
+  if (tokens.length > 1) throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares more than one access-token sign-in.` });
+  const [serverKey, config] = tokens[0]!;
+  const serverId = deriveAgentPluginConnectionId(serverKey);
+  if (!serverId) throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
+  ctx.signal.throwIfAborted();
+  const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
+  ctx.signal.throwIfAborted();
+  if (hasReusablePluginCredential({ row, pluginId, url: config.url })) return { status: "connected" };
+  if (!saveToken) throw new ToolInputError({ message: `agent_plugin_connect: use the plugin's secure key card with credential_save; no token-card adapter is wired here.` });
+  const result = await saveToken({ ctx, pluginId }, optional);
+  if (result.saved) return { status: "connected", next: result.next };
+  return { status: "not-connected", reason: result.reason, ...(result.message ? { message: result.message } : {}) };
+}
+
 /**
- * Runs `agent_plugin_connect` end to end: permission, resolve, provision, begin, card, poll.
+ * Runs `agent_plugin_connect`: permission, resolve, then the declared token, OAuth or API flow.
+ * @example runAgentPluginConnect({ routeDeps, surfaces, ctx, pluginId }, { saveToken });
  *
- * @throws {import("@jini-ai/core").ToolInputError} An unknown `pluginId`, or one declaring zero or
- *   more than one still-unconnected OAuth server (see this file's own header).
+ * @returns Safe connection status; token-card failure reasons remain observable.
+ * @throws {import("@jini-ai/core").ToolInputError} An unknown `pluginId`, unsupported connection,
+ *   ambiguous token servers or more than one still-unconnected OAuth server (see the header).
  * @throws {Error} No `externalMcpOAuth` was wired, or this execution context has no `emitSurface` —
  *   both composition-root/transport gaps, not caller input.
  * @complexity O(s) provisioning the plugin's declared servers, plus the poll loop (bounded by
- *   `waitTimeoutMs`).
+ *   `waitTimeoutMs`); O(s) space for pending declarations.
  */
 export async function runAgentPluginConnect(
-  routeDeps: AgentPluginConnectToolDeps,
-  surfaces: AssistantSurfaceDeps,
-  ctx: ToolExecutionContext,
-  pluginId: string,
-  optional: ToolExecutionOptions = {},
-): Promise<{ readonly status: "connected" | "waiting-for-sign-in"; readonly connectionRef?: string }> {
+  { routeDeps, surfaces, ctx, pluginId }: {
+    routeDeps: AgentPluginConnectToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext; pluginId: string;
+  },
+  optional: AgentPluginConnectOptions = {},
+): Promise<AgentPluginConnectResult> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
 
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
@@ -321,7 +382,7 @@ export async function runAgentPluginConnect(
   const oauthServerKeys = Object.entries(plugin.servers)
     .filter(([, config]) => isOAuthServer(config))
     .map(([serverKey]) => serverKey);
-  if (oauthServerKeys.length === 0) return connectDeclaredApiConnectionOrRefuse(routeDeps, surfaces, ctx, pluginId, optional);
+  if (oauthServerKeys.length === 0) return connectWithoutOAuth({ routeDeps, surfaces, ctx, pluginId, servers: plugin.servers }, optional);
   if (!routeDeps.externalMcpOAuth) {
     throw new Error("agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.");
   }
