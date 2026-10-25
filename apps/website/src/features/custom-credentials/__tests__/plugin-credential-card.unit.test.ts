@@ -83,6 +83,7 @@ const DOMAIN_FORM: SecretCardForm = {
     { kind: "string", name: "token", label: "Token", hint: "domain hint", secret: true },
     { kind: "string", name: "token", label: "Not secret", hint: "kept" },
     { kind: "boolean", name: "token", label: "Not a string field", hint: "kept too", secret: true },
+    { kind: "string", name: "password", label: "Another secret", hint: "kept as well", secret: true },
   ],
 } as SecretCardForm;
 
@@ -97,7 +98,7 @@ test("applyPluginCredentialCard: plugin title/intro/details/key hint applied; on
   assert.equal(out.description, "Hi. Domain description.");
   assert.equal(out.submitLabel, "Connect");
   assert.deepEqual(out.details, [{ label: "Host", value: "h" }, { label: "Get a key", value: "https://h.example" }]);
-  assert.deepEqual(out.fields.map((f) => (f as { hint?: string }).hint), [undefined, "plugin hint", "kept", "kept too"]);
+  assert.deepEqual(out.fields.map((f) => (f as { hint?: string }).hint), [undefined, "plugin hint", "kept", "kept too", "kept as well"]);
 });
 
 test("applyPluginCredentialCard: no keyHint keeps the domain hint; no intro trims; no domain description uses the plugin's; no domain details", () => {
@@ -113,6 +114,11 @@ test("readPluginCredentialValues: server-owned label/category/baseUrl win over s
   const out = readPluginCredentialValues({ card: MAIL, values: { token: "tkn", label: "evil", category: "evil", baseUrl: "https://evil.example" } });
   assert.deepEqual(out, { label: "Mailer API", category: "mail", baseUrl: "https://api.mailer.example", username: undefined, token: "tkn" });
   assert.equal("additionalHosts" in out, false);
+});
+
+test("readPluginCredentialValues: a STATIC card origin is server-owned and not re-validated (legacy http rows stay readable)", () => {
+  const legacy = { ...MAIL, baseUrl: "http://legacy.mailer.example" };
+  assert.equal(readPluginCredentialValues({ card: legacy, values: { token: "t" } }).baseUrl, "http://legacy.mailer.example");
 });
 
 test("readPluginCredentialValues: a non-string token reads as empty; declared additionalHosts are carried (even empty)", () => {
@@ -190,8 +196,9 @@ test("loadPluginCredentialCardsSafely: passes the workspace id, defaults to [] w
   const seen: string[] = [];
   assert.deepEqual(await loadPluginCredentialCardsSafely({ workspaceId: "ws-9", loadCards: async (ws) => (seen.push(ws), CARDS) }), CARDS);
   assert.deepEqual(seen, ["ws-9"]);
-  assert.deepEqual(await loadPluginCredentialCardsSafely({ workspaceId: "ws" }), []);
   const warnings: string[] = [];
+  assert.deepEqual(await loadPluginCredentialCardsSafely({ workspaceId: "ws" }, { warn: (m) => warnings.push(m) }), []);
+  assert.deepEqual(warnings, [], "no loader is not a failure: nothing is warned");
   const out = await loadPluginCredentialCardsSafely(
     { workspaceId: "ws", loadCards: async () => { throw new Error("/secret/path/plugin.json: token=abc"); } },
     { warn: (m) => warnings.push(m) },
