@@ -105,3 +105,15 @@ test("the preset file envelope: schema version, providers array, eight-provider 
   assert.equal(parse(raw.padEnd(32768, " ")).ok, true);
   assert.deepEqual(parse(raw.padEnd(32769, " ")), REFUSED);
 });
+
+test("an accepted preset returns its email authority exactly: optional claim omitted, domains defaulted, multi-label and one-letter labels kept", () => {
+  const { hostedDomainClaim: _claim, authoritativeEmailDomains: _domains, ...bare } = base;
+  const parsed = parse(JSON.stringify({ schemaVersion: 1, providers: [bare] }));
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.descriptors[0], { ...bare, authoritativeEmailDomains: [] });
+  assert.equal("hostedDomainClaim" in parsed.descriptors[0]!, false);
+  const domains = ["mail.google.com", "a.co", "x-y.example.org"];
+  const full = one({ authoritativeEmailDomains: domains, hostedDomainClaim: "hd_2" });
+  assert.ok(full.ok);
+  assert.deepEqual(full.descriptors[0], { ...base, authoritativeEmailDomains: domains, hostedDomainClaim: "hd_2" });
+});

@@ -223,3 +223,36 @@ test("a verified claim whose email is not a string is refused", async () => {
   const started = await f.start();
   await assert.rejects(completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } }), invalidLogin);
 });
+
+for (const [label, change] of [
+  ["a resolved provider with another id", { provider: { id: "github" } }],
+  ["a client whose auth method differs from the provider's", { client: { authMethod: "client_secret_basic" } }],
+  ["a client without an id", { client: { clientId: "" } }],
+  ["a client without a secret", { client: { clientSecret: "" } }],
+] as const) {
+  test(`starting a login refuses ${label} (LOGIN_UNAVAILABLE)`, async () => {
+    const f = fixture();
+    const resolvedProvider = await f.deps.resolveProvider({ workspaceId: "ws", providerId: "google" });
+    const resolvedClient = await f.deps.resolveClient({ workspaceId: "ws", provider: resolvedProvider! });
+    const deps: OidcLoginDeps = { ...f.deps,
+      resolveProvider: async () => ({ ...resolvedProvider!, ...("provider" in change ? change.provider : {}) }),
+      resolveClient: async () => ({ ...resolvedClient, ...("client" in change ? change.client : {}) } as typeof resolvedClient) };
+    await assert.rejects(beginOidcLogin({ deps, input: f.input }), (error: unknown) => error instanceof MemberLoginError && error.code === "LOGIN_UNAVAILABLE");
+  });
+}
+
+test("a provider with no authoritative-domain list still decides authority from the hosted-domain claim", async () => {
+  for (const [hd, authoritative] of [["business.example", true], [undefined, false]] as const) {
+    const f = fixture({ email: "user@gmail.com", hd });
+    const started = await f.start();
+    const deps: OidcLoginDeps = { ...f.deps, resolveProvider: async () => ({ ...provider, authoritativeEmailDomains: undefined }) };
+    const result = await completeOidcLogin({ deps, input: { ...f.input, ...started } });
+    assert.equal(result.identity.emailAuthoritative, authoritative, String(hd));
+  }
+});
+
+test("a whitespace-only hosted-domain claim grants no mailbox authority", async () => {
+  const f = fixture({ email: "user@custom.example", hd: "   " });
+  const started = await f.start();
+  assert.equal((await completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } })).identity.emailAuthoritative, false);
+});
