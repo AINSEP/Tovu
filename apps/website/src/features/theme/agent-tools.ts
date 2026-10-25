@@ -360,7 +360,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "theme_list",
       description:
-        "Lists every discovered theme with its id, name, tier, validation status, and validation errors. Read-only. Start here: a theme's id is the handle every other tool in this domain takes, and the errors array is how you find out what is currently wrong with a theme.",
+        "Lists every discovered theme with its id, name, tier, validation status, validation errors and active flag, plus activeThemeId (the configured selection, which can differ from the renderer's fallback). Read-only. Start here: a theme's id is the handle every other tool in this domain takes, and the errors array is how you find out what is currently wrong with a theme.",
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: LIST_SCHEMA,

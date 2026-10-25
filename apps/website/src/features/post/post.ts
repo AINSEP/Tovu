@@ -2239,17 +2239,20 @@ export interface ListPostsRequired {
 }
 
 /**
- * List all posts (`kind: "post"`) in a workspace for admin views (drafts included).
- * Excludes `kind: "page"` rows — Posts and Pages are separate admin-facing lenses
- * over the same table (see `PostKind` doc), so a page must not surface here and
- * a post must not surface in `listAdminPages`.
+ * List posts in a workspace for admin views (drafts included). Defaults to `kind: "post"`;
+ * `kind: "all"` reads both public kinds in repository order with one scoped repository call.
+ * By default excludes `kind: "page"` rows — Posts and Pages are separate admin-facing lenses
+ * over the same table (see `PostKind` doc), so the default Posts screen must not show pages and
+ * `listAdminPages` must not show posts. Explicit lens overrides share this visibility owner.
+ * @example listAdminPosts({ deps: { repo }, input: { workspaceId } }, { kind: "all" })
+ * @complexity O(n) time/space for n workspace rows; one repository read, no per-row I/O.
  */
 export async function listAdminPosts(
   required: ListPostsRequired,
-  _optional: GetPostOptional = {}
+  { kind = "post" }: GetPostOptional & { kind?: PublicPostKind | "all" } = {}
 ): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post): post is PublicPostRecord => post.kind === "post" && !isTrashed(post)) };
+  return { posts: posts.filter((post): post is PublicPostRecord => isPublicPost(post) && !isTrashed(post) && (kind === "all" || post.kind === kind)) };
 }
 
 /** List published posts for the public site. */
@@ -2293,8 +2296,7 @@ export async function listAdminPages(
   required: ListPostsRequired,
   _optional: GetPostOptional = {}
 ): Promise<{ posts: PublicPostRecord[] }> {
-  const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post): post is PublicPostRecord => post.kind === "page" && !isTrashed(post)) };
+  return listAdminPosts(required, { ..._optional, kind: "page" });
 }
 
 export async function getAdminPostById(

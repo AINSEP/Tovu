@@ -81,6 +81,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const deps = {
     workspaceId: WORKSPACE_ID,
+    resolveActiveThemeId: async () => "plain",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
     themesDir,
     authorize,

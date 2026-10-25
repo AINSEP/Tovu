@@ -202,6 +202,7 @@ function themeDeps(allow: boolean) {
   const theme = (id: string, tier: string) => ({ manifest: { id, name: id, version: "1.0.0", tier, description: `${id} theme` }, source: "built-in", status: "valid", errors: [] });
   return testSiteLayoutContext({
     workspaceId: "ws-content-read",
+    resolveActiveThemeId: async () => "plain",
     themes: [theme("plain", "declarative"), theme("hb", "handlebars")],
     themesDir: "/nonexistent",
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),

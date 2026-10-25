@@ -29,6 +29,7 @@ function fixture(t: test.TestContext, content: string | Buffer, allow = true, na
   fs.mkdirSync(path.dirname(path.join(dir, filePath)), { recursive: true });
   fs.writeFileSync(path.join(dir, filePath), content);
   const registration = buildThemesRegistrations({
+    resolveActiveThemeId: async () => "",
     workspaceId: "ws",
     themesDir: root,
     themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),

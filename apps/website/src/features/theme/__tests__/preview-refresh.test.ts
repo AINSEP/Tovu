@@ -88,6 +88,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
     workspaceId: "ws",
     authorize: async () => ({ allowed: true, reason: "matched" }),
+    resolveActiveThemeId: async () => "",
   };
   assert.equal(readThemePreviewRefresh({ themesDir }), null);
   reloadTheme(deps as never, "plain");

@@ -70,8 +70,8 @@ test("t02: content_read.content_post accepts optional query/status/fields from t
   };
   assert.equal(schema.properties.query?.type, "string");
   assert.deepEqual(schema.properties.status?.enum, ["draft", "published"]);
-  assert.equal(schema.properties.fields?.type, "array");
-  assert.deepEqual(schema.required, ["kind"]);
+  assert.deepEqual((schema.properties.fields?.anyOf as Array<{ type: string }>).map(branch => branch.type), ["array", "string"]);
+  assert.deepEqual(schema.required, []);
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.id.type, "string");
 });

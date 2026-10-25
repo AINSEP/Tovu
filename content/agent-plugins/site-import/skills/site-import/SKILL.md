@@ -93,7 +93,7 @@ anything behind a login. Say so in the plan when the source has any of them.
 | Job | Tool |
 |---|---|
 | Read the source site | `web_fetch_page` (`format`: `raw` for robots.txt, sitemap.xml and CSS; `html` when you need the markup; `markdown` for article text) |
-| Check what already exists | `content_read.content_post` (`kind` required), `content_post_search`, `content_read.taxonomy`, `content_read.menu`, `content_read.redirect`, `content_read.media_asset`, `site_get_profile`. Each `content_read.<resource>` lists without an id; add its id (`id`, `taxonomyId`, `menuId`) to read one |
+| Check what already exists | `content_read.content_post` (`kind` optional; omit for posts and pages together), `content_post_search`, `content_read.taxonomy`, `content_read.menu`, `content_read.redirect`, `content_read.media_asset`, `site_get_profile`. Each `content_read.<resource>` lists without an id; add its id (`id`, `taxonomyId`, `menuId`) to read one |
 | Pages and posts | `content_post_create` (`kind` `page` or `post`), `content_post_update`, `pages_write_html` (pages whose layout matters) |
 | Categories and tags | `content_read.taxonomy`, `taxonomy_create_taxonomy`, `taxonomy_create_term`, `taxonomy_assign_terms` |
 | Images | `media_import_from_url` |

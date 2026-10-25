@@ -55,6 +55,7 @@ function makeDeps(t: TestContext): { deps: ThemeToolDeps; themesDir: string } {
 
   const deps: ThemeToolDeps = {
     workspaceId: "ws-edges",
+    resolveActiveThemeId: async () => "",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,

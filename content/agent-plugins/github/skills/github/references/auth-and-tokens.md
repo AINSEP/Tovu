@@ -8,7 +8,7 @@ You name the **label**. The server resolves the credential and injects the real 
 header itself. The token never appears in a tool's input, in a tool's output, or anywhere in your
 context.
 
-To discover what is saved, call `content_read` with `resource: "custom_credential"`. It returns
+To discover what is saved, call `content_read.custom_credential` with `{}`. It returns
 each credential's label, category, base URL, and additional hosts — never a token, and never a
 saved username. An empty list is the signal to ask a human to save one, not to look for another
 way in.

@@ -47,6 +47,7 @@ function fakeDeps(): { deps: ThemeToolDeps; themesDir: string } {
   const themesDir = makeThemesRoot();
   const deps: ThemeToolDeps = {
     workspaceId: "ws-write-gate-preview",
+    resolveActiveThemeId: async () => "",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,

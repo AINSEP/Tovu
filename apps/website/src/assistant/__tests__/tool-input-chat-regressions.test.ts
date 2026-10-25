@@ -63,6 +63,7 @@ test('chat-input regression: menu canonical id and legacy menuId reach the same 
 test('chat-input regression: empty theme replacement is valid input but still requires write permission', async () => {
   let authorized = 0;
   const registration = buildThemesRegistrations({ workspaceId: 'ws', themes: [], themesDir: '/unused',
+    resolveActiveThemeId: async () => '',
     authorize: async () => { authorized++; return { allowed: false, reason: 'test' }; },
   }).find(tool => tool.descriptor.id === 'theme_edit_file')!;
   for (const newString of ['', ' ']) {

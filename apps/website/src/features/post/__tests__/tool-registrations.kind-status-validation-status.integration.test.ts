@@ -15,8 +15,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Regression test for the bug report: `content_post_get` called with `kind` omitted (the
- * model sent `{"id": "..."}`) returned an HTTP 500 `INTERNAL_ERROR` with the reason redacted,
+ * @file Regression test for the bug report: `content_post_get` called with an invalid `kind`
+ * returned an HTTP 500 `INTERNAL_ERROR` with the reason redacted,
  * through `/api/delegated-tool-calls` — the real transport a spawned agent CLI calls this site's
  * tools through — instead of a 400 `BAD_REQUEST` carrying `requirePostKind`'s own message.
  *
@@ -73,11 +73,11 @@ async function delegatedHarness() {
   return { routeDeps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) }, run };
 }
 
-test("content_post_get called with 'kind' omitted is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
+test("content_post_get called with invalid 'kind' is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
   const result = await delegatedToolExecuteRoute.handle({
-    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1" } },
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_get", input: { id: "p1", kind: "template" } },
     deps: routeDeps as never,
   });
 
@@ -87,11 +87,11 @@ test("content_post_get called with 'kind' omitted is a 400 BAD_REQUEST end to en
   });
 });
 
-test("content_post_list called with 'kind' omitted is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
+test("content_post_list called with invalid 'kind' is a 400 BAD_REQUEST end to end, not a redacted 500", async () => {
   const { routeDeps, run } = await delegatedHarness();
 
   const result = await delegatedToolExecuteRoute.handle({
-    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_list", input: {} },
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_list", input: { kind: "template" } },
     deps: routeDeps as never,
   });
 

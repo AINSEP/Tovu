@@ -57,6 +57,8 @@ interface ContentReadCard {
 interface ListLookup {
   readonly idProperty: string;
   readonly sources: readonly { readonly itemsKey: string; readonly idPath: readonly string[] }[];
+  /** Declared list-level context to retain when narrowing to one row; counts stay list-only. */
+  readonly contextKeys?: readonly string[];
 }
 
 /** The common case: one array whose items carry the id at `idField`. */
@@ -121,7 +123,7 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   { resource: "site", permission: "system.read", get: { toolId: "sites_get_site", idProperty: "name" }, list: { toolId: "sites_list" } },
   { resource: "term", permission: "admin.taxonomy.manage", get: { toolId: "taxonomy_get_term", idProperty: "termId" } },
   { resource: "taxonomy", permission: "admin.taxonomy.manage", list: { toolId: "taxonomy_list" }, listLookup: { idProperty: "taxonomyId", sources: [{ itemsKey: "items", idPath: ["taxonomy", "id"] }] } },
-  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: lookupIn("themeId", "themes") },
+  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: { ...lookupIn("themeId", "themes"), contextKeys: ["activeThemeId"] } },
   { resource: "theme_page_publication", permission: "theme.set", list: { toolId: "theme_list_page_publications" }, listLookup: lookupIn("page", "pages", "page") },
   { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" }, listLookup: lookupIn("subscriptionId", "subscriptions") },
   {
@@ -319,7 +321,7 @@ function valueAtPath(item: unknown, path: readonly string[]): unknown {
  * The `get` half of a {@link ListLookup} card: runs the list member's ORIGINAL handler — so its own
  * input validation and permission check run exactly as for a plain list call — with the id removed
  * from the input (several list readers refuse any input at all; the list's other filters still pass
- * through), then returns the list's own shape with each source array filtered to the matching item.
+ * through), then returns each source array filtered to the matching item plus declared context.
  *
  * Returning the list shape rather than a bare item keeps one view contract per resource and stays
  * honest if two families both match (plugins_list).
@@ -330,7 +332,7 @@ function valueAtPath(item: unknown, path: readonly string[]): unknown {
  *         reader, which must not read as "not found".
  * @complexity O(n) in the listed items; one list call, no per-item I/O of its own.
  */
-function lookupInList(required: { resource: string; listToolId: string; lookup: ListLookup; list: ToolHandler }): ToolHandler {
+function lookupInList(required: { resource: string; listToolId: string; lookup: ListLookup; list: ToolHandler }, _options = {}): ToolHandler {
   const { resource, listToolId, lookup, list } = required;
   const cardId = contentReadToolId(resource);
   return async (ctx) => {
@@ -351,7 +353,11 @@ function lookupInList(required: { resource: string; listToolId: string; lookup: 
       filtered[source.itemsKey] = matchingItems;
       matches += matchingItems.length;
     }
-    if (matches > 0) return filtered;
+    if (matches > 0) {
+      const context = Object.fromEntries((lookup.contextKeys ?? [])
+        .filter(key => Object.hasOwn(listed.value, key)).map(key => [key, listed.value[key]]));
+      return { ...context, ...filtered };
+    }
 
     throw new ToolInputError({
       message:
@@ -402,10 +408,12 @@ function listLookupIdSchema(required: { resource: string; lookup: ListLookup; li
  * @complexity O(m) in member count (at most 2).
  */
 function cardDescription(
-  { memberIds, byId, idDescription }: { memberIds: readonly string[]; byId: ReadonlyMap<string, ToolRegistration>; idDescription: string },
+  { id, memberIds, byId, idDescription }: { id: string; memberIds: readonly string[]; byId: ReadonlyMap<string, ToolRegistration>; idDescription: string },
   _optional: Record<string, never> = {},
 ): string {
-  const plain = [...memberIds.map((id) => sourceRegistration(byId, id).descriptor.description), idDescription].filter(Boolean).join(" ");
+  const prose = [...memberIds.map((id) => sourceRegistration(byId, id).descriptor.description), idDescription,
+    "content_read is a namespace, not a tool; call this exact tool id without a resource argument."].filter(Boolean).join(" ");
+  const plain = `${id}: ${prose}`;
   const tail = memberIds
     .map((id) => indexedDescriptionFor(id, ""))
     .filter((part) => part.length > 0)
@@ -508,8 +516,8 @@ function canonicalCardDispatch(
  * dispatch signal `dispatchByIdPresence` reads) with a one-line note appended explaining that.
  * `required` is the intersection of the two members' own required fields (with `idProperty` removed
  * from `get`'s side first) — a field required by only ONE branch cannot be required overall, since
- * the other branch never needs it (e.g. `content_post`'s `kind` is required by BOTH `get` and `list`
- * and stays required; `content_post`'s `id` is get-only and becomes optional).
+ * the other branch never needs it. Shared required context stays required; `content_post`'s `id`
+ * is get-only and becomes optional, while its `kind` is optional on both branches.
  *
  * @complexity O(p) in combined property count.
  */
@@ -590,7 +598,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     const described = describeCardIdInput({ card, inputSchema });
     catalog.set(id, {
       name: id,
-      description: cardDescription({ memberIds, byId, idDescription: described.idDescription }),
+      description: cardDescription({ id, memberIds, byId, idDescription: described.idDescription }),
       sideEffects: "none",
       authorization,
       inputSchema: described.inputSchema,
