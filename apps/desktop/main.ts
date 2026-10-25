@@ -140,6 +140,10 @@ import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
+import { createDesktopResources } from "./src/desktop-resources.ts";
+import { registerResourcesIpc } from "./src/resources-ipc.ts";
+import { listProcessUsage } from "@jini-ai/platform/process";
+import { totalmem } from "node:os";
 import { createUpdateCheckNow, registerUpdateCheckIpc } from "./src/update-check-now.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
@@ -196,8 +200,9 @@ type TovuServerHandle = Awaited<ReturnType<typeof startTovuServer>>;
 interface OpenSite {
   server: TovuServerHandle;
   window?: BrowserWindow;
-  /** Reopen a macOS window without consulting the recent-site list, which may have been cleared. */
-  siteDir?: string;
+  /** Identity for resource rows. Reopen a macOS window without consulting the recent-site list,
+   *  which may have been cleared. */
+  siteDir: string;
 }
 
 /** The per-launch inputs a site open reads: {@link bootOwnServerMode}'s `ctx`, or the sites-home
@@ -1091,7 +1096,7 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
   if (already) return already.server;
 
   const { server } = await startSiteBackend(siteDir, ctx, options);
-  openSites.set(siteDir, { server });
+  openSites.set(siteDir, { server, siteDir });
   scheduleSitePreview(siteDir);
   siteThemePreviews.sync({ siteDir }, {});
   return server;
@@ -1833,6 +1838,15 @@ app
         sweep: () => sweepSitePreviewsOnBoot(sitesCtx.projectsPath),
       });
       registerAppVersionIpc({ ipcMain, app });
+      registerResourcesIpc({ ipcMain,
+        allowed: (url) => url === pathToFileURL(SITES_RENDERER_PATH).href,
+        monitor: createDesktopResources({ desktopPid: process.pid, platform: process.platform,
+          listUsage: () => listProcessUsage(), now: Date.now, totalMem: totalmem,
+          // External handles belong to another launcher; the monitor covers only this desktop.
+          openSites: () => [...openSites.values()].filter((entry) => !entry.server.external)
+            .map((entry) => ({ id: entry.siteDir, pid: entry.server.pid })),
+        }),
+      });
       registerUpdateCheckIpc({ ipcMain, checkNow: updateCheck.checkNow });
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
