@@ -1,0 +1,95 @@
+From 933c40c96a7177613a48aa4fbb75df407e503268 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 25 Oct 2026 04:47:56 +0000
+Subject: [PATCH] check(ask-choice): keep SurfaceCardContent cognitive
+ complexity <= 10; scope replay test to the card
+
+- Extract answeredSurface() so SurfaceCardContent drops from cognitive 13 to <= 10.
+- surface-question-replay test: an enclosing tool row legitimately renders its own raw input
+  and expand button, so raw-value / no-button assertions now target the card, not the row.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../src/react/components/McpUiSurfaceCard.tsx | 28 +++++++++++++------
+ .../surface-question-replay.test.tsx          | 12 ++++++--
+ 2 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/packages/chat/src/react/components/McpUiSurfaceCard.tsx b/packages/chat/src/react/components/McpUiSurfaceCard.tsx
+index 8cd526bd..98309489 100644
+--- a/packages/chat/src/react/components/McpUiSurfaceCard.tsx
++++ b/packages/chat/src/react/components/McpUiSurfaceCard.tsx
+@@ -248,6 +248,24 @@ function recordedAnswerLabel({ answer, closed, t }: {
+   return answer ?? closed ?? t('Answered');
+ }
+ 
++/** A single answered card: closed with its label, plus the optimistic bubble until a receipt owns it.
++ * @complexity O(1), no effects.
++ */
++function answeredSurface({ answerRecorded, answer, closed, call, standalone, t }: {
++  answerRecorded: McpUiSurfaceCardProps['answerRecorded'];
++  answer: string | undefined;
++  closed: string | undefined;
++  call: McpUiSurfaceCardProps['call'];
++  standalone: boolean;
++  t: ReturnType<typeof useT>;
++}, _options = {}) {
++  // MOVE: The accepted-input receipt owns its bubble; the closed card retains the question's context.
++  if (answerRecorded) return <ClosedSurface call={call} label={recordedAnswerLabel({ answer, closed, t })} />;
++  if (answer === undefined) return undefined;
++  const label = answer === 'Declined' ? t('Declined') : answer;
++  return <><ClosedSurface call={call} label={label} /><MidRunUserMessage events={[{ text: standalone ? surfaceAnswerLabel({ call, label }) : label }]} /></>;
++}
++
+ /** Rendering priority stays receipt, answer, closure, then the live documents. */
+ function SurfaceCardContent({ resources, single, answerRecorded, answer, closed, call, standalone, t,
+   sandboxProxyUrl, toolCall, onOpenLink, maxHeight, expiry }: {
+@@ -265,14 +283,8 @@ function SurfaceCardContent({ resources, single, answerRecorded, answer, closed,
+   maxHeight: number | undefined;
+   expiry: ReturnType<typeof useSurfaceExpiry>;
+ }) {
+-  // MOVE: The accepted-input receipt owns its bubble; the closed card retains the question's context.
+-  if (single !== undefined) {
+-    if (answerRecorded) return <ClosedSurface call={call} label={recordedAnswerLabel({ answer, closed, t })} />;
+-    if (answer !== undefined) {
+-      const label = answer === 'Declined' ? t('Declined') : answer;
+-      return <><ClosedSurface call={call} label={label} /><MidRunUserMessage events={[{ text: standalone ? surfaceAnswerLabel({ call, label }) : label }]} /></>;
+-    }
+-  }
++  const answered = single === undefined ? undefined : answeredSurface({ answerRecorded, answer, closed, call, standalone, t });
++  if (answered !== undefined) return answered;
+   if (closed !== undefined) return <ClosedSurface call={call} label={closed} />;
+ 
+   if (resources.length === 0) {
+diff --git a/packages/chat/src/react/components/__tests__/surface-question-replay.test.tsx b/packages/chat/src/react/components/__tests__/surface-question-replay.test.tsx
+index 3b874c48..f214703e 100644
+--- a/packages/chat/src/react/components/__tests__/surface-question-replay.test.tsx
++++ b/packages/chat/src/react/components/__tests__/surface-question-replay.test.tsx
+@@ -35,6 +35,12 @@ function message(events: AgentEvent[], runStatus: ChatMessage['runStatus'] = 'ru
+ function receipt(surfaceUri = uri): AgentEvent {
+   return acceptedInputUserEvent({ input: { id: `answer:${surfaceUri}`, text: 'Agent plugins: GitHub', answerText: 'GitHub', surfaceUri } }, { receipt: 'accepted' });
+ }
++/** Text outside tool panels: an enclosing call's own input legitimately renders its raw values. */
++function transcriptText(container: HTMLElement) {
++  const copy = container.cloneNode(true) as HTMLElement;
++  copy.querySelectorAll('.op-card').forEach(node => node.remove());
++  return copy.textContent;
++}
+ function bubbles(container: HTMLElement) {
+   return [...container.querySelectorAll('.jini-message-user .jini-message-content')].map(node => node.textContent);
+ }
+@@ -51,9 +57,9 @@ it.each([false, true])('uses the resource question for live title/labels with an
+   await userEvent.click(screen.getByRole('button', { name: 'Use' }));
+   await waitFor(() => expect(bubbles(view.container)).toEqual(['Agent plugins: GitHub']));
+   expect(view.container.querySelector('.mcpui-surface-card-closed')?.textContent).toBe('Agent plugins: GitHub');
+-  expect(view.container.textContent).not.toContain('github');
+-  expect(view.container.textContent).not.toContain('Lets the assistant');
+-  expect(screen.queryByRole('button')).toBeNull();
++  expect(transcriptText(view.container)).not.toContain('github');
++  expect(transcriptText(view.container)).not.toContain('Lets the assistant');
++  for (const name of ['Use', "Don't ask again", 'Skip']) expect(screen.queryByRole('button', { name })).toBeNull();
+   expect(screen.queryByText('Waiting for your answer above')).toBeNull();
+   expect(execute).toHaveBeenCalledTimes(1);
+ });
+-- 
+2.43.0
+

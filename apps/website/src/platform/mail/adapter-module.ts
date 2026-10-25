@@ -1,5 +1,5 @@
 /** Plugin modules retain Tovu's HTTP and mail call shapes at their host boundary. */
-import type { MailAdapterCredential } from "@jini-ai/platform/mail";
+import type { MailAdapterCredential, MailAdapterModule as JiniMailAdapterModule } from "@jini-ai/platform/mail";
 import type { HttpClientPort } from "../http/index.js";
 import type { MailerPort } from "./ports.js";
 export type { MailAdapterCredential } from "@jini-ai/platform/mail";
@@ -16,9 +16,9 @@ export interface MailAdapterCreateContext {
   readonly credential: MailAdapterCredential;
   readonly kit: MailAdapterKit;
 }
-/** A loaded Tovu plugin receives guarded HTTP and returns the existing host mail port. */
-export interface MailAdapterModule {
+/** A loaded Tovu plugin receives guarded HTTP and returns the existing host mail port.
+ * Plugin-owned account connection and API origin for domain reads come from Jini's contract.
+ */
+export interface MailAdapterModule extends Pick<JiniMailAdapterModule, "domainReadConnection"> {
   create(context: MailAdapterCreateContext): MailerPort;
-  /** Plugin-owned account connection and API origin for domain reads a sending key cannot do. */
-  readonly domainReadConnection?: { readonly serverId: string; readonly baseUrl: string };
 }

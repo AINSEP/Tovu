@@ -1,0 +1,239 @@
+From f819689fa43a2fae0c94940ebf9cbd9d3c8aba06 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 25 Oct 2026 05:23:43 +0000
+Subject: [PATCH] check(jini-guard): revert two optional-peer moves and the
+ per-call SVG sanitizer
+
+- oauth: openid-client/oauth4webapi back to dependencies. As optional peers, a fresh
+  install of @jini-ai/agent-runtime fails (agent-runtime tests/loads-without-integrations:
+  Cannot find package 'openid-client' from @jini-ai/oauth/dist/discovery.js), 11 tests red.
+- diagnostics: js-tokens back to dependencies. ./observability (otel.ts -> core/secrets-only)
+  needs it, and existing consumers import that entry without declaring js-tokens.
+- cms sanitize-svg: the factory rewrite made every sanitizeSvg() call build and close its own
+  JSDOM (measured 8.3 ms vs 1.1 ms per call); no caller used the factory, and hosts sanitize
+  SVG per public media request. Restored the e5f49697 module-lazy runtime.
+These reopen 3 SI-dependency + 1 HW3 guard findings, left for an owner decision.
+pnpm-lock.yaml regenerated with pnpm install.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ packages/cms/src/media/index.ts        |  2 +-
+ packages/cms/src/media/sanitize-svg.ts | 85 ++++++++++----------------
+ packages/diagnostics/package.json      | 12 ++--
+ packages/oauth/package.json            | 18 ++----
+ pnpm-lock.yaml                         | 10 +--
+ 5 files changed, 47 insertions(+), 80 deletions(-)
+
+diff --git a/packages/cms/src/media/index.ts b/packages/cms/src/media/index.ts
+index 444d70e0..eb6f3157 100644
+--- a/packages/cms/src/media/index.ts
++++ b/packages/cms/src/media/index.ts
+@@ -176,7 +176,7 @@ export {
+ 
+ export type { MediaReferenceCheckPort } from "./ports.js";
+ 
+-export { createSvgSanitizer, sanitizeSvg } from "./sanitize-svg.js";
++export { sanitizeSvg } from "./sanitize-svg.js";
+ 
+ export { replaceMediaFile, type ReplaceMediaFileDeps, type MediaFileReplacementRepoPort } from './replace-media-file.js';
+ 
+diff --git a/packages/cms/src/media/sanitize-svg.ts b/packages/cms/src/media/sanitize-svg.ts
+index 6f5b1a25..8d0147bb 100644
+--- a/packages/cms/src/media/sanitize-svg.ts
++++ b/packages/cms/src/media/sanitize-svg.ts
+@@ -39,60 +39,41 @@ async function createRuntime() {
+   return { window, purifier };
+ }
+ 
+-/** Own one lazy DOM/purifier per media-service instance; ordinary uploads never load a DOM. */
+-export function createSvgSanitizer(_required: Record<string, never>, _options: Record<string, never> = {}) {
+-  let runtime: ReturnType<typeof createRuntime> | undefined;
++let runtime: ReturnType<typeof createRuntime> | undefined;
+ 
+-  /** Sanitizes a standalone SVG before hashing/storage or inline serving, including legacy blobs.
+-   * Rejects malformed XML, DTDs/entities and SVG fonts. No scripts or external resources are loaded.
+-   * @complexity O(n) in the size-bounded SVG document.
+-   */
+-  async function sanitizeSvg(
+-    { bytes }: { bytes: Uint8Array },
+-    _options: Record<string, never> = {}
+-  ): Promise<Uint8Array> {
+-    const { window, purifier } = await (runtime ??= createRuntime());
+-    let source: string;
+-    try {
+-      source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+-    } catch {
+-      throw new MediaValidationError({ message: "SVG must be valid UTF-8" });
+-    }
+-    // Reject before XML parsing: no external entities, SVG font documents, or DTD expansion.
+-    if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new MediaValidationError({ message: "SVG DTDs and entities are not allowed" });
+-    const document = new window.DOMParser().parseFromString(source, "image/svg+xml");
+-    const root = document.documentElement;
+-    if (document.querySelector("parsererror") || root.localName !== "svg" || root.namespaceURI !== SVG_NAMESPACE) {
+-      throw new MediaValidationError({ message: "invalid SVG document" });
+-    }
+-    if ([...document.getElementsByTagName("*")].some((element) => ["font", "font-face"].includes(element.localName.toLowerCase()))) {
+-      throw new MediaValidationError({ message: "SVG fonts are not allowed" });
+-    }
+-    purifier.sanitize(root, {
+-      IN_PLACE: true,
+-      USE_PROFILES: { svg: true, svgFilters: true },
+-      ADD_TAGS: ["use"],
+-      // Animation can rewrite a safe reference after sanitization. Foreign HTML is never media.
+-      FORBID_TAGS: ["script", "foreignObject", "animate", "animateMotion", "animateTransform", "set", "discard"],
+-      FORBID_ATTR: ["xml:base"],
+-      ALLOW_DATA_ATTR: false,
+-    });
+-    return new TextEncoder().encode(new window.XMLSerializer().serializeToString(root));
++/** Sanitizes a standalone SVG before hashing/storage or inline serving, including legacy blobs.
++ * Rejects malformed XML, DTDs/entities and SVG fonts. No scripts or external resources are loaded.
++ * @complexity O(n) in the size-bounded SVG document.
++ */
++export async function sanitizeSvg(
++  { bytes }: { bytes: Uint8Array },
++  _options: Record<string, never> = {}
++): Promise<Uint8Array> {
++  const { window, purifier } = await (runtime ??= createRuntime());
++  let source: string;
++  try {
++    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++  } catch {
++    throw new MediaValidationError({ message: "SVG must be valid UTF-8" });
+   }
+-
+-  /** Release this sanitizer's DOM when its owning service or one-shot call ends. */
+-  async function dispose(_required: Record<string, never>, _options: Record<string, never> = {}): Promise<void> {
+-    if (runtime) (await runtime).window.close();
++  // Reject before XML parsing: no external entities, SVG font documents, or DTD expansion.
++  if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new MediaValidationError({ message: "SVG DTDs and entities are not allowed" });
++  const document = new window.DOMParser().parseFromString(source, "image/svg+xml");
++  const root = document.documentElement;
++  if (document.querySelector("parsererror") || root.localName !== "svg" || root.namespaceURI !== SVG_NAMESPACE) {
++    throw new MediaValidationError({ message: "invalid SVG document" });
+   }
+-  return { sanitizeSvg, dispose };
+-}
+-
+-/** Compatibility one-shot entry: use a factory instance to share a DOM across a service lifetime. */
+-export async function sanitizeSvg(required: { bytes: Uint8Array }, options: Record<string, never> = {}): Promise<Uint8Array> {
+-  const sanitizer = createSvgSanitizer({});
+-  try {
+-    return await sanitizer.sanitizeSvg(required, options);
+-  } finally {
+-    await sanitizer.dispose({});
++  if ([...document.getElementsByTagName("*")].some((element) => ["font", "font-face"].includes(element.localName.toLowerCase()))) {
++    throw new MediaValidationError({ message: "SVG fonts are not allowed" });
+   }
++  purifier.sanitize(root, {
++    IN_PLACE: true,
++    USE_PROFILES: { svg: true, svgFilters: true },
++    ADD_TAGS: ["use"],
++    // Animation can rewrite a safe reference after sanitization. Foreign HTML is never media.
++    FORBID_TAGS: ["script", "foreignObject", "animate", "animateMotion", "animateTransform", "set", "discard"],
++    FORBID_ATTR: ["xml:base"],
++    ALLOW_DATA_ATTR: false,
++  });
++  return new TextEncoder().encode(new window.XMLSerializer().serializeToString(root));
+ }
+diff --git a/packages/diagnostics/package.json b/packages/diagnostics/package.json
+index 07616bbc..cd559318 100644
+--- a/packages/diagnostics/package.json
++++ b/packages/diagnostics/package.json
+@@ -88,22 +88,18 @@
+   "devDependencies": {
+     "@vitest/coverage-v8": "^2.1.9",
+     "@jini-ai/core": "workspace:^",
+-    "jszip": "^3.10.1",
+-    "js-tokens": "^9.0.1"
++    "jszip": "^3.10.1"
+   },
+   "dependencies": {
+-    "@jini-ai/core": "workspace:^"
++    "@jini-ai/core": "workspace:^",
++    "js-tokens": "^9.0.1"
+   },
+   "peerDependencies": {
+-    "jszip": "^3.10.1",
+-    "js-tokens": "^9.0.1"
++    "jszip": "^3.10.1"
+   },
+   "peerDependenciesMeta": {
+     "jszip": {
+       "optional": true
+-    },
+-    "js-tokens": {
+-      "optional": true
+     }
+   }
+ }
+diff --git a/packages/oauth/package.json b/packages/oauth/package.json
+index 3aa54561..3da09cba 100644
+--- a/packages/oauth/package.json
++++ b/packages/oauth/package.json
+@@ -63,25 +63,15 @@
+     "test:properties": "vitest run tests/__tests__/unit/endpoint-safety.property.unit.test.ts"
+   },
+   "dependencies": {
+-    "@jini-ai/core": "workspace:^"
+-  },
+-  "peerDependencies": {
++    "@jini-ai/core": "workspace:^",
+     "openid-client": "6.8.8",
+     "oauth4webapi": "3.8.8"
+   },
+-  "peerDependenciesMeta": {
+-    "openid-client": {
+-      "optional": true
+-    },
+-    "oauth4webapi": {
+-      "optional": true
+-    }
+-  },
++  "peerDependencies": {},
++  "peerDependenciesMeta": {},
+   "devDependencies": {
+     "@jini-ai/core": "^0.6.12",
+     "@jini-ai/platform": "workspace:*",
+-    "fast-check": "4.3.0",
+-    "openid-client": "6.8.8",
+-    "oauth4webapi": "3.8.8"
++    "fast-check": "4.3.0"
+   }
+ }
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index e620b38a..3eeb922e 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -753,10 +753,10 @@ importers:
+       '@jini-ai/core':
+         specifier: workspace:^
+         version: link:../core
+-    devDependencies:
+       js-tokens:
+         specifier: ^9.0.1
+         version: 9.0.1
++    devDependencies:
+       '@vitest/coverage-v8':
+         specifier: ^2.1.9
+         version: 2.1.9(vitest@2.1.9(@types/node@24.13.3)(jsdom@26.1.0)(lightningcss@1.33.0)(sass@1.51.0))
+@@ -863,13 +863,13 @@ importers:
+       '@jini-ai/core':
+         specifier: workspace:^
+         version: link:../core
+-    devDependencies:
+-      openid-client:
+-        specifier: 6.8.8
+-        version: 6.8.8
+       oauth4webapi:
+         specifier: 3.8.8
+         version: 3.8.8
++      openid-client:
++        specifier: 6.8.8
++        version: 6.8.8
++    devDependencies:
+       '@jini-ai/platform':
+         specifier: workspace:*
+         version: link:../platform
+-- 
+2.43.0
+

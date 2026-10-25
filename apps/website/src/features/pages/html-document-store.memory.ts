@@ -1,3 +1,5 @@
+import type { PagesHtmlDocumentStoreDeps } from "./html-document-store.js";
+import type { PluginEmbedDiagnostic } from "../agent-plugins/exports/diagnostics.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
 import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
@@ -43,16 +45,23 @@ import {
  */
 export class InMemoryPagesHtmlDocumentStore {
   private lastReadVersion: number | null = null;
+  private pluginWarnings: readonly PluginEmbedDiagnostic[] = [];
+
+  embedWarnings(): readonly PluginEmbedDiagnostic[] { return this.pluginWarnings; }
+
+  private async validatePluginEmbeds(input: { html: string }, _options = {}): Promise<void> {
+    this.pluginWarnings = await this.deps.validatePluginEmbeds?.({ workspaceId: this.scope.workspaceId, html: input.html }) ?? [];
+  }
   private readonly allowedKinds: ReadonlySet<PostKind>;
 
   private readonly scope: PagesHtmlDocumentStoreScope;
-  private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> };
+  private readonly deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"] };
   constructor(
     scope: PagesHtmlDocumentStoreScope,
     // `entryRefsRepo` is optional for the identical reason `PagesHtmlDocumentStoreDeps.entryRefsRepo`
     // (the real adapter) is — see that field's own doc.
     /** `outbox`: the real store's go-live catch-up (`PagesHtmlDocumentStoreDeps.outbox`). */
-    deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind> }
+    deps: { repo: PostRepoPort; clock: ClockPort; entryRefsRepo?: EntryRefsRepoPort; outbox?: OutboxPort; allowedKinds?: ReadonlySet<PostKind>; validatePluginEmbeds?: PagesHtmlDocumentStoreDeps["validatePluginEmbeds"] }
   ) {
     this.scope = scope;
     this.deps = deps;
@@ -117,6 +126,7 @@ export class InMemoryPagesHtmlDocumentStore {
       return;
     }
 
+    await this.validatePluginEmbeds({ html: seedHtml });
     const nextVersion = row.version + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 
@@ -176,6 +186,8 @@ export class InMemoryPagesHtmlDocumentStore {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }
     const expectedVersion = this.lastReadVersion;
+    // Preserve this call's read basis across asynchronous plugin validation (CIC-1).
+    await this.validatePluginEmbeds({ html });
     const row = await this.load();
 
     // Disambiguate on the mismatch path: a trashed row is not "someone else edited it" — see

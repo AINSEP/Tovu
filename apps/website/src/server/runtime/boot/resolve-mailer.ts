@@ -1,29 +1,22 @@
-import { ToolInputError } from "@jini-ai/core";
-import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
-import { createSenderDomainVerification } from "./sender-domain-verification.js";
-import { readMailDomain, type MailDomainReadCredentialPort } from "./mail-domain-read.js";
-import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
-  computeMailStatus,
-  initialMailProviderSetting,
-  laneForPurpose,
+  createResolvedMailer as createJiniResolvedMailer,
   parseSmtpEndpoint as parseJiniSmtpEndpoint,
+  type MailCredentialFact,
   type MailDeliveryLane,
-  type MailAdapterCredential,
-  type MailDomainState,
   type MailProviderCallContext,
+  type MailProviderCheck,
   type MailProviderModule,
   type MailProviderSetting,
 } from "@jini-ai/platform/mail";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
-import type { MailerCapabilities, MailerPort, MailerSendResult } from "#src/platform/mail/index";
-import type { MailProviderConfigurationReport, MailProviderError, MailStatusReport } from "#src/platform/mail/mail-status";
-import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
+import type { MailerPort } from "#src/platform/mail/index";
+import type { MailProviderConfigurationReport, MailStatusReport } from "#src/platform/mail/mail-status";
+import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
+import { toJiniMailer, toTovuMailer } from "#src/platform/mail/purpose-scoped-mailer";
 import { describeMailProviders } from "./mail-provider-configuration.js";
-import { createTtlCache, MAIL_STATUS_TTL_MS } from "./mail-status-cache.js";
 import {
   createProviderMailer,
   credentialFailureReason,
@@ -32,7 +25,6 @@ import {
   MAIL_SMTP_CREDENTIAL_LABEL,
   resolveMailCredential,
   resolveMailDomainReadCredential,
-  type MailProviderCatalog,
   type MailProviderCatalogDeps,
 } from "./mail-provider-catalog.js";
 
@@ -40,8 +32,8 @@ export { MAIL_SMTP_CREDENTIAL_LABEL } from "./mail-provider-catalog.js";
 export type { MailStatusReport } from "#src/platform/mail/mail-status";
 
 /**
- * @file Boot-time `MailerPort` selection. Hosted-API providers live in Agent Plugins; SMTP and
- * Console are built-ins. An unconfigured mailer never fails silently.
+ * @file Tovu binding to Jini's boot-time `MailerPort` selection. Hosted-API providers live in
+ * Agent Plugins; SMTP and Console are built-ins. An unconfigured mailer never fails silently.
  *
  * **Explicit selection (email provider contract v1, 2026-10-21).** The provider is no longer "the
  * first plugin whose credential resolves, then SMTP, then Console". Each delivery lane reads the
@@ -159,54 +151,10 @@ export interface ResolvedMailer {
   domainRequirements: (required: { workspaceId: string }) => Promise<DomainRequirement | null>;
 }
 
-export type MailProviderCheck = { ok: true; label: string } | { ok: false; reason: string };
+export type { MailProviderCheck } from "@jini-ai/platform/mail";
 
-/** A cached provider mailer and the credential row it was built from (`label` undefined = keyless). */
-type ResolvedEntry = { mailer: MailerPort; label?: string; fingerprint: string };
-
-/** Records a provider failure for `lastError`. */
-type RecordError = (error: Omit<MailProviderError, "at">) => void;
-
-/** Identifies one saved credential version without decrypting it. */
-function rowFingerprint(record: CustomCredentialSetRecord | undefined): string {
-  return record ? `${record.id}:${record.vaultRecord?.revision ?? ""}:${record.updatedAt}` : "absent";
-}
-
-/** Observe one send or batch without changing results. Any failed recipient keeps the failure;
- * only a wholly accepted operation clears a prior send failure. O(messages) time, O(1) space. */
-function observeFailures(required: { mailer: MailerPort; providerId: string; record: RecordError; accepted: () => void }): MailerPort {
-  const { mailer, providerId, record, accepted } = required;
-  const seen = (results: readonly MailerSendResult[]): void => {
-    const failure = results.find(result => !result.ok);
-    if (failure && !failure.ok) record({ providerId, source: "send", code: failure.errorCode, message: failure.message });
-    else if (results.length > 0) accepted();
-  };
-  return {
-    capabilities: () => mailer.capabilities(),
-    send: async (message, options) => { const result = await mailer.send(message, options); seen([result]); return result; },
-    sendBatch: async (messages, options) => { const results = await mailer.sendBatch(messages, options); seen(results); return results; },
-  };
-}
-
-/** A provider's credential, or why it has none. */
-type CredentialLookup = { credential: MailAdapterCredential; reason?: undefined } | { credential?: undefined; reason: string };
-
-const CONSOLE_CAPABILITIES: MailerCapabilities = { driver: "console", supportsIdempotencyKey: false, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: true };
-
-/**
- * A mailer that refuses every send. It reports the `console` driver on purpose: availability checks
- * (`isMailDeliveryAvailable`) and the sender resolver treat console as "sends nothing", which is true.
- */
-function refusingMailer(required: { errorCode: string; message: string }): MailerPort {
-  const result: MailerSendResult = { ok: false, retryable: false, errorCode: required.errorCode, message: required.message };
-  return {
-    capabilities: () => CONSOLE_CAPABILITIES,
-    send: async () => result,
-    sendBatch: async (messages) => messages.map(() => result),
-  };
-}
-
-function unconfiguredMessage(lane: MailDeliveryLane): string {
+/** Tovu's recovery copy, kept outside the generic engine. */
+function unconfiguredMessage({ lane }: { lane: MailDeliveryLane }): string {
   return (
     `[mail] no ${lane} mail provider is configured, so this message was NOT sent. Choose one in the admin ` +
     `Mail settings (or ask the assistant to run mail_set_provider) and save its key under Access Tokens ` +
@@ -214,267 +162,55 @@ function unconfiguredMessage(lane: MailDeliveryLane): string {
   );
 }
 
+/** Project vault metadata into Jini's fingerprint facts without decrypting or copying the row.
+ * Fingerprint BEFORE reading the key: Jini owns metadata → key → metadata ordering and retries.
+ * An unreadable store leaves key lookup to report why; cached mailers survive metadata faults.
+ * @complexity O(c) credential rows from one workspace list; O(1) extra space.
+ */
+async function readCredentialFact(
+  required: { deps: ResolveMailerDeps; label: string },
+): Promise<MailCredentialFact | undefined> {
+  const { deps, label } = required;
+  const rows = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  const record = rows.find(row => row.label === label);
+  return record ? { id: record.id, label: record.label, updatedAt: record.updatedAt, vaultRevision: record.vaultRecord?.revision } : undefined;
+}
+
 /**
- * Builds the boot-time-resolved, lane-routed `MailerPort`. See this file's header for the rules.
- * @complexity Per send: one setting read; a provider's first send adds one credential lookup.
+ * Bind host settings, vault, catalog and plugin ABI to the single Jini mail engine.
+ * Public controls retain their original shape, including invalidate on every core.mail write.
+ * @complexity O(1) binding; per send Jini reads selection and credential metadata.
+ * @example const resolved = createResolvedMailer(deps); await resolved.ready;
  */
 export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
-  const warn = deps.warn ?? ((message: string) => console.warn(message));
-  const wrap = deps.wrapProviderMailer ?? (({ mailer }) => mailer);
-  const resolved = new Map<string, ResolvedEntry>();
-  let generation = 0;
-  const nowMs = () => (deps.clock ?? { nowMs: () => Date.now() }).nowMs();
-  let lastError: MailProviderError | undefined;
-  const recordError: RecordError = ({ providerId, source }) => {
-    // Every status refresh re-runs the checks. A check note must not hide a failed send.
-    if (source === "check" && lastError?.source === "send") return;
-    lastError = { providerId, source, message: source === "send" ? "The provider did not confirm acceptance. Check provider configuration." : "The provider configuration check could not complete.", at: new Date(nowMs()).toISOString() };
-  };
-  const fingerprintFor = async (label: string | undefined): Promise<string> => {
-    if (label === undefined) return "";
-    const records = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-    return rowFingerprint(records.find((row) => row.label === label));
-  };
-  const inFlight = new Map<string, Promise<MailerPort>>();
-  const warned = new Set<string>();
-  let initialization: Promise<MailProviderSetting> | undefined;
-  let lastTransactional: MailerPort | undefined;
-
-  const warnOnce = (key: string, message: string): void => {
-    if (deps.mode !== "production" || warned.has(key)) return;
-    warned.add(key);
-    try { warn(message); } catch { /* MailerPort must not throw across the boundary (ADR-024 §3). */ }
-  };
-
-  const initialize = async (): Promise<MailProviderSetting> => {
-    const setting = initialMailProviderSetting({});
-    await deps.providerSetting.write(setting).catch(() =>
-      warnOnce("initialization", "[mail] the mail provider setting could not be saved; retrying on the next send"));
-    return setting;
-  };
-
-  const currentSetting = async (): Promise<MailProviderSetting> => {
-    const stored = await deps.providerSetting.read();
-    if (stored) return stored;
-    initialization ??= initialize().finally(() => { initialization = undefined; });
-    return initialization;
-  };
-
-  const consoleMailer = async (catalog: MailProviderCatalog): Promise<MailerPort> => {
-    const provider = catalog.registry.get({ id: "console" })!.provider;
-    const mailer = wrap({ providerId: "console", provider, mailer: createProviderMailer({ deps, provider, credential: { token: "" } }) });
-    resolved.set("console", { mailer, fingerprint: "" });
-    return mailer;
-  };
-
-  /** Local mode keeps working through the console; production refuses. */
-  const fallback = async (required: { catalog: MailProviderCatalog; errorCode: string; message: string }): Promise<MailerPort> => {
-    if (deps.mode !== "production") return resolved.get("console")?.mailer ?? consoleMailer(required.catalog);
-    warnOnce(required.errorCode + required.message, required.message);
-    return refusingMailer(required);
-  };
-
-  /** The provider's credential, or why there is none (missing, or saved but unusable). */
-  const credentialOrReason = async (catalog: MailProviderCatalog, id: string, label: string): Promise<CredentialLookup> => {
-    try {
-      const credential = await resolveMailCredential({ deps, catalog, id });
-      if (credential) return { credential };
-    } catch (err) {
-      return { reason: credentialFailureReason({ label, err }) };
-    }
-    return { reason: `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")` };
-  };
-
-  /** The catalog names a credential label exactly for the providers that need one (not console). */
-  const providerCredential = (catalog: MailProviderCatalog, id: string): Promise<CredentialLookup> => {
-    const label = catalog.credentialLabelFor({ id });
-    return label === undefined ? Promise.resolve({ credential: { token: "" } }) : credentialOrReason(catalog, id, label);
-  };
-
-  const resolveProvider = async (id: string, startedIn: number): Promise<MailerPort> => {
-    const catalog = await loadMailProviderCatalog(deps);
-    const entry = catalog.registry.get({ id });
-    const unavailable = (detail: string) => fallback({ catalog, errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: `[mail] the selected mail provider '${id}' ${detail}, so outbound mail is NOT being sent` });
-    if (!entry) return unavailable(`is not installed${catalog.refusals.length > 0 ? ` (${catalog.refusals.join("; ")})` : ""}`);
-    // Fingerprint BEFORE reading the key: a rotation racing this read then re-resolves next send.
-    // An unreadable store leaves the key lookup below to report why; "unknown" re-resolves once it reads.
-    const label = catalog.credentialLabelFor({ id });
-    const fingerprint = await fingerprintFor(label).catch(() => "unknown");
-    const found = await providerCredential(catalog, id);
-    if (!found.credential) return unavailable(found.reason);
-    const credential = found.credential;
-    const latest = await fingerprintFor(label).catch(() => fingerprint);
-    if (latest !== fingerprint) return resolveProvider(id, generation);
-    const observed = observeFailures({ mailer: createProviderMailer({ deps, provider: entry.provider, credential }), providerId: id, record: recordError,
-      accepted: () => { if (lastError?.source === "send" && lastError.providerId === id) lastError = undefined; } });
-    const mailer = wrap({ providerId: id, provider: entry.provider, mailer: observed });
-    if (startedIn === generation) resolved.set(id, { mailer, fingerprint, ...(label === undefined ? {} : { label }) });
-    return mailer;
-  };
-
-  /** Single-flight per provider: the boot resolution and an early send must not build it twice. */
-  const resolveOnce = (id: string): Promise<MailerPort> => {
-    const existing = inFlight.get(id);
-    if (existing) return existing;
-    const startedIn = generation;
-    const started = resolveProvider(id, startedIn).then((mailer) => startedIn === generation ? mailer : resolveOnce(id))
-      .finally(() => { if (inFlight.get(id) === started) inFlight.delete(id); });
-    inFlight.set(id, started);
-    return started;
-  };
-
-  /** The cached mailer while its credential row is unchanged; otherwise a fresh resolution. */
-  const currentMailer = async (id: string): Promise<MailerPort> => {
-    const entry = resolved.get(id);
-    if (!entry) return resolveOnce(id);
-    if (entry.label === undefined) return entry.mailer;
-    const fingerprint = await fingerprintFor(entry.label).catch(() => entry.fingerprint);
-    if (fingerprint === entry.fingerprint) return entry.mailer;
-    if (resolved.get(id) === entry) resolved.delete(id);
-    return resolveOnce(id);
-  };
-
-  const mailerForLane = async (lane: MailDeliveryLane): Promise<MailerPort> => {
-    const id = (await currentSetting())[lane];
-    const mailer = id === null
-      ? await fallback({ catalog: await loadMailProviderCatalog(deps), errorCode: "MAIL_UNCONFIGURED", message: unconfiguredMessage(lane) })
-      : await currentMailer(id);
-    if (lane === "transactional") lastTransactional = mailer;
-    return mailer;
-  };
-
-  /** Never rejects: a settings or catalog fault becomes a refusal, not a throw across the port. */
-  const forLane = (lane: MailDeliveryLane): Promise<MailerPort> =>
-    mailerForLane(lane).catch((err: unknown) => refusingMailer({ errorCode: "MAIL_PROVIDER_UNAVAILABLE", message: "Mail provider selection failed; check configuration." }));
-
-  const ready = forLane("transactional").then(() => undefined);
-
-  const mailer: MailerPort = {
-    capabilities: () => {
-      if (lastTransactional === undefined) void forLane("transactional");
-      return (lastTransactional ?? { capabilities: () => CONSOLE_CAPABILITIES }).capabilities();
-    },
-    send: async (message, options) => (await forLane(laneForPurpose({ purpose: options.purpose }))).send(message, options),
-    sendBatch: async (messages, options) => (await forLane(laneForPurpose({ purpose: options.purpose }))).sendBatch(messages, options),
-  };
-
-  // The resolver owns provider selection and credential resolution for both status and DNS.
-  const resolveDomainReadCredential: MailDomainReadCredentialPort = ({ id }) => resolveMailDomainReadCredential({ deps, id });
-  const senderDomainVerification = createSenderDomainVerification({
-    workspaceId: deps.workspaceId, httpClient: deps.httpClient,
-    findProvider: async ({ id }) => (await loadMailProviderCatalog(deps)).registry.get({ id })?.provider,
-    resolveCredential: async ({ id }) => resolveMailCredential({ deps, catalog: await loadMailProviderCatalog(deps), id }),
-    resolveDomainReadCredential,
-    readProviderId: async () => (await currentSetting()).transactional,
-    readSenderEmail: async () => deps.readSenderEmail ? deps.readSenderEmail() : undefined,
-  });
-  const statusCache = createTtlCache({
-    load: () => computeStatusReport({ deps, setting: currentSetting, recordError, nowMs, senderDomainVerification }),
-    ttlMs: deps.statusTtlMs ?? MAIL_STATUS_TTL_MS, nowMs,
-  }, { minRefreshIntervalMs: 5_000 });
-  const status = async (optional: { refresh?: boolean } = {}): Promise<MailStatusReport> => {
-    const report = await statusCache.get(optional);
-    // A saved key proves configuration, not sending. A later accepted send clears this failure.
-    const sendFailed = lastError?.source === "send" && report.lanes.some(lane => lane.providerId === lastError?.providerId);
-    return lastError ? { ...report, state: sendFailed && report.state === "ready" ? "degraded" : report.state, lastError } : report;
-  };
-  const describeProviders = async (): Promise<MailProviderConfigurationReport> => {
-    const [setting, catalog, records] = await Promise.all([currentSetting(), loadMailProviderCatalog(deps), deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId })]);
-    return describeMailProviders({ catalog, records, setting });
-  };
-  const invalidate = (): void => {
-    generation += 1;
-    inFlight.clear();
-    resolved.clear();
-    lastTransactional = undefined;
-    statusCache.invalidate();
-  };
-  const checkProvider = async ({ id }: { id: string }): Promise<MailProviderCheck> => {
-    const catalog = await loadMailProviderCatalog(deps);
-    const provider = catalog.registry.get({ id })?.provider;
-    if (!provider) return { ok: false, reason: `'${id}' is not an installed mail provider (installed: ${catalog.registry.list().map((entry) => entry.id).join(", ")})` };
-    if (!provider.capabilities.hosted) return { ok: false, reason: `'${id}' only prints mail locally and never delivers it` };
-    const found = await providerCredential(catalog, id);
-    return found.credential ? { ok: true, label: provider.label } : { ok: false, reason: `'${id}' ${found.reason}` };
-  };
-  const domainRequirements = async ({ workspaceId }: { workspaceId: string }): Promise<DomainRequirement | null> => {
-    if (workspaceId !== deps.workspaceId) return null;
-    const [setting, catalog, domain] = await Promise.all([currentSetting(), loadMailProviderCatalog(deps), readSenderDomain(deps)]);
-    const id = setting.transactional;
-    const provider = id === null ? undefined : catalog.registry.get({ id })?.provider;
-    if (!domain || !provider?.capabilities.domainVerification) return null;
-    const { credential } = await providerCredential(catalog, id!);
-    return credential ? requestDomainRequirements({ ctx: callContext(deps, credential), providerId: id!, provider, domain, resolveDomainReadCredential }, { timeoutMs: deps.domainRequirementsTimeoutMs }) : null;
-  };
-  return { senderDomainVerification, laneReady: async ({ lane }) => (await forLane(lane)).capabilities().driver !== "console", mailer, ready, settle: async () => { await forLane("transactional"); }, status, describeProviders, invalidate, checkProvider, domainRequirements };
-}
-
-/** The configured sender's domain, lower-cased; undefined when unset or unreadable. */
-async function readSenderDomain(deps: ResolveMailerDeps): Promise<string | undefined> {
-  const email = await deps.readSenderEmail?.().catch(() => undefined);
-  return email?.split("@")[1]?.trim().toLowerCase() || undefined;
-}
-
-/** A provider call acting for this workspace with its resolved key and Tovu's guarded client. */
-function callContext(deps: ResolveMailerDeps, credential: MailAdapterCredential): MailProviderCallContext {
+  // Plugins still call httpClient.send(request). Jini only passes this client through to them.
   const httpClient = deps.httpClient as unknown as MailProviderCallContext["httpClient"];
-  return { workspaceId: deps.workspaceId, mode: "live", credential, httpClient };
-}
-
-/** A domain read with the same account fallback as status; failures stay caller-safe. @complexity At most two calls. */
-async function requestDomainRequirements(
-  required: { ctx: MailProviderCallContext; providerId: string; provider: MailProviderModule; domain: string; resolveDomainReadCredential?: MailDomainReadCredentialPort },
-  optional: { timeoutMs?: number } = {},
-): Promise<DomainRequirement> {
-  const { ctx, providerId, provider, domain } = required;
-  // `domainVerification` is true exactly when the module implements domainRequirements (registry-validated).
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error("The mail provider could not list its required DNS records.")), optional.timeoutMs ?? 5_000);
+  const wrap = deps.wrapProviderMailer;
+  const resolved = createJiniResolvedMailer({
+    workspaceId: deps.workspaceId,
+    mode: deps.mode,
+    providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write(setting) },
+    credentials: {
+      readFact: ({ label }) => readCredentialFact({ deps, label }),
+      resolve: ({ catalog, id }) => resolveMailCredential({ deps, catalog, id }),
+    },
+    // The configuration projection still needs Tovu's row (e.g. SMTP username presence).
+    listCredentialFacts: () => deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
+    loadCatalog: () => loadMailProviderCatalog(deps),
+    httpClient,
+    createProviderMailer: ({ provider, credential }) => toJiniMailer({ mailer: createProviderMailer({ deps, provider, credential }) }),
+    describeProviders: describeMailProviders,
+    unconfiguredMessage,
+    missingCredentialReason: ({ label }) => `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")`,
+    credentialFailureReason,
+  }, {
+    wrapProviderMailer: wrap ? ({ mailer, ...provider }) => toJiniMailer({ mailer: wrap({ ...provider, mailer: toTovuMailer({ mailer }) }) }) : undefined,
+    readSenderEmail: deps.readSenderEmail,
+    resolveDomainReadCredential: ({ id }) => resolveMailDomainReadCredential({ deps, id }),
+    warn: deps.warn,
+    clock: deps.clock,
+    statusTtlMs: deps.statusTtlMs,
+    domainRequirementsTimeoutMs: deps.domainRequirementsTimeoutMs,
   });
-  try {
-    const result = await Promise.race([readMailDomain({ ctx, providerId, read: context => provider.domainRequirements!(context, { domain }), resolveDomainReadCredential: required.resolveDomainReadCredential }), timeout]);
-    if (result.status === "ok") return result.value;
-    throw new ToolInputError({ message: safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential: ctx.credential }) }) });
-  } finally { clearTimeout(timer); }
-}
-
-/** Lane providers' credentials, looked up in parallel; a failed lookup is recorded and counts as none. @complexity O(lanes) lookups. */
-async function laneCredentials(
-  required: { deps: ResolveMailerDeps; catalog: MailProviderCatalog; setting: MailProviderSetting; recordError: RecordError }
-): Promise<Map<string, MailAdapterCredential>> {
-  const { deps, catalog, setting, recordError } = required;
-  const ids = [...new Set([setting.transactional, setting.bulk].filter((id): id is string => id !== null))];
-  const lookup = (id: string) => resolveMailCredential({ deps, catalog, id }).catch((err: unknown) => {
-    // Only a provider with a label reaches the store, so the label is defined whenever this throws.
-    recordError({ providerId: id, source: "check", message: credentialFailureReason({ label: catalog.credentialLabelFor({ id })!, err }) });
-    return null;
-  });
-  const found = await Promise.all(ids.map(async (id) => [id, await lookup(id)] as const));
-  return new Map(found.filter((pair): pair is readonly [string, MailAdapterCredential] => pair[1] !== null));
-}
-
-async function computeStatusReport(
-  required: { deps: ResolveMailerDeps; setting: () => Promise<MailProviderSetting>; recordError: RecordError; nowMs: () => number; senderDomainVerification: SenderDomainVerificationPort }
-): Promise<MailStatusReport> {
-  const { deps, recordError } = required;
-  const checkedAt = new Date(required.nowMs()).toISOString();
-  const records = deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId }).catch((err: unknown) => {
-    recordError({ providerId: null, source: "check", message: `the saved mail credentials could not be listed (${err instanceof Error ? err.message : String(err)})` });
-    return [] as CustomCredentialSetRecord[];
-  });
-  // Independent reads run together; only the domain check waits, for the transactional key.
-  const [setting, catalog, rows, domain] = await Promise.all([required.setting(), loadMailProviderCatalog(deps), records, readSenderDomain(deps)]);
-  const credentials = await laneCredentials({ deps, catalog, setting, recordError });
-  const verdict = await required.senderDomainVerification();
-  // `null` is "no sender address is set". An unanswered domain check (e.g. a send-only key) has no warning
-  // of its own, so it stays undefined rather than telling a verified site its sender is missing.
-  const domainState = verdict.state === "no_sender" ? null : ["verified", "pending", "failed", "not_found"].includes(verdict.state) ? verdict.state as MailDomainState : undefined;
-  if (verdict.state === "unknown") recordError({ providerId: verdict.providerId, source: "check", message: "Provider domain check unavailable." });
-  const status = computeMailStatus(
-    { setting, registry: catalog.registry, hasCredential: (id) => credentials.has(id) },
-    domainState === undefined ? {} : { senderDomainState: domainState },
-  );
-  const { providers } = describeMailProviders({ catalog, records: rows, setting });
-  return { ...status, providers, refusals: catalog.refusals, checkedAt, senderDomainVerification: verdict };
+  return { ...resolved, mailer: toTovuMailer({ mailer: resolved.mailer }) };
 }
