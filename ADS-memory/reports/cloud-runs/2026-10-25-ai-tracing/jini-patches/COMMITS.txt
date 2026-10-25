@@ -1,3 +1,4 @@
+6016485c feat(server): optional aiTrace option on createJiniKernelBase (no option = lifecycle unwrapped)
 fe3f1309 test(agent-runtime): use a labeled fake secret instead of a vendor-key-shaped string
 4503bf6c perf(agent-runtime): AI-trace keeps streamed text only in full capture; counts otherwise
 87b72e61 feat(agent-runtime): lazy AI-trace sink (bounded queue) for hosts that build lifecycles synchronously
