@@ -195,8 +195,9 @@ export interface SecretScanViolation {
   file: string;
   patternName: string;
   /** 1-based line number, or "binary" when the file's content is not text (a NUL byte was found in
-   *  its first 8000 bytes — the same heuristic `git`/`grep -I` use to classify binaries). */
-  line: number | "binary";
+   *  its first 8000 bytes — the same heuristic `git`/`grep -I` use to classify binaries), or "path"
+   *  when the credential sits in the file or directory NAME itself (FU-A 2d). */
+  line: number | "binary" | "path";
 }
 
 function lineNumberAt(text: string, index: number): number {
@@ -231,6 +232,24 @@ function readScannableFile(repoRoot: string, relFile: string): ScannableContent 
   return { text: buf.toString("latin1"), isBinary: buf.subarray(0, 8000).includes(0) };
 }
 
+/** Stands in for every credential-shaped substring of a reported path. */
+const REDACTED = "[redacted]";
+
+/** A report must never re-leak the token it found: redact credential-shaped substrings of a path. */
+function redactPath(file: string): string {
+  let redacted = file;
+  for (const hit of scanTextForSecrets(file)) redacted = redacted.split(hit.value).join(REDACTED);
+  return redacted;
+}
+
+/** FU-A 2d: an empty file can still carry a token in its NAME. Runs on every tracked and
+ *  historical path before extension filtering or blob dedupe, so neither can hide one. */
+function scanPathForViolations(file: string): SecretScanViolation[] {
+  return scanTextForSecrets(file)
+    .filter((hit) => !isAllowlisted(file, hit.patternName, hit.value))
+    .map((hit) => ({ file: redactPath(file), patternName: hit.patternName, line: "path" as const }));
+}
+
 /** Scans one already-read file's content for secret-shaped hits, filtering out allowlisted ones
  *  and shaping each remaining hit into a reportable {@link SecretScanViolation}. Shared by the
  *  tip scan ({@link scanRepoForSecrets}) and the history scan ({@link scanGitHistoryForSecrets}). */
@@ -239,7 +258,7 @@ function scanContentForViolations(file: string, content: ScannableContent): Secr
   for (const hit of scanTextForSecrets(content.text)) {
     if (isAllowlisted(file, hit.patternName, hit.value)) continue;
     violations.push({
-      file,
+      file: redactPath(file),
       patternName: hit.patternName,
       line: content.isBinary ? "binary" : lineNumberAt(content.text, hit.index),
     });
@@ -255,6 +274,7 @@ export function scanRepoForSecrets(options?: { readonly repoRoot?: string }): Se
   const repoRoot = options?.repoRoot ?? REPO_ROOT;
   const violations: SecretScanViolation[] = [];
   for (const relFile of listTrackedFiles(repoRoot)) {
+    violations.push(...scanPathForViolations(relFile));
     const content = readScannableFile(repoRoot, relFile);
     if (!content) continue;
     violations.push(...scanContentForViolations(relFile, content));
@@ -365,15 +385,27 @@ function toScannableBlob(text: string | undefined): ScannableContent | null {
   return { text, isBinary: text.slice(0, 8000).includes(NUL_CHAR) };
 }
 
+/** Every distinct path any commit on any local branch/tag ever added or changed (merges included),
+ *  sorted. Blob dedupe keys on content, so an empty token-named file sharing its blob with an
+ *  innocent one never reaches the blob list under its own name; paths are listed separately. */
+function listHistoricalPaths(repoRoot: string): string[] {
+  const out = execFileSync("git", ["log", "--all", "-m", "--no-renames", "--format=", "--name-only", "-z"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  return [...new Set(out.split("\0").map((entry) => entry.replace(/^\n+/, "")).filter(Boolean))].sort();
+}
+
 export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
   const repoRoot = options?.repoRoot ?? REPO_ROOT;
+  const violations: SecretScanViolation[] = listHistoricalPaths(repoRoot).flatMap(scanPathForViolations);
 
   const blobs = listHistoricalBlobs(repoRoot).filter(
     (b) => !SKIP_EXTENSIONS.has(path.extname(b.path).toLowerCase()),
   );
   const contents = readBlobContents(repoRoot, blobs.map((b) => b.sha));
 
-  const violations: SecretScanViolation[] = [];
   for (const { path: relPath, sha } of blobs) {
     const content = toScannableBlob(contents.get(sha));
     if (!content) continue;
