@@ -15,7 +15,7 @@ describe("createFakeMediaPort", () => {
     await expect(port.listMedia()).resolves.toEqual({ media: [dog] });
   });
 
-  it.each(["updateMedia", "trashMedia", "deleteMedia"] as const)("%s rejects a missing id without changing the store", async (operation) => {
+  it.each(["updateMedia", "trashMedia", "restoreMedia", "deleteMedia"] as const)("%s rejects a missing id without changing the store", async (operation) => {
     const port = createFakeMediaPort();
     const { media } = await port.uploadMedia({ filename: "kept.png", contentType: "image/png", dataBase64: "AA==" });
     const pending = operation === "updateMedia" ? port.updateMedia({ id: "missing" }) : port[operation]("missing");
@@ -33,6 +33,8 @@ describe("createFakeMediaPort", () => {
     await expect(port.updateMedia({ id: media.id })).resolves.toEqual({ media });
     await expect(port.trashMedia(media.id)).resolves.toEqual({ media: { ...media, status: "trashed" } });
     await expect(port.listMedia()).resolves.toEqual({ media: [{ ...media, status: "trashed" }] });
+    await expect(port.restoreMedia(media.id)).resolves.toEqual({ restored: true });
+    await expect(port.listMedia()).resolves.toEqual({ media: [{ ...media, status: "active" }] });
   });
 });
 
@@ -56,6 +58,19 @@ describe("defaultMediaPort", () => {
     });
     await expect(run()).resolves.toEqual(response);
     expect(requests).toEqual([{ url: `${base}${path}`, method, body }]);
+  });
+
+  it.each([
+    { restored: 1, outcome: "restored", expected: true },
+    { restored: 0, outcome: "version-changed", expected: false },
+  ])("restoreMedia posts one media item to the shared Trash restore and reports $outcome", async ({ restored, outcome, expected }) => {
+    const requests: Array<{ url: string; method: string; body: unknown }> = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      requests.push({ url, method: init?.method ?? "GET", body: JSON.parse(String(init?.body)) });
+      return Response.json({ restored, results: [{ entityType: "media", entityId: "m/1", outcome }] });
+    });
+    await expect(defaultMediaPort.restoreMedia("m/1")).resolves.toEqual({ restored: expected });
+    expect(requests).toEqual([{ url: `${base}/trash/restore`, method: "POST", body: { items: [{ entityType: "media", entityId: "m/1" }] } }]);
   });
 
   it("resolves the original URL with an encoded media id", () => {

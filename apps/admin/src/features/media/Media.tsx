@@ -970,6 +970,8 @@ function MediaGridOrEmpty({
   onExpand,
   onToggleEdit,
   onTrash,
+  onRestore,
+  rowSavingId,
   onRequestPurge,
 }: {
   activeTab: MediaContentTabId;
@@ -981,6 +983,8 @@ function MediaGridOrEmpty({
   onExpand: (index: number) => void;
   onToggleEdit: (item: AdminMedia) => void;
   onTrash: (item: AdminMedia) => void;
+  onRestore: (item: AdminMedia) => void;
+  rowSavingId: string | null;
   onRequestPurge: (item: AdminMedia | null) => void;
 }) {
   const { isPhone, openDetails } = useMediaCardDetails({ onToggleEdit });
@@ -1016,6 +1020,17 @@ function MediaGridOrEmpty({
             <MediaCardTitle item={item} isPhone={isPhone} onOpenDetails={openDetails} t={t} />
             <div className="media-card-meta">
               <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
+              {/* Restore stays one visible click on the Trash tab; the irreversible delete stays in the menu. */}
+              {item.status === "trashed" ? (
+                <button
+                  type="button"
+                  className="btn-secondary media-card-restore"
+                  disabled={rowSavingId === item.id}
+                  aria-label={`${t("Restore")}: ${item.title}`}
+                  onClick={() => onRestore(item)}
+                  {...agentHandle({ handle: `${mediaExpandHandles[index]}-restore` }, { role: "button", label: "Restore this trashed asset to the library" })}
+                >{t("Restore")}</button>
+              ) : null}
               <RowMenu
                 triggerLabel={t('Actions for "{title}"').replace("{title}", item.title)}
                 agentHandle={`${mediaExpandHandles[index]}-menu`}
@@ -1093,6 +1108,7 @@ function MediaLibraryPanel(
     onMetadataSaved,
     setEditingId,
     trash,
+    restore,
     pendingPurge,
     setPendingPurge,
     rowSavingId,
@@ -1159,6 +1175,8 @@ function MediaLibraryPanel(
         onExpand={setLightboxIndex}
         onToggleEdit={toggleEditing}
         onTrash={trash}
+        onRestore={restore}
+        rowSavingId={rowSavingId}
         onRequestPurge={setPendingPurge}
       />
 

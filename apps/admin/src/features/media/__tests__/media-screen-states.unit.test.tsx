@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
@@ -58,6 +58,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     toggleEditing: vi.fn(),
     onMetadataSaved: vi.fn(),
     trash: vi.fn(async () => {}),
+    restore: vi.fn(async () => {}),
     pendingPurge: null,
     setPendingPurge: vi.fn(),
     rowSavingId: null,
@@ -118,6 +119,22 @@ describe("Media screen states", () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]?.querySelector("time")).toBeNull();
     expect(lines[0]?.textContent).toMatch(/KB/);
+  });
+
+  it("gives each trashed card a named Restore button that restores that item", () => {
+    const trashed = item({ id: "gone", title: "Old photo", status: "trashed" });
+    const { controller } = renderMedia({ media: [trashed] }, "trash");
+    fireEvent.click(screen.getByRole("button", { name: "Restore: Old photo" }));
+    expect(controller.restore).toHaveBeenCalledWith(trashed);
+  });
+
+  it("disables Restore while that row is saving, and shows none on active cards", () => {
+    const trashed = item({ id: "gone", title: "Old photo", status: "trashed" });
+    renderMedia({ media: [trashed], rowSavingId: "gone" }, "trash");
+    expect(screen.getByRole("button", { name: "Restore: Old photo" })).toBeDisabled();
+    cleanup();
+    renderMedia({ media: [item()] });
+    expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
   });
 
   it("Cancel in the edit modal clears the editing target", () => {
