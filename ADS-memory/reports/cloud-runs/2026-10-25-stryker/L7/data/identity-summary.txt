@@ -1,0 +1,78 @@
+file|mutants|killed|surv|nocov|timeout|score
+identity/user-manage-permission.ts|2|0|2|0|0|0.0
+identity/permission-list-tool.ts|36|11|5|20|0|30.6
+identity/api-key-secret.ts|120|74|44|0|2|63.3
+identity/wiring.ts|58|38|12|8|0|65.5
+identity/boot-session-token.ts|29|24|4|1|0|82.8
+identity/reset-admin-password-self-verified.ts|24|20|2|2|0|83.3
+identity/tool-registrations.ts|213|178|34|1|0|83.6
+identity/default-credential-exposure.ts|46|39|5|1|1|87.0
+identity/username-change-ports.ts|12|11|1|0|0|91.7
+identity/builtin-role-grants.ts|39|37|2|0|0|94.9
+identity/api-key-service.ts|225|218|7|0|0|96.9
+identity/delete-user-service.ts|184|180|4|0|0|97.8
+identity/repo.ts|213|212|1|0|0|99.5
+identity/role-manage-permission.ts|2|2|0|0|0|100.0
+identity/site-key-permission.ts|6|6|0|0|0|100.0
+identity/user-purge.ts|7|7|0|0|0|100.0
+identity/permission-grants.ts|2|2|0|0|0|100.0
+identity/repo.memory.ts|28|28|0|0|0|100.0
+identity/repo.sqlite.ts|10|10|0|0|0|100.0
+identity/user-purge.sqlite.ts|1|1|0|0|0|100.0
+
+### identity/permission-list-tool.ts (25 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":11,"ConditionalExpression":6,"LogicalOperator":1,"EqualityOperator":2,"MethodExpression":1,"BooleanLiteral":2,"ArrayDeclaration":1}
+N 35:64 BlockStatement: handlers: { identity_policy_list_permissions: async ctx => { => {}
+N 36:35 ObjectLiteral: await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize  => {}
+N 36:69 ObjectLiteral: await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize  => {}
+N 37:40 ObjectLiteral: const input = requireInputRecord({ input: ctx.input }); => {}
+N 39:11 ConditionalExpression: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => true
+N 39:11 ConditionalExpression: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => false
+N 39:11 LogicalOperator: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => typeof policyId !== "string" && policyId.trim() ==
+N 39:11 ConditionalExpression: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => false
+N 39:11 EqualityOperator: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => typeof policyId === "string"
+N 39:43 ConditionalExpression: if (typeof policyId !== "string" || policyId.trim() === "") throw new ToolInputError({ mes => false
+
+### identity/tool-registrations.ts (35 survivors/no-cov)
+by mutator: {"UnaryOperator":1,"ObjectLiteral":7,"MethodExpression":1,"ArrowFunction":1,"ConditionalExpression":10,"EqualityOperator":6,"BooleanLiteral":4,"OptionalChaining":1,"ArrayDeclaration":3,"LogicalOperator":1}
+N 98:128 UnaryOperator: return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...ro => +1
+S 87:37 ObjectLiteral: surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ schedul => {}
+S 87:84 ObjectLiteral: surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ schedul => {}
+S 97:74 ObjectLiteral: : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDep => {}
+S 97:182 ObjectLiteral: : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDep => {}
+S 97:302 ObjectLiteral: : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDep => {}
+S 98:89 MethodExpression: return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...ro => [...rows]
+S 98:104 ArrowFunction: return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...ro => () => undefined
+S 98:114 ConditionalExpression: return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...ro => true
+S 98:114 ConditionalExpression: return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...ro => false
+
+### identity/wiring.ts (20 survivors/no-cov)
+by mutator: {"BlockStatement":3,"ObjectLiteral":3,"ArrowFunction":2,"ConditionalExpression":7,"EqualityOperator":1,"BooleanLiteral":2,"LogicalOperator":1,"OptionalChaining":1}
+N 98:90 BlockStatement: if (typeof candidate?.username !== "string" || typeof candidate.password !== "string") { => {}
+N 179:63 ObjectLiteral: const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(host => {}
+N 179:72 ArrowFunction: const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(host => () => undefined
+N 183:58 ConditionalExpression: if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !==  => true
+N 183:58 EqualityOperator: if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !==  => required.reconcileGrantsOnBoot === false
+N 183:93 BooleanLiteral: if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !==  => true
+N 183:100 BlockStatement: if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !==  => {}
+N 187:23 ObjectLiteral: ? Promise.resolve({ ownerPrincipalId: required.readOnlyOwnerPrincipalId }) => {}
+S 96:84 BlockStatement: function assertOwnerCredentials(value: unknown): asserts value is OwnerCredentials { => {}
+S 98:7 ConditionalExpression: if (typeof candidate?.username !== "string" || typeof candidate.password !== "string") { => false
+
+### identity/api-key-secret.ts (44 survivors/no-cov)
+by mutator: {"ConditionalExpression":26,"ObjectLiteral":2,"EqualityOperator":5,"LogicalOperator":8,"BooleanLiteral":1,"ArithmeticOperator":2}
+S 107:7 ConditionalExpression: if (separatorAt <= 0) return null; => false
+S 118:41 ObjectLiteral: scrypt(secret, salt, SCRYPT_KEYLEN, { ...params, maxmem: SCRYPT_MAXMEM }, (err, derived) = => {}
+S 107:7 EqualityOperator: if (separatorAt <= 0) return null; => separatorAt < 0
+S 134:10 ConditionalExpression: return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p); => true
+S 134:10 LogicalOperator: return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p); => Number.isInteger(N) && Number.isInteger(r) || Numb
+S 134:10 ConditionalExpression: return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p); => true
+S 134:10 LogicalOperator: return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p); => Number.isInteger(N) || Number.isInteger(r)
+S 142:7 ConditionalExpression: if (N <= 1 || r <= 0 || p <= 0) return false; => false
+S 142:7 LogicalOperator: if (N <= 1 || r <= 0 || p <= 0) return false; => (N <= 1 || r <= 0) && p <= 0
+S 142:7 ConditionalExpression: if (N <= 1 || r <= 0 || p <= 0) return false; => false
+
+### identity/user-manage-permission.ts (2 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":1}
+S 7:48 BlockStatement: _optional: Record<string, never> = {}): void { => {}
+S 8:41 ObjectLiteral: required.registry.roleGrants.register({ role: "admin", permission: "user.manage", => {}
