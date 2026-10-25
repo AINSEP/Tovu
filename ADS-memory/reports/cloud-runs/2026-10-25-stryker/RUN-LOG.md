@@ -7,3 +7,6 @@ Jini push to cloud/stryker-1025-jini refused (403: AINSEP/Jini not in session au
 
 ## 2026-10-25T15:53:34Z — PROGRESS
 Correction: the retried Jini push SUCCEEDED (cloud/stryker-1025-jini @ 9fa38851); earlier 403 was transient/before add_repo. Patch file is redundant.
+
+## 2026-10-25T17:43:21Z — PROGRESS
+Part 1 (lifecycle) done: 4508 mutants, 87.84%, 97m29s Stryker wall. Data in data/. Part 2 running.

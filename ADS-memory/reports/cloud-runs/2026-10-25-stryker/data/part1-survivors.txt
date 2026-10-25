@@ -1,0 +1,529 @@
+## src/lifecycle/automatic-use.ts survivors 29 {"Regex":2,"MethodExpression":3,"EqualityOperator":2,"ArithmeticOperator":2,"OptionalChaining":1,"LogicalOperator":1,"ConditionalExpression":11,"ArrowFunction":1,"ObjectLiteral":3,"ArrayDeclaration":2,"BooleanLiteral":1}
+ 22:87 Regex -> /\s/g | return { id: plugin.pluginId, name: (plugin.displayName ?? plugin.pluginId).replace(/\s+/g, ' '),
+ 23:10 MethodExpression -> (plugin.summary ?? plugin.description ?? `Provides | why: (plugin.summary ?? plugin.description ?? `Provides ${(plugin.provides ?? plugin.keywords).join(', ')}`).s
+ 23:141 Regex -> /\s/g | why: (plugin.summary ?? plugin.description ?? `Provides ${(plugin.provides ?? plugin.keywords).join(', ')}`).s
+ 41:9 EqualityOperator -> bytes(header + [...lines, line].join('\n') + more( | if (bytes(header + [...lines, line].join('\n') + more(matches.length - lines.length - 1) + footer) > 600) brea
+ 41:59 ArithmeticOperator -> matches.length - lines.length + 1 | if (bytes(header + [...lines, line].join('\n') + more(matches.length - lines.length - 1) + footer) > 600) brea
+ 41:59 ArithmeticOperator -> matches.length + lines.length | if (bytes(header + [...lines, line].join('\n') + more(matches.length - lines.length - 1) + footer) > 600) brea
+ 66:62 MethodExpression -> plugin.provides?.every(capability => capabilities. | if (capabilities) return admit(candidates.filter(plugin => plugin.provides?.some(capability => capabilities.in
+ 66:62 OptionalChaining -> plugin.provides.some | if (capabilities) return admit(candidates.filter(plugin => plugin.provides?.some(capability => capabilities.in
+ 75:7 LogicalOperator -> !value && typeof value !== 'object' | if (!value || typeof value !== 'object') return empty;
+ 75:17 ConditionalExpression -> false | if (!value || typeof value !== 'object') return empty;
+ 77:88 ConditionalExpression -> true | const ids = (raw: unknown): raw is string[] => Array.isArray(raw) && raw.every(id => typeof id === 'string' &&
+ 77:131 ConditionalExpression -> true | const ids = (raw: unknown): raw is string[] => Array.isArray(raw) && raw.every(id => typeof id === 'string' &&
+ 77:131 EqualityOperator -> id.length < 160 | const ids = (raw: unknown): raw is string[] => Array.isArray(raw) && raw.every(id => typeof id === 'string' &&
+ 104:30 ConditionalExpression -> false | if (decision === null || decision.asked === false) return matches.length ? askConsent({ matches }, { signal })
+ 110:33 ArrowFunction -> () => undefined | const offered = matches.map(plugin => describeMatch({ plugin }));
+ 112:54 MethodExpression -> answer.selected | const selected = answer.action === 'skip' ? [] : answer.selected.filter(id => matches.some(plugin => plugin.pl
+ 112:106 ConditionalExpression -> true | const selected = answer.action === 'skip' ? [] : answer.selected.filter(id => matches.some(plugin => plugin.pl
+ 122:9 ConditionalExpression -> false | if (signal?.aborted) return { status: 'cancelled', guidance: '' };
+ 137:11 ConditionalExpression -> false | if (signal?.aborted) break;
+ 138:66 ObjectLiteral -> {} | const result = await resolveOneGuidance({ plugin: match }, { signal });
+ 139:11 ConditionalExpression -> true | if (result.status === 'loaded') guidance.push(result.guidance);
+ 145:9 ConditionalExpression -> false | if (mode !== 'auto' || !delivered.size) return;
+ 147:86 ArrayDeclaration -> ["Stryker was here"] | state = { ...state, decision: { selected: [...new Set([...(decision?.selected ?? []), ...delivered.keys()])], 
+ 147:141 BooleanLiteral -> true | state = { ...state, decision: { selected: [...new Set([...(decision?.selected ?? []), ...delivered.keys()])], 
+ 153:46 ConditionalExpression -> true | if (publishedSize === delivered.size || (delivered.size === 0 && state.decision === null)) return;
+ 166:38 ArrayDeclaration -> ["Stryker was here"] | for (const id of input.loaded ?? []) alreadyLoaded.add(id);
+ 184:9 ConditionalExpression -> false | if (signal?.aborted) return { status: 'cancelled', guidance: '' };
+ 190:80 ObjectLiteral -> {} | const matches = await applyConsent({ matches: [{ ...plugin, score: 4 }] }, { signal });
+ 195:57 ObjectLiteral -> {} | const result = await resolveOneGuidance({ plugin }, { signal });
+ NOCOV lines 122
+## src/lifecycle/tools/capabilities.ts survivors 26 {"ConditionalExpression":6,"EqualityOperator":3,"MethodExpression":1,"BlockStatement":3,"ArrayDeclaration":1,"ObjectLiteral":6,"ArrowFunction":4,"LogicalOperator":1,"Regex":1}
+ 106:7 ConditionalExpression -> false | if (issued.size > ISSUED_TOKEN_MEMORY_LIMIT) issued.delete(issued.values().next().value!);
+ 106:7 EqualityOperator -> issued.size >= ISSUED_TOKEN_MEMORY_LIMIT | if (issued.size > ISSUED_TOKEN_MEMORY_LIMIT) issued.delete(issued.values().next().value!);
+ 111:73 MethodExpression -> JSON.stringify(token) | for (const token of issued) if (text.includes(token) || text.includes(JSON.stringify(token).slice(1, -1))) ret
+ 141:11 BlockStatement -> {} | } catch {
+ 169:36 ConditionalExpression -> false | if (typeof value !== 'object' || value === null || seen.has(value)) return [];
+ 169:78 ArrayDeclaration -> ["Stryker was here"] | if (typeof value !== 'object' || value === null || seen.has(value)) return [];
+ 171:11 EqualityOperator -> seen.size >= ERROR_SCAN_NODE_LIMIT | return (seen.size > ERROR_SCAN_NODE_LIMIT ? null : childrenOf(value)) ?? true;
+ 231:72 BlockStatement -> {} | ): Pick<AgentPluginToolCapabilities, 'http' | 'limiter' | 'artifacts'> {
+ 234:10 ObjectLiteral -> {} | return {
+ 235:25 ObjectLiteral -> {} | http: Object.freeze({ fetch: guard((input: { readonly url: string }, options?: AgentPluginHttpOptions) => host
+ 235:40 ArrowFunction -> () => undefined | http: Object.freeze({ fetch: guard((input: { readonly url: string }, options?: AgentPluginHttpOptions) => host
+ 236:28 ObjectLiteral -> {} | limiter: Object.freeze({ check: guard((input: { readonly key: string }) => host.limiter.check(input)) }),
+ 236:43 ArrowFunction -> () => undefined | limiter: Object.freeze({ check: guard((input: { readonly key: string }) => host.limiter.check(input)) }),
+ 237:9 ConditionalExpression -> true | ...(artifacts !== undefined && { artifacts: Object.freeze({ write: guard((input: ArtifactWriteInput) => artifa
+ 237:9 ConditionalExpression -> false | ...(artifacts !== undefined && { artifacts: Object.freeze({ write: guard((input: ArtifactWriteInput) => artifa
+ 237:9 LogicalOperator -> artifacts !== undefined || {   artifacts: Object.f | ...(artifacts !== undefined && { artifacts: Object.freeze({ write: guard((input: ArtifactWriteInput) => artifa
+ 237:9 ConditionalExpression -> true | ...(artifacts !== undefined && { artifacts: Object.freeze({ write: guard((input: ArtifactWriteInput) => artifa
+ 237:9 EqualityOperator -> artifacts === undefined | ...(artifacts !== undefined && { artifacts: Object.freeze({ write: guard((input: ArtifactWriteInput) => artifa
+ 244:7 ConditionalExpression -> false | if (typeof key !== 'string' || !STATE_KEY_PATTERN.test(key)) throw new Error(`A settings key must be a short n
+ 253:193 BlockStatement -> {} | export function guardStateReader(required: { readonly gate: AgentPluginCapabilityGate; readonly state: AgentPl
+ 255:24 ObjectLiteral -> {} | return Object.freeze({ get: gate.guard(({ key }: { readonly key: string }) => state.get({ key: checkedStateKey
+ 255:42 ArrowFunction -> () => undefined | return Object.freeze({ get: gate.guard(({ key }: { readonly key: string }) => state.get({ key: checkedStateKey
+ 272:67 ObjectLiteral -> {} | const capabilities: AgentPluginToolCapabilities = Object.freeze({
+ 273:32 ObjectLiteral -> {} | connections: Object.freeze({ getAccessToken: gate.guard(async (input: { readonly connectionRef: string }) =>
+ 273:61 ArrowFunction -> () => undefined | connections: Object.freeze({ getAccessToken: gate.guard(async (input: { readonly connectionRef: string }) =>
+ 65:27 Regex -> /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}/ | const STATE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+ NOCOV lines 237,255,274
+## src/lifecycle/tools/projection.ts survivors 38 {"BooleanLiteral":1,"ConditionalExpression":15,"BlockStatement":2,"MethodExpression":5,"ArrowFunction":5,"ObjectLiteral":6,"LogicalOperator":1,"ArrayDeclaration":3}
+ 83:66 BooleanLiteral -> false | const validator = new Validator(schema as Schema, '2020-12', true);
+ 93:7 ConditionalExpression -> false | if (descriptor.effect !== 'read' && typeof module.describeAffectedResources !== 'function') {
+ 112:45 BlockStatement -> {} | for (const [toolId, owners] of claimants) {
+ 113:9 ConditionalExpression -> false | if (owners.size > 1) refusals.push(`agent tool '${toolId}' was not loaded: more than one plugin declares it ($
+ 115:10 MethodExpression -> admitted | return admitted.filter(tool => claimants.get(tool.toolId)!.size === 1);
+ 115:34 ConditionalExpression -> true | return admitted.filter(tool => claimants.get(tool.toolId)!.size === 1);
+ 136:61 ConditionalExpression -> false | if (!previous || previous.tools.length !== next.length || previous.additional.length !== additional.length
+ 137:35 ArrowFunction -> () => undefined | || !previous.additional.every((tool, index) => tool === additional[index])) return false;
+ 138:10 MethodExpression -> previous.tools.some((tool, index) => tool.loaded.m | return previous.tools.every((tool, index) => tool.loaded.module === next[index]!.loaded.module
+ 149:8 MethodExpression -> value.some(item => typeof item === 'string' && ite | && value.every(item => typeof item === 'string' && item.length > 0 && item.length <= MAX_RESOURCE_LENGTH)
+ 149:28 ConditionalExpression -> true | && value.every(item => typeof item === 'string' && item.length > 0 && item.length <= MAX_RESOURCE_LENGTH)
+ 150:28 ObjectLiteral -> {} | && !scan.mentionsToken({ value });
+ 188:36 ArrowFunction -> () => undefined | ...(additionalTools ?? []).map(entry => idFor({ pluginId: entry.pluginId, name: entry.tool.name }))];
+ 190:37 BlockStatement -> {} | for (const [id, count] of counts) {
+ 191:9 ConditionalExpression -> true | if (count <= 1) continue;
+ 224:13 ConditionalExpression -> false | if (!isLive()) throw new Error(REVOKED_MESSAGE);
+ 227:15 ConditionalExpression -> false | ...(auth.principalId === undefined ? {} : { principalId: auth.principalId }), ...(signal === undefined ? {} : 
+ 227:93 ConditionalExpression -> false | ...(auth.principalId === undefined ? {} : { principalId: auth.principalId }), ...(signal === undefined ? {} : 
+ 230:103 ConditionalExpression -> false | const value = await module.invoke({ input: checked, capabilities: session.capabilities, ...(signal === undefin
+ 241:26 ConditionalExpression -> true | const isLive = () => snapshot !== undefined && registry.list({}).includes(snapshot);
+ 241:26 LogicalOperator -> snapshot !== undefined || registry.list({}).includ | const isLive = () => snapshot !== undefined && registry.list({}).includes(snapshot);
+ 241:26 ConditionalExpression -> true | const isLive = () => snapshot !== undefined && registry.list({}).includes(snapshot);
+ 242:52 ObjectLiteral -> {} | const issued = required.issuedTokens.forPlugin({ pluginId });
+ 243:80 ArrayDeclaration -> ["Stryker was here"] | snapshot = Object.freeze({ pluginId, sdk: INERT_SDK, routes: Object.freeze([]), widgets: Object.freeze([]),
+ 243:108 ArrayDeclaration -> ["Stryker was here"] | snapshot = Object.freeze({ pluginId, sdk: INERT_SDK, routes: Object.freeze([]), widgets: Object.freeze([]),
+ 244:109 ArrowFunction -> () => undefined | tools: Object.freeze([...tools.map(tool => contractTool(tool, { isLive, issued })), ...additional.map(({ tool 
+ 277:24 MethodExpression -> tools | const unique = tools.filter(tool => counts.get(tool.toolId) === 1);
+ 277:45 ConditionalExpression -> true | const unique = tools.filter(tool => counts.get(tool.toolId) === 1);
+ 278:24 MethodExpression -> additional.get(pluginId) ?? [] | const extras = (additional.get(pluginId) ?? []).filter(entry => counts.get(idFor({ pluginId, name: entry.tool.
+ 278:64 ArrowFunction -> () => undefined | const extras = (additional.get(pluginId) ?? []).filter(entry => counts.get(idFor({ pluginId, name: entry.tool.
+ 282:52 ConditionalExpression -> false | for (const pluginId of projected.keys()) if (!grouped.has(pluginId)) registry.detach({ pluginId });
+ 284:32 ArrayDeclaration -> [] | additionalById = new Map([...nextProjected.values()].flatMap(plugin => plugin.additional.map(entry => [idFor({
+ 284:100 ArrowFunction -> () => undefined | additionalById = new Map([...nextProjected.values()].flatMap(plugin => plugin.additional.map(entry => [idFor({
+ 292:11 ConditionalExpression -> false | if (extra && registry.list({}).includes(extra.snapshot)) {
+ 306:81 ObjectLiteral -> {} | const scan = openCredentialScan({ issued: required.issuedTokens.forPlugin({ pluginId: tool.loaded.pluginId }) 
+ 308:37 ObjectLiteral -> {} | try { answer = await describe({ input: checked }); } catch (error) { throw scan.sanitize({ error }); }
+ 77:64 ObjectLiteral -> {} | routes: Object.freeze({ add: refuse }), tools: Object.freeze({ add: refuse }), widgets: Object.freeze({ add: r
+ 77:105 ObjectLiteral -> {} | routes: Object.freeze({ add: refuse }), tools: Object.freeze({ add: refuse }), widgets: Object.freeze({ add: r
+ NOCOV lines 93,113,124,125,137,169,171,172,188,193,232,244,246,247,278,282,292,293,294,295,296,297,308
+## src/lifecycle/trusted-plugin-files.ts survivors 10 {"MethodExpression":1,"ArrowFunction":1,"OptionalChaining":1,"ConditionalExpression":3,"BlockStatement":3,"BooleanLiteral":1}
+ 89:47 MethodExpression -> [...preferred] | const installed = query.orderByPluginId ? [...preferred].sort((a, b) => a.pluginId.localeCompare(b.pluginId)) 
+ 89:67 ArrowFunction -> () => undefined | const installed = query.orderByPluginId ? [...preferred].sort((a, b) => a.pluginId.localeCompare(b.pluginId)) 
+ 97:46 OptionalChaining -> query.onInactive({   plugin: trusted }) | else if (refusal === "inactive") await query.onInactive?.({ plugin: trusted });
+ 116:9 ConditionalExpression -> false | if (bundledDigest !== plugin.archiveDigest) {
+ 70:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 155:82 BlockStatement -> {} | export function createTrustedPluginFilesModule(ports: AgentPluginLifecyclePorts) {
+ 157:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 157:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 157:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 157:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ NOCOV lines 116,117
+## src/lifecycle/activation.ts survivors 43 {"ConditionalExpression":17,"BooleanLiteral":4,"ObjectLiteral":5,"BlockStatement":7,"OptionalChaining":2,"EqualityOperator":2,"ArrowFunction":5,"Regex":1}
+ 125:12 ConditionalExpression -> false | (holder !== undefined ? ` — held by pid ${holder.pid} on ${holder.hostname} since ${holder.acquiredAt}` : " — 
+ 301:9 ConditionalExpression -> false | if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+ 321:141 BooleanLiteral -> true | if (error instanceof FileLockTimeoutError) return new AgentPluginActivationsBusyError({ lockPath: lockPath, ho
+ 322:88 ObjectLiteral -> {} | if (error instanceof FileLockLostError) return new AgentPluginActivationsBusyError({ lockPath: lockPath, holde
+ 322:135 BooleanLiteral -> false | if (error instanceof FileLockLostError) return new AgentPluginActivationsBusyError({ lockPath: lockPath, holde
+ 330:104 BlockStatement -> {} | function warnStaleActivationsLockRemoved(lockPath: string, holder: FileLockHolder | undefined): void {
+ 301:38 ConditionalExpression -> false | if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
+ 331:5 OptionalChaining -> ports.onEvent({   event: "stale-activation-lock-re | ports.onEvent?.({ event: "stale-activation-lock-removed", message: (
+ 331:21 ObjectLiteral -> {} | ports.onEvent?.({ event: "stale-activation-lock-removed", message: (
+ 332:7 ConditionalExpression -> false | holder !== undefined
+ 303:12 ConditionalExpression -> true | return typeof code === "string" ? code : undefined;
+ 366:9 ConditionalExpression -> false | if (!Object.hasOwn(bag, pluginId)) return false;
+ 438:41 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 462:18 ConditionalExpression -> true | updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date(0).toISOString(),
+ 463:18 ConditionalExpression -> true | updatedBy: typeof record.updatedBy === "string" ? record.updatedBy : "unknown",
+ 583:53 ObjectLiteral -> {} | throw new AgentPluginActivationsUnreadableError({ filePath: path.join(workspaceRoot, ACTIVATIONS_FILENAME), re
+ 629:34 ConditionalExpression -> true | { origin: "bundled", ...(optional.now !== undefined ? { now: optional.now } : {}) },
+ 679:16 OptionalChaining -> normalizeActivationEntry(pluginId, current[pluginI | return normalizeActivationEntry(pluginId, current[pluginId])?.enabled === true ? "already-enabled" : "left-dis
+ 685:34 ConditionalExpression -> true | { origin: "bundled", ...(required.now !== undefined ? { now: required.now } : {}) },
+ 723:11 ConditionalExpression -> false | if (!Object.hasOwn(current, pluginId)) return;
+ 733:51 EqualityOperator -> pluginId.length >= 64 | if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || pluginId.length > 64) {
+ 733:51 ConditionalExpression -> false | if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || pluginId.length > 64) {
+ 764:15 BlockStatement -> {} | } finally {
+ 765:11 ConditionalExpression -> true | if (pendingActivationWrites.get(key) === tail) pendingActivationWrites.delete(key);
+ 765:11 ConditionalExpression -> false | if (pendingActivationWrites.get(key) === tail) pendingActivationWrites.delete(key);
+ 765:11 EqualityOperator -> pendingActivationWrites.get(key) !== tail | if (pendingActivationWrites.get(key) === tail) pendingActivationWrites.delete(key);
+ 787:18 ArrowFunction -> () => undefined | token: () => ports.ids.newId(), hostname: () => ports.process.hostname({}),
+ 788:56 ObjectLiteral -> {} | sleep: ({ durationMs }) => ports.clock.sleep({ ms: durationMs }),
+ 788:18 ArrowFunction -> () => undefined | sleep: ({ durationMs }) => ports.clock.sleep({ ms: durationMs }),
+ 836:26 ObjectLiteral -> {} | await rm(tempPath, { force: true });
+ 836:35 BooleanLiteral -> false | await rm(tempPath, { force: true });
+ 789:31 ArrowFunction -> () => undefined | onStaleLockRemoved: ({ holder }) => warnStaleActivationsLockRemoved(lockPath, holder),
+ 830:17 BlockStatement -> {} | } finally {
+ 893:43 ArrowFunction -> () => undefined | assertAgentPluginActivationsWritable: (input: { readonly workspaceRoot: string }, _optional: Record<string, ne
+ 856:17 BlockStatement -> {} | } finally {
+ 175:46 BlockStatement -> {} | function buildModule(ports: ActivationPorts) {
+ 176:22 ArrowFunction -> () => undefined | const randomUUID = () => ports.ids.newId();
+ 869:64 BlockStatement -> {} | export function createActivationModule(ports: ActivationPorts) {
+ 871:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 189:34 Regex -> /^[a-z0-9]+(?:[-.][a-z0-9]+)*/ | const SAFE_PLUGIN_ID_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
+## src/lifecycle/bundled-digests.ts survivors 30 {"BlockStatement":7,"ConditionalExpression":15,"LogicalOperator":3,"ArrowFunction":1,"Regex":3,"BooleanLiteral":1}
+ 125:13 BlockStatement -> {} | } catch {
+ 118:13 BlockStatement -> {} | } catch {
+ 144:11 ConditionalExpression -> false | if (!isPlainObject(entry)) continue;
+ 146:11 ConditionalExpression -> false | if (typeof archiveDigest !== "string" || !SHA256_DIGEST_PATTERN.test(archiveDigest)) continue;
+ 185:11 ConditionalExpression -> false | if (archiveDigest === undefined) merged.delete(pluginId);
+ 207:11 ConditionalExpression -> false | if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || !SHA256_DIGEST_PATTERN.test(archiveDigest)) continue;
+ 207:11 LogicalOperator -> !SAFE_PLUGIN_ID_PATTERN.test(pluginId) && !SHA256_ | if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || !SHA256_DIGEST_PATTERN.test(archiveDigest)) continue;
+ 208:37 ConditionalExpression -> true | if (thisBoot.has(pluginId) && thisBoot.get(pluginId) !== archiveDigest) thisBoot.set(pluginId, undefined);
+ 234:13 BlockStatement -> {} | } catch {
+ 294:9 ConditionalExpression -> false | if (supersededIds.size === 0) return installed;
+ 259:17 BlockStatement -> {} | } finally {
+ 291:9 ConditionalExpression -> false | if (bundled.size === 0) return installed;
+ 320:11 ConditionalExpression -> true | if (bundledDigest !== undefined && digests.has(bundledDigest)) narrowable.add(pluginId);
+ 318:11 ConditionalExpression -> false | if (digests.size < 2) continue;
+ 331:12 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 331:12 LogicalOperator -> typeof value === "object" && value !== null || !Ar | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 331:12 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 331:12 LogicalOperator -> typeof value === "object" || value !== null | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 331:12 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 331:41 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 91:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 96:22 ArrowFunction -> () => undefined | const randomUUID = () => ports.ids.newId();
+ 97:33 Regex -> /[a-f0-9]{64}$/ | const SHA256_DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 97:33 Regex -> /^[a-f0-9]{64}/ | const SHA256_DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 99:34 Regex -> /^[a-z0-9]+(?:[-.][a-z0-9]+)*/ | const SAFE_PLUGIN_ID_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
+ 339:78 BlockStatement -> {} | export function createBundledDigestsModule(ports: AgentPluginLifecyclePorts) {
+ 341:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/bundled-source-archive.ts survivors 12 {"MethodExpression":1,"EqualityOperator":2,"ConditionalExpression":3,"Regex":2,"BlockStatement":3,"BooleanLiteral":1}
+ 82:27 MethodExpression -> await listRegularFiles(sourceDir, "") | const relativePaths = (await listRegularFiles(sourceDir, "")).sort();
+ 83:9 EqualityOperator -> relativePaths.length >= MAX_SOURCE_FILES | if (relativePaths.length > MAX_SOURCE_FILES) {
+ 125:9 ConditionalExpression -> false | if (buffer.byteLength < magic.byteLength || !buffer.subarray(0, magic.byteLength).equals(magic)) {
+ 125:9 EqualityOperator -> buffer.byteLength <= magic.byteLength | if (buffer.byteLength < magic.byteLength || !buffer.subarray(0, magic.byteLength).equals(magic)) {
+ 135:21 Regex -> /F (\d+) (\d+)$/ | const match = /^F (\d+) (\d+)$/.exec(header);
+ 135:21 Regex -> /^F (\d+) (\d+)/ | const match = /^F (\d+) (\d+)$/.exec(header);
+ 60:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 193:84 BlockStatement -> {} | export function createBundledSourceArchiveModule(ports: AgentPluginLifecyclePorts) {
+ 195:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 195:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 195:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 195:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/capability-projection.ts survivors 10 {"ObjectLiteral":1,"BlockStatement":6,"BooleanLiteral":1,"ConditionalExpression":2}
+ 13:171 ObjectLiteral -> {} | const parseAgentPluginMcpConfig = (value: unknown, pluginManifest?: unknown) => parseAgentPluginMcpConfigValue
+ 43:13 BlockStatement -> {} | } catch {
+ 50:13 BlockStatement -> {} | } catch {
+ 55:9 BlockStatement -> {} | try {
+ 11:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 80:84 BlockStatement -> {} | export function createCapabilityProjectionModule(ports: AgentPluginLifecyclePorts) {
+ 82:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 82:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 82:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 82:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/compatibility-metadata.ts survivors 0 {}
+## src/lifecycle/compatibility.ts survivors 3 {"ArrayDeclaration":3}
+ 38:55 ArrayDeclaration -> ["Stryker was here"] | return plugins.flatMap(plugin => plugin.provides ?? []);
+ 60:44 ArrayDeclaration -> ["Stryker was here"] | return [...new Set(dependent.requires ?? [])].filter(id => removed.has(id) && !available.has(id));
+ 72:47 ArrayDeclaration -> ["Stryker was here"] | const removed = new Set((plugin.provides ?? []).filter(id => !nextProvides.includes(id)));
+## src/lifecycle/contribution-loader.ts survivors 1 {"BooleanLiteral":1}
+ 79:45 BooleanLiteral -> false | const { packageRefusal, requireActive = true, ...discovery } = options;
+## src/lifecycle/exports.ts survivors 2 {"ConditionalExpression":2}
+ 51:10 ConditionalExpression -> true | return typeof value === 'string' && validatePluginIdentity({ manifest: { extensions: { export: { id: value } }
+ 76:59 ConditionalExpression -> true | if (!checkMap({ value: entry.hostLinks, valid: value => typeof value === 'string' && provides.includes(value) 
+## src/lifecycle/fetch-archive.ts survivors 14 {"LogicalOperator":4,"ConditionalExpression":5,"ObjectLiteral":2,"EqualityOperator":2,"AssignmentOperator":1}
+ 184:9 LogicalOperator -> error instanceof AgentPluginFetchError || error.co | if (error instanceof AgentPluginFetchError && error.code === "ARCHIVE_TOO_LARGE") {
+ 184:51 ConditionalExpression -> true | if (error instanceof AgentPluginFetchError && error.code === "ARCHIVE_TOO_LARGE") {
+ 187:141 ObjectLiteral -> {} | throw new AgentPluginFetchError({ code: "REQUEST_FAILED", message: `could not read '${diagnosticUrl}': archive
+ 206:94 ObjectLiteral -> {} | throw new AgentPluginFetchError({ code: "UNSUPPORTED_URL", message: `'${redactArchiveUrl({ value })}' is not a
+ 221:36 EqualityOperator -> declared >= maxBytes | if (Number.isFinite(declared) && declared > maxBytes) {
+ 219:7 ConditionalExpression -> false | if (header === null) return;
+ 248:11 EqualityOperator -> total >= maxBytes | if (total > maxBytes) {
+ 262:5 AssignmentOperator -> offset -= chunk.byteLength | offset += chunk.byteLength;
+ 279:7 LogicalOperator -> !parsed.username && !parsed.password && !parsed.se | if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+ 279:7 ConditionalExpression -> true | if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+ 279:7 LogicalOperator -> !parsed.username && !parsed.password || !parsed.se | if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+ 279:7 ConditionalExpression -> true | if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+ 279:7 LogicalOperator -> !parsed.username || !parsed.password | if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+ 299:9 ConditionalExpression -> false | if (!location) throw new Error('Archive redirect has no Location header');
+## src/lifecycle/index.ts survivors 2 {"MethodExpression":1,"ArrowFunction":1}
+ 62:39 MethodExpression -> context.extensionNamespace | if (!context.productName.trim() || !context.extensionNamespace.trim() || !context.bundledArchiveMagic) {
+ 108:43 ArrowFunction -> () => undefined | assertAgentPluginActivationsWritable: (input: { readonly workspaceRoot: string }) => activation.assertAgentPlu
+## src/lifecycle/install-errors.ts survivors 0 {}
+## src/lifecycle/install-from-url.ts survivors 0 {}
+## src/lifecycle/install.ts survivors 43 {"OptionalChaining":3,"ConditionalExpression":15,"EqualityOperator":7,"BlockStatement":5,"LogicalOperator":3,"ObjectLiteral":5,"BooleanLiteral":3,"Regex":2}
+ 200:9 OptionalChaining -> ports.onEvent({   event: 'agent-plugin-identity-wa | ports.onEvent?.({ event: 'agent-plugin-identity-warning', message: `Plugin '${root.localId}': installed identi
+ 205:94 ConditionalExpression -> true | installed: [{ ...identity, localId: root.localId, family: 'agent-plugin', version: typeof raw.version === 'str
+ 205:94 ConditionalExpression -> false | installed: [{ ...identity, localId: root.localId, family: 'agent-plugin', version: typeof raw.version === 'str
+ 229:11 OptionalChaining -> ports.onEvent({   event: 'agent-plugin-revision-pr | ports.onEvent?.({ event: 'agent-plugin-revision-prune-warning', message: `Plugin '${installed.pluginId}': a su
+ 233:7 OptionalChaining -> ports.onEvent({   event: 'agent-plugin-revision-pr | ports.onEvent?.({ event: 'agent-plugin-revision-prune-warning', message: `Plugin '${installed.pluginId}': supe
+ 205:94 EqualityOperator -> typeof raw.version !== 'string' | installed: [{ ...identity, localId: root.localId, family: 'agent-plugin', version: typeof raw.version === 'str
+ 358:76 BlockStatement -> {} | function symlinkRejectionMessage(entry: AgentPluginArchiveEntry): string {
+ 359:26 ConditionalExpression -> true | const targetSuffix = "linkTarget" in entry && entry.linkTarget ? ` (target '${entry.linkTarget}')` : "";
+ 359:26 ConditionalExpression -> false | const targetSuffix = "linkTarget" in entry && entry.linkTarget ? ` (target '${entry.linkTarget}')` : "";
+ 359:26 LogicalOperator -> "linkTarget" in entry || entry.linkTarget | const targetSuffix = "linkTarget" in entry && entry.linkTarget ? ` (target '${entry.linkTarget}')` : "";
+ 368:21 BlockStatement -> {} | } catch (error) {
+ 369:129 ObjectLiteral -> {} | throw new AgentPluginInstallError({ code: "UNSAFE_ENTRY_PATH", message: `archive entry path is unsafe: '${entr
+ 205:157 BooleanLiteral -> true | installed: [{ ...identity, localId: root.localId, family: 'agent-plugin', version: typeof raw.version === 'str
+ 556:67 ConditionalExpression -> true | if (!isErrnoException(error) || (error.code !== "EEXIST" && error.code !== "ENOTEMPTY" && error.code !== "EACC
+ 556:97 ConditionalExpression -> true | if (!isErrnoException(error) || (error.code !== "EEXIST" && error.code !== "ENOTEMPTY" && error.code !== "EACC
+ 559:11 ConditionalExpression -> true | if (!(await isRealDirectory(finalRoot))) {
+ 557:141 ObjectLiteral -> {} | throw new AgentPluginInstallError({ code: "PUBLISH_FAILED", message: `failed to publish the extracted package 
+ 560:152 ObjectLiteral -> {} | throw new AgentPluginInstallError({ code: "PUBLISH_FAILED", message: `'${finalRoot}' exists but is not a real,
+ 162:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 173:45 ObjectLiteral -> {} | const index = createInstalledPackageIndex({ ports });
+ 245:30 Regex -> /[a-f0-9]{64}$/ | const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
+ 245:30 Regex -> /^[a-f0-9]{64}/ | const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
+ 272:9 EqualityOperator -> archive.byteLength >= LIMITS.maxArchiveBytes | if (archive.byteLength > LIMITS.maxArchiveBytes) {
+ 287:33 ObjectLiteral -> {} | await mkdir(extractionRoot, { mode: 0o700 });
+ 351:59 BooleanLiteral -> false | await rm(transactionRoot, { recursive: true, force: true });
+ 420:9 EqualityOperator -> (entry.declaredSize ?? 0) >= LIMITS.maxFileBytes | if ((entry.declaredSize ?? 0) > LIMITS.maxFileBytes) {
+ 449:11 EqualityOperator -> entryCount >= LIMITS.maxEntries | if (entryCount > LIMITS.maxEntries) throw tooManyEntriesError();
+ 472:11 EqualityOperator -> entryCount >= LIMITS.maxEntries | if (entryCount > LIMITS.maxEntries) throw tooManyEntriesError();
+ 493:9 ConditionalExpression -> true | if (ports.process.platform !== "win32") flags |= constants.O_NOFOLLOW;
+ 493:9 ConditionalExpression -> false | if (ports.process.platform !== "win32") flags |= constants.O_NOFOLLOW;
+ 493:9 EqualityOperator -> ports.process.platform === "win32" | if (ports.process.platform !== "win32") flags |= constants.O_NOFOLLOW;
+ 507:13 EqualityOperator -> totalBytes >= LIMITS.maxTotalExtractedBytes | if (totalBytes > LIMITS.maxTotalExtractedBytes) {
+ 582:12 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error;
+ 582:12 LogicalOperator -> typeof error === "object" && error !== null || "co | return typeof error === "object" && error !== null && "code" in error;
+ 582:12 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error;
+ 582:12 LogicalOperator -> typeof error === "object" || error !== null | return typeof error === "object" && error !== null && "code" in error;
+ 582:12 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error;
+ 582:41 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error;
+ 590:71 BlockStatement -> {} | export function createInstallModule(ports: AgentPluginLifecyclePorts) {
+ 592:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/installed-package-index.ts survivors 14 {"LogicalOperator":2,"ConditionalExpression":6,"BlockStatement":1,"Regex":2,"MethodExpression":2,"ArrowFunction":1}
+ 42:11 LogicalOperator -> typeof error === "object" && error !== null || "co | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 42:11 ConditionalExpression -> true | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 42:11 ConditionalExpression -> true | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 42:11 LogicalOperator -> typeof error === "object" || error !== null | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 42:11 ConditionalExpression -> true | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 42:40 ConditionalExpression -> true | if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+ 17:141 BlockStatement -> {} | export function createInstalledPackageIndex(required: { readonly ports: AgentPluginLifecyclePorts }, _optional
+ 81:36 Regex -> /skills\/([^/]+)\/SKILL\.md$/ | const match = relative.match(/^skills\/([^/]+)\/SKILL\.md$/);
+ 81:36 Regex -> /^skills\/([^/]+)\/SKILL\.md/ | const match = relative.match(/^skills\/([^/]+)\/SKILL\.md$/);
+ 84:21 MethodExpression -> files | return { files: files.sort(), skills: skills.sort((a, b) => a.name.localeCompare(b.name)) };
+ 84:43 MethodExpression -> skills | return { files: files.sort(), skills: skills.sort((a, b) => a.name.localeCompare(b.name)) };
+ 84:55 ArrowFunction -> () => undefined | return { files: files.sort(), skills: skills.sort((a, b) => a.name.localeCompare(b.name)) };
+ 134:11 ConditionalExpression -> true | ...(parsed.manifest.author !== undefined ? { author: parsed.manifest.author } : {}),
+ 135:11 ConditionalExpression -> true | ...(parsed.manifest.license !== undefined ? { license: parsed.manifest.license } : {}),
+## src/lifecycle/installed-package-roots.ts survivors 10 {"ConditionalExpression":4,"LogicalOperator":2,"Regex":3,"EqualityOperator":1}
+ 71:10 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 71:10 LogicalOperator -> typeof error === "object" && error !== null || "co | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 71:10 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 71:10 LogicalOperator -> typeof error === "object" || error !== null | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 71:10 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 71:39 ConditionalExpression -> true | return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code ==
+ 8:48 Regex -> /[a-f0-9]{64}$/ | export const INSTALLED_PLUGIN_DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 8:48 Regex -> /^[a-f0-9]{64}/ | export const INSTALLED_PLUGIN_DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 34:35 Regex -> /^[a-z0-9]+(?:[-.][a-z0-9]+)*/ | if (!folder.isDirectory() || !/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(folder.name) || folder.name.length > 64) co
+ 34:88 EqualityOperator -> folder.name.length >= 64 | if (!folder.isDirectory() || !/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(folder.name) || folder.name.length > 64) co
+## src/lifecycle/layout.ts survivors 2 {"Regex":1,"EqualityOperator":1}
+ 48:8 Regex -> /^[a-z0-9]+(?:[-.][a-z0-9]+)*/ | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(value) || value.length > 64) {
+ 48:55 EqualityOperator -> value.length >= 64 | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(value) || value.length > 64) {
+## src/lifecycle/manifest.ts survivors 21 {"MethodExpression":2,"ConditionalExpression":7,"EqualityOperator":3,"BlockStatement":1,"ArrayDeclaration":1,"Regex":7}
+ 386:33 MethodExpression -> Object.values(value).some(entry => typeof entry == | return isJsonObject(value) && Object.values(value).every((entry) => typeof entry === "string");
+ 437:7 ConditionalExpression -> false | if (!isJsonObject(value)) return null;
+ 442:35 ConditionalExpression -> true | if (allow === undefined) return value.read !== undefined && write.length === 0 ? { write, read } : null;
+ 450:36 EqualityOperator -> value.length >= MAX_TOKEN_AUTH_URL_LENGTH | if (typeof value !== "string" || value.length > MAX_TOKEN_AUTH_URL_LENGTH) return false;
+ 453:11 BlockStatement -> {} | } catch {
+ 465:10 ConditionalExpression -> true | return typeof value === "string" && ENV_VAR_NAME_PATTERN.test(value);
+ 469:34 EqualityOperator -> value.length < MAX_RETIRED_ENV | return Array.isArray(value) && value.length <= MAX_RETIRED_ENV && value.every(isEnvVarName) ? value : null;
+ 483:7 EqualityOperator -> entries.length >= MAX_DEFAULT_TOOLS | if (entries.length > MAX_DEFAULT_TOOLS) return null;
+ 485:99 ConditionalExpression -> true | ([from, to]) => DEFAULT_TOOL_NAME_PATTERN.test(from) && DEFAULT_TOOL_NAME_PATTERN.test(to) && from !== to && !
+ 588:57 ArrayDeclaration -> [] | if (!isJsonObject(value)) return { ok: false, errors: ["mcp.json must be a JSON object"] };
+ 588:7 ConditionalExpression -> false | if (!isJsonObject(value)) return { ok: false, errors: ["mcp.json must be a JSON object"] };
+ 84:28 Regex -> /https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d | const SCHEMA_URL_PATTERN = /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d+\.\d+)\/(plugin|mcp)\.schema\.j
+ 84:28 Regex -> /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\ | const SCHEMA_URL_PATTERN = /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d+\.\d+)\/(plugin|mcp)\.schema\.j
+ 84:28 Regex -> /^https:\/\/agent-plugins\.org\/schemas\/((\d)\.\d | const SCHEMA_URL_PATTERN = /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d+\.\d+)\/(plugin|mcp)\.schema\.j
+ 84:28 Regex -> /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\ | const SCHEMA_URL_PATTERN = /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d+\.\d+)\/(plugin|mcp)\.schema\.j
+ 84:28 Regex -> /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\ | const SCHEMA_URL_PATTERN = /^https:\/\/agent-plugins\.org\/schemas\/((\d+)\.\d+\.\d+)\/(plugin|mcp)\.schema\.j
+ 100:17 ConditionalExpression -> true | const match = typeof value === "string" ? SCHEMA_URL_PATTERN.exec(value) : null;
+ 162:39 ConditionalExpression -> true | return typeof value === "object" && value !== null && !Array.isArray(value);
+ 461:30 Regex -> /[A-Z][A-Z0-9_]{0,127}$/ | const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]{0,127}$/;
+ 461:30 Regex -> /^[A-Z][A-Z0-9_]{0,127}/ | const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]{0,127}$/;
+ 611:8 MethodExpression -> required.namespace | if (!required.namespace.trim()) throw new Error('An extension namespace is required');
+## src/lifecycle/node.ts survivors 8 {"ConditionalExpression":4,"LogicalOperator":3,"ArrowFunction":1}
+ 30:34 ConditionalExpression -> true | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 30:34 LogicalOperator -> typeof error === 'object' && error !== null || 'co | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 30:34 ConditionalExpression -> true | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 30:34 LogicalOperator -> typeof error === 'object' || error !== null | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 30:34 ConditionalExpression -> true | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 30:63 ConditionalExpression -> true | catch (error) { return !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESR
+ 16:17 LogicalOperator -> optional.filesystem && nativeFilesystem | filesystem: optional.filesystem ?? nativeFilesystem,
+ 20:14 ArrowFunction -> () => undefined | sleep: ({ ms }) => setTimeout(ms),
+## src/lifecycle/package-paths.ts survivors 15 {"ObjectLiteral":3,"Regex":1,"ConditionalExpression":8,"LogicalOperator":1,"ArrayDeclaration":1,"EqualityOperator":1}
+ 48:38 ObjectLiteral -> {} | throw new PackagePathViolation({ message: `package entry path contains a NUL byte: '${rawEntryPath}'` });
+ 54:38 ObjectLiteral -> {} | throw new PackagePathViolation({ message: `package entry path must be relative: '${rawEntryPath}'` });
+ 59:38 ObjectLiteral -> {} | throw new PackagePathViolation({ message: `package entry path escapes the package root: '${rawEntryPath}'` });
+ 53:44 Regex -> /[a-zA-Z]:/ | if (path.posix.isAbsolute(portable) || /^[a-zA-Z]:/.test(portable)) {
+ 58:9 ConditionalExpression -> false | if (normalized === ".." || normalized.startsWith("../") || normalized === "." || normalized === "") {
+ 58:64 ConditionalExpression -> false | if (normalized === ".." || normalized.startsWith("../") || normalized === "." || normalized === "") {
+ 58:86 ConditionalExpression -> false | if (normalized === ".." || normalized.startsWith("../") || normalized === "." || normalized === "") {
+ 113:12 ConditionalExpression -> false | return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.s
+ 113:32 ConditionalExpression -> true | return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.s
+ 113:32 LogicalOperator -> !path.isAbsolute(relative) || relative !== ".." | return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.s
+ 113:62 ConditionalExpression -> true | return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.s
+ 121:28 ArrayDeclaration -> [] | const tail: string[] = [path.basename(candidate)];
+ 129:13 ConditionalExpression -> true | if (parent === current) return path.join(current, ...tail); // reached the filesystem root
+ 129:13 EqualityOperator -> parent !== current | if (parent === current) return path.join(current, ...tail); // reached the filesystem root
+ 143:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/persistent-state.ts survivors 10 {"ObjectLiteral":2,"BlockStatement":1,"BooleanLiteral":1,"ConditionalExpression":2,"ArrowFunction":4}
+ 17:98 ObjectLiteral -> {} | monotonicMs: () => ports.clock.monotonicMs(), sleep: ({ durationMs }) => ports.clock.sleep({ ms: durationMs })
+ 28:37 BlockStatement -> {} | parsePluginId: ({ value }) => {
+ 29:49 ObjectLiteral -> {} | const parsed = parseAgentPluginManifest({ value });
+ 30:13 BooleanLiteral -> parsed.ok | if (!parsed.ok) throw new Error(parsed.errors.join('; '));
+ 30:13 ConditionalExpression -> true | if (!parsed.ok) throw new Error(parsed.errors.join('; '));
+ 30:13 ConditionalExpression -> false | if (!parsed.ok) throw new Error(parsed.errors.join('; '));
+ 16:17 ArrowFunction -> () => undefined | hostname: () => ports.process.hostname({}), token: () => ports.ids.newId(),
+ 16:58 ArrowFunction -> () => undefined | hostname: () => ports.process.hostname({}), token: () => ports.ids.newId(),
+ 17:20 ArrowFunction -> () => undefined | monotonicMs: () => ports.clock.monotonicMs(), sleep: ({ durationMs }) => ports.clock.sleep({ ms: durationMs })
+ 17:60 ArrowFunction -> () => undefined | monotonicMs: () => ports.clock.monotonicMs(), sleep: ({ durationMs }) => ports.clock.sleep({ ms: durationMs })
+## src/lifecycle/provider-contribution.ts survivors 2 {"ConditionalExpression":2}
+ 67:9 ConditionalExpression -> false | ...(optional.importRefusalReason === undefined ? {} : { importRefusalReason: optional.importRefusalReason }),
+ 71:9 ConditionalExpression -> false | if (typeof descriptor.id !== 'string' || !PROVIDER_ID_PATTERN.test(descriptor.id)) {
+## src/lifecycle/resolve-agent-plugin-refs.ts survivors 13 {"BlockStatement":4,"ConditionalExpression":4,"ArrayDeclaration":1,"MethodExpression":2,"ObjectLiteral":1,"BooleanLiteral":1}
+ 104:70 BlockStatement -> {} | function resolveAgentPluginDeliveryMode(): AgentPluginDeliveryMode { return ports.deliveryMode; }
+ 137:9 ConditionalExpression -> false | if (pluginRefIds.length === 0) return { ok: true, promptPrefix: "" };
+ 141:32 ArrayDeclaration -> ["Stryker was here"] | const sections: string[] = [];
+ 260:23 MethodExpression -> matches.map(plugin => plugin.archiveDigest) | const digests = matches.map((plugin) => plugin.archiveDigest).sort();
+ 274:210 MethodExpression -> plugin.archiveDigest | return { ok: false, code: 'untrusted', reason: `Agent Plugin '${pluginRefId}' was not loaded: only plugins shi
+ 296:11 ConditionalExpression -> true | if (notes.length) skillMarkdown += `\n\nUser notes for this plugin (context only; permissions remain operator-
+ 92:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 98:62 ObjectLiteral -> {} | const { indexInstalledRoot } = createInstalledPackageIndex({ ports });
+ 339:86 BlockStatement -> {} | export function createResolveAgentPluginRefsModule(ports: AgentPluginLifecyclePorts) {
+ 341:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 341:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/retire-bundled.ts survivors 8 {"ConditionalExpression":4,"BlockStatement":3,"BooleanLiteral":1}
+ 194:144 ConditionalExpression -> true | ? await enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId: successorId, actor: `system:
+ 212:42 ConditionalExpression -> true | if (!allInstalled.some((plugin) => plugin.pluginId === successorId && plugin.archiveDigest === digest)) {
+ 106:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 224:77 BlockStatement -> {} | export function createRetireBundledModule(ports: AgentPluginLifecyclePorts) {
+ 226:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 226:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 226:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 226:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/search.ts survivors 16 {"MethodExpression":3,"ArrowFunction":1,"LogicalOperator":2,"ArrayDeclaration":2,"Regex":1,"ConditionalExpression":3,"BlockStatement":3,"BooleanLiteral":1}
+ 109:22 MethodExpression -> capabilities | const deployment = capabilities.filter(capability => capability.startsWith('deploy-'));
+ 110:125 MethodExpression -> capability.endsWith('credential-scheme:') | const dedicatedDeployment = deployment.length > 0 && capabilities.every(capability => capability.startsWith('d
+ 112:19 MethodExpression -> automaticTerms([candidate.pluginId, candidate.disp | const vendors = automaticTerms([candidate.pluginId, candidate.displayName ?? '', ...deployment.map(capability 
+ 112:102 ArrowFunction -> () => undefined | const vendors = automaticTerms([candidate.pluginId, candidate.displayName ?? '', ...deployment.map(capability 
+ 112:116 LogicalOperator -> capability.split(':')[1] && '' | const vendors = automaticTerms([candidate.pluginId, candidate.displayName ?? '', ...deployment.map(capability 
+ 122:46 ArrayDeclaration -> ["Stryker was here"] | const capabilities = candidate.provides ?? [];
+ 126:54 LogicalOperator -> candidate.id && '' | { terms: automaticTerms(`${candidate.pluginId} ${candidate.id ?? ''} ${candidate.displayName ?? ''}`), weight:
+ 145:14 Regex -> /\s/ | .split(/\s+/)
+ 155:65 ArrayDeclaration -> ["Stryker was here"] | { text: [...candidate.keywords, ...(candidate.provides ?? [])].join(" ").toLowerCase(), weight: KEYWORD_FIELD_
+ 202:9 ConditionalExpression -> false | if (terms.length === 0) return [];
+ 132:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 219:70 BlockStatement -> {} | export function createSearchModule(ports: AgentPluginLifecyclePorts) {
+ 221:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 221:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 221:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 221:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/seed-bundled.ts survivors 15 {"ObjectLiteral":2,"ArrayDeclaration":2,"ConditionalExpression":6,"MethodExpression":1,"BlockStatement":3,"BooleanLiteral":1}
+ 178:41 ObjectLiteral -> {} | ? await ports.migrateBeforeSeed({ layout, workspaceId }, {})
+ 191:22 ArrayDeclaration -> ["Stryker was here"] | retirements: [],
+ 204:53 ConditionalExpression -> true | return { sourceRoot, outcomes, retirements, ...(ledgerFailure !== undefined ? { ledgerFailure } : {}) };
+ 220:11 ConditionalExpression -> true | outcome.status === "seeded" ? [{ pluginId: outcome.pluginId, archiveDigest: outcome.archiveDigest }] : [],
+ 220:114 ArrayDeclaration -> ["Stryker was here"] | outcome.status === "seeded" ? [{ pluginId: outcome.pluginId, archiveDigest: outcome.archiveDigest }] : [],
+ 264:9 ObjectLiteral -> {} | { enabled: ports.seededEnabledPluginIds.has(installed.pluginId) },
+ 303:11 ConditionalExpression -> false | if (!entry.isDirectory()) continue;
+ 308:13 ConditionalExpression -> true | if (manifest.isFile()) dirs.push(entry.name);
+ 313:12 MethodExpression -> dirs | return dirs.sort();
+ 137:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 321:75 BlockStatement -> {} | export function createSeedBundledModule(ports: AgentPluginLifecyclePorts) {
+ 323:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 323:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 323:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 323:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/set-enabled.ts survivors 10 {"ArrayDeclaration":1,"MethodExpression":1,"ConditionalExpression":3,"ObjectLiteral":1,"BlockStatement":3,"BooleanLiteral":1}
+ 59:109 ArrayDeclaration -> ["Stryker was here"] | if (!input.enabled) return agentPluginDependentWarnings({ plugin, installed, activations, nextProvides: [] });
+ 63:23 MethodExpression -> installed | const revisions = installed.filter(candidate => candidate.pluginId === plugin.pluginId);
+ 63:53 ConditionalExpression -> true | const revisions = installed.filter(candidate => candidate.pluginId === plugin.pluginId);
+ 65:50 ObjectLiteral -> {} | throw new AgentPluginHostIncompatibleError({ pluginId: input.pluginId });
+ 39:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 110:74 BlockStatement -> {} | export function createSetEnabledModule(ports: AgentPluginLifecyclePorts) {
+ 112:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 112:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 112:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 112:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/skill-file-reader.ts survivors 36 {"ConditionalExpression":14,"EqualityOperator":7,"MethodExpression":3,"BooleanLiteral":1,"LogicalOperator":4,"Regex":2,"BlockStatement":2,"ArrowFunction":2,"ArithmeticOperator":1}
+ 23:7 ConditionalExpression -> false | if (stat.size > MAX_FILE_BYTES) return { refusal: TOO_LARGE };
+ 26:10 EqualityOperator -> length <= buffer.length | while (length < buffer.length) {
+ 36:7 MethodExpression -> bytes.every(byte => byte < 32 && byte !== 9 && byt | if (bytes.some(byte => (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) || byte === 127)) return { refu
+ 36:69 ConditionalExpression -> true | if (bytes.some(byte => (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) || byte === 127)) return { refu
+ 36:40 ConditionalExpression -> true | if (bytes.some(byte => (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) || byte === 127)) return { refu
+ 36:85 ConditionalExpression -> false | if (bytes.some(byte => (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) || byte === 127)) return { refu
+ 37:75 BooleanLiteral -> false | try { return { text: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes) }; }
+ 66:9 ConditionalExpression -> false | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 LogicalOperator -> (!file || file.includes("\0") || file.includes("\\ | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 ConditionalExpression -> false | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 LogicalOperator -> (!file || file.includes("\0") || file.includes("\\ | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 ConditionalExpression -> false | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 LogicalOperator -> (!file || file.includes("\0")) && file.includes("\ | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 ConditionalExpression -> false | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:9 LogicalOperator -> !file && file.includes("\0") | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 66:95 Regex -> /[a-zA-Z]:/ | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 83:13 BlockStatement -> {} | } catch {
+ 66:95 Regex -> /^[^a-zA-Z]:/ | if (!file || file.includes("\0") || file.includes("\\") || path.posix.isAbsolute(file) || /^[a-zA-Z]:/.test(fi
+ 102:78 ArrowFunction -> () => undefined | return readOpened(handle).catch(() => ({ refusal: UNREADABLE })).finally(() => handle.close().catch(() => {}))
+ 111:11 EqualityOperator -> depth >= MAX_WALK_DEPTH | if (depth > MAX_WALK_DEPTH || remaining <= 0) { incomplete = true; return; }
+ 111:37 ConditionalExpression -> false | if (depth > MAX_WALK_DEPTH || remaining <= 0) { incomplete = true; return; }
+ 111:37 EqualityOperator -> remaining < 0 | if (depth > MAX_WALK_DEPTH || remaining <= 0) { incomplete = true; return; }
+ 121:36 ConditionalExpression -> true | if (file === "SKILL.md" || !(entry.isFile() || entry.isSymbolicLink())) return;
+ 126:21 MethodExpression -> files | return { files: files.sort(), ...(incomplete ? { note: "Supporting-file inventory is incomplete: traversal lim
+ 133:14 MethodExpression -> await filesystem.readdir(directory, {   withFileTy | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:82 ArrowFunction -> () => undefined | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:92 ArithmeticOperator -> Number(a.name > b.name) + Number(a.name < b.name) | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:99 ConditionalExpression -> true | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:99 ConditionalExpression -> false | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:99 EqualityOperator -> a.name <= b.name | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:99 EqualityOperator -> a.name >= b.name | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:125 ConditionalExpression -> true | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:125 EqualityOperator -> a.name <= b.name | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 133:125 ConditionalExpression -> false | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+ 134:13 BlockStatement -> {} | } catch { return undefined; }
+ 133:125 EqualityOperator -> a.name >= b.name | return (await filesystem.readdir(directory, { withFileTypes: true })).sort((a, b) => Number(a.name > b.name) -
+## src/lifecycle/tools/definition.ts survivors 0 {}
+## src/lifecycle/tools/manifest.ts survivors 4 {"ConditionalExpression":3,"EqualityOperator":1}
+ 37:39 ConditionalExpression -> true | return typeof value === 'object' && value !== null && !Array.isArray(value);
+ 43:7 EqualityOperator -> new TextEncoder().encode(JSON.stringify(schema)).b | if (new TextEncoder().encode(JSON.stringify(schema)).byteLength > MAX_SCHEMA_BYTES) return 'inputSchema is lar
+ 55:7 ConditionalExpression -> true | if (typeof module === 'string' && module.endsWith('.mjs') && module.length <= MAX_MODULE_PATH) return undefine
+ 62:7 ConditionalExpression -> false | if (typeof name !== 'string' || !NAME_PATTERN.test(name)) return 'a tool name must be lower snake case, at mos
+## src/lifecycle/uninstall.ts survivors 18 {"ConditionalExpression":5,"BooleanLiteral":3,"MethodExpression":3,"BlockStatement":7}
+ 323:68 ConditionalExpression -> true | if ((await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === pluginId)) throw new Error(
+ 324:52 BooleanLiteral -> false | await rm(pluginRoot, { recursive: true, force: true });
+ 341:23 MethodExpression -> [...confirmedPreview.archiveDigests] | const previewed = [...confirmedPreview.archiveDigests].sort();
+ 342:26 MethodExpression -> matches.map(plugin => plugin.archiveDigest) | const installedNow = matches.map((plugin) => plugin.archiveDigest).sort();
+ 382:24 MethodExpression -> [...staged] | for (const tree of [...staged].reverse()) {
+ 473:63 BlockStatement -> {} | async function makeTreeWritable(dir: string): Promise<void> {
+ 470:46 BooleanLiteral -> false | await rm(root, { recursive: true, force: true });
+ 482:34 BlockStatement -> {} | for (const entry of entries) {
+ 484:32 BlockStatement -> {} | if (entry.isDirectory()) {
+ 484:11 ConditionalExpression -> true | if (entry.isDirectory()) {
+ 484:11 ConditionalExpression -> false | if (entry.isDirectory()) {
+ 486:14 BlockStatement -> {} | } else {
+ 188:56 BlockStatement -> {} | function buildModule(ports: AgentPluginLifecyclePorts) {
+ 497:73 BlockStatement -> {} | export function createUninstallModule(ports: AgentPluginLifecyclePorts) {
+ 499:7 BooleanLiteral -> instance | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 499:7 ConditionalExpression -> false | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 499:18 BlockStatement -> {} | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+ 499:7 ConditionalExpression -> true | if (!instance) { instance = buildModule(ports); instances.set(ports, instance); }
+## src/lifecycle/update-plan.ts survivors 2 {"ArrayDeclaration":2}
+ 19:101 ArrayDeclaration -> ["Stryker was here"] | if (installed.pluginId !== candidate.pluginId) return { action: 'id-mismatch', enabled, warnings: [] };
+ 28:75 ArrayDeclaration -> ["Stryker was here"] | if (order < 0) return { action: 'downgrade-refused', enabled, warnings: [] };
+## src/lifecycle/update-store.ts survivors 8 {"ConditionalExpression":2,"ObjectLiteral":1,"BooleanLiteral":1,"ArrayDeclaration":1,"Regex":3}
+ 47:69 ConditionalExpression -> true | return raw.fromDigest !== raw.toDigest && digests.every(digest => typeof digest === 'string' && DIGEST_PATTERN
+ 60:7 ConditionalExpression -> false | if (typeof value !== 'object' || value === null) throw invalidJournal();
+ 101:44 ObjectLiteral -> {} | await ports.filesystem.rm(journalPath, { force: true });
+ 101:53 BooleanLiteral -> false | await ports.filesystem.rm(journalPath, { force: true });
+ 130:68 ArrayDeclaration -> ["Stryker was here"] | catch (error) { if (!isMissing({ error })) throw error; return []; }
+ 32:24 Regex -> /[a-f0-9]{64}$/ | const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 32:24 Regex -> /^[a-f0-9]{64}/ | const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
+ 33:29 Regex -> /^[a-zA-Z0-9-]{1,100}/ | const TRANSACTION_PATTERN = /^[a-zA-Z0-9-]{1,100}$/;
+## src/lifecycle/update.ts survivors 13 {"ObjectLiteral":4,"ArrayDeclaration":1,"OptionalChaining":1,"BlockStatement":2,"ConditionalExpression":4,"LogicalOperator":1}
+ 139:93 ObjectLiteral -> {} | if (target.enabled && !compatibility.hostOk) throw new AgentPluginHostIncompatibleError({ pluginId: candidate.
+ 141:119 ArrayDeclaration -> ["Stryker was here"] | ...agentPluginDependentWarnings({ plugin: previous, installed, activations, nextProvides: candidate.provides ?
+ 158:62 ObjectLiteral -> {} | const settingsSnapshot = await required.snapshotSettings({ workspaceId: required.workspaceId, pluginId: previo
+ 246:7 OptionalChaining -> ports.onEvent({   event: 'agent-plugin-update-reco | ports.onEvent?.({ event: 'agent-plugin-update-recovered-disabled', message: `Plugin '${journal.pluginId}': the
+ 226:68 ObjectLiteral -> {} | pluginId: journal.pluginId, enabled, actor: journal.actor }, { origin: 'operator-installed' });
+ 279:13 BlockStatement -> {} | } catch { return false; }
+ 263:9 ConditionalExpression -> true | if (await store.realDirectoryExists({ root: candidateRoot })) await removal.removeFrozenPackageTree(candidateR
+ 313:11 BlockStatement -> {} | catch { return false; }
+ 333:129 ObjectLiteral -> {} | await activation.setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: 'system:update-rec
+ 340:12 ConditionalExpression -> true | return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown error';
+ 340:12 LogicalOperator -> typeof error === 'object' || error !== null | return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown error';
+ 340:12 ConditionalExpression -> true | return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown error';
+ 340:41 ConditionalExpression -> true | return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown error';
+## src/lifecycle/yauzl-archive-reader.ts survivors 4 {"ConditionalExpression":3,"LogicalOperator":1}
+ 95:13 ConditionalExpression -> true | if (unixMode !== null && (unixMode & S_IFMT) === S_IFLNK) {
+ 111:23 ConditionalExpression -> true | executable: unixMode !== null && (unixMode & EXECUTABLE_MODE_MASK) !== 0,
+ 111:23 LogicalOperator -> unixMode !== null || (unixMode & EXECUTABLE_MODE_M | executable: unixMode !== null && (unixMode & EXECUTABLE_MODE_MASK) !== 0,
+ 111:44 ConditionalExpression -> true | executable: unixMode !== null && (unixMode & EXECUTABLE_MODE_MASK) !== 0,
+## src/lifecycle/mcp-provisioning.ts survivors 0 {}
