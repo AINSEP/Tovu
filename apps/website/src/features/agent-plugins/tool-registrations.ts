@@ -1,4 +1,4 @@
-import { describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
+import { projectAgentPluginSearchPage, describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
@@ -781,10 +781,9 @@ const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
   "skills and an optional mcp.json) under this site's own agent-plugins directory. This is a DIFFERENT " +
   "system from plugins_list, which lists the separate .tovu-plugin site/runtime plugin family — use this " +
   "one to find an Agent Plugin, not a site plugin. Empty, omitted or whitespace query lists all installed " +
-  "Agent Plugins in plugin-id order, including enabled status. Nonblank queries return ranked matches: id, version, description, " +
-  "keywords, whether it is currently enabled for this workspace (plugins_set_enabled with family " +
-  "'agent-plugin' changes that), and what it " +
-  "contributes (its skills, and any MCP server ids it declares — ids only, never connection details). " +
+  "Agent Plugins in plugin-id order, including enabled status. Nonblank queries return ranked matches. " +
+  "Results are byte-bounded: id, pluginId, enabled, maturity when declared, and a short description. " +
+  "plugins_set_enabled with family 'agent-plugin' changes enabled status. " +
   "Local installed packages only — never a marketplace or the web. Once you have the right id, call " +
   "load_agent_plugin({ pluginId }) for that plugin's full guidance. Page with the returned nextOffset as offset, keeping query and limit unchanged.";
 
@@ -953,29 +952,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
       const { offset, limit } = readAgentPluginSearchWindow({ input });
       const candidates = await loadAgentPluginSearchCandidates(routeDeps);
       const ranked = selectAgentPluginSearchCandidates({ query, candidates });
-      const matches = ranked.slice(offset, offset + limit);
-
-      return {
-        matches: matches.map((match) => ({
-          pluginId: match.pluginId,
-          ...(match.maturity ? { maturity: match.maturity } : {}),
-          version: match.version ?? null,
-          description: match.description ?? null,
-          id: match.id ?? `unknown/${match.pluginId}`,
-          provides: match.provides ?? [],
-          keywords: match.keywords,
-          enabled: match.enabled,
-          skills: match.skills,
-          mcpServers: match.mcpServerIds,
-          score: match.score,
-        })),
-        // Lets a zero-`matches` response distinguish "nothing is installed at all" from "N plugins
-        // are installed but none matched this query" — the model needs that distinction to decide
-        // whether to suggest installing something new versus rephrasing the search.
-        totalInstalled: candidates.length,
-        totalMatches: ranked.length,
-        nextOffset: offset + matches.length < ranked.length ? offset + matches.length : null,
-      };
+      return projectAgentPluginSearchPage({ candidates: ranked, offset, limit, totalInstalled: candidates.length });
     },
   };
 

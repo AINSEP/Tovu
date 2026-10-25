@@ -87,7 +87,7 @@ test("L131: live response projection preserves status edges, headers, cookie sha
   }
   const emptyRedirect = liveFixture([{ status: 302, headers: { location: "" }, bodyText: "" }]);
   assert.equal((await fetchLiveUrl(emptyRedirect.deps, { path: "/" })).location, undefined);
-  assert.equal(emptyRedirect.calls[0]!.maxResponseBytes, 200_000);
+  assert.equal(emptyRedirect.calls[0]!.maxResponseBytes, 20_000);
   for (const options of [{ textOnly: true }, { find: "x" }]) {
     const f = liveFixture([{ status: 200, headers: {}, bodyText: "x", bodyTruncated: true }]);
     assert.equal((await fetchLiveUrl(f.deps, { path: "/", ...options })).truncated, true);

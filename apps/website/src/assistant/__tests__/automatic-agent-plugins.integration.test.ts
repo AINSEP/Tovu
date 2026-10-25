@@ -458,11 +458,11 @@ test('a failing guidance preparation is logged without detail and yields no guid
   f.runs.forget({ runId: 'broken' });
 });
 
-test('load_agent_plugin refuses any input key other than pluginId', async t => {
+test('load_agent_plugin refuses unknown input keys', async t => {
   const f = await fixture(t);
   await f.runs.start({ runId: 'strict', context: f.context });
   await assert.rejects(f.runs.loadRegistration.handler({ executionId: 'x', principal: f.context.principal, run: { id: 'strict' }, input: { pluginId: f.pluginId, extra: true }, signal: f.context.signal }),
-    { name: 'ToolInputError', message: 'Only pluginId is accepted' });
+    { name: 'ToolInputError', message: 'Only pluginId, skill and file are accepted' });
   f.runs.forget({ runId: 'strict' });
 });
 
@@ -478,4 +478,28 @@ test('a disposed Ask turn publishes nothing after its pending question is aborte
   f.runs.forget({ runId: 'asked' });
   await started.catch(() => '');
   assert.deepEqual(f.published, []);
+});
+
+
+test('load_agent_plugin reads a supporting file after load without any per-plugin registration', async t => {
+  const f = await fixture(t);
+  const skillRoot = path.join(f.workspace.pluginPackagesDir({ pluginId: f.pluginId }), 'a'.repeat(64), 'skills', f.pluginId);
+  await mkdir(path.join(skillRoot, 'references'), { recursive: true });
+  await writeFile(path.join(skillRoot, 'references', 'permissions.md'), 'Read-only permission reference.');
+  await f.runs.start({ runId: 'supporting', context: f.context });
+  t.after(() => f.runs.forget({ runId: 'supporting' }));
+  const registry = createToolRegistry({});
+  registry.register(f.runs.loadRegistration);
+  const executor = createToolExecutor({ registry });
+  const call = { principal: f.context.principal, run: { id: 'supporting' }, toolId: 'load_agent_plugin' };
+  const first = await executor.execute({ ...call, input: { pluginId: f.pluginId } });
+  assert.equal(first.status, 'completed');
+  assert.equal((first.output as { status: string }).status, 'loaded');
+  const reference = await executor.execute({ ...call, input: { pluginId: f.pluginId, skill: f.pluginId, file: 'references/permissions.md' } });
+  assert.equal(reference.status, 'completed');
+  const result = reference.output as { status: string; guidance: string };
+  assert.equal(result.status, 'loaded');
+  assert.match(result.guidance, /Read-only permission reference/);
+  assert.doesNotMatch(result.guidance, /agent_plugin_synthetic_author/);
+  assert.equal(f.published.length, 1);
 });

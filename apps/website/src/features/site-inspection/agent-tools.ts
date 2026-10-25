@@ -1,6 +1,6 @@
 import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
-import { MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
+import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
 import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
 
 /**
@@ -121,7 +121,7 @@ export const FETCH_PUBLISHED_PAGE_INPUT_SCHEMA = {
       type: "integer",
       minimum: 1,
       maximum: MAX_MAX_BODY_BYTES,
-      description: `Body bytes to return before truncating. Hard maximum ${MAX_MAX_BODY_BYTES}. The response reports 'truncated' when the cap stopped the read.`,
+      description: `Body bytes to return before truncating. Default ${DEFAULT_MAX_BODY_BYTES}; hard maximum ${MAX_MAX_BODY_BYTES}. The response reports 'truncated' when the cap stopped the read.`,
     },
   },
 } as const;
