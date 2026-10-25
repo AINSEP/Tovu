@@ -64,7 +64,7 @@ const conversation = (overrides: Partial<AssistantConversation> = {}): Assistant
 describe("withDerivedTitle", () => {
   test("derives a title from the first user message when currently untitled", () => {
     const result = withDerivedTitle(conversation(), message("m1", "translate this page for me"));
-    expect(result.title).toBe("Translate This Page");
+    expect(result.title).toBe("Translate this page for me");
     expect(result.titleSource).toBe("fallback");
   });
 

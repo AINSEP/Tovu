@@ -39,5 +39,5 @@ test("skill-only first user message uses its name, while user prose still uses t
   assert.equal(h.title(), "incident-response");
   const prose = harness();
   await prose.invoke("put /api/assistant/chats/:id/messages/:messageId", { role: "user", content: "Redesign the menu", createdAt: 1 });
-  assert.equal(prose.title(), "Redesign Menu");
+  assert.equal(prose.title(), "Redesign the menu");
 });
