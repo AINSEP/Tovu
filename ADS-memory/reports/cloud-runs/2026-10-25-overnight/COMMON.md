@@ -7,3 +7,4 @@
 - Known pre-existing failures (from the 10-24 checks — confirm, don't chase): Tovu purpose-scoped-mailer-call-sites "real call sites…", site-exporter "live site … never-store", mcp-ui-tool-calls-route.ask-choice "real round trip" (normalizationNotes); Jini cms subpath-isolation (plugin-export → consent).
 - Honesty: every number states its tool's limits ("what this does NOT catch"). A suite that didn't run is NOT a pass — count tests executed.
 - Persist incrementally: commit + push after every step; reports live in ADS-memory/reports/cloud-runs/2026-10-25-overnight/.
+- OWNER BUDGET (10-24 ~11:35 PM PT): the WHOLE overnight (A + B + C + Stryker pilot S) must stay under 10% of the weekly credits (owner at 64%). Per-stage token caps are set to fit (A 1.8M, B 1.8M, C 0.4M, S 0.4M). Hitting your cap = stop, report, push, END — never "just finish".
