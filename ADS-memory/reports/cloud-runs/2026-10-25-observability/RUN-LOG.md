@@ -9,3 +9,7 @@ Host vm, 4 cores. Node 24.22.0 installed per COMMON.md. About to: install deps, 
 ## 2026-10-25T16:31:27Z — ASSUMPTION
 
 RUN-PROTOCOL.md §1 names branch refactor/jini-admin-extraction; BRIEF.md names cloud/observability-1025-{tovu,jini} and the dispatch forbids pushing elsewhere → using the BRIEF branches.
+
+## 2026-10-25T16:33:07Z — PROGRESS
+
+Step 1 gap map written (GAP-MAP.md). Jini pnpm install+build OK; Tovu npm ci OK (exit 0).
