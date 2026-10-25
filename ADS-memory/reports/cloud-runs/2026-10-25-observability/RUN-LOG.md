@@ -28,3 +28,10 @@ Step 2 done in Jini 0b413aed: ports.ts trackOperation/reportError, noop (shared 
 
 Step 3 done. Jini e9f64d43 (daemon withToolCallObservability + 6 tests). Tovu 15f08a9b (preset wrapper, daemon-server + BYOK composition, scenario fixture + 3 tests). Touched-file tests: 9 files / 123 node tests pass; Tovu tsc -p tsconfig.json 0 errors.
 Push of step 3 was first rejected (non-fast-forward): owner pushed ac08e110 (BRIEF-2.md, a run-2 brief) to this branch meanwhile. Merged (d0b96360), not rebased. BRIEF-2 records the owner decision that OTel (and Sentry) adapters must be provider plugins, moved in run 2 — so run 1 keeps the Sentry adapter in one isolated module beside otel.ts and leaves the move to run 2.
+
+## 2026-10-25T16:59:04Z — PROGRESS
+
+Step 4 done. Jini a0206790 (combineObservabilityPorts + 2 tests). Tovu: sentry.ts, resolveSentryConfig, selection/fan-out in index.ts, deps.ts wiring, @sentry/node 11.6.0 pinned (npm install needed unlink:jini first: EUNSUPPORTEDPROTOCOL "workspace:" while linked; relinked after). Swap proof 5/5 + config 4/4; observability unit tests + boundary 54/54 pass.
+Measured: SDK load OTel ~155ms/+21MB RSS, Sentry ~465ms/+40MB RSS; per tool call noop 0.96µs (identity), OTel ~45µs, Sentry ~25-30µs (micro-bench, caveats in plan).
+tsc -p tsconfig.tests.json: 344 errors, 0 in observability/sentry/tool-call files; no baseline run, so "pre-existing" is unverified.
+Step 5 plan written (OBSERVABILITY-PLAN.md). Running all Tovu tests mentioning observability in background.
