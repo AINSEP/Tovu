@@ -220,3 +220,33 @@ test("the configured deadline aborts a pending fetch and translates its signal r
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
 });
+
+// L13 Stryker: the timeout copy's seconds, each `errorName()` clause and the login request shape
+// were unasserted by the lib-scoped suite.
+test("the timeout copy names the real 60 s bound", async () => {
+  stubFetch(async () => { throw new DOMException("signal timed out", "TimeoutError"); });
+  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  expect(error.code).toBe(REQUEST_TIMEOUT_CODE);
+  expect(error.message).toBe("The Tovu API did not respond within 60s — the browser may be out of free connections for this origin (try closing other admin tabs) or the server is unresponsive");
+});
+
+test("rejections that only look like named errors are rethrown untouched, never reclassified", async () => {
+  for (const cause of [null, 0, "AbortError", { name: 42 }, { message: "no name" }, Object.create(null)]) {
+    stubFetch(async () => { throw cause; });
+    const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+    expect(error).toBe(cause);
+  }
+  const plainAbort = { name: "AbortError" };
+  stubFetch(async () => { throw plainAbort; });
+  expect(await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)).toBe(plainAbort);
+});
+
+test("login POSTs exactly {username, password} as JSON to /auth/login", async () => {
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { user: { id: "u" } } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+  vi.stubGlobal("fetch", fetchMock);
+  await api.login({ username: "admin", password: "s3cret" });
+  const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toBe("/api/admin/v1/auth/login");
+  expect(init.method).toBe("POST");
+  expect(JSON.parse(init.body as string)).toEqual({ username: "admin", password: "s3cret" });
+});
