@@ -63,7 +63,7 @@ test("inspect: every malformed address is refused without reading the live datab
     "", ":", ':{"id":"a"}', "p_widgets", "p_widgets:", "p_widgets:5", 'p_widgets:"a"', "p_widgets:true",
     'bad-table:{"id":"a"}', 'p_widgets:{"bad col":"a"}', 'p_widgets:{"password":"a"}', 'p_widgets:{"__proto__":"a"}',
     'p_widgets:{"id":true}', 'p_widgets:{"id":{}}', 'p_widgets:{"id":[1]}', 'p_widgets:{"id":1e400}',
-    'p_widgets:{"id":9007199254740993}', 'p_widgets:{"id":"a","x":null}', 'posts:{"id":"a"}', 'POSTS:{"id":"a"}',
+    'p_widgets:{"id":9007199254740993}', 'p_widgets:{"id":"a","x":null}', 'posts:{"id":"a"}', 'POSTS:{"id":"a"}', "p_widgets:{}",
   ];
   for (const id of bad) assert.equal(await handler.inspect(id), null, id);
   assert.deepEqual(port.reads, [], "no malformed or covered address reaches port.read");
@@ -239,4 +239,17 @@ test("undo: a failing precheck is returned; an inverse the destination would ref
     "Column 'password' may hold a key or password; this row is never sent.",
   );
   assert.deepEqual(writes, []);
+});
+
+test("apply: EACH missing command-gateway dependency on its own refuses the write", async () => {
+  const { handler, deps } = build(fakePort([row("a")]), [{ table: "p_widgets", pk: { id: "a" } }]);
+  const [packed] = (await packAll(handler)).packed;
+  const full = { ...deps, changeSets: {}, authorize: async () => ({ allowed: true }), outbox: {} } as unknown as PublishContentDeps;
+  for (const missing of ["changeSets", "authorize", "outbox"] as const) {
+    const partial = { ...full, [missing]: undefined } as unknown as PublishContentDeps;
+    await assert.rejects(
+      contributeRawRowPublish().build(partial).apply({ entity: packed!, principalId: "p", idempotencyKey: "k" } as never),
+      { message: "The raw row command gateway is not wired." }, missing,
+    );
+  }
 });
