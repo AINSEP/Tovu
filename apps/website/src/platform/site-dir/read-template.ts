@@ -78,9 +78,9 @@ export function readTemplate(required: ReadTemplateRequired, optional: ReadTempl
 
   const seed: ContentDbSeedData = {
     workspace: seedContent.workspace,
-    // The starter theme renders its index directly when no Home page exists. Workspace and
-    // presentation settings are sufficient; neither a sample post nor a placeholder page is needed.
-    posts: optional.withSampleContent === true ? seedContent.entries : [],
+    // The starter renders Home without a page row, but its Blog links need the listing page.
+    // Keep that template-owned page even without sample content; no authored posts are added.
+    posts: optional.withSampleContent === true ? seedContent.entries : seedContent.entries.filter((entry) => entry.id === "page-blog"),
     // This is starter data, not a boot migration: the workspace guard never adds it to existing sites.
     contentEntries: [{
       id: "widget-default-gallery", workspaceId: seedContent.workspace.id, type: "widget", slug: "gallery",

@@ -9,6 +9,7 @@ import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
 import { runImportSiteCommand } from "./commands/import-site.js";
 import { runStorageMoveCommand } from "./commands/storage-move.js";
+import { runSiteRenameCommand } from "./commands/site-rename.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
 import { runServeCommand } from "./commands/serve.js";
 import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
@@ -44,6 +45,13 @@ export function createProgram(): Command {
   program.description("Tovu — the website product you own. Manage local site install directories.");
   program.exitOverride();
   program.configureOutput({ writeErr: () => {} });
+  program.command("site").description("manage local site folders")
+    .command("rename").description("rename a stopped site's folder in the sites home; preserve its display name")
+    .argument("<old-name>", "current folder name")
+    .argument("<new-name>", "new folder name")
+    .action(async (oldName: string, newName: string) => {
+      await runSiteRenameCommand({ oldName, newName });
+    });
   program.command("import").description("install a Tovu share into a NEW site via a running admin server; reads {authorization,url|uploadId,displayName?,requestId?} JSON from stdin; owner password setup stays private in the browser")
     .requiredOption("--server <origin>", "running admin server origin")
     .requiredOption("--workspace <id>", "workspace authorizing local site creation")
