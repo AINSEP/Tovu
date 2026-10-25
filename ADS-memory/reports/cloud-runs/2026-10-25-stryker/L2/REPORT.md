@@ -65,4 +65,180 @@ owner-store/backup.ts L33,68,69,80,86,87,112,113,115,116,117 · owner-store/open
 ## 6. NOT RUN (db)
 50 mutable files not run (time): `src/pglite/owner.ts`, `src/pglite/socket-server.ts`, `src/tools/*` (transfer-tools, database-catalog, restore-points, read-tools, timeline, plan-store, transfer-catalog), `src/sqlite/*` (inspect, db-ops, open), `src/kernel/{store-copy,typegen,pglite/*,sqlite/*,postgres/*}`, `src/core/pg-types.ts`, `src/pg-fixture.ts`, and any other file outside §3. Also not run: all `*.postgres.test.ts` (ENV: no Postgres) — so Postgres-driver code is mutation-untested here.
 
-(core / plugins / registry sections follow.)
+
+---
+# packages/core — FULL (all non-test/non-typecheck src)
+103 files, 6950 mutants instrumented, 1930 static ignored, 5020 tested: killed 4666, timeout 22, survived 330, no-cov 2 → **93.4 %**. Dry run 30 s (1443 tests); mutation 16 min. Note: baseline suite is 1488 tests but Stryker's dry run saw 1443 (test files colocated under `src/` such as `records.test.ts` are excluded from the sandbox copy of `mutate`-only? — not investigated). 22 `settings/dictionaries/settings-dialog.*.ts` files + `settings/agent-tools.ts`, `surface-exchanges.ts`, `tool-tokens.ts` show 0 tested mutants (all StringLiteral-only/static/type files) and are omitted from the table.
+
+| file | mutants | killed | survived | no-cov | timeout | score % |
+|---|---|---|---|---|---|---|
+| src/fetch/loader-read.ts | 7 | 5 | 1 | 0 | 0 | 83.3 |
+| src/settings/repo.memory.ts | 280 | 233 | 38 | 1 | 0 | 85.7 |
+| src/fetch/cache.ts | 233 | 191 | 27 | 0 | 4 | 87.8 |
+| src/settings/write-service.ts | 452 | 326 | 40 | 1 | 0 | 88.8 |
+| src/gated-mutations/actor-identity.ts | 21 | 17 | 2 | 0 | 0 | 89.5 |
+| src/gated-mutations/token.ts | 93 | 72 | 8 | 0 | 0 | 90.0 |
+| src/approval.ts | 232 | 194 | 19 | 0 | 0 | 91.1 |
+| src/primitives/sse.ts | 140 | 109 | 11 | 0 | 4 | 91.1 |
+| src/primitives/paths.ts | 61 | 43 | 4 | 0 | 0 | 91.5 |
+| src/settings/agent-write-denylist.ts | 22 | 12 | 1 | 0 | 0 | 92.3 |
+| src/settings/agent-value-write-tools.ts | 265 | 198 | 13 | 0 | 0 | 93.8 |
+| src/object-store.ts | 39 | 31 | 2 | 0 | 0 | 93.9 |
+| src/redact.ts | 491 | 115 | 7 | 0 | 1 | 94.3 |
+| src/model-facing-tool-errors.ts | 54 | 40 | 2 | 0 | 0 | 95.2 |
+| src/settings/change-feed.ts | 47 | 41 | 2 | 0 | 0 | 95.3 |
+| src/settings/definitions-dispatch.ts | 27 | 21 | 1 | 0 | 0 | 95.5 |
+| src/origin-validation.ts | 335 | 283 | 10 | 0 | 0 | 96.6 |
+| src/registration-kit.ts | 290 | 236 | 8 | 0 | 0 | 96.7 |
+| src/batch-tool-inputs.ts | 304 | 246 | 8 | 0 | 0 | 96.9 |
+| src/feature-flags.ts | 40 | 33 | 1 | 0 | 0 | 97.1 |
+| src/provider-registry.ts | 150 | 115 | 3 | 0 | 0 | 97.5 |
+| src/naming.ts | 48 | 40 | 1 | 0 | 0 | 97.6 |
+| src/gated-mutations/gateway.ts | 96 | 79 | 1 | 0 | 0 | 98.8 |
+| src/api-token-auth.ts | 42 | 36 | 0 | 0 | 0 | 100.0 |
+| src/bindings.ts | 22 | 19 | 0 | 0 | 0 | 100.0 |
+| src/daemon.ts | 23 | 21 | 0 | 0 | 0 | 100.0 |
+| src/primitives/logger.ts | 17 | 13 | 0 | 0 | 0 | 100.0 |
+| src/records.ts | 32 | 31 | 0 | 0 | 0 | 100.0 |
+| src/settings/agent-writable-preferences.ts | 33 | 1 | 0 | 0 | 0 | 100.0 |
+| src/settings/dictionaries/index.ts | 4 | 3 | 0 | 0 | 0 | 100.0 |
+| src/tool-exposure.ts | 136 | 99 | 16 | 0 | 3 | 86.4 |
+| src/settings/purge-service.ts | 45 | 29 | 4 | 0 | 0 | 87.9 |
+| src/tool-registry.ts | 97 | 78 | 8 | 0 | 0 | 90.7 |
+| src/settings/express/cms-adapter.ts | 149 | 118 | 12 | 0 | 0 | 90.8 |
+| src/settings/settings.ts | 230 | 176 | 15 | 0 | 0 | 92.1 |
+| src/tool-input-normalization.ts | 422 | 318 | 27 | 0 | 2 | 92.2 |
+| src/text/sanitize-untrusted-text.ts | 164 | 125 | 9 | 0 | 7 | 93.6 |
+| src/settings/tool-registrations.ts | 279 | 202 | 12 | 0 | 1 | 94.4 |
+| src/settings/ensure-definitions.ts | 65 | 55 | 3 | 0 | 0 | 94.8 |
+| src/pack-lifecycle.ts | 23 | 22 | 1 | 0 | 0 | 95.7 |
+| src/settings/express/http.ts | 253 | 167 | 7 | 0 | 0 | 96.0 |
+| src/settings/express/http-request.ts | 44 | 29 | 1 | 0 | 0 | 96.7 |
+| src/target-scope.ts | 110 | 95 | 3 | 0 | 0 | 96.9 |
+| src/settings/express/stream.ts | 174 | 148 | 2 | 0 | 0 | 98.7 |
+| src/settings/errors.ts | 5 | 3 | 0 | 0 | 0 | 100.0 |
+| src/settings/express/shared.ts | 71 | 63 | 0 | 0 | 0 | 100.0 |
+| src/settings/ui-tab-definitions.ts | 82 | 9 | 0 | 0 | 0 | 100.0 |
+| src/text/escape.ts | 13 | 4 | 0 | 0 | 0 | 100.0 |
+| src/token.ts | 14 | 12 | 0 | 0 | 0 | 100.0 |
+| src/tool-input-errors.ts | 2 | 1 | 0 | 0 | 0 | 100.0 |
+| src/tool-metadata.ts | 83 | 80 | 0 | 0 | 0 | 100.0 |
+| src/tool-permissions.ts | 11 | 10 | 0 | 0 | 0 | 100.0 |
+| src/contribution-registry.ts | 7 | 7 | 0 | 0 | 0 | 100.0 |
+| src/pack.ts | 2 | 2 | 0 | 0 | 0 | 100.0 |
+| src/primitives/ids.ts | 3 | 3 | 0 | 0 | 0 | 100.0 |
+| src/primitives/tasks.ts | 1 | 1 | 0 | 0 | 0 | 100.0 |
+| src/primitives/time.ts | 6 | 6 | 0 | 0 | 0 | 100.0 |
+
+**Triage (core)** — (a) = real gap:
+- `origin-validation.ts` (96.6 %, 10): (a) `!raw.trim()`/`trim()` handling of blank & whitespace-padded origin lists (58-59,157-158); RFC1918 range predicate lines 182 (`a===10`, `172.16–31`, `192.168` each replaceable by `true` → no test pins a *non-private* address in each range's neighbourhood: e.g. 172.15.x, 172.32.x, 11.x must be public); `!host → false` (196). Security-adjacent: add boundary IPs.
+- `approval.ts` (91.1 %, 19): (a) abort path is under-asserted: `{once:true}` listener opts (22), `finally` listener cleanup (26), `signal.aborted` pre-checks at 72/96 (`→false` survives), `aborted || !plan` (91), `abandoned()` confirmed flag (61). Missing: tests with an already-aborted signal and abort *during* the prompt, asserting `confirmed:false` and no leaked listener. Human-confirmation gate → HIGH risk.
+- `settings/write-service.ts` (88.8 %, 40): (a) HIGH: scope guards survive — `scope==="global" → return` (254), `scope!=="user" → return` (274), `!principalId || principalId===callerPrincipalId → return` (275, i.e. cross-principal write check), workspaceId/principalId derivation by scope (209, 366, 367 → `true/false/!==`); `ownerId ?? null` (129). Missing: user-scope write targeting another principal must be refused; global scope must store workspaceId null even when a workspaceId is passed; user scope without principalId falls back to caller. Also L850 loop `version++→--` is no-coverage (history replay with version ≥ 2 untested).
+- `settings/repo.memory.ts` (85.7 %, 38+1NC): (a) seed arrays `?? []` (42-46: seed ignored), `active` definition preference + latest-version sort (82-83; NC at 83: sort comparator never exercised → multi-version definitions untested), namespace filter (65).
+- `fetch/cache.ts` (87.8 %, 27): (a) unsubscribe/eviction (116,121), stale-pending guard `entry.pending !== pending` (177), `replacement` counter (199), prefix invalidation `every→some` (208), focus-refetch selection (223). 
+- `tool-exposure.ts` (86.4 %, 16): (a) deterministic naming: `.sort()` removal (49), FNV hash loop bound (22), collision `SAFE_NAME` path (51), `reservedNames` default (63), deep-freeze guards (119).
+- `primitives/sse.ts` (91.1 %, 11): (a) comment-line skip (51), `maxBufferChars` boundary `>` vs `>=` (94), empty-line dispatch (102), final flush (125/127), char accounting (107).
+- `tool-input-normalization.ts` (92.2 %, 27): (a) edit-distance helper: loop bound (19), transposition detection `&&` conditions (26), `id` suffix special-case (36). Likely (b)/(a) mix — fuzzy-name matcher; boundary cases (transposed adjacent chars, `id`/`userid`) untested.
+- `settings/settings.ts` (92.1 %, 15): (a) namespace-prefix scope classifiers (38-40: `core.`/`theme.`/`site.` + workspaceId null/non-null each → `true` survives), `scopes<1||>7` bitmask bounds (76).
+- Remaining (`agent-value-write-tools` 13, `cms-adapter` 12, `tool-registrations` 12, `loader-read` 1): not individually triaged (token budget); dominated by conditional/logical mutators.
+
+# packages/plugins — FULL
+46 files, 3981 mutants instrumented, 655 static ignored, 3326 tested: killed 2887, timeout 9, survived 390, no-cov 40 → **87.1 %**. Dry run 21 s (681 tests); mutation 16 min. (No vitest config in package; defaults used.)
+
+| file | mutants | killed | survived | no-cov | timeout | score % |
+|---|---|---|---|---|---|---|
+| src/host/sql/repo.rows.ts | 23 | 0 | 0 | 23 | 0 | 0.0 |
+| src/host/sql/repo.ts | 26 | 0 | 0 | 16 | 0 | 0.0 |
+| src/host/node/browser-provider-assets.ts | 101 | 60 | 33 | 0 | 0 | 64.5 |
+| src/host/errors.ts | 4 | 2 | 1 | 0 | 0 | 66.7 |
+| src/host/plugin-format.ts | 14 | 7 | 3 | 0 | 0 | 70.0 |
+| src/host/hook-registry.ts | 135 | 98 | 19 | 0 | 0 | 83.8 |
+| src/host/claim-conflicts.ts | 132 | 102 | 18 | 0 | 0 | 85.0 |
+| src/host/node/install.ts | 603 | 410 | 72 | 0 | 1 | 85.1 |
+| src/host/node/source-drafts.ts | 522 | 364 | 61 | 0 | 1 | 85.7 |
+| src/host/node/package-files.ts | 176 | 130 | 21 | 0 | 7 | 86.7 |
+| src/host/plugin-claims.ts | 165 | 111 | 17 | 0 | 0 | 86.7 |
+| src/host/manifest.ts | 498 | 358 | 53 | 0 | 0 | 87.1 |
+| src/host/node/discovery.ts | 200 | 150 | 21 | 0 | 0 | 87.7 |
+| src/host/contributions.ts | 287 | 218 | 29 | 0 | 0 | 88.3 |
+| src/host/tool-contributions.ts | 54 | 43 | 5 | 0 | 0 | 89.6 |
+| src/glue/manifest.ts | 161 | 122 | 12 | 0 | 0 | 91.0 |
+| src/host/bundled-initialization.ts | 29 | 26 | 2 | 0 | 0 | 92.9 |
+| src/host/node/module-snapshot.ts | 39 | 27 | 2 | 0 | 0 | 93.1 |
+| src/host/browser-providers.ts | 160 | 127 | 8 | 0 | 0 | 94.1 |
+| src/host/uninstall.ts | 65 | 52 | 3 | 0 | 0 | 94.5 |
+| src/host/repo.memory.ts | 39 | 37 | 2 | 0 | 0 | 94.9 |
+| src/host/worker/protocol.ts | 66 | 52 | 2 | 0 | 0 | 96.3 |
+| src/host/node/loader.ts | 124 | 104 | 3 | 0 | 0 | 97.2 |
+| src/host/worker/import-seam.ts | 45 | 37 | 1 | 0 | 0 | 97.4 |
+| src/host/capability-sdk.ts | 59 | 39 | 0 | 1 | 0 | 97.5 |
+| src/host/source-policy.ts | 51 | 43 | 1 | 0 | 0 | 97.7 |
+| src/host/activation.ts | 51 | 45 | 1 | 0 | 0 | 97.8 |
+| src/glue/attachment-points/tool-registration.ts | 28 | 22 | 0 | 0 | 0 | 100.0 |
+| src/glue/capability-gate.ts | 13 | 10 | 0 | 0 | 0 | 100.0 |
+| src/host/declarative-enable.ts | 30 | 26 | 0 | 0 | 0 | 100.0 |
+| src/host/quarantine.ts | 11 | 10 | 0 | 0 | 0 | 100.0 |
+| src/host/worker/run-call.ts | 55 | 40 | 0 | 0 | 0 | 100.0 |
+| src/glue/attachment-points/events.ts | 2 | 2 | 0 | 0 | 0 | 100.0 |
+| src/glue/attachment-points/content-lifecycle.ts | 2 | 2 | 0 | 0 | 0 | 100.0 |
+| src/glue/dispatch.ts | 7 | 7 | 0 | 0 | 0 | 100.0 |
+| src/host/attach-loaded-plugin.ts | 2 | 2 | 0 | 0 | 0 | 100.0 |
+| src/host/node/open-flags.ts | 2 | 2 | 0 | 0 | 0 | 100.0 |
+
+**Triage (plugins)**:
+- `host/sql/repo.ts` + `repo.rows.ts` (0 % — 39 no-cov, Kysely activation repo): (a) HIGH: **no test executes the SQL plugin-activation repository** (getActivation/save/upsert, row mapping). Needs a PGlite/sqlite kernel-backed round-trip test (save → get; upsert on conflict (workspace_id, plugin_id)).
+- `host/node/browser-provider-assets.ts` (64.5 %, 33): (a) provider-approval comparison (lines 18-20): `length ===`, and each of id/kind/contractVersion… equalities replaceable by `true` → a plugin whose browser-provider set/pins differ from the approval is not shown to be rejected. Security gate → HIGH.
+- `host/node/install.ts` (85.1 %, 72): (a) package-safety limits: `child.startsWith(parent)` containment (73 — path-escape), regular-file/nlink==1 check (110, hardlink/symlink rejection), size caps (111), read loop bound (101). Missing: hardlink, symlink-escape, oversize-file and total-size-exceeded fixtures. HIGH (supply-chain/path traversal).
+- `host/node/source-drafts.ts` (85.7 %, 61): (a) id format check (61), file-path validator (65: backslash, NUL, empty, `..`), relative-path handling (76).
+- `host/node/package-files.ts` (86.7 %, 21+7 timeouts): (a) `maxBytes/maxFiles/maxEntries/maxFileBytes/maxTotalBytes` boundary `>` vs `>=` (142,163,194,198), symlink/dir test (129).
+- `host/manifest.ts` (87.1 %, 53): (a) id validation (126: length bounds), non-string id error (173-175), version semver check (212), integrity-hash pattern (229).
+- `host/hook-registry.ts` (83.8 %, 19): (a) value-type validators `integer/string/boolean` (127-134) accept wrong types; workspaceId scoping (246).
+- `host/claim-conflicts.ts` (85.0 %, 18): (a) route-key normalisation (trim/lowercase 96,114), `:param` segment regex (108), method/path split (117).
+- `host/plugin-claims.ts` (86.7 %, 17), `contributions.ts` (88.3 %, 29: HTTP-method / route-path regex anchors 47-48), `discovery.ts` (87.7 %, 21: tier validation 78, object guard 71), `plugin-format.ts` (70 %, 3: filename arrays → `[]` survive), `errors.ts` (1): (a) as noted.
+
+# packages/registry — FULL
+16 files, 1353 mutants instrumented, 247 static ignored, 1106 tested: killed 1035, timeout 1, survived 69, no-cov 1 → **93.8 %**. Needed a Stryker-only vitest config with absolute paths (repo config resolves `../db` relatively; breaks inside `.stryker-tmp`). Dry run 8 s (338 tests); mutation ~7 min.
+
+| file | mutants | killed | survived | no-cov | timeout | score % |
+|---|---|---|---|---|---|---|
+| src/trust-certificates.ts | 55 | 44 | 7 | 1 | 0 | 84.6 |
+| src/versioning.ts | 267 | 230 | 25 | 0 | 1 | 90.2 |
+| src/database-backend.ts | 91 | 69 | 7 | 0 | 0 | 90.8 |
+| src/static-backend.ts | 257 | 194 | 18 | 0 | 0 | 91.5 |
+| src/tool-catalog/sqlite.ts | 35 | 28 | 2 | 0 | 0 | 93.3 |
+| src/github-client.ts | 242 | 160 | 5 | 0 | 0 | 97.0 |
+| src/github-backend.ts | 133 | 79 | 2 | 0 | 0 | 97.5 |
+| src/tool-catalog-builder/query.ts | 66 | 61 | 1 | 0 | 0 | 98.4 |
+| src/trust.ts | 151 | 120 | 2 | 0 | 0 | 98.4 |
+| src/tool-catalog-builder/search-enricher.ts | 40 | 35 | 0 | 0 | 0 | 100.0 |
+| src/tool-catalog-builder/sqlite.ts | 16 | 15 | 0 | 0 | 0 | 100.0 |
+
+**Triage (registry)**:
+- `trust-certificates.ts` (84.6 %, 7+1NC): (a) HIGH — certificate-chain walk: `maxHops` arithmetic (28), loop `hop++`/`<=` (29), `!current → false` (26), `chain.slice(1)` (27), `nextIndex === -1 → false` (32) all survive; L36 final `return false` never reached (NC). Missing: chain with a cycle, chain longer than trusted CAs, broken link, empty chain — each must be *rejected*. Trust-boundary code.
+- `versioning.ts` (90.2 %, 25): (a) `name@version` splitting with scope (`@scope/pkg@1`) — `slash>0`/`at>slash+1` boundaries (39); optional-field spreads (`ref`, `manifestDigest`, `archiveIntegrity`) always-true survive (104-108): absent fields must be omitted.
+- `static-backend.ts` (91.5 %, 18): (a) search ordering tie-break `score` sort (86), verified issuer/subject only when verified (109-110: `&&→||` survives), `.entries` optional chaining (178).
+- `database-backend.ts` (90.8 %, 7): (a) dry-run vs apply warnings arrays; corrupt-JSON error path (181-182) not asserted; `now` clock passed to upsert (65,103).
+
+---
+# Cross-cutting
+
+## 2b. Suspected source bugs (final)
+None identified in production source. Test-suite problems: two red baseline test files in `packages/db` (see §1). No Postgres-dependent files were included in any run.
+
+## 7. What these numbers do NOT catch
+- Type checks disabled (`disableTypeChecks`) and no checker plugin → type-invalid mutants counted as ordinary; `StringLiteral` excluded → error-message/ID/string-constant assertions unmeasured (the pilot found ~half its survivors were string literals).
+- **Static mutants ignored** (`ignoreStatic`): db 678+, core 1930, plugins 655, registry 247 — module-level constants/initialisers (regex tables, limit constants, defaults) are NOT scored. Those are exactly where limits such as MAX_* live; a follow-up run without `ignoreStatic` is advised for core/plugins/registry (cheap: ≈20 min each).
+- Killed = killed by *any* test in the package (indirect kills); UI/.tsx excluded; `*.typecheck.ts` excluded; `src/testing/**` excluded in db; mutation of untested *inputs* and unimplemented behaviour; Postgres-driver paths (no server).
+- Cross-package integration (plugins↔registry↔db) not exercised.
+
+## 8. Top 10 tests to write first (by risk)
+1. `owner-store/service.ts:38` — vault authorize guard: wrong workspace / non-null principal / non-copyable kind must each throw `VaultError{context}`; empty `consumerId` too.
+2. `registry/trust-certificates.ts` — chain-walk rejection cases: cycle, over-long chain, broken link, empty chain, untrusted root.
+3. `plugins/host/node/install.ts` + `package-files.ts` — hardlink (nlink>1), symlink escape, oversize file, total-size and file-count boundaries (exactly at / one over limit), `startsWith` prefix-sibling path (`/a/pkg` vs `/a/pkg-evil`).
+4. `core/settings/write-service.ts` — user-scope write for another principal refused; global scope forces workspaceId null; user scope defaults principal to caller.
+5. `core/approval.ts` — pre-aborted signal & abort mid-prompt → `confirmed:false`, listener removed.
+6. `plugins/host/node/browser-provider-assets.ts` — approval mismatch matrix (extra provider, missing, id/kind/contractVersion differ).
+7. `plugins/host/sql/repo.ts` + `repo.rows.ts` — save/get/upsert round-trip on a real kernel (currently 0 % covered).
+8. `db/owner-store/backup.ts` — table-driven malformed-backup rejection (INVALID_BACKUP) for every shape check.
+9. `core/origin-validation.ts` — RFC1918/loopback boundary addresses (172.15/172.32, 11.x, 192.167) + blank/whitespace allow-list.
+10. `db/transfer/sqlite-source.ts` + `postgres-target.ts` — WAL header patch (bytes 18/19) with WAL and non-WAL fixtures; PG* env filtering and psql stderr parsing.
