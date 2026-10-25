@@ -132,14 +132,21 @@ function parseReply<A extends OwnerStoreAction>({ action, output, code }: {
   action: A; output: string; code: number | null;
 }, _options = {}): OwnerStoreReply<A> {
   try {
-    const lines = output.trim().split(/\r?\n/);
-    if (lines.length !== 1) throw new Error();
-    const reply = JSON.parse(lines[0]!);
+    const reply = singleLineJson({ output });
     if (reply.version !== 1 || reply.action !== action) throw new Error();
     if (reply.ok === false) return ownerStoreFailure({ action, code: reply.error?.code });
     if (reply.ok !== true || code !== 0) throw new Error();
     return { version: 1, ok: true, action, data: cleanData({ action, data: reply.data }) };
   } catch { return ownerStoreFailure({ action, code: 'operation-failed' }); }
+}
+
+/** The CLI prints exactly one JSON line; anything else (banners, partial writes) is a protocol failure.
+ * @throws On zero/multiple lines or invalid JSON; callers map that to a fixed error. @complexity O(bytes).
+ */
+function singleLineJson({ output }: { output: string }, _options = {}): Record<string, any> {
+  const lines = output.trim().split(/\r?\n/);
+  if (lines.length !== 1) throw new Error('owner-store reply is not one line');
+  return JSON.parse(lines[0]!);
 }
 
 /** Only named metadata fields cross IPC; never spread a child object into a renderer reply.

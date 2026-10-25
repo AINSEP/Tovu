@@ -130,14 +130,19 @@ async function executeRequest({ action, input, ports, serialize }: {
   action: OwnerStoreAction; input: unknown; ports: OwnerStorePorts; serialize: Serialize;
 }): Promise<OwnerStoreReply> {
   const request = requestInput({ action, input });
-  switch (action) {
-    case 'status': case 'list': return ports.run({ action, fields: {} });
-    case 'put': return putAndSync({ request, ports });
-    case 'delete': return ports.run({ action, fields: { entryId: requiredString({ value: request.entryId }), expectedRevision: request.expectedRevision as number } });
-    case 'grant': case 'revoke': case 'sync': return targetRequest({ action, request, ports });
-    case 'export': case 'restore': return backupRequest({ action, request, ports, serialize });
-    default: { const exhaustive: never = action; throw new Error(`Invalid shared-key action (${typeof exhaustive}).`); }
-  }
+  // A total Record keeps the exhaustiveness check without a ten-way switch.
+  const handlers: Record<OwnerStoreAction, () => Promise<OwnerStoreReply>> = {
+    status: () => ports.run({ action: 'status', fields: {} }),
+    list: () => ports.run({ action: 'list', fields: {} }),
+    put: () => putAndSync({ request, ports }),
+    delete: () => ports.run({ action: 'delete', fields: { entryId: requiredString({ value: request.entryId }), expectedRevision: request.expectedRevision as number } }),
+    grant: () => targetRequest({ action: 'grant', request, ports }),
+    revoke: () => targetRequest({ action: 'revoke', request, ports }),
+    sync: () => targetRequest({ action: 'sync', request, ports }),
+    export: () => backupRequest({ action: 'export', request, ports, serialize }),
+    restore: () => backupRequest({ action: 'restore', request, ports, serialize }),
+  };
+  return handlers[action]();
 }
 
 /** Serialize mutations and startup copies using the shell's existing keyed queue.
