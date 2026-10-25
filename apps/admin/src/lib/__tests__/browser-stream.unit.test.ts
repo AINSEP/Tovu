@@ -382,3 +382,37 @@ describe("browserStreamPorts", () => {
     expect({ requestLock: ports.requestLock, openChannel: ports.openChannel }).toEqual({ requestLock: undefined, openChannel: undefined });
   });
 });
+
+// L13 Stryker: dispose idempotence and the grace timer's bookkeeping survived.
+describe("browser stream — L13 disposal and grace bookkeeping", () => {
+  it("disposing twice closes the connection once and leaves no listener or timer behind", () => {
+    const tab = fakeBrowserOrigin().tab();
+    let closes = 0;
+    const stop = startBrowserStream({ key: "page", connect: () => () => { closes++; } }, { ports: tab.ports, scope: "tab" });
+    tab.hide();
+    expect(tab.timerCount()).toBe(1);
+    stop();
+    stop();
+    expect(closes).toBe(1);
+    expect(tab.timerCount()).toBe(0);
+    expect(tab.listenerCount()).toBe(0);
+    tab.show();
+    expect(closes).toBe(1);
+  });
+
+  it("the grace timer fires exactly at 30 s after a mid-life hide and is not re-armed", () => {
+    const tab = fakeBrowserOrigin().tab();
+    let opens = 0; let closes = 0;
+    const stop = startBrowserStream({ key: "page", connect: () => { opens++; return () => { closes++; }; } }, { ports: tab.ports, scope: "tab" });
+    tab.advance(5_000);
+    tab.hide();
+    tab.advance(29_999);
+    expect(closes).toBe(0);
+    tab.advance(1);
+    expect(closes).toBe(1);
+    expect(tab.timerCount()).toBe(0);
+    tab.show();
+    expect(opens).toBe(2);
+    stop();
+  });
+});
