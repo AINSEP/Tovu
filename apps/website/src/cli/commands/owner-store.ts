@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { readPromptFromFlags } from "@jini-ai/cli";
 import { exportOwnerStore, openOwnerStore, OwnerStoreBackupError, OwnerStoreRecoveryError,
-  restoreOwnerStore, type OwnerPutInput, type OwnerStoreService, type OwnerSyncTarget } from "@jini-ai/db/owner-store";
+  restoreOwnerStore, type OwnerPutInput, type OwnerStoreService, type OwnerSyncTarget } from "@jini-ai/server/owner-store";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
