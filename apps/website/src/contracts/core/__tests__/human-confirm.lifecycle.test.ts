@@ -299,3 +299,32 @@ test('a choice that was not offered on the card is dropped from the outcome', as
   h.answer({ decision: 'confirm', choice: 'site' });
   assert.deepEqual(await pending, { confirmed: true });
 });
+
+// Stryker re-score (F7): the batch card's combined description (L198–205) had no coverage. It is
+// the one card a human sees for a multi-target permanent delete, so every element is asserted.
+test('a batch approval shows one combined card naming every selection, de-duplicating warnings, and runs each item once on confirm', async (t) => {
+  const h = harness(t);
+  const ran: string[] = [];
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async ({ ctx }) => String(requireInputRecord({ input: ctx.input }).file),
+    describe: ({ prepared }) => ({ ...h.spec, title: `Delete ${prepared}?`, details: [{ label: 'File', value: prepared }],
+      warning: prepared === 'b.txt' ? '' : 'There is no undo.', alternatives: [] }),
+    run: async ({ prepared }) => { ran.push(prepared); return { removed: prepared }; },
+  }, { batch: true });
+  const pending = handler({ ...h.ctx, input: { items: [{ file: 'a.txt' }, { file: 'b.txt' }, { file: 'c.txt' }] } }, { emitSurface: h.emitSurface });
+  await turn();
+  assert.equal(h.emitted.length, 1, 'one card for the whole batch');
+  const { resource } = h.emitted[0].payload as { resource: { resource: { text: string } } };
+  const html = resource.resource.text;
+  assert.match(html, /Permanently delete 3 selections\?/);
+  assert.match(html, /Review every target below\. One Confirm click approves this entire batch; there is no undo\./);
+  for (const [index, file] of ['a.txt', 'b.txt', 'c.txt'].entries()) {
+    assert.match(html, new RegExp(`Selection ${index + 1}`));
+    assert.match(html, new RegExp(`Delete ${file.replace('.', '\\.')}\\?`));
+  }
+  assert.doesNotMatch(html, /Selection 0|Selection 4/);
+  assert.equal(html.split('There is no undo.').length - 1, 1, 'the shared warning appears once');
+  h.answer({ decision: 'confirm' });
+  await pending;
+  assert.deepEqual(ran, ['a.txt', 'b.txt', 'c.txt']);
+});
