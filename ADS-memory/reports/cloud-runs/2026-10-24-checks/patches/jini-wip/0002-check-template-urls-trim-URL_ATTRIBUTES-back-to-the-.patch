@@ -1,0 +1,32 @@
+From ae78e4d690fc23bedcd91800596d19d5f3786938 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 25 Oct 2026 04:51:37 +0000
+Subject: [PATCH] check(template-urls): trim URL_ATTRIBUTES back to the
+ fragment-allowed sinks
+
+srcset/formaction/poster/xlink:href can never reach fillSlotText: fillPluginExportTemplate
+runs validateServerWidgetFragment (attribute allowlist) on the raw template first, so adding
+them was dead code. The refusal tests for those sinks still pass via the fragment policy.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ packages/cms/src/widgets/html/plugin-export.ts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/packages/cms/src/widgets/html/plugin-export.ts b/packages/cms/src/widgets/html/plugin-export.ts
+index bdb07e21..47c79f76 100644
+--- a/packages/cms/src/widgets/html/plugin-export.ts
++++ b/packages/cms/src/widgets/html/plugin-export.ts
+@@ -44,7 +44,8 @@ export interface PluginExportRender {
+ 
+ const SLOT = /{{\s*(props|host)\.([a-zA-Z0-9_.-]+)\s*}}/g;
+ const HOST_URL_SLOT = /^{{\s*host\.(?:assets\.)?[A-Za-z][A-Za-z0-9_-]*\s*}}$/;
+-const URL_ATTRIBUTES = new Set(['href', 'src', 'srcset', 'action', 'formaction', 'poster', 'xlink:href']);
++// The fragment policy's attribute allowlist rejects every other URL sink (srcset, formaction, style…).
++const URL_ATTRIBUTES = new Set(['href', 'src', 'action']);
+ const STAMPS = new Set(['data-plugin', 'data-component', 'data-embed-v', 'data-consent-category']);
+ 
+ /** Resolve own properties only: template names cannot reach prototypes through page JSON.
+-- 
+2.43.0
+
