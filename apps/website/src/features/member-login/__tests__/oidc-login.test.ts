@@ -190,8 +190,11 @@ test("a browser binding that is not exactly 32 random bytes refuses to start (LO
   const f = fixture();
   const real = f.deps.randomBytesFn;
   let first = true;
-  f.deps.randomBytesFn = (input) => { if (first) { first = false; return real({ byteLength: 31 }); } return real(input); };
-  await assert.rejects(beginOidcLogin({ deps: f.deps, input: f.input }), unavailableLogin);
+  const deps: OidcLoginDeps = { ...f.deps, randomBytesFn: (input: { byteLength: number }) => {
+    if (first) { first = false; return real({ byteLength: 31 }); }
+    return real(input);
+  } };
+  await assert.rejects(beginOidcLogin({ deps, input: f.input }), unavailableLogin);
 });
 
 test("sealing an emailed-code continuation refuses a login that does not match the request, or is stale", async () => {

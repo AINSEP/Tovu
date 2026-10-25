@@ -388,8 +388,9 @@ test("a credential cutoff that moves while the new password hashes refuses the r
   const h = harness(); const member = await h.seed();
   h.clock.advanceMs(5000);
   const token = await h.resetToken();
-  const hash = h.deps.passwordHasher.hash.bind(h.deps.passwordHasher);
-  h.deps.passwordHasher.hash = async input => {
+  const hasher = h.deps.passwordHasher!;
+  const hash = hasher.hash.bind(hasher);
+  hasher.hash = async input => {
     // An EARLIER cutoff than the link passes the issuance check, so only the moved-cutoff check can refuse.
     await h.deps.members.save({ ...member, credentialsRevokedAt: "2026-10-24T11:00:00.000Z" });
     return hash(input);

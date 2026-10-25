@@ -41,7 +41,7 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
   };
   const save: AdminSiteKeyDeps["restorePointsRepo"]["save"] = async row => { events.push(`save:${row.trigger}`); };
   const ports = {
-    workspaceId: "ws", authorize: async () => ({ allowed, reason: allowed ? "fixture" : "insufficient_permission" }),
+    workspaceId: "ws", authorize: async () => (allowed ? { allowed: true, reason: "fixture" } : { allowed: false, reason: "insufficient_permission" }),
     siteBinding: { dir, name: "fixture", dirOverridden: true, switcherCompatible: false },
     dbOps, idGen: { newId: () => randomUUID() }, clock: { nowMs: () => 0, nowIso: () => "2026-10-20T00:00:00.000Z" },
   } satisfies Pick<AdminSiteKeyDeps, "workspaceId" | "authorize" | "siteBinding" | "dbOps" | "idGen" | "clock">;
