@@ -27,6 +27,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
 import { RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL, RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
+import { RUNNER_RESOURCES_GET_CHANNEL, type ResourcesRequest } from '../contracts/resources.js';
 import {
   SITE_HISTORY_CHANNEL,
   SITE_IPC_CHANNELS,
@@ -77,6 +78,7 @@ contextBridge.exposeInMainWorld(
   'tovuRunner',
   Object.freeze({
     getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
+    getResources: (input: ResourcesRequest, _options = {}) => ipcRenderer.invoke(RUNNER_RESOURCES_GET_CHANNEL, input),
     checkForUpdates: () => ipcRenderer.invoke(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL),
     listAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.list),
     rescanAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.rescan),
