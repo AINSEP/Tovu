@@ -552,3 +552,30 @@ test("/me under a foreign workspace id is 404 even with a valid member session c
   const own = await fetch(`${base}${BASE}/me`, { headers: { cookie } });
   assert.deepEqual(await own.json(), { member: { id: member.id, email: member.email, status: "active" }, identities: [] });
 });
+
+// F6 fix wave (Stryker re-score of complete-sign-in.ts): the session cookie lives exactly as long as
+// the session row (Max-Age = remaining lifetime, never 0 or doubled), and the completion limiter stops
+// a request before any challenge is touched.
+test("the member session cookie's Max-Age is the session's remaining lifetime", async t => {
+  const h = harness(); const member = await h.seed();
+  const base = await startTestServer(h.app, t);
+  const login = await post(base, "password/sign-in", { email: member.email, password: "x" });
+  assert.equal(login.status, 200);
+  const maxAge = Number(/Max-Age=(\d+)/.exec(login.headers.get("set-cookie")!)?.[1]);
+  const [session] = await h.deps.memberSessionRepo.listByMember({ workspaceId: h.deps.workspaceId, memberId: member.id });
+  const remaining = (Date.parse(session!.expiresAt) - Date.now()) / 1000;
+  assert.ok(maxAge > 0 && Math.abs(maxAge - remaining) <= 5, `Max-Age ${maxAge} vs remaining ${remaining}`);
+});
+
+test("sign-in completion stops at its per-IP limiter with 429 before the challenge is read", async t => {
+  const h = harness(); await h.seed();
+  const challenge = await h.challenge();
+  const { limiter, keys } = spyLimiter(false);
+  h.deps.magicLinkCompleteAttemptLimiter = limiter;
+  const base = await startTestServer(h.app, t);
+  const response = await post(base, "sign-in/complete", { token: challenge.token });
+  assert.equal(response.status, 429);
+  assert.equal((await response.json() as { code: string }).code, "RATE_LIMIT_EXCEEDED");
+  assert.equal(keys.length, 1);
+  assert.equal((await h.deps.magicLinkRepo.findById({ workspaceId: h.deps.workspaceId, id: challenge.challengeId }))?.consumedAt, undefined);
+});
