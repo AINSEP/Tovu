@@ -706,15 +706,17 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
 const automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges } });
 registry.register(automaticPluginRuns.loadRegistration);
-// And a third time, outermost of all, by `withToolCallObservability`: one `tool.call` operation per
-// call on `routeDeps.observability` (the injected port — never an SDK import here). Identity when
-// telemetry is off.
-const toolExecutor = withToolCallObservability({ inner: withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
+const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
     surfaceExchanges,
     prepareGuidance: automaticPluginRuns.prepareGuidance,
     toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
-  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {}), observability: routeDeps.observability }, {});
+  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
+// And a third time, outermost of all, by `withToolCallObservability`: one `tool.call` operation per
+// call on `routeDeps.observability` (the injected port — never an SDK import here). The executor
+// itself when telemetry is off. The delegated-tool route takes it; the MCP-UI callback route (a
+// human answering a surface) still takes the bare executor — prototype scope, see the plan.
+const observedToolExecutor = withToolCallObservability({ inner: toolExecutor, observability: routeDeps.observability }, {});
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -1517,7 +1519,7 @@ registerRunActiveContextRoute(app, runActiveContexts);
 // Tovu's http-kit range is bumped to the release that ships it.
 const delegatedToolRouteDeps = {
   lifecycle,
-  toolExecutor,
+  toolExecutor: observedToolExecutor,
   resolvePrincipal,
   toolRegistry: registry,
   ...delegatedToolErrorDisclosure({}, {}),
