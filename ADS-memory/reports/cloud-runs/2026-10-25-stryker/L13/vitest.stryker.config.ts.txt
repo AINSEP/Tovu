@@ -1,0 +1,23 @@
+import { defineConfig, mergeConfig } from "vitest/config";
+import base from "./vitest.config";
+
+// L13 measure-only: untracked wrapper. Excludes the 8 test files that fail on the unmodified tree in this env.
+export default mergeConfig(
+  base,
+  defineConfig({
+    test: {
+      exclude: [
+        "**/node_modules/**",
+        "**/.stryker-tmp/**",
+        "src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx",
+        "src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts",
+        "src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts",
+        "src/lib/__tests__/durable-run-subscription.unit.test.ts",
+        "src/lib/__tests__/untranslated-copy.unit.test.ts",
+        "src/styles/__tests__/assistant-user-bubbles.unit.test.tsx",
+        "src/features/consent/__tests__/consent-i18n.unit.test.tsx",
+        "src/features/trash/__tests__/trash-i18n.unit.test.ts",
+      ],
+    },
+  }),
+);
