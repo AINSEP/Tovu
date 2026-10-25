@@ -70,3 +70,21 @@ test("isAbortError matches by name only", () => {
   expect(isAbortError(null)).toBe(false);
   expect(isAbortError("AbortError")).toBe(false);
 });
+
+// L13 Stryker: `error instanceof ApiError && error.code === API_UNREACHABLE_CODE` — each clause alone.
+test("only an ApiError carrying the unreachable code is retried", async () => {
+  for (const error of [
+    new ApiError("not found", 404, "NOT_FOUND", {}), new ApiError("timeout", 0, "REQUEST_TIMEOUT", {}),
+    Object.assign(new Error("look-alike"), { code: API_UNREACHABLE_CODE }), "unreachable",
+  ]) {
+    const load = vi.fn(async () => { throw error; });
+    await expect(retryWhileUnreachable({ load, signal: new AbortController().signal }, { delaysMs: [1, 1] })).rejects.toBe(error);
+    expect(load).toHaveBeenCalledTimes(1);
+  }
+  let calls = 0;
+  const load = vi.fn(async () => { calls += 1; if (calls === 1) throw unreachable(); return "ok"; });
+  const pending = retryWhileUnreachable({ load, signal: new AbortController().signal }, { delaysMs: [5] });
+  await vi.advanceTimersByTimeAsync(5);
+  await expect(pending).resolves.toBe("ok");
+  expect(load).toHaveBeenCalledTimes(2);
+});
