@@ -1,4 +1,286 @@
 
+### src/comments/repo.memory.ts score=84.2 surv+nocov=29 :: ConditionalExpression=14, EqualityOperator=4, MethodExpression=3, ArrowFunction=2, ArrayDeclaration=3, LogicalOperator=3
+  NOCOV lines: 102
+  11:10 MethodExpression `return comments` -> comments.filter(c => c.parentId === parentId)
+  13:11 ArrowFunction `.sort((a, b) => a.createdAt.localeCompare(b.createdAt))` -> () => undefined
+  22:25 ArrayDeclaration `{ initialComments = [], initialLog = [] }: { initialComments?: CommentRecord[]; initialLog` -> ["Stryker was here"]
+  22:42 ArrayDeclaration `{ initialComments = [], initialLog = [] }: { initialComments?: CommentRecord[]; initialLog` -> ["Stryker was here"]
+  26:16 ArrayDeclaration `this.log = [...initialLog];` -> []
+  42:50 EqualityOperator `const index = this.comments.findIndex((c) => c.workspaceId === record.workspaceId && c.id ` -> c.workspaceId !== record.workspaceId
+  54:56 ConditionalExpression `(c) => c.workspaceId === required.workspaceId && c.entryId === required.entryId && statuse` -> true
+  76:65 ConditionalExpression `? scoped.filter((c) => c.createdAt < marker.createdAt || (c.createdAt === marker.createdAt` -> true
+  86:14 EqualityOperator `(c) => c.workspaceId === required.workspaceId && c.status === required.status && (required` -> c.workspaceId !== required.workspaceId
+  86:123 EqualityOperator `(c) => c.workspaceId === required.workspaceId && c.status === required.status && (required` -> c.entryId !== required.entryId
+
+### src/navigation/tool-registrations.ts score=88.3 surv+nocov=19 :: BlockStatement=1, ObjectLiteral=6, ConditionalExpression=8, ArrayDeclaration=2, LogicalOperator=1, ArrowFunction=1
+  NOCOV lines: 152,153
+  105:9 ConditionalExpression `...(menu.doc.mode !== undefined ? { mode: menu.doc.mode } : {}),` -> true
+  106:9 ConditionalExpression `...(menu.doc.html !== undefined ? { html: menu.doc.html } : {}),` -> true
+  107:16 ArrayDeclaration `locations: [...menu.locations],` -> []
+  115:9 ConditionalExpression `...(input.mode !== undefined ? { mode: input.mode as NavMenuMode } : {}),` -> true
+  116:9 ConditionalExpression `...(input.html !== undefined ? { html: input.html as string } : {}),` -> true
+  152:7 ConditionalExpression `if (Object.hasOwn(input, "id") || aliases.length > 1) {` -> false
+  152:7 LogicalOperator `if (Object.hasOwn(input, "id") || aliases.length > 1) {` -> Object.hasOwn(input, "id") && aliases.length > 1
+  152:37 ConditionalExpression `if (Object.hasOwn(input, "id") || aliases.length > 1) {` -> false
+  156:51 ArrayDeclaration `return { input: { ...rest, id: menuId }, notes: [`${alias}→id`] };` -> []
+  162:207 ObjectLiteral `await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.autho` -> {}
+
+### src/comments/types.ts score=0.0 surv+nocov=0 :: 
+
+### src/listing/html.ts score=86.3 surv+nocov=16 :: MethodExpression=2, Regex=5, OptionalChaining=2, ConditionalExpression=4, UnaryOperator=1, BlockStatement=1, LogicalOperator=1
+  68:45 MethodExpression `return bodyClose === -1 ? html + script : html.slice(0, bodyClose) + script + html.slice(b` -> html
+  73:37 Regex `for (const [tag] of html.matchAll(/<button\b[^<>]*\bdata-jini-more="(\d+)"[^<>]*>/g)) {` -> /<button\b[^<>]*\bdata-jini-more="(\d)"[^<>]*>/g
+  75:18 OptionalChaining `const href = /\bdata-jini-more-href="([^"]*)"/.exec(tag)?.[1];` -> /\bdata-jini-more-href="([^"]*)"/.exec(tag)[1]
+  76:9 ConditionalExpression `if (href !== undefined) hrefs.push(decodeAttribute(href));` -> true
+  85:15 ConditionalExpression `const end = start === -1 ? -1 : html.indexOf(`<!--/jini-listing:${key}-->`, start);` -> false
+  85:25 UnaryOperator `const end = start === -1 ? -1 : html.indexOf(`<!--/jini-listing:${key}-->`, start);` -> +1
+  87:32 MethodExpression `const moreHref = moreHrefsIn(html.slice(end), key)[0];` -> html
+  114:7 OptionalChaining `if (request?.format !== 'json') return undefined;` -> request.format
+  116:89 BlockStatement `try { nextCursor = (JSON.parse(body) as { nextCursor?: unknown }).nextCursor; } catch { re` -> {}
+  117:10 LogicalOperator `return typeof nextCursor === 'number' && Number.isInteger(nextCursor) && nextCursor > requ` -> typeof nextCursor === 'number' || Number.isInteger
+
+### src/listing/see-more-script.ts score=0.0 surv+nocov=0 :: 
+
+### src/navigation/agent-tools.ts score=60.5 surv+nocov=15 :: ObjectLiteral=9, BooleanLiteral=4, ArrayDeclaration=2
+  203:18 ObjectLiteral `inputSchema: {` -> {}
+  205:29 BooleanLiteral `additionalProperties: false,` -> true
+  206:17 ArrayDeclaration `required: [],` -> ["Stryker was here"]
+  217:29 BooleanLiteral `additionalProperties: false,` -> true
+  219:19 ObjectLiteral `properties: { menuId: MENU_ID_SCHEMA },` -> {}
+  232:29 BooleanLiteral `additionalProperties: false,` -> true
+  233:17 ArrayDeclaration `required: ["title", "slug"],` -> []
+  235:16 ObjectLiteral `title: { type: "string", minLength: 1, description: "Human-readable menu name." },` -> {}
+  236:15 ObjectLiteral `slug: { type: "string", pattern: "^[a-z0-9-]+$", description: "Stable machine handle. Lowe` -> {}
+  237:16 ObjectLiteral `items: { ...ITEMS_TREE_SCHEMA, description: "Optional initial item tree. Defaults to an em` -> {}
+
+### src/navigation/menu-service.ts score=89.9 surv+nocov=34 :: ObjectLiteral=6, MethodExpression=4, Regex=2, ConditionalExpression=12, BlockStatement=2, EqualityOperator=2, OptionalChaining=1, ArrowFunction=2, ArithmeticOperator=2, ArrayDeclaration=1
+  128:11 ObjectLiteral `super({ message: message });` -> {}
+  199:16 MethodExpression `const href = rawHref.trim();` -> rawHref
+  201:7 Regex `if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return true;` -> /^https:\/\//i
+  201:37 Regex `if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return true;` -> /mailto:/i
+  202:7 ConditionalExpression `if (href.startsWith("/")) {` -> true
+  205:13 BlockStatement `} catch {` -> {}
+  266:37 ObjectLiteral `throw new MenuValidationError({ message: `menu tree exceeds max nesting depth of ${maxDept` -> {}
+  265:9 EqualityOperator `if (depth > maxDepth) {` -> depth >= maxDepth
+  270:11 EqualityOperator `if (count > maxItemCount) {` -> count >= maxItemCount
+  273:20 ConditionalExpression `if (!node || typeof node !== "object") {` -> false
+
+### src/navigation/repo.memory.ts score=87.0 surv+nocov=20 :: ArrayDeclaration=2, ArrowFunction=2, ConditionalExpression=11, LogicalOperator=4, MethodExpression=1
+  107:27 ArrayDeclaration `const { initialRows = [] } = optionalArgs;` -> ["Stryker was here"]
+  166:7 ArrowFunction `(row) => !(row.workspaceId === required.workspaceId && row.id === required.id)` -> () => undefined
+  166:18 ConditionalExpression `(row) => !(row.workspaceId === required.workspaceId && row.id === required.id)` -> true
+  166:18 LogicalOperator `(row) => !(row.workspaceId === required.workspaceId && row.id === required.id)` -> row.workspaceId === required.workspaceId || row.id
+  166:18 ConditionalExpression `(row) => !(row.workspaceId === required.workspaceId && row.id === required.id)` -> true
+  166:62 ConditionalExpression `(row) => !(row.workspaceId === required.workspaceId && row.id === required.id)` -> true
+  190:27 ArrayDeclaration `const { initialRows = [] } = optionalArgs;` -> ["Stryker was here"]
+  210:12 MethodExpression `return this.rows.filter(` -> this.rows
+  211:16 ConditionalExpression `(row) => row.workspaceId === required.workspaceId && row.menuId === required.menuId` -> true
+  211:16 LogicalOperator `(row) => row.workspaceId === required.workspaceId && row.menuId === required.menuId` -> row.workspaceId === required.workspaceId || row.me
+
+### src/taxonomy/agent-tools.ts score=71.4 surv+nocov=18 :: ArrayDeclaration=7, ObjectLiteral=11
+  112:17 ArrayDeclaration `required: ["name", "hierarchical"],` -> []
+  114:15 ObjectLiteral `name: { type: "string", minLength: 1, description: "Human-readable taxonomy name, e.g. 'Ca` -> {}
+  115:23 ObjectLiteral `hierarchical: { type: "boolean", description: "true = category-shaped (terms may nest unde` -> {}
+  130:17 ArrayDeclaration `required: ["taxonomyId", "name"],` -> []
+  133:15 ObjectLiteral `name: { type: "string", minLength: 1, description: "The term's name." },` -> {}
+  134:19 ObjectLiteral `parentId: { type: "string", description: "An existing term id in the SAME taxonomy to nest` -> {}
+  146:17 ArrayDeclaration `required: ["termId", "newName"],` -> []
+  147:54 ObjectLiteral `properties: { termId: TERM_ID_SCHEMA, newName: { type: "string", minLength: 1, description` -> {}
+  162:17 ArrayDeclaration `required: ["contentType", "contentId", "termIds"],` -> []
+  165:20 ObjectLiteral `contentId: { type: "string", minLength: 1, description: "The id of the content row to assi` -> {}
+
+### src/taxonomy/write-service.ts score=88.1 surv+nocov=35 :: ObjectLiteral=18, ArrowFunction=1, ConditionalExpression=8, BlockStatement=2, EqualityOperator=1, LogicalOperator=4, OptionalChaining=1
+  209:39 ObjectLiteral `const result = await deps.authorize({ principalId, permission: "admin.taxonomy.manage" });` -> {}
+  211:30 ObjectLiteral `throw new ForbiddenError({` -> {}
+  254:29 ObjectLiteral `await deps.outbox.enqueue({ event: { name: "taxonomy.created", taxonomyId: taxonomy.id, ac` -> {}
+  254:38 ObjectLiteral `await deps.outbox.enqueue({ event: { name: "taxonomy.created", taxonomyId: taxonomy.id, ac` -> {}
+  316:23 ArrowFunction `wouldCreateCycle: () => false,` -> () => undefined
+  334:29 ObjectLiteral `await deps.outbox.enqueue({ event: { name: "taxonomy.term_created", termId: term.id, actor` -> {}
+  334:38 ObjectLiteral `await deps.outbox.enqueue({ event: { name: "taxonomy.term_created", termId: term.id, actor` -> {}
+  422:7 ConditionalExpression `if (existing) {` -> true
+  422:17 BlockStatement `if (existing) {` -> {}
+  422:7 ConditionalExpression `if (existing) {` -> false
+
+### src/widgets/page-embed-types.ts score=0.0 surv+nocov=1 :: BlockStatement=1
+  NOCOV lines: 44
+
+### src/widgets/resolver-service.ts score=88.4 surv+nocov=62 :: ArrayDeclaration=7, ArithmeticOperator=1, ConditionalExpression=23, EqualityOperator=4, ObjectLiteral=16, BooleanLiteral=1, MethodExpression=4, LogicalOperator=5, ArrowFunction=1
+  NOCOV lines: 196
+  112:20 ArithmeticOperator `for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);` -> node.length + 1
+  118:9 ConditionalExpression `if (Array.isArray(candidate.value.content)) stack.push(candidate.value.content);` -> true
+  184:53 ArrayDeclaration `const list = byType.get(instance.widgetType) ?? [];` -> ["Stryker was here"]
+  200:5 ConditionalExpression `referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId }, { type: WID` -> true
+  200:5 EqualityOperator `referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId }, { type: WID` -> referencedIds.size >= 0
+  200:84 ObjectLiteral `referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId }, { type: WID` -> {}
+  200:117 ArrayDeclaration `referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId }, { type: WID` -> ["Stryker was here"]
+  208:55 ArrayDeclaration `const instances = byType.get(saved.widgetType) ?? [];` -> ["Stryker was here"]
+  275:84 BooleanLiteral `const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };` -> true
+  275:41 ObjectLiteral `const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };` -> {}
+
+### src/widgets/embed-service.ts score=95.7 surv+nocov=13 :: ConditionalExpression=4, ArithmeticOperator=1, ObjectLiteral=5, ArrayDeclaration=2, ArrowFunction=1
+  92:57 ConditionalExpression `const attrs = { value: isNonArrayRecord(candidate) && candidate.value.type === "widgetEmbe` -> true
+  108:20 ArithmeticOperator `for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);` -> node.length + 1
+  127:16 ObjectLiteral `out.push({ type: "widgetEmbed", placementId: attrs.placementId, widgetEntryId: attrs.widge` -> {}
+  144:41 ConditionalExpression `const doc = isNonArrayRecord(body) && body.value.type === "doc" ? body.value : { type: "do` -> true
+  165:27 ArrayDeclaration `const copy: unknown[] = new Array(children.length);` -> new Array()
+  278:10 ConditionalExpression `return host.kind === "entry" ? host.record.type : host.record.kind;` -> true
+  304:46 ArrayDeclaration `const resultingEmbeds: WidgetEmbedNode[] = [];` -> ["Stryker was here"]
+  350:52 ObjectLiteral `const latest = await deps.entryRepo.findById({ workspaceId, id: current.id });` -> {}
+  388:16 ObjectLiteral `actor: { id: actor.principalId, kind: actor.kind as CommandActor["kind"] },` -> {}
+  406:17 ConditionalExpression `...(priorPost.ext !== undefined ? { ext: priorPost.ext } : {}),` -> true
+
+### src/widgets/html/html-embeds.ts score=92.6 surv+nocov=12 :: EqualityOperator=2, ArrayDeclaration=1, ObjectLiteral=1, BooleanLiteral=2, ConditionalExpression=6
+  195:47 EqualityOperator `if (rawId === null || rawId.length === 0 || rawId.length > MAX_EMBED_ID_LENGTH) return nul` -> rawId.length >= MAX_EMBED_ID_LENGTH
+  406:59 ArrayDeclaration `const NO_ELEMENT_ATTRIBUTES: readonly MarkerAttribute[] = [];` -> ["Stryker was here"]
+  411:45 ObjectLiteral `const DEFAULT_OCCURRENCE: EmbedOccurrence = { elementAttributes: NO_ELEMENT_ATTRIBUTES, co` -> {}
+  411:99 BooleanLiteral `const DEFAULT_OCCURRENCE: EmbedOccurrence = { elementAttributes: NO_ELEMENT_ATTRIBUTES, co` -> false
+  429:45 ConditionalExpression `const controlsAttr = attrs.find((attr) => attr.name === "controls");` -> true
+  463:145 BooleanLiteral `return { occurrence: { elementAttributes: withoutControls(parsed), controls }, wrapperAttr` -> false
+  470:131 ConditionalExpression `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> true
+  470:131 EqualityOperator `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> mediaElementAttrs.length >= 0
+  534:14 ConditionalExpression `return typeof output === "string" ? output : undefined;` -> true
+  538:25 ConditionalExpression `const replacement = typeof output === "string" ? output : undefined;` -> true
+
+### src/widgets/html/plugin-export.ts score=85.2 surv+nocov=25 :: Regex=4, ConditionalExpression=13, LogicalOperator=4, MethodExpression=2, OptionalChaining=2
+  45:14 Regex `const SLOT = /{{\s*(props|host)\.([a-zA-Z0-9_.-]+)\s*}}/g;` -> /{{\S*(props|host)\.([a-zA-Z0-9_.-]+)\s*}}/g
+  45:14 Regex `const SLOT = /{{\s*(props|host)\.([a-zA-Z0-9_.-]+)\s*}}/g;` -> /{{\s*(props|host)\.([a-zA-Z0-9_.-]+)\S*}}/g
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> (value === null || typeof value !== 'object') && !
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> value === null && typeof value !== 'object'
+  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  57:27 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
+  60:7 ConditionalExpression `if (!['string', 'number', 'boolean'].includes(typeof value)) throw new Error('non-scalar p` -> false
+  66:33 MethodExpression `if (!value.startsWith('/') || value.startsWith('//') || /[\u0000-\u0020\\]/.test(value)) t` -> value.endsWith('//')
+
+### src/widgets/markers/gallery.ts score=93.8 surv+nocov=22 :: ConditionalExpression=7, LogicalOperator=2, EqualityOperator=1, BlockStatement=1, Regex=9, ArrayDeclaration=2
+  38:7 ConditionalExpression `if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;` -> false
+  38:7 LogicalOperator `if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;` -> typeof value !== 'string' && value.length === 0
+  38:7 ConditionalExpression `if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;` -> false
+  38:36 ConditionalExpression `if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;` -> false
+  38:58 EqualityOperator `if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;` -> value.length >= 2048
+  42:11 BlockStatement `} catch {` -> {}
+  49:7 LogicalOperator `if (typeof value !== 'string' || !/^\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/.test(value))` -> typeof value !== 'string' && !/^\d+(?:\.\d+)?(?:\s
+  49:7 ConditionalExpression `if (typeof value !== 'string' || !/^\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/.test(value))` -> false
+  49:7 ConditionalExpression `if (typeof value !== 'string' || !/^\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/.test(value))` -> false
+  49:37 Regex `if (typeof value !== 'string' || !/^\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/.test(value))` -> /\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/
+
+### src/widgets/markers/html-attributes.ts score=92.2 surv+nocov=10 :: EqualityOperator=2, Regex=3, ObjectLiteral=1, ConditionalExpression=2, MethodExpression=2
+  142:9 EqualityOperator `if (char.codePointAt(0)! > ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT) stripped += char;` -> char.codePointAt(0)! >= ASCII_WHITESPACE_OR_CONTRO
+  166:21 Regex `? value.replace(/\\([0-9a-f]{1,6})(?:\r\n|[ \t\n\r\f])?/gi, (escape, hex: string) => {` -> /\\([0-9a-f]{1,6})(?:\r\n|[^ \t\n\r\f])?/gi
+  168:79 EqualityOperator `if (codePoint < 0xa0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdff` -> codePoint < 0xdfff
+  195:58 ObjectLiteral `if (!isAllowedEmbedHtmlAttributeName({ name })) return { reason: "disallowed-name", attrib` -> {}
+  196:7 ConditionalExpression `if (name === "style" && isUnsafeStyleValue(value, options)) return { reason: "unsafe-style` -> true
+  239:19 MethodExpression `const trimmed = text.trim();` -> text
+  240:7 ConditionalExpression `if (trimmed === "") return { attributes: {}, errors: [], error: null };` -> false
+  265:7 MethodExpression `if (trailing.trim() !== "") return malformedResult({ errors, fragment: trailing });` -> trailing
+  202:30 Regex `const HTML_ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;` -> /([^\s="']+)(?:=(?:"([^"]*)"|'([^'])'|([^\s"']+)))
+  202:30 Regex `const HTML_ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;` -> /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"'])))
+
+### src/widgets/markers/marker.ts score=92.0 surv+nocov=28 :: EqualityOperator=2, ArithmeticOperator=2, ConditionalExpression=10, LogicalOperator=2, AssignmentOperator=1, ArrayDeclaration=5, MethodExpression=1, Regex=5
+  149:29 EqualityOperator `return codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : whole;` -> codePoint < 0x10ffff
+  200:30 ArithmeticOperator `const closingTagLength = tagName.length + 3; // "</" + tagName + ">"` -> tagName.length - 3
+  239:7 ConditionalExpression `if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {` -> false
+  239:7 LogicalOperator `if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {` -> typeof parsed !== "object" && parsed === null
+  239:7 ConditionalExpression `if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {` -> false
+  239:37 ConditionalExpression `if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {` -> false
+  243:42 ConditionalExpression `if (typeof config.type !== "string" || config.type === "") {` -> false
+  271:23 ArithmeticOperator `token.lastIndex = closeAngle + 1;` -> closeAngle - 1
+  295:5 AssignmentOperator `firstClose ??= span;` -> firstClose &&= span
+  321:32 ArrayDeclaration `const openStarts: number[] = [];` -> ["Stryker was here"]
+
+### src/widgets/region-area-service.ts score=85.2 surv+nocov=16 :: BlockStatement=2, ObjectLiteral=9, ArrowFunction=1, ConditionalExpression=4
+  77:125 BlockStatement `async function extractAndStoreAreaRefs(deps: RegionAreaServiceDeps, workspaceId: string, e` -> {}
+  79:44 ObjectLiteral `const refs = deps.host.entryRefs.extract({` -> {}
+  84:16 ObjectLiteral `fieldsExt: { [WIDGET_AREA_FIELD_NAMESPACE]: { regionKey: payload.regionKey } },` -> {}
+  84:49 ObjectLiteral `fieldsExt: { [WIDGET_AREA_FIELD_NAMESPACE]: { regionKey: payload.regionKey } },` -> {}
+  107:16 ArrowFunction `onWritten: (entry: EntryRecord) => extractAndStoreAreaRefs(deps, workspaceId, entry),` -> () => undefined
+  135:26 BlockStatement `if (existingBinding) {` -> {}
+  136:56 ObjectLiteral `const boundEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: exi` -> {}
+  134:65 ObjectLiteral `const existingBinding = await deps.bindingRepo.findByRegion({ workspaceId: input.workspace` -> {}
+  137:11 ConditionalExpression `if (boundEntry) return { areaEntry: toWidgetAreaEntry({ entry: boundEntry }) };` -> false
+  135:9 ConditionalExpression `if (existingBinding) {` -> false
+
+### src/widgets/registry.ts score=43.1 surv+nocov=66 :: ArrayDeclaration=14, BooleanLiteral=7, ObjectLiteral=45
+  39:15 ArrayDeclaration `required: ["body"],` -> []
+  40:27 BooleanLiteral `additionalProperties: false,` -> true
+  42:22 ArrayDeclaration `placementContexts: ["region", "inline"],` -> []
+  43:11 ObjectLiteral `clamps: { timeoutMs: 0 },` -> {}
+  53:14 ObjectLiteral `links: {` -> {}
+  55:16 ObjectLiteral `items: {` -> {}
+  57:23 ObjectLiteral `properties: { platform: { type: "string" }, url: { type: "string" } },` -> {}
+  57:35 ObjectLiteral `properties: { platform: { type: "string" }, url: { type: "string" } },` -> {}
+  57:60 ObjectLiteral `properties: { platform: { type: "string" }, url: { type: "string" } },` -> {}
+  58:21 ArrayDeclaration `required: ["platform", "url"],` -> []
+
+### src/widgets/write-service.ts score=94.3 surv+nocov=12 :: ConditionalExpression=2, ObjectLiteral=5, MethodExpression=1, ArrowFunction=3, BlockStatement=1
+  73:10 ConditionalExpression `return base.length > 0 ? base : "widget";` -> false
+  78:44 ObjectLiteral `const refs = deps.host.entryRefs.extract({` -> {}
+  83:16 ObjectLiteral `fieldsExt: { [WIDGET_FIELD_NAMESPACE]: { widgetType: payload.widgetType, config: payload.c` -> {}
+  83:44 ObjectLiteral `fieldsExt: { [WIDGET_FIELD_NAMESPACE]: { widgetType: payload.widgetType, config: payload.c` -> {}
+  176:68 MethodExpression `const slug = input.slug ?? `${slugify(input.title, deps.host)}-${deps.ids.newId().slice(0,` -> deps.ids.newId()
+  181:18 ArrowFunction `onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),` -> () => undefined
+  249:20 ArrowFunction `onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),` -> () => undefined
+  263:54 ObjectLiteral `const latest = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.w` -> {}
+  323:20 ArrowFunction `onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),` -> () => undefined
+  338:9 ConditionalExpression `if (!result.ok) throw result.error;` -> false
+
+### src/seo/feed.ts score=65.9 surv+nocov=14 :: ConditionalExpression=5, EqualityOperator=4, UnaryOperator=1, MethodExpression=3, ArrowFunction=1
+  NOCOV lines: 51
+  49:17 MethodExpression `const items = entries` -> entries.filter(({   post }) => post.kind === "post
+  49:17 MethodExpression `const items = entries` -> entries.filter(({   post }) => post.kind === "post
+  49:17 MethodExpression `const items = entries` -> entries
+  50:27 ConditionalExpression `.filter(({ post }) => post.kind === "post")` -> true
+  51:11 ArrowFunction `.sort((a, b) => (a.post.updatedAt < b.post.updatedAt ? 1 : a.post.updatedAt > b.post.updat` -> () => undefined
+
+### src/seo/seo.ts score=94.5 surv+nocov=11 :: ConditionalExpression=5, MethodExpression=2, EqualityOperator=1, ObjectLiteral=3
+  34:10 ConditionalExpression `return typeof value === "object" && value !== null;` -> true
+  41:7 ConditionalExpression `if (typeof node.text === "string") parts.push(node.text);` -> true
+  60:48 MethodExpression `return text.length > EXCERPT_MAX_LENGTH ? `${text.slice(0, EXCERPT_MAX_LENGTH).trim()}…` :` -> text.slice(0, EXCERPT_MAX_LENGTH)
+  60:10 EqualityOperator `return text.length > EXCERPT_MAX_LENGTH ? `${text.slice(0, EXCERPT_MAX_LENGTH).trim()}…` :` -> text.length >= EXCERPT_MAX_LENGTH
+  121:13 ObjectLiteral `target: { kind: "entryRef", entryId: post.id, contentType: post.kind },` -> {}
+  122:10 ObjectLiteral `ctx: { workspaceId },` -> {}
+  168:52 MethodExpression `if (resolved) return { ...resolved, sourceRef: ref.trim() };` -> ref
+  166:9 ConditionalExpression `if (!ref) continue;` -> false
+  291:48 ObjectLiteral `...(twitterImage?.ref === undefined ? {} : { imageRef: twitterImage.ref }),` -> {}
+  291:9 ConditionalExpression `...(twitterImage?.ref === undefined ? {} : { imageRef: twitterImage.ref }),` -> true
+
+### src/seo/sitemap.ts score=85.4 surv+nocov=18 :: BlockStatement=1, LogicalOperator=2, EqualityOperator=2, BooleanLiteral=3, ConditionalExpression=9, UnaryOperator=1
+  21:46 BlockStatement `function cacheKey(workspaceId: UUID): string {` -> {}
+  65:18 LogicalOperator `const nowIso = input.nowIso ?? deps.clock.nowIso();` -> input.nowIso && deps.clock.nowIso()
+  81:10 EqualityOperator `return a.id < b.id ? -1 : 1;` -> a.id <= b.id
+  88:43 BooleanLiteral `if (post.status !== "published") return false;` -> true
+  90:61 BooleanLiteral `if (deps.liveness.isScheduledAt({ post, nowIso })) return false;` -> true
+  88:7 ConditionalExpression `if (post.status !== "published") return false;` -> false
+  99:49 BooleanLiteral `if (deps.postRepo.isTrashed({ post })) return false;` -> true
+  90:7 ConditionalExpression `if (deps.liveness.isScheduledAt({ post, nowIso })) return false;` -> false
+  99:7 ConditionalExpression `if (deps.postRepo.isTrashed({ post })) return false;` -> false
+  185:11 ConditionalExpression `if (index !== -1) sitemapCollectHooks.splice(index, 1);` -> true
+
+### src/trash/repo.memory.ts score=85.5 surv+nocov=21 :: ConditionalExpression=9, EqualityOperator=9, MethodExpression=1, UnaryOperator=1, LogicalOperator=1
+  24:7 ConditionalExpression `if (a.trashedAt !== b.trashedAt) return a.trashedAt < b.trashedAt ? 1 : -1;` -> false
+  24:43 EqualityOperator `if (a.trashedAt !== b.trashedAt) return a.trashedAt < b.trashedAt ? 1 : -1;` -> a.trashedAt <= b.trashedAt
+  25:17 ConditionalExpression `return Number(a.id < b.id) - Number(a.id > b.id);` -> false
+  25:17 EqualityOperator `return Number(a.id < b.id) - Number(a.id > b.id);` -> a.id <= b.id
+  25:39 ConditionalExpression `return Number(a.id < b.id) - Number(a.id > b.id);` -> true
+  25:39 EqualityOperator `return Number(a.id < b.id) - Number(a.id > b.id);` -> a.id >= b.id
+  34:12 MethodExpression `return [...this.rows.values()].sort(compareDesc);` -> [...this.rows.values()]
+  72:9 ConditionalExpression `if (found) {` -> true
+  84:43 ConditionalExpression `const types = optional.entityTypes && optional.entityTypes.length > 0 ? new Set(optional.e` -> true
+  84:43 EqualityOperator `const types = optional.entityTypes && optional.entityTypes.length > 0 ? new Set(optional.e` -> optional.entityTypes.length >= 0
+
+### src/trash/write-service.ts score=91.4 surv+nocov=13 :: BlockStatement=3, OptionalChaining=1, ObjectLiteral=5, ConditionalExpression=2, LogicalOperator=2
+  66:19 BlockStatement `} catch (error) {` -> {}
+  68:9 BlockStatement `try { optional.onError?.({ error }); } catch { /* reporting never undoes a state transitio` -> {}
+  68:11 OptionalChaining `try { optional.onError?.({ error }); } catch { /* reporting never undoes a state transitio` -> optional.onError({   error })
+  68:30 ObjectLiteral `try { optional.onError?.({ error }); } catch { /* reporting never undoes a state transitio` -> {}
+  63:7 ConditionalExpression `if (!optional.onChanged) return;` -> false
+  107:37 BlockStatement `if (Number.isNaN(base.getTime())) {` -> {}
+  107:7 ConditionalExpression `if (Number.isNaN(base.getTime())) {` -> false
+  128:42 ObjectLiteral `throw new TrashAdapterMissingError({ message: `trash: no adapter is registered for entity ` -> {}
+  148:14 ObjectLiteral `}, { actor: required.actor });` -> {}
+  159:28 LogicalOperator `actorPluginId: required.actor.pluginId ?? null,` -> required.actor.pluginId && null
+
 ### src/media/agent-tools.ts score=33.3 surv+nocov=34 :: BooleanLiteral=5, ObjectLiteral=22, ArrayDeclaration=7
   83:58 BooleanLiteral `inputSchema: { type: "object", additionalProperties: false, properties: {} },` -> true
   83:18 ObjectLiteral `inputSchema: { type: "object", additionalProperties: false, properties: {} },` -> {}
@@ -337,30 +619,6 @@
   226:18 ConditionalExpression `if (!rule || rule.status !== "active") return;` -> false
   417:7 ConditionalExpression `if (finalTarget !== fields.toTarget) {` -> true
   601:10 LogicalOperator `return input.status === "active" && NON_STATUS_UPDATABLE_FIELDS.every((key) => input[key] ` -> input.status === "active" || NON_STATUS_UPDATABLE_
-
-### src/widgets/html/html-embeds.ts score=92.6 surv+nocov=12 :: EqualityOperator=2, ConditionalExpression=6, BooleanLiteral=2, ArrayDeclaration=1, ObjectLiteral=1
-  195:47 EqualityOperator `if (rawId === null || rawId.length === 0 || rawId.length > MAX_EMBED_ID_LENGTH) return nul` -> rawId.length >= MAX_EMBED_ID_LENGTH
-  429:45 ConditionalExpression `const controlsAttr = attrs.find((attr) => attr.name === "controls");` -> true
-  463:145 BooleanLiteral `return { occurrence: { elementAttributes: withoutControls(parsed), controls }, wrapperAttr` -> false
-  470:131 ConditionalExpression `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> true
-  470:131 EqualityOperator `return { occurrence: { elementAttributes: withoutControls(mediaElementAttrs), controls }, ` -> mediaElementAttrs.length >= 0
-  534:14 ConditionalExpression `return typeof output === "string" ? output : undefined;` -> true
-  538:25 ConditionalExpression `const replacement = typeof output === "string" ? output : undefined;` -> true
-  539:9 ConditionalExpression `if (replacement === undefined) return undefined;` -> false
-  541:9 ConditionalExpression `if (ref.type === "widget" && replacement === "") return "";` -> true
-  406:59 ArrayDeclaration `const NO_ELEMENT_ATTRIBUTES: readonly MarkerAttribute[] = [];` -> ["Stryker was here"]
-
-### src/widgets/html/plugin-export.ts score=85.2 surv+nocov=25 :: ConditionalExpression=13, LogicalOperator=4, MethodExpression=2, OptionalChaining=2, Regex=4
-  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
-  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> (value === null || typeof value !== 'object') && !
-  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
-  57:9 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
-  57:9 LogicalOperator `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> value === null && typeof value !== 'object'
-  57:27 ConditionalExpression `if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key)) throw new E` -> false
-  60:7 ConditionalExpression `if (!['string', 'number', 'boolean'].includes(typeof value)) throw new Error('non-scalar p` -> false
-  66:33 MethodExpression `if (!value.startsWith('/') || value.startsWith('//') || /[\u0000-\u0020\\]/.test(value)) t` -> value.endsWith('//')
-  79:9 ConditionalExpression `if (url && scope === 'props') throw new Error('plugin export URL props are unsupported');` -> false
-  94:20 OptionalChaining `const source = node.sourceCodeLocation?.attrs?.[attr.name];` -> node.sourceCodeLocation?.attrs[attr.name]
 
 ### src/consent/css.ts score=87.2 surv+nocov=50 :: BooleanLiteral=2, Regex=16, ConditionalExpression=15, MethodExpression=4, EqualityOperator=3, LogicalOperator=3, ArithmeticOperator=3, ObjectLiteral=4
   NOCOV lines: 64,77
