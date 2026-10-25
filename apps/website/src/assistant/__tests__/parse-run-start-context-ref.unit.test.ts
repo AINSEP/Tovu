@@ -153,3 +153,36 @@ test('carries validated per-chat plugin decisions and the actual current request
   assert.equal(result.userPrompt, 'design a theme');
   assert.deepEqual(parseRunStartContextRef(JSON.stringify({ prompt: 'hi', principalId: 'p1', agentPluginState: { decision: 'forged', excluded: [42] } })).agentPluginState, { decision: null, excluded: [] });
 });
+
+// L11 Stryker: the recovery fields, the coldStartContext/userPrompt size caps and the required-field
+// refusals survived. One row per branch, asserting WHICH error and WHICH fields come back.
+test("missing, empty or non-string prompt/principalId is refused naming the field", () => {
+  for (const [body, label] of [[{ principalId: "p" }, "prompt"], [{ prompt: "", principalId: "p" }, "prompt"], [{ prompt: 1, principalId: "p" }, "prompt"],
+    [{ prompt: "hi" }, "principalId"], [{ prompt: "hi", principalId: "" }, "principalId"], [{ prompt: "hi", principalId: ["p"] }, "principalId"]] as const) {
+    assert.throws(() => parseRunStartContextRef(JSON.stringify(body)), { message: `contextRef did not decode to a non-empty '${label}'` }, JSON.stringify(body));
+  }
+});
+
+test("recovery fields pass only in their documented shapes", () => {
+  const full = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p", assistantMessageId: "m-1", recoveryMode: "native", recoverySessionId: "s-1" }));
+  assert.equal(full.assistantMessageId, "m-1");
+  assert.equal(full.recoveryMode, "native");
+  assert.equal(full.recoverySessionId, "s-1");
+  assert.equal(parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p", recoveryMode: "reconstruction" })).recoveryMode, "reconstruction");
+  const none = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p", assistantMessageId: "", recoveryMode: "NATIVE", recoverySessionId: 7 }));
+  for (const key of ["assistantMessageId", "recoveryMode", "recoverySessionId", "model", "reasoning", "conversationId", "coldStartContext", "userPrompt", "pageContext"]) {
+    assert.equal(Object.hasOwn(none, key), false, key);
+  }
+});
+
+test("optional strings are kept only when non-empty, and the cold-start and user-prompt texts are capped", () => {
+  const parsed = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p", model: "m", reasoning: "high", conversationId: "c-1",
+    coldStartContext: `${"a".repeat(10)}${"b".repeat(500_000)}`, userPrompt: `${"u".repeat(16_000)}tail` }));
+  assert.equal(parsed.model, "m");
+  assert.equal(parsed.reasoning, "high");
+  assert.equal(parsed.conversationId, "c-1");
+  assert.equal(parsed.coldStartContext, "b".repeat(500_000), "the most recent 500k characters are kept");
+  assert.equal(parsed.userPrompt, "u".repeat(16_000), "the user prompt keeps its first 16k characters");
+  const empty = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p", model: "", reasoning: "", conversationId: "", coldStartContext: "" }));
+  for (const key of ["model", "reasoning", "conversationId", "coldStartContext"]) assert.equal(Object.hasOwn(empty, key), false, key);
+});
