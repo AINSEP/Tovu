@@ -204,6 +204,8 @@ const POST_ID_SCHEMA = {
   description: "The post/page's id, as returned by content_post_create, or by content_read.content_post called WITHOUT an id (its listing mode).",
 } as const;
 
+const TIPTAP_TEXT_BODY_EXAMPLE = '{"bodyJson":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"temp"}]}]}}';
+
 // ---------------------------------------------------------------------------
 // TipTap/ProseMirror `bodyJson` vocabulary — see this file's header for why this schema exists and
 // what it does (and does not) validate. Mirrors exactly the node/mark types
@@ -714,6 +716,7 @@ export const TIPTAP_DOC_SCHEMA = {
   },
   description:
     "A TipTap/ProseMirror document: { type: 'doc', content: [...blockNode] }. An empty document is { type: 'doc', content: [] }. " +
+    `Complete text body example: ${TIPTAP_TEXT_BODY_EXAMPLE}. ` +
     "Every node type named anywhere in this schema's $defs (blockNode's oneOf for block-level nodes, inlineContent's oneOf for " +
     "inline ones) is one this codebase's renderer actually recognizes — an unrecognized type is not rejected, but silently renders " +
     "its children only, losing its own formatting (matching renderDocNode's default case).",
@@ -866,9 +869,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_create",
     description:
-      "Creates a new post or page. Always starts as 'draft' unless status is explicitly set to 'published'. slug is derived from " +
+      "Creates a new post or page. Omitted kind defaults to 'post'; send kind:'page' to create a page. Always starts as 'draft' unless status is explicitly set to 'published'. slug is derived from " +
       "title when omitted (disambiguated on collision); bodyJson defaults to an empty TipTap document ({ type: 'doc', content: [] }) " +
-      "when omitted. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace. " +
+      `when omitted. Complete text body example: ${TIPTAP_TEXT_BODY_EXAMPLE}. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace. ` +
       "The returned post includes publicUrl — its resolved public path when created with status 'published', or null for the " +
       "default 'draft' (nothing to link to yet until it is published via content_post_update). " +
       "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link. " +
@@ -880,9 +883,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["kind", "title"],
+      required: ["title"],
       properties: {
-        kind: POST_KIND_SCHEMA,
+        kind: { ...POST_KIND_SCHEMA, default: "post", description: `${POST_KIND_SCHEMA.description} Optional; defaults to 'post' when omitted. Send 'page' explicitly for a page.` },
         title: { type: "string", maxLength: MAX_TITLE_LENGTH, description: `Human-readable title, up to ${MAX_TITLE_LENGTH} characters. An empty/whitespace-only title defaults to 'Untitled'.` },
         slug: {
           type: "string",
@@ -960,7 +963,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_delete",
     description:
-      "Waits for human approval, then moves one post or page to Trash with {id, kind}. Returns {deleted: true, cancelled: false, post}. This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set. Requires content.read and content.write. Refuses a missing/already-trashed row, a page kind mismatch, or a concurrent version change. Permanent deletion is a separate confirmation-gated tool.",
+      "Waits for human approval, then moves one post or page to Trash with {id}. Omitted kind is derived from the stored post or page; an explicit kind is also accepted. Returns {deleted: true, cancelled: false, post}. This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set. Requires content.read and content.write. Refuses a missing/already-trashed row, an internal template, a page kind mismatch, or a concurrent version change. Permanent deletion is a separate confirmation-gated tool.",
     // Genuinely destructive, and classified as its own thing rather than folded into the same
     // bucket as an edit — `tool-registrations.ts`'s independent `postDerivedRisk` derives the
     // identical value from what the handler actually calls, and the two are compared for equality
@@ -975,8 +978,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "kind"],
-      properties: { id: POST_ID_SCHEMA, kind: POST_KIND_SCHEMA },
+      required: ["id"],
+      properties: { id: POST_ID_SCHEMA, kind: { ...POST_KIND_SCHEMA, description: `${POST_KIND_SCHEMA.description} Optional; omit to derive the kind from the stored row.` } },
     },
   },
 ];
