@@ -183,3 +183,70 @@ test('a failing locale lookup still asks, in English, and never bypasses the gat
   assert.equal((await card.pending).status, 'completed');
   assert.equal(f.calls(), 0);
 });
+
+// L11 Stryker: the rule matchers (`namespace === && key ===` → `||`, http-method DELETE, plugin-enable,
+// export-commit) and the `plan`/`direct` short-circuit survived. One table per rule, both directions.
+test('execution-setting rule: only an exact namespace AND key pair escalates', () => {
+  for (const toolId of ['settings_set_value', 'settings_clear_value']) {
+    for (const key of ['localCli.permissionLevel', 'mode', 'localCli.agentId', 'byok.protocol', 'byok.providerId', 'byok.baseUrl']) {
+      assert.equal(approvalClassFor({ toolId, input: { namespace: 'core.execution', key } }), 'escalation', `${toolId} ${key}`);
+    }
+    for (const input of [
+      { namespace: 'core.execution', key: 'byok.model' }, { namespace: 'core.appearance', key: 'mode' },
+      { namespace: 'core.execution' }, { key: 'mode' }, { namespace: 'core.execution', key: 'MODE' }, {}, null, ['core.execution', 'mode'],
+    ]) assert.equal(approvalClassFor({ toolId, input }), 'edit', `${toolId} ${JSON.stringify(input)}`);
+  }
+});
+
+test('http-method rule: only a DELETE (any case) is a delete', () => {
+  for (const method of ['DELETE', 'delete', 'Delete']) assert.equal(approvalClassFor({ toolId: 'custom_credential_make_request', input: { method } }), 'delete', method);
+  for (const input of [{ method: 'GET' }, { method: 'POST' }, { method: 'DELETES' }, { method: ' DELETE' }, { method: ['DELETE'] }, { method: 1 }, {}]) {
+    assert.equal(approvalClassFor({ toolId: 'custom_credential_make_request', input }), 'edit', JSON.stringify(input));
+  }
+});
+
+test('plugin-enable rule: only an explicit enabled:false is a plain edit', () => {
+  assert.equal(approvalClassFor({ toolId: 'plugins_set_enabled', input: { enabled: false } }), 'edit');
+  for (const input of [{ enabled: true }, { enabled: 'false' }, { enabled: 0 }, {}]) assert.equal(approvalClassFor({ toolId: 'plugins_set_enabled', input }), 'escalation', JSON.stringify(input));
+});
+
+test('export-commit rule: only dryRun:true is an edit', () => {
+  assert.equal(approvalClassFor({ toolId: 'source_control_execute_commit', input: { dryRun: true } }), 'edit');
+  for (const input of [{ dryRun: false }, { dryRun: 'true' }, {}]) assert.equal(approvalClassFor({ toolId: 'source_control_execute_commit', input }), 'publish', JSON.stringify(input));
+});
+
+test('an explicit policy option overrides the table, and an unknown id without one throws', () => {
+  assert.equal(approvalClassFor({ toolId: 'content_post_search', input: {} }, { policy: { class: 'delete', confirmation: 'policy' } }), 'delete');
+  assert.equal(approvalClassFor({ toolId: 'no_such_tool', input: {} }, { policy: { class: 'publish', confirmation: 'policy' } }), 'publish');
+  assert.throws(() => approvalClassFor({ toolId: 'no_such_tool', input: {} }), { message: 'no_such_tool has no approval classification' });
+  assert.throws(() => approvalClassFor({ toolId: 'hasOwnProperty', input: {} }), { message: 'hasOwnProperty has no approval classification' });
+});
+
+test('plan tools and rule-free direct tools are returned unwrapped; ruled or policy tools are wrapped', () => {
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
+  const reg = (id: string): ToolRegistration => ({ descriptor: { id, description: id, inputSchema: { type: 'object' } }, policy: { authorize: () => 'allow' }, handler: async () => ({}) });
+  for (const id of ['settings_set_value', 'custom_credential_make_request', 'content_post_search']) {
+    const registration = reg(id);
+    assert.equal(applyToolApprovalPolicy({ registration, surfaces }), registration, `${id} is not wrapped`);
+  }
+  for (const id of ['content_post_delete', 'page.click']) {
+    const registration = reg(id);
+    assert.notEqual(applyToolApprovalPolicy({ registration, surfaces }), registration, `${id} is wrapped`);
+  }
+});
+
+test('federated restore-over-existing description: verb forms and the bounded gaps are pinned', async () => {
+  const { federatedApprovalClassFor } = await import('../tool-approval-policy.js');
+  const cls = (description: string) => federatedApprovalClassFor({ description, input: {} });
+  for (const description of [
+    'Restores the backup over the existing site.', 'Restore a snapshot, replacing current pages.',
+    'Restores a backup which will replace the existing content.', 'Restores a backup and replaces existing data.',
+    'Restores a dump, overwriting the current database.', 'Restores a dump that overwrites existing rows.',
+    `Restores ${'x'.repeat(70)} over existing data.`, `Restores a dump that replaces ${'y'.repeat(30)} existing rows.`,
+  ]) assert.equal(cls(description), 'restore-over-existing', description);
+  // A restore with no over/replace verb, or a gap past the bounds, is a reversible restore (edit).
+  for (const description of [
+    'Restores the backup.', 'Restores a page from the trash.',
+    `Restores a dump that replaces ${'y'.repeat(45)} existing rows.`, `Restores ${'x'.repeat(90)} over existing data.`,
+  ]) assert.equal(cls(description), 'edit', description);
+});

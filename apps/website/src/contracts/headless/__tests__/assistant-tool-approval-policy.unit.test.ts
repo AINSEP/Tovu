@@ -67,3 +67,68 @@ for (const [family, expected, asks] of [
     assert.equal(approvalClassAsks({ class: policy.class }, {}), asks);
   });
 }
+
+// L11 Stryker: the DIRECT_PAGE_HANDLES set (→ []), the `capabilityId !== 'page.click'` branch and the
+// unknown-capability throw survived. Pin the reviewed handle set exactly and both branches.
+const REVIEWED_DIRECT_PAGE_HANDLES = [
+  "plugins-install-advanced", "plugins-install-folder", "plugins-install-folder-upload",
+  "plugins-install-zip", "plugins-install-replace", "plugins-install-preview",
+  "plugins-install-cancel", "plugins-install-confirm",
+  "agent-plugin-add-choose", "agent-plugin-add-choose-folder", "agent-plugin-add-replace",
+  "agent-plugin-add-install", "agent-plugin-add-url", "agent-plugin-add-from-url",
+  "skills-add-github-url", "skills-add-github", "skills-add-files", "skills-add-folder",
+  "skills-install-cancel", "skills-install-confirm",
+];
+
+test("every reviewed plugin-add page handle clicks directly", () => {
+  for (const handle of REVIEWED_DIRECT_PAGE_HANDLES) assert.equal(directPageAction({ capabilityId: "page.click", input: { handle } }), true, handle);
+});
+
+test("look-alike and destructive page handles still ask", () => {
+  for (const handle of ["plugins-install-confirm ", "Plugins-install-confirm", "plugins-install", "plugins-uninstall-confirm",
+    "skills-delete-confirm", "agent-plugin-remove", "", "plugins-install-confirm\n"]) {
+    assert.equal(directPageAction({ capabilityId: "page.click", input: { handle } }), false, JSON.stringify(handle));
+  }
+});
+
+test("a non-click capability follows its own confirmation, ignoring any handle in the input", () => {
+  assert.equal(directPageAction({ capabilityId: "content_post_search", input: {} }), true);
+  assert.equal(directPageAction({ capabilityId: "content_post_search", input: { handle: "skills-delete-confirm" } }), true);
+  assert.equal(directPageAction({ capabilityId: "content_post_delete", input: { handle: "plugins-install-confirm" } }), false);
+  assert.equal(directPageAction({ capabilityId: "settings_set_value", input: {} }), false, "plan confirmation is not direct");
+});
+
+test("an unclassified capability, including an inherited property name, throws naming it", () => {
+  for (const capabilityId of ["no_such_tool", "toString", "__proto__", "", "PAGE.CLICK"]) {
+    assert.throws(() => directPageAction({ capabilityId, input: { handle: "plugins-install-confirm" } }), { message: `${capabilityId} has no approval classification` });
+  }
+});
+
+test("only read, edit and trash run directly; every other or unknown class asks", () => {
+  for (const actionClass of ["read", "edit", "trash"]) assert.equal(approvalClassAsks({ class: actionClass }), false, actionClass);
+  for (const actionClass of ["delete", "restore-over-existing", "publish", "replace-secret", "escalation", "", "READ", "toString"]) {
+    assert.equal(approvalClassAsks({ class: actionClass }), true, actionClass);
+  }
+});
+
+test("an unknown extension family is refused naming the registration", () => {
+  assert.throws(() => withExtensionApprovalPolicy({ registration: registration("opaque-x"), family: "toString" as never }), { message: "opaque-x has no approval classification" });
+  assert.throws(() => withExtensionApprovalPolicy({ registration: registration("opaque-y"), family: "agent-plugin-admin" as never }), { message: "opaque-y has no approval classification" });
+});
+
+test("every extension family is pinned by value", async () => {
+  const { EXTENSION_TOOL_APPROVAL_POLICY } = await import("../assistant-tool-approval-policy.js");
+  assert.deepEqual(EXTENSION_TOOL_APPROVAL_POLICY, {
+    "installed-guidance": { class: "read", confirmation: "direct" },
+    "plugin-capability-result": { class: "read", confirmation: "direct" },
+    "plugin-memory-read": { class: "read", confirmation: "direct" },
+    "plugin-memory-write": { class: "edit", confirmation: "direct" },
+    "agent-plugin-read": { class: "read", confirmation: "direct" },
+    "agent-plugin-write": { class: "publish", confirmation: "policy" },
+    "agent-plugin-destructive": { class: "delete", confirmation: "policy" },
+  });
+});
+
+test("a descriptor with no metadata and no native row fails closed", () => {
+  assert.throws(() => toolApprovalPolicyFor({ registration: registration("opaque-unclassified") }), { message: "opaque-unclassified has no approval classification" });
+});
