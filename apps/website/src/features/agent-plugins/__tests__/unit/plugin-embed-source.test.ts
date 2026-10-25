@@ -17,7 +17,7 @@ test("T1: inactive metadata is admitted only through the bundled digest gate; ac
     readTrustedPluginFile: async (plugin: { pluginId: string }) => {
       read.push(plugin.pluginId);
       assert.notEqual(plugin.pluginId, other.pluginId);
-      return JSON.stringify({ name: "demo", extensions: { tovu: { id: "publisher/canonical-demo", renamedFrom: ["tovu/old-demo"], provides: ["member-login:demo"], exports: { button: definition } } } });
+      return JSON.stringify({ "$schema": "https://agent-plugins.org/schemas/1.1.0/plugin.schema.json", name: "demo", extensions: { tovu: { id: "publisher/canonical-demo", renamedFrom: ["tovu/old-demo"], provides: ["member-login:demo"], exports: { button: definition } } } });
     },
   } as unknown as TovuAgentPluginLifecycle;
   const packages = await createPluginExportSource({ lifecycle }).list({ workspaceId });

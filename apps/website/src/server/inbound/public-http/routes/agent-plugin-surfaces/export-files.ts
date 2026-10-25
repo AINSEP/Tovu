@@ -11,6 +11,9 @@ interface ExportFilesDeps {
   readonly agentPluginLifecycle: TovuAgentPluginLifecycle;
 }
 
+/** The only public export file kinds: one stylesheet plus PNG/SVG artwork. */
+const EXPORT_FILE_TYPES: Readonly<Record<string, string>> = { ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml" };
+
 /** Fixed refusal never exposes containment errors or local package paths. */
 function notFound({ res }: { res: Response }, _options = {}): void {
   res.status(404).set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).type("text/plain").send("Not found");
@@ -27,9 +30,10 @@ async function resolveFile(required: { source: PluginExportSource; workspaceId: 
   const entry = Object.entries(owner.exports).find(([name]) => name === required.component)?.[1];
   if (!entry) return undefined;
   const declared = [entry.styles, ...Object.values(entry.assets ?? {})];
-  if (!declared.includes(required.path)) return undefined;
+  const type = EXPORT_FILE_TYPES[required.path.slice(required.path.lastIndexOf(".")).toLowerCase()];
+  // An unknown extension (e.g. a declared .html or .js) is refused, never served under an image type.
+  if (!type || !declared.includes(required.path)) return undefined;
   const body = await required.source.readAsset({ plugin: owner.plugin, filename: required.path });
-  const type = required.path.endsWith(".css") ? "text/css; charset=utf-8" : required.path.endsWith(".png") ? "image/png" : "image/svg+xml";
   return { body, type };
 }
 

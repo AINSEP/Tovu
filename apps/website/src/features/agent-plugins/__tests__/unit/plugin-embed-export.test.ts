@@ -22,7 +22,7 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   const packageRoot = mkdtempSync(path.join(tmpdir(), "tovu-plugin-package-"));
   t.after(() => rmSync(packageRoot, { force: true, recursive: true }));
   const plugin = { pluginId: "demo", packageRoot };
-  const manifest = { name: "demo", extensions: { tovu: { id: "tovu/demo", provides: ["member-login:demo"],
+  const manifest = { "$schema": "https://agent-plugins.org/schemas/1.1.0/plugin.schema.json", name: "demo", extensions: { tovu: { id: "tovu/demo", provides: ["member-login:demo"],
     exports: { button: { ...definition, staticExport: "fallback-only" } } } } };
   const files = new Map([["plugin.json", JSON.stringify(manifest)], ["components/button.html", template], ["components/button.css", "@layer plugin-exports { .plugin-demo-button { color: var(--plugin-signin-fg); } }"], ["components/mark.png", png.toString("base64")]]);
   // This test exercises the real declared-file route. Its lifecycle seam supplies contained data,
@@ -45,7 +45,8 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   assert.ok(report.routes.succeeded.some(route => route.path === "/plugin-page"));
   const html = readFileSync(path.join(outputDir, "plugin-page/index.html"), "utf8");
   assert.match(html, /Login unavailable offline/);
-  assert.doesNotMatch(html, /data-embed-config|\/oidc\/demo\/start/);
+  // Theme menus legitimately keep their own markers; only the plugin marker must be gone.
+  assert.doesNotMatch(html, /"type":"plugin"|\/oidc\/demo\/start/);
   assert.equal((html.match(/components\/button.css/g) ?? []).length, 1);
   assert.match(html, /\/snapshot\/api\/agent-plugin-exports\/v1\/demo\/button\/components\/mark.png/);
   const asset = (filename: string) => pluginExportFileUrl({ pluginId: "demo", component: "button", filename }).slice(1);
