@@ -203,3 +203,43 @@ test("a traced SigV4 client signs without sending, identically to the untraced c
   assert.equal(traced.headers.get("authorization"), plain.headers.get("authorization"));
   assert.deepEqual(exporter.getFinishedSpans(), []);
 });
+
+// Stryker lane L14 (host-kit.ts 88.3 %): the proof-body cap boundary, multi-chunk accumulation, the
+// non-ok short-circuit with a MATCHING body, the reader cancel, and the fetch init were unasserted.
+test("content proof: exactly 4096 bytes is read, 4097 is refused; the cap counts bytes across chunks", async () => {
+  const expected4096 = "d".repeat(4096);
+  const chunked = (parts: string[]) => new ReadableStream<Uint8Array>({ start(c) { for (const p of parts) c.enqueue(new TextEncoder().encode(p)); c.close(); } });
+  const cases: Array<[() => Response, string, boolean]> = [
+    [() => new Response(expected4096), expected4096, true],
+    [() => new Response(chunked(["d".repeat(2048), "d".repeat(2048)])), expected4096, true],
+    [() => new Response(chunked(["d".repeat(3000), "d".repeat(3000)])), "d".repeat(6000), false],
+    [() => new Response(chunked(["dig", "est"])), "digest", true],
+    [() => new Response("digest", { status: 503 }), "digest", false],
+    [() => new Response("digest", { status: 302, headers: { location: "https://8.8.8.8/x" } }), "digest", false],
+  ];
+  for (const [respond, expected, ok] of cases) {
+    const kit = createDeployHostKit({ fetchFn: async () => respond() });
+    assert.equal(await kit.probeContent!({ url: "https://8.8.8.8/proof", expected }), ok, `${expected.length} bytes → ${ok}`);
+  }
+});
+
+test("content proof: the fetch refuses redirects and carries a timeout signal; the body reader is cancelled after a match", async () => {
+  const inits: RequestInit[] = [];
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(c) { c.enqueue(new TextEncoder().encode("digest")); c.close(); },
+    cancel() { cancelled = true; },
+  });
+  const kit = createDeployHostKit({ fetchFn: async (_url, init) => (inits.push(init as RequestInit), new Response(body)) });
+  assert.equal(await kit.probeContent!({ url: "https://8.8.8.8/proof", expected: "digest" }), true);
+  assert.equal(inits[0]!.redirect, "error");
+  assert.ok(inits[0]!.signal instanceof AbortSignal);
+  assert.equal(inits[0]!.signal!.aborted, false);
+  // A fully-read stream is already closed, so cancel() is a no-op on the source; an over-cap stream is not.
+  let overCapCancelled = false;
+  const endless = new ReadableStream<Uint8Array>({ pull(c) { c.enqueue(new Uint8Array(2048)); }, cancel() { overCapCancelled = true; } });
+  const kit2 = createDeployHostKit({ fetchFn: async () => new Response(endless) });
+  assert.equal(await kit2.probeContent!({ url: "https://8.8.8.8/proof", expected: "digest" }), false);
+  assert.equal(overCapCancelled, true, "an over-cap proof body is cancelled, not left streaming");
+  assert.equal(cancelled, false);
+});
