@@ -102,6 +102,13 @@ function callback(base: string, params: URLSearchParams, binding = "") {
   return fetch(`${base}${OIDC}/callback?${params}`, { redirect: "manual", headers: { cookie: binding } });
 }
 
+/** Start/callback are top-level pages: a refusal is a 303 back to /signin with the fixed code. */
+function refusedTo(response: globalThis.Response, code = "LOGIN_INVALID") {
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), `/signin#oidcError=${code}`);
+  assert.ok(!cookie(response, "tovu_member_session"));
+}
+
 function post(base: string, path: string, body: unknown, cookies = "", extra: Record<string, string> = {}) {
   return fetch(`${base}${path}`, { method: "POST", redirect: "manual", headers: { "content-type": "application/json", cookie: cookies, ...extra }, body: JSON.stringify(body) });
 }
@@ -127,7 +134,7 @@ for (const proof of ["missing", "wrong", "duplicate", "duplicate-spaced", "forwa
     const binding = { missing: "", wrong, duplicate: `${start.binding}; ${wrong}`,
       "duplicate-spaced": `${start.binding}; ${wrong.replace("=", " =")}`, forwarded: "tovu_session=staff-only" }[proof];
     const response = await callback(base, start.params, binding);
-    assert.equal(response.status, 401); assert.equal(f.exchanges(), 0);
+    refusedTo(response); assert.equal(f.exchanges(), 0);
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal(response.headers.get("referrer-policy"), "no-referrer");
     assert.ok(response.headers.get("set-cookie")!.includes("Expires=Thu, 01 Jan 1970"));
@@ -144,8 +151,9 @@ for (const mode of ["tampered", "expired", "denied", "duplicate-state", "duplica
     if (mode === "duplicate-state") start.params.append("state", "attacker");
     if (mode === "duplicate-code") start.params.append("code", "attacker");
     const response = await callback(base, start.params, start.binding);
-    assert.equal(response.status, 401); assert.equal(f.exchanges(), 0);
-    assert.deepEqual(await response.json(), { error: "member login failed", code: "LOGIN_INVALID" });
+    // Cancel at the provider gets its own message; every other refusal stays the uniform code.
+    refusedTo(response, mode === "denied" ? "LOGIN_CANCELLED" : "LOGIN_INVALID"); assert.equal(f.exchanges(), 0);
+    assert.doesNotMatch(await response.text(), /invalid_grant|secret|transient|attacker/, "no upstream diagnostics in the body");
   });
 }
 
@@ -154,14 +162,14 @@ for (const override of [{ iss: "https://attacker.example" }, { aud: "wrong" }, {
   test(`S3 invalid OIDC claim ${JSON.stringify(override)} never creates a member session`, async t => {
     const f = fixture(override), base = await startTestServer(f.app, t), start = await f.start(base);
     const response = await callback(base, start.params, start.binding);
-    assert.equal(response.status, 401); assert.ok(!cookie(response, "tovu_member_session"));
+    refusedTo(response);
     assert.deepEqual(await f.members.memberRepo.list({ workspaceId: "ws" }), []);
   });
 }
 
 test("S3 invalid signature fails closed", async t => {
   const f = fixture(), base = await startTestServer(f.app, t), start = await f.start(base); f.badSignature();
-  assert.equal((await callback(base, start.params, start.binding)).status, 401);
+  refusedTo(await callback(base, start.params, start.binding));
 });
 
 test("S3 first auto-link activates pending and revokes active members' existing sessions", async t => {
@@ -176,7 +184,7 @@ test("S3 first auto-link activates pending and revokes active members' existing 
     const old = await fetch(`${base}${BASE}/me`, { headers: { cookie: oldCookie } });
     assert.deepEqual(await old.json(), { member: null, identities: [] });
     assert.deepEqual(f.locks.slice(0, 2), ["members:external-identities:ws", "trash:member:ws:member"]);
-    assert.equal((await callback(base, start.params, start.binding)).status, 401, "provider code is single-use");
+    refusedTo(await callback(base, start.params, start.binding)); // provider code is single-use
   }
 });
 
@@ -184,8 +192,7 @@ for (const status of ["disabled", "trash"] as const) {
   test(`S3 ${status} member cannot link or mint a session`, async t => {
     const f = fixture(); await f.seed(status);
     const base = await startTestServer(f.app, t), start = await f.start(base);
-    const response = await callback(base, start.params, start.binding);
-    assert.equal(response.status, 401); assert.ok(!cookie(response, "tovu_member_session"));
+    refusedTo(await callback(base, start.params, start.binding), "LOGIN_BLOCKED");
     assert.deepEqual(await f.identities.listByMember({ workspaceId: "ws", memberId: "member" }), []);
   });
 }
@@ -193,7 +200,7 @@ for (const status of ["disabled", "trash"] as const) {
 test("S3 signed-in connect binds to that member on both legs and /me rejects duplicate member cookies", async t => {
   const f = fixture({ email: "different@custom.example" }); const member = await f.seed();
   const memberCookie = await f.memberCookie(member), base = await startTestServer(f.app, t), start = await f.start(base, memberCookie);
-  assert.equal((await callback(base, start.params, start.binding)).status, 401);
+  refusedTo(await callback(base, start.params, start.binding));
   const response = await callback(base, start.params, `${start.binding}; ${memberCookie}`);
   assert.equal(response.status, 303); assert.equal(response.headers.get("location"), "/account");
   assert.equal(f.sent.length, 0, "deliberate connect does not auto-link by mailbox");
@@ -276,7 +283,7 @@ test("S3 unlink marks identity, revokes all old sessions, reissues current, bloc
   const current = await fetch(`${base}${BASE}/me`, { headers: { cookie: replacement } });
   assert.deepEqual(await current.json(), { member: { id: member.id, email: member.email, status: "active" }, identities: [] });
   assert.ok((await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
-  const anonymous = await f.start(base); assert.equal((await callback(base, anonymous.params, anonymous.binding)).status, 401);
+  const anonymous = await f.start(base); refusedTo(await callback(base, anonymous.params, anonymous.binding), "LOGIN_BLOCKED");
   const connect = await f.start(base, replacement);
   assert.equal((await callback(base, connect.params, `${connect.binding}; ${replacement}`)).status, 303);
   assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
@@ -313,7 +320,7 @@ test("S3 strict IP limiter stops start and callback before protocol I/O", async 
 test("S3 cross-site start is refused before a binding cookie; a revoked member cookie starts anonymously", async t => {
   const f = fixture(), member = await f.seed(), stale = await f.memberCookie(member), base = await startTestServer(f.app, t);
   const forced = await fetch(`${base}${OIDC}/start`, { redirect: "manual", headers: { cookie: stale, "sec-fetch-site": "cross-site" } });
-  assert.equal(forced.status, 401); assert.equal(forced.headers.get("location"), null);
+  refusedTo(forced);
   assert.ok(!cookie(forced, MEMBER_OIDC_BINDING_COOKIE));
   await f.members.memberSessionRepo.revokeAllForMember({ workspaceId: "ws", memberId: member.id, revokedAt: f.clock.nowIso() });
   const start = await f.start(base, stale), login = await callback(base, start.params, `${start.binding}; ${stale}`);
@@ -329,15 +336,16 @@ test("S3 unlink fences outstanding anonymous redirects and signed-in connects", 
   const anonymous = await f.start(base), connect = await f.start(base, sessionCookie);
   f.clock.advanceMs(1);
   assert.equal((await post(base, `${BASE}/identities/google/unlink`, {}, sessionCookie)).status, 200);
-  assert.equal((await callback(base, anonymous.params, anonymous.binding)).status, 401);
-  assert.equal((await callback(base, connect.params, `${connect.binding}; ${sessionCookie}`)).status, 401);
+  refusedTo(await callback(base, anonymous.params, anonymous.binding), "LOGIN_BLOCKED");
+  refusedTo(await callback(base, connect.params, `${connect.binding}; ${sessionCookie}`));
   assert.ok((await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
 });
 
 test("S3 provider disable after start and workspace mismatch refuse completion before exchange", async t => {
   const f = fixture(), base = await startTestServer(f.app, t), start = await f.start(base);
   f.disable();
-  assert.equal((await callback(base, start.params, start.binding)).status, 401);
+  refusedTo(await callback(base, start.params, start.binding));
+  refusedTo(await fetch(`${base}${OIDC}/start`, { redirect: "manual" }), "LOGIN_UNAVAILABLE");
   const foreign = await fetch(`${base}${OIDC.replace("/workspaces/ws/", "/workspaces/other/")}/callback?${start.params}`, { headers: { cookie: start.binding } });
   assert.equal(foreign.status, 404); assert.equal(f.exchanges(), 0);
   assert.deepEqual(await (await fetch(`${base}${BASE}/login-providers`)).json(), { providers: [] });

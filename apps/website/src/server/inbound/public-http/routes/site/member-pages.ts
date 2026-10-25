@@ -7,8 +7,12 @@ import { serveVirtualPage } from "./pages.js";
 /**
  * @file Core's member sign-in pages: `/signin` (password, emailed code, emailed link), `/forgot-
  * password`, `/reset-password` (link from the reset email) and `/account` (set or change a
- * password, sign out). Owner 2026-10-24: the public "Sign in" is for members with passwords; no
- * minimum length, ever.
+ * password, connect or unlink a login provider, sign out). Owner 2026-10-24: the public "Sign in"
+ * is for members with passwords; no minimum length, ever.
+ *
+ * Login providers (Google login U1): core names no provider. The script lists the enabled,
+ * configured ones from `GET …/login-providers` into the empty `data-member-providers` and
+ * `data-member-identity-list` slots, so with none enabled nothing extra shows.
  *
  * Each page is a Page built in memory and rendered by `serveVirtualPage`, so it wears the active
  * theme exactly like an authored Page. Registered before `GET /:slug`, so these paths win over a
@@ -60,10 +64,17 @@ function note(html: string): string {
   return `<p class="member-note" tabindex="-1" data-member-focus>${html}</p>`;
 }
 
+/** Provider buttons (filled by the script) above the email forms, with an "or" rule under them. */
+const PROVIDERS = '<div class="member-providers" data-member-providers hidden><div class="member-provider-list" data-member-provider-list></div>' +
+  '<p class="member-or"><span>or use your email</span></p></div>';
+
+/** A start/callback refusal lands on /signin#oidcError=<CODE>; the script says it in words here. */
+const OIDC_ERROR = '<p class="member-note member-oidc-error" data-member-oidc-error role="alert" tabindex="-1" hidden></p>';
+
 /** Page templates print the body only (an authored Page brings its own heading), so the h1 is here. */
-function page(kind: string, title: string, views: string[]): { title: string; body: string } {
+function page(kind: string, title: string, views: string[], top = ""): { title: string; body: string } {
   return { title, body: `<div class="member-auth" data-member-page="${kind}"><h1>${title}</h1><noscript><p>Turn on JavaScript to use this page.</p></noscript>` +
-    `${views.join("")}</div>` };
+    `${top}${views.join("")}</div>` };
 }
 
 const EMAIL = (id: string) => field({ id, label: "Email", name: "email", type: "email", autocomplete: "email", extra: " required" });
@@ -86,7 +97,13 @@ const SIGN_IN = page("signin", "Sign in", [
     links(showButton("code-request", "Send a new code"))),
   view("signed-in", note('You\'re signed in as <strong data-member-email></strong>.') +
     links('<a href="/account">Your account</a>', '<button type="button" class="member-link" data-member-sign-out>Sign out</button>')),
-]);
+  // A provider account whose address isn't the provider's own (not Gmail/Workspace): one emailed
+  // code proves the inbox the first time. The sealed continuation arrives in the fragment.
+  view("oidc-code", note("We emailed you a 6-digit code to confirm the address is yours. You only need to do this once.") +
+    form("oidc-code", field({ id: "member-oidc-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
+      extra: ' inputmode="numeric" maxlength="7" required' }), "Finish signing in") +
+    links(showButton("password", "Start over"))),
+], OIDC_ERROR + PROVIDERS);
 
 const FORGOT = page("forgot", "Reset your password", [
   view("forgot", form("forgot", EMAIL("member-forgot-email"), "Email me a reset link") + links('<a href="/signin">Back to sign in</a>')),
@@ -101,6 +118,14 @@ const RESET = page("reset", "Choose a new password", [
   view("done", note("Password changed. Sign in with your new password.") + links('<a href="/signin">Sign in</a>')),
 ]);
 
+const REAUTH = '<p class="member-note" data-member-reauth hidden><a href="/signin#view=code&amp;redirect=%2Faccount">Sign in with a code</a></p>';
+
+/** Connected login providers: "<Label> connected · Unlink" or "Connect <Label>" rows, script-filled. */
+const IDENTITIES = '<div class="member-identities" data-member-identities hidden><div class="member-label-row member-heading-row">' +
+  `<h2>Connected accounts</h2>${tipButton("member-identities-tip")}</div>` +
+  tipText("member-identities-tip", "Connecting or unlinking an account signs you out on your other devices.") +
+  `<ul class="member-identity-list" data-member-identity-list></ul>${messages}${REAUTH}</div>`;
+
 const ACCOUNT = page("account", "Your account", [
   view("signed-out", note("You're signed out.") + links('<a href="/signin">Sign in</a>')),
   view("account", note('Signed in as <strong data-member-email></strong>.') + "<h2>Password</h2>" +
@@ -109,8 +134,7 @@ const ACCOUNT = page("account", "Your account", [
         autocomplete: "current-password", tip: "Leave this empty if you've only signed in with emailed codes." }) +
         field({ id: "member-new-password", label: "New password", name: "password", type: "password", autocomplete: "new-password", extra: " required" }),
       "Save password") +
-    '<p class="member-note" data-member-reauth hidden><a href="/signin#view=code&amp;redirect=%2Faccount">Sign in with a code</a></p>' +
-    `<div class="member-actions member-signout">${signOutButton}</div>`),
+    REAUTH + IDENTITIES + `<div class="member-actions member-signout">${signOutButton}</div>`),
 ]);
 
 /** Path → the page's title (the theme prints it as the heading) and body. */

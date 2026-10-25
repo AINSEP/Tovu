@@ -12,7 +12,9 @@
  *
  * Contract: `SHARD-E-CONTRACT.md` (2026-10-24). Tokens from the emailed links arrive in the URL
  * fragment; the script strips the fragment with `history.replaceState` BEFORE anything else and
- * never posts a token until the visitor presses Continue. Redirect targets are re-checked here with
+ * never posts a token until the visitor presses Continue. Login providers (Google login U1) follow
+ * the same rule: the sealed `continuation` of the emailed-code step arrives in the fragment and is
+ * stripped first; a start/callback refusal arrives as `#oidcError=<CODE>` and is shown in words. Redirect targets are re-checked here with
  * the contract's same-origin rule even though the server checks them too.
  *
  * `String.raw` keeps the regex backslashes literal; the script must never contain a template
@@ -37,7 +39,8 @@ export const MEMBER_AUTH_STYLE =
   ":where(.member-link){background:none;border:0;padding:0;font:inherit;cursor:pointer;}" +
   // Links and link-buttons in one row must look alike, so this one rule is not :where() — it has to
   // beat a theme's bare `a` reset. Same underline-by-border look as the themes' own `.auth-foot a`.
-  ".member-auth-links :is(a,.member-link){color:var(--fg,inherit);text-decoration:none;border-bottom:1px solid var(--border-strong,currentColor);}" +
+  // The "Sign in with a code" re-auth link too: inside a muted note it read as plain grey text.
+  ".member-auth-links :is(a,.member-link),.member-auth [data-member-reauth] a{color:var(--fg,inherit);text-decoration:none;border-bottom:1px solid var(--border-strong,currentColor);}" +
   // Vertical rhythm is not :where() either: themes zero `h1`/`p` margins
   // (tovu-starter's bare `p{margin:0}`), which left the heading and the links row touching the form.
   ".member-auth h1{margin:0 0 28px;}" +
@@ -52,6 +55,20 @@ export const MEMBER_AUTH_STYLE =
   ".member-auth .member-signout{margin:32px 0 0;padding-top:24px;border-top:1px solid var(--border,#d1d5db);}" +
   // A 6-digit code needs a short box, not the full form width.
   ":where(.member-auth input[autocomplete=\"one-time-code\"]){max-width:12rem;letter-spacing:0.15em;font-variant-numeric:tabular-nums;}" +
+  // Login providers: content-width buttons, then a quiet "or use your email" rule before the form.
+  ":where([data-member-providers][hidden],[data-member-identities][hidden],[data-member-oidc-error][hidden]){display:none!important;}" +
+  ":where(.member-provider-list){display:flex;flex-direction:column;align-items:flex-start;gap:10px;}" +
+  ":where(.member-auth .member-provider){display:inline-flex;align-items:center;padding:8px 16px;border:1px solid var(--border-strong,#9ca3af);border-radius:6px;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:none;}" +
+  ".member-auth .member-or{display:flex;align-items:center;gap:12px;margin:24px 0;color:var(--muted,#6b7280);font-size:0.85rem;}" +
+  ".member-auth .member-or::after{content:\"\";flex:1;border-top:1px solid var(--border,#d1d5db);}" +
+  ".member-auth .member-oidc-error{color:var(--danger,var(--member-danger-fallback));font-weight:600;font-size:0.9rem;}" +
+  // /account: "<Label> connected · Unlink" rows. The heading shares a row with its ⓘ tip.
+  ".member-auth .member-heading-row{margin:32px 0 16px;}" +
+  ".member-auth .member-heading-row h2{margin:0;}" +
+  ".member-auth .member-identities .member-tip-text{margin:-6px 0 16px;}" +
+  ".member-auth .member-identity-list{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;}" +
+  ":where(.member-identity){display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;}" +
+  ".member-identity .member-link{color:var(--fg,inherit);border-bottom:1px solid var(--border-strong,currentColor);font-size:0.9rem;}" +
   ":where(.member-tip){display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;padding:0;border:1px solid var(--border-strong,#9ca3af);border-radius:50%;background:transparent;color:var(--muted,#6b7280);font:inherit;font-size:0.8rem;line-height:1;cursor:pointer;}" +
   ":where(.member-tip-text:not([hidden])){display:block;flex-basis:100%;padding:8px 10px;border-radius:6px;background:var(--surface-2,#f3f4f6);border:1px solid var(--border,#d1d5db);color:var(--fg,#111827);font-size:0.85rem;font-weight:400;}" +
   ":where([data-member-account]){display:inline-block;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:0.875rem;color:var(--muted,#6b7280);}" +
@@ -99,8 +116,29 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
     }, function () { return { status: 0, data: {} }; });
   }
   var memberRead;
+  var identities = [];
   function member() {
-    return memberRead || (memberRead = call("GET", "/me").then(function (r) { return r.status === 200 && r.data.member ? r.data.member : null; }));
+    return memberRead || (memberRead = call("GET", "/me").then(function (r) {
+      identities = r.status === 200 && Array.isArray(r.data.identities) ? r.data.identities.filter(validProvider) : [];
+      return r.status === 200 && r.data.member ? r.data.member : null;
+    }));
+  }
+  // Provider ids become a URL path segment: the same shape the server accepts, or ignored.
+  function validProvider(p) {
+    var id = p && (p.id || p.providerId);
+    return typeof id === "string" && /^[a-z][a-z0-9-]{0,63}$/.test(id) && typeof p.label === "string" && !!p.label;
+  }
+  function providers() {
+    return call("GET", "/login-providers").then(function (r) {
+      return r.status === 200 && Array.isArray(r.data.providers) ? r.data.providers.filter(validProvider) : [];
+    });
+  }
+  function startLink(p, text) {
+    var a = doc.createElement("a");
+    a.className = "btn btn-ghost member-provider";
+    a.href = base + "/oidc/" + p.id + "/start";
+    a.textContent = text;
+    return a;
   }
   function signOut(button) {
     button.disabled = true;
@@ -153,7 +191,23 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
   if (!page) return;
 
   // 'moveFocus' is false only for the first view a page opens on, so loading a page never steals focus.
+  // Provider buttons sit above the email forms only; the list loads the first time one is shown.
+  var current = "";
+  var choices = one("[data-member-providers]", page);
+  var choicesRead;
+  function showProviders() {
+    if (!choices) return;
+    var wanted = current === "password" || current === "code-request";
+    if (wanted && !choicesRead) choicesRead = providers().then(function (list) {
+      var slot = one("[data-member-provider-list]", choices);
+      list.forEach(function (p) { slot.append(startLink(p, "Continue with " + p.label)); });
+      showProviders();
+    });
+    choices.hidden = !wanted || !one("[data-member-provider-list] a", choices);
+  }
   function show(name, moveFocus) {
+    current = name;
+    showProviders();
     all("[data-member-view]", page).forEach(function (view) { view.hidden = view.getAttribute("data-member-view") !== name; });
     var view = one('[data-member-view="' + name + '"]', page);
     var focus = moveFocus !== false && view && one("input:not([type=hidden]), [data-member-focus]", view);
@@ -170,6 +224,8 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
   var challengeId = "";
   var magicToken = params.get("magic") || "";
   var resetToken = params.get("token") || "";
+  var oidc = { provider: params.get("oidc") || "", challengeId: params.get("challengeId") || "", continuation: params.get("continuation") || "" };
+  var oidcPending = validProvider({ id: oidc.provider, label: "-" }) && !!oidc.challengeId && !!oidc.continuation;
 
   // Each handler returns a promise of the server reply, or undefined when it handled the outcome.
   var handlers = {
@@ -221,6 +277,14 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
         setMessage(form, errorText(r, "This reset link has expired or was already used. Ask for a new one."), "error");
       });
     },
+    "oidc-code": function (form) {
+      var code = value(form, "code").replace(/\s+/g, "");
+      if (!/^\d{6}$/.test(code)) return Promise.resolve(setMessage(form, "Enter the 6-digit code from the email.", "error"));
+      return call("POST", "/oidc/" + oidc.provider + "/verify-email", { continuation: oidc.continuation, challengeId: oidc.challengeId, code: code }).then(function (r) {
+        if (r.status === 200) return location.assign(safeRedirect(r.data.returnPath || "/account"));
+        setMessage(form, errorText(r, "That code is wrong or has expired. Check it, or start over."), "error");
+      });
+    },
     set: function (form) {
       var body = { password: value(form, "password") };
       if (value(form, "currentPassword")) body.currentPassword = value(form, "currentPassword");
@@ -270,12 +334,79 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
     });
   });
 
+  // One plain sentence per fixed code from /signin#oidcError=<CODE>; anything else reads as INVALID.
+  var OIDC_ERRORS = {
+    LOGIN_CANCELLED: "Sign-in was cancelled. Nothing changed.",
+    LOGIN_UNAVAILABLE: "That sign-in option isn't available on this site right now. Sign in with your email instead.",
+    LOGIN_BLOCKED: "This account can't sign in that way right now. Sign in with your email instead.",
+    LOGIN_CONFLICT: "That account is already connected to a different member of this site.",
+    LOGIN_INVALID: "Sign-in didn't finish, so nothing changed. Try again from this page."
+  };
+  var oidcError = one("[data-member-oidc-error]", page);
+  if (oidcError && params.get("oidcError")) {
+    oidcError.textContent = OIDC_ERRORS[params.get("oidcError")] || OIDC_ERRORS.LOGIN_INVALID;
+    oidcError.hidden = false;
+  }
+
+  // /account: a connected provider reads "<Label> connected" + Unlink; an enabled one, "Connect <Label>".
+  var accounts = one("[data-member-identities]", page);
+  function identityRow(i) {
+    var li = doc.createElement("li");
+    li.className = "member-identity";
+    var text = doc.createElement("span");
+    text.textContent = i.label + " connected";
+    var unlink = doc.createElement("button");
+    unlink.type = "button";
+    unlink.className = "member-link";
+    unlink.textContent = "Unlink";
+    unlink.setAttribute("aria-label", "Unlink " + i.label);
+    unlink.addEventListener("click", function () { unlinkIdentity(unlink, i); });
+    li.append(text, unlink);
+    return li;
+  }
+  function renderAccounts(available) {
+    var list = one("[data-member-identity-list]", accounts);
+    var linked = {};
+    list.textContent = "";
+    identities.forEach(function (i) { linked[i.providerId] = true; list.append(identityRow(i)); });
+    available.forEach(function (p) {
+      if (linked[p.id]) return;
+      var li = doc.createElement("li");
+      li.append(startLink(p, "Connect " + p.label));
+      list.append(li);
+    });
+    accounts.hidden = !list.children.length;
+  }
+  function unlinkIdentity(button, i) {
+    var reauth = one("[data-member-reauth]", accounts);
+    button.disabled = true;
+    reauth.hidden = true;
+    setMessage(accounts, "", "");
+    call("POST", "/identities/" + i.providerId + "/unlink", {}).then(function (r) {
+      button.disabled = false;
+      if (r.status === 200) {
+        identities = identities.filter(function (x) { return x.providerId !== i.providerId; });
+        return providers().then(function (list) {
+          renderAccounts(list);
+          setMessage(accounts, i.label + " unlinked. You're signed out on your other devices.", "ok");
+        });
+      }
+      if (r.data.code === "LOGIN_BLOCKED") {
+        reauth.hidden = false;
+        return setMessage(accounts, "For your safety, sign in again with an emailed code, then unlink.", "error");
+      }
+      setMessage(accounts, errorText(r, "Couldn't unlink. Reload the page and try again."), "error");
+    });
+  }
+
   var kind = page.getAttribute("data-member-page");
   if (kind === "reset") return show(resetToken ? "reset" : "missing", false);
   if (kind === "forgot") return show("forgot", false);
   if (kind === "signin" && magicToken) return show("magic", false);
+  if (kind === "signin" && oidcPending) return show("oidc-code", false);
   member().then(function (m) {
     all("[data-member-email]", page).forEach(function (el) { el.textContent = m ? m.email : ""; });
+    if (kind === "account" && m && accounts) providers().then(renderAccounts);
     if (kind === "account") return show(m ? "account" : "signed-out", false);
     show(m ? "signed-in" : params.get("view") === "code" ? "code-request" : "password", false);
   });

@@ -57,6 +57,19 @@ export function sendMemberOidcError({ res, error }: { res: Response; error: unkn
   res.status(code === "LOGIN_UNAVAILABLE" ? 503 : 401).json({ error: "member login failed", code });
 }
 
+/** The person pressed Cancel at the provider (`error=access_denied`): its own page message. */
+export class MemberOidcCancelled extends Error {}
+
+/** Start and callback are top-level browser pages, not fetches, so a failure goes back to /signin
+ * with one fixed code in the fragment (never the query: no Referer/log copy) for the page script
+ * to show in plain words. Same fixed codes as the JSON routes; nothing upstream is echoed. O(1).
+ */
+export function redirectMemberOidcError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
+  let code = error instanceof MemberLoginError ? error.code : "LOGIN_INVALID";
+  if (error instanceof MemberOidcCancelled) code = "LOGIN_CANCELLED";
+  res.redirect(303, `/signin#oidcError=${code}`);
+}
+
 /** Revalidate the presenting member on every leg. Only this member session can establish a
  * connect intent. A stale (expired/revoked) cookie grants nothing, so it reads as anonymous:
  * refusing it would lock that browser out of Google sign-in after a sign-out elsewhere, and a

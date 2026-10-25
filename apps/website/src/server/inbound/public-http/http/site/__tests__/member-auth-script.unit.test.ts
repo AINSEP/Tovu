@@ -254,3 +254,129 @@ test("a network failure says so instead of failing silently", async () => {
   await settle();
   assert.match(page.error("forgot")!, /Couldn't reach the site/);
 });
+
+// --- login providers (Google login U1) ------------------------------------------------------
+
+const GOOGLE = { id: "google", label: "Google" };
+const SIGNED_IN: Reply = { status: 200, body: { member: { id: "1", email: "m@example.com", status: "active" }, identities: [] } };
+const providerLinks = (page: ReturnType<typeof boot>) =>
+  [...page.doc.querySelectorAll<HTMLAnchorElement>("[data-member-provider-list] a")].map((a) => [a.textContent, a.getAttribute("href")]);
+const providersShown = (page: ReturnType<typeof boot>) => !page.doc.querySelector<HTMLElement>("[data-member-providers]")!.hidden;
+
+test("/signin with no enabled provider shows no provider button", async () => {
+  const page = boot({ url: "https://site.example/signin", replies: { "GET /login-providers": { status: 200, body: { providers: [] } } } });
+  await settle();
+  assert.deepEqual(page.visible(), ["password"]);
+  assert.deepEqual(providerLinks(page), []);
+  assert.equal(providersShown(page), false);
+});
+
+test("/signin lists each enabled provider as a plain start link above the email forms only", async () => {
+  const page = boot({ url: "https://site.example/signin", replies: { "GET /login-providers": { status: 200, body: { providers: [
+    GOOGLE, { id: "../evil", label: "Evil" }, { id: "nolabel" }] } } } });
+  await settle();
+  assert.deepEqual(providerLinks(page), [["Continue with Google", `${BASE}/oidc/google/start`]], "a malformed id or label is ignored");
+  assert.equal(providersShown(page), true);
+  page.doc.querySelector<HTMLButtonElement>('[data-member-show="code-request"]')!.click();
+  assert.equal(providersShown(page), true, "the emailed-code form keeps them");
+  assert.equal(page.calls.filter((c) => c.path === "/login-providers").length, 1, "listed once");
+});
+
+test("/signin signed in: no provider buttons", async () => {
+  const page = boot({ url: "https://site.example/signin", replies: { "GET /me": SIGNED_IN, "GET /login-providers": { status: 200, body: { providers: [GOOGLE] } } } });
+  await settle();
+  assert.deepEqual(page.visible(), ["signed-in"]);
+  assert.equal(providersShown(page), false);
+});
+
+for (const [code, text] of [["LOGIN_CANCELLED", /cancelled/], ["LOGIN_UNAVAILABLE", /isn't available/], ["LOGIN_BLOCKED", /can't sign in that way/],
+  ["LOGIN_CONFLICT", /already connected/], ["LOGIN_INVALID", /didn't finish/], ["<img src=x>", /didn't finish/]] as const) {
+  test(`/signin#oidcError=${code} says what happened in plain words`, async () => {
+    const page = boot({ url: `https://site.example/signin#oidcError=${encodeURIComponent(code)}` });
+    await settle();
+    assert.equal(page.window.location.hash, "", "fragment stripped");
+    const note = page.doc.querySelector<HTMLElement>("[data-member-oidc-error]")!;
+    assert.equal(note.hidden, false);
+    assert.match(note.textContent!, text);
+    assert.equal(note.querySelector("img"), null, "an unknown code is never rendered");
+    assert.deepEqual(page.visible(), ["password"], "the sign-in choices stay usable");
+  });
+}
+
+test("the emailed-code step: the sealed continuation leaves the address bar first and posts only with the code", async () => {
+  const replies: Record<string, Reply> = { "POST /oidc/google/verify-email": { status: 401, body: { code: "LOGIN_INVALID" } } };
+  const page = boot({ url: "https://site.example/signin#oidc=google&challengeId=ch-1&continuation=sealed.v1", replies });
+  assert.equal(page.window.location.href, "https://site.example/signin", "stripped before anything else");
+  await settle();
+  assert.deepEqual(page.visible(), ["oidc-code"]);
+  assert.equal(providersShown(page), false);
+  assert.deepEqual(page.calls.filter((c) => c.method === "POST"), [], "nothing is posted on load");
+  page.fill("member-oidc-code", "12");
+  page.submit("oidc-code");
+  await settle();
+  assert.equal(page.error("oidc-code"), "Enter the 6-digit code from the email.");
+  page.fill("member-oidc-code", "123 456");
+  page.submit("oidc-code");
+  await settle();
+  assert.deepEqual(page.calls.find((c) => c.path === "/oidc/google/verify-email")!.body,
+    { continuation: "sealed.v1", challengeId: "ch-1", code: "123456" });
+  assert.match(page.error("oidc-code")!, /wrong or has expired/);
+});
+
+test("the emailed-code step ignores a fragment whose provider id is not a path-safe id", async () => {
+  const page = boot({ url: "https://site.example/signin#oidc=..%2Fx&challengeId=ch-1&continuation=c" });
+  await settle();
+  assert.deepEqual(page.visible(), ["password"]);
+});
+
+/** /account signed in, with `identities` from /me and `available` from /login-providers. */
+function account(identities: unknown[], available: unknown[], extra: Record<string, Reply> = {}) {
+  return boot({ url: "https://site.example/account", replies: {
+    "GET /me": { status: 200, body: { member: { id: "1", email: "m@example.com", status: "active" }, identities } },
+    "GET /login-providers": { status: 200, body: { providers: available } }, ...extra } });
+}
+const rows = (page: ReturnType<typeof boot>) =>
+  [...page.doc.querySelectorAll("[data-member-identity-list] li")].map((li) => li.textContent);
+const accountsShown = (page: ReturnType<typeof boot>) => !page.doc.querySelector<HTMLElement>("[data-member-identities]")!.hidden;
+
+test("/account: no provider enabled and none connected hides Connected accounts", async () => {
+  const page = account([], []);
+  await settle();
+  assert.deepEqual(page.visible(), ["account"]);
+  assert.equal(accountsShown(page), false);
+});
+
+test("/account: an enabled provider reads Connect <Label>, a plain start link", async () => {
+  const page = account([], [GOOGLE]);
+  await settle();
+  assert.equal(accountsShown(page), true);
+  assert.deepEqual(rows(page), ["Connect Google"]);
+  assert.equal(page.doc.querySelector("[data-member-identity-list] a")!.getAttribute("href"), `${BASE}/oidc/google/start`);
+});
+
+test("/account: a connected provider reads <Label> connected + Unlink, even after the plugin is disabled", async () => {
+  const page = account([{ providerId: "google", label: "Google" }], []);
+  await settle();
+  assert.deepEqual(rows(page), ["Google connectedUnlink"]);
+});
+
+test("/account: Unlink posts an empty body, then offers Connect again and says other devices are signed out", async () => {
+  const page = account([{ providerId: "google", label: "Google" }], [GOOGLE], { "POST /identities/google/unlink": { status: 200, body: { ok: true } } });
+  await settle();
+  page.doc.querySelector<HTMLButtonElement>("[data-member-identity-list] button")!.click();
+  await settle();
+  assert.deepEqual(page.calls.find((c) => c.path === "/identities/google/unlink")!.body, {});
+  assert.deepEqual(rows(page), ["Connect Google"]);
+  assert.equal(page.doc.querySelector("[data-member-identities] [data-member-ok]")!.textContent, "Google unlinked. You're signed out on your other devices.");
+});
+
+test("/account: an Unlink refused for an old session asks for a fresh code sign-in", async () => {
+  const page = account([{ providerId: "google", label: "Google" }], [GOOGLE],
+    { "POST /identities/google/unlink": { status: 401, body: { error: "member login failed", code: "LOGIN_BLOCKED" } } });
+  await settle();
+  page.doc.querySelector<HTMLButtonElement>("[data-member-identity-list] button")!.click();
+  await settle();
+  assert.match(page.doc.querySelector("[data-member-identities] [data-member-error]")!.textContent!, /sign in again with an emailed code, then unlink/);
+  assert.equal(page.doc.querySelector<HTMLElement>("[data-member-identities] [data-member-reauth]")!.hidden, false);
+  assert.deepEqual(rows(page), ["Google connectedUnlink"], "still connected");
+});

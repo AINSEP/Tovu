@@ -5,13 +5,16 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";
 import { MEMBER_OIDC_PATH, MEMBER_OIDC_BINDING_COOKIE, memberOidcContext, memberOidcCookie,
-  memberOidcHeaders, memberOidcProviderId, sendMemberOidcError, uniqueMemberCookie, type MemberOidcRouteDeps } from "./oidc-deps.js";
+  memberOidcHeaders, memberOidcProviderId, MemberOidcCancelled, redirectMemberOidcError, uniqueMemberCookie,
+  type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Query parser rejects repeated/object values before OAuth can receive ambiguous credentials.
- * Provider denial takes the same fixed error path, after clearing the browser cookie. O(k) keys.
+ * Provider denial takes the same fixed error path, after clearing the browser cookie; Cancel
+ * (`access_denied`) only picks a kinder message. O(k) keys.
  */
 function callbackParams({ req }: { req: Request }, _options = {}) {
   const { code, state, error } = req.query;
+  if (error === "access_denied") throw new MemberOidcCancelled();
   if (error !== undefined || typeof code !== "string" || typeof state !== "string") throw new MemberLoginError({ code: "LOGIN_INVALID" });
   if (!code || code.length > 4096 || !state || state.length > 16384) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   return { code, state };
@@ -36,7 +39,8 @@ async function continueByEmail(required: {
 }
 
 /** Top-level callback clears proof on success, denial and malformed input, then calls S2 only.
- * Returns a fixed /account redirect or the sealed email continuation; logs no request material.
+ * Returns a fixed /account redirect, the sealed email continuation or /signin#oidcError=<CODE>;
+ * logs no request material.
  * @complexity O(1) protocol/transaction calls; S2 owns bounded exchange and indexed persistence.
  */
 export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
@@ -61,7 +65,7 @@ export function registerMemberOidcCallbackRoute({ app, deps }: { app: Express; d
       memberOidcCookie({ res, callbackUrl, kind: "proof" });
       setMemberSessionCookie({ res, rawToken: linked.result.rawSessionToken, expiresAtIso: linked.result.session.expiresAt });
       res.redirect(303, "/account");
-    } catch (error) { sendMemberOidcError({ res, error }); }
+    } catch (error) { redirectMemberOidcError({ res, error }); }
   });
 }
 

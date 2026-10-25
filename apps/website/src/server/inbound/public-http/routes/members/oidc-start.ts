@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { beginOidcLogin, memberLoginCallbackUrl, MemberLoginError } from "#src/features/member-login/index";
 import { checkMemberRequestLimits, checkMemberWorkspace } from "./deps.js";
 import { MEMBER_OIDC_PATH, memberOidcContext, memberOidcCookie, memberOidcHeaders,
-  sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
+  redirectMemberOidcError, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Safe provider metadata only; configuration/pins and credentials never leave the server.
  * @complexity O(p*c), p admitted providers, c credential metadata rows; bounded bundled catalog.
@@ -18,7 +18,8 @@ export function registerMemberLoginProvidersRoute({ app, deps }: { app: Express;
   });
 }
 
-/** Plain-link entry point. Independent browser proof stays out of the authorization URL.
+/** Plain-link entry point. Independent browser proof stays out of the authorization URL. A
+ * refusal (cross-site, provider unavailable) sends the person back to /signin with its code.
  * @complexity O(1) limited protocol start; protocol owner bounds all external work.
  */
 export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps: MemberOidcRouteDeps }, _options = {}): void {
@@ -36,6 +37,6 @@ export function registerMemberOidcStartRoute({ app, deps }: { app: Express; deps
       const result = await beginOidcLogin({ deps: deps.protocol, input });
       memberOidcCookie({ res, callbackUrl, kind: "callback", binding: result.browserBinding });
       res.redirect(303, result.authorizationUrl);
-    } catch (error) { sendMemberOidcError({ res, error }); }
+    } catch (error) { redirectMemberOidcError({ res, error }); }
   });
 }
