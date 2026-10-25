@@ -217,3 +217,9 @@ test("sealing an emailed-code continuation refuses a login that does not match t
   await assert.rejects(sealLoginEmailContinuation({ deps: f.deps, input, login }), invalidLogin);
   await assert.rejects(openLoginEmailContinuation({ deps: f.deps, input: { ...input, continuation } }), invalidLogin);
 });
+
+test("a verified claim whose email is not a string is refused", async () => {
+  const f = fixture({ email: 7 });
+  const started = await f.start();
+  await assert.rejects(completeOidcLogin({ deps: f.deps, input: { ...f.input, ...started } }), invalidLogin);
+});

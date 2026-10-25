@@ -229,3 +229,13 @@ test("any failure while requesting the inbox proof is masked as LOGIN_UNAVAILABL
   await assert.rejects(requestLoginEmailProof({ deps: f.deps, input: { workspaceId: "ws", email: "not-an-email" } }), rejectsWith("LOGIN_UNAVAILABLE"));
   assert.deepEqual(f.sent, []);
 });
+
+test("activating a pending member keeps an earlier email verification time", async () => {
+  const f = fixture();
+  const member = await f.seed("pending");
+  await f.deps.members.save({ ...member, emailVerifiedAt: "2026-01-01T00:00:00.000Z" });
+  assert.equal((await resolveFederatedIdentity({ deps: f.deps, input: f.input })).kind, "signed_in");
+  const updated = await f.deps.members.findById({ workspaceId: "ws", id: member.id });
+  assert.equal(updated?.status, "active");
+  assert.equal(updated?.emailVerifiedAt, "2026-01-01T00:00:00.000Z");
+});
