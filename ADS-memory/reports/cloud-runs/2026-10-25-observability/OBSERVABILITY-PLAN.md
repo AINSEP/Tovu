@@ -43,12 +43,14 @@ The assistant tool-call path. This is the prototype, and every call goes through
 const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({ registry, … }, {}),
   getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
 ```
-**After:**
+**After** (the `toolExecutor` line is unchanged; source-anchored wiring tests pin it verbatim):
 ```ts
-const toolExecutor = withToolCallObservability({ inner: withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({ registry, … }, {}),
-  getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {}), observability: routeDeps.observability }, {});
+const observedToolExecutor = withToolCallObservability({ inner: toolExecutor, observability: routeDeps.observability }, {});
+const delegatedToolRouteDeps = { lifecycle, toolExecutor: observedToolExecutor, … };
 ```
-That one line is the whole feature-side change. The BYOK surface got the same change
+Those two lines are the whole feature-side change. The MCP-UI callback route (a person answering a
+surface) still gets the bare executor. Its wiring test pins that line, so covering it is a follow-up.
+The BYOK surface got the same change
 (`byok-tool-surface.ts` `composeSurfaceExecutor`, fed `routeDeps.observability` from `assistant-byok.ts`).
 The decorator itself is generic, so it lives in Jini (`@jini-ai/daemon/tool-recovery` `withToolCallObservability`).
 It takes the port structurally, so the daemon gets **no** dependency on diagnostics or on any vendor.
