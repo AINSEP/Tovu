@@ -63,6 +63,14 @@ test("sites move-home forwards the folder and refuses one outside the former def
   await assert.rejects(parse(["sites", "move-home", missing]));
 });
 
+test("site rename rejects path traversal before touching the sites home", async () => {
+  await assert.rejects(parse(["site", "rename", "../outside", "new-site"]), { name: "LocalSiteError", message: "VALIDATION_ERROR" });
+});
+
+test("site rename requires both folder names", async () => {
+  await assert.rejects(parse(["site", "rename", "old-site"]), { code: "commander.missingArgument" });
+});
+
 test("sites move-home also accepts --projects-path and still refuses a folder outside the former default home", async () => {
   await assert.rejects(parse(["sites", "move-home", missing, "--projects-path", path.join(root, "projects.json")]));
 });
