@@ -1,0 +1,7 @@
+title = "Tovu — gitleaks default rules"
+
+[extend]
+useDefault = true
+
+# Add exceptions only as Jini does (.gitleaks.toml there): exact source lines, condition = "AND" with a
+# path, never a whole test directory — test paths alone must never suppress a finding.
