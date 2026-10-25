@@ -2,7 +2,10 @@
 
 Started 2026-10-25T15:57Z. Jini @ 3e2fbae8 (cloud/overnight-1024-jini). Stryker 9, vitest-runner 9, TS 5, concurrency 3, perTest, StringLiteral excluded, type checks off, `ignoreStatic` ON (static mutants reported as Ignored, not tested).
 
-## 1. Headline — packages/db (partial: risk-ordered subset)
+## 0. Headline — whole lane
+L2 packages all measured: **db 89.6 %** (3507 tested; all but `pglite/socket-server.ts`, in two passes), **core 93.4 %** (5020), **plugins 87.1 %** (3326), **registry 93.8 %** (1106). Total 12 959 mutants tested; static mutants ignored (see §7). Wall ≈ 3 h 10 m; rough tokens ≈ 0.25M. Biggest risks: untested vault authorize guard (db), 0 % covered SQL activation repo (plugins), weak package-safety/approval-mismatch assertions (plugins), cert-chain walk (registry), scope guards in settings write-service (core).
+
+## 1. Headline — packages/db, pass 1 (risk-ordered subset)
 - 41 of 91 mutable files run (2753 mutants instrumented; 678 static ignored; **2075 tested**): killed 1867, timeout 16, survived 173, no-coverage 19 → **score 90.7 %** (killed+timeout / tested). Wall 41 min mutation + ~4 min dry run.
 - First attempt on all 91 files (4987 mutants) projected ~7 h (PGlite-backed tests are slow) → aborted at 6 min; subset below chosen by risk.
 - ENV/baseline exclusions (listed, not mutation-relevant): `*.postgres.test.ts` (already excluded by repo config; need Postgres), plus two **pre-existing failing baseline test files** that scan the source tree / package exports and therefore also cannot run in a sandbox: `src/__tests__/import-isolation.test.ts` (1 fail) and `src/__tests__/loads-without-driver.test.ts` (2 fails — `exports exactly the subpaths under test` fails because `./owner-store` is exported but absent from the test's expected list; see §2).
@@ -63,8 +66,52 @@ Others (<10 survivors): schema-shape.ts — `.sort()` removals (65,69) mean orde
 owner-store/backup.ts L33,68,69,80,86,87,112,113,115,116,117 · owner-store/open.ts L77-78 · owner-store/service.ts L38,39,62.
 
 ## 6. NOT RUN (db)
-50 mutable files not run (time): `src/pglite/owner.ts`, `src/pglite/socket-server.ts`, `src/tools/*` (transfer-tools, database-catalog, restore-points, read-tools, timeline, plan-store, transfer-catalog), `src/sqlite/*` (inspect, db-ops, open), `src/kernel/{store-copy,typegen,pglite/*,sqlite/*,postgres/*}`, `src/core/pg-types.ts`, `src/pg-fixture.ts`, and any other file outside §3. Also not run: all `*.postgres.test.ts` (ENV: no Postgres) — so Postgres-driver code is mutation-untested here.
+Pass 2 (below) covered the previously-unrun files. Only `src/pglite/socket-server.ts` (443 lines, skipped for time/CPU) and `src/testing/**` were never run. (Pass-1 note retained:) `src/pglite/owner.ts`, `src/pglite/socket-server.ts`, `src/tools/*` (transfer-tools, database-catalog, restore-points, read-tools, timeline, plan-store, transfer-catalog), `src/sqlite/*` (inspect, db-ops, open), `src/kernel/{store-copy,typegen,pglite/*,sqlite/*,postgres/*}`, `src/core/pg-types.ts`, `src/pg-fixture.ts`, and any other file outside §3. Also not run: all `*.postgres.test.ts` (ENV: no Postgres) — so Postgres-driver code is mutation-untested here.
 
+
+---
+# packages/db — pass 2 (remaining files; added 19:04Z)
+49 files, 1908 mutants, 476 static ignored, 1432 tested: killed 1254, timeout 6, survived 159, no-cov 13 → **88.8 %**. Mutation 1 h. Combined db (pass 1+2): 3507 tested, 3143 detected, 332 survived, 32 no-cov → **89.6 %**.
+
+| file | mutants | killed | survived | no-cov | timeout | score % |
+|---|---|---|---|---|---|---|
+| src/kernel/postgres/driver.ts | 20 | 6 | 10 | 0 | 0 | 37.5 |
+| src/tools/database-catalog.ts | 50 | 12 | 9 | 0 | 0 | 57.1 |
+| src/kernel/postgres/pglite-socket.ts | 26 | 11 | 5 | 0 | 3 | 73.7 |
+| src/kernel/postgres/ops.ts | 33 | 15 | 5 | 0 | 0 | 75.0 |
+| src/kernel/pglite/driver.ts | 28 | 19 | 6 | 0 | 0 | 76.0 |
+| src/kernel/pglite/ops.ts | 62 | 38 | 12 | 0 | 0 | 76.0 |
+| src/pglite/owner.ts | 270 | 183 | 37 | 0 | 0 | 83.2 |
+| src/kernel/sqlite/driver.ts | 67 | 47 | 9 | 0 | 0 | 83.9 |
+| src/sqlite/db-ops.ts | 32 | 21 | 4 | 0 | 0 | 84.0 |
+| src/tools/transfer-tools.ts | 351 | 247 | 31 | 12 | 0 | 85.2 |
+| src/kernel/sqlite/ops.ts | 30 | 18 | 3 | 0 | 0 | 85.7 |
+| src/kernel/turn-lock.ts | 43 | 35 | 4 | 0 | 1 | 90.0 |
+| src/core/pg-types.ts | 16 | 12 | 1 | 0 | 1 | 92.9 |
+| src/tools/timeline.ts | 20 | 16 | 1 | 0 | 0 | 94.1 |
+| src/core/row-values.ts | 20 | 17 | 1 | 0 | 0 | 94.4 |
+| src/sqlite/inspect.ts | 176 | 135 | 6 | 1 | 0 | 95.1 |
+| src/core/artifact-naming.ts | 7 | 4 | 0 | 0 | 0 | 100.0 |
+| src/kernel/store-copy.ts | 250 | 175 | 13 | 0 | 1 | 93.1 |
+| src/tools/plan-store.ts | 40 | 35 | 1 | 0 | 0 | 97.2 |
+| src/kernel/typegen.ts | 85 | 37 | 1 | 0 | 0 | 97.4 |
+| src/kernel/pglite/dialect.ts | 25 | 21 | 0 | 0 | 0 | 100.0 |
+| src/kernel/postgres-lock.ts | 2 | 1 | 0 | 0 | 0 | 100.0 |
+| src/kernel/schema-scope.ts | 9 | 7 | 0 | 0 | 0 | 100.0 |
+| src/pg-fixture.ts | 54 | 31 | 0 | 0 | 0 | 100.0 |
+| src/sqlite/open.ts | 10 | 6 | 0 | 0 | 0 | 100.0 |
+| src/tools/read-tools.ts | 73 | 49 | 0 | 0 | 0 | 100.0 |
+| src/tools/registration.ts | 23 | 20 | 0 | 0 | 0 | 100.0 |
+| src/tools/restore-points.ts | 24 | 19 | 0 | 0 | 0 | 100.0 |
+
+**Triage (db pass 2)**:
+- `tools/database-catalog.ts` (57.1 %, 9): (a) HIGH — every tool's `authorization: {permission:"database.read"}` → `{}` survives: no test asserts the permission a tool *requires*. Add a registry-level test enumerating tools and their permissions (also for transfer-tools/restore-points).
+- `kernel/postgres/driver.ts` (37.5 %, 10) + `postgres/ops.ts`, `pglite-socket.ts`: (a) pool `max ?? 10` default, `capabilities` flags (interactiveTransactions/atomicBatch/transactionalDdl→false) unasserted; largely ENV (no Postgres server; `*.postgres.test.ts` excluded).
+- `kernel/pglite/ops.ts` (76 %, 12): (a) `ownedSocket` logic `transport==="pglite-socket" && owner!==undefined` (51), tarball temp-file cleanup in `finally` (65-66).
+- `pglite/owner.ts` (83.2 %, 37): (a) "already open by pid" message branch (86), socket-path length fallback `<=` boundary (201), catch block (266).
+- `tools/transfer-tools.ts` (85.2 %, 31+12NC): (a) `leftOut` filter for bookkeeping reasons (148, 170) — no test executes it (NC); `sqlite/inspect.ts` L170 NC.
+- `kernel/sqlite/driver.ts` (83.9 %, 9), `kernel/store-copy.ts` (93.1 %, 13), `turn-lock.ts` (4): not individually triaged.
+No-coverage (pass 2): `sqlite/inspect.ts` L170; `tools/transfer-tools.ts` L148,170.
 
 ---
 # packages/core — FULL (all non-test/non-typecheck src)
@@ -242,3 +289,5 @@ None identified in production source. Test-suite problems: two red baseline test
 8. `db/owner-store/backup.ts` — table-driven malformed-backup rejection (INVALID_BACKUP) for every shape check.
 9. `core/origin-validation.ts` — RFC1918/loopback boundary addresses (172.15/172.32, 11.x, 192.167) + blank/whitespace allow-list.
 10. `db/transfer/sqlite-source.ts` + `postgres-target.ts` — WAL header patch (bytes 18/19) with WAL and non-WAL fixtures; PG* env filtering and psql stderr parsing.
+
+L2 DONE 2026-10-25T19:08Z — wall ≈ 3h11m, ≈0.25M tokens (rough). Artifacts (mutation JSON) were not committed (kept at /root/stryker/reports, ephemeral).
