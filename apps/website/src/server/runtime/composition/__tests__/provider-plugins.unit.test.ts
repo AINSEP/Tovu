@@ -107,20 +107,21 @@ test("a throwing factory, an invalid port and a hung initialization each leave o
   const seen: string[] = [];
   const good: Calls = { inputs: [], disposed: 0 };
   const { runtime } = fakeRuntime({ installed: ["observability-opentelemetry", "observability-sentry", "analytics-posthog", "ai-trace-langfuse"], factories: {
-    "observability-opentelemetry": { contract: "observability", id: "opentelemetry", factory: () => { throw new Error("bad endpoint"); } },
+    "observability-opentelemetry": { contract: "observability", id: "opentelemetry", factory: () => { throw new Error("bad endpoint https://secret@collector.example"); } },
     "observability-sentry": { contract: "observability", id: "sentry", factory: fakeFactory({ calls: good, port: recordingObservability(seen) }) },
     "analytics-posthog": { contract: "product_analytics", id: "posthog", factory: fakeFactory({ calls: good, port: { capture: "nope" } }) },
     "ai-trace-langfuse": { contract: "ai_trace", id: "langfuse", factory: () => new Promise(() => {}) },
   } });
   const ports = await bootProviderPlugins({ runtime, readCredential: readCards(CARDS), serviceName: "tovu", ...consentAlways }, { warn: (message) => warnings.push(message), initializeTimeoutMs: 20 });
+  assert.ok(!warnings.join("\n").includes("secret@"), "an SDK error message never reaches the log");
   ports.observability.trackOperation({ name: "still-works" }).end({ outcome: "completed", failed: false });
   assert.deepEqual(seen, ["op:still-works"]);
   assert.equal(isNoopProductAnalytics(ports.productAnalytics), true);
   assert.equal(ports.aiTraceSink, undefined);
   assert.deepEqual(warnings, [
-    "provider plugin 'observability-opentelemetry' did not initialize: bad endpoint",
-    "provider plugin 'analytics-posthog' did not initialize: product_analytics provider 'posthog' is invalid: not a ProductAnalyticsPort",
-    "provider plugin 'ai-trace-langfuse' did not initialize: provider initialization timed out",
+    "provider plugin 'observability-opentelemetry' did not initialize: Error",
+    "provider plugin 'analytics-posthog' did not initialize: PluginProviderError",
+    "provider plugin 'ai-trace-langfuse' did not initialize: PluginProviderError",
   ]);
   await ports.dispose({});
   assert.equal(good.disposed, 2);
@@ -227,7 +228,7 @@ test("without a warn sink, a provider failure (even a non-Error rejection) goes 
   const { runtime } = fakeRuntime({ installed: ["observability-sentry"], factories: { "observability-sentry": { contract: "observability", id: "sentry", factory: () => Promise.reject("refused") } } });
   const ports = await bootProviderPlugins({ runtime, readCredential: readCards(CARDS), serviceName: "tovu", ...consentAlways }, { bindings: [PROVIDER_PLUGIN_BINDINGS[1]!] });
   assert.equal(isNoopObservabilityPort(ports.observability), true);
-  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), ["[provider-plugins] provider plugin 'observability-sentry' did not initialize: refused"]);
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), ["[provider-plugins] provider plugin 'observability-sentry' did not initialize: string"]);
 });
 
 test("a provider whose dispose fails is reported by phase through the warn sink", async () => {
