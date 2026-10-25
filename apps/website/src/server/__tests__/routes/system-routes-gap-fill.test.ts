@@ -5,6 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { createNoopObservabilityPort } from "#src/platform/observability/index";
 
 /**
  * @file Branches of four `system/*` admin routes that their own suites never reached:
@@ -79,38 +80,19 @@ test("mail-status: a signed-in principal without admin.forms.manage is 403 and l
   assert.equal("mailDeliveryAvailable" in body, false);
 });
 
-test("observability-status: with an OTLP endpoint configured, reports enabled with the configured service name", async (t) => {
+test("observability-status: environment variables no longer enable it; a configured provider port does, under the fixed service name", async (t) => {
+  const saved = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  t.after(() => { if (saved === undefined) delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT; else process.env.OTEL_EXPORTER_OTLP_ENDPOINT = saved; });
+  process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector.test:4318";
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`;
+  assert.deepEqual(await (await fetch(url, { headers: { cookie } })).json(), { enabled: false, serviceName: null });
 
-  // Set only after boot: the route resolves the config per request, and the composition root must
-  // not start a real exporter in this test process.
-  const saved = {
-    endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-    traces: process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-    service: process.env.OTEL_SERVICE_NAME,
-  };
-  t.after(() => {
-    for (const [key, value] of [
-      ["OTEL_EXPORTER_OTLP_ENDPOINT", saved.endpoint],
-      ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", saved.traces],
-      ["OTEL_SERVICE_NAME", saved.service],
-    ] as const) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  });
-
-  process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector.test:4318";
-  delete process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
-  process.env.OTEL_SERVICE_NAME = "tovu-staging";
-  const named = await fetch(url, { headers: { cookie } });
+  // A provider plugin's port (any non-noop port): enabled, reported as the fixed "tovu" identity.
+  const configured = { ...deps, observability: { ...createNoopObservabilityPort({}) } };
+  const booted = await bootAuthenticated(createApp(configured), t);
+  const named = await fetch(`${booted.baseUrl}/api/admin/v1/workspaces/${configured.workspaceId}/system/observability-status`, { headers: { cookie: booted.cookie } });
   assert.equal(named.status, 200);
-  assert.deepEqual(await named.json(), { enabled: true, serviceName: "tovu-staging" });
-
-  // No service name configured: the documented default, not null.
-  delete process.env.OTEL_SERVICE_NAME;
-  const defaulted = await fetch(url, { headers: { cookie } });
-  assert.deepEqual(await defaulted.json(), { enabled: true, serviceName: "tovu" });
+  assert.deepEqual(await named.json(), { enabled: true, serviceName: "tovu" });
 });
