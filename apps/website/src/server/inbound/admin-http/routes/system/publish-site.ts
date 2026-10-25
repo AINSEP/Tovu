@@ -304,6 +304,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         deps.publishHistoryStore
       );
 
+      // Owner-action product event (consent-gated port): a publish was started.
+      deps.productAnalytics?.capture({ name: "site_publish_started", userId: principal.id });
       res.status(202).json(snapshot);
     } catch (err) {
       // Everything above `startPublishRun` (auth check, snapshot read, body parsing) runs

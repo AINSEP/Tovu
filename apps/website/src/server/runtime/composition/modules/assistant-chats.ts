@@ -156,7 +156,11 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
             id,
             ...(seed ? { title: seed, titleSource: "fallback" as const } : {}),
           })
-          .then((conversation) => res.status(201).json({ conversation }))
+          .then((conversation) => {
+            // Owner-action product event (consent-gated port): a chat was started; never its text.
+            deps.productAnalytics?.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id });
+            res.status(201).json({ conversation });
+          })
           .catch(next);
       });
 

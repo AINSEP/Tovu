@@ -124,6 +124,8 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
         // delivers it on its next pass).
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
+        // Owner-action product event: consent-gated by the port; opaque principal id, no content.
+        deps.productAnalytics?.capture({ name: "post_created", userId: principal.id });
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPostCreateError(res, err);
