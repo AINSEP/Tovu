@@ -1,0 +1,10 @@
+{
+ "testRunner":"vitest","vitest":{"configFile":"vitest.config.ts"},
+ "mutate":["src/**/*.ts","!src/**/__tests__/**","!src/**/*.test.ts","!src/**/*.spec.ts","!src/**/*.d.ts","!src/**/*.tsx","!src/**/*.generated.ts"],
+ "coverageAnalysis":"perTest","concurrency":3,"incremental":true,
+ "incrementalFile":"/root/stryker/incr-cli.json",
+ "mutator":{"excludedMutations":["StringLiteral"]},
+ "reporters":["json","clear-text","progress-append-only"],
+ "jsonReporter":{"fileName":"/root/stryker/reports/cli.json"},
+ "tempDirName":".stryker-tmp","cleanTempDir":true,"disableTypeChecks":true
+}
