@@ -211,3 +211,23 @@ test("main(): a history-only leak omits the tracked-files section and still exit
   assert.equal(r.err[0], "check:secret-scan — 1 credential-shaped string(s) found in git history (not necessarily present in the current tree):");
   assert.equal(r.err[1], `  - leak.txt:1 [${GHP_NAME}]`);
 });
+
+test("ALLOWLIST: each of the three reviewed entries allowlists exactly its own (file, pattern, value)", () => {
+  assert.equal(isAllowlisted("development/e2e/byok-google-tool-schema.spec.ts", "Google API key (AIza)", "AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-0000000000"), true);
+  assert.equal(isAllowlisted(PEM_ALLOWLISTED_FILE, PEM_NAME, PEM), true);
+  assert.equal(isAllowlisted("ADS-memory/reports/swarm-consensus/offloads/2026-08-12-deploy/sonnet5-round3.md", PEM_NAME, PEM), true);
+  assert.equal(isAllowlisted("ADS-memory/reports/swarm-consensus/offloads/2026-08-12-deploy/sonnet5-round3.md", GHP_NAME, PEM), false);
+});
+
+test("scanTextForSecrets: two ADJACENT matches are both reported (a non-empty match does not skip a character)", () => {
+  const hits = scanTextForSecrets("TOKENTOKEN", { patterns: [{ name: "t", pattern: /TOKEN/ }] });
+  assert.deepEqual(hits.map((h) => h.index), [0, 5]);
+});
+
+test("history scan: identical content at two paths is scanned once and reported under its FIRST-seen path", (t) => {
+  const repo = tempRepo(t);
+  repo.write("a.txt", GHP);
+  repo.write("b.txt", GHP);
+  repo.commit();
+  assert.deepEqual(scanGitHistoryForSecrets({ repoRoot: repo.root }), [{ file: "a.txt", patternName: GHP_NAME, line: 1 }]);
+});
