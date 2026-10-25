@@ -105,6 +105,8 @@ test("requireAgentDaemonToken: unset env refuses with 503, a wrong bearer with 4
   assert.deepEqual(wrong.res.body, { error: "Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN> is required", code: "UNAUTHENTICATED" });
   const missing = await run(requireAgentDaemonToken({ env }), fakeReq({ path: "/api/settings" }));
   assert.equal(missing.res.statusCode, 401);
+  assert.deepEqual(missing.res.body, { error: "Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN> is required", code: "UNAUTHENTICATED" });
+  assert.equal(missing.nextCalls, 0);
   const ok = await run(requireAgentDaemonToken({ env }), fakeReq({ path: "/api/settings", headers: { authorization: "Bearer proxy-token" } }));
   assert.equal(ok.nextCalls, 1);
   assert.equal(ok.nextError, undefined);
@@ -131,11 +133,17 @@ test("requireAgentDaemonToken: a run credential sets the Tovu principal header, 
   assert.equal((req as { headers: Record<string, string> }).headers["x-tovu-principal-id"], "principal-a");
   const foreign = await run(gate, fakeReq({ path: "/api/runs/run-2", headers: { authorization: `Bearer ${token}` } }));
   assert.equal(foreign.res.statusCode, 404);
+  assert.deepEqual(foreign.res.body, { error: { code: "NOT_FOUND", message: 'run "run-2" was not found' } });
+  assert.equal(foreign.nextCalls, 0);
   const offList = await run(gate, fakeReq({ path: "/api/settings", headers: { authorization: `Bearer ${token}` } }));
   assert.equal(offList.res.statusCode, 403);
+  assert.deepEqual(offList.res.body, { error: "a run-scoped credential cannot call GET /api/settings", code: "FORBIDDEN" });
+  assert.equal(offList.nextCalls, 0);
   // Without the resolver the run token is just an unknown bearer.
   const noResolver = await run(requireAgentDaemonToken({ env }), fakeReq({ path: "/api/runs/run-1", headers: { authorization: `Bearer ${token}` } }));
   assert.equal(noResolver.res.statusCode, 401);
+  assert.deepEqual(noResolver.res.body, { error: "Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN> is required", code: "UNAUTHENTICATED" });
+  assert.equal(noResolver.nextCalls, 0);
 });
 
 test("requireAgentDaemonToken: validateDelegatedRunId makes body.runId bind to the credential's run", async () => {

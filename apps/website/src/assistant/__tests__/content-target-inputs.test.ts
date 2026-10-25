@@ -263,11 +263,17 @@ test("a second selector beside the alias is refused naming both keys; a missing 
   assert.deepEqual(log, [], "no selector means no authorization lookup and no resolver read");
 });
 
-test("a media selector owned by another workspace is passed through unresolved", async () => {
-  const { deps } = recordingDeps({ mediaRepo: { findById: async () => mediaRecord({ id: "x", slug: "logo", workspaceId: "other" }), findBySlug: async () => null } as never });
+test("a media slug resolving to another workspace's asset is passed through as the slug; the same workspace resolves it", async () => {
+  // Selector ("logo") and foreign id ("x") differ, so dropping the workspace guard would surface "x".
+  const repoFor = (workspaceId: string) => ({ findById: async () => null, findBySlug: async () => mediaRecord({ id: "x", slug: "logo", workspaceId }) }) as never;
   const sink: { input?: unknown } = {};
-  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps });
-  await executeRegisteredTool({ registration: registration!, input: { mediaId: "x" } });
+  const foreign = recordingDeps({ mediaRepo: repoFor("other") });
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: foreign.deps });
+  assert.equal((await executeRegisteredTool({ registration: registration!, input: { mediaId: "logo" } })).status, "completed");
+  assert.deepEqual(sink.input, { mediaId: "logo" });
+  const own = recordingDeps({ mediaRepo: repoFor("w") });
+  const [ownRegistration] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: own.deps });
+  await executeRegisteredTool({ registration: ownRegistration!, input: { mediaId: "logo" } });
   assert.deepEqual(sink.input, { mediaId: "x" });
 });
 
@@ -286,12 +292,13 @@ test("batched items are prepared one by one; more than the batch cap is refused 
 
 test("permanent-delete tools run beforeLookup with the tool and principal before the permission check", async () => {
   const order: string[] = [];
-  const { deps, log } = recordingDeps({ beforeLookup: async ({ toolId, principalId }) => { order.push(`before:${toolId}:${principalId}`); } });
+  const { deps, log } = recordingDeps();
+  // One shared log, so the assertion pins beforeLookup → authorize → lookup as a sequence.
+  Object.assign(deps, { beforeLookup: async ({ toolId, principalId }: { toolId: string; principalId: string }) => { log.push(`before:${toolId}:${principalId}`); order.push(`before:${toolId}:${principalId}`); } });
   const sink: { input?: unknown } = {};
   const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_purge_asset", { mediaId: {} }, sink)], deps });
   await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1" } });
-  assert.deepEqual(order, ["before:media_purge_asset:caller"]);
-  assert.equal(log[0], "auth:perm.media_purge_asset:media");
+  assert.deepEqual(log, ["before:media_purge_asset:caller", "auth:perm.media_purge_asset:media", "media-id:asset-1"]);
   const plain = recordingDeps({ beforeLookup: async () => { order.push("unexpected"); } });
   const [update] = applyContentTargetInputs({ registrations: [synthetic("media_update_metadata", { mediaId: {} }, sink)], deps: plain.deps });
   await executeRegisteredTool({ registration: update!, input: { mediaId: "asset-1" } });
