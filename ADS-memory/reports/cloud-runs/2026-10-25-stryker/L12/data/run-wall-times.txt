@@ -1,0 +1,42 @@
+dev-auth exit=0 wall=639s
+publish-trust-auth exit=0 wall=164s
+canonical-site-host exit=0 wall=38s
+site-serving-gate exit=0 wall=35s
+public-page-security-headers exit=0 wall=69s
+site-consent exit=1 wall=23s
+write-policy-permission exit=0 wall=212s
+remove-policy-permission exit=0 wall=176s
+app-permission-grants exit=0 wall=12s
+process-error-guards exit=0 wall=12s
+content-db-schema-guard exit=0 wall=25s
+oauth-public-origin exit=0 wall=13s
+oauth-callback-page exit=0 wall=12s
+external-mcp-oauth-callback exit=0 wall=151s
+QUEUE1DONE
+members-pw exit=0 wall=715s
+members-oidc exit=124 wall=1500s
+handshake exit=0 wall=82s
+site-consent exit=0 wall=47s
+site-key exit=0 wall=233s
+publish-credentials exit=0 wall=105s
+source-control-credentials exit=0 wall=97s
+dev-auth-pass2 exit=1 wall=33s
+QUEUE2DONE
+u-remove-policy-permission exit=0 wall=223s
+u-assign-role exit=0 wall=181s
+u-attach-policy exit=0 wall=183s
+u-create exit=0 wall=211s
+u-delete exit=0 wall=110s
+u-disable exit=0 wall=190s
+u-enable exit=0 wall=199s
+u-reset-password exit=0 wall=184s
+u-update exit=0 wall=258s
+u-create-role exit=0 wall=112s
+u-delete-role exit=0 wall=138s
+u-update-role exit=0 wall=158s
+u-create-policy exit=0 wall=154s
+u-delete-policy exit=0 wall=150s
+u-update-policy exit=0 wall=134s
+api-keys exit=0 wall=459s
+ext-mcp-guard exit=0 wall=119s
+QUEUE3DONE
