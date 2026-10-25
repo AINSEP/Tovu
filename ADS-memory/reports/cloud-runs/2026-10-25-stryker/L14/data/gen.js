@@ -1,0 +1,15 @@
+const fs=require('fs');const S=process.argv[2];const a=JSON.parse(fs.readFileSync(S+'/agg.json'));
+const res=fs.readFileSync(S+'/results.txt','utf8').split('\n').filter(Boolean);
+const q=fs.readFileSync(S+'/queue.txt','utf8').split('\n').filter(Boolean).map(x=>x.replace('apps/website/src/',''));
+const done=new Set(a.rows.map(r=>r.file));
+const notests=res.filter(l=>l.startsWith('NOTESTS')).map(l=>l.split(' ')[1].replace('apps/website/src/',''));
+const failed=res.filter(l=>/rc=(1|124)/.test(l)&&!done.has(l.split(' ')[0].replace('apps/website/src/',''))).map(l=>l.split(' ')[0].replace('apps/website/src/','')+' ('+(l.match(/rc=\d+/)[0])+')');
+const attempted=new Set([...notests,...res.filter(l=>!l.startsWith('NOTESTS')&&!l.startsWith('QUEUE')&&!l.startsWith('STOP')).map(l=>l.split(' ')[0].replace('apps/website/src/','')) ]);
+const notrun=q.filter(f=>!attempted.has(f));
+const T=a.T,sc=(100*T.det/(T.det+T.s+T.nc)).toFixed(1);
+let o=`## Headline\n- ${a.rows.length} files scored, ${T.tot} mutants (killed+timeout ${T.det}, survived ${T.s}, no-coverage ${T.nc}); score **${sc}%** (StringLiteral excluded, type checks off, tap-runner file-granular, coverageAnalysis off).\n- Files with no unit test importing them (NOTESTS): ${notests.length}. Files whose scoped test run failed in the dry run (not scored): ${failed.length}. Files never reached (NOT RUN): ${notrun.length}.\n\n## Per-file table (worst first)\n| file | mutants | killed | timeout | survived | no-cov | score |\n|---|---|---|---|---|---|---|\n`;
+for(const r of a.rows)o+=`| ${r.file} | ${r.tot} | ${r.k} | ${r.t} | ${r.s} | ${r.nc} | ${r.score??'n/a'} |\n`;
+o+=`\n## Dry-run failed (not scored — ENV/test-load failures; mostly @jini-ai export mismatch because the Jini clone was not permitted in this run)\n${failed.map(x=>'- '+x).join('\n')}\n`;
+o+=`\n## No direct unit test found (never mutated)\n${notests.map(x=>'- '+x).join('\n')}\n`;
+o+=`\n## NOT RUN (queue not reached)\n${notrun.map(x=>'- '+x).join('\n')}\n`;
+fs.writeFileSync(S+'/tables.md',o);
