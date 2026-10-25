@@ -1,36 +1,21 @@
 /**
- * @file The OpenTelemetry adapter for `ObservabilityPort` — the ONLY file under
- * `platform/observability/` that imports an `@opentelemetry/*` package. Jini's
- * `diagnostics/src/observability/ports.ts` explains why that matters: the port itself must never mention OTel, so a future adapter for a
- * different instrumentation system can satisfy it without this file changing at all.
+ * @file TEST-ONLY: the real OpenTelemetry SDK bound to Jini diagnostics' span lifecycle, so Tovu's
+ * call-site tests can prove what actually leaves the process (span names, kinds, parent links,
+ * status, redaction). Production no longer has an OTel adapter in Tovu core: since provider wave 2
+ * (2026-10-25) it comes from the `observability-opentelemetry` provider plugin
+ * (`@jini-ai/provider-plugins`), selected at boot only when installed + enabled + configured
+ * (`server/runtime/composition/provider-plugins.ts`). The `@opentelemetry/*` packages are therefore
+ * devDependencies here. The plugin carries the same adapter, its lifecycle tests, and the reasons
+ * that used to live in this header (lazy loading for small VPS installs, measured footprint).
  *
- * Loaded lazily, not statically: `index.ts`'s `createObservabilityPort` only reaches this module
- * via `createRequire(import.meta.url)("./otel.js")`, gated behind
- * `resolveObservabilityConfig({ env }).enabled`. This is the ONE first-party `require()`
- * `src/__tests__/no-first-party-require.boundary.test.ts` allows (t91 F4.1-A), because this file has
- * no first-party runtime import and nothing loads it through `import` — so tsx's CommonJS copy is
- * the only copy, and it stays that way. Applied here so the OTel SDK is never loaded into a process
- * whose operator hasn't set `OTEL_EXPORTER_OTLP_ENDPOINT`. That is a real resource-budget concern, not tidiness: the
- * groundwork survey this task was built from (`ADS-memory/.local-artifacts/metrics/
- * 2026-08-28-observability-groundwork.md` §5.5) flags that Tovu ships to small, single-process VPS
- * instances and that no measurement of the OTel SDK's own footprint exists yet — an always-loaded
- * SDK would be dead weight for every operator who never configures an exporter. `require`, not a
- * dynamic `await import()`: both composition roots' `RouteDeps` are built synchronously today
- * (`index.ts`'s own comment on `createSiteRouteDeps()`/`createApp()` — "both of those are
- * synchronous functions"), and Node 24 (this repo's minimum engine) resolves `require()` of an ESM
- * target synchronously, so this stays a plain, synchronous factory call with no ripple into
- * `index.ts`/`cli/commands/serve.ts`'s own call sites.
- *
- * One `NodeTracerProvider` per process, and it is never registered globally
+ * One `NodeTracerProvider` per port, and it is never registered globally
  * (`trace.setGlobalTracerProvider`/`provider.register()`). This adapter takes its `Tracer` directly
  * off the provider instance instead (`NodeTracerProvider#getTracer()` — the OTel 2.x-documented way
- * to obtain a `Tracer` without a global registration), so constructing this adapter can never
- * silently take over `@opentelemetry/api`'s process-wide tracer registration from some other part
- * of the process that also touches it.
+ * to obtain a `Tracer` without a global registration), so constructing it can never silently take
+ * over `@opentelemetry/api`'s process-wide tracer registration from some other part of the process
+ * (including a test runner) that also touches it.
  */
 // Span lifecycle rationale: Jini packages/diagnostics/src/observability/otel.ts.
-// Small single-process VPS installs should pay no SDK footprint until an exporter is configured;
-// the synchronous composition roots cannot adopt an async import without changing their boot contract.
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { ROOT_CONTEXT, SpanKind, SpanStatusCode, trace, type Span, type Tracer } from "@opentelemetry/api";
@@ -111,10 +96,8 @@ export function createAsyncLocalSpanScope(_required: Record<string, never>): Spa
  * @complexity O(1) setup, excluding SDK processor construction.
  * @example createOtelFactories({}, { spanProcessors: [processor] });
  *
- * These factories build the real port's one process-lifetime `NodeTracerProvider` when invoked.
- * Both composition roots (`server/runtime/composition/{app,deps}.ts`) construct
- * `RouteDeps.observability` once at boot, not per request, and `index.ts`'s
- * `createObservabilityPort` only reaches these factories when `config.enabled` is true.
+ * These factories build one port's `NodeTracerProvider` when invoked (one per test port here; a
+ * production host builds its port once at boot, through the provider plugin).
  *
  * @complexity O(1) setup cost (one provider, one span processor, one exporter); `trackRequest`
  * itself is O(1) per call (`tracer.startSpan` plus a handful of attribute writes) — the same cost

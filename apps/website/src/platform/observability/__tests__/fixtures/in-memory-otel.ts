@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { InMemorySpanExporter, SimpleSpanProcessor, type ReadableSpan } from "@opentelemetry/sdk-trace-base";
 
-import { createOtelObservabilityPort } from "../../otel.js";
+import { createOtelObservabilityPort } from "./otel-sdk.js";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 
 /**

@@ -198,6 +198,17 @@ export interface PluginRuntimeBindings {
   readonly pluginInstaller?: PluginInstallerPort;
   readonly hookRegistry: HookRegistry;
   readonly pluginContributions: PluginContributionRegistry;
+  /** Provider factories of admitted provider plugins only (`createPluginProviderHost` reads this).
+   * Separate from `pluginContributions`, whose route/tool/widget snapshots carry no providers. */
+  readonly providerContributions: PluginContributionRegistry;
+  /**
+   * Boot-only: loads the given provider plugins when each is installed and enabled here, admitting
+   * their factories into `providerContributions`. Provider plugins are loaded nowhere else (boot
+   * re-attach and enable skip them), so a running provider is never replaced mid-process; enabling
+   * one takes effect at the next boot, disabling or quarantining one retires it immediately.
+   * @returns The ids actually loaded. Per-plugin failures are logged and skipped, never thrown.
+   */
+  readonly loadProviderPlugins: (required: { pluginIds: readonly string[] }, optional?: Record<string, never>) => Promise<readonly string[]>;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
@@ -232,6 +243,11 @@ export interface PluginRuntimeBindings {
   readonly listPluginConflicts: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
 }
 
+/** True when a manifest declares provider factories (`contributes.providers`). */
+function declaresProviders({ manifest }: { manifest: PluginManifest | undefined }): boolean {
+  return (manifest?.contributes?.providers?.length ?? 0) > 0;
+}
+
 /**
  * Server-layer composition for SPEC-005's runtime half. The application roots own the concrete
  * activation repo/source list; this helper builds the per-load core handles, delegates module
@@ -245,6 +261,9 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   const browserProviders = new Map<string, readonly AdmittedBrowserProvider[]>();
   let browserGeneration = 0;
   const pluginContributions = createPluginContributionRegistry({});
+  const providerContributions = createPluginContributionRegistry({});
+  // Only boot's configured selection may admit provider factories (`loadProviderPlugins`).
+  const selectedProviders = new Set<string>();
   const loadEpochs = new Map<string, number>();
   const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
   const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding }, {
@@ -306,6 +325,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
     }
     await assertNoConflicts(pluginId, discovery);
+    // Provider plugins initialize once, at boot, before application work (`loadProviderPlugins`).
+    if (declaresProviders({ manifest: record.manifest })) return;
     // No manifest ⇒ an invalid record: `attachPlugin`'s own fail-closed path reports it.
     if (!record.manifest) return attachPlugin(pluginId, record);
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
@@ -342,6 +363,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     const result = await loadPlugin(
       { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
         browserProviderApprovals: required.browserProviderApprovals ?? [],
+        providerContributions: { registry: providerContributions, isSelected: ({ pluginId: id }) => selectedProviders.has(id) },
         pluginSdkBinding: { ...pluginHostBinding.pluginSdkBinding,
           buildSdk: ({ sdk }) => {
             const host = required.getPluginHost?.();
@@ -428,6 +450,9 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     if (browserProviders.delete(pluginId)) browserGeneration++;
     loadEpochs.set(pluginId, (loadEpochs.get(pluginId) ?? 0) + 1);
     pluginContributions.detach({ pluginId });
+    // Retires the provider generation: the provider host disposes its initialized resources.
+    selectedProviders.delete(pluginId);
+    providerContributions.detach({ pluginId });
     hookRegistry.detach({ pluginId });
     loadedVersions.delete(pluginId);
   }
@@ -502,7 +527,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       const discovered = discovery.find((candidate) => candidate.id === pluginId);
       if (!discovered) throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
       // A tier-1 plugin has no code to re-attach; its declared types were stored at enable.
-      if (discovered.manifest?.tier === "tier-1") return;
+      // Provider plugins were already loaded by `loadProviderPlugins`, ahead of application work.
+      if (discovered.manifest?.tier === "tier-1" || declaresProviders({ manifest: discovered.manifest })) return;
       await attachPlugin(pluginId, discovered);
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -512,6 +538,26 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         }`
       );
     }
+  }
+
+  async function loadProviderPlugins({ pluginIds }: { pluginIds: readonly string[] }, _options = {}): Promise<readonly string[]> {
+    const wanted = new Set(pluginIds);
+    if (wanted.size === 0) return [];
+    const enabled = new Set((await activationRepo.listAll())
+      .filter((row) => row.workspaceId === required.workspaceId && row.enabled).map((row) => row.pluginId));
+    const loaded: string[] = [];
+    for (const record of await discoverActivePlugins()) {
+      if (!wanted.has(record.id) || !enabled.has(record.id) || !declaresProviders({ manifest: record.manifest })) continue;
+      selectedProviders.add(record.id);
+      try {
+        await attachPlugin(record.id, record);
+        loaded.push(record.id);
+      } catch (error) {
+        onPluginDisabled(record.id);
+        console.warn(`[plugin-runtime] provider plugin '${record.id}' failed to load; its contract stays on the noop: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    return loaded;
   }
 
   async function locatePluginPackageDirs(pluginId: string): Promise<{
@@ -642,6 +688,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     pluginLoadedVersion: ({ id }) => loadedVersions.get(id),
     hookRegistry,
     pluginContributions,
+    providerContributions,
+    loadProviderPlugins,
     discoverPlugins,
     onPluginEnabled,
     onPluginDisabled,

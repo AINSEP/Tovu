@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createOtelObservabilityPort } from "../../otel.js";
+import { createOtelObservabilityPort } from "../fixtures/otel-sdk.js";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 

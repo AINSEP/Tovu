@@ -63,7 +63,9 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { bootProviderPlugins } from "./provider-plugins.js";
+import { createTelemetryConsent } from "./telemetry-consent.js";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -647,6 +649,8 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
  * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
  */
 export interface CreateSiteRouteDepsOverrides {
+  /** Test seam: replaces provider-plugin selection/initialization (fakes; never a vendor call). */
+  bootProviderPlugins: typeof bootProviderPlugins;
   sqliteOpen: ContentDbOpenOptions["open"];
   /** DB placement may differ from the site root or from content.db. */
   chatDbPath: string;
@@ -1131,16 +1135,8 @@ async function composeSiteRouteDeps(
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
-  // Env-driven — off (the real no-op port) unless the operator has set
-  // `OTEL_EXPORTER_OTLP_ENDPOINT`. This is the composition root BOTH real-process boot paths
-  // build `RouteDeps` from (`index.ts`'s non-memory branch AND `cli/commands/serve.ts`'s `tovu
-  // serve`), so this is the one call site where the real (non-hermetic) adapter choice belongs —
-  // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
-  // `ObservabilityDeps` doc for the rule-of-two this mirrors. Resolved here, ahead of every
-  // consumer, because the storage kernels and guarded HTTP clients below are decorated with it
-  // (identity for the no-op port, so a default boot keeps its exact objects).
-  const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) });
-  instrumentStorageKernel({ kernel, observability });
+  // `observability` comes from provider plugins, initialized below once the site vault is
+  // normalized (their key cards are sealed credentials) and before any consumer of the port.
   // Resolved here, before the first fire-and-forget boot promise below: `createMediaBlobStore` throws
   // on an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
   // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
@@ -1188,7 +1184,6 @@ async function composeSiteRouteDeps(
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
   const chatDbPath = overrides.chatDbPath ?? defaultChatDbPath(dbPath);
   const chat = store.chat;
-  instrumentStorageKernel({ kernel: chat, observability });
   await warnCompositionChatOrphans({}, {});
 
   async function warnCompositionChatOrphans(_required: Record<string, never>, _options = {}): Promise<void> {
@@ -1985,6 +1980,28 @@ async function composeSiteRouteDeps(
   // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
   // third `EnvOrFileKeyring` instance).
   const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(kernel);
+  // Provider plugins (observability, product analytics, AI tracing): installed + enabled +
+  // configured (their key card) → loaded and initialized here, awaited and bounded, before any
+  // consumer of their ports; otherwise each contract keeps its noop. This is the composition root
+  // BOTH real-process boot paths build `RouteDeps` from (`index.ts`'s non-memory branch AND
+  // `cli/commands/serve.ts`'s `tovu serve`), so this is the one call site where the real
+  // (non-hermetic) choice belongs; `app.ts`'s hermetic root keeps the noop — see `routes/types.ts`'s
+  // `ObservabilityDeps` doc for the rule-of-two this mirrors. The storage kernels and guarded HTTP
+  // clients below are decorated with the port (identity for the no-op port, so a default boot keeps
+  // its exact objects). See `provider-plugins.ts`.
+  const providerPlugins = await (overrides.bootProviderPlugins ?? bootProviderPlugins)({
+    runtime: pluginRuntime,
+    readCredential: async ({ label }) => {
+      const resolved = await resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, { workspaceId, label });
+      return resolved && { baseUrl: resolved.baseUrl, token: resolved.connection.token, ...(resolved.connection.username ? { username: resolved.connection.username } : {}) };
+    },
+    serviceName: "tovu",
+    ...createTelemetryConsent({ settingsRepo, workspaceId }),
+  });
+  onStoreClose(() => providerPlugins.dispose({}));
+  const { observability, productAnalytics, aiTraceSink } = providerPlugins;
+  instrumentStorageKernel({ kernel, observability });
+  instrumentStorageKernel({ kernel: chat, observability });
   // `runtimeMode` itself is now resolved further up (see `newsletterKeyring`'s own hoisting
   // comment above) — kept read here via the same local rather than re-hoisting every downstream
   // use, since everything below this point already assumed a local named `runtimeMode` exists.
@@ -2427,8 +2444,10 @@ async function composeSiteRouteDeps(
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
-    // Built in the prelude (see `observability`'s construction above for the rule-of-two it follows).
+    // From provider plugins (see `providerPlugins` above for the rule-of-two it follows).
     observability,
+    productAnalytics,
+    ...(aiTraceSink ? { aiTraceSink } : {}),
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
