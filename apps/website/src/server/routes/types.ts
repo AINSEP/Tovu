@@ -955,10 +955,17 @@ export interface EventBusDeps {
 /**
  * Constitution Article VIII observability seam. Routes and modules receive only
  * `ObservabilityPort`, never a concrete adapter; see `platform/observability/ports.ts`.
- * The hermetic root supplies the no-op adapter and the real root the env-driven adapter.
+ * The hermetic root supplies the no-op adapter and the real root the provider-plugin selection
+ * (`server/runtime/composition/provider-plugins.ts`: installed + enabled + configured, else noop).
  */
 export interface ObservabilityDeps {
   observability: ObservabilityPort;
+  /** How owners use Tovu (product analytics, not site-visitor analytics): a configured provider
+   * plugin behind `withProductAnalyticsGuards` (operator consent `core.privacy.telemetry.metrics`
+   * first), else the shared noop. Optional: hermetic roots and fixtures omit it, meaning "off". */
+  productAnalytics?: import("@jini-ai/analytics/product").ProductAnalyticsPort;
+  /** AI-trace sink of the configured provider plugins; absent means AI tracing is off. */
+  aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
    * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds

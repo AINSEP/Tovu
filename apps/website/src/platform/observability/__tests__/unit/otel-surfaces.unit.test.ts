@@ -5,14 +5,14 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { sql } from "kysely";
 
-import { createOtelObservabilityPort } from "../../otel.js";
-import { createObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort } from "../../index.js";
+import { createOtelObservabilityPort } from "../fixtures/otel-sdk.js";
+import { createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort } from "../../index.js";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file The DB, outbound and agent-run signals through the REAL OpenTelemetry SDK (in-memory
- * exporter via `otel.ts`'s `spanProcessors` seam — no network) and, for the DB, the real SQLite
+ * exporter via the test-only `fixtures/otel-sdk.ts`'s `spanProcessors` seam — no network) and, for the DB, the real SQLite
  * kernel and Kysely builder, so the query-node shapes the Jini decorator reads are Kysely's own.
  * Jini's suite pins the span vocabulary with fakes; this one proves the host glue: span kinds,
  * SDK parent links through the AsyncLocalStorage scope, and the exception event.
@@ -86,8 +86,8 @@ test("the real SQLite kernel, once instrumented, names spans from Kysely's own q
   }
 });
 
-test("disabled config returns Jini's no-op port, which the decorators recognize and skip", async () => {
-  const port = createObservabilityPort({ config: { enabled: false } });
+test("Jini's no-op port (no provider plugin configured) is recognized and skipped by the decorators", async () => {
+  const port = createNoopObservabilityPort({});
   assert.equal(isNoopObservabilityPort(port), true);
   const kernel = openMemorySqliteKernel<Record<string, never>>();
   try {

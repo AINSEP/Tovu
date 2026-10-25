@@ -45,17 +45,10 @@ for (const glob of workspaceGlobs) {
  * (file + specifier), not a glob — a future legitimate lazy leaf must be added here deliberately,
  * which is the point (G3 below re-checks every entry is still true).
  */
-const ALLOWED_FIRST_PARTY_REQUIRES: ReadonlyMap<string, readonly string[]> = new Map([
-  [
-    // `platform/observability/index.ts`'s `createObservabilityPort` reaches this module lazily so
-    // the OTel SDK is never loaded into a process that hasn't enabled it. Safe because nothing
-    // `import`s `otel.ts` (so tsx's `require()` copy is the ONLY copy) and `otel.ts` itself has no
-    // first-party runtime import (so its "second copy" can never diverge from a first one) — G3
-    // re-verifies both facts on every run rather than trusting this comment forever.
-    "apps/website/src/platform/observability/index.ts",
-    ["./otel.js"],
-  ],
-]);
+// Empty since provider wave 2 (2026-10-25). Its one entry was `platform/observability/index.ts` →
+// `./otel.js`, the lazy require that kept the OTel SDK out of processes that had not enabled it; the
+// SDK now lives in the `observability-opentelemetry` provider plugin and Tovu core requires nothing.
+const ALLOWED_FIRST_PARTY_REQUIRES: ReadonlyMap<string, readonly string[]> = new Map([]);
 
 /** Recursively lists candidate source files under `dir` — production `.ts`/`.tsx`/`.mts`/`.cts`, no tests, no type declarations. */
 function listSourceFiles(dir: string): string[] {
