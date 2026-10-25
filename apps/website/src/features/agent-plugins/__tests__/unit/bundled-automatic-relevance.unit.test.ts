@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { createAutomaticAgentPluginUse, parseAgentPluginManifest } from '@jini-ai/agent-plugins/lifecycle';
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from '../../lifecycle.js';
+import { formatPluginToolPointer } from '../../bundled-catalog.js';
 
 const bundledRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugins');
 
@@ -39,6 +40,7 @@ for (const [query, expected] of [
     assert.deepEqual(rank({ query, candidates, limit: 12 }).map(plugin => plugin.pluginId).sort(), [...expected].sort());
     const loaded: string[] = [];
     const controller = createAutomaticAgentPluginUse({ mode: 'auto', ports: {
+      formatPluginToolPointer,
       list: async () => candidates, rank,
       resolve: async ({ pluginId }) => { loaded.push(pluginId); return { ok: true, promptPrefix: `Guidance: ${pluginId}` }; },
       ask: async () => { throw new Error('Auto must not ask'); },

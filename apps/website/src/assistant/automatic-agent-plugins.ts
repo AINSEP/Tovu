@@ -4,6 +4,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import type { PrepareToolGuidance } from '@jini-ai/daemon';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { loadAgentPluginSearchCandidates } from '../features/agent-plugins/tool-registrations.js';
+import { formatPluginToolPointer } from '../features/agent-plugins/bundled-catalog.js';
 import type { PluginMaturity } from '../features/agent-plugins/identity.js';
 import { createSettingsPrincipalLookup } from '../features/settings/index.js';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '../features/settings/admin-interface.js';
@@ -96,6 +97,7 @@ export function createAutomaticPluginRuns({ deps, surfaces }: { deps: AutomaticP
     const maturities = new Map<string, PluginMaturity | undefined>();
     let entry: Entry;
     const controller = createAutomaticAgentPluginUse({ mode, state: readChatAgentPluginState({ value: context.state }), ports: {
+      formatPluginToolPointer,
       list: async () => {
         const candidates = await loadAgentPluginSearchCandidates(deps);
         maturities.clear();
