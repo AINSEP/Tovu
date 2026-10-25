@@ -278,6 +278,7 @@ import { applySiteServingGate } from "../../inbound/public-http/middleware/site-
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
 import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
 import { applySiteConsent } from '../../inbound/public-http/middleware/site-consent.js';
+import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
 import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -1926,6 +1927,8 @@ function applyPublicMiddleware(
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
+  // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
+  applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
   // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
