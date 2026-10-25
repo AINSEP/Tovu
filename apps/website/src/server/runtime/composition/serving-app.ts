@@ -74,7 +74,7 @@ export function createServingApp(
   const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
-    { intervalMs: optional.outboxDrainIntervalMs }
+    { intervalMs: optional.outboxDrainIntervalMs, observability: routeDeps.observability }
   );
   // Unlike the drainer, the sweeper has no ordering dependency on `createApp` — it reads and writes
   // only `trashed_items` and the domain markers, and publishes nothing onto the bus. It starts here
