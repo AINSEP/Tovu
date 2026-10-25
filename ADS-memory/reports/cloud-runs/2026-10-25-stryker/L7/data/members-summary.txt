@@ -1,0 +1,98 @@
+file|mutants|killed|surv|nocov|timeout|score
+members/trash-member.ts|21|0|0|21|0|0.0
+members/agent-tools.ts|38|19|19|0|0|50.0
+members/repo.sqlite.ts|8|6|0|2|0|75.0
+members/tool-registrations.ts|124|102|10|12|0|82.3
+members/repo.memory.ts|582|515|64|1|2|88.8
+members/consent-service.ts|58|53|5|0|0|91.4
+members/write-service.ts|395|345|27|1|22|92.9
+members/password-auth.ts|181|170|11|0|0|93.9
+members/mailer.console.ts|36|34|2|0|0|94.4
+members/repo.rows.ts|120|115|5|0|0|95.8
+members/access-resolver.ts|98|95|3|0|0|96.9
+members/repo.ts|180|174|5|0|1|97.2
+members/auth-mail.ts|7|6|0|0|1|100.0
+members/subscriber-directory.ts|19|19|0|0|0|100.0
+
+### members/repo.memory.ts (65 survivors/no-cov)
+by mutator: {"ObjectLiteral":1,"ArrayDeclaration":8,"ArrowFunction":2,"ConditionalExpression":38,"EqualityOperator":7,"MethodExpression":3,"LogicalOperator":4,"BlockStatement":1,"ArithmeticOperator":1}
+N 74:58 ObjectLiteral: this.rows = (required.initialRows ?? []).map(row => ({ ...row })); => {}
+S 74:42 ArrayDeclaration: this.rows = (required.initialRows ?? []).map(row => ({ ...row })); => ["Stryker was here"]
+S 74:50 ArrowFunction: this.rows = (required.initialRows ?? []).map(row => ({ ...row })); => () => undefined
+S 87:50 ConditionalExpression: && entry.memberId === required.memberId && entry.providerId === required.providerId); => true
+S 93:80 ConditionalExpression: return this.rows.filter(row => row.workspaceId === required.workspaceId && row.memberId == => true
+S 95:13 EqualityOperator: if (a.providerId < b.providerId) return -1; => a.providerId <= b.providerId
+S 96:13 ConditionalExpression: if (a.providerId > b.providerId) return 1; => true
+S 96:13 ConditionalExpression: if (a.providerId > b.providerId) return 1; => false
+S 96:13 EqualityOperator: if (a.providerId > b.providerId) return 1; => a.providerId >= b.providerId
+S 96:13 EqualityOperator: if (a.providerId > b.providerId) return 1; => a.providerId <= b.providerId
+
+### members/repo.sqlite.ts (2 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":1}
+N 17:101 BlockStatement: constructor(required: { store: ContentKernel | ContentDb }, _options: Record<string, never => {}
+N 18:11 ObjectLiteral: super({ kernel: contentKernel(required.store) }); => {}
+
+### members/tool-registrations.ts (22 survivors/no-cov)
+by mutator: {"BlockStatement":1,"ObjectLiteral":16,"ArrowFunction":1,"ConditionalExpression":3,"EqualityOperator":1}
+N 232:36 BlockStatement: members_delete: async (ctx) => { => {}
+N 233:38 ObjectLiteral: const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "me => {}
+N 233:66 ObjectLiteral: const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "me => {}
+N 234:35 ObjectLiteral: await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize  => {}
+N 234:69 ObjectLiteral: await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize  => {}
+N 234:194 ObjectLiteral: await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize  => {}
+N 235:26 ObjectLiteral: return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.pr => {}
+N 235:76 ObjectLiteral: return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.pr => {}
+N 236:9 ObjectLiteral: { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clo => {}
+N 236:71 ObjectLiteral: { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clo => {}
+
+### members/trash-member.ts (21 survivors/no-cov)
+by mutator: {"BlockStatement":1,"BooleanLiteral":3,"ConditionalExpression":10,"ObjectLiteral":4,"LogicalOperator":1,"EqualityOperator":2}
+N 13:31 BlockStatement: ): Promise<{ deleted: true }> { => {}
+N 14:7 BooleanLiteral: if (!deps.remove) throw new MemberValidationError("Member Trash is unavailable in this run => deps.remove
+N 14:7 ConditionalExpression: if (!deps.remove) throw new MemberValidationError("Member Trash is unavailable in this run => true
+N 14:7 ConditionalExpression: if (!deps.remove) throw new MemberValidationError("Member Trash is unavailable in this run => false
+N 15:46 ObjectLiteral: const member = await deps.members.findById({ workspaceId: input.workspaceId, id: input.mem => {}
+N 16:7 BooleanLiteral: if (!member) throw new MemberNotFoundError(`member '${input.memberId}' was not found`); => member
+N 16:7 ConditionalExpression: if (!member) throw new MemberNotFoundError(`member '${input.memberId}' was not found`); => true
+N 16:7 ConditionalExpression: if (!member) throw new MemberNotFoundError(`member '${input.memberId}' was not found`); => false
+N 17:36 ObjectLiteral: const result = await deps.remove({ workspaceId: input.workspaceId, id: member.id, => {}
+N 18:14 ObjectLiteral: display: { title: member.email, subtitle: member.name ?? null }, at: deps.clock.nowIso(), => {}
+
+### members/write-service.ts (28 survivors/no-cov)
+by mutator: {"BooleanLiteral":2,"Regex":2,"ConditionalExpression":12,"OptionalChaining":1,"LogicalOperator":2,"ObjectLiteral":3,"MethodExpression":1,"ArrayDeclaration":1,"ArrowFunction":1,"ArithmeticOperator":2,"EqualityOperator":1}
+N 241:70 BooleanLiteral: .some(reason => error.message === prefix + reason)) return false; => true
+S 38:23 Regex: const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; => /[^\s@]+@[^\s@]+\.[^\s@]+$/
+S 38:23 Regex: const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; => /^[^\s@]+@[^\s@]+\.[^\s@]+/
+S 114:46 ConditionalExpression: return existing.status === "disabled" || existing.status === "trash" ? null : existing; => false
+S 122:9 ConditionalExpression: ...(optional.name !== undefined ? { name: optional.name } : {}), => true
+S 206:52 ConditionalExpression: const transactional = status?.lanes.find(lane => lane.lane === "transactional"); => true
+S 207:18 OptionalChaining: if ((status && transactional?.state !== "ready") || !isMailDeliveryAvailable(deps.mailer)) => transactional.state
+S 224:11 ConditionalExpression: if (!identity || record.realm !== "member") throw new Error("Member challenge issuance req => false
+S 224:11 LogicalOperator: if (!identity || record.realm !== "member") throw new Error("Member challenge issuance req => !identity && record.realm !== "member"
+S 224:24 ConditionalExpression: if (!identity || record.realm !== "member") throw new Error("Member challenge issuance req => false
+
+### members/agent-tools.ts (19 survivors/no-cov)
+by mutator: {"ObjectLiteral":11,"BooleanLiteral":4,"ArrayDeclaration":4}
+S 92:18 ObjectLiteral: inputSchema: { type: "object", additionalProperties: false, required: ["email"], propertie => {}
+S 92:58 BooleanLiteral: inputSchema: { type: "object", additionalProperties: false, required: ["email"], propertie => true
+S 92:75 ArrayDeclaration: inputSchema: { type: "object", additionalProperties: false, required: ["email"], propertie => []
+S 93:14 ObjectLiteral: email: { type: "string", minLength: 1 }, name: { type: "string", minLength: 1 }, => {}
+S 93:54 ObjectLiteral: email: { type: "string", minLength: 1 }, name: { type: "string", minLength: 1 }, => {}
+S 100:58 BooleanLiteral: inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"] => true
+S 100:18 ObjectLiteral: inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"] => {}
+S 100:75 ArrayDeclaration: inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"] => []
+S 101:41 ObjectLiteral: memberId: MEMBER_ID_SCHEMA, name: { type: "string", minLength: 1 }, => {}
+S 110:18 ObjectLiteral: inputSchema: { => {}
+
+### members/password-auth.ts (11 survivors/no-cov)
+by mutator: {"MethodExpression":2,"ObjectLiteral":1,"ConditionalExpression":6,"LogicalOperator":1,"EqualityOperator":1}
+S 30:17 MethodExpression: const email = input.email.trim().toLowerCase(); => input.email.trim().toUpperCase()
+S 30:17 MethodExpression: const email = input.email.trim().toLowerCase(); => input.email
+S 41:84 ObjectLiteral: const result = await issueMemberSession({ deps, member: currentMember, nowIso }, { userAge => {}
+S 67:50 ConditionalExpression: if (!member || member.status === "disabled" || member.status === "trash" => false
+S 68:9 LogicalOperator: || (member.credentialsRevokedAt && member.credentialsRevokedAt >= createdAt)) { => member.credentialsRevokedAt || member.credentialsR
+S 68:40 ConditionalExpression: || (member.credentialsRevokedAt && member.credentialsRevokedAt >= createdAt)) { => true
+S 68:40 EqualityOperator: || (member.credentialsRevokedAt && member.credentialsRevokedAt >= createdAt)) { => member.credentialsRevokedAt > createdAt
+S 96:46 ConditionalExpression: if (record.expiresAt <= committedAt || current.credentialsRevokedAt !== member.credentials => false
+S 147:19 ConditionalExpression: if (!session || session.id !== sessionId || session.memberId !== member.id => false
+S 147:47 ConditionalExpression: if (!session || session.id !== sessionId || session.memberId !== member.id => false
