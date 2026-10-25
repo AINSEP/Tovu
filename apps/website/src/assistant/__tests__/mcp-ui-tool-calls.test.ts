@@ -186,6 +186,9 @@ const EXPECTED_ALLOWLIST = [
   "media_purge_asset",
   "comments_purge_comment",
   "identity_user_delete",
+  // 2026-10-25 — owner SIGNED OFF the members permanent-delete card (fix-wave BRIEF, owner decision 2);
+  // it parks on the same principal-bound permanent-delete exchange as identity_user_delete.
+  "members_delete",
   "external_mcp_delete",
   "custom_credential_delete",
   "deployment_delete_provider_credential",
@@ -298,5 +301,17 @@ test("security: only an exact plugin-tool id shape may answer a parked exchange;
   assert.equal(isMcpUiToolCallPermitted("p_acme_office__append_rows", true), true);
   for (const id of ["xp_acme__append", "p_acme__append/../x", "p_Acme__append", "p_acme__", "p_acme_append", "content_p_acme__x"]) {
     assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
+  }
+});
+
+// L11 Stryker: PLUGIN_TOOL_ID's anchors, quantifiers and character class each survived mutation.
+test("security: the plugin-tool id table pins anchors, quantifiers and the character class", () => {
+  for (const id of ["p_a__b", "p_a1__b2", "p_acme_office__append_rows", "p_0__9", "p_a___b"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
+    assert.equal(isMcpUiToolCallPermitted(id, false), false, `${id} never starts a fresh execution`);
+  }
+  for (const id of ["", "p_", "p___", "p__b", "p_a__", "p_a__b\n", "p_a__b ", " p_a__b", "p_a__B", "P_a__b", "p_a-b__c", "p_a__b-c",
+    "p_a.b__c", "pa__b", "p_a_b", "xp_a__b", "p_a__b/x"]) {
+    assert.equal(isMcpUiToolCallPermitted(id, true), false, JSON.stringify(id));
   }
 });

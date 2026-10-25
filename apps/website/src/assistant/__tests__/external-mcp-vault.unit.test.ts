@@ -88,3 +88,42 @@ test("delete removes a stored envelope and is a no-op for a null or missing id",
   await deleteExternalMcpVaultEnvelope({ repo, workspaceId: identity.workspaceId, id });
   assert.equal((await repo.find({ workspaceId: identity.workspaceId, id })) ?? null, null);
 });
+
+// L11 Stryker: each `context.<field> !== …` clause mutated to `false` survived — a mismatch on one
+// field alone must refuse, so each field gets its own row with every other field matching.
+test("a context that differs in exactly one field is refused with VaultError{code:'context'}", async () => {
+  const sealed = await sealExternalMcpVaultPayload({ deps, identity, kind: "mcp-env", payload });
+  const record = externalMcpVaultRecord({ sealed, identity, kind: "mcp-env" });
+  assert.equal(externalMcpVaultRecord({ sealed: externalMcpVaultEnvelope({ record })!, identity, kind: "mcp-env" }).id, record.id, "the unmodified record passes");
+  for (const [field, value] of [
+    ["workspaceId", "ws-other"], ["ownerKey", "server-b"], ["kind", "mcp-auth"],
+    ["principalId", "principal-1"], ["binding", { kind: "site" }], ["principalId", ""],
+  ] as const) {
+    const altered = externalMcpVaultEnvelope({ record: { ...record, [field]: value } as VaultRecord })!;
+    assert.throws(() => externalMcpVaultRecord({ sealed: altered, identity, kind: "mcp-env" }), vaultCode("context"), `${field}=${JSON.stringify(value)}`);
+    await assert.rejects(openExternalMcpVaultPayload({ sealer, sealed: altered, identity, kind: "mcp-env" }), vaultCode("context"), `open ${field}`);
+  }
+});
+
+test("both supported kinds seal and open; every other kind is refused before crypto", async () => {
+  for (const kind of ["mcp-env", "mcp-auth"] as const) {
+    const sealed = await sealExternalMcpVaultPayload({ deps, identity, kind, payload });
+    assert.deepEqual(await openExternalMcpVaultPayload({ sealer, sealed, identity, kind }), payload, kind);
+  }
+  let sealCalls = 0;
+  const countingSealer = { open: sealer.open.bind(sealer), seal: async (...args: Parameters<typeof sealer.seal>) => { sealCalls += 1; return sealer.seal(...args); } };
+  for (const foreign of ["mcp-other", "", "MCP-ENV", "publish-credential"]) {
+    await assert.rejects(sealExternalMcpVaultPayload({ deps: { sealer: countingSealer, keyring }, identity, kind: foreign as "mcp-env", payload }), vaultCode("context"), foreign);
+  }
+  assert.equal(sealCalls, 0);
+});
+
+test("an existing record under the same id with another kind or owner is a conflict, not a silent reuse", async () => {
+  const sealed = await sealExternalMcpVaultPayload({ deps, identity, kind: "mcp-env", payload });
+  const record = externalMcpVaultRecord({ sealed, identity, kind: "mcp-env" });
+  for (const [field, value] of [["kind", "mcp-auth"], ["ownerKey", "server-b"]] as const) {
+    const repo = new InMemoryVaultRepo({});
+    await repo.put({ record: { ...record, [field]: value, revision: 1 }, expectedRevision: null });
+    await assert.rejects(persistExternalMcpVaultEnvelope({ repo, sealed, identity, kind: "mcp-env" }), vaultCode("conflict"), field);
+  }
+});

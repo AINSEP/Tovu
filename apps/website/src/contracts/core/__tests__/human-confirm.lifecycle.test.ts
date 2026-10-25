@@ -233,3 +233,69 @@ test('L079: empty description and warning are omitted, cancel label stays empty,
   assert.deepEqual(await pending, { confirmed: true });
   assert.equal(h.store.size(), 0);
 });
+
+// L11 Stryker: `requireChatDeleteGrant({ surfaces, toolId, principalId })` → `{}` survived at both
+// call sites, and so did the `!outcome.confirmed || answer.status !== "received"` short-circuit.
+// A permanent-delete tool id makes the grant port load-bearing; record exactly what it is asked.
+function grantHarness(t: TestContext, decide: (call: { toolId: string; principalId?: string }, index: number) => void) {
+  const h = harness(t);
+  const calls: Array<{ toolId: string; principalId?: string }> = [];
+  const surfaces = { surfaceExchanges: h.store, assertChatDeleteAllowed: async (call: { toolId: string; principalId?: string }) => {
+    calls.push(call); decide(call, calls.length - 1);
+  } };
+  const spec: HumanConfirmSpec = { ...h.spec, toolId: 'trash_empty' };
+  const answer = (params: Record<string, unknown>) => h.store.deliver({ exchangeId: 'confirmation-42', principalId: 'operator-9', params }, { toolId: 'trash_empty' });
+  return { ...h, calls, surfaces, spec, answer };
+}
+
+test('a permanent-delete confirm reads the grant for exactly this tool and principal, before the card and again after the click', async (t) => {
+  const h = grantHarness(t, () => {});
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: h.surfaces, spec: h.spec }, { emitSurface: h.emitSurface });
+  await turn();
+  assert.deepEqual(h.calls, [{ toolId: 'trash_empty', principalId: 'operator-9' }]);
+  assert.deepEqual(h.answer({ decision: 'confirm' }), { ok: true });
+  assert.deepEqual(await pending, { confirmed: true });
+  assert.deepEqual(h.calls, [{ toolId: 'trash_empty', principalId: 'operator-9' }, { toolId: 'trash_empty', principalId: 'operator-9' }]);
+});
+
+test('a grant refused for this principal rejects before any card is emitted', async (t) => {
+  const refusal = new Error('chat deletes not granted to operator-9');
+  const h = grantHarness(t, (call) => { if (call.principalId === 'operator-9') throw refusal; });
+  await assert.rejects(requireHumanConfirm({ ctx: h.ctx, surfaces: h.surfaces, spec: h.spec }, { emitSurface: h.emitSurface }), (error) => error === refusal);
+  assert.deepEqual(h.emitted, []);
+  assert.equal(h.store.size(), 0);
+});
+
+test('a grant revoked while the card is open refuses the confirm instead of returning confirmed', async (t) => {
+  const revoked = new Error('grant revoked');
+  const h = grantHarness(t, (_call, index) => { if (index === 1) throw revoked; });
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: h.surfaces, spec: h.spec }, { emitSurface: h.emitSurface });
+  await turn();
+  h.answer({ decision: 'confirm' });
+  await assert.rejects(pending, (error) => error === revoked);
+  assert.equal(h.calls.length, 2);
+});
+
+test('a cancel does not re-read the grant and returns the declined outcome', async (t) => {
+  const h = grantHarness(t, () => {});
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: h.surfaces, spec: h.spec }, { emitSurface: h.emitSurface });
+  await turn();
+  h.answer({ decision: 'cancel' });
+  assert.deepEqual(await pending, { confirmed: false, reason: 'declined' });
+  assert.equal(h.calls.length, 1);
+});
+
+test('a permanent-delete tool without the grant port is refused with the chat-delete refusal', async (t) => {
+  const h = harness(t);
+  await assert.rejects(requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec: { ...h.spec, toolId: 'trash_empty' } }, { emitSurface: h.emitSurface }),
+    { name: 'ToolInputError', message: /^trash_empty: permanent deletes from chat are disabled\./ });
+  assert.deepEqual(h.emitted, []);
+});
+
+test('a choice that was not offered on the card is dropped from the outcome', async (t) => {
+  const h = harness(t);
+  const pending = requireHumanConfirm({ ctx: h.ctx, surfaces: { surfaceExchanges: h.store }, spec: h.spec }, { emitSurface: h.emitSurface });
+  await turn();
+  h.answer({ decision: 'confirm', choice: 'site' });
+  assert.deepEqual(await pending, { confirmed: true });
+});
