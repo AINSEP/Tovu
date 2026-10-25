@@ -258,6 +258,9 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
         // `/workspaces` route's identical inline `processOutbox` call.
         await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
+        // Owner-action product event on the draft → published transition only (consent-gated port).
+        const wasPublished = (priorPost as PostRecord | null)?.status === "published";
+        if (!wasPublished && result.post.status === "published") deps.productAnalytics?.capture({ name: "post_published", userId: principal.id });
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
         sendPostUpdateError(res, err);
