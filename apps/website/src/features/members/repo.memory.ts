@@ -33,6 +33,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
+  MembersWriteServiceDeps,
 } from "./ports.js";
 
 /**
@@ -42,6 +43,25 @@ import type {
  * fan out to the entire table.
  */
 const DEFAULT_LIST_LIMIT = 100;
+
+/** Credential lifecycle for memory-only compositions: one in-process mutex serializes every password
+ * write so post-hash revalidation and the writes cannot interleave. Memory repos have no rollback, so a
+ * failure after the first write is not undone; durable compositions must pass their real kernel.
+ * @complexity O(1) per call; waiters queue FIFO on one promise chain.
+ * @example createInMemoryCredentialLifecycle().transaction(async () => {...})
+ */
+export function createInMemoryCredentialLifecycle(_options = {}): NonNullable<MembersWriteServiceDeps["credentialLifecycle"]> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return {
+    transaction: <T>(work: () => Promise<T>): Promise<T> => {
+      const run = tail.then(work);
+      tail = run.catch(() => undefined);
+      return run;
+    },
+    // The transaction mutex is global to this composition, so per-key locks add nothing.
+    lockKey: async () => {},
+  };
+}
 
 /** Memory implementation of the identity persistence contract; returns copies like the SQL repo.
  * @complexity O(n) reads/writes; list O(n + p log p), n = stored identities, p = member providers.

@@ -72,8 +72,8 @@ function resettableMember({ member, createdAt }: { member: MemberRecord | null; 
 }
 
 /**
- * Link-only reset, with no session: consume -> hash -> revoke every session + cutoff -> profile.
- * Revocation precedes the profile save, so a profile write conflict can never leave old sessions.
+ * Link-only reset: consume -> hash -> locked authorization + atomic credential/session/profile write.
+ * Consumption stays outside the transaction so a failed write never refunds a used challenge.
  * The cutoff invalidates outstanding links/codes, including challenges issued at the same tick.
  * @throws MemberValidationError for empty/>512-code-point passwords; generic MemberAuthError for credentials.
  * @complexity O(n + s), password length n and member sessions s; hashing cost is adapter-owned.
@@ -90,8 +90,13 @@ export async function resetPassword(required: {
   const member = resettableMember({
     member: await deps.members.findById({ workspaceId: input.workspaceId, id: record.memberId }), createdAt: record.createdAt,
   });
-  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password, nowIso },
-    { verifyInbox: true });
+  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password,
+    authorize: async ({ member: current, nowIso: committedAt }) => {
+      resettableMember({ member: current, createdAt: record.createdAt });
+      if (record.expiresAt <= committedAt || current.credentialsRevokedAt !== member.credentialsRevokedAt) {
+        throw new MemberAuthError("sign-in credential is invalid");
+      }
+    } }, { verifyInbox: true });
   return { ok: true };
 }
 
@@ -101,23 +106,49 @@ function credentialMember({ member }: { member: MemberRecord | null }, _options 
   return member;
 }
 
-/** One password-write lifecycle for reset and self-service; revoke before a profile save can fail.
+/** One password-write lifecycle for reset and self-service; authorization and all writes share a lock/transaction.
  * @complexity O(n + s), password code points n and affected sessions s; hashing is adapter-owned.
- * @throws MemberAuthError when the member was disabled/trashed meanwhile; repository/hasher errors
- * propagate; no success is returned after partial failure.
+ * @throws MemberAuthError for stale authorization/status; validation error without transactional storage.
+ * Repository/hasher errors propagate; profile conflicts roll back credentials and session revocation.
  */
 async function persistMemberPassword(required: {
-  deps: MembersWriteServiceDeps; workspaceId: string; memberId: string; password: string; nowIso: string;
+  deps: MembersWriteServiceDeps; workspaceId: string; memberId: string; password: string;
+  authorize: (required: { member: MemberRecord; nowIso: string }) => Promise<void>;
 }, options: { exceptSessionId?: string; verifyInbox?: boolean } = {}): Promise<void> {
-  const { deps, workspaceId, memberId, password, nowIso } = required;
+  const { deps, workspaceId, memberId, password, authorize } = required;
+  const lifecycle = deps.credentialLifecycle;
+  if (!lifecycle) throw new MemberValidationError("member credential transactions are unavailable");
   const passwordHash = await memberPasswordHasher({ deps }).hash({ password });
-  // Read status after Argon2: saving the record read before it would undo a racing disable.
-  const member = credentialMember({ member: await deps.members.findById({ workspaceId, id: memberId }) });
-  await deps.members.setPasswordHash({ workspaceId, memberId, passwordHash });
-  await deps.sessions.revokeAllForMember({ workspaceId, memberId, revokedAt: nowIso }, { exceptSessionId: options.exceptSessionId });
-  // The reset link proves the inbox, so it verifies the email and activates a pending member.
-  const inbox = options.verifyInbox ? { emailVerifiedAt: member.emailVerifiedAt ?? nowIso, status: "active" as const } : {};
-  await deps.members.save({ ...member, ...inbox, credentialsRevokedAt: nowIso, updatedAt: nowIso, version: member.version + 1 });
+  await lifecycle.transaction(async () => {
+    // Share Trash, session minting and bulk revocation's lock. Argon2 must finish BEFORE it is held.
+    await lifecycle.lockKey(`trash:member:${workspaceId}:${memberId}`);
+    const member = credentialMember({ member: await deps.members.findById({ workspaceId, id: memberId }) });
+    const committedAt = clockNowIso({ clock: deps.clock });
+    await authorize({ member, nowIso: committedAt });
+    await deps.members.setPasswordHash({ workspaceId, memberId, passwordHash });
+    await deps.sessions.revokeAllForMember({ workspaceId, memberId, revokedAt: committedAt }, { exceptSessionId: options.exceptSessionId });
+    // The reset link proves the inbox, so it verifies the email and activates a pending member.
+    const inbox = options.verifyInbox ? { emailVerifiedAt: member.emailVerifiedAt ?? committedAt, status: "active" as const } : {};
+    await deps.members.save({ ...member, ...inbox, credentialsRevokedAt: committedAt, updatedAt: committedAt, version: member.version + 1 });
+  });
+}
+
+/** Recheck session validity and the credential/cutoff that authorized the request after hashing.
+ * Hash equality reuses the completed current-password proof without Argon2 inside the lock.
+ * @throws MemberAuthError for changed authorization; reauthentication error for aged passwordless proof.
+ * @complexity O(1) indexed reads, constant auxiliary space.
+ */
+async function revalidatePasswordSet(required: {
+  deps: MembersWriteServiceDeps; workspaceId: string; sessionToken?: string; member: MemberRecord;
+  expectedMember: MemberRecord; hash: string | null; sessionId: string; nowIso: string;
+}, _options = {}): Promise<void> {
+  const { deps, workspaceId, sessionToken, member, expectedMember, hash, sessionId, nowIso } = required;
+  const session = await resolveMemberSession({ sessions: deps.sessions, workspaceId, sessionToken, nowIso });
+  if (!session || session.id !== sessionId || session.memberId !== member.id
+    || member.credentialsRevokedAt !== expectedMember.credentialsRevokedAt) throw new MemberAuthError("INVALID_CREDENTIALS");
+  const currentHash = await deps.members.findPasswordHash({ workspaceId, memberId: member.id });
+  if (currentHash !== hash) throw new MemberAuthError("INVALID_CREDENTIALS");
+  if (hash === null) await authorizePasswordSet({ deps, hash, session, nowIso });
 }
 
 /** Existing credentials need proof; a passwordless account needs a recent inbox-backed session.
@@ -163,7 +194,10 @@ export async function setMemberPassword(required: {
   await authorizePasswordSet({ deps, hash, currentPassword: input.currentPassword, session, nowIso });
   const policyError = validatePasswordPolicy({ password: input.password });
   if (policyError) throw new MemberValidationError(policyError);
-  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password, nowIso },
-    { exceptSessionId: session.id });
+  await persistMemberPassword({ deps, workspaceId: input.workspaceId, memberId: member.id, password: input.password,
+    authorize: ({ member: current, nowIso: committedAt }) => revalidatePasswordSet({
+      deps, workspaceId: input.workspaceId, sessionToken: input.sessionToken, member: current,
+      expectedMember: member, hash, sessionId: session.id, nowIso: committedAt,
+    }) }, { exceptSessionId: session.id });
   return { ok: true };
 }
