@@ -33,6 +33,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { resolve } from "node:path";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
+import { NO_THEME_ID } from "./active-theme.js";
 import { describeHardcodedLinkList } from "./hardcoded-link-lists.js";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
@@ -63,7 +64,7 @@ import {
   writeThemeFile,
   type ThemeOriginalSource,
 } from "./theme-files.js";
-import { isPublishableThemePageCandidate, isStandaloneThemePage, loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
+import { findStoredTheme, isPublishableThemePageCandidate, isStandaloneThemePage, loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -94,6 +95,8 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: getThemesAgentToolCatalog() })
 export interface ThemeToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
+  /** Stored selection reader, wired to presentation's resolveActiveThemeId by the host. */
+  resolveActiveThemeId: () => Promise<string>;
   /**
    * Boot-discovered themes (built-in + site `themes/` dir). Mutated in place by
    * `theme_write_file` — see that handler's own comment — so this is `DiscoveredTheme[]`, not a
@@ -718,11 +721,15 @@ export function buildThemesRegistrations(
 
       const tier = optionalString({ input: input, key: "tier" });
       const status = optionalString({ input: input, key: "status" });
+      // Resolve before filtering: a hidden, invalid or renamed selection is still configured.
+      // Read failures propagate rather than falsely reporting every theme as inactive.
+      const activeThemeId = await routeDeps.resolveActiveThemeId();
+      const activeTheme = activeThemeId === NO_THEME_ID ? undefined : findStoredTheme({ themes: routeDeps.themes, id: activeThemeId });
       const themes = routeDeps.themes
         .filter((t) => (tier ? t.manifest.tier === tier : true))
         .filter((t) => (status ? t.status === status : true))
-        .map(toThemeToolView);
-      return { themes };
+        .map(theme => ({ ...toThemeToolView(theme), active: theme === activeTheme }));
+      return { themes, activeThemeId };
     },
 
     /** Reloads disk state and delegates eligibility/visibility to the public renderer's predicates. */

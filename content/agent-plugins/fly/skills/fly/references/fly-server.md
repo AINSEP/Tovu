@@ -192,7 +192,7 @@ Ask, or confirm from the conversation, and **do not guess any of these**:
 4. **The volume name**, which must match `fly.toml`'s `[[mounts]] source` **exactly**.
 
 If a saved credential can answer one of these, use it rather than asking:
-`content_read` with `resource: "custom_credential"` lists every saved credential's label, base
+`content_read.custom_credential` with `{}` lists every saved credential's label, base
 URL, and additional hosts. A workspace with `fly.io` and `github` labels already saved is the
 expected case.
 

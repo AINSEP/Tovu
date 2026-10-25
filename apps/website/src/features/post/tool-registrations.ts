@@ -72,7 +72,6 @@ import {
   deletePost,
   getAdminPostById,
   isTrashed,
-  listAdminPages,
   listAdminPosts,
   normalizePublishAt,
   normalizePostAuthor,
@@ -935,16 +934,16 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
-      const kind = requirePostKind(input);
+      const kind = input.kind === undefined ? undefined : requirePostKind(input);
       const limit = clampPostListLimit(optionalNumber({ input: input, key: "limit" }));
       const includeBody = optionalBoolean({ input: input, key: "includeBody" }) === true;
       const query = optionalString({ input: input, key: "query" })?.toLowerCase();
       const status = optionalPostStatus(input);
       const fields = optionalPostListFields({ input });
-      const { posts: allPosts } =
-        kind === "post"
-          ? await listAdminPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } })
-          : await listAdminPages({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } });
+      const { posts: allPosts } = await listAdminPosts(
+        { deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } },
+        { kind: kind ?? "all" },
+      );
 
       // The repository already loads the full workspace. Filter before the output cap so matches
       // beyond its first page remain reachable and total/hasMore describe the filtered inventory.
@@ -966,7 +965,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const id = requireString({ input: input, key: "id" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: id });
 
-      const kind = requirePostKind(input);
+      const kind = input.kind === undefined ? undefined : requirePostKind(input);
       const { post } = await getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id } });
 
       // Disclosed asymmetry (agent-tools.ts's own header): kind:"page" is guarded exactly like

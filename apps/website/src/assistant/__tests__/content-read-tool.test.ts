@@ -128,8 +128,14 @@ function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set
 }
 
 test("the real composition publishes exactly the 32 content_read cards", () => {
-  const cards = [...idsOf()].filter((id) => id.startsWith("content_read.")).sort();
-  assert.deepEqual(cards, [...EXPECTED_CARD_IDS].sort());
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const cards = registrations.filter(tool => tool.descriptor.id.startsWith("content_read."));
+  assert.deepEqual(cards.map(tool => tool.descriptor.id).sort(), [...EXPECTED_CARD_IDS].sort());
+  assert.ok(!registrations.some(tool => tool.descriptor.id === "content_read"));
+  for (const { descriptor } of cards) {
+    assert.ok(descriptor.description?.startsWith(`${descriptor.id}: `));
+    assert.ok(descriptor.description?.includes("content_read is a namespace, not a tool"));
+  }
 });
 
 test("content_read.menu publishes optional canonical id and documents its legacy selector", () => {

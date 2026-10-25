@@ -44,6 +44,7 @@ async function buildDelegatedToolDeps() {
   const themesDir = makeThemesRoot();
   const routeDeps: ThemeToolDeps = {
     workspaceId: "ws-1",
+    resolveActiveThemeId: async () => "",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
     themesDir,
     authorize: async () => ({ allowed: true, reason: "matched" }),

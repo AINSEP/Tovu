@@ -80,7 +80,7 @@ So: build every URL from `https://api.github.com` (or whatever base the credenti
 saved — GitHub Enterprise has its own). If a call is refused, the error names the hosts that
 *are* allowed. Read it and use one; do not try a different host to see what sticks.
 
-To find the label, call `content_read` with `resource: "custom_credential"`. It returns each saved
+To find the label, call `content_read.custom_credential` with `{}`. It returns each saved
 credential's label, category, base URL and additional hosts — never a token. A workspace with a
 credential labelled `github` is the expected case, but do not assume the label: read it.
 

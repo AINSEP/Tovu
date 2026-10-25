@@ -72,9 +72,9 @@ import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
  * does not have; it is not a rule that an agent may only do what a human can already click. There is
  * no admin search screen yet, but there IS a real capability underneath (`features/post/search.ts`
  * plus a durable FTS5 index, migration 0022), and the alternative for a model that needs to find
- * something is `content_post_list` — whose own description above admits it requires a `kind`, offers
- * no filter of any sort, and returns full `bodyJson` for every row. On a site with real content that
- * is not a search, it is a corpus dump. `content_post_search` exists so the "find the page about X,
+ * something was an unfiltered `content_post_list` returning full `bodyJson` for every row. On a site
+ * with real content that was a corpus dump. Listing now supports optional kind, substring filters
+ * and compact rows; `content_post_search` still exists so the "find the page about X,
  * then navigate to it with `page.navigate`" flow costs one bounded, ranked result set instead.
  *
  * What IS included, and why it is safe: `content_post_create`/`content_post_update` are wired
@@ -777,7 +777,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         kind: {
           ...POST_KIND_SCHEMA,
-          description: `${POST_KIND_SCHEMA.description} Omit to search posts AND pages together — unlike content_read.content_post's listing mode, this tool does not require a kind.`,
+          description: `${POST_KIND_SCHEMA.description} Omit to search posts AND pages together.`,
         },
         status: {
           type: "string",
@@ -803,24 +803,25 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "bodyChars is the full plain-text length. Pass includeBody:true to get every row's full bodyJson instead of excerpt/" +
       "bodyChars, or read one post WITH its id for its bodyJson. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
       "or null for a draft/unpublished row, since it has no live link yet. " +
-      "Uses the admin Posts/Pages lists: kind is required because there is no combined 'list everything' admin " +
-      "screen. Optional query (case-insensitive title or slug substring) and status filters run in this tool over the " +
+      "Omit kind to list posts AND pages together with one global limit, or supply kind to use the admin Posts/Pages lens. " +
+      "Optional query (alias: search; case-insensitive title or slug substring) and status filters run in this tool over the " +
       "already-loaded list, not in the admin route; no date filter is available. Pass fields to return only selected keys " +
       "plus id (always included); fields takes precedence over includeBody. " +
       `Capped at ${DEFAULT_POST_LIST_LIMIT} rows by default (raise with limit, up to ${MAX_POST_LIST_LIMIT}) — the response's ` +
-      "total is the filtered count before limit (the full count for this kind when no filters are given) and hasMore is true whenever posts.length < total, so truncation is " +
+      "total is the filtered count before limit (across both kinds when kind is omitted) and hasMore is true whenever posts.length < total, so truncation is " +
       "never silent.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["kind"],
+      required: [],
       properties: {
-        kind: POST_KIND_SCHEMA,
+        kind: { ...POST_KIND_SCHEMA, description: `${POST_KIND_SCHEMA.description} Optional; omit to list both public kinds.` },
         query: {
           type: "string",
-          description: "Case-insensitive substring of title or slug. Applied over the loaded list before limit; total counts matches.",
+          aliases: ["search"],
+          description: "Case-insensitive substring of title or slug (alias: search). Applied over the loaded list before limit; total counts matches. Supply query or search, never both.",
         },
         status: {
           type: "string",
@@ -853,17 +854,17 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "featuredMediaId and scheduled only when set, plus author and showAuthor; scheduled:true means published but waiting for publishAt). publicUrl is the " +
       "row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page to verify it renders — or " +
       "null for a draft/unpublished row, since it has no live link yet. " +
-      "Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
+      "Omit kind to derive it from the stored row. Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
       "'post' is rejected as not-found (mirrors pages/get-by-id.ts's explicit guard) — but with kind:'post', a row whose actual " +
       "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Call this same tool WITHOUT an id first (its listing mode) " +
-      "if you are not certain which kind an id belongs to.",
+      "to browse available ids.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["id", "kind"],
-      properties: { id: POST_ID_SCHEMA, kind: POST_KIND_SCHEMA },
+      required: ["id"],
+      properties: { id: POST_ID_SCHEMA, kind: { ...POST_KIND_SCHEMA, description: `${POST_KIND_SCHEMA.description} Optional; omit to derive kind from the id.` } },
     },
   },
   {

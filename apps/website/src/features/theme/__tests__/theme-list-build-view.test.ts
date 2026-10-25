@@ -72,6 +72,7 @@ function fakeDeps(): ThemeToolDeps {
   const themesDir = makeThemesRoot();
   return {
     workspaceId: "ws-list-build-view",
+    resolveActiveThemeId: async () => "",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
