@@ -1,0 +1,226 @@
+assistant/read-only-tool-constraint.ts tests=apps/website/src/assistant/__tests__/read-only-tool-constraint.unit.test.ts,apps/website/src/assistant/__tests__/read-only-gateway.federated.test.ts,apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+assistant/permanent-delete-tool-gate.ts tests=apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts,apps/website/src/assistant/__tests__/permanent-delete-search-discoverability.test.ts,apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts
+assistant_read-only-tool-constraint rc=0 wall=41s
+assistant/content-target-inputs.ts tests=apps/website/src/assistant/__tests__/content-target-inputs.test.ts
+assistant_permanent-delete-tool-gate rc=0 wall=42s
+assistant/batch-tool-inputs.ts tests=apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts,apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts,apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts
+assistant_batch-tool-inputs rc=0 wall=541s
+assistant/ask-choice-tool.ts tests=apps/website/src/assistant/__tests__/ask-choice-tool.test.ts,apps/website/src/assistant/__tests__/ask-choice-typed-input.integration.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts
+assistant_ask-choice-tool rc=1 wall=18s
+assistant/subagent-settings.ts tests=apps/website/src/assistant/__tests__/subagent-settings.unit.test.ts,apps/website/src/assistant/__tests__/cli-permissions-settings.unit.test.ts,apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts
+assistant_subagent-settings rc=0 wall=24s
+assistant/execution-mode-settings.ts tests=apps/website/src/assistant/__tests__/execution-mode-settings.test.ts,apps/website/src/assistant/__tests__/execution-permissions-defaults.integration.test.ts
+assistant_execution-mode-settings rc=0 wall=26s
+assistant/mcp-ui-tool-calls.ts tests=apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts,apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts,apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts
+assistant_mcp-ui-tool-calls rc=1 wall=21s
+contracts/core/secret-redaction.ts tests=apps/website/src/contracts/core/__tests__/unit/secret-redaction.unit.test.ts
+contracts_core_secret-redaction rc=0 wall=15s
+contracts/core/strict-base64.ts tests=apps/website/src/contracts/core/__tests__/unit/strict-base64.unit.test.ts
+contracts_core_strict-base64 rc=0 wall=17s
+contracts/core/chat-delete-grant.ts tests=apps/website/src/contracts/core/__tests__/unit/chat-delete-grant.unit.test.ts
+contracts_core_chat-delete-grant rc=0 wall=19s
+contracts/core/gated-mutations/token.ts tests=apps/website/src/contracts/core/gated-mutations/__tests__/unit/gateway.unit.test.ts,apps/website/src/contracts/core/gated-mutations/__tests__/unit/token.unit.test.ts
+contracts_core_gated-mutations_token rc=0 wall=21s
+contracts/core/upload-limits.ts tests=apps/website/src/features/media/__tests__/tool-registrations.test.ts
+contracts_core_upload-limits rc=0 wall=23s
+contracts/headless/assistant-tool-approval-policy.ts tests=apps/website/src/contracts/headless/__tests__/assistant-tool-approval-policy.unit.test.ts,apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+assistant_content-target-inputs rc=0 wall=731s
+assistant/tool-contribution-registry.ts tests=apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts,apps/website/src/assistant/__tests__/tool-registrations.assembly-pins.test.ts,apps/website/src/assistant/__tests__/tool-approval-catalog.test.ts
+contracts_headless_assistant-tool-approval-policy rc=0 wall=23s
+platform/secrets/vault-meta-rules.ts tests=apps/website/src/platform/secrets/__tests__/vault-meta-rules.unit.test.ts
+assistant_tool-contribution-registry rc=0 wall=42s
+assistant/external-mcp-call-confirmation.ts tests=apps/website/src/assistant/__tests__/mcp-federation.remembered-approvals.test.ts,apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts,apps/website/src/assistant/__tests__/mcp-federation.extra-approval-checks.test.ts
+platform_secrets_vault-meta-rules rc=0 wall=39s
+platform/db/keyset-cursor.ts tests=apps/website/src/platform/db/__tests__/keyset-cursor.test.ts
+platform_db_keyset-cursor rc=0 wall=19s
+platform/site-dir/layout.ts tests=apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-site.integration.test.ts,apps/website/src/platform/site-dir/__tests__/integration/migration-backup-exclusion.integration.test.ts,apps/website/src/platform/site-dir/__tests__/integration/storage-secret-exclusion.integration.test.ts
+assistant_external-mcp-call-confirmation rc=0 wall=61s
+assistant/daemon-access.ts tests=apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.permanent-delete.integration.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.test.ts
+platform_site-dir_layout rc=0 wall=102s
+platform/html/slug.ts tests=apps/website/src/platform/html/__tests__/slug.test.ts
+assistant_daemon-access rc=0 wall=87s
+assistant/permanent-delete-settings.ts tests=apps/website/src/assistant/__tests__/owner-permanent-delete-policy.test.ts
+platform_html_slug rc=0 wall=17s
+platform/observability/config.ts tests=apps/website/src/platform/observability/__tests__/unit/config.unit.test.ts
+assistant_permanent-delete-settings rc=0 wall=20s
+contracts/core/path-containment.ts tests=apps/website/src/contracts/core/__tests__/unit/path-containment.unit.test.ts
+platform_observability_config rc=0 wall=15s
+contracts_core_path-containment rc=0 wall=14s
+contracts/core/credential-token.ts tests=apps/website/src/contracts/core/__tests__/unit/credential-copy.unit.test.ts,apps/website/src/contracts/core/__tests__/credential-token.test.ts
+contracts_core_credential-token rc=0 wall=16s
+contracts/core/human-confirm.ts tests=apps/website/src/contracts/core/__tests__/human-confirm.test.ts,apps/website/src/contracts/core/__tests__/human-confirm.lifecycle.test.ts
+contracts_core_human-confirm rc=0 wall=48s
+contracts/core/rate-limit/rate-limit.ts tests=apps/website/src/contracts/core/rate-limit/__tests__/rate-limit.test.ts
+contracts_core_rate-limit_rate-limit rc=0 wall=17s
+contracts/core/public-page-security-headers.ts tests=apps/website/src/contracts/core/__tests__/unit/public-theme-resource-policy.contract.test.ts
+contracts_core_public-page-security-headers rc=0 wall=16s
+platform/secrets/store-vault-guards.ts tests=apps/website/src/platform/secrets/__tests__/store-vault-guards.unit.test.ts
+platform_secrets_store-vault-guards rc=0 wall=16s
+platform/secrets/vault-kinds.ts tests=apps/website/src/platform/secrets/__tests__/vault-kinds.unit.test.ts
+platform_secrets_vault-kinds rc=0 wall=35s
+platform/site-dir/atomic-write.ts tests=apps/website/src/platform/site-dir/__tests__/unit/atomic-write.unit.test.ts
+platform_site-dir_atomic-write rc=0 wall=15s
+platform/html/escape.ts tests=apps/website/src/platform/html/__tests__/escape.test.ts
+platform_html_escape rc=0 wall=14s
+platform/html/style-values.ts tests=apps/website/src/platform/html/__tests__/style-values.test.ts
+platform_html_style-values rc=0 wall=16s
+assistant/batch-tool-inputs.ts tests=apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts,apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts,apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts
+assistant/permanent-delete-tool-gate.ts tests=apps/website/src/assistant/__tests__/permanent-delete-tool-gate.test.ts,apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts,apps/website/src/assistant/__tests__/permanent-delete-search-discoverability.test.ts
+assistant_permanent-delete-tool-gate rc=0 wall=39s
+assistant/read-only-tool-constraint.ts tests=apps/website/src/assistant/__tests__/read-only-tool-constraint.unit.test.ts,apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts,apps/website/src/assistant/__tests__/read-only-gateway.federated.test.ts
+assistant_read-only-tool-constraint rc=0 wall=28s
+assistant/tool-contribution-registry.ts tests=apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts,apps/website/src/assistant/__tests__/tool-registrations.assembly-pins.test.ts,apps/website/src/assistant/__tests__/tool-approval-catalog.test.ts
+assistant_tool-contribution-registry rc=0 wall=48s
+assistant/daemon-access.ts tests=apps/website/src/assistant/__tests__/daemon-access.unit.test.ts,apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.permanent-delete.integration.test.ts
+assistant_daemon-access rc=0 wall=54s
+assistant/content-target-inputs.ts tests=apps/website/src/assistant/__tests__/content-target-inputs.test.ts
+assistant_batch-tool-inputs rc=0 wall=587s
+assistant/ask-choice-tool.ts tests=apps/website/src/assistant/__tests__/ask-choice-tool.test.ts,apps/website/src/assistant/__tests__/ask-choice-typed-input.integration.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts
+assistant_ask-choice-tool rc=1 wall=18s
+assistant/ask-choice-tool.ts RETRY dropped-failing: apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts
+assistant_ask-choice-tool rc=0 wall=263s
+assistant/permanent-delete-settings.ts tests=apps/website/src/assistant/__tests__/owner-permanent-delete-policy.test.ts
+assistant_permanent-delete-settings rc=0 wall=21s
+assistant/mcp-ui-tool-calls.ts tests=apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts,apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts,apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts
+assistant_mcp-ui-tool-calls rc=1 wall=18s
+assistant/mcp-ui-tool-calls.ts RETRY dropped-failing: apps/website/src/assistant/__tests__/mcp-ui-tool-calls.test.ts
+assistant_mcp-ui-tool-calls rc=1 wall=18s
+contracts/headless/assistant-tool-approval-policy.ts tests=apps/website/src/contracts/headless/__tests__/assistant-tool-approval-policy.unit.test.ts,apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+assistant_content-target-inputs rc=0 wall=784s
+contracts/headless/assistant-permanent-deletes-policy.ts tests=apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+contracts_headless_assistant-tool-approval-policy rc=0 wall=28s
+contracts/headless/assistant-subagents-policy.ts tests=apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+contracts_headless_assistant-subagents-policy rc=0 wall=16s
+platform/site-dir/atomic-write.ts tests=apps/website/src/platform/site-dir/__tests__/unit/atomic-write.unit.test.ts
+contracts_headless_assistant-permanent-deletes-policy rc=0 wall=18s
+platform/secrets/vault-meta-rules.ts tests=apps/website/src/platform/secrets/__tests__/vault-meta-rules.unit.test.ts
+platform_site-dir_atomic-write rc=0 wall=17s
+assistant/external-mcp-tool-approval-adapters.ts tests=apps/website/src/assistant/__tests__/mcp-federation.remembered-approvals.test.ts,apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts,apps/website/src/assistant/__tests__/mcp-federation.extra-approval-checks.test.ts
+platform_secrets_vault-meta-rules rc=0 wall=44s
+platform/site-dir/layout.ts tests=apps/website/src/features/skills/__tests__/unit/layout.unit.test.ts,apps/website/src/features/fs-files/__tests__/layout.test.ts,apps/website/src/features/agent-plugins/__tests__/integration/layout-b-memory.integration.test.ts
+platform_site-dir_layout rc=0 wall=37s
+assistant/external-mcp-revocation.ts tests=apps/website/src/assistant/__tests__/external-mcp-revocation.unit.test.ts,apps/website/src/assistant/__tests__/external-mcp-oauth.test.ts
+assistant_external-mcp-tool-approval-adapters rc=0 wall=73s
+assistant/execution-credential-store.ts tests=apps/website/src/assistant/__tests__/execution-credential-store.test.ts,apps/website/src/assistant/__tests__/credential-store.memory.unit.test.ts,apps/website/src/assistant/__tests__/byok-credential.test.ts
+assistant_external-mcp-revocation rc=1 wall=16s
+assistant/external-mcp-revocation.ts RETRY dropped-failing: apps/website/src/assistant/__tests__/external-mcp-oauth.test.ts
+assistant_external-mcp-revocation rc=0 wall=34s
+assistant/credential-store-fields.ts tests=apps/website/src/
+assistant_execution-credential-store rc=0 wall=59s
+assistant/byok-credential.ts tests=apps/website/src/assistant/__tests__/byok-credential.test.ts
+assistant_byok-credential rc=0 wall=36s
+assistant/mcp-injection.ts tests=apps/website/src/assistant/__tests__/mcp-injection.unit.test.ts,apps/website/src/assistant/__tests__/mcp-bridge-launch.smoke.test.ts,apps/website/src/assistant/__tests__/agent-daemon-port.barrel.test.ts
+assistant_mcp-injection rc=0 wall=19s
+assistant/frontend-control-capabilities.ts tests=apps/website/src/assistant/__tests__/frontend-control-capabilities.test.ts,apps/website/src/assistant/__tests__/tool-approval-catalog.test.ts,apps/website/src/assistant/__tests__/tool-search-keywords.publish-pending-ranking.test.ts
+assistant_frontend-control-capabilities rc=0 wall=65s
+assistant/mcp-ui-tool-calls-route.ts tests=apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.permanent-delete.integration.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.test.ts,apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts
+assistant_mcp-ui-tool-calls-route rc=1 wall=15s
+assistant/mcp-ui-tool-calls-route.ts RETRY dropped-failing: apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts
+assistant_credential-store-fields rc=1 wall=315s
+assistant/tool-recovery-preset.ts tests=apps/website/src/assistant/__tests__/delegated-tool-error-disclosure.test.ts,apps/website/src/assistant/__tests__/tool-failure-redaction.test.ts,apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+assistant_tool-recovery-preset rc=0 wall=159s
+assistant/site-guide-pointer.ts NOTESTS
+assistant/daemon-respawn-policy.ts tests=apps/website/src/assistant/__tests__/daemon-respawn-policy.test.ts
+assistant_mcp-ui-tool-calls-route rc=0 wall=330s
+contracts/core/model-facing-tool-errors.ts tests=apps/website/src/contracts/core/__tests__/unit/model-facing-tool-errors.caller-safe.unit.test.ts,apps/website/src/contracts/core/__tests__/model-facing-registration-errors.test.ts
+assistant_daemon-respawn-policy rc=0 wall=14s
+contracts/core/agent-permission-mode.ts tests=apps/website/src/contracts/core/__tests__/unit/agent-permission-mode.unit.test.ts,apps/website/src/contracts/core/__tests__/unit/assistant-native-fallbacks.unit.test.ts,apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts
+contracts_core_model-facing-tool-errors rc=0 wall=15s
+contracts/core/native-approval-memory.ts tests=apps/website/src/contracts/core/__tests__/native-approval-memory.test.ts
+contracts_core_agent-permission-mode rc=0 wall=20s
+contracts/core/credential-copy.ts tests=apps/website/src/contracts/core/__tests__/unit/credential-copy.unit.test.ts,apps/website/src/contracts/core/__tests__/credential-token.test.ts
+contracts_core_native-approval-memory rc=0 wall=18s
+contracts/core/soft-delete.ts tests=apps/website/src/
+contracts_core_credential-copy rc=0 wall=21s
+contracts/core/operation-lock.ts tests=apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts,apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts
+contracts_core_operation-lock rc=0 wall=16s
+contracts/core/site-key-state.ts tests=apps/website/src/
+contracts_core_site-key-state rc=1 wall=27s
+contracts/core/gated-mutations/gateway.ts tests=apps/website/src/contracts/core/gated-mutations/__tests__/unit/gateway.unit.test.ts
+contracts_core_gated-mutations_gateway rc=0 wall=15s
+contracts/core/gated-mutations/composition.ts tests=apps/website/src/contracts/core/gated-mutations/__tests__/unit/composition.unit.test.ts
+contracts_core_gated-mutations_composition rc=0 wall=16s
+contracts/core/scheduled-publish.ts tests=apps/website/src/contracts/core/__tests__/unit/scheduled-publish.unit.test.ts
+contracts_core_scheduled-publish rc=0 wall=19s
+contracts/core/publish-history-list-limit.ts tests=apps/website/src/features/deployments/static-publish/__tests__/publish-history.unit.test.ts
+contracts_core_publish-history-list-limit rc=0 wall=23s
+platform/db/watermark-kernel.ts tests=apps/website/src/platform/db/__tests__/watermark-kernel.dialects.test.ts,apps/website/src/platform/db/__tests__/prepare-content-store.dialects.test.ts
+platform_db_watermark-kernel rc=0 wall=50s
+platform/db/vault-credential-recovery.ts tests=apps/website/src/platform/db/__tests__/sealed-credential-discard.test.ts
+contracts_core_soft-delete rc=1 wall=315s
+contracts/core/tool-failure-diagnostics.ts tests=apps/website/src/features/custom-credentials/__tests__/auth-failure-diagnostic.unit.test.ts,apps/website/src/features/custom-credentials/__tests__/credential-recovery.unit.test.ts
+contracts_core_tool-failure-diagnostics rc=0 wall=18s
+contracts/core/gated-mutations/watermark.ts tests=apps/website/src/contracts/core/gated-mutations/__tests__/unit/watermark.unit.test.ts
+contracts_core_gated-mutations_watermark rc=0 wall=16s
+contracts/core/runtime-mode.ts tests=apps/website/src/contracts/core/__tests__/unit/runtime-mode.unit.test.ts
+contracts_core_runtime-mode rc=0 wall=18s
+contracts/core/host-signals.ts tests=apps/website/src/features/agent-plugins/__tests__/unit/host-signals.unit.test.ts,apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts
+contracts_core_host-signals rc=0 wall=40s
+platform/db/drift.ts tests=apps/website/src/platform/db/__tests__/drift.unit.test.ts
+platform_db_drift rc=0 wall=19s
+platform/db/vault-credential-inventory.ts tests=apps/website/src/platform/db/__tests__/vault-credential-inventory.test.ts,apps/website/src/platform/db/__tests__/sealed-credential-inventory.test.ts
+platform_db_vault-credential-recovery rc=0 wall=723s
+platform/db/migration/index.ts tests=apps/website/src/platform/db/migrations/__tests__/mail-activity-indexes-step.test.ts,apps/website/src/platform/db/migrations/__tests__/search-index-retired-step.test.ts,apps/website/src/platform/db/migrations/__tests__/search-index-step.test.ts
+platform_db_migration_index rc=0 wall=34s
+platform/site-dir/site-root.ts tests=apps/website/src/platform/site-dir/__tests__/unit/site-root.unit.test.ts,apps/website/src/platform/site-dir/__tests__/integration/site-registry-branches.integration.test.ts,apps/website/src/platform/site-dir/__tests__/unit/sites-config.unit.test.ts
+platform_site-dir_site-root rc=0 wall=44s
+platform/site-dir/schema-guard.ts tests=apps/website/src/platform/site-dir/__tests__/unit/schema-guard.unit.test.ts,apps/website/src/platform/site-dir/__tests__/integration/path-containment.integration.test.ts,apps/website/src/platform/site-dir/__tests__/integration/repair-site.integration.test.ts
+platform_site-dir_schema-guard rc=0 wall=34s
+platform/site-dir/read-template.ts tests=apps/website/src/platform/site-dir/__tests__/unit/read-template.unit.test.ts,apps/website/src/platform/site-dir/__tests__/gallery-widget-seed.test.ts,apps/website/src/platform/site-dir/__tests__/integration/init-site-directory-sync.integration.test.ts
+platform_site-dir_read-template rc=0 wall=38s
+platform/site-dir/site-storage.ts tests=apps/website/src/platform/site-dir/__tests__/unit/site-storage.unit.test.ts,apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts,apps/website/src/platform/site-dir/__tests__/integration/storage-secret-exclusion.integration.test.ts
+platform_site-dir_site-storage rc=1 wall=31s
+platform/site-dir/site-storage.ts RETRY dropped-failing: apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts
+platform_site-dir_site-storage rc=0 wall=34s
+platform/site-dir/site-registry.ts tests=apps/website/src/platform/site-dir/__tests__/integration/site-registry-branches.integration.test.ts,apps/website/src/platform/site-dir/__tests__/unit/site-registry.unit.test.ts,apps/website/src/platform/site-dir/__tests__/integration/repair-site.integration.test.ts
+platform_db_vault-credential-inventory rc=0 wall=754s
+platform/db/key-dependent-data.ts tests=apps/website/src/platform/db/__tests__/key-dependent-data.test.ts
+platform_db_key-dependent-data rc=0 wall=41s
+platform/site-dir/errors.ts tests=apps/website/src/platform/site-dir/__tests__/unit/errors.unit.test.ts,apps/website/src/features/newsletter/__tests__/errors.test.ts,apps/website/src/cli/__tests__/unit/errors-l149.unit.test.ts
+platform_site-dir_errors rc=0 wall=21s
+platform/site-dir/sites-home.ts tests=apps/website/src/platform/site-dir/__tests__/integration/move-sites-home.integration.test.ts,apps/website/src/platform/site-dir/__tests__/unit/shared-sites-home.unit.test.ts,apps/website/src/platform/site-dir/__tests__/unit/sites-home.unit.test.ts
+platform_site-dir_sites-home rc=1 wall=25s
+platform/site-dir/sites-home.ts RETRY dropped-failing: apps/website/src/platform/site-dir/__tests__/unit/sites-home.unit.test.ts
+platform_site-dir_sites-home rc=0 wall=119s
+platform/site-dir/active-site.ts tests=apps/website/src/platform/site-dir/__tests__/unit/active-site.unit.test.ts
+platform_site-dir_active-site rc=0 wall=40s
+platform/site-dir/resolve-install-dir-target.ts tests=apps/website/src/platform/site-dir/__tests__/unit/resolve-install-dir-target.unit.test.ts
+platform_site-dir_resolve-install-dir-target rc=0 wall=19s
+platform/site-dir/site-trash.ts tests=apps/website/src/platform/site-dir/__tests__/integration/site-trash.integration.test.ts,apps/website/src/platform/site-dir/__tests__/unit/site-trash.unit.test.ts
+platform_site-dir_site-trash rc=0 wall=233s
+platform/site-dir/nested-sites-root.ts tests=apps/website/src/platform/site-dir/__tests__/unit/nested-sites-root.unit.test.ts
+platform_site-dir_nested-sites-root rc=0 wall=26s
+platform/site-dir/site-key-dependent-data.ts tests=apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts,apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.test.ts,apps/website/src/platform/site-dir/__tests__/integration/duplicate-site.integration.test.ts
+platform_site-dir_site-key-dependent-data rc=1 wall=17s
+platform/site-dir/site-key-dependent-data.ts RETRY dropped-failing: apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts
+platform_site-dir_site-registry rc=0 wall=697s
+platform/site-dir/sites-project-references.ts tests=apps/website/src/platform/site-dir/__tests__/unit/sites-project-references.unit.test.ts,apps/website/src/platform/site-dir/__tests__/unit/sites-home.unit.test.ts
+platform_site-dir_sites-project-references rc=1 wall=15s
+platform/site-dir/sites-project-references.ts RETRY dropped-failing: apps/website/src/platform/site-dir/__tests__/unit/sites-home.unit.test.ts
+platform_site-dir_sites-project-references rc=0 wall=42s
+platform/http/egress-policies.ts tests=apps/website/src/platform/http/__tests__/egress-policies.test.ts,apps/website/src/platform/http/__tests__/live-page-transport.test.ts,apps/website/src/platform/http/__tests__/test-origin-allowlist.test.ts
+platform_http_egress-policies rc=0 wall=58s
+platform/routing/reserved-paths.ts tests=apps/website/src/platform/routing/__tests__/reserved-paths.test.ts
+platform_routing_reserved-paths rc=0 wall=21s
+platform/server-logs/redact-local-text.ts tests=apps/website/src/platform/server-logs/__tests__/unit/redact-local-text.unit.test.ts
+platform_server-logs_redact-local-text rc=0 wall=23s
+platform_site-dir_site-key-dependent-data rc=0 wall=271s
+platform/oauth/endpoint-safety.ts tests=apps/website/src/platform/oauth/__tests__/endpoint-safety-adapter.test.ts,apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts,apps/website/src/platform/oauth/__tests__/endpoint-safety.test.ts
+platform_oauth_endpoint-safety rc=0 wall=49s
+platform/markdown/frontmatter.ts tests=apps/website/src/platform/markdown/__tests__/frontmatter.test.ts
+platform_markdown_frontmatter rc=0 wall=24s
+platform/observability/otel.ts tests=apps/website/src/platform/observability/__tests__/unit/otel.unit.test.ts,apps/website/src/platform/observability/__tests__/unit/otel-surfaces.unit.test.ts,apps/website/src/platform/observability/__tests__/unit/contract.unit.test.ts
+platform_observability_otel rc=0 wall=29s
+PASS3 start 18:25:29
+contracts_headless_assistant-subagents-policy rc=0 wall=14s
+contracts_headless_assistant-permanent-deletes-policy rc=0 wall=29s
+assistant_permanent-delete-settings rc=0 wall=89s
+assistant_daemon-access rc=0 wall=93s
+contracts_core_model-facing-tool-errors rc=0 wall=19s
+assistant_mcp-ui-tool-calls rc=0 wall=33s
+assistant/lost-frontend-binding.ts tests=apps/website/src/assistant/__tests__/lost-frontend-binding.test.ts
+assistant/rewrap-page-navigate-error.ts tests=apps/website/src/assistant/__tests__/rewrap-page-navigate-error.test.ts
+assistant_rewrap-page-navigate-error rc=0 wall=21s
+assistant/external-mcp-oauth.ts tests=apps/website/src/assistant/__tests__/external-mcp-oauth.test.ts,apps/website/src/assistant/__tests__/external-mcp-connection-revocation.test.ts,apps/website/src/assistant/__tests__/external-mcp-aad-writer-sync.test.ts
+assistant_lost-frontend-binding rc=0 wall=22s
+assistant/external-mcp-vault.ts tests=apps/website/src/assistant/__tests__/external-mcp-vault.unit.test.ts,apps/website/src/assistant/__tests__/external-mcp-store.memory.unit.test.ts,apps/website/src/assistant/__tests__/external-mcp-aad.test.ts
