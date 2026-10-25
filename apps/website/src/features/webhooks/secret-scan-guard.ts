@@ -391,6 +391,18 @@ export interface SecretScanCliPorts {
   readonly exit?: (code: number) => void;
 }
 
+/** Lists one section's violations under its header; nothing at all when the section is empty. */
+function reportSection(
+  { header, violations }: { header: string; violations: readonly SecretScanViolation[] },
+  { error }: { error: (line: string) => void },
+): void {
+  if (violations.length === 0) return;
+  error(header);
+  for (const v of violations) {
+    error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+  }
+}
+
 export function main({
   repoRoot = REPO_ROOT,
   log = console.log,
@@ -405,21 +417,16 @@ export function main({
     return;
   }
 
-  if (tipViolations.length > 0) {
-    error(`check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`);
-    for (const v of tipViolations) {
-      error(`  - ${v.file}:${v.line} [${v.patternName}]`);
-    }
-  }
-  if (historyViolations.length > 0) {
-    error(
+  reportSection({
+    header: `check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`,
+    violations: tipViolations,
+  }, { error });
+  reportSection({
+    header:
       `check:secret-scan — ${historyViolations.length} credential-shaped string(s) found in git history ` +
-        "(not necessarily present in the current tree):",
-    );
-    for (const v of historyViolations) {
-      error(`  - ${v.file}:${v.line} [${v.patternName}]`);
-    }
-  }
+      "(not necessarily present in the current tree):",
+    violations: historyViolations,
+  }, { error });
   error(
     "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
       "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
