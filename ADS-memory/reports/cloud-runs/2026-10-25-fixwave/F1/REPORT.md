@@ -1,6 +1,6 @@
 # F1 — Jini security (Stryker L1) + daemon (Stryker L8) fix wave — REPORT
 
-Jini branch **`cloud/fixwave-1025-F1`**, head **`d6def36f07db8c29c9860f126a4211a2274a2f93`**. It was cut from `origin/cloud/overnight-1024-jini` @ 3e2fbae8. 43 commits, all pushed; no Jini push was refused, so there are no patch files. Run: 21:34 → 23:45 UTC.
+Jini branch **`cloud/fixwave-1025-F1`**, head **`d6def36f07db8c29c9860f126a4211a2274a2f93`**. It was cut from `origin/cloud/overnight-1024-jini` @ 3e2fbae8. 45 commits, all pushed; no Jini push was refused, so there are no patch files. Run: 21:34 → 23:45 UTC.
 
 ## 0. SOURCE BUG (top)
 **`platform/src/aws-sigv4.ts` signed a mixed-case header with an empty value.**
