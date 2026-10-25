@@ -17,6 +17,7 @@ import { FixedSiteKeyKeyring, fingerprintSiteKeyHex } from "#src/features/webhoo
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
+import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 import { runOwnerStoreCommand, type OwnerStoreAction, type OwnerStoreEntry } from "../../commands/owner-store.js";
 
 /** S2 boundary integration: real migrated vault tables and different site keys. Tests are
@@ -189,7 +190,7 @@ test("the registered CLI consumes secrets only on stdin and sanitizes malformed 
   try {
     const result = spawnSync(process.execPath, args, { encoding: "utf8", timeout: 30_000,
       input: `{"userDataDir":${JSON.stringify(home)},"entry":{"payload":"${secret}"`,
-      env: { ...process.env, HOME: home, USERPROFILE: home, TOVU_DESKTOP_USER_DATA_DIR: home,
+      env: { ...childProcessCoverageEnv(path.join(home, "child-coverage")), HOME: home, USERPROFILE: home, TOVU_DESKTOP_USER_DATA_DIR: home,
         APPDATA: path.join(home, "Roaming"), XDG_CONFIG_HOME: home, XDG_DATA_HOME: home } });
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1);
