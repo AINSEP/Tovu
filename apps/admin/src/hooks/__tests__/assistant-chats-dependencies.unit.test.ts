@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import type { AssistantConversation } from "../../lib/assistant-chats";
-import { createFakeAssistantChatsPort, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
+import { createAssistantLastConversationStore, createFakeAssistantChatsPort, upsertMessage, withDerivedTitle } from "../assistant-chats-dependencies.hooks";
 
 /**
  * @file `upsertMessage` — pulled out of `createFakeAssistantChatsPort`'s `saveMessage`
@@ -112,5 +112,70 @@ describe("fake chat persistence", () => {
     await port.deleteConversation("orphan");
     expect(await port.loadMessages("orphan")).toEqual([]);
     expect(await port.listConversations()).toEqual([existing]);
+  });
+});
+
+// L13 Stryker: `findIndex(m => m.id === message.id)` and the messageCount bump-vs-replace survived.
+describe("fake chat persistence — L13 count and missing-row gaps", () => {
+  test("re-saving the same message id replaces it in place and does not bump messageCount", async () => {
+    const port = createFakeAssistantChatsPort();
+    const { id } = await port.createConversation();
+    await port.saveMessage(id, message("m1", "first"));
+    await port.saveMessage(id, message("m2", "second"));
+    await port.saveMessage(id, message("m1", "first, edited"));
+    const row = (await port.listConversations()).find(c => c.id === id)!;
+    expect(row.messageCount).toBe(2);
+    expect(row.updatedAt).toBe(row.createdAt + 3);
+    expect(await port.loadMessages(id)).toEqual([message("m1", "first, edited"), message("m2", "second")]);
+    expect(port.saved.get(id)).toEqual([message("m1", "first, edited"), message("m2", "second")]);
+    expect(port.saveAttempts()).toBe(3);
+    expect(port.attemptedIds()).toEqual(["m1", "m2", "m1"]);
+  });
+
+  test("writing to a missing conversation is a 404 and records nothing durable", async () => {
+    const seen: string[] = [];
+    const port = createFakeAssistantChatsPort({ onSaveMessage: (cid) => seen.push(cid) });
+    await expect(port.saveMessage("gone", message("m1", "x"))).rejects.toMatchObject({ status: 404 });
+    expect(seen).toEqual([]);
+    expect(port.saved.size).toBe(0);
+    expect(await port.loadMessages("gone")).toEqual([]);
+    expect(port.saveAttempts()).toBe(1);
+  });
+
+  test("a throwing save hook leaves durable state untouched", async () => {
+    const port = createFakeAssistantChatsPort({ onSaveMessage: (_cid, _m, attempt) => { if (attempt === 1) throw new Error("503"); } });
+    const { id } = await port.createConversation();
+    await expect(port.saveMessage(id, message("m1", "x"))).rejects.toThrow("503");
+    expect(await port.loadMessages(id)).toEqual([]);
+    expect((await port.listConversations())[0]!.messageCount).toBe(0);
+    await port.saveMessage(id, message("m1", "x"));
+    expect((await port.listConversations())[0]!.messageCount).toBe(1);
+  });
+
+  test("rename marks the title manual on the right conversation only; ids follow creation order", async () => {
+    const port = createFakeAssistantChatsPort();
+    const a = await port.createConversation();
+    const b = await port.createConversation();
+    expect([a.id, b.id]).toEqual(["fake-1", "fake-2"]);
+    await port.renameConversation("fake-1", "Renamed");
+    const rows = await port.listConversations();
+    expect(rows.find(c => c.id === "fake-1")).toMatchObject({ title: "Renamed", titleSource: "manual" });
+    expect(rows.find(c => c.id === "fake-2")).toMatchObject({ title: null, titleSource: "fallback" });
+    await port.deleteConversation("fake-1");
+    expect((await port.listConversations()).map(c => c.id)).toEqual(["fake-2"]);
+  });
+});
+
+describe("createAssistantLastConversationStore", () => {
+  test("is scoped per workspace and principal, so another admin on this browser never reopens it", () => {
+    window.localStorage.clear();
+    const a = createAssistantLastConversationStore({ principalId: "admin-a" });
+    const b = createAssistantLastConversationStore({ principalId: "admin-b" });
+    a.write("conv-a");
+    expect(a.read()).toBe("conv-a");
+    expect(b.read()).toBeNull();
+    expect(window.localStorage.getItem("jini.chat.last-conversation.v1.workspace-local%3Aadmin-a")).toBe(JSON.stringify({ v: 1, id: "conv-a" }));
+    a.clear();
+    expect(a.read()).toBeNull();
   });
 });
