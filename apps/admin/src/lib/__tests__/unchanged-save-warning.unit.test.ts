@@ -44,3 +44,27 @@ describe("unchangedSaveHandlers pending-edit flush", () => {
     expect(flushPendingEdits).not.toHaveBeenCalled();
   });
 });
+
+// L13 Stryker: lines 28–29 and 32 (Save anyway / Cancel) and the no-flush default had no coverage.
+describe("unchangedSaveHandlers warning buttons", () => {
+  it("without a flush, a clean Save opens the warning and does not save", async () => {
+    const save = vi.fn(async () => {});
+    const setConfirmingUnchangedSave = vi.fn();
+    unchangedSaveHandlers({ dirty: false, save, setConfirmingUnchangedSave }).onSave();
+    await vi.waitFor(() => expect(setConfirmingUnchangedSave).toHaveBeenCalledWith(true));
+    expect(save).not.toHaveBeenCalled();
+  });
+  it("Save anyway closes the warning, then saves once", () => {
+    const calls: string[] = [];
+    const handlers = unchangedSaveHandlers({ dirty: false, save: async () => { calls.push("save"); }, setConfirmingUnchangedSave: open => calls.push(`open:${open}`) });
+    handlers.onUnchangedSaveConfirm();
+    expect(calls).toEqual(["open:false", "save"]);
+  });
+  it("Cancel only closes the warning", () => {
+    const save = vi.fn(async () => {});
+    const setConfirmingUnchangedSave = vi.fn();
+    unchangedSaveHandlers({ dirty: false, save, setConfirmingUnchangedSave }).onUnchangedSaveCancel();
+    expect(setConfirmingUnchangedSave).toHaveBeenCalledExactlyOnceWith(false);
+    expect(save).not.toHaveBeenCalled();
+  });
+});
