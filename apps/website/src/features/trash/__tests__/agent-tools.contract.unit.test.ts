@@ -40,7 +40,7 @@ test("buildTrashAgentToolCatalog publishes exactly the kinds it is given, in the
 });
 
 test("trash schemas: limit 1..100, non-empty filter/cursor/id, enum-only kinds, no extra keys", () => {
-  const ajv = new Ajv({ strict: false });
+  const ajv = new Ajv();
   const [list, restore] = buildTrashAgentToolCatalog(["post", "form"]).map((t) => ajv.compile(t.inputSchema!));
   assert.deepEqual([0, 1, 100, 101].map((limit) => list!({ limit })), [false, true, true, false]);
   assert.deepEqual(

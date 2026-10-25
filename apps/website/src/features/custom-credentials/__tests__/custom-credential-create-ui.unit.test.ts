@@ -13,7 +13,7 @@ type Field = { name: string; kind: string; required?: boolean; secret?: boolean;
 
 test("an empty prefill: fixed field order, no prefilled values, category defaults to 'general', no Works-for picker", () => {
   const form = buildCreateForm({ prefill: {} });
-  const fields = form.fields as Field[];
+  const fields = form.fields as unknown as Field[];
   assert.deepEqual(fields.map((f) => [f.name, f.kind, f.required ?? false, f.secret ?? false]), [
     ["label", "string", true, false],
     ["baseUrl", "string", true, false],
@@ -38,7 +38,7 @@ test("prefills are carried as values (including an empty-string label), and a ca
     prefill: { label: "", baseUrl: "https://api.example.test", category: "hosting", worksFor: ["vercel"] },
     providers: [{ id: "vercel", vendorId: "vercel" }],
   });
-  const fields = form.fields as Field[];
+  const fields = form.fields as unknown as Field[];
   assert.deepEqual(fields.map((f) => f.name), ["label", "baseUrl", "category", "worksFor", "username", "token"]);
   assert.equal(fields[0]!.value, "");
   assert.equal(fields[1]!.value, "https://api.example.test");

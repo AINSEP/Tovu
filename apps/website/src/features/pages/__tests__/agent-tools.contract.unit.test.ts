@@ -38,7 +38,7 @@ test("pages catalog matches the inline contract, in order", () => {
 });
 
 test("pages schemas accept a good input, refuse an extra key, an empty id and a negative/non-integer version", () => {
-  const ajv = new Ajv({ strict: false });
+  const ajv = new Ajv();
   const good: Record<string, Record<string, unknown>> = {
     pages_read_html: { slug: "about" },
     pages_write_html: { id: "p1", html: "", expectedVersion: 0 },

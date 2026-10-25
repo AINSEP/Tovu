@@ -198,7 +198,7 @@ test("loadPluginCredentialCardsSafely: passes the workspace id, defaults to [] w
   assert.deepEqual(seen, ["ws-9"]);
   const warnings: string[] = [];
   assert.deepEqual(await loadPluginCredentialCardsSafely({ workspaceId: "ws" }, { warn: (m) => warnings.push(m) }), []);
-  assert.deepEqual(warnings, [], "no loader is not a failure: nothing is warned");
+  assert.equal(warnings.length, 0, "no loader is not a failure: nothing is warned");
   const out = await loadPluginCredentialCardsSafely(
     { workspaceId: "ws", loadCards: async () => { throw new Error("/secret/path/plugin.json: token=abc"); } },
     { warn: (m) => warnings.push(m) },

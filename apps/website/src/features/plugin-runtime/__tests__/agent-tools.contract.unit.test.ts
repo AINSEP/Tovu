@@ -35,7 +35,7 @@ test("plugin-runtime catalog matches the inline contract, in order", () => {
 });
 
 test("plugin-runtime schemas: good input passes; extra key, unknown family, empty id and string boolean are refused", () => {
-  const ajv = new Ajv({ strict: false });
+  const ajv = new Ajv();
   const [list, setEnabled, uninstall] = pluginAgentToolCatalog.map((t) => ajv.compile(t.inputSchema));
   assert.equal(list!({}), true);
   assert.equal(list!({ x: 1 }), false);

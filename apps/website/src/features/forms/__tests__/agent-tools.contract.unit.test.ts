@@ -123,7 +123,7 @@ const GOOD: Record<string, unknown> = {
 };
 
 test("forms catalog: each schema accepts its good input and rejects the same input with an extra key", () => {
-  const ajv = new Ajv({ strict: false });
+  const ajv = new Ajv();
   assert.deepEqual(Object.keys(GOOD).sort(), formsAgentToolCatalog.map((t) => t.name).sort());
   for (const tool of formsAgentToolCatalog) {
     const validate = ajv.compile(tool.inputSchema!);
@@ -135,7 +135,7 @@ test("forms catalog: each schema accepts its good input and rejects the same inp
 });
 
 test("forms schemas: limit/slug/field boundaries (max, max+1, empty, leading/trailing junk, uppercase)", () => {
-  const ajv = new Ajv({ strict: false });
+  const ajv = new Ajv();
   const byName = (name: string) => ajv.compile(formsAgentToolCatalog.find((t) => t.name === name)!.inputSchema!);
   const list = byName("forms_list_submissions");
   assert.deepEqual([0, 1, 100, 101].map((limit) => list({ formId: "f", limit })), [false, true, true, false]);
