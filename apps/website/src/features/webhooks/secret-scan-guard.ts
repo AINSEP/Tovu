@@ -154,8 +154,8 @@ export function isAllowlisted(file: string, patternName: string, value: string):
   return ALLOWLIST.some((e) => e.file === file && e.patternName === patternName && e.value === value);
 }
 
-function listTrackedFiles(): string[] {
-  const out = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" });
+function listTrackedFiles(repoRoot: string): string[] {
+  const out = execFileSync("git", ["ls-files", "-z"], { cwd: repoRoot, encoding: "utf8" });
   return out.split("\0").filter(Boolean);
 }
 
@@ -170,10 +170,15 @@ export interface SecretScanHit {
 }
 
 /** Core scanner, unit-testable directly against synthetic text (no filesystem, no git).
+ *  `patterns` defaults to the shared catalog; tests inject their own to pin the global-flag and
+ *  zero-length-match handling, which no catalog pattern exercises today.
  *  @complexity O(p*n), p = pattern count (fixed, small), n = text length. */
-export function scanTextForSecrets(text: string): SecretScanHit[] {
+export function scanTextForSecrets(
+  text: string,
+  { patterns = SECRET_PATTERNS }: { readonly patterns?: readonly SecretPattern[] } = {},
+): SecretScanHit[] {
   const hits: SecretScanHit[] = [];
-  for (const { name, pattern } of SECRET_PATTERNS) {
+  for (const { name, pattern } of patterns) {
     const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
     const re = new RegExp(pattern.source, flags);
     let match: RegExpExecArray | null;
@@ -209,11 +214,11 @@ interface ScannableContent {
 /** Reads one tracked file's content for scanning, or `null` if it should be skipped: a skipped
  *  binary-media extension, missing from disk (e.g. removed locally but not yet staged as
  *  deleted), not a regular file, or over the size cap (see file header). */
-function readScannableFile(relFile: string): ScannableContent | null {
+function readScannableFile(repoRoot: string, relFile: string): ScannableContent | null {
   const ext = path.extname(relFile).toLowerCase();
   if (SKIP_EXTENSIONS.has(ext)) return null;
 
-  const absFile = path.join(REPO_ROOT, relFile);
+  const absFile = path.join(repoRoot, relFile);
   let stat: fs.Stats;
   try {
     stat = fs.statSync(absFile);
@@ -243,11 +248,14 @@ function scanContentForViolations(file: string, content: ScannableContent): Secr
 }
 
 /** Real-repo scan: every tracked file (per `git ls-files`), latin1-decoded so binary content is
- *  scanned byte-for-byte alongside text (see file header). */
-export function scanRepoForSecrets(): SecretScanViolation[] {
+ *  scanned byte-for-byte alongside text (see file header). `repoRoot` defaults to this repo and,
+ *  like {@link scanGitHistoryForSecrets}'s, is overridable so tests can point it at a throwaway
+ *  repo. */
+export function scanRepoForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
+  const repoRoot = options?.repoRoot ?? REPO_ROOT;
   const violations: SecretScanViolation[] = [];
-  for (const relFile of listTrackedFiles()) {
-    const content = readScannableFile(relFile);
+  for (const relFile of listTrackedFiles(repoRoot)) {
+    const content = readScannableFile(repoRoot, relFile);
     if (!content) continue;
     violations.push(...scanContentForViolations(relFile, content));
   }
@@ -374,33 +382,45 @@ export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string 
   return violations;
 }
 
-function main(): void {
-  const tipViolations = scanRepoForSecrets();
-  const historyViolations = scanGitHistoryForSecrets();
+/** The CLI's ports. Every one defaults to the real process; tests inject fakes so the exit and
+ *  output paths are exercised in-process (the spawned-CLI test covers the real wiring). */
+export interface SecretScanCliPorts {
+  readonly repoRoot?: string;
+  readonly log?: (line: string) => void;
+  readonly error?: (line: string) => void;
+  readonly exit?: (code: number) => void;
+}
+
+export function main({
+  repoRoot = REPO_ROOT,
+  log = console.log,
+  error = console.error,
+  exit = (code) => process.exit(code),
+}: SecretScanCliPorts = {}): void {
+  const tipViolations = scanRepoForSecrets({ repoRoot });
+  const historyViolations = scanGitHistoryForSecrets({ repoRoot });
 
   if (tipViolations.length === 0 && historyViolations.length === 0) {
-    console.log(
-      "check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.",
-    );
+    log("check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.");
     return;
   }
 
   if (tipViolations.length > 0) {
-    console.error(`check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`);
+    error(`check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`);
     for (const v of tipViolations) {
-      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+      error(`  - ${v.file}:${v.line} [${v.patternName}]`);
     }
   }
   if (historyViolations.length > 0) {
-    console.error(
+    error(
       `check:secret-scan — ${historyViolations.length} credential-shaped string(s) found in git history ` +
         "(not necessarily present in the current tree):",
     );
     for (const v of historyViolations) {
-      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+      error(`  - ${v.file}:${v.line} [${v.patternName}]`);
     }
   }
-  console.error(
+  error(
     "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
       "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
       "legitimately needs this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in " +
@@ -408,7 +428,7 @@ function main(): void {
       "longer matches a real credential's exact length. A history rewrite to purge a real committed " +
       "secret is a separate, human-approved step — this check cannot and does not do that.",
   );
-  process.exit(1);
+  exit(1);
 }
 
 // Guarded, matching `seal-aad-invariant.ts`/`check-theme-replaced-elements.ts`: this file's
