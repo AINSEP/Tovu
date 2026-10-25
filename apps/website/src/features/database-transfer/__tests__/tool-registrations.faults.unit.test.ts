@@ -2,7 +2,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
-import { mkdtemp, rm, writeFile, access } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
@@ -222,7 +222,11 @@ for (const location of ["sibling", "override", "missing", "corrupt"] as const) {
     const content = new Database(join(h.dir, "content.db"));
     t.after(() => content.close());
     const tools = new Map(buildDatabaseTransferRegistrations({ ...h.deps, db: content }, { surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
+    const chatTemps = async () => (await readdir(tmpdir())).filter(name => name.startsWith("tovu-transfer-chat-")).sort();
+    const tempsBefore = await chatTemps();
     const result = await call(tools.get("database_transfer_plan")!, {}) as Record<string, unknown>;
+    // F6 fix wave (L7 Stryker: the `finally` cleanup survived): success or failure, the backup's temp folder is removed.
+    assert.deepEqual(await chatTemps(), tempsBefore, "the chat backup's temporary folder is always removed");
     if (location === "sibling" || location === "override") {
       assert.equal(result.planned, true, JSON.stringify(result));
       assert.equal(result.rowCount, 2);
