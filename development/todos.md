@@ -30,6 +30,9 @@ Owner: "when I don't have anything off the top of my head to do for Claude, I wa
 Ideas to offer the owner (not approved yet): landing-page hero animations and screenshots, one short tutorial clip per agent plugin, social-post cutdowns (vertical 9:16) of each video.
 Every cloud run here still follows the iron rule: the owner approves a cost estimate and hard caps first.
 
+## MEDIUM, NOT NOW (owner 2026-10-25): Renovate for dependency updates — set up, turn on when we ramp up
+Owner picked Renovate (free, best-rated for monorepo grouping/scheduling) over Dependabot updates. Don't enable yet. When we turn it on: group updates (one batch per week, `@jini-ai/*` separate), no auto-merge, and respect the no-PR-spam rule (owner dislikes PR floods — batch hard). Pair with OSV-Scanner in CI (report-only, no PRs) and Dependabot *alerts* (no update PRs). Gitleaks already added for Tovu (b07d968c8, 10-25).
+
 ## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-24): Software factory on GitHub
 Owner: "a software factory on GitHub… when somebody creates an issue, there's a loop to solve it… people log bugs and that helps us fix it much faster." "We're not gonna do it for a while." Unbiased research (no tools named in the brief) is done: `ADS-memory/.local-artifacts/codex/2026-10-24-software-factory-research/out/software-factory-research.md`. It recommends a bounded issue → draft-PR pipeline where humans approve scope, merge and release. Start with GitHub controls (issue forms, rulesets, required CI and reviews, actionlint/zizmor), then triage in suggestion mode, then reproduce before fixing, then one sandboxed worker (mini-swe-agent) on maintainer-approved issues only. Also required: the 8 must-have safety controls for public issue text, and hard cost caps plus a kill switch. Next step when the owner restarts it: an Opus grade, or the owner picks parts. Also queued: an in-app "Report a bug" path that files a GitHub issue with secrets stripped.
 
