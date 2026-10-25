@@ -20,13 +20,14 @@ const retire = (generation: number) =>
 for (const adapter of eachDialect({ tables: ["search_index_retired"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
 
-  test(`[${name}] 0028 is the head, pinned, and creates its table once`, async () => {
+  test(`[${name}] 0028 is registered in order, pinned, and creates its table once`, async () => {
     const kernel = adapter.make();
     try {
       const step = CONTENT_MIGRATIONS.find(entry => entry.id === ID);
       assert.ok(step, "0028 must be registered in the active history");
       assert.equal(step.checksum, MIGRATION_CHECKSUMS[ID]);
-      assert.equal(CONTENT_MIGRATIONS.at(-1)?.id, ID, "0028 is the head");
+      // 0029+ shipped after this step; pin its slot rather than "head" (the test predated them).
+      assert.equal(CONTENT_MIGRATIONS[CONTENT_MIGRATIONS.indexOf(step) + 1]?.id, "0029_mail_activity_indexes", "0028 is followed directly by 0029");
       await kernel.execute(sql.raw("DROP TABLE search_index_retired"));
       const options = { ledgerTable: "search_index_retired_step_contract_migrations" };
       assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, [ID]);
