@@ -515,3 +515,46 @@ test('TW3 site settings-only creation and omitted settings retain defaults, iden
   assert.equal(changed.masked, '••••5678');
   assert.deepEqual((await repo.findByWorkspaceId(WORKSPACE))?.sealed, stored?.sealed);
 });
+
+// L11 Stryker: lines 23–27 of public-assistant-availability (unsupported provider, missing model)
+// were never executed. Each refusal is asserted by code AND message, and none leaks the key.
+test("public readiness refuses an unsupported provider, a missing or blank model, and a blank key, by code", async () => {
+  const { resolvePublicAssistantAvailability } = await import("../public-assistant-availability.js");
+  const cases: Array<[Record<string, unknown>, string, string]> = [
+    [{ apiKey: "ready-key-123456", provider: "mistral", model: "m" }, "PROVIDER_UNSUPPORTED",
+      'site assistant is configured for an unsupported provider "mistral" — supported providers are anthropic, openai, azure, google.'],
+    [{ apiKey: "ready-key-123456", provider: "openai" }, "MODEL_NOT_CONFIGURED",
+      "site assistant has no saved model — choose one in AI Assistant before enabling the public assistant."],
+    [{ apiKey: "ready-key-123456", provider: "openai", model: "   " }, "MODEL_NOT_CONFIGURED",
+      "site assistant has no saved model — choose one in AI Assistant before enabling the public assistant."],
+  ];
+  for (const [input, code, error] of cases) {
+    const { deps } = makeDeps();
+    try { await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, ...input } as never); }
+    catch (refused) { assert.fail(`fixture save refused for ${JSON.stringify(input)}: ${String(refused)}`); }
+    const result = await resolvePublicAssistantAvailability({ ...deps, workspaceId: WORKSPACE });
+    assert.deepEqual(result, { ready: false, code, error }, JSON.stringify(input));
+    assert.equal(JSON.stringify(result).includes("ready-key-123456"), false, "the key never appears in a refusal");
+  }
+  for (const provider of ["anthropic", "openai", "azure", "google"]) {
+    const { deps } = makeDeps();
+    await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "ready-key-123456", provider, model: "m" } as never);
+    const result = await resolvePublicAssistantAvailability({ ...deps, workspaceId: WORKSPACE });
+    assert.equal(result.ready, true, provider);
+  }
+  const { deps } = makeDeps();
+  const unconfigured = await resolvePublicAssistantAvailability({ ...deps, workspaceId: WORKSPACE });
+  assert.equal(unconfigured.ready === false && unconfigured.code, "NOT_CONFIGURED");
+});
+
+test("public readiness reports a decrypt failure to the callback and stays key-free", async () => {
+  const { resolvePublicAssistantAvailability } = await import("../public-assistant-availability.js");
+  const { deps } = makeDeps();
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "ready-key-123456", model: "m" });
+  const failure = new Error("sealer offline");
+  const failures: unknown[] = [];
+  const sealer = { seal: deps.sealer.seal.bind(deps.sealer), open: async () => { throw failure; } };
+  const result = await resolvePublicAssistantAvailability({ ...deps, sealer, workspaceId: WORKSPACE }, { onCredentialFailure: error => failures.push(error) });
+  assert.equal(result.ready === false && result.code, "NOT_CONFIGURED");
+  assert.deepEqual(failures, [failure]);
+});
