@@ -307,3 +307,17 @@ test("secret removal refuses providers without a safe version before opening a c
   }), { message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
   assert.deepEqual(h.calls.map(call => call.method), ["GET"]);
 });
+
+// Stryker lane L14 (secrets.ts L95-97, L47): the 500-row cap, the truncation flag and
+// the field clipping were each removable without a failing test.
+test("list caps at 500 rows (500 is not truncated, 501 is), and clips name, digest and time to 128/200/64 chars", async () => {
+  const many = (n: number): Route => ({ status: 200, body: { secrets: Array.from({ length: n }, (_, i) => ({ name: `K_${i}` })) } });
+  const at500 = await runListSecrets({ deps: (await harness({ [`GET ${API}`]: many(500) })).deps, input: { platform: "example-host", target: "shop" } }) as { secrets: unknown[]; truncated: boolean };
+  assert.equal(at500.secrets.length, 500);
+  assert.equal(at500.truncated, false);
+  const at501 = await runListSecrets({ deps: (await harness({ [`GET ${API}`]: many(501) })).deps, input: { platform: "example-host", target: "shop" } }) as { secrets: unknown[]; truncated: boolean };
+  assert.equal(at501.secrets.length, 500);
+  assert.equal(at501.truncated, true);
+  const long = await runListSecrets({ deps: (await harness({ [`GET ${API}`]: { status: 200, body: { secrets: [{ name: "N".repeat(300), digest: "d".repeat(300), updated_at: "t".repeat(100) }] } } })).deps, input: { platform: "example-host", target: "shop" } }) as { secrets: Array<{ name: string; digest: string; updatedAt: string }> };
+  assert.deepEqual(long.secrets.map((s) => [s.name.length, s.digest.length, s.updatedAt.length]), [[128, 200, 64]]);
+});
