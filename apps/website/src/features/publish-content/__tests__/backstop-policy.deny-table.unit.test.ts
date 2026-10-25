@@ -37,7 +37,9 @@ test("system tables: every listed prefix as the WHOLE name or a '_' prefix; book
     assert.equal(denied(name), true, name);
     assert.equal(denied(`${name}_log`), true, `${name}_log`);
   }
-  assert.equal(denied("deployments"), false, "a system prefix must end or continue with '_'");
+  // `deployments` is classified as a per-install table by name (FU-A); the anchor is pinned by a benign look-alike.
+  assert.equal(denied("outboxed"), false, "a system prefix must end or continue with '_'");
+  assert.equal(denied("deployments"), true, "classified per-install (backstop-policy.private-tables.unit.test.ts)");
   for (const table of ["sqlite_sequence", "__drizzle_migrations", "_drizzle_x", "drizzle_meta", "migrations", "migration_x",
     "tovu_migrations", "tovu_chat_migrations", "schema_migrations", "schema_migrations_lock", "SQLITE_STAT1"]) {
     assert.equal(denied(table), true, table);
@@ -65,9 +67,8 @@ test("checkRawTable: identifier shape is checked first, then the table deny-list
 });
 
 test("REGRESSION PIN: on the real migrated schema, sealed-credential tables are never sendable by hand", async (t) => {
-  // `secrets_vault` is NOT on the table deny-list; today its rows are refused only because one column
-  // (`owner_key`) matches the column rule. This pins the outcome so a column rename cannot silently
-  // make sealed credentials sendable. (Reported to the owner as a defence-by-coincidence, F8 2026-10-25.)
+  // `secrets_vault` is now denied by name (owner-approved FU-A 2026-10-25), no longer only because its
+  // `owner_key` column matches the column rule. This pins the outcome on the real schema.
   const { openContentDb } = await import("#src/platform/db/sqlite/content-db");
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: { prepare(sql: string): { all(): Array<{ name: string }> }; close(): void } }).$client;
