@@ -7,7 +7,7 @@ description: Send the site's email through Resend, and manage the Resend account
 
 ## Scope
 
-Choose the card yourself from its `usedFor` list. Reuse a saved key or working sign-in for that
+Choose the card yourself from its `usedFor` list. Reuse a saved key for that
 task. Never offer a replacement unless the person asks.
 
 This plugin does two separate jobs. Keep them apart.
@@ -53,18 +53,21 @@ tool on under Settings for this connection.
 
 ## Connect the Resend account (before any `mcp__resend__*` tool)
 
-Call `agent_plugin_connect { pluginId: "resend" }` first; it returns at once when already connected.
-Say you are checking the connection. Only say a sign-in card is open after the tool emits it:
-OAuth discovery can fail before any card exists. Never promise a card or ask the person to restart Tovu.
+The account connection uses a separate **Full access** API key, not browser OAuth. Reuse a saved
+account key; never offer to replace it unless the person asks. Call
+`agent_plugin_connect { pluginId: "resend" }` to check the saved connection or open its secure key card.
+Only say the card is open after the tool emits it. A cancelled or expired card is not a connection.
+
+If opening the account card directly, use
+`credential_save { kind: "plugin-provider", target: "resend-mcp" }`. Explain first:
+"This is a separate Full access key so I can add and verify your domain. It keeps your site's
+existing sending key." Then tell the person:
+1. Sign in at [resend.com/api-keys](https://resend.com/api-keys) and choose **Create API Key**.
+2. Permission: **Full access** (a "Sending access" key is refused). Domain: all domains.
+3. Paste it into the form Tovu shows. Never into the chat.
 
 - `{ status: "connected" }`: go ahead.
-- It fails because sign-in cannot start, or the person would rather use a key: open the secure key
-  form with `credential_save { kind: "plugin-provider", target: "resend-mcp" }`. Explain first:
-  "This is a separate Full access key so I can add and verify your domain. It keeps your site's
-  existing sending key." Then tell the person:
-  1. Sign in at [resend.com/api-keys](https://resend.com/api-keys) and choose **Create API Key**.
-  2. Permission: **Full access** (a "Sending access" key is refused). Domain: all domains.
-  3. Paste it into the form Tovu shows. Never into the chat.
+- `{ status: "not-connected" }`: explain the returned outcome; do not call the account tools yet.
 - The form says the key was rejected: it is a "Sending access" key. Make a Full access one.
 - The form says Resend is unavailable right after a save: most often the key was mistyped (Resend
   answers a malformed key that way). Ask the person to copy it again; retry once, then wait.
