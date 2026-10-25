@@ -31,7 +31,7 @@
 | custom-credentials/credential-copy-tool.ts | 83.0 | **84.4** (the instance-gate and catalog survivors L42/L60 are now killed) |
 | publish-content/raw-row-contributor.ts | 65.8 | **83.7** (rest: guard clauses that later checks also cover, i.e. defence in depth) |
 | deploy-ops/typed-secret-card.ts | 63.3 | **82.7** |
-| webhooks/secret-scan-guard.ts | 57.3 | **84.8** (before the last follow-up; see run log for the final number) |
+| webhooks/secret-scan-guard.ts | 57.3 | **86.6** (24 survivors left, all in the git-output parsers L281–342: equivalent or unreachable with real git, e.g. `rev-list --objects` already lists each object once, so first-seen vs last-seen path cannot differ) |
 | consent / site-backup tool catalogs | 74.6 / 79.6 | catalog mutants **all killed**; handler mutants show as NoCoverage in this targeted run (their own suites were not included), so the whole-file % is not comparable |
 | backstop-policy.ts, share-registry.ts, post/search.ts, file-tree-policy.ts, deploy-ops/secrets.ts, redirects/tool-registrations.ts, site-key-sources.ts, repo-handler.ts | — | tests added; not re-scored with full suites (time). The anchor survivors at backstop-policy L8–11 remain on purpose, see §2(b) |
 
@@ -124,3 +124,4 @@ F8 DONE 2026-10-25T23:05Z — wall ~1 h 31 m, ~0.45M tokens
 - 21:44Z ASSUMPTION/FINDING: L14's per-file scores are partly ARTIFACTS of its test selection (`find-tests.sh | head -4`, same-dir `__tests__` only, directory order). Re-running Stryker (same config) on `publish-content/content-hash.ts` with its own `content-hash.test.ts` gives **100 %** (L14: 66.7 %). `precheck-reasons.ts` is exercised by `ui/__tests__/report-rows.test.ts`, which L14's finder never looks in. Low L14 scores are therefore checked against measured coverage with ALL importing tests before writing tests.
 - 21:46Z coverage tool: node:test `--experimental-test-coverage` needs `--enable-source-maps` with tsx, or line numbers point at the wrong lines. Even with it, the leading file-header comment block (and sometimes the first `export function` line) shows as uncovered: a V8/source-map artifact. "code-lines-uncovered" in this report leaves out comment/blank/import lines.
 - 21:55Z background re-score of the 17 worst L14 files stopped: `post/repo.memory.ts` has 52 importing test files (dry run 2.4 min), so the full re-score would take hours. Re-scoring only touched files, with targeted tests.
+- 23:02Z DONE. Final secret-scan-guard re-score 86.6 %. Tovu `cloud/fixwave-1025-F8` and reports branch pushed and verified on origin.
