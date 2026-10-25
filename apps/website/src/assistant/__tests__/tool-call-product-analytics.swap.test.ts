@@ -37,7 +37,7 @@ function recordingFetch() {
 /** PostHog's wire events back in the port's vocabulary (SDK-added `$` properties stripped). */
 function normalizePostHog(batches: ReturnType<typeof recordingFetch>["batches"]): ProductEvent[] {
   return batches.flatMap((b) => b.batch).map((e) => ({ name: e.event, userId: e.distinct_id,
-    properties: Object.fromEntries(Object.entries(e.properties ?? {}).filter(([key]) => !key.startsWith("$"))) }));
+    properties: Object.fromEntries(Object.entries(e.properties ?? {}).filter(([key]) => !key.startsWith("$"))) as Record<string, string | number | boolean> }));
 }
 
 async function consentFromLedger({ consented }: { consented: boolean | undefined }) {
