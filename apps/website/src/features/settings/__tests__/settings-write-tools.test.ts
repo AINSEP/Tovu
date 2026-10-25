@@ -643,3 +643,32 @@ test("a host's extra denied namespace is refused, and with no injected writer th
   assert.deepEqual(await handler("settings_set_value", { namespace: "core.site", key: "title", value: "  Trimmed title  " }),
     { key: "core.site.title", scope: "workspace", previous: null, value: "Trimmed title", revisionSeq: 1 });
 });
+
+// F6 fix wave (L7 Stryker): every host-added write denial refuses BOTH write tools with its own reason.
+for (const [namespace, key, reason] of [
+  ["core.consent", "bannerEnabled", "Cookie consent changes require consent_update_settings"],
+  [ASSISTANT_PERMANENT_DELETES_NAMESPACE, "enabled", ASSISTANT_PERMANENT_DELETES_WRITE_REASON],
+  ["core.mail", "provider", "The mail provider changes only through mail_set_provider"],
+  ["core.mail", "testMode", "Mail test mode (redirect/capture) is an operator setting"],
+] as const) {
+  for (const toolId of ["settings_set_value", "settings_clear_value"]) {
+    test(`${toolId} refuses ${namespace}.${key} with its own denial reason`, async () => {
+      const f = fixture(namespace, key, { type: "boolean" });
+      await assert.rejects(f.call(toolId, { namespace, key, ...(toolId === "settings_set_value" ? { value: true } : {}) }),
+        (error: Error) => error.message.includes(reason));
+      assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+      assert.equal(f.surfaceExchanges.size(), 0);
+    });
+  }
+}
+
+test("the host confirmation list names each setting once; the chat agent picker keeps its chat-specific reason", async () => {
+  const { TOVU_CONFIRMATION_SETTINGS } = await import("../tool-registrations.js");
+  const coordinates = TOVU_CONFIRMATION_SETTINGS.map(({ namespace, key }) => `${namespace}.${key}`);
+  assert.deepEqual(coordinates.filter((entry, index) => coordinates.indexOf(entry) !== index), []);
+  assert.deepEqual(TOVU_CONFIRMATION_SETTINGS.filter(({ key }) => key === "localCli.agentId"),
+    [{ namespace: "core.execution", key: "localCli.agentId", reason: "Changes your chat agent, model or thinking effort for the next turn" }]);
+  for (const key of ["localCli.permissionLevel", "mode", "byok.protocol", "byok.providerId", "byok.baseUrl"]) {
+    assert.ok(coordinates.includes(`core.execution.${key}`), `core.execution.${key} must need a human card`);
+  }
+});
