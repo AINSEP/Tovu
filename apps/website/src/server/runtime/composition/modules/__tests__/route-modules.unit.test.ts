@@ -147,6 +147,7 @@ const CASES: readonly ModuleCase[] = [
       `GET ${W}/members`,
       `GET ${W}/members/:memberId`,
       `POST ${W}/members/:memberId/disable`,
+      `DELETE ${W}/members/:memberId`,
       `POST ${W}/members/request-magic-link`,
       "POST /api/members/v1/workspaces/:workspaceId/sign-in",
       "POST /api/members/v1/workspaces/:workspaceId/sign-in/complete",

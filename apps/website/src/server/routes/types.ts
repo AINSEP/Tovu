@@ -637,6 +637,8 @@ export interface CommentsDeps {
  * admin composition root.
  */
 export interface MembersDeps {
+  /** Bound to the existing member Trash adapter in the durable site composition. */
+  removeMember?: import("@jini-ai/cms/trash").RemoveEntity;
   /** `members` library ports (ADR-030) — Members admin screen. */
   memberRepo: MemberRepoPort;
   memberTierRepo: MemberTierRepoPort;

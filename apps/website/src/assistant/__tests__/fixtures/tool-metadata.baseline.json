@@ -346,7 +346,8 @@
     "visitor_tools_list": "visitor public assistant tools list modes limits permissions anonymous chatbot",
     "visitor_tool_configure": "visitor public assistant tools enable disable auto ask off mode limits rate budget",
     "visitor_tool_save": "visitor tool create update saved request api endpoint",
-    "visitor_tool_delete": "visitor tool delete remove saved request permanently"
+    "visitor_tool_delete": "visitor tool delete remove saved request permanently",
+    "members_delete": "member delete remove trash revoke sessions restore"
   },
   "queries": {
     "media_replace_file": [
@@ -3586,9 +3587,14 @@
     "visitor_tool_delete": {
       "class": "read",
       "confirmation": "direct"
+    },
+    "members_delete": {
+      "class": "trash",
+      "confirmation": "policy"
     }
   },
   "policyConfirmationIds": [
+    "members_delete",
     "page.click",
     "backup_execute_restore",
     "change_sets_revert",
@@ -3672,6 +3678,7 @@
     }
   },
   "redeemableIds": [
+    "members_delete",
     "credential_save",
     "external_mcp_save",
     "database_transfer_set_destination",
@@ -3739,6 +3746,7 @@
     "visitor_tool_configure"
   ],
   "exchangeOnlyIds": [
+    "members_delete",
     "credential_save",
     "external_mcp_save",
     "database_transfer_set_destination",

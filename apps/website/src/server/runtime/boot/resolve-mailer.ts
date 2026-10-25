@@ -1,3 +1,5 @@
+import { ToolInputError } from "@jini-ai/core";
+import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import { createSenderDomainVerification } from "./sender-domain-verification.js";
 import { readMailDomain, type MailDomainReadCredentialPort } from "./mail-domain-read.js";
 import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
@@ -433,7 +435,7 @@ async function requestDomainRequirements(
   try {
     const result = await Promise.race([readMailDomain({ ctx, providerId, read: context => provider.domainRequirements!(context, { domain }), resolveDomainReadCredential: required.resolveDomainReadCredential }), timeout]);
     if (result.status === "ok") return result.value;
-    throw new Error("The mail provider could not list its required DNS records.");
+    throw new ToolInputError({ message: safeMailProviderText({ text: `${result.error.code}: ${result.error.message}` }, { secrets: credentialSecrets({ credential: ctx.credential }) }) });
   } finally { clearTimeout(timer); }
 }
 

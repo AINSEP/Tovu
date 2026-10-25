@@ -125,9 +125,16 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
     inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
   },
   {
+    name: "members_delete",
+    description: "Moves a member to Trash and revokes their sessions and sign-in links. Restore with trash_restore_item; permanent deletion uses the existing Trash confirmation flow.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "member.manage" },
+    inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
+  },
+  {
     name: "members_disable",
     description:
-      "Disables a member, revoking their access and every one of their live sessions. Members are never hard-deleted, so this is how a member is removed. Idempotent — disabling an already-disabled member is a no-op. There is no agent-callable re-enable tool for members (unlike identity users) because the admin UI does not expose one either.",
+      "Disables a member, revoking their access and every one of their live sessions. Use members_delete to move a member to Trash instead. Idempotent — disabling an already-disabled member is a no-op. There is no agent-callable re-enable tool for members (unlike identity users) because the admin UI does not expose one either.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "member.manage" },
     inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
@@ -135,7 +142,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_request_magic_link",
     description:
-      "Requests (or resends) a passwordless sign-in link for a member's email — the same 'resend sign-in link' action available in the admin UI. Returns {delivered:true, mailDeliveryAvailable:true} when email sending is configured. delivered:false means mail is off and nothing was sent; returns mailDeliveryAvailable:false and a setup note. It never reveals whether the address is registered. A configured driver does not guarantee inbox arrival. Rate-limited per email; malformed addresses and denied permission are refused.",
+      "Requests (or resends) a passwordless sign-in link for a member's email — the same 'resend sign-in link' action available in the admin UI. Returns {delivered, mailDeliveryAvailable:true}: delivered:true means the mail provider accepted the link, not that it reached the inbox; delivered:false means no provider accepted it (disabled member, test-mode capture or a provider failure). Refuses with MEMBERS_SIGN_IN_UNAVAILABLE when email or the site address is not set up; check system_get_mail_status. Rate-limited per email; malformed addresses and denied permission are refused.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "member.manage" },
     inputSchema: {

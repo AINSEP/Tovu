@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "maturity": "soon",
       "vendorAliases": ["s3_compatible", "s3 compatible", "s3compatible", "amazonaws", "backblaze", "wasabi", "digitaloceanspaces"],
       "displayName": "S3",
       "summary": "Puts your website online in your own storage bucket, like Amazon S3 or Cloudflare R2. The assistant shows you a preview first.",

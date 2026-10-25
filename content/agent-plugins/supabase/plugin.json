@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "maturity": "soon",
       "summary": "Gives your site a database for sign-ups and form entries. You sign in to Supabase and the assistant sets up the rest.",
       "id": "tovu/supabase",
       "provides": [

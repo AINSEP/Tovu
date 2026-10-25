@@ -151,15 +151,19 @@ test("SKILL.md calls agent_plugin_connect before any Supabase tool", async () =>
   assert.ok(firstSupabaseTool > connect, "no Supabase tool may come before agent_plugin_connect");
 });
 
-test("SKILL.md drops the old setup: no Settings trip, no restart, no pasted token, no project scoping", async () => {
+test("SKILL.md drops the old setup: no Settings trip, no restart, no chat-pasted token, no project scoping", async () => {
   const skill = await readSkill();
   const connectStep = skill.split("## Step 1. Connect (always first)\n")[1]?.split("## Step 2.")[0];
   assert.ok(connectStep, "the actual first step must exist");
   assert.ok(connectStep.includes('Call `agent_plugin_connect { pluginId: "supabase" }` before any Supabase tool, every time'));
   assert.ok(connectStep.includes("It shows the person a card with a sign-in button."));
+  // 8c0ecc58e added a secure card fallback; tokens still never belong in chat or old setup flows.
+  assert.match(skill, /Only if browser sign-in cannot start, open `credential_save \{kind:"plugin-provider",target:"supabase"\}`/);
+  assert.match(skill, /never saves a project anon or service-role key/);
   const failureModes = await readFailureModes();
+  assert.match(failureModes, /Never ask for the key in chat/);
   for (const text of [skill, failureModes]) {
-    for (const stale of [/Settings\s*→\s*External MCP/i, /restart/i, /personal access token/i, /supabase_set_access_token/, /supabase_set_project_scope/, /external_mcp_oauth_connect/]) {
+    for (const stale of [/Settings\s*→\s*External MCP/i, /restart/i, /supabase_set_access_token/, /supabase_set_project_scope/, /external_mcp_oauth_connect/]) {
       assert.doesNotMatch(text, stale);
     }
   }

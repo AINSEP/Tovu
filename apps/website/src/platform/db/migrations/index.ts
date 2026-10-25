@@ -1,3 +1,6 @@
+import { memberAuth } from "./0034_member_auth.js";
+import { mailActivityMessage } from "./0033_mail_activity_message.js";
+import { memberSignupEmail } from "./0032_member_signup_email.js";
 import { siteConsentRevisions } from './0021_site_consent_revisions.js';
 import { workspaceMcpCascade } from "./0022_workspace_mcp_cascade.js";
 import { mailLedgers } from "./0023_mail_ledgers.js";
@@ -90,6 +93,9 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   mailActivityIndexes({ checksum: pinned("0029_mail_activity_indexes") }),
   mailSuppressionAdmin({ checksum: pinned("0030_mail_suppression_admin") }),
   mailActivityRetention({ checksum: pinned("0031_mail_activity_retention") }),
+  memberSignupEmail({ checksum: pinned("0032_member_signup_email") }),
+  mailActivityMessage({ checksum: pinned("0033_mail_activity_message") }),
+  memberAuth({ checksum: pinned("0034_member_auth") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

@@ -426,7 +426,10 @@ export interface MemberMagicTokensTable {
   id: string;
   workspace_id: string;
   member_id: string;
+  email: string | null;
   token_hash: string;
+  code_hash: string | null;
+  failed_attempts: Generated<number>;
   purpose: string;
   created_at: string;
   expires_at: string;
@@ -501,6 +504,7 @@ export interface MembersTable {
   name: string | null;
   email_verified_at: string | null;
   credentials_revoked_at: string | null;
+  password_hash: string | null;
   status: string;
   note: string | null;
   fields_json: string | null;

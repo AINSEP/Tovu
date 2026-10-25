@@ -26,7 +26,7 @@ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDe
 const AT = (s: number) => new Date(Date.parse("2026-10-22T12:00:00.000Z") + s * 1000).toISOString();
 
 function record(key: string, at: number, overrides: Partial<MailActivityRecord> = {}): MailActivityRecord {
-  return { cursorKey: key, idempotencyKey: key, recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in", outcome: "accepted", providerMessageId: `m-${key}`, errorCode: null, createdAt: AT(at), updatedAt: AT(at + 1), ...overrides };
+  return { cursorKey: key, idempotencyKey: key, recipient: "ann@example.com", lane: "transactional", providerId: "smtp", use: "sign_in", outcome: "accepted", providerMessageId: `m-${key}`, errorCode: null, message: null, createdAt: AT(at), updatedAt: AT(at + 1), ...overrides };
 }
 
 /** Same ordering and keyset semantics as the SQL repo: newest first, `created_at <= c`, OFFSET skip. */
@@ -94,7 +94,7 @@ test("list pages newest first with an opaque cursor that resumes inside a shared
   const first = await listMailActivity({ ...{ principalId: "p", query: all({ limit: 2 }) }, deps: deps });
   assert.deepEqual(first.items.map((item) => item.id && JSON.parse(Buffer.from(item.id, "base64url").toString())[0]), ["e", "d"]);
   assert.deepEqual([first.access, first.empty], ["full", null]);
-  assert.deepEqual(first.items[0], { id: first.items[0]!.id, recipient: "ann@example.com", providerMessageId: "m-e", use: "sign_in", outcome: "accepted", lane: "transactional", providerId: "smtp", errorCode: null, createdAt: AT(3), updatedAt: AT(4) });
+  assert.deepEqual(first.items[0], { id: first.items[0]!.id, recipient: "ann@example.com", providerMessageId: "m-e", use: "sign_in", outcome: "accepted", lane: "transactional", providerId: "smtp", errorCode: null, message: null, createdAt: AT(3), updatedAt: AT(4) });
   const second = await listMailActivity({ ...{ principalId: "p", query: all({ limit: 2, cursor: first.nextCursor }) }, deps: deps });
   assert.deepEqual(second.items.map((item) => item.providerMessageId), ["m-c", "m-b"]);
   // The second page ended at the same timestamp it started in: the skip accumulates.
@@ -320,4 +320,13 @@ test("split lanes check bulk independently; absent SMTP sender never reports rea
   assert.equal(rows.sign_in!.state, "ready"); assert.equal(rows.newsletter!.state, "not_configured"); assert.deepEqual(rows.newsletter!.reasons, ["mail_delivery_unavailable"]);
   const absent = await byUse(readinessDeps({ mailSenderIdentity: undefined }));
   assert.deepEqual([absent.sign_in!.state, absent.sign_in!.reasons, absent.sign_in!.sender], ["blocked", ["sender_not_configured"], null]);
+});
+
+test("provider diagnostic text is available only with full activity permission", async () => {
+  const rows = [record("failure", 1, { outcome: "failed", errorCode: "validation_error", message: "Verify sender ann@example.com first" })];
+  const full = await listMailActivity({ deps: activityDeps(rows), principalId: "operator", query: readMailActivityQuery({ input: {} }) });
+  assert.equal(full.items[0]!.message, rows[0]!.message);
+  const masked = await listMailActivity({ deps: activityDeps(rows, ["admin.forms.manage"]), principalId: "operator", query: readMailActivityQuery({ input: {} }) });
+  assert.ok(!("message" in masked.items[0]!));
+  assert.ok(!JSON.stringify(masked).includes("ann@example.com"));
 });

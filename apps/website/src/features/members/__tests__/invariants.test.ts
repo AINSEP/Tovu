@@ -20,18 +20,23 @@ import type express from "express";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { MemberContext, MemberRecord } from "../types.js";
+import type { MailerPort, OutboundEmail } from "#src/platform/mail/index";
 
 const EMAIL = "signup@example.com";
 
-/** Request a sign-in link through the public route and read the raw token the console mailer logs. */
-async function signUpAndSignIn(required: { baseUrl: string; workspaceId: string }): Promise<void> {
+/** Request and consume the delivered link through real public routes, without logging its secret. */
+async function signUpAndSignIn(required: { baseUrl: string; workspaceId: string; mailer: MailerPort }): Promise<void> {
   const { baseUrl, workspaceId } = required;
-  const originalLog = console.log;
-  let logged = "";
-  console.log = (...args: unknown[]) => {
-    const text = args.map(String).join(" ");
-    if (text.includes("token=")) logged = text;
-  };
+  const originalSend = required.mailer.send;
+  // Delivery runs after HTTP acceptance. Await the mail port rather than racing detached work
+  // or relying on a console preview that can truncate/redact the fragment bearer.
+  const delivered = new Promise<OutboundEmail>(resolve => {
+    required.mailer.send = async message => {
+      resolve(message);
+      return { ok: true, providerMessageId: "invariant-mail", acceptedAt: new Date().toISOString() };
+    };
+  });
+  let message: OutboundEmail;
   try {
     const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${workspaceId}/sign-in`, {
       method: "POST",
@@ -39,11 +44,17 @@ async function signUpAndSignIn(required: { baseUrl: string; workspaceId: string 
       body: JSON.stringify({ email: EMAIL }),
     });
     assert.equal(res.status, 200, "public sign-in request must succeed without an admin session");
+    message = await delivered;
   } finally {
-    console.log = originalLog;
+    required.mailer.send = originalSend;
   }
-  const token = logged.match(/token=([a-f0-9]+)/)?.[1];
-  assert.ok(token, "the console mailer logs the sign-in link");
+  const link = message.text?.match(/https?:\/\/\S+/)?.[0];
+  assert.ok(link, "mail contains an actionable sign-in link");
+  const url = new URL(link);
+  assert.equal(url.pathname, "/signin");
+  assert.equal(url.search, "", "bearers must stay out of HTTP query strings");
+  const token = new URLSearchParams(url.hash.slice(1)).get("magic");
+  assert.match(token ?? "", /^[a-f0-9]{64}$/);
   const complete = await fetch(`${baseUrl}/api/members/v1/workspaces/${workspaceId}/sign-in/complete`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -79,12 +90,14 @@ async function status(required: { baseUrl: string; method: string; url: string }
 
 test("a member who signs up through the public routes is denied every admin capability and every admin route (F3144)", async (t) => {
   const routeDeps = createRouteDeps();
+  const capabilities = routeDeps.mailer.capabilities();
+  routeDeps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   const app = createApp(routeDeps);
   const baseUrl = await startTestServer(app, t);
   const { workspaceId } = routeDeps;
   await routeDeps.identityReady;
 
-  await signUpAndSignIn({ baseUrl, workspaceId });
+  await signUpAndSignIn({ baseUrl, workspaceId, mailer: routeDeps.mailer });
   const member = await routeDeps.memberRepo.findByEmail({ workspaceId, email: EMAIL });
   assert.equal(member?.status, "active");
   const principal = await routeDeps.principalRepo.findById({ workspaceId, id: member!.id });

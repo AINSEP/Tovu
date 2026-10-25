@@ -9,7 +9,7 @@ export type { EgressPolicy, PinnedPeer } from "@jini-ai/platform/http/guarded";
 
 /** Product consumers send an existing request through the guarded host boundary. */
 export interface HttpClientPort {
-  send(request: HttpRequest): Promise<HttpResponse>;
+  send(request: HttpRequest, options?: { redirect?: "follow" | "error" | "manual" }): Promise<HttpResponse>;
 }
 
 /** Composition-only transport seam; the guard supplies the already-vetted peer. */

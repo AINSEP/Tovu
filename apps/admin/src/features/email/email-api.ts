@@ -118,6 +118,7 @@ export interface MailActivityItem {
   providerId: string;
   providerMessageId?: string | null;
   errorCode: string | null;
+  message?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,4 +1,5 @@
 // @ts-check
+import { parseErrorBody } from './errors.mjs';
 
 /**
  * @file Resend sending-domain verification over the Domains API (Jini `MailProviderModule`
@@ -28,23 +29,31 @@ export function retryAfterMs(headers) {
   return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds * 1000) : undefined;
 }
 
-/** Whether a 401 is Resend's `restricted_api_key`: a valid Sending access key without domain
- * permission. The host retries only permission refusals with the account key, so this must be
- * `forbidden`, not the `unauthorized` a bad key gets. @param {HttpResponse} response */
-function isRestrictedKey(response) {
-  try { return JSON.parse(response.bodyText)?.name === 'restricted_api_key'; } catch { return false; }
+/** Legacy fallback when Resend supplies no structured error body. @param {{status: number}} required */
+function domainFailureFallback({ status }) {
+  if (status === 429) return { errorCode: 'rate_limited', message: 'Resend rate limit reached' };
+  if (status >= 500) return { errorCode: 'provider_unavailable', message: `Resend responded with HTTP ${status}` };
+  return { errorCode: REJECTED_CODES[status] ?? 'provider_error', message: `Resend refused the request (HTTP ${status})` };
 }
 
-/** HTTP status to a rejected/unknown result. @param {HttpResponse} response @returns {ProviderResult} */
+/** HTTP status to a rejected/unknown result. The code stays Jini's canonical one for the status;
+ * Resend's own error name and message ride in `message` so the owner sees what Resend said.
+ * A 401 `restricted_api_key` is a valid Sending access key without domain permission. The host
+ * retries only permission refusals with the account key, so it must be `forbidden`, not the
+ * `unauthorized` a bad key gets. @param {HttpResponse} response @returns {ProviderResult} */
 function failure(response) {
   const { status } = response;
+  const fallback = domainFailureFallback({ status });
+  const parsed = parseErrorBody({ status, bodyText: response.bodyText }, { fallback });
+  const restricted = status === 401 && parsed.errorCode === 'restricted_api_key';
+  const named = parsed.errorCode !== fallback.errorCode;
+  const detail = { code: restricted ? 'forbidden' : fallback.errorCode, message: named ? `${parsed.errorCode}: ${parsed.message}` : parsed.message };
   if (status === 429) {
     const wait = retryAfterMs(response.headers);
-    return { status: 'rejected', error: { code: 'rate_limited', message: 'Resend rate limit reached', ...(wait === undefined ? {} : { retryAfterMs: wait }) } };
+    return { status: 'rejected', error: { ...detail, ...(wait === undefined ? {} : { retryAfterMs: wait }) } };
   }
-  if (status >= 500) return { status: 'unknown', error: { code: 'provider_unavailable', message: `Resend responded with HTTP ${status}` } };
-  const code = status === 401 && isRestrictedKey(response) ? 'forbidden' : REJECTED_CODES[status] ?? 'provider_error';
-  return { status: 'rejected', error: { code, message: `Resend refused the request (HTTP ${status})` } };
+  if (status >= 500) return { status: 'unknown', error: { ...detail } };
+  return { status: 'rejected', error: detail };
 }
 
 /** One GET, parsed. @param {CallContext} ctx @param {string} path @returns {Promise<ProviderResult>} */

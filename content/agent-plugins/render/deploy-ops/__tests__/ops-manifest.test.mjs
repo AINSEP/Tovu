@@ -17,8 +17,8 @@ test("Render keeps the 'soon' maturity flag and its owners probe parses on its o
   const raw = await readFile(new URL("../../plugin.json", import.meta.url), "utf8");
   const tovu = JSON.parse(raw).extensions.tovu;
   assert.equal(tovu.maturity, "soon"); assert.ok(tovu.provides.includes("deploy-ops:render"));
-  // The card parser keeps probeUrl once the save-probe shard lands; until then it must still parse.
   assert.equal(tovu.credentialCards[0].probeUrl, "https://api.render.com/v1/owners?limit=1");
   const parsed = parsePluginCredentialCards({ raw }); assert.equal(parsed.ok, true);
+  assert.equal(parsed.descriptors[0].probeUrl, "https://api.render.com/v1/owners?limit=1");
   assert.equal(parsed.descriptors[0].ownedApiLabel, "Render API");
 });

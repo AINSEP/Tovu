@@ -542,12 +542,18 @@ test('missing request credential returns the create-card diagnostic with URL ori
   });
 });
 
-for (const mode of ['request', 'verify'] as const) test(`${mode} credential rejection offers the existing-label rotation card`, async () => {
+for (const mode of ['request', 'verify'] as const) test(`${mode} credential rejection offers rotation only after explicit verification`, async () => {
   const { deps, writeDeps } = fakeRouteDeps({ httpClient: { send: async () => ({ status: 401, headers: {}, bodyText: 'Unauthorized' }) } });
   await seedGithub(writeDeps, { token: 'private-test-token', username: 'account' });
   const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const id = mode === 'verify' ? 'custom_credential_verify' : 'custom_credential_make_request';
   const result = await call(tool(registrations, id), { input: { label: 'github', ...(mode === 'request' ? { method: 'GET', url: 'https://api.github.com/user' } : {}) } }) as { credentialSetup: unknown };
+  // 26457bd29: request rejection alone does not establish that this saved key is invalid.
+  if (mode === 'request') {
+    assert.equal('credentialSetup' in result, false);
+    assert.equal((result as { status?: number }).status, 401);
+    return;
+  }
   assert.deepEqual(result.credentialSetup, {
     setupToolId: 'credential_save', remedyToolId: 'credential_save', prefill: { kind: 'api', target: 'github' },
     hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',

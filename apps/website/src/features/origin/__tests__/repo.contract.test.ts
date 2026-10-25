@@ -121,6 +121,29 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     assert.equal(found?.host, "example.com", "the original seed must survive a second seed call");
   });
 
+  test("dev loopback seeds follow scheme and port changes while preserving allowlists and idempotency", async () => {
+    const kernel = makeKernel();
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW,
+      redirectAllowlist: ["owner.example"], egressAllowlist: ["api.owner.example"] });
+    const changed = createVerifiedOrigin({ ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001, verifiedAt: "2026-10-24T00:00:00.000Z" });
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: changed });
+    const repo = new SqlOriginSettingRepo(kernel);
+    assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed);
+    assert.deepEqual(await repo.findRedirectAllowlist({ workspaceId: WORKSPACE_ID }), ["owner.example"]);
+    assert.deepEqual(await repo.findEgressAllowlist({ workspaceId: WORKSPACE_ID }), ["api.owner.example"]);
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: { ...changed, verifiedAt: "2099-01-01T00:00:00.000Z" } });
+    assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed, "unchanged listener does not churn its stamp");
+  });
+
+  for (const origin of [configuredOrigin(), configuredOrigin("localhost"), seedOrigin()]) {
+    test(`dev seed preserves ${origin.source} origin on ${origin.host}`, async () => {
+      const kernel = makeKernel();
+      await registerConfiguredOriginOn(kernel, WORKSPACE_ID, origin);
+      await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: { ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001 } });
+      assert.deepEqual(await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), origin);
+    });
+  }
+
   test("reads wait for the boot write they are given, and fail when it failed", async () => {
     const kernel = makeKernel();
     const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });

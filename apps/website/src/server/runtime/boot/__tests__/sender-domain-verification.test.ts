@@ -53,6 +53,16 @@ test("a missing key, a provider error and a thrown call are Unknown, never faile
   assert.deepEqual(await createSenderDomainVerification(deps({ findProvider: async () => throwing }))(), unknown("the provider did not answer the domain check"));
 });
 
+test("provider failure details keep code and useful copy while scrubbing the resolved key before capping", async () => {
+  const secret = "saved-credential-value";
+  const refusing = provider(async () => providerRejected({ code: "restricted_api_key", message: `Use a full-access key; received ${secret}. ${"x".repeat(1500)}` }));
+  const result = await createSenderDomainVerification(deps({ findProvider: async () => refusing, resolveCredential: async () => ({ token: secret }) }))();
+  assert.equal(result.state, "unknown");
+  if (result.state !== "unknown") return;
+  assert.match(result.reason, /^restricted_api_key: Use a full-access key/);
+  assert.ok(!result.reason.includes(secret)); assert.equal(result.reason.length, 1000);
+});
+
 test("a permission refusal retries with the plugin account key without changing the sending key", async () => {
   const credential = { token: "send-only" };
   const tokens: string[] = [];
@@ -77,6 +87,6 @@ test("an unrelated provider refusal never opens the account credential", async (
     findProvider: async () => provider(async () => providerRejected({ code: "rate_limited", message: "wait" })),
     resolveDomainReadCredential: async () => { lookups += 1; return { token: "account" }; },
   }));
-  assert.equal((await check()).state, "unknown");
+  assert.deepEqual(await check(), { state: "unknown", domain: "example.com", providerId: "mailer", reason: "rate_limited: wait" });
   assert.equal(lookups, 0);
 });

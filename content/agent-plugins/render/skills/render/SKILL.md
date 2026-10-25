@@ -60,3 +60,5 @@ need a deployment to reach the running service. Set all needed keys, then deploy
 The listing is capped at 500 and reports truncation. No secret readback or copying
 is provided. Render supplies no revision metadata for safe removal, so use the
 provider console to remove variables when the host refuses the removal tool.
+
+The Render API key card checks access with a read-only GET before saving the key.

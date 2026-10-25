@@ -41,3 +41,12 @@ test('every credential card parses its task purposes', () => {
     }
   ]);
 });
+
+test('only the API-token card declares a parsed, same-origin read-only user probe', () => {
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  assert.equal(parsed.ok, true);
+  const api = parsed.descriptors.find(card => card.providerId === 'github');
+  assert.equal(api.probeUrl, 'https://api.github.com/user');
+  assert.equal(new URL(api.probeUrl).origin, new URL(api.baseUrl).origin);
+  assert.equal(parsed.descriptors.find(card => card.providerId === 'github-source-control').probeUrl, undefined);
+});

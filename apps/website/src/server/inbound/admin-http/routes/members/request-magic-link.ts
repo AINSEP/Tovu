@@ -1,6 +1,7 @@
+import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { Response } from "express";
 
-import { MemberValidationError, requestSignInLink } from "#src/features/members/index";
+import { MemberSignInUnavailableError, MemberValidationError, requestSignInLink } from "#src/features/members/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
@@ -42,11 +43,10 @@ async function parseMagicLinkRequest(
  * triggered resend, e.g. from an admin member-detail screen's "resend
  * sign-in link" action).
  *
- * Always resolves `{ delivered: true }` for a syntactically valid email — the
- * write-service's constant-response anti-enumeration behavior (ADR-030 OQ-8:
- * a distinguishable response would let a caller probe which emails are
- * registered) is preserved end-to-end. A malformed email is the only path
- * that reaches the 400 branch below.
+ * Returns actual mailer acceptance to the authorized operator, including false for skipped or
+ * failed sends. Site-wide setup failures return 503. Public callers use the separate generic
+ * accepted response so neither membership nor per-address delivery failures can be enumerated.
+ * A malformed email reaches the 400 branch below.
  *
  * ADR-PIPE-013 §1 (FEAT-013 Phase 1): previously ran behind session auth only
  * — no per-action `authorize()` call, unlike `disable.ts`. Closes that live
@@ -99,6 +99,10 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, ro
 
       res.json(result);
     } catch (err) {
+      if (err instanceof MemberSignInUnavailableError || err instanceof SenderIdentityNotConfiguredError) {
+        res.status(503).json({ error: err instanceof SenderIdentityNotConfiguredError ? "Member sign-in is unavailable: email is not set up for this site." : err.message, code: "MEMBER_SIGN_IN_UNAVAILABLE" });
+        return;
+      }
       if (err instanceof MemberValidationError) {
         res.status(400).json({ error: err.message });
         return;

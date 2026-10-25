@@ -31,6 +31,8 @@ import type { RouteDeps } from "../../routes/types.js";
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps; membersDeps: MembersRouteDeps } {
   const deps = createRouteDeps();
+  const capabilities = deps.mailer.capabilities();
+  deps.mailer.capabilities = () => ({ ...capabilities, driver: "memory" });
   // T023/C-015: a real (non-shared-with-anything-else) MAGIC_LINK_PER_EMAIL
   // limiter instance for this test app — mirrors `app.ts`'s per-boot wiring.
   const membersDeps: MembersRouteDeps = {
@@ -215,11 +217,13 @@ test("T005: POST request-magic-link succeeds (200) for the seeded owner (wildcar
   assert.equal(body.delivered, true);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to.email, "someone@example.com");
-  const link = sent[0].text?.match(/(?:https?:\/\/\S+|\/auth\/magic\?\S+)/)?.[0];
+  const link = sent[0].text?.match(/https?:\/\/\S+/)?.[0];
   assert.ok(link, "mail must contain an actionable sign-in link");
   const url = new URL(link, baseUrl);
-  assert.equal(url.pathname, "/auth/magic");
-  assert.match(url.searchParams.get("token") ?? "", /^[a-f0-9]{64}$/);
+  // The public page receives secrets only in the fragment, outside HTTP request logs.
+  assert.equal(url.pathname, "/signin");
+  assert.equal(url.search, "");
+  assert.match(new URLSearchParams(url.hash.slice(1)).get("magic") ?? "", /^[a-f0-9]{64}$/);
 });
 
 test("POST request-magic-link with redirectPath succeeds (200)", async (t) => {
