@@ -27,8 +27,10 @@ Observation, NOT changed (design question for the owner): `role-marker-guard` wi
 | mcp | federation/stdio/adapter.stdio.ts | 87.7 | 88.0 |
 | agent-runtime | prompt-budget.ts | 69.5 | 93.8 |
 | agent-runtime | claude-filesystem-policy.ts | 73.2 (12 NoCov) | 86.6 (1 NoCov) |
-| agent-runtime | auth.ts | 79.1 | 86.1 (then +env/regex/guidance tests, not re-scored; ~10 left are equivalent `!value.trim()` guards) |
-| agent-runtime | role-marker-guard.ts | 73.1 | 79.1 (then +spacing tests; remaining 211/239/264/266/293 judged equivalent) |
+| agent-runtime | auth.ts | 79.1 | 86.1 → round 2: **90.9** (28 left; ~10 are equivalent `!value.trim()` guards, JSON-vs-text fallbacks) |
+| agent-runtime | role-marker-guard.ts | 73.1 | 79.1 → round 2: **83.6** (11 left; 211/239/264/266/293 judged equivalent) |
+| agent-runtime | invocation.ts | 76.0 | **84.0** |
+| agent-runtime | env.ts | 93.9 | 93.9 (3 left) |
 | memory | entry-frontmatter.ts | 72.1 | 83.7 |
 | memory | note-store.ts | 83.2 | 86.3 |
 | memory | llm-provider.ts | 89.1 | 89.6 |
@@ -65,3 +67,6 @@ Pushed Jini e7470f19 (mcp tool descriptor contracts — the 4 MUST files), dd3ea
 SOURCE BUG FOUND+FIXED: agent-runtime `isDeepSeekAuthFailureText` — qualifier `/auth|api[_ -]?key|…/` self-matches inside `DEEPSEEK_API_KEY`, so any mention of the variable (incl. healthy probe output) => "missing auth". RED test 8c1c653b, fix 5eea6ef7.
 Pushed through d40d78a7: L3 top-10 #1-#7,#9 + MUSTs; L5 top-10 #1,#2,#4-#9.
 mcp Stryker re-score (8 files): component-catalog 64.3→100, run-tools 70.2→96.4, tool-catalog 87.1→98.4, message-relay 83.7→100, serve 89.4→93.6, config 89.3→90.1, tokens 88.4→89.9, adapter.stdio 87.7→88.0 (before = lane L3 report).
+
+## 2026-10-25T23:16Z — PROGRESS
+agent-runtime round-2 re-score done; chat L5 re-score (1936 mutants) still running since 22:07; mcp round-2 started. Jini HEAD pushed through scope-option test.
