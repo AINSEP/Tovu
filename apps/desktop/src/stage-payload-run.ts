@@ -34,7 +34,7 @@ interface ShellEntry extends StalenessShell {
 }
 
 /** The `node:fs` surface staging uses — the real module at the composition edge. */
-type StageFs = Pick<typeof nodeFs, "cpSync" | "existsSync" | "lstatSync" | "mkdirSync" | "readdirSync" | "readFileSync" | "realpathSync" | "rmSync" | "statSync">;
+type StageFs = Pick<typeof nodeFs, "cpSync" | "existsSync" | "lstatSync" | "mkdirSync" | "readdirSync" | "readFileSync" | "realpathSync" | "rmSync" | "statSync" | "unlinkSync">;
 
 /** The effectful staging steps, each defined and tested in `./stage-payload-lib.ts` / `./dist-import-check.ts`. */
 interface StageSteps {
@@ -157,16 +157,20 @@ function stageJiniPackages(layout: StageLayout, { fs, steps }: StagePorts): stri
 }
 
 /** Replace one symlink with a dereferenced copy of what it points at; a dangling link is dropped.
- *  @returns 1 when replaced, 0 when the link dangled. */
+ *  Unlink/copy failures propagate; the target is never removed.
+ *  @returns 1 when replaced, 0 when the link dangled.
+ *  @complexity O(entries copied), with filesystem-managed copy buffers. */
 function materializeLink(fs: StageFs, full: string): number {
+  // Node 24.2's native rmSync follows links during its type check: directory links throw EISDIR,
+  // and dangling links are left behind. Unlink the known symlink itself on both Node 22 and 24.
   let target;
   try {
     target = fs.realpathSync(full);
   } catch {
-    fs.rmSync(full, { force: true });
+    fs.unlinkSync(full);
     return 0;
   }
-  fs.rmSync(full, { force: true });
+  fs.unlinkSync(full);
   fs.cpSync(target, full, { recursive: true, dereference: true });
   return 1;
 }
