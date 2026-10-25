@@ -239,3 +239,42 @@ test("activating a pending member keeps an earlier email verification time", asy
   assert.equal(updated?.status, "active");
   assert.equal(updated?.emailVerifiedAt, "2026-01-01T00:00:00.000Z");
 });
+
+test("a returning linked, active member signs in without re-linking or revoking their other sessions", async () => {
+  const f = fixture();
+  await f.seed();
+  const first = await resolveFederatedIdentity({ deps: f.deps, input: f.input });
+  assert.equal(first.kind, "signed_in");
+  const before = await f.deps.members.findById({ workspaceId: "ws", id: "member-1" });
+  f.clock.advanceMs(1);
+  const second = await resolveFederatedIdentity({ deps: f.deps, input: { ...f.input, startedAt: f.clock.nowIso() } });
+  assert.equal(second.kind, "signed_in");
+  assert.deepEqual(await f.deps.members.findById({ workspaceId: "ws", id: "member-1" }), before, "no re-activation or credential cutoff");
+  const live = (await f.deps.sessions.listByMember({ workspaceId: "ws", memberId: "member-1" })).filter(session => !session.revokedAt);
+  assert.equal(live.length, 2, "the earlier session stays live");
+});
+
+test("a uniqueness race retries the whole link transaction exactly once; any other failure is not retried", async () => {
+  const f = fixture();
+  let calls = 0;
+  const transaction = f.deps.transaction;
+  const raced: MemberLoginLinkDeps = { ...f.deps, transaction: async run => {
+    calls++;
+    if (calls === 1) throw Object.assign(new Error("UNIQUE constraint failed: member_external_identities.subject"), { code: "SQLITE_CONSTRAINT_UNIQUE" });
+    return transaction(run);
+  } };
+  assert.equal((await resolveFederatedIdentity({ deps: raced, input: f.input })).kind, "signed_in");
+  assert.equal(calls, 2);
+
+  const g = fixture();
+  let failures = 0;
+  const broken: MemberLoginLinkDeps = { ...g.deps, transaction: async () => { failures++; throw new Error("disk I/O error"); } };
+  await assert.rejects(resolveFederatedIdentity({ deps: broken, input: g.input }), rejectsWith("LOGIN_INVALID"));
+  assert.equal(failures, 1);
+
+  const h = fixture();
+  let races = 0;
+  const twice: MemberLoginLinkDeps = { ...h.deps, transaction: async () => { races++; throw Object.assign(new Error("dup"), { code: "23505" }); } };
+  await assert.rejects(resolveFederatedIdentity({ deps: twice, input: h.input }), rejectsWith("LOGIN_INVALID"));
+  assert.equal(races, 2, "a second race is not retried again");
+});
