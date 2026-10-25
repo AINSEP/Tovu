@@ -146,6 +146,7 @@
     "@jini-ai/registry": "^0.6.12",
     "@jini-ai/sandbox": "^0.6.12",
     "@jini-ai/search": "^0.6.12",
+    "@jini-ai/server": "^0.6.12",
     "@jini-ai/sidecar": "^0.6.12",
     "@jini-ai/ui": "^0.6.12",
     "@jini-ai/user-management": "^0.6.12",
