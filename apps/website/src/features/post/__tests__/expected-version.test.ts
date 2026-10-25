@@ -18,3 +18,14 @@ for (const raw of [NaN, Infinity, -Infinity]) {
     });
   });
 }
+
+// Stryker lane L14 (expected-version.ts 73.7 %, versionConflictEnvelope never ran in its own suite).
+test("versionConflictEnvelope carries the message, the stable code and BOTH versions as structured fields", async () => {
+  const { versionConflictEnvelope, VERSION_CONFLICT_CODE } = await import("../expected-version.js");
+  const { PostVersionConflictError } = await import("../post.js");
+  assert.equal(VERSION_CONFLICT_CODE, "VERSION_CONFLICT");
+  assert.deepEqual(versionConflictEnvelope(new PostVersionConflictError("post 'p' changed", 3, 5)), {
+    error: "post 'p' changed", code: "VERSION_CONFLICT", details: { expectedVersion: 3, currentVersion: 5 },
+  });
+  assert.deepEqual(versionConflictEnvelope(new PostVersionConflictError("m", 0, 0)).details, { expectedVersion: 0, currentVersion: 0 });
+});
