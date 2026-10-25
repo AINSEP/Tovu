@@ -104,7 +104,7 @@ None observed. Note: `claude-filesystem-policy.ts:73-79` version floor (`2.1.285
 `claude-filesystem-policy.ts` lines 23, 46, 77, 84, 86, 87 (12 mutants): extraAllowedDirs/imagePaths path loop, catch fallback, version-floor minor comparison, `claudeFilesystemRuntimePaths` body (asset dir derivation for `.js` entrypoints). No test reaches them.
 
 ## 6. NOT RUN
-agent-runtime: all other `src/*.ts` (model-discovery*, telemetry-sink, log-file, opencode-log, claude-stream, copilot-stream, qoder-stream, registry, paths, executables, detection, mcp, native-runtime, etc.), `src/defs/`, `src/providers/`, `src/agent-protocol/`. Not run by instruction scope (L3 list = the 10 priority files first; remainder not started to stay well inside caps — plenty of budget remained, so these could be a follow-up lane). Wall used ~45 min of 4 h.
+agent-runtime: all other `src/*.ts` (model-discovery*, telemetry-sink, log-file, opencode-log, claude-stream, copilot-stream, qoder-stream, registry, paths, executables, detection, mcp, native-runtime, etc.), `src/defs/`, `src/providers/`, `src/agent-protocol/`. Not run by instruction scope (L3 list = the 10 priority files first; remainder not started to stay well inside caps — plenty of budget remained, so these could be a follow-up lane). Wall used ~41 min of 4 h.
 
 ## 7. What these numbers do NOT catch
 Type checks off (type-invalid mutants count as survivors/killed by chance); StringLiteral excluded (error/message text and string-enum values untested by this metric — also command names/flags inside strings, e.g. argv literals); indirect kills (any test in the package counts, perTest coverage); untested inputs that code never handles; equivalent mutants unfiltered; `.tsx`/UI and barrels excluded; mcp `testing/` fakes excluded; process/OS-dependent behaviour (win32 branches) mutated only where the host is linux.
@@ -121,4 +121,4 @@ Type checks off (type-invalid mutants count as survivors/killed by chance); Stri
 9. mcp `federation/stdio/adapter.stdio.ts:101-103` — Windows command paths (`C:\x\npx.cmd`) classified correctly.
 10. mcp tool descriptors (component-catalog, run-tools, message-relay, tool-catalog) — `toEqual` of inputSchema/required/additionalProperties/annotations, and run-tools omitted-optional body keys.
 
-L3 DONE 2026-10-25T16:50Z, wall ~55 min, ~0.15M tokens (rough).
+L3 DONE 2026-10-25T16:37Z, wall ~41 min, ~0.15M tokens (rough).
