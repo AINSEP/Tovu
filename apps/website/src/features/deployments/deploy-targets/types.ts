@@ -214,3 +214,18 @@ export interface DeployTargetRegistry {
   /** Log-safe, one sentence per plugin or target that was NOT loaded, and why. */
   readonly refusals: readonly string[];
 }
+
+/** Installed metadata is independent of activation, credential configuration and executable code. */
+export interface InstalledDeployTarget {
+  readonly descriptor: DeployTargetDescriptor;
+  readonly pluginId: string;
+  /** null means the activation record could not be read; never interpret it as consent. */
+  readonly enabled: boolean | null;
+}
+export interface InstalledDeployTargetInventory {
+  readonly items: readonly InstalledDeployTarget[];
+  readonly refusals: readonly string[];
+}
+export type LoadInstalledDeployTargets = (
+  required: { readonly workspaceId: string }, optional?: Record<string, never>,
+) => Promise<InstalledDeployTargetInventory>;

@@ -6,7 +6,7 @@ import { renderPostPreview } from "../template-preview-render.js";
 import { registerAdminPostTemplatePreviewRoute } from "../template-preview.js";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveStaticMenusForRender, renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 
 import { bareDeps, barePost } from "./preview-fixtures.js";
@@ -188,4 +188,30 @@ test("route (direct invoke): an unexpected repository failure is a plain 500 'pr
   };
   const invoke = previewHandler(deps);
   assert.deepEqual(await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: {}, body: {} }), { status: 500, text: 'preview render failed' });
+});
+
+test("assigned menu links match in editor preview and the public template pipeline used by export", async () => {
+  const post = { ...barePost, status: "published" as const, templateChoice: "page.html", bodyHtml: "<p>Content</p>" };
+  const { deps } = bareDeps([post]);
+  const theme = {
+    manifest: { id: "bound-menu", name: "Bound menu", version: "1", tier: "static", engine: 1, templates: ["page.html"] },
+    dir: "/unused", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { page: `<html><body><nav data-embed-config='{"type":"menu","id":"primary"}'></nav><main data-embed-config='{"type":"content"}'></main></body></html>` },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme;
+  deps.themes = [theme];
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: theme.manifest.id, updatedAt: post.updatedAt }] });
+  const { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } = await import("#src/features/navigation/index");
+  deps.menuRepo = new InMemoryMenuRepo({}, { initialRows: [{
+    id: "assigned", workspaceId: "w", slug: "different-slug", title: "Assigned", status: "published",
+    doc: { type: NAV_DOC_TYPE, version: 1, items: [{ id: "link", label: "Assigned link", target: { kind: "url", href: "/assigned-link" } }] },
+    locations: ["primary"], updatedAt: post.updatedAt, version: 1,
+  }] });
+  deps.navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
+  await deps.navLocationBindingRepo.upsert({ workspaceId: "w", locationKey: "primary", menuId: "assigned", boundAt: post.updatedAt });
+  const menus = await resolveStaticMenusForRender(deps, theme, "/draft-slug");
+  const publicHtml = await renderViaTemplate(deps, theme, post, menus);
+  const preview = await renderPostPreview(deps, { post });
+  assert.equal(preview.html, publicHtml);
+  assert.match(publicHtml, /href="\/assigned-link"/);
 });

@@ -2083,3 +2083,34 @@ test('publish-host update with a blank secret skips the replacement check and ke
   const resolved = await resolveForPublish({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets!, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, id: row!.id });
   assert.deepEqual(resolved?.connection, { providerId: 's3-compatible', ...VALID_FORM_SUBMISSION, bucket: 'renamed-bucket' });
 });
+
+test("capabilities offer every installed host with truthful activation and enable guidance", async () => {
+  const { deps, setAllow } = fakeDeps({ credentialSource: {
+    isConfigured: async () => ({ configured: false, reason: "not configured" }),
+    resolve: async () => { throw new Error("Capabilities must not resolve credentials"); },
+  } });
+  const ids = ["host-a", "host-b", "host-c", "host-d", "host-e"];
+  const targets: LoadedDeployTarget[] = ids.map(id => ({
+    pluginId: id, descriptor: { id, label: id, module: "target.mjs", configFields: [] },
+    module: { create: () => { throw new Error("Discovery must never publish"); } },
+  }));
+  const executable = targets.slice(0, 3);
+  deps.loadDeployTargets = async () => ({ list: () => executable, get: id => executable.find(item => item.descriptor.id === id), refusals: [] });
+  let inventoryReads = 0;
+  deps.loadInstalledDeployTargets = async ({ workspaceId }) => {
+    inventoryReads++; assert.equal(workspaceId, deps.workspaceId);
+    return { items: targets.map(({ descriptor, pluginId }, index) => ({ descriptor, pluginId, enabled: index < 3 })), refusals: ["refused fixture"] };
+  };
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_get_static_publish_capabilities");
+  const result = await call(capabilities) as { providers: { providerId: string; pluginId: string; enabled: boolean; ready: boolean; executable: boolean; credentialConfigured: boolean | null; guidance: string }[]; refusals: string[] };
+  assert.deepEqual(result.providers.map(item => item.providerId), ids);
+  assert.deepEqual(result.providers.map(item => item.enabled), [true, true, true, false, false]);
+  assert.ok(result.providers.every(item => item.ready === false));
+  assert.equal(result.providers[3]!.credentialConfigured, null);
+  assert.equal(result.providers[3]!.executable, false);
+  assert.match(result.providers[3]!.guidance, /host-d.*Agent Plugins/);
+  assert.deepEqual(result.refusals, ["refused fixture"]);
+  setAllow(false);
+  await assert.rejects(call(capabilities), /deployments.read/);
+  assert.equal(inventoryReads, 1, "denied reads must not enumerate installed hosts");
+});

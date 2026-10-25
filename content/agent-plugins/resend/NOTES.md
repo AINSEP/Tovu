@@ -48,3 +48,5 @@ behaviours generically; the vendor detail lives here.
   are hyphenated and most carry no annotations, so the federation's per-call confirm classifier
   (which splits on `_` and knows `delete`, not `remove`) would let removals and `send-broadcast` run
   without a card; keeping them out of the defaults is the plugin-side guard until that is fixed.
+
+- **0.2.1 (2026-10-25).** Version bump distributes the token-based account authentication declaration to already installed bundled packages.
