@@ -5,7 +5,8 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 import { createNoopObservabilityPort, type ObservabilityPort, type OperationAttributes } from "#src/platform/observability/index";
-import { createAssistantToolExecutor, delegatedToolErrorDisclosure, withToolCallObservability } from "../../tool-recovery-preset.js";
+import { createAssistantToolExecutor, delegatedToolErrorDisclosure, withToolCallAnalytics, withToolCallObservability } from "../../tool-recovery-preset.js";
+import type { ProductAnalyticsPort } from "#src/platform/product-analytics/index";
 
 /**
  * @file One scripted assistant tool-call scenario, driven through the REAL delegated-tool route and
@@ -24,7 +25,7 @@ export const SCENARIO_CALLS = ["pages_list", "theme_set", "deploy_run", "no_such
 export const SCENARIO_USER_ID = "principal-observability";
 
 /** Runs every scenario call in order and returns the HTTP-facing result kinds the route produced. */
-export async function runToolCallScenario({ observability }: { observability: ObservabilityPort }): Promise<string[]> {
+export async function runToolCallScenario({ observability, analytics }: { observability: ObservabilityPort; analytics?: ProductAnalyticsPort }): Promise<string[]> {
   const registry = createToolRegistry({});
   const allow = { authorize: () => "allow" as const };
   registry.register({ descriptor: { id: "pages_list" }, policy: allow, handler: async () => ({ pages: 3 }) });
@@ -32,7 +33,10 @@ export async function runToolCallScenario({ observability }: { observability: Ob
   registry.register({ descriptor: { id: "deploy_run" }, policy: allow, handler: () => { throw new Error(`deploy failed: key=${SCENARIO_SECRET}`); } });
   const toolFailures = { mintErrorId: () => "ERR-AAAA-1111-BBBB-2222", onFailure: () => undefined };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const toolExecutor = withToolCallObservability({ inner: createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures }, {}), observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) });
+  const isRegisteredTool = ({ toolId }: { toolId: string }) => registry.has({ toolId });
+  // Same composition as `agent-daemon-server.ts`: analytics inside, observability outermost.
+  const analyzed = withToolCallAnalytics({ inner: createAssistantToolExecutor({ registry, surfaceExchanges, toolFailures }, {}), analytics }, { isRegisteredTool });
+  const toolExecutor = withToolCallObservability({ inner: analyzed, observability }, { isRegisteredTool });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-observability" });
   const kinds: string[] = [];
@@ -82,4 +86,13 @@ export const EXPECTED_OPERATIONS: NormalizedOperation[] = [
   { name: "tool.call", toolId: "deploy_run", userId: SCENARIO_USER_ID, outcome: "failed", failed: true, errorKind: "internal", reported: ["ToolExecutionFailure"] },
   { name: "tool.call", toolId: "unregistered", userId: SCENARIO_USER_ID, outcome: "threw", failed: true, errorKind: "validation", reported: [] },
   { name: "tool.call", toolId: "unregistered", userId: SCENARIO_USER_ID, outcome: "threw", failed: true, errorKind: "validation", reported: [] },
+];
+
+/** The product events every analytics adapter must reproduce for {@link SCENARIO_CALLS} (consent given). */
+export const EXPECTED_PRODUCT_EVENTS = [
+  { name: "tool_call", userId: SCENARIO_USER_ID, properties: { tool_id: "pages_list", outcome: "completed", failed: false } },
+  { name: "tool_call", userId: SCENARIO_USER_ID, properties: { tool_id: "theme_set", outcome: "failed", failed: true, error_kind: "validation" } },
+  { name: "tool_call", userId: SCENARIO_USER_ID, properties: { tool_id: "deploy_run", outcome: "failed", failed: true, error_kind: "internal" } },
+  { name: "tool_call", userId: SCENARIO_USER_ID, properties: { tool_id: "unregistered", outcome: "threw", failed: true } },
+  { name: "tool_call", userId: SCENARIO_USER_ID, properties: { tool_id: "unregistered", outcome: "threw", failed: true } },
 ];

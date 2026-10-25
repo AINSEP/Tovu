@@ -59,6 +59,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { createProductAnalytics, createTelemetryConsent, resolvePostHogConfig } from "#src/platform/product-analytics/index";
 import { resolveObservabilityConfig, resolveSentryConfig, createObservabilityPort, instrumentStorageKernel, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
@@ -1269,6 +1270,9 @@ async function composeSiteRouteDeps(
   const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ dbOps: storeBound.dbOps, workspaceId, identity, clock, idGen, overrides });
   const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
   const settingsRepo = new SqliteSettingsRepo(kernel);
+  // Off unless POSTHOG_API_KEY is set; even then nothing is sent until the operator consents
+  // (`core.privacy.telemetry.metrics`, read per event). See `platform/product-analytics/index.ts`.
+  const productAnalytics = createProductAnalytics({ config: resolvePostHogConfig({ env: process.env }), consent: createTelemetryConsent({ settingsRepo, workspaceId }) }, { onDispose: (dispose) => onStoreClose(dispose) });
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
   // settings boot sequence being ready.
@@ -2423,6 +2427,7 @@ async function composeSiteRouteDeps(
     bus,
     // Built in the prelude (see `observability`'s construction above for the rule-of-two it follows).
     observability,
+    productAnalytics,
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,

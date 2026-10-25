@@ -200,7 +200,7 @@ import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pe
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { delegatedToolErrorDisclosure, withToolCallObservability } from "#src/assistant/tool-recovery-preset";
+import { delegatedToolErrorDisclosure, withToolCallAnalytics, withToolCallObservability } from "#src/assistant/tool-recovery-preset";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
@@ -717,7 +717,10 @@ const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolE
 // itself when telemetry is off. The delegated-tool route takes it; the MCP-UI callback route (a
 // human answering a surface) still takes the bare executor — prototype scope, see the plan.
 // `isRegisteredTool`: an id the registry does not know is exported only as a fixed label (review 10-25 #1).
-const observedToolExecutor = withToolCallObservability({ inner: toolExecutor, observability: routeDeps.observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) });
+// Inside it, `withToolCallAnalytics`: one `tool_call` product event per call (off unless PostHog is
+// configured AND the operator consented; the executor itself otherwise).
+const observedToolExecutor = withToolCallObservability({ inner: withToolCallAnalytics({ inner: toolExecutor, analytics: routeDeps.productAnalytics }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) }),
+  observability: routeDeps.observability }, { isRegisteredTool: ({ toolId }) => registry.has({ toolId }) });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see

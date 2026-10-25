@@ -9,7 +9,8 @@ import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
   createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure,
-  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis, withToolCallObservability as withDaemonToolCallObservability, type IsRegisteredTool } from "@jini-ai/daemon/tool-recovery";
+  withFederatedRefusalDiagnosis as withDaemonFederationDiagnosis, withToolCallObservability as withDaemonToolCallObservability, withToolCallAnalytics as withDaemonToolCallAnalytics, type IsRegisteredTool } from "@jini-ai/daemon/tool-recovery";
+import { isNoopProductAnalytics, type ProductAnalyticsPort } from "#src/platform/product-analytics/index";
 import { isNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
   DelegatedInternalErrorContext, FederationBootStatus } from "@jini-ai/daemon/tool-recovery";
@@ -125,4 +126,12 @@ export function withFederatedRefusalDiagnosis(required: { inner: ToolExecutor; g
 export function withToolCallObservability(required: { inner: ToolExecutor; observability: ObservabilityPort }, optional: { isRegisteredTool?: IsRegisteredTool } = {}): ToolExecutor {
   if (isNoopObservabilityPort(required.observability)) return required.inner;
   return withDaemonToolCallObservability(required, optional);
+}
+
+/** Each tool call as one `tool_call` PRODUCT event (which tool, how it ended, by whom — pseudonymous)
+ * on the injected product-analytics port. Off (absent or the noop port), the executor is returned
+ * as-is. Consent and PII rules are the port's (`platform/product-analytics`), not this wrapper's. */
+export function withToolCallAnalytics(required: { inner: ToolExecutor; analytics?: ProductAnalyticsPort | undefined }, optional: { isRegisteredTool?: IsRegisteredTool } = {}): ToolExecutor {
+  if (!required.analytics || isNoopProductAnalytics(required.analytics)) return required.inner;
+  return withDaemonToolCallAnalytics({ inner: required.inner, analytics: required.analytics }, optional);
 }

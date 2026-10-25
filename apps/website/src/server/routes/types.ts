@@ -957,6 +957,10 @@ export interface EventBusDeps {
  */
 export interface ObservabilityDeps {
   observability: ObservabilityPort;
+  /** How owners use Tovu (`platform/product-analytics`): the guarded PostHog provider when
+   * `POSTHOG_API_KEY` is set AND the operator consented (`core.privacy.telemetry.metrics`), else the
+   * noop. Optional: hermetic roots and fixtures omit it, which means "off". */
+  productAnalytics?: import("../../platform/product-analytics/index.js").ProductAnalyticsPort;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
    * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds
