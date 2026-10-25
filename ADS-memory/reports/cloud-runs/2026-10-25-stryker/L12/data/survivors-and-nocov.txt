@@ -1,3 +1,15 @@
+### run: api-conn-oauth-callback
+api-connections/oauth-callback.ts	mut=108 killed=65 timeout=6 surv=9 nocov=1 err=0 ign=27 score=87.7
+  N 82:30 ObjectLiteral -> {}
+  S 47:7 ConditionalExpression -> false
+  S 69:50 ObjectLiteral -> {}
+  S 69:103 ConditionalExpression -> true
+  S 79:263 BlockStatement -> {}
+  S 80:7 ConditionalExpression -> true
+  S 80:7 EqualityOperator -> Object.keys(input.fields).length !== 0
+  S 80:7 ConditionalExpression -> false
+  S 100:44 ObjectLiteral -> {}
+  S 106:25 EqualityOperator -> state.length >= MAX_STATE_LENGTH
 ### run: api-keys
 api-keys/create-principal.ts	mut=13 killed=5 timeout=5 surv=2 nocov=0 err=0 ign=1 score=83.3
   S 36:24 OptionalChaining -> req.body.displayName
@@ -14,6 +26,49 @@ api-keys/revoke.ts	mut=12 killed=5 timeout=5 surv=0 nocov=0 err=0 ign=2 score=10
 composition/app-permission-grants.ts	mut=9 killed=9 timeout=0 surv=0 nocov=0 err=0 ign=0 score=100.0
 ### run: authorize-guard
 admin-http/authorize-guard.ts	mut=11 killed=9 timeout=0 surv=0 nocov=0 err=0 ign=2 score=100.0
+### run: b-bind-host
+boot/bind-host.ts	mut=32 killed=26 timeout=0 surv=0 nocov=0 err=0 ign=6 score=100.0
+### run: b-boot-listener
+boot/boot-listener.ts	mut=7 killed=6 timeout=0 surv=1 nocov=0 err=0 ign=0 score=85.7
+  S 37:11 ConditionalExpression -> false
+### run: b-dev-tls
+boot/dev-tls.ts	mut=38 killed=32 timeout=0 surv=0 nocov=0 err=0 ign=6 score=100.0
+### run: b-local-owner-signin
+boot/local-owner-signin.ts	mut=234 killed=179 timeout=0 surv=12 nocov=0 err=4 ign=39 score=93.7
+  S 33:5 ConditionalExpression -> true
+  S 33:38 ConditionalExpression -> true
+  S 45:20 ConditionalExpression -> false
+  S 46:14 Regex -> /[a-f0-9]{64}$/
+  S 46:14 Regex -> /^[a-f0-9]{64}/
+  S 77:45 EqualityOperator -> launcherPid <= 1
+  S 115:7 ConditionalExpression -> false
+  S 115:7 LogicalOperator -> url.username && url.password
+  S 115:44 BooleanLiteral -> true
+  S 131:7 ConditionalExpression -> false
+  S 131:7 LogicalOperator -> !host && !origin
+  S 156:51 ObjectLiteral -> {}
+### run: b-mail-delivery-policy
+boot/mail-delivery-policy.ts	mut=20 killed=14 timeout=0 surv=1 nocov=0 err=0 ign=5 score=93.3
+  S 52:10 ConditionalExpression -> true
+### run: b-parent-watchdog
+boot/parent-watchdog.ts	mut=54 killed=46 timeout=0 surv=0 nocov=0 err=0 ign=8 score=100.0
+### run: b-site-key-boot-notice
+boot/site-key-boot-notice.ts	mut=63 killed=30 timeout=0 surv=3 nocov=1 err=0 ign=29 score=88.2
+  N 83:28 ArrowFunction -> () => undefined
+  S 103:46 ObjectLiteral -> {}
+  S 124:14 ConditionalExpression -> false
+  S 124:43 LogicalOperator -> status.envVarName && "TOVU_SITE_KEY"
+### run: b-site-listener-origin
+boot/site-listener-origin.ts	mut=20 killed=4 timeout=0 surv=9 nocov=0 err=0 ign=7 score=30.8
+  S 9:20 ConditionalExpression -> true
+  S 9:20 ConditionalExpression -> false
+  S 9:20 ConditionalExpression -> true
+  S 9:20 LogicalOperator -> host && host !== '0.0.0.0' || host !== '::'
+  S 9:20 LogicalOperator -> host || host !== '0.0.0.0'
+  S 9:28 ConditionalExpression -> true
+  S 9:28 EqualityOperator -> host === '0.0.0.0'
+  S 9:50 ConditionalExpression -> true
+  S 9:50 EqualityOperator -> host === '::'
 ### run: canonical-site-host
 middleware/canonical-site-host.ts	mut=59 killed=38 timeout=2 surv=6 nocov=0 err=0 ign=13 score=87.0
   S 9:18 ConditionalExpression -> false
@@ -24,6 +79,88 @@ middleware/canonical-site-host.ts	mut=59 killed=38 timeout=2 surv=6 nocov=0 err=
   S 28:50 Regex -> /\/(?:admin|api|health|healthz|readyz)(?:\/|$)/i
 ### run: content-db-schema-guard
 boot/content-db-schema-guard.ts	mut=33 killed=22 timeout=0 surv=0 nocov=0 err=0 ign=11 score=100.0
+### run: dev-auth-pass3
+admin-http/dev-auth.ts	mut=147 killed=24 timeout=8 surv=10 nocov=70 err=0 ign=35 score=28.6
+  N 120:5 ConditionalExpression -> case "session":
+  N 122:5 ConditionalExpression -> case "api_key":
+  N 124:5 ConditionalExpression -> case "publish_key":
+  N 224:35 ObjectLiteral -> {}
+  N 224:47 BooleanLiteral -> false
+  N 224:92 BooleanLiteral -> false
+  N 225:7 ConditionalExpression -> true
+  N 225:7 ConditionalExpression -> false
+  N 225:25 ObjectLiteral -> {}
+  N 226:54 ObjectLiteral -> {}
+  N 226:66 BooleanLiteral -> false
+  N 226:111 BooleanLiteral -> false
+  N 362:7 ConditionalExpression -> true
+  N 362:7 ConditionalExpression -> false
+  N 362:7 EqualityOperator -> getAuthedCredentialKind(res) !== "session"
+  N 362:58 BooleanLiteral -> false
+  N 364:45 ObjectLiteral -> {}
+  N 367:14 ObjectLiteral -> {}
+  N 370:10 BooleanLiteral -> true
+  N 520:143 BlockStatement -> {}
+  N 522:7 ConditionalExpression -> true
+  N 522:7 ConditionalExpression -> false
+  N 522:41 ObjectLiteral -> {}
+  N 522:113 BooleanLiteral -> false
+  N 523:41 ObjectLiteral -> {}
+  N 531:30 ObjectLiteral -> {}
+  N 532:25 BlockStatement -> {}
+  N 532:31 ConditionalExpression -> true
+  N 532:31 ConditionalExpression -> false
+  N 533:12 ArrowFunction -> () => undefined
+  N 592:28 ObjectLiteral -> {}
+  N 599:9 BlockStatement -> {}
+  N 601:35 ObjectLiteral -> {}
+  N 603:16 ObjectLiteral -> {}
+  N 603:22 BooleanLiteral -> false
+  N 605:28 ObjectLiteral -> {}
+  N 651:9 ConditionalExpression -> true
+  N 651:9 ConditionalExpression -> false
+  N 651:9 LogicalOperator -> !localOwnerSignIn.enabled && localOwnerSignIn.acceptsCapabil
+  N 651:9 BooleanLiteral -> localOwnerSignIn.enabled
+  N 651:39 ConditionalExpression -> false
+  N 651:39 LogicalOperator -> localOwnerSignIn.acceptsCapability || !localOwnerSignIn.acce
+  N 652:7 BooleanLiteral -> localOwnerSignIn.acceptsCapability({   capability: req.get("
+  N 652:43 ObjectLiteral -> {}
+  N 652:101 BlockStatement -> {}
+  N 653:28 ObjectLiteral -> {}
+  N 656:9 ConditionalExpression -> true
+  N 656:9 ConditionalExpression -> false
+  N 656:9 LogicalOperator -> !isLoopbackPeer(req) && !allowsLocalOwnerSignInRequest({   h
+  N 656:9 BooleanLiteral -> isLoopbackPeer(req)
+  N 656:33 BooleanLiteral -> allowsLocalOwnerSignInRequest({   host: req.headers.host,   
+  N 656:64 ObjectLiteral -> {}
+  N 659:9 BlockStatement -> {}
+  N 660:28 ObjectLiteral -> {}
+  N 664:9 BlockStatement -> {}
+  N 666:58 ObjectLiteral -> {}
+  N 667:11 ConditionalExpression -> true
+  N 667:11 ConditionalExpression -> false
+  N 667:21 BlockStatement -> {}
+  N 667:32 ObjectLiteral -> {}
+  N 667:40 ObjectLiteral -> {}
+  N 669:54 ObjectLiteral -> {}
+  N 669:90 ObjectLiteral -> {}
+  N 672:11 BooleanLiteral -> principal
+  N 672:11 ConditionalExpression -> true
+  N 672:11 ConditionalExpression -> false
+  N 673:25 ObjectLiteral -> {}
+  N 674:16 ObjectLiteral -> {}
+  N 674:24 ObjectLiteral -> {}
+  N 675:21 BlockStatement -> {}
+  S 436:10 ConditionalExpression -> true
+  S 530:7 BooleanLiteral -> port
+  S 530:7 ConditionalExpression -> true
+  S 530:7 ConditionalExpression -> false
+  S 639:74 OptionalChaining -> req.body.token
+  S 640:11 ConditionalExpression -> false
+  S 641:25 ObjectLiteral -> {}
+  S 736:9 ConditionalExpression -> true
+  S 736:9 EqualityOperator -> defaultPasswordByHash.size < 256
+  S 741:57 ObjectLiteral -> {}
 ### run: dev-auth
 admin-http/dev-auth.ts	mut=387 killed=161 timeout=7 surv=38 nocov=112 err=0 ign=69 score=52.8
   N 118:80 BlockStatement -> {}
@@ -176,6 +313,8 @@ admin-http/dev-auth.ts	mut=387 killed=161 timeout=7 surv=38 nocov=112 err=0 ign=
   S 711:43 OptionalChaining -> userRow.username
   S 741:57 ObjectLiteral -> {}
   S 742:9 ConditionalExpression -> true
+### run: error-respond
+error-mapping/respond.ts	mut=14 killed=13 timeout=0 surv=0 nocov=0 err=0 ign=1 score=100.0
 ### run: ext-mcp-guard
 external-mcp/guard.ts	mut=23 killed=17 timeout=0 surv=0 nocov=0 err=0 ign=6 score=100.0
 ### run: external-mcp-oauth-callback
@@ -185,6 +324,114 @@ external-mcp/oauth-callback.ts	mut=79 killed=46 timeout=11 surv=1 nocov=0 err=0 
 publish-trust/handshake.ts	mut=118 killed=97 timeout=1 surv=2 nocov=0 err=0 ign=18 score=98.0
   S 106:7 ConditionalExpression -> false
   S 110:7 ConditionalExpression -> false
+### run: m-complete-sign-in
+members/complete-sign-in.ts	mut=70 killed=35 timeout=9 surv=5 nocov=10 err=0 ign=11 score=74.6
+  N 31:91 BlockStatement -> {}
+  N 37:61 BlockStatement -> {}
+  N 38:26 ObjectLiteral -> {}
+  N 45:64 BlockStatement -> {}
+  N 46:26 ObjectLiteral -> {}
+  N 57:28 Regex -> /\d{6}$/
+  N 57:28 Regex -> /^\d{6}/
+  N 57:28 Regex -> /^\d$/
+  N 57:28 Regex -> /^\D{6}$/
+  N 57:62 ObjectLiteral -> {}
+  S 37:7 ConditionalExpression -> false
+  S 45:7 ConditionalExpression -> false
+  S 45:7 LogicalOperator -> options.reset || error instanceof MemberValidationError
+  S 57:7 ConditionalExpression -> false
+  S 81:47 ObjectLiteral -> {}
+### run: m-oidc-callback
+members/oidc-callback.ts	mut=92 killed=51 timeout=12 surv=14 nocov=1 err=0 ign=14 score=80.8
+  N 19:97 ObjectLiteral -> {}
+  S 18:7 ConditionalExpression -> false
+  S 18:58 ConditionalExpression -> false
+  S 19:7 ConditionalExpression -> false
+  S 19:7 LogicalOperator -> (!code || code.length > 4096 || !state) && state.length > 16
+  S 19:7 ConditionalExpression -> false
+  S 19:7 LogicalOperator -> (!code || code.length > 4096) && !state
+  S 19:7 ConditionalExpression -> false
+  S 19:7 LogicalOperator -> !code && code.length > 4096
+  S 19:16 ConditionalExpression -> false
+  S 19:16 EqualityOperator -> code.length >= 4096
+  S 19:48 ConditionalExpression -> false
+  S 19:48 EqualityOperator -> state.length >= 16384
+  S 32:7 ConditionalExpression -> false
+  S 50:11 ConditionalExpression -> false
+### run: m-oidc-start
+members/oidc-start.ts	mut=42 killed=17 timeout=14 surv=3 nocov=2 err=0 ign=6 score=86.1
+  N 17:21 BlockStatement -> {}
+  N 17:43 ObjectLiteral -> {}
+  S 14:11 ConditionalExpression -> false
+  S 15:50 ObjectLiteral -> {}
+  S 29:11 ConditionalExpression -> false
+### run: m-oidc-verify-email
+members/oidc-verify-email.ts	mut=95 killed=41 timeout=9 surv=24 nocov=4 err=0 ign=17 score=64.1
+  N 13:92 ObjectLiteral -> {}
+  N 18:99 ObjectLiteral -> {}
+  N 24:99 ObjectLiteral -> {}
+  N 45:67 ObjectLiteral -> {}
+  S 13:7 ConditionalExpression -> false
+  S 13:7 LogicalOperator -> (!body || typeof body !== "object") && Array.isArray(body)
+  S 13:7 LogicalOperator -> !body && typeof body !== "object"
+  S 13:7 ConditionalExpression -> false
+  S 13:16 ConditionalExpression -> false
+  S 15:7 LogicalOperator -> Object.keys(record).length !== 3 && !Object.keys(record).eve
+  S 15:7 ConditionalExpression -> false
+  S 15:44 MethodExpression -> Object.keys(record).some(key => ["continuation", "challengeI
+  S 15:160 ObjectLiteral -> {}
+  S 18:7 LogicalOperator -> typeof record.code !== "string" && !/^\d{6}$/.test(record.co
+  S 18:7 ConditionalExpression -> false
+  S 18:7 ConditionalExpression -> false
+  S 18:43 Regex -> /\d{6}$/
+  S 18:43 Regex -> /^\d{6}/
+  S 24:7 ConditionalExpression -> false
+  S 24:7 LogicalOperator -> (typeof value !== "string" || !value) && value.length > maxL
+  S 24:7 ConditionalExpression -> false
+  S 24:7 LogicalOperator -> typeof value !== "string" && !value
+  S 24:7 ConditionalExpression -> false
+  S 24:46 ConditionalExpression -> false
+  S 24:46 EqualityOperator -> value.length >= maxLength
+  S 37:11 ConditionalExpression -> false
+  S 45:11 ConditionalExpression -> false
+  S 48:16 ObjectLiteral -> {}
+### run: m-unlink-identity
+members/unlink-identity.ts	mut=110 killed=51 timeout=9 surv=29 nocov=6 err=0 ign=15 score=63.2
+  N 19:59 ObjectLiteral -> {}
+  N 31:44 ObjectLiteral -> {}
+  N 45:44 ObjectLiteral -> {}
+  N 51:68 ObjectLiteral -> {}
+  N 68:113 BlockStatement -> {}
+  N 69:36 ObjectLiteral -> {}
+  S 16:67 ObjectLiteral -> {}
+  S 18:7 ConditionalExpression -> false
+  S 19:7 ConditionalExpression -> true
+  S 19:7 BooleanLiteral -> member.emailVerifiedAt
+  S 19:7 ConditionalExpression -> false
+  S 21:34 ObjectLiteral -> {}
+  S 21:61 ObjectLiteral -> {}
+  S 22:40 ObjectLiteral -> {}
+  S 31:7 ConditionalExpression -> false
+  S 45:7 ConditionalExpression -> false
+  S 48:9 ConditionalExpression -> true
+  S 48:9 EqualityOperator -> age > 0
+  S 48:21 EqualityOperator -> age < 900000
+  S 48:64 ObjectLiteral -> {}
+  S 51:7 LogicalOperator -> !identity && identity.unlinkedAt
+  S 51:7 ConditionalExpression -> false
+  S 57:72 ObjectLiteral -> {}
+  S 68:11 ConditionalExpression -> false
+  S 68:11 LogicalOperator -> (!req.body || typeof req.body !== "object" || Array.isArray(
+  S 68:11 ConditionalExpression -> false
+  S 68:11 LogicalOperator -> (!req.body || typeof req.body !== "object") && Array.isArray
+  S 68:11 ConditionalExpression -> false
+  S 68:11 LogicalOperator -> !req.body && typeof req.body !== "object"
+  S 68:24 ConditionalExpression -> false
+  S 72:11 ConditionalExpression -> false
+  S 72:48 ObjectLiteral -> {}
+  S 73:11 ConditionalExpression -> false
+  S 77:16 ObjectLiteral -> {}
+  S 77:22 BooleanLiteral -> false
 ### run: members-pw
 members/me.ts	mut=56 killed=38 timeout=6 surv=5 nocov=2 err=0 ign=5 score=86.3
   N 25:27 ObjectLiteral -> {}
@@ -236,8 +483,37 @@ boot/process-error-guards.ts	mut=16 killed=0 timeout=0 surv=0 nocov=11 err=0 ign
   N 98:56 Regex -> /\s/g
   N 98:56 Regex -> /\S+/g
   N 99:13 BlockStatement -> {}
+### run: production-readiness-gate
+boot/production-readiness-gate.ts	mut=116 killed=88 timeout=0 surv=8 nocov=1 err=0 ign=19 score=90.7
+  N 84:43 BooleanLiteral -> false
+  S 61:27 BlockStatement -> {}
+  S 83:9 ConditionalExpression -> false
+  S 83:36 BlockStatement -> {}
+  S 84:14 ConditionalExpression -> false
+  S 84:14 EqualityOperator -> (raw as () => boolean)() !== true
+  S 87:11 BlockStatement -> {}
+  S 133:11 BlockStatement -> {}
+  S 194:24 BooleanLiteral -> true
 ### run: public-page-security-headers
 middleware/public-page-security-headers.ts	mut=22 killed=18 timeout=1 surv=0 nocov=0 err=0 ign=3 score=100.0
+### run: publish-credentials-pass2
+system/publish-credentials.ts	mut=160 killed=99 timeout=21 surv=16 nocov=0 err=2 ign=22 score=88.2
+  S 111:9 ConditionalExpression -> true
+  S 112:9 ConditionalExpression -> true
+  S 113:9 ConditionalExpression -> true
+  S 114:9 ConditionalExpression -> true
+  S 216:69 ObjectLiteral -> {}
+  S 224:84 ArrowFunction -> () => undefined
+  S 236:28 ObjectLiteral -> {}
+  S 247:28 ObjectLiteral -> {}
+  S 250:18 ObjectLiteral -> {}
+  S 291:28 ConditionalExpression -> true
+  S 309:11 ConditionalExpression -> true
+  S 309:11 LogicalOperator -> before || body.worksFor !== undefined
+  S 309:21 ConditionalExpression -> true
+  S 350:11 ConditionalExpression -> true
+  S 350:11 ConditionalExpression -> false
+  S 350:60 ObjectLiteral -> {}
 ### run: publish-credentials
 system/publish-credentials.ts	mut=160 killed=87 timeout=0 surv=25 nocov=26 err=0 ign=22 score=63.0
   N 136:60 BlockStatement -> {}
@@ -291,6 +567,17 @@ system/publish-credentials.ts	mut=160 killed=87 timeout=0 surv=25 nocov=26 err=0
   S 309:21 ConditionalExpression -> true
   S 341:9 ConditionalExpression -> false
   S 348:57 ObjectLiteral -> {}
+### run: publish-trust-auth-pass2
+admin-http/publish-trust-auth.ts	mut=53 killed=38 timeout=0 surv=9 nocov=0 err=0 ign=6 score=80.9
+  S 196:10 OptionalChaining -> grant?.publicKeys.find(key => key.generation === generation)
+  S 196:42 ConditionalExpression -> true
+  S 231:17 BlockStatement -> {}
+  S 231:9 ConditionalExpression -> false
+  S 238:72 ArrowFunction -> () => undefined
+  S 239:40 BlockStatement -> {}
+  S 423:8 ConditionalExpression -> true
+  S 239:9 ConditionalExpression -> false
+  S 423:30 ObjectLiteral -> {}
 ### run: publish-trust-auth
 admin-http/publish-trust-auth.ts	mut=109 killed=59 timeout=0 surv=15 nocov=22 err=0 ign=13 score=61.5
   N 405:56 BlockStatement -> {}
@@ -356,6 +643,97 @@ users/remove-policy-permission.ts	mut=75 killed=33 timeout=4 surv=11 nocov=13 er
   S 66:44 EqualityOperator -> row.id !== String(req.params.policyPermissionId ?? "")
   S 66:62 LogicalOperator -> req.params.policyPermissionId && ""
   S 67:15 ConditionalExpression -> false
+### run: request-cookie
+http/request-cookie.ts	mut=4 killed=3 timeout=0 surv=0 nocov=0 err=0 ign=1 score=100.0
+### run: settings-shared
+settings/shared.ts	mut=119 killed=7 timeout=0 surv=2 nocov=85 err=0 ign=25 score=7.4
+  N 41:87 BlockStatement -> {}
+  N 42:10 ObjectLiteral -> {}
+  N 44:12 ObjectLiteral -> {}
+  N 44:21 ArrowFunction -> () => undefined
+  N 47:47 ObjectLiteral -> {}
+  N 165:99 BlockStatement -> {}
+  N 167:44 ObjectLiteral -> {}
+  N 171:102 BlockStatement -> {}
+  N 172:9 BlockStatement -> {}
+  N 172:43 BlockStatement -> {}
+  N 173:11 ConditionalExpression -> true
+  N 173:11 ConditionalExpression -> false
+  N 173:11 EqualityOperator -> input.namespace !== "core.mail"
+  N 173:44 OptionalChaining -> required.deps.mailProviderControl?.invalidate()
+  N 173:44 OptionalChaining -> required.deps.mailProviderControl.invalidate
+  N 178:10 ObjectLiteral -> {}
+  N 179:10 ArrowFunction -> () => undefined
+  N 179:37 ArrowFunction -> () => undefined
+  N 179:44 LogicalOperator -> required.deps.set && set
+  N 179:70 ObjectLiteral -> {}
+  N 180:12 ArrowFunction -> () => undefined
+  N 180:51 BlockStatement -> {}
+  N 180:87 ObjectLiteral -> {}
+  N 181:12 ArrowFunction -> () => undefined
+  N 181:51 BlockStatement -> {}
+  N 181:87 ObjectLiteral -> {}
+  N 198:50 BlockStatement -> {}
+  N 199:100 ObjectLiteral -> {}
+  N 200:7 ConditionalExpression -> true
+  N 200:7 ConditionalExpression -> false
+  N 200:7 EqualityOperator -> required.code === undefined
+  N 201:7 ConditionalExpression -> true
+  N 201:7 ConditionalExpression -> false
+  N 201:7 EqualityOperator -> required.details === undefined
+  N 202:34 ObjectLiteral -> {}
+  N 217:49 BlockStatement -> {}
+  N 218:60 ArrayDeclaration -> ["Stryker was here"]
+  N 219:117 ObjectLiteral -> {}
+  N 221:12 ArrowFunction -> () => undefined
+  N 221:24 ObjectLiteral -> {}
+  N 223:54 BlockStatement -> {}
+  N 226:11 ConditionalExpression -> true
+  N 226:11 ConditionalExpression -> false
+  N 226:11 LogicalOperator -> method !== "get" && Array.isArray((input.body as {   definit
+  N 226:11 ConditionalExpression -> true
+  N 226:11 LogicalOperator -> method !== "get" || Array.isArray((input.body as {   definit
+  N 226:11 ConditionalExpression -> true
+  N 226:11 EqualityOperator -> method === "get"
+  N 226:45 OptionalChaining -> (input.body as {   definitions?: unknown; } | null).definiti
+  N 227:44 ObjectLiteral -> {}
+  N 227:132 ArrayDeclaration -> []
+  N 227:155 BlockStatement -> {}
+  N 228:31 ObjectLiteral -> {}
+  N 231:11 ConditionalExpression -> true
+  N 231:11 ConditionalExpression -> false
+  N 231:11 LogicalOperator -> method !== "get" || (await touchesAssistantSubagents({   bod
+  N 231:11 ConditionalExpression -> true
+  N 231:11 EqualityOperator -> method === "get"
+  N 231:63 ObjectLiteral -> {}
+  N 231:142 BlockStatement -> {}
+  N 232:31 ObjectLiteral -> {}
+  N 234:17 ObjectLiteral -> {}
+  N 234:39 ObjectLiteral -> {}
+  N 236:6 ObjectLiteral -> {}
+  N 236:15 ObjectLiteral -> {}
+  N 237:35 BlockStatement -> {}
+  N 238:11 ConditionalExpression -> true
+  N 238:11 ConditionalExpression -> false
+  N 238:11 EqualityOperator -> String(raw.params.workspaceId ?? "") === deps.workspaceId
+  N 238:18 LogicalOperator -> raw.params.workspaceId && ""
+  N 238:70 BlockStatement -> {}
+  N 239:31 ObjectLiteral -> {}
+  N 242:44 BlockStatement -> {}
+  N 243:69 BlockStatement -> {}
+  N 245:43 ObjectLiteral -> {}
+  N 246:11 BooleanLiteral -> result.allowed
+  N 246:11 ConditionalExpression -> true
+  N 246:11 ConditionalExpression -> false
+  N 246:50 ObjectLiteral -> {}
+  N 248:37 ObjectLiteral -> {}
+  N 251:34 BlockStatement -> {}
+  N 252:11 ConditionalExpression -> true
+  N 252:11 ConditionalExpression -> false
+  N 252:50 BlockStatement -> {}
+  N 256:18 ObjectLiteral -> {}
+  S 146:51 ObjectLiteral -> {}
+  S 156:10 ObjectLiteral -> {}
 ### run: site-consent
 middleware/site-consent.ts	mut=143 killed=19 timeout=0 surv=2 nocov=105 err=0 ign=17 score=15.1
   N 54:111 BlockStatement -> {}
@@ -465,6 +843,25 @@ middleware/site-consent.ts	mut=143 killed=19 timeout=0 surv=2 nocov=105 err=0 ig
   N 166:15 ArrowFunction -> () => undefined
   S 36:55 ObjectLiteral -> {}
   S 44:20 Regex -> /(?:localhost|127(?:\.\d+){3}|\[::1\])$/
+### run: site-key-pass2
+system/site-key.ts	mut=168 killed=96 timeout=18 surv=12 nocov=5 err=0 ign=37 score=87.0
+  N 250:66 BlockStatement -> {}
+  N 251:26 ObjectLiteral -> {}
+  N 252:12 BooleanLiteral -> false
+  N 298:57 BlockStatement -> {}
+  N 299:30 ObjectLiteral -> {}
+  S 228:29 ConditionalExpression -> false
+  S 250:7 ConditionalExpression -> false
+  S 274:9 ConditionalExpression -> true
+  S 274:9 LogicalOperator -> !status.active || !status.invalid
+  S 274:83 BooleanLiteral -> true
+  S 298:11 ConditionalExpression -> false
+  S 309:82 OptionalChaining -> (req.body as {   siteKey?: unknown; } | undefined).siteKey
+  S 319:21 OptionalChaining -> (req.body as {   confirm?: unknown; } | undefined).confirm
+  S 436:7 ConditionalExpression -> true
+  S 467:24 ConditionalExpression -> true
+  S 467:7 LogicalOperator -> status.active || status.fingerprint !== undefined
+  S 470:7 ConditionalExpression -> false
 ### run: site-key
 system/site-key.ts	mut=386 killed=163 timeout=8 surv=24 nocov=106 err=0 ign=85 score=56.8
   N 207:66 BooleanLiteral -> false
@@ -599,6 +996,44 @@ system/site-key.ts	mut=386 killed=163 timeout=8 surv=24 nocov=106 err=0 ign=85 s
   S 541:44 ObjectLiteral -> {}
 ### run: site-serving-gate
 middleware/site-serving-gate.ts	mut=30 killed=19 timeout=2 surv=0 nocov=0 err=0 ign=9 score=100.0
+### run: site-share
+routes/site-share.ts	mut=42 killed=20 timeout=7 surv=8 nocov=0 err=0 ign=7 score=77.1
+  S 14:25 OptionalChaining -> required.registry.findToken
+  S 14:54 ObjectLiteral -> {}
+  S 17:99 BooleanLiteral -> true
+  S 17:120 BooleanLiteral -> true
+  S 17:141 BooleanLiteral -> true
+  S 19:18 ConditionalExpression -> true
+  S 19:18 ConditionalExpression -> false
+  S 21:19 ConditionalExpression -> true
+### run: site-shares-admin
+system/site-shares.ts	mut=190 killed=108 timeout=37 surv=18 nocov=0 err=0 ign=27 score=89.0
+  S 12:34 ConditionalExpression -> false
+  S 14:31 ConditionalExpression -> false
+  S 14:61 Regex -> /[0-9a-f-]{36}$/
+  S 14:61 Regex -> /^[0-9a-f-]{36}/
+  S 28:56 ObjectLiteral -> {}
+  S 50:107 BooleanLiteral -> true
+  S 50:128 BooleanLiteral -> true
+  S 50:152 LogicalOperator -> error || !res.headersSent
+  S 54:15 ConditionalExpression -> true
+  S 60:15 ConditionalExpression -> true
+  S 60:36 BooleanLiteral -> false
+  S 65:11 ConditionalExpression -> false
+  S 65:11 LogicalOperator -> !SHARE_TOKEN.test(token) && !SHARE_FILE.test(file)
+  S 65:95 EqualityOperator -> req.body.length <= 4
+  S 76:40 ObjectLiteral -> {}
+  S 76:81 LogicalOperator -> row.token === req.params.token || row.file === req.params.fi
+  S 76:81 ConditionalExpression -> true
+  S 76:115 ConditionalExpression -> true
+### run: source-control-credentials-pass2
+system/source-control-credentials.ts	mut=118 killed=75 timeout=19 surv=6 nocov=0 err=0 ign=18 score=94.0
+  S 113:28 ObjectLiteral -> {}
+  S 116:18 ObjectLiteral -> {}
+  S 180:13 ConditionalExpression -> false
+  S 180:45 ObjectLiteral -> {}
+  S 181:44 ObjectLiteral -> {}
+  S 181:13 ConditionalExpression -> false
 ### run: source-control-credentials
 system/source-control-credentials.ts	mut=118 killed=89 timeout=0 surv=11 nocov=0 err=0 ign=18 score=89.0
   S 106:45 ObjectLiteral -> {}

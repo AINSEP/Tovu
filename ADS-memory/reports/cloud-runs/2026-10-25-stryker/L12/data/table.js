@@ -7,5 +7,5 @@ for(const f of fs.readdirSync('/root/stryker/reports').filter(f=>f.endsWith('.js
 rows.sort((a,b)=>a.sc-b.sc);
 let T={tot:0,k:0,s:0,nc:0,den:0};
 console.log('| file | run | mutants | scored | killed | surv | nocov | score |\n|--|--|--|--|--|--|--|--|');
-for(const r of rows){console.log(`| ${r.p} | ${r.run} | ${r.tot} | ${r.den} | ${r.k} | ${r.s} | ${r.nc} | ${isNaN(r.sc)?'-':r.sc.toFixed(1)}% |`);T.tot+=r.tot;T.k+=r.k;T.s+=r.s;T.nc+=r.nc;T.den+=r.den}
+for(const r of rows){const pass=/-pass\d$/.test(r.run)||r.run==='remove-policy-permission';console.log(`| ${r.p} | ${r.run}${pass?' (follow-up, not in totals)':''} | ${r.tot} | ${r.den} | ${r.k} | ${r.s} | ${r.nc} | ${isNaN(r.sc)?'-':r.sc.toFixed(1)}% |`);if(!pass){T.tot+=r.tot;T.k+=r.k;T.s+=r.s;T.nc+=r.nc;T.den+=r.den}}
 console.log(`\nTOTAL files=${rows.length} mutants=${T.tot} scored=${T.den} killed=${T.k} surv=${T.s} nocov=${T.nc} score=${(100*T.k/T.den).toFixed(1)}%`);

@@ -40,3 +40,34 @@ u-update-policy exit=0 wall=134s
 api-keys exit=0 wall=459s
 ext-mcp-guard exit=0 wall=119s
 QUEUE3DONE
+m-oidc-callback exit=0 wall=227s
+m-oidc-start exit=0 wall=217s
+m-oidc-verify-email exit=0 wall=201s
+m-unlink-identity exit=0 wall=221s
+m-complete-sign-in exit=0 wall=250s
+QUEUE4DONE
+dev-auth-pass2 exit=1 wall=42s
+production-readiness-gate exit=0 wall=24s
+b-local-owner-signin exit=0 wall=321s
+b-bind-host exit=0 wall=35s
+b-boot-readiness-gate exit=1 wall=32s
+b-site-listener-origin exit=0 wall=12s
+b-boot-listener exit=0 wall=12s
+b-dev-tls exit=0 wall=23s
+b-parent-watchdog exit=0 wall=18s
+b-site-key-boot-notice exit=0 wall=32s
+b-mail-delivery-policy exit=0 wall=15s
+request-cookie exit=0 wall=12s
+error-respond exit=0 wall=15s
+QUEUE5DONE
+publish-trust-auth-pass2 exit=0 wall=125s
+publish-credentials-pass2 exit=0 wall=852s
+site-key-pass2 exit=0 wall=1021s
+source-control-credentials-pass2 exit=0 wall=545s
+QUEUE6DONE
+dev-auth-pass3 exit=0 wall=299s
+api-conn-oauth-callback exit=0 wall=93s
+site-share exit=0 wall=79s
+site-shares-admin exit=0 wall=422s
+settings-shared exit=0 wall=21s
+publish-site exit=1 wall=25s
