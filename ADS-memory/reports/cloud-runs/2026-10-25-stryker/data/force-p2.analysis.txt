@@ -1,0 +1,50 @@
+TOTAL {'Ignored': 361, 'Killed': 1946, 'Survived': 132, 'static': 485, 'Timeout': 7, 'KilledCollection': 10, 'staticSurvived': 15, 'KilledVitestTimeout': 61} score 93.67 strict 90.41
+src/admin-surfaces/host-validator.ts                         n= 153 K= 117(vto 14, coll 0) T=  0 S= 17 NC= 0 RE=0 CE=0 static=4/0S  87.31%
+src/admin-surfaces/surface-client.ts                         n= 299 K= 230(vto 32, coll 0) T=  0 S= 33 NC= 0 RE=0 CE=0 static=5/2S  87.45%
+src/admin-surfaces/external-links.ts                         n= 124 K=  90(vto 11, coll 0) T=  0 S= 11 NC= 0 RE=0 CE=0 static=0/0S  89.11%
+src/admin-surfaces/theme.ts                                  n=  30 K=  25(vto 0, coll 0) T=  0 S=  3 NC= 0 RE=0 CE=0 static=1/0S  89.29%
+src/admin-surfaces/settings-value.ts                         n=  68 K=  55(vto 0, coll 0) T=  0 S=  6 NC= 0 RE=0 CE=0 static=2/0S  90.16%
+src/admin-surfaces/action-tools.ts                           n=  55 K=  40(vto 0, coll 0) T=  0 S=  4 NC= 0 RE=0 CE=0 static=0/0S  90.91%
+src/admin-surfaces/surface-handlers.ts                       n= 207 K= 172(vto 0, coll 0) T=  0 S= 15 NC= 0 RE=0 CE=0 static=15/3S  91.98%
+src/admin-surfaces/surface-capabilities.ts                   n= 264 K= 223(vto 0, coll 0) T=  0 S= 19 NC= 0 RE=0 CE=0 static=19/2S  92.15%
+src/admin-surfaces/capability-declarations.ts                n= 149 K= 122(vto 0, coll 0) T=  0 S=  8 NC= 0 RE=0 CE=0 static=30/1S  93.85%
+src/admin-surfaces/sandbox.ts                                n=  81 K=  39(vto 0, coll 0) T=  0 S=  1 NC= 0 RE=0 CE=0 static=1/0S  97.50%
+src/admin-surfaces/delivery-bindings.ts                      n= 142 K= 125(vto 0, coll 0) T=  0 S=  3 NC= 0 RE=0 CE=0 static=7/0S  97.66%
+src/admin-surfaces/descriptor.ts                             n= 409 K= 336(vto 0, coll 9) T=  0 S=  8 NC= 0 RE=0 CE=0 static=274/7S  97.67%
+src/admin-surfaces/action-dispatcher.ts                      n=  73 K=  59(vto 0, coll 0) T=  0 S=  1 NC= 0 RE=0 CE=0 static=1/0S  98.33%
+src/admin-surfaces/action-schema.ts                          n= 332 K= 263(vto 0, coll 1) T=  6 S=  3 NC= 0 RE=0 CE=0 static=123/0S  98.90%
+src/admin-surfaces/callback-field-inbox.ts                   n=  27 K=  25(vto 0, coll 0) T=  1 S=  0 NC= 0 RE=0 CE=0 static=3/0S  100.00%
+src/admin-surfaces/contribution.ts                           n=  22 K=  19(vto 0, coll 0) T=  0 S=  0 NC= 0 RE=0 CE=0 static=0/0S  100.00%
+src/admin-surfaces/protocol.ts                               n=  11 K=   6(vto 4, coll 0) T=  0 S=  0 NC= 0 RE=0 CE=0 static=0/0S  100.00%
+COLLECTION-ERROR KILLS 10
+  ('src/admin-surfaces/action-schema.ts', 80, 'ConditionalExpression', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.security.test.ts: surfaces[0].actions[0].input required must list declared properties')
+  ('src/admin-surfaces/descriptor.ts', 66, 'Regex', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins[0] must be a unique bare https origin (no w')
+  ('src/admin-surfaces/descriptor.ts', 138, 'BooleanLiteral', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins must be an array of at most 8')
+  ('src/admin-surfaces/descriptor.ts', 138, 'EqualityOperator', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins must be an array of at most 8')
+  ('src/admin-surfaces/descriptor.ts', 139, 'ConditionalExpression', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins[0] must be a unique bare https origin (no w')
+  ('src/admin-surfaces/descriptor.ts', 139, 'BooleanLiteral', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins[0] must be a unique bare https origin (no w')
+  ('src/admin-surfaces/descriptor.ts', 140, 'ConditionalExpression', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/external-links.security.test.ts: surfaces[0].linkOrigins[-1] must be a unique bare https origin (no ')
+  ('src/admin-surfaces/descriptor.ts', 211, 'EqualityOperator', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.security.test.ts: surfaces[0].actions[0].result null')
+  ('src/admin-surfaces/descriptor.ts', 216, 'BooleanLiteral', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.security.test.ts: surfaces[0].csp must be an object')
+  ('src/admin-surfaces/descriptor.ts', 216, 'ConditionalExpression', 'STRYKER-FORCE-COLLECTION-ERROR src/admin-surfaces/__tests__/admin-surfaces.security.test.ts: surfaces[0].csp must be an object')
+VITEST-TIMEOUT KILLS 61
+  ('src/admin-surfaces/external-links.ts', 35, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 35, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 35, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 36, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 36, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 49, 'ObjectLiteral', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 50, 'ObjectLiteral', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 66, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 72, 'BooleanLiteral', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 72, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/external-links.ts', 74, 'ObjectLiteral', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 41, 'BlockStatement', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 42, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 42, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 44, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 44, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 44, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 45, 'ConditionalExpression', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 49, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
+  ('src/admin-surfaces/host-validator.ts', 49, 'EqualityOperator', 'Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it glo')
