@@ -51,7 +51,7 @@ export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: stri
   { id: "settings", label: "Settings", path: "/settings" },
   { id: "consent", label: "Cookie Consent", path: "/consent" },
   { id: "workspace", label: "Workspace", path: "/workspace" },
-  { id: "notifications", label: "Notifications", path: "/notifications" },
+  { id: "email", label: "Email", path: "/email" },
   { id: "trash", label: "Trash", path: "/trash" },
   { id: "seo", label: "SEO & Metadata", path: "/seo" },
   { id: "redirects", label: "Redirects", path: "/redirects" },
