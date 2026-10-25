@@ -22,6 +22,14 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## 🎬 CREDIT-BURN BACKLOG — pick from here when the owner has no tasks (owner 2026-10-24 ~10 PM)
+Owner: "when I don't have anything off the top of my head to do for Claude, I want to make motion graphics, videos, stuff that I can use to market this… maybe tomorrow we just do a bunch of videos." Use spare weekly credits on these, in this order:
+1. **Marketing videos + motion graphics (MAIN).** Make better Tovu demo videos, then cut them into short clips (~30 s, no dead time; voice clearly over music — measure the mix). Motion-graphics intros/explainers per feature (site chat, Pages, plugins, sign-in, deploy). Look-checks via Claude in Chrome; heavy renders in the cloud, never an unthrottled ffmpeg on the Mac.
+2. **Admin themes.** More admin looks (glassmorphic is parked; see "Admin theming consistency: ONE token authority" and "Admin themes explorable + editable" below — plan first).
+3. **End-to-end testing.** The scoped E2E program (deferred until after the test-rigor wave), run on fake-test-site in the cloud.
+Ideas to offer the owner (not approved yet): landing-page hero animations and screenshots, one short tutorial clip per agent plugin, social-post cutdowns (vertical 9:16) of each video.
+Every cloud run here still follows the iron rule: the owner approves a cost estimate and hard caps first.
+
 ## ⭐ HIGH PRIORITY, NOT NOW (owner 2026-10-24): Software factory on GitHub
 Owner: "a software factory on GitHub… when somebody creates an issue, there's a loop to solve it… people log bugs and that helps us fix it much faster." "We're not gonna do it for a while." Unbiased research (no tools named in the brief) is done: `ADS-memory/.local-artifacts/codex/2026-10-24-software-factory-research/out/software-factory-research.md`. It recommends a bounded issue → draft-PR pipeline where humans approve scope, merge and release. Start with GitHub controls (issue forms, rulesets, required CI and reviews, actionlint/zizmor), then triage in suggestion mode, then reproduce before fixing, then one sandboxed worker (mini-swe-agent) on maintainer-approved issues only. Also required: the 8 must-have safety controls for public issue text, and hard cost caps plus a kill switch. Next step when the owner restarts it: an Opus grade, or the owner picks parts. Also queued: an in-app "Report a bug" path that files a GitHub issue with secrets stripped.
 

@@ -1627,6 +1627,13 @@ button.jini-composer-leading,
   cursor: pointer;
 }
 
+/* Room around the title text so its hover/selected pill doesn't hug the letters (owner, 2026-10-24).
+   Doubled prefix: the chat package's runtime styles land after this file (see the header note). */
+.jini-chat-pane .jini-conv-title-button {
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
 .jini-conv-title-button:disabled { cursor: default; }
 
 .jini-conv-title-button:focus-visible {
