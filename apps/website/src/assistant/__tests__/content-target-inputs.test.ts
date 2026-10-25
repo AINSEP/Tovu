@@ -297,3 +297,45 @@ test("permanent-delete tools run beforeLookup with the tool and principal before
   await executeRegisteredTool({ registration: update!, input: { mediaId: "asset-1" } });
   assert.deepEqual(order, ["before:media_purge_asset:caller"], "an ordinary tool never runs beforeLookup");
 });
+
+test("content_post_preview keeps legacy postId precedence and refuses a blank or non-string target", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("content_post_preview", { id: {}, postId: {} }, sink)], deps });
+  await executeRegisteredTool({ registration: registration!, input: { postId: "legacy" } });
+  assert.deepEqual(sink.input, { postId: "legacy", id: "post-id-for-legacy" });
+  await executeRegisteredTool({ registration: registration!, input: { id: "new", postId: "legacy" } });
+  assert.deepEqual(sink.input, { id: "post-id-for-new", postId: "legacy" }, "id wins over postId");
+  for (const bad of [{ id: "  " }, { id: "" }, { postId: 7 }, { id: null }]) {
+    const result = await executeRegisteredTool({ registration: registration!, input: bad });
+    assert.equal(result.status, "failed", JSON.stringify(bad));
+    assert.match(result.error!, /content_post_preview: id must be a non-empty id or slug \(postId is a legacy alias\)\./);
+  }
+});
+
+test("pages_read_html needs one of id or slug", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("pages_read_html", { id: {}, slug: {} }, sink)], deps });
+  const result = await executeRegisteredTool({ registration: registration!, input: {} });
+  assert.match(result.error!, /pages_read_html: send exactly one of id or slug\./);
+  await executeRegisteredTool({ registration: registration!, input: { slug: "hello" } });
+  assert.deepEqual(sink.input, { id: "post-id-for-hello" });
+});
+
+test("media_view_video: slug is refused as a path, beside attachmentRef, or when it disagrees with mediaId", async () => {
+  const { deps } = recordingDeps();
+  const sink: { input?: unknown } = {};
+  const [registration] = applyContentTargetInputs({ registrations: [synthetic("media_view_video", { mediaId: {}, slug: {}, attachmentRef: {} }, sink)], deps });
+  for (const slug of ["", "a/b", "a\\b", "a\0b", 7]) {
+    const result = await executeRegisteredTool({ registration: registration!, input: { slug } });
+    assert.match(result.error!, /media_view_video: slug must be a nonempty media-library slug; filesystem paths are refused\./, JSON.stringify(slug));
+  }
+  const both = await executeRegisteredTool({ registration: registration!, input: { slug: "logo", attachmentRef: "att-1" } });
+  assert.match(both.error!, /media_view_video: pass a mediaId or slug, OR attachmentRef\./);
+  const disagree = await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1", slug: "missing" } });
+  assert.match(disagree.error!, /media_view_video: slug and mediaId disagree; send selectors for the same media asset\./);
+  const agree = await executeRegisteredTool({ registration: registration!, input: { mediaId: "asset-1", slug: "logo" } });
+  assert.equal(agree.status, "completed");
+  assert.deepEqual(sink.input, { mediaId: "asset-1" });
+});
