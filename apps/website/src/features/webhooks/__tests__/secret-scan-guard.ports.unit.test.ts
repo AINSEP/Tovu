@@ -174,6 +174,14 @@ function cli(root: string) {
   return { out, err, codes };
 }
 
+const GUIDANCE =
+  "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
+  "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
+  "legitimately needs this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in " +
+  "secret-scan-guard.ts with a reason, or — preferably — shorten/mutate the fixture so it no " +
+  "longer matches a real credential's exact length. A history rewrite to purge a real committed " +
+  "secret is a separate, human-approved step — this check cannot and does not do that.";
+
 test("main(): a clean repo logs OK, writes no errors and does not exit", (t) => {
   const repo = tempRepo(t);
   repo.write("ok.txt", "nothing here");
@@ -191,12 +199,14 @@ test("main(): a tip leak lists BOTH sections (it is also in history) and exits 1
   const r = cli(repo.root);
   assert.deepEqual(r.out, []);
   assert.deepEqual(r.codes, [1]);
-  assert.equal(r.err[0], "check:secret-scan — 1 credential-shaped string(s) found in tracked files:");
-  assert.equal(r.err[1], `  - leak.txt:2 [${GHP_NAME}]`);
-  assert.equal(r.err[2], "check:secret-scan — 1 credential-shaped string(s) found in git history (not necessarily present in the current tree):");
-  assert.equal(r.err[3], `  - leak.txt:2 [${GHP_NAME}]`);
-  assert.match(r.err[4] ?? "", /revoke\/rotate it immediately/);
-  assert.equal(r.err.length, 5);
+  // Whole output, byte for byte: a partial match would let the operator guidance drift unnoticed.
+  assert.deepEqual(r.err, [
+    "check:secret-scan — 1 credential-shaped string(s) found in tracked files:",
+    `  - leak.txt:2 [${GHP_NAME}]`,
+    "check:secret-scan — 1 credential-shaped string(s) found in git history (not necessarily present in the current tree):",
+    `  - leak.txt:2 [${GHP_NAME}]`,
+    GUIDANCE,
+  ]);
 });
 
 test("main(): a history-only leak omits the tracked-files section and still exits 1", (t) => {
@@ -207,9 +217,12 @@ test("main(): a history-only leak omits the tracked-files section and still exit
   repo.commit();
   const r = cli(repo.root);
   assert.deepEqual(r.codes, [1]);
-  assert.equal(r.err.some((l) => l.includes("found in tracked files")), false);
-  assert.equal(r.err[0], "check:secret-scan — 1 credential-shaped string(s) found in git history (not necessarily present in the current tree):");
-  assert.equal(r.err[1], `  - leak.txt:1 [${GHP_NAME}]`);
+  assert.deepEqual(r.out, []);
+  assert.deepEqual(r.err, [
+    "check:secret-scan — 1 credential-shaped string(s) found in git history (not necessarily present in the current tree):",
+    `  - leak.txt:1 [${GHP_NAME}]`,
+    GUIDANCE,
+  ]);
 });
 
 test("ALLOWLIST: each of the three reviewed entries allowlists exactly its own (file, pattern, value)", () => {

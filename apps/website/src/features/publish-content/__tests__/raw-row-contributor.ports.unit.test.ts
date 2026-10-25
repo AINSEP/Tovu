@@ -88,8 +88,11 @@ test("inspect: a read error, or a live row with a private column, is null (never
 });
 
 test("pack: covered or denied tables are skipped with a reason BEFORE any read; a read error and a vanished row are skipped", async () => {
+  // The custom read replaces the port's recorder, so record here: refused selections must never be read.
+  const reads: string[] = [];
   const port = fakePort([row("a")], {
     read: async (input) => {
+      reads.push(`${input.table}:${JSON.stringify(input.pk)}`);
       if ((input.pk as { id: string }).id === "err") throw new Error("disk says no");
       if ((input.pk as { id: string }).id === "err2") throw "not an Error";
       return (input.pk as { id: string }).id === "a" ? row("a") : null;
@@ -112,6 +115,7 @@ test("pack: covered or denied tables are skipped with a reason BEFORE any read; 
     "This row cannot be sent safely.",
     "The selected row no longer exists.",
   ]);
+  assert.deepEqual(reads, ['p_widgets:{"id":"err"}', 'p_widgets:{"id":"err2"}', 'p_widgets:{"id":"gone"}', 'p_widgets:{"id":"a"}']);
 });
 
 test("pack: more than 200 selected rows is refused outright; exactly 200 is accepted; no port packs nothing", async () => {

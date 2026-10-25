@@ -32,6 +32,14 @@ import {
  * start (see that file's history for the fix).
  */
 
+const GUIDANCE =
+  "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
+  "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
+  "legitimately needs this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in " +
+  "secret-scan-guard.ts with a reason, or — preferably — shorten/mutate the fixture so it no " +
+  "longer matches a real credential's exact length. A history rewrite to purge a real committed " +
+  "secret is a separate, human-approved step — this check cannot and does not do that.";
+
 test("a Google AIza key of the real 39-char length is flagged", () => {
   const fakeKey = `AIza${"x".repeat(35)}`; // 39 chars total — the real fixed length
   const hits = scanTextForSecrets(`const key = "${fakeKey}";`);
@@ -230,22 +238,36 @@ test("the real CLI succeeds on a clean repository and rejects text, binary and h
   commit();
   const clean = run();
   assert.equal(clean.status, 0, clean.stderr);
-  assert.match(clean.stdout, /OK: no credential-shaped string/);
+  assert.equal(clean.stdout, "check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.\n");
+  assert.equal(clean.stderr, "");
   const secret = "ghp_" + "a".repeat(36);
   fs.writeFileSync(path.join(repoRoot, "leak.txt"), `ordinary text\ntoken="${secret}"\n`);
   fs.writeFileSync(path.join(repoRoot, "leak.db"), Buffer.concat([Buffer.from([0]), Buffer.from(secret)]));
   commit();
   const leaking = run();
   assert.equal(leaking.status, 1, leaking.stderr);
-  assert.ok(leaking.stderr.includes("leak.txt:2 [GitHub personal access token (classic, ghp_)]"));
-  assert.ok(leaking.stderr.includes("leak.db:binary [GitHub personal access token (classic, ghp_)]"));
-  assert.equal(leaking.stderr.includes("localhost-key.pem"), false, "the reviewed exact allowlist pair is accepted");
+  // Complete streams, newlines included; the allowlisted localhost-key.pem must not appear.
+  const GHP = "GitHub personal access token (classic, ghp_)";
+  assert.equal(leaking.stdout, "");
+  assert.equal(leaking.stderr, [
+    "check:secret-scan — 2 credential-shaped string(s) found in tracked files:",
+    `  - leak.db:binary [${GHP}]`,
+    `  - leak.txt:2 [${GHP}]`,
+    "check:secret-scan — 2 credential-shaped string(s) found in git history (not necessarily present in the current tree):",
+    `  - leak.db:binary [${GHP}]`,
+    `  - leak.txt:2 [${GHP}]`,
+    GUIDANCE,
+  ].join("\n") + "\n");
   fs.writeFileSync(path.join(repoRoot, "leak.txt"), "removed");
   fs.writeFileSync(path.join(repoRoot, "leak.db"), "removed");
   commit();
   const historical = run();
   assert.equal(historical.status, 1, historical.stderr);
-  assert.match(historical.stderr, /found in git history/);
-  assert.equal(historical.stderr.includes("found in tracked files"), false);
-  assert.ok(historical.stderr.includes("leak.txt:2 [GitHub personal access token (classic, ghp_)]"));
+  assert.equal(historical.stdout, "");
+  assert.equal(historical.stderr, [
+    "check:secret-scan — 2 credential-shaped string(s) found in git history (not necessarily present in the current tree):",
+    `  - leak.db:binary [${GHP}]`,
+    `  - leak.txt:2 [${GHP}]`,
+    GUIDANCE,
+  ].join("\n") + "\n");
 });

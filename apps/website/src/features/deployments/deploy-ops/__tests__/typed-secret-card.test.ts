@@ -161,9 +161,16 @@ test("an already-aborted call never loads the deploy registry", async () => {
   const controller = new AbortController();
   controller.abort();
   let loads = 0;
+  let permits = 0;
+  const emitted: unknown[] = [];
   const deps = { ...h.f.deps, loadDeployOps: async () => { loads += 1; throw new Error("must not load"); } };
-  await collectTypedDeploySecret({ ctx: execution({}, controller.signal) as never, deps: deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => {} }, { emitSurface: async () => {} }).catch(() => undefined);
+  // No catch-all: an unrelated pre-load rejection must not pass as a clean cancellation.
+  const result = await collectTypedDeploySecret({ ctx: execution({}, controller.signal) as never, deps: deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => { permits += 1; } }, { emitSurface: async (e: unknown) => { emitted.push(e); } });
+  assert.deepEqual(result, { changed: false, cancelled: true });
   assert.equal(loads, 0);
+  assert.deepEqual(emitted, []);
+  assert.equal(permits, 0);
+  assert.deepEqual(h.calls, []);
 });
 
 test("a successful save returns the adapter's result and a success outcome, never the value", async () => {

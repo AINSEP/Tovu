@@ -64,13 +64,14 @@ test("checkRawTable: identifier shape is checked first, then the table deny-list
   assert.equal(checkRawTable({ table: "_p_x", columns: ["_id", "title"] }), null);
 });
 
-test("REGRESSION PIN: on the real migrated schema, sealed-credential tables are never sendable by hand", async () => {
+test("REGRESSION PIN: on the real migrated schema, sealed-credential tables are never sendable by hand", async (t) => {
   // `secrets_vault` is NOT on the table deny-list; today its rows are refused only because one column
   // (`owner_key`) matches the column rule. This pins the outcome so a column rename cannot silently
   // make sealed credentials sendable. (Reported to the owner as a defence-by-coincidence, F8 2026-10-25.)
   const { openContentDb } = await import("#src/platform/db/sqlite/content-db");
   const db = openContentDb(":memory:");
-  const client = (db as unknown as { $client: { prepare(sql: string): { all(): Array<{ name: string }> } } }).$client;
+  const client = (db as unknown as { $client: { prepare(sql: string): { all(): Array<{ name: string }> }; close(): void } }).$client;
+  t.after(() => client.close());
   for (const table of ["secrets_vault", "external_mcp_servers", "mail_send_ledger"]) {
     const columns = client.prepare(`PRAGMA table_info("${table}")`).all().map((c) => c.name);
     assert.ok(columns.length > 0, `${table} exists in the migrated schema`);
