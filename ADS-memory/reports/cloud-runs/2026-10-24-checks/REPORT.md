@@ -38,3 +38,17 @@ Fix: Codex extended URL_ATTRIBUTES with srcset/formaction/poster/xlink:href — 
 Refusal reason: CMS deliberately exposes no diagnostics (PluginExportsPort doc + Tovu exports/diagnostics.ts:1 "CMS deliberately exposes only public fallback"); the reason text is the thrown Error message, which the host can surface by calling fillPluginExportTemplate itself. Codex's "unresolved J2 shape" concern → no CMS shape change needed; host side covered in item 4.
 Tests: plugin-export.unit 64/64; plugin-export + resolve-html-page-embeds + html widget tests 91/91; full cms suite 4199 pass / 1 fail — subpath-isolation.contract (plugin-export.ts imports ../../consent/types.js across SI-domain) — import exists at 03dec0ae:plugin-export.ts:3 → PRE-EXISTING, not this change. `tsc --noEmit -p packages/cms` 0 errors; CCN clean; cms rebuilt.
 Open for owner: the pre-existing SI-domain violation (widgets → consent) in plugin-export.ts.
+
+## 2026-10-25T04:56:14Z — Item 3 — mail-s8 — PASS
+
+Commits: none needed (Tovu WIP a3c40e75 as-is).
+Freeze: `git diff c0e4943c5 a3c40e75^ -- <the 5 boot + 6 platform/mail files + mail-provider-catalog.ts>` → empty. Parity goldens: `git diff c0e4943c5 HEAD -- boot/__tests__/mail-engine-parity.unit.test.ts` → empty (byte-identical).
+Review: boot/{resolve-mailer,mail-delivery-policy,mail-domain-read,mail-status-cache,sender-domain-verification} and platform/mail/{provider-error,purpose-gate-probe,…} are thin bindings/re-exports of @jini-ai/platform/mail. Plugin HTTP casts kept byte-identical (resolve-mailer.ts:187 matches c0e4943c5:420) per review change 4; resendPolicyFor (members→never) stays in Tovu and is injected; purpose probe calls isPurposeGateOpen and still validates mode at construction; provider-error re-exports Jini's safeMailProviderText/credentialSecrets (redaction tests green). No generic code left in Tovu that belongs in Jini.
+Tests (Codex's command, 3 chunks, node --test --test-concurrency=1):
+- c1 boot suites incl. parity + new adoption + resolver/lifecycle/policy/status-cache/account-token + sender-domain-verification + site-mailer: 97/97 pass.
+- c2 platform/mail/**, mail-status, mail-dns-status, mail-cache-invalidation, resend plugin: 183 pass / 1 fail — purpose-scoped-mailer-call-sites.integration "real call sites use distinct lanes…" (providerSends [] after one setImmediate). Deterministic; ALSO FAILS in a worktree at a3c40e75^ (pre-WIP) with the same linked Jini → PRE-EXISTING (likely an extra async hop in linked Jini's gate vs the test's single setImmediate drain).
+- c3 members/**, member routes: 470 pass / 9 fail — all member-external-identities.postgres → ENV (no Postgres server).
+- Jini `pnpm --filter @jini-ai/platform exec vitest run src/mail`: 229/229 (18 files).
+Typecheck: Tovu `tsc -p tsconfig.json --noEmit` 0 errors (Codex's 6 out-of-scope errors are gone with the ask-choice Jini build). `tsc -p tsconfig.tests.json`: 344 errors repo-wide, none in the cutover files; mail-adjacent ones are in untouched tests (sender-domain-verification.test.ts:58 'restricted_api_key' vs Jini ProviderRejectedCode; mail-cache-invalidation.unit.test.ts:23 'secret' on SettingDefinitionSpec) → pre-existing test-type drift, listed only.
+CCN: all 12 cutover files clean (complexity + cognitive ≤10).
+Minor (not fixed): SURVEY.md ownership note lives in ADS-memory/.local-artifacts (untracked) — not in this branch; owner to confirm it landed on the Mac clone. Release gate (published-package typecheck) still pending the owner's publish.
