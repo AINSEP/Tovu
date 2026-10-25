@@ -1,0 +1,48 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.stryker.config.ts"
+ },
+ "mutate": [
+  "src/**/*.ts",
+  "!src/secrets/**",
+  "!src/mail/**",
+  "!src/http/**",
+  "!src/http.ts",
+  "!src/fetch-with-timeout.ts",
+  "!src/aws-sigv4.ts",
+  "!src/sandbox-env.ts",
+  "!src/child-environment.ts",
+  "!src/net/**",
+  "!**/__tests__/**",
+  "!**/*.test.ts",
+  "!**/*.spec.ts",
+  "!**/*.d.ts",
+  "!**/*.tsx"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "incremental": true,
+ "incrementalFile": "/root/stryker/reports/plat2.incremental.json",
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/plat2.json"
+ },
+ "clearTextReporter": {
+  "allowEmojis": false,
+  "logTests": false,
+  "maxTestsToLog": 0
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": true,
+ "disableTypeChecks": true
+}

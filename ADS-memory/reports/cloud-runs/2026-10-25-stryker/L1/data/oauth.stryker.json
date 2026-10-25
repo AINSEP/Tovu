@@ -1,0 +1,39 @@
+{
+ "testRunner": "vitest",
+ "vitest": {
+  "configFile": "vitest.config.ts"
+ },
+ "mutate": [
+  "src/**/*.ts",
+  "!**/__tests__/**",
+  "!**/*.test.ts",
+  "!**/*.spec.ts",
+  "!**/*.d.ts",
+  "!**/*.tsx"
+ ],
+ "coverageAnalysis": "perTest",
+ "concurrency": 3,
+ "incremental": true,
+ "incrementalFile": "/root/stryker/reports/oauth.incremental.json",
+ "mutator": {
+  "excludedMutations": [
+   "StringLiteral"
+  ]
+ },
+ "reporters": [
+  "json",
+  "clear-text",
+  "progress-append-only"
+ ],
+ "jsonReporter": {
+  "fileName": "/root/stryker/reports/oauth.json"
+ },
+ "clearTextReporter": {
+  "allowEmojis": false,
+  "logTests": false,
+  "maxTestsToLog": 0
+ },
+ "tempDirName": ".stryker-tmp",
+ "cleanTempDir": true,
+ "disableTypeChecks": true
+}
