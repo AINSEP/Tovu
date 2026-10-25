@@ -152,6 +152,8 @@ const EXPECTED_ALLOWLIST = [
   // Provider switching uses the same principal-bound plan confirmation as mail provider changes.
   "comments_set_provider",
   // Owner-approved policy cards and the host-secret form, each principal-bound and parked.
+  // members_delete: owner signed off 2026-10-25 (fix wave) on the members delete confirmation card.
+  "members_delete",
   "change_sets_revert",
   "collections_content_type_tombstone",
   "comments_trash_comment",

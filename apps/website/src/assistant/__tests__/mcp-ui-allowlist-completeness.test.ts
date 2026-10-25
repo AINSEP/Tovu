@@ -76,11 +76,15 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
+  // Visitor tool confirmations bind each exchange to its run's execution id on the
+  // "visitor-tool-confirmation" channel; the answer arrives on the visitor route, never on this
+  // MCP-UI endpoint (owner sign-off on the grown exemption map, 2026-10-25 fix wave).
+  ["assistant/site/visitor-confirmations.ts", new Set(["binding.executionId"])],
 ]);
 
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
 // Match the complete reviewed call and file: a different argument or receiver still fails closed.
-const NON_EXCHANGE_OPEN_CALLS = new Map([
+const NON_EXCHANGE_OPEN_CALLS = new Map<string, string | readonly string[]>([
   // c387a9b3e added the native theme watcher. Keep the full call reviewed, like the sealers below.
   ["features/theme/theme-watcher.ts", `watchPort.open({
       themesDir: required.themesDir,
@@ -97,7 +101,18 @@ const NON_EXCHANGE_OPEN_CALLS = new Map([
   ["features/vendor-credentials/vault-adapter.ts", "required.sealer.open(input, options)"],
   ["server/runtime/composition/site-key-recovery.ts", "input.previous.open(required, options)"],
   ["platform/secrets/vault-kinds.ts", "required.sealer.open(input, options)"],
+  // Member OIDC login: the sealed redirect state and the sealed post-callback continuation are
+  // stateless codecs (AES-GCM envelopes), not surface exchanges (2026-10-25 fix wave sign-off).
+  ["features/member-login/oidc-login.ts", [
+    "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
+    "continuationCodec(deps, input, config.version).open({ state: input.continuation })",
+  ]],
 ]);
+
+const reviewedOpenCalls = (file: string): readonly string[] => {
+  const reviewed = NON_EXCHANGE_OPEN_CALLS.get(file);
+  return reviewed === undefined ? [] : typeof reviewed === "string" ? [reviewed] : reviewed;
+};
 
 function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
   const sources = texts.map(({ file, text }) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true));
@@ -157,7 +172,7 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
         const callee = node.expression;
         if (ts.isPropertyAccessExpression(callee) && callee.name.text === "open") {
           // Typed sealer delegations and source-folder openers have no exchange binding.
-          const isNonExchangeOpen = NON_EXCHANGE_OPEN_CALLS.get(relative) === node.getText(source);
+          const isNonExchangeOpen = reviewedOpenCalls(relative).includes(node.getText(source));
           if (!isNonExchangeOpen && !property(node.arguments[0], "sealed")) record(property(node.arguments[0], "binding") ?? node.arguments[0], node);
         } else if (ts.isIdentifier(callee) && callee.text === "requireHumanConfirm") {
           record(property(node.arguments[0], "spec") ?? node.arguments[2], node);
@@ -236,7 +251,7 @@ test("the sealer adapter exemption leaves other unresolved open calls visible", 
 });
 
 test("reviewed non-exchange open calls do not hide new surface bindings in the same file", () => {
-  for (const [file, call] of NON_EXCHANGE_OPEN_CALLS) {
+  for (const [file, call] of [...NON_EXCHANGE_OPEN_CALLS.keys()].flatMap((key) => reviewedOpenCalls(key).map((reviewed) => [key, reviewed] as const))) {
     const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, file), text: `${call};\nstore.open({ binding: { toolId: unknownId } });` }]);
     assert.deepEqual(fixture.toolIds.size, 0);
     assert.deepEqual(fixture.unresolved, [`${file}:${call.split("\n").length + 1}: unknownId`]);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext } from "@jini-ai/core";
+import { ToolPermissionDeniedError, type ToolExecutionContext } from "@jini-ai/core";
 import { buildRegistrations, catalog, contributeIdentityPolicyListPermissionsTools, derivedRisk, type Deps } from "../permission-list-tool.js";
 
 /**
@@ -17,7 +17,7 @@ function harness(options: { allowed?: boolean } = {}) {
   const calls: { authorize: unknown[]; findById: unknown[]; list: unknown[] } = { authorize: [], findById: [], list: [] };
   const deps = {
     workspaceId: WS,
-    authorize: async (input: unknown) => { calls.authorize.push(input); return options.allowed ?? true; },
+    authorize: async (input: unknown) => { calls.authorize.push(input); return (options.allowed ?? true) ? { allowed: true } : { allowed: false, reason: "no-grant" }; },
     policyRepo: { findById: async (input: { workspaceId: string; id: string }) => { calls.findById.push(input); return input.workspaceId === WS && input.id === "pol-1" ? { id: "pol-1", workspaceId: WS, name: "p" } : null; } },
     policyPermissionRepo: { listByPolicyId: async (input: unknown) => { calls.list.push(input); return GRANTS; } },
   } as unknown as Deps;
@@ -48,9 +48,10 @@ test("an allowed caller gets the policy's permissions, read from this workspace"
 
 test("a caller without role.manage is refused before any policy is read", async () => {
   const h = harness({ allowed: false });
-  await assert.rejects(h.run({ policyId: "pol-1" }), (error: Error) => {
-    assert.notEqual(error.name, "ToolInputError");
-    assert.match(error.message, /role\.manage/);
+  await assert.rejects(h.run({ policyId: "pol-1" }), (error: Error & { permission?: string; reason?: string }) => {
+    assert.ok(error instanceof ToolPermissionDeniedError);
+    assert.equal(error.permission, "role.manage");
+    assert.equal(error.reason, "no-grant");
     return true;
   });
   assert.equal(h.calls.authorize.length, 1);
