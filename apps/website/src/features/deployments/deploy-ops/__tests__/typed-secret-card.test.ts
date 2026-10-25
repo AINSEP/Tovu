@@ -112,3 +112,60 @@ test("a typed dry run against an absent secret reports the comparison, changes n
   assert.match(outcomeText(emitted[1]), /failure/);
   assert.equal(JSON.stringify([result, emitted]).includes("typed-canary-value"), false);
 });
+
+// Stryker lane L14 (typed-secret-card.ts 63.3 %): the success outcome, the dismissed card, the
+// already-aborted call and the secret field's flags were unasserted.
+function answering(store: ReturnType<typeof createSurfaceExchangeStore>, params: Record<string, unknown>) {
+  const emitted: SurfaceEmission[] = [];
+  const emitSurface = async (surface: SurfaceEmission) => {
+    emitted.push(surface);
+    if (emitted.length > 1) return;
+    const text = (surface.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+    const exchangeId = text.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]!;
+    assert.deepEqual(store.deliver({ exchangeId, principalId: "principal", params }, { toolId: "deployment_ops_set_secret" }), { ok: true });
+  };
+  return { emitted, emitSurface };
+}
+
+test("the card's single field is the multiline, required, secret 'value' field, titled '<name> · <target>'", async () => {
+  const h = await harness({});
+  const { emitted, emitSurface } = answering(h.store, { __dismissed: true });
+  await collectTypedDeploySecret({ ctx: execution({}) as never, deps: h.f.deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => {} }, { emitSurface });
+  const text = outcomeText(emitted[0]);
+  assert.match(text, /STRIPE_KEY · shop/);
+  // Rendered as a masked, required <textarea> (multiline) — never a plain single-line input.
+  const control = text.match(/<(textarea|input)[^>]*name="value"[^>]*>/)?.[0] ?? "";
+  assert.match(control, /^<textarea /, "multiline: true renders a textarea");
+  assert.match(control, / required[ >]/);
+  assert.match(control, / data-mcpui-secret[ >]/);
+  assert.match(control, /autocomplete="off"/);
+});
+
+test("a dismissed card writes nothing, returns cancelled and emits no outcome", async () => {
+  const h = await harness({});
+  const { emitted, emitSurface } = answering(h.store, { __dismissed: true });
+  const result = await collectTypedDeploySecret({ ctx: execution({}) as never, deps: h.f.deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => { assert.fail("no permit when dismissed"); } }, { emitSurface });
+  assert.deepEqual(result, { changed: false, cancelled: true });
+  assert.equal(emitted.length, 1);
+  assert.deepEqual(h.calls, []);
+});
+
+test("an already-aborted call never loads the deploy registry", async () => {
+  const h = await harness({});
+  const controller = new AbortController();
+  controller.abort();
+  let loads = 0;
+  const deps = { ...h.f.deps, loadDeployOps: async () => { loads += 1; throw new Error("must not load"); } };
+  await collectTypedDeploySecret({ ctx: execution({}, controller.signal) as never, deps: deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => {} }, { emitSurface: async () => {} }).catch(() => undefined);
+  assert.equal(loads, 0);
+});
+
+test("a successful save returns the adapter's result and a success outcome, never the value", async () => {
+  const h = await harness({ [`GET ${API}`]: { status: 200, body: { secrets: [] } }, [`GET ${API}/STRIPE_KEY?reveal=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 200, body: {} } });
+  const { emitted, emitSurface } = submitter(h.store, "typed-canary-value");
+  const result = await collectTypedDeploySecret({ ctx: execution({}) as never, deps: h.f.deps as never, surfaces: h.surfaces as never, input: { platform: "example-host", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }, permit: async () => {} }, { emitSurface });
+  assert.equal((result as { changed: boolean }).changed, true);
+  assert.equal(emitted.length, 2);
+  assert.match(outcomeText(emitted[1]), /success/);
+  assert.equal(JSON.stringify([result, emitted]).includes("typed-canary-value"), false);
+});
