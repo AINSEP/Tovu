@@ -5,7 +5,7 @@ import { createNoopObservabilityPort, isNoopObservabilityPort, type Observabilit
 import { isNoopProductAnalytics, type ProductAnalyticsPort } from "@jini-ai/analytics/product";
 import { createPluginContributionRegistry, type PluginProviderFactory } from "@jini-ai/plugins/host";
 
-import { bootProviderPlugins, otlpAuthorization, PROVIDER_CONTRACTS, PROVIDER_PLUGIN_BINDINGS, providerPluginCredentialLabel, type ProviderPluginBinding, type ProviderPluginCredential } from "../provider-plugins.js";
+import { bootProviderPlugins, otlpAuthorization, PROVIDER_CONTRACTS, PROVIDER_PLUGIN_BINDINGS, providerPluginCredentialLabel, providerPluginCredentialOf, type ProviderPluginBinding, type ProviderPluginCredential } from "../provider-plugins.js";
 
 /**
  * @file Provider-plugin selection at boot, with DI fakes only (no vendor SDK, no network): a fake
@@ -237,4 +237,10 @@ test("a provider whose dispose fails is reported by phase through the warn sink"
   await ports.dispose({});
   for (let i = 0; i < 20 && warnings.length === 0; i += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(warnings, ["provider plugin 'observability-sentry' dispose failed"]);
+});
+
+test("a resolved saved credential maps to a card; no row means not configured", () => {
+  assert.equal(providerPluginCredentialOf({ resolved: null }), null);
+  assert.deepEqual(providerPluginCredentialOf({ resolved: { baseUrl: "https://c", connection: { token: "t" } } }), { baseUrl: "https://c", token: "t" });
+  assert.deepEqual(providerPluginCredentialOf({ resolved: { baseUrl: "https://c", connection: { token: "t", username: "u" } } }), { baseUrl: "https://c", token: "t", username: "u" });
 });

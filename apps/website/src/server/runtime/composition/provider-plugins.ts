@@ -43,6 +43,13 @@ export function providerPluginCredentialLabel({ pluginId }: { pluginId: string }
   return `plugin:${pluginId}`;
 }
 
+/** Maps a resolved saved credential (the custom credentials store's shape) to a card, or null. */
+export function providerPluginCredentialOf({ resolved }: { resolved: { baseUrl: string; connection: { token: string; username?: string } } | null }): ProviderPluginCredential | null {
+  if (!resolved) return null;
+  const { token, username } = resolved.connection;
+  return { baseUrl: resolved.baseUrl, token, ...(username ? { username } : {}) };
+}
+
 /** Generic OTLP auth: a username makes HTTP Basic (`user:token`), otherwise a bearer token. */
 export function otlpAuthorization({ credential }: { credential: ProviderPluginCredential }): Record<string, string> {
   if (credential.username) return { authorization: `Basic ${Buffer.from(`${credential.username}:${credential.token}`).toString("base64")}` };
