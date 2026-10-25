@@ -46,3 +46,30 @@ test("listToolCatalogEntries: reads the registry on every call, so a tool regist
 
   assert.deepEqual(listToolCatalogEntries(registry).at(-1), { id: "media_list_assets", source: "media", description: "" });
 });
+
+// L11 Stryker: the source classifier's fallback and the content_read family synthesis survived.
+test("source is the id's first `_` segment, falling back to tovu for an id with no prefix", () => {
+  const entries = listToolCatalogEntries({ list: () => [
+    { id: "forms_update", description: "x" }, { id: "_hidden", description: "x" }, { id: "single", description: "x" },
+  ] as never });
+  assert.deepEqual(entries.map(entry => [entry.id, entry.source]), [["forms_update", "forms"], ["_hidden", "tovu"], ["single", "single"]]);
+});
+
+test("describe('content_read') synthesizes the card family only when cards exist, naming each card's first sentence", () => {
+  const withCards = buildToolCatalogQuery({ list: () => [
+    { id: "content_read.post", description: "Reads one post. Lists posts too." },
+    { id: "content_read.media_asset", description: "" },
+    { id: "forms_update", description: "Updates a form." },
+  ] as never });
+  assert.deepEqual(withCards.describe({ id: "content_read" }), {
+    id: "content_read", source: "content",
+    description: [
+      "Read-card family. Describe a card id below for its inputs, then call that card.",
+      "content_read.post — Reads one post.",
+      "content_read.media_asset — Read media asset.",
+    ].join("\n"),
+  });
+  const withoutCards = buildToolCatalogQuery({ list: () => [{ id: "forms_update", description: "Updates a form." }] as never });
+  assert.equal(withoutCards.describe({ id: "content_read" }), null);
+  assert.equal(withoutCards.describe({ id: "no_such_tool" }), null);
+});
