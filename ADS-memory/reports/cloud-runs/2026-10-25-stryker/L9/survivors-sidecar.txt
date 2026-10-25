@@ -1,0 +1,176 @@
+src/json-ipc.ts:151:41 NOCOV ArrowFunction | socket.once("connect", () => settle(() => resolveStale(false))); => () => undefined
+src/json-ipc.ts:151:60 NOCOV BooleanLiteral | socket.once("connect", () => settle(() => resolveStale(false))); => true
+src/json-ipc.ts:42:27 ConditionalExpression | return value === "1" || value === "true" || value === "yes"; => false
+src/json-ipc.ts:42:47 ConditionalExpression | return value === "1" || value === "true" || value === "yes"; => false
+src/json-ipc.ts:49:3 AssignmentOperator | jsonIpcTraceSeq += 1; => jsonIpcTraceSeq -= 1
+src/json-ipc.ts:56:60 BlockStatement | function jsonIpcTraceDurationMs(startedAt: bigint): number { => {}
+src/json-ipc.ts:57:17 ArithmeticOperator | return Number((process.hrtime.bigint() - startedAt) / 1_000_000n); => (process.hrtime.bigint() - startedAt) * 1_000_000n
+src/json-ipc.ts:63:77 BlockStatement | function summarizeJsonIpcMessage(message: unknown): Record<string, unknown> { => {}
+src/json-ipc.ts:64:7 ConditionalExpression | if (message == null || typeof message !== "object") return { type: typeof message }; => true
+src/json-ipc.ts:57:18 ArithmeticOperator | return Number((process.hrtime.bigint() - startedAt) / 1_000_000n); => process.hrtime.bigint() + startedAt
+src/json-ipc.ts:64:7 ConditionalExpression | if (message == null || typeof message !== "object") return { type: typeof message }; => false
+src/json-ipc.ts:64:7 EqualityOperator | if (message == null || typeof message !== "object") return { type: typeof message }; => message != null
+src/json-ipc.ts:64:62 ObjectLiteral | if (message == null || typeof message !== "object") return { type: typeof message }; => {}
+src/json-ipc.ts:66:44 ObjectLiteral | const summary: Record<string, unknown> = { type: typeof input.type === "string" ? input.ty => {}
+src/json-ipc.ts:66:52 ConditionalExpression | const summary: Record<string, unknown> = { type: typeof input.type === "string" ? input.ty => true
+src/json-ipc.ts:66:52 ConditionalExpression | const summary: Record<string, unknown> = { type: typeof input.type === "string" ? input.ty => false
+src/json-ipc.ts:66:52 EqualityOperator | const summary: Record<string, unknown> = { type: typeof input.type === "string" ? input.ty => typeof input.type !== "string"
+src/json-ipc.ts:67:7 ConditionalExpression | if ("input" in input) { => true
+src/json-ipc.ts:67:25 BlockStatement | if ("input" in input) { => {}
+src/json-ipc.ts:67:7 ConditionalExpression | if ("input" in input) { => false
+src/json-ipc.ts:68:24 BooleanLiteral | summary.hasInput = true; => false
+src/json-ipc.ts:69:9 ConditionalExpression | if (input.input != null && typeof input.input === "object") { => false
+src/json-ipc.ts:69:9 ConditionalExpression | if (input.input != null && typeof input.input === "object") { => true
+src/json-ipc.ts:69:9 LogicalOperator | if (input.input != null && typeof input.input === "object") { => input.input != null || typeof input.input === "obj
+src/json-ipc.ts:69:9 ConditionalExpression | if (input.input != null && typeof input.input === "object") { => true
+src/json-ipc.ts:69:9 EqualityOperator | if (input.input != null && typeof input.input === "object") { => input.input == null
+src/json-ipc.ts:69:32 ConditionalExpression | if (input.input != null && typeof input.input === "object") { => true
+src/json-ipc.ts:69:65 BlockStatement | if (input.input != null && typeof input.input === "object") { => {}
+src/json-ipc.ts:69:32 EqualityOperator | if (input.input != null && typeof input.input === "object") { => typeof input.input !== "object"
+src/json-ipc.ts:70:27 MethodExpression | summary.inputKeys = Object.keys(input.input as Record<string, unknown>).sort(); => Object.keys(input.input as Record<string, unknown>
+src/json-ipc.ts:71:12 BlockStatement | } else { => {}
+src/json-ipc.ts:90:7 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/json-ipc.ts:90:36 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/json-ipc.ts:92:10 ConditionalExpression | return code == null ? null : String(code); => false
+src/json-ipc.ts:129:47 BooleanLiteral | if (errorCode(error) === "ENOENT") return false; => true
+src/json-ipc.ts:151:28 ArrowFunction | socket.once("connect", () => settle(() => resolveStale(false))); => () => undefined
+src/json-ipc.ts:154:11 ConditionalExpression | if (code === "ENOENT" || code === "ECONNREFUSED") { => false
+src/json-ipc.ts:178:69 ObjectLiteral | if (await staleUnixSocketExists(socketPath)) await rm(socketPath, { force: true }); => {}
+src/json-ipc.ts:178:78 BooleanLiteral | if (await staleUnixSocketExists(socketPath)) await rm(socketPath, { force: true }); => false
+src/json-ipc.ts:218:39 ObjectLiteral | traceJsonIpc("server.connection", { socketPath, traceId }); => {}
+src/json-ipc.ts:230:17 BooleanLiteral | handled = true; => false
+src/json-ipc.ts:231:43 ObjectLiteral | traceJsonIpc("server.idle_timeout", { => {}
+src/json-ipc.ts:246:35 BlockStatement | socket.on("error", (error) => { => {}
+src/json-ipc.ts:256:43 ObjectLiteral | traceJsonIpc("server.socket_error", { => {}
+src/json-ipc.ts:263:30 BlockStatement | socket.on("close", () => { => {}
+src/json-ipc.ts:265:43 ObjectLiteral | traceJsonIpc("server.socket_close", { => {}
+src/json-ipc.ts:273:35 ObjectLiteral | traceJsonIpc("server.data", { => {}
+src/json-ipc.ts:282:48 ObjectLiteral | traceJsonIpc("server.frame_too_large", { => {}
+src/json-ipc.ts:280:11 EqualityOperator | if (receivedBytes > maxFrameBytes) { => receivedBytes >= maxFrameBytes
+src/json-ipc.ts:299:11 EqualityOperator | if (newlineIndex < 0) return; => newlineIndex <= 0
+src/json-ipc.ts:301:21 MethodExpression | const frame = buffer.slice(0, newlineIndex); => buffer
+src/json-ipc.ts:302:16 MethodExpression | buffer = buffer.slice(newlineIndex + 1); => buffer
+src/json-ipc.ts:302:29 ArithmeticOperator | buffer = buffer.slice(newlineIndex + 1); => newlineIndex - 1
+src/json-ipc.ts:313:51 ObjectLiteral | traceJsonIpc("server.frame_parse_failed", { => {}
+src/json-ipc.ts:329:43 ObjectLiteral | traceJsonIpc("server.frame_parsed", { => {}
+src/json-ipc.ts:337:46 ObjectLiteral | traceJsonIpc("server.handler_start", { => {}
+src/json-ipc.ts:344:48 ObjectLiteral | traceJsonIpc("server.handler_success", { => {}
+src/json-ipc.ts:359:47 ObjectLiteral | traceJsonIpc("server.handler_failed", { => {}
+src/json-ipc.ts:385:19 BlockStatement | async close() { => {}
+src/json-ipc.ts:387:11 BooleanLiteral | if (!isWindowsNamedPipePath({ value: socketPath })) await rm(socketPath, { force: true }); => isWindowsNamedPipePath({
+  value: socketPath
+})
+src/json-ipc.ts:387:11 ConditionalExpression | if (!isWindowsNamedPipePath({ value: socketPath })) await rm(socketPath, { force: true }); => true
+src/json-ipc.ts:387:11 ConditionalExpression | if (!isWindowsNamedPipePath({ value: socketPath })) await rm(socketPath, { force: true }); => false
+src/json-ipc.ts:387:35 ObjectLiteral | if (!isWindowsNamedPipePath({ value: socketPath })) await rm(socketPath, { force: true }); => {}
+src/json-ipc.ts:411:42 ObjectLiteral | traceJsonIpc("client.connect_start", { message: messageSummary, socketPath, timeoutMs, tra => {}
+src/json-ipc.ts:413:11 ConditionalExpression | if (settled) return; => false
+src/json-ipc.ts:414:17 BooleanLiteral | settled = true; => false
+src/json-ipc.ts:419:38 ObjectLiteral | traceJsonIpc("client.timeout", { => {}
+src/json-ipc.ts:431:40 ObjectLiteral | traceJsonIpc("client.connected", { => {}
+src/json-ipc.ts:438:42 ObjectLiteral | traceJsonIpc("client.write_start", { => {}
+src/json-ipc.ts:445:49 BlockStatement | const flushed = socket.write(frame, () => { => {}
+src/json-ipc.ts:446:47 ObjectLiteral | traceJsonIpc("client.write_callback", { => {}
+src/json-ipc.ts:453:11 BooleanLiteral | if (!flushed) { => flushed
+src/json-ipc.ts:453:11 ConditionalExpression | if (!flushed) { => true
+src/json-ipc.ts:453:21 BlockStatement | if (!flushed) { => {}
+src/json-ipc.ts:453:11 ConditionalExpression | if (!flushed) { => false
+src/json-ipc.ts:454:36 BlockStatement | socket.once("drain", () => { => {}
+src/json-ipc.ts:455:40 ObjectLiteral | traceJsonIpc("client.drain", { => {}
+src/json-ipc.ts:465:35 ObjectLiteral | traceJsonIpc("client.data", { => {}
+src/json-ipc.ts:474:11 EqualityOperator | if (newlineIndex < 0) return; => newlineIndex <= 0
+src/json-ipc.ts:483:49 ObjectLiteral | traceJsonIpc("client.response_error", { => {}
+src/json-ipc.ts:485:20 LogicalOperator | error: response.error?.message ?? "IPC request failed", => response.error?.message && "IPC request failed"
+src/json-ipc.ts:485:20 OptionalChaining | error: response.error?.message ?? "IPC request failed", => response.error.message
+src/json-ipc.ts:494:15 ConditionalExpression | if (response.error?.code !== undefined) rejection.code = response.error.code; => true
+src/json-ipc.ts:494:15 OptionalChaining | if (response.error?.code !== undefined) rejection.code = response.error.code; => response.error.code
+src/json-ipc.ts:495:15 ConditionalExpression | if (response.error?.requestId !== undefined) rejection.requestId = response.error.requestI => true
+src/json-ipc.ts:495:15 OptionalChaining | if (response.error?.requestId !== undefined) rejection.requestId = response.error.requestI => response.error.requestId
+src/json-ipc.ts:499:49 ObjectLiteral | traceJsonIpc("client.response_success", { => {}
+src/json-ipc.ts:512:43 ObjectLiteral | traceJsonIpc("client.socket_error", { => {}
+src/json-ipc.ts:521:30 BlockStatement | socket.on("close", () => { => {}
+src/json-ipc.ts:522:43 ObjectLiteral | traceJsonIpc("client.socket_close", { => {}
+src/json-ipc.ts:508:35 BlockStatement | socket.on("error", (error) => { => {}
+src/bootstrap.ts:34:45 ObjectLiteral | [contract.env.base]: resolveSidecarBase({ contract, source: normalizedStamp.source }, { ba => {}
+src/bootstrap.ts:69:97 LogicalOperator | const base = resolveSidecarBase({ contract: options.contract, source: stamp.source }, { ba => options.base && null
+src/bootstrap.ts:69:128 ConditionalExpression | const base = resolveSidecarBase({ contract: options.contract, source: stamp.source }, { ba => false
+src/bootstrap.ts:70:109 ObjectLiteral | const ipc = resolveAppIpcPath({ app: stamp.app, contract: options.contract, namespace: sta => {}
+src/daemon-registry.ts:112:7 ConditionalExpression | if (record?.pid !== pid) return; => false
+src/daemon-registry.ts:120:7 OptionalChaining | if (captured?.pid !== pid) await restoreCapturedRecord(files, tombstonePath, registryPath) => captured.pid
+src/daemon-registry.ts:141:18 OptionalChaining | const code = (error as NodeJS.ErrnoException | undefined)?.code; => (error as NodeJS.ErrnoException | undefined).code
+src/daemon-registry.ts:147:10 ConditionalExpression | return typeof value === "number" && Number.isInteger(value) && value > 0; => true
+src/daemon-registry.ts:147:10 LogicalOperator | return typeof value === "number" && Number.isInteger(value) && value > 0; => typeof value === "number" && Number.isInteger(valu
+src/daemon-registry.ts:147:10 LogicalOperator | return typeof value === "number" && Number.isInteger(value) && value > 0; => typeof value === "number" || Number.isInteger(valu
+src/daemon-registry.ts:147:10 ConditionalExpression | return typeof value === "number" && Number.isInteger(value) && value > 0; => true
+src/daemon-registry.ts:147:66 ConditionalExpression | return typeof value === "number" && Number.isInteger(value) && value > 0; => true
+src/daemon-registry.ts:156:25 ConditionalExpression | if (value === null || typeof value !== "object") return false; => false
+src/daemon-registry.ts:159:5 LogicalOperator | typeof record.url === "string" && => typeof record.url === "string" && record.url.lengt
+src/daemon-registry.ts:159:5 ConditionalExpression | typeof record.url === "string" && => true
+src/daemon-registry.ts:159:5 LogicalOperator | typeof record.url === "string" && => typeof record.url === "string" && record.url.lengt
+src/daemon-registry.ts:159:5 ConditionalExpression | typeof record.url === "string" && => true
+src/daemon-registry.ts:159:5 LogicalOperator | typeof record.url === "string" && => typeof record.url === "string" && record.url.lengt
+src/daemon-registry.ts:160:5 EqualityOperator | record.url.length > 0 && => record.url.length >= 0
+src/daemon-registry.ts:162:5 EqualityOperator | record.host.length > 0 && => record.host.length >= 0
+src/daemon-registry.ts:166:5 ConditionalExpression | record.startedAt.length > 0 => true
+src/ipc-path.ts:16:10 ConditionalExpression | return typeof value === "string" && value.startsWith("\\\\.\\pipe\\"); => true
+src/json-file.ts:34:69 UnaryOperator | createParent: true, trailingNewline: true, defaultMode: 0o666 & ~process.umask(), => process.umask()
+src/json-file.ts:51:7 OptionalChaining | if (pointer?.runId === runId) await removeFile({ filePath: pointerPath }); => pointer.runId
+src/net.ts:30:44 BooleanLiteral | server.listen({ port, host, exclusive: true }, () => { => false
+src/paths.ts:37:7 OptionalChaining | options.env?.[contract.env.namespace] ?? => options.env[contract.env.namespace]
+src/port.ts:21:47 EqualityOperator | if (!Number.isInteger(port) || port <= 0 || port > 65535) { => port >= 65535
+src/port.ts:30:51 BlockStatement | function errorCode(error: unknown): string | null { => {}
+src/port.ts:31:7 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => true
+src/port.ts:31:7 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/port.ts:31:7 LogicalOperator | if (typeof error !== "object" || error == null || !("code" in error)) return null; => (typeof error !== "object" || error == null) && !(
+src/port.ts:31:7 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/port.ts:31:7 LogicalOperator | if (typeof error !== "object" || error == null || !("code" in error)) return null; => typeof error !== "object" && error == null
+src/port.ts:31:7 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/port.ts:31:7 EqualityOperator | if (typeof error !== "object" || error == null || !("code" in error)) return null; => typeof error === "object"
+src/port.ts:31:36 ConditionalExpression | if (typeof error !== "object" || error == null || !("code" in error)) return null; => false
+src/port.ts:31:36 EqualityOperator | if (typeof error !== "object" || error == null || !("code" in error)) return null; => error != null
+src/port.ts:31:53 BooleanLiteral | if (typeof error !== "object" || error == null || !("code" in error)) return null; => "code" in error
+src/port.ts:33:10 ConditionalExpression | return code == null ? null : String(code); => true
+src/port.ts:55:13 BlockStatement | } finally { => {}
+src/port.ts:56:9 ConditionalExpression | if (server) await closeServer(server); => false
+src/port.ts:70:26 ConditionalExpression | if (address == null || typeof address === "string") { => false
+src/respawn-policy.ts:41:41 EqualityOperator | if (!Number.isSafeInteger(count) || count < 1) throw new RangeError("failure thresholds mu => count <= 1
+src/respawn-policy.ts:63:30 ArrayDeclaration | let timestamps: number[] = []; => ["Stryker was here"]
+src/respawn-policy.ts:82:28 ArrayDeclaration | reset() { timestamps = []; consecutivePortConflicts = 0; tripped = false; }, => ["Stryker was here"]
+src/supervisor-node.ts:66:7 ConditionalExpression | if (child.closeStdin !== undefined) { => true
+src/supervisor-node.ts:102:13 ConditionalExpression | ...(invocation.windowsVerbatimArguments === undefined ? {} : { windowsVerbatimArguments: i => false
+src/supervisor.ts:78:37 EqualityOperator | if (!Number.isFinite(cooldown) || cooldown < 0) throw new RangeError("onDemandCooldownMs m => cooldown <= 0
+src/supervisor.ts:90:69 ConditionalExpression | deps.logger.emit({ type: "failure", at: deps.now(), reason, ...(decision === undefined ? { => true
+src/supervisor.ts:90:69 ConditionalExpression | deps.logger.emit({ type: "failure", at: deps.now(), reason, ...(decision === undefined ? { => false
+src/supervisor.ts:90:69 EqualityOperator | deps.logger.emit({ type: "failure", at: deps.now(), reason, ...(decision === undefined ? { => decision !== undefined
+src/supervisor.ts:90:99 ObjectLiteral | deps.logger.emit({ type: "failure", at: deps.now(), reason, ...(decision === undefined ? { => {}
+src/supervisor.ts:99:11 ConditionalExpression | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => true
+src/supervisor.ts:99:11 LogicalOperator | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => current === state && state.exited && state.replace
+src/supervisor.ts:99:11 ConditionalExpression | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => true
+src/supervisor.ts:99:11 LogicalOperator | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => current === state && state.exited || state.replace
+src/supervisor.ts:99:11 ConditionalExpression | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => true
+src/supervisor.ts:99:11 LogicalOperator | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => current === state || state.exited
+src/supervisor.ts:99:11 ConditionalExpression | if (current === state && state.exited && state.replaceAfterExit && !terminating) attemptSp => true
+src/supervisor.ts:102:24 BooleanLiteral | state.stopping = false; => true
+src/supervisor.ts:104:11 ConditionalExpression | if (current === state) reportFailure(`failed to stop daemon: ${String(error)}`); => true
+src/supervisor.ts:148:11 LogicalOperator | if (current !== state || state.exited) return; => current !== state && state.exited
+src/supervisor.ts:148:11 ConditionalExpression | if (current !== state || state.exited) return; => false
+src/supervisor.ts:150:11 ConditionalExpression | if (child.pid === undefined) state.exited = true; => true
+src/supervisor.ts:154:11 ConditionalExpression | if (current !== state || state.exited) return; => false
+src/supervisor.ts:154:11 LogicalOperator | if (current !== state || state.exited) return; => current !== state && state.exited
+src/supervisor.ts:154:11 ConditionalExpression | if (current !== state || state.exited) return; => false
+src/supervisor.ts:159:11 ConditionalExpression | if (terminating) return; => false
+src/supervisor.ts:160:41 ConditionalExpression | if (state.replaceAfterExit) { if (!state.stopping) attemptSpawn(); return; } => true
+src/supervisor.ts:161:11 ConditionalExpression | if (!state.deliberate) handleUnexpectedExit(code, signal); => true
+src/supervisor.ts:168:9 ConditionalExpression | if (current?.stopping) { current.replaceAfterExit = true; return; } => false
+src/supervisor.ts:168:28 BlockStatement | if (current?.stopping) { current.replaceAfterExit = true; return; } => {}
+src/supervisor.ts:170:11 ConditionalExpression | if (current.replaceAfterExit) return; => false
+src/supervisor.ts:171:28 BooleanLiteral | current.deliberate = true; => false
+src/supervisor.ts:180:19 ConditionalExpression | start() { if (cancelRetry === undefined) attemptSpawn(); }, => true
+src/supervisor.ts:189:113 ObjectLiteral | if ((current !== undefined && (!current.exited || current.stopping)) || cancelRetry !== un => {}
+src/supervisor.ts:189:119 BooleanLiteral | if ((current !== undefined && (!current.exited || current.stopping)) || cancelRetry !== un => false
+src/supervisor.ts:194:11 ConditionalExpression | if (lastOnDemandAttemptAt !== undefined && now - lastOnDemandAttemptAt < cooldown) return  => true
+src/supervisor.ts:194:50 ArithmeticOperator | if (lastOnDemandAttemptAt !== undefined && now - lastOnDemandAttemptAt < cooldown) return  => now + lastOnDemandAttemptAt
+src/supervisor.ts:200:11 ConditionalExpression | if (terminating) return; => false
+src/supervisor.ts:203:61 BooleanLiteral | current.deliberate = true; current.replaceAfterExit = false; => true
+src/supervisor.ts:204:11 ConditionalExpression | if (!current.exited && !current.stopping) terminate(current); => true
+src/supervisor.ts:204:11 LogicalOperator | if (!current.exited && !current.stopping) terminate(current); => !current.exited || !current.stopping

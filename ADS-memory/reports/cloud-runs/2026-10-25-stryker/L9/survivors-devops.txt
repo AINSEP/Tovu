@@ -1,0 +1,429 @@
+src/checks/coverage/lcov.ts:42:91 NOCOV BooleanLiteral | if (!rules.sourceExtensions.some((extension) => normalized.endsWith(extension))) return fa => true
+src/checks/coverage/lcov.ts:23:16 MethodExpression | const file = sourceFile.trim().replace(/\\/g, '/'); => sourceFile
+src/checks/coverage/lcov.ts:24:53 Regex | const root = repoRoot.replace(/\\/g, '/').replace(/\/+$/, ''); => /\/$/
+src/checks/coverage/lcov.ts:25:7 ConditionalExpression | if (file === root) return ''; => false
+src/checks/coverage/lcov.ts:35:10 MethodExpression | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => suffixes.every(suffix => normalized.endsWith(suffi
+src/checks/coverage/lcov.ts:35:24 ArrowFunction | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => () => undefined
+src/checks/coverage/lcov.ts:35:36 MethodExpression | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => normalized.startsWith(suffix)
+src/checks/coverage/lcov.ts:35:68 MethodExpression | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => directories.every(dir => `/${normalized}`.includes
+src/checks/coverage/lcov.ts:35:136 Regex | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => /^\/|\/+$/g
+src/checks/coverage/lcov.ts:35:136 Regex | return suffixes.some((suffix) => normalized.endsWith(suffix)) || directories.some((dir) => => /^\/+|\/$/g
+src/checks/coverage/lcov.ts:41:80 Regex | if (!rules.prefixes.some((prefix) => normalized.startsWith(`${prefix.replace(/\/+$/, '')}/ => /\/$/
+src/checks/coverage/lcov.ts:42:7 ConditionalExpression | if (!rules.sourceExtensions.some((extension) => normalized.endsWith(extension))) return fa => false
+src/checks/coverage/lcov.ts:42:8 MethodExpression | if (!rules.sourceExtensions.some((extension) => normalized.endsWith(extension))) return fa => rules.sourceExtensions.every(extension => normaliz
+src/checks/coverage/lcov.ts:44:7 ConditionalExpression | if (parts.some((part) => rules.excludedDirectories.includes(part))) return false; => false
+src/checks/coverage/lcov.ts:44:7 MethodExpression | if (parts.some((part) => rules.excludedDirectories.includes(part))) return false; => parts.every(part => rules.excludedDirectories.incl
+src/checks/coverage/lcov.ts:44:18 ArrowFunction | if (parts.some((part) => rules.excludedDirectories.includes(part))) return false; => () => undefined
+src/checks/coverage/lcov.ts:47:80 Regex | return !new RegExp(rules.testPattern.source, rules.testPattern.flags.replace(/[gy]/g, '')) => /[^gy]/g
+src/checks/coverage/lcov.ts:55:58 Regex | for (const record of text.replace(/\r\n/g, '\n').split(/^end_of_record$/m)) { => /end_of_record$/m
+src/checks/coverage/lcov.ts:55:58 Regex | for (const record of text.replace(/\r\n/g, '\n').split(/^end_of_record$/m)) { => /^end_of_record/m
+src/checks/coverage/lcov.ts:56:33 Regex | const source = record.match(/^SF:(.+)$/m)?.[1]; => /^SF:(.+)/m
+src/checks/coverage/lcov.ts:56:33 Regex | const source = record.match(/^SF:(.+)$/m)?.[1]; => /SF:(.+)$/m
+src/checks/coverage/lcov.ts:71:29 MethodExpression | }): FileCoverage[] { return loadLcov({ lcovPath, repoRoot, reader }).filter((record) => is => loadLcov({
+  lcovPath,
+  repoRoot,
+  reader
+})
+src/checks/coverage/lcov.ts:81:9 ConditionalExpression | if (!previous || record.lh > previous.lh) byFile.set(record.file, { ...record }); => true
+src/checks/coverage/lcov.ts:81:22 EqualityOperator | if (!previous || record.lh > previous.lh) byFile.set(record.file, { ...record }); => record.lh >= previous.lh
+src/agent-jobs/jobs.ts:5:76 ConditionalExpression | function record(value: unknown): value is Record<string, unknown> { return value !== null  => true
+src/agent-jobs/jobs.ts:21:75 BlockStatement | try { event = required.decoder.decode({ line: required.line }); } catch { return undefined => {}
+src/agent-jobs/jobs.ts:62:10 Regex | if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(job.id) || ids.has(job.id)) throw new Error(`Unsa => /^[a-zA-Z0-9][a-zA-Z0-9._-]*/
+src/agent-jobs/jobs.ts:66:37 ArrayDeclaration | const results: AgentJobResult[] = new Array(jobs.length); => new Array()
+src/agent-jobs/node.ts:12:123 ArrayDeclaration | const child = spawn(request.executable, [...request.args], { cwd: request.cwd, env: enviro => []
+src/agent-jobs/node.ts:58:100 EqualityOperator | const entries = (await files.list({ directory })).filter(entry => entry.isFile()).sort((a, => a.name <= b.name
+src/checks/coverage/diff.ts:17:23 Regex | if (eventBefore && !/^0+$/.test(eventBefore)) return eventBefore; => /0+$/
+src/checks/coverage/diff.ts:17:23 Regex | if (eventBefore && !/^0+$/.test(eventBefore)) return eventBefore; => /^0+/
+src/checks/coverage/diff.ts:66:16 MethodExpression | return { ok: files.every((file) => file.ok), files }; => files.some(file => file.ok)
+src/checks/coverage/disk.ts:50:7 Regex | if (/\.(test|spec)\.(js|cjs|mjs|ts|tsx|mts)$/.test(relPath)) return false; => /\.(test|spec)\.(js|cjs|mjs|ts|tsx|mts)/
+src/checks/coverage/disk.ts:63:30 Regex | const base = dir.replace(/\/+$/, ""); => /\/$/
+src/checks/coverage/disk.ts:77:9 ConditionalExpression | if (tokens[0] !== "node" || testAt < 0) { => false
+src/checks/coverage/disk.ts:77:33 EqualityOperator | if (tokens[0] !== "node" || testAt < 0) { => testAt <= 0
+src/checks/coverage/disk.ts:155:9 ConditionalExpression | if (typeof floor === "number" && actual[axis] < floor) { => true
+src/checks/coverage/disk.ts:165:49 ArrayDeclaration | const known = new Set(area.knownUnmeasured ?? []); => ["Stryker was here"]
+src/checks/coverage/disk.ts:190:21 MethodExpression | const recovered = [...known].filter((p) => coverage.has(p)); => [...known]
+src/checks/coverage/floors.ts:11:50 ConditionalExpression | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => false
+src/checks/coverage/floors.ts:11:50 LogicalOperator | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => (!Number.isFinite(value) || value < 0) && value > 
+src/checks/coverage/floors.ts:11:50 ConditionalExpression | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => false
+src/checks/coverage/floors.ts:11:50 LogicalOperator | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => !Number.isFinite(value) && value < 0
+src/checks/coverage/floors.ts:11:77 ConditionalExpression | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => false
+src/checks/coverage/floors.ts:11:77 EqualityOperator | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => value <= 0
+src/checks/coverage/floors.ts:11:90 ConditionalExpression | for (const value of Object.values(floors)) if (!Number.isFinite(value) || value < 0 || val => false
+src/checks/coverage/floors.ts:24:41 Regex | const prefix = `${area.prefix.replace(/\/+$/, '')}/`; => /\/$/
+src/checks/coverage/floors.ts:25:40 LogicalOperator | const files = all.filter((record) => record.file.startsWith(prefix) && isMeasurable({ file => record.file.startsWith(prefix) || isMeasurable({
+ 
+src/checks/coverage/floors.ts:26:52 ObjectLiteral | return { area, ...evaluateFloor({ files, floors: { line: area.line, branch: area.branch, f => {}
+src/checks/coverage/integrity.ts:84:17 MethodExpression | } else if (!arg.startsWith("--") && lcovArg === undefined) { => arg.endsWith("--")
+src/checks/coverage/integrity.ts:93:57 Regex | const records = lcovText.replace(/\r\n/g, '\n').split(/^end_of_record$/m); => /end_of_record$/m
+src/checks/coverage/integrity.ts:93:57 Regex | const records = lcovText.replace(/\r\n/g, '\n').split(/^end_of_record$/m); => /^end_of_record/m
+src/checks/coverage/integrity.ts:96:34 Regex | const sfMatch = record.match(/^SF:(.+)$/m); => /SF:(.+)$/m
+src/checks/coverage/integrity.ts:96:34 Regex | const sfMatch = record.match(/^SF:(.+)$/m); => /^SF:(.+)/m
+src/checks/coverage/integrity.ts:98:38 Regex | const fnda = [...record.matchAll(/^FNDA:(\d+),(.+)$/gm)].map((m) => ({ => /FNDA:(\d+),(.+)$/gm
+src/checks/coverage/integrity.ts:98:38 Regex | const fnda = [...record.matchAll(/^FNDA:(\d+),(.+)$/gm)].map((m) => ({ => /^FNDA:(\d+),(.+)/gm
+src/checks/coverage/integrity.ts:102:36 Regex | const da = [...record.matchAll(/^DA:\d+,(\d+)$/gm)].map((m) => Number(m[1])); => /DA:\d+,(\d+)$/gm
+src/checks/coverage/integrity.ts:102:36 Regex | const da = [...record.matchAll(/^DA:\d+,(\d+)$/gm)].map((m) => Number(m[1])); => /^DA:\d+,(\d+)/gm
+src/checks/coverage/integrity.ts:103:35 Regex | const fnfMatch = record.match(/^FNF:(\d+)$/m); => /FNF:(\d+)$/m
+src/checks/coverage/integrity.ts:103:35 Regex | const fnfMatch = record.match(/^FNF:(\d+)$/m); => /^FNF:(\d+)/m
+src/checks/coverage/integrity.ts:104:35 Regex | const fnhMatch = record.match(/^FNH:(\d+)$/m); => /FNH:(\d+)$/m
+src/checks/coverage/integrity.ts:104:35 Regex | const fnhMatch = record.match(/^FNH:(\d+)$/m); => /^FNH:(\d+)/m
+src/checks/coverage/integrity.ts:106:13 MethodExpression | file: sfMatch[1]!.trim(), => sfMatch[1]!
+src/checks/coverage/integrity.ts:121:79 Regex | const withoutComments = sourceText.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, => /\/\/[^\n]/g
+src/checks/coverage/integrity.ts:121:79 Regex | const withoutComments = sourceText.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, => /\/\/[\n]*/g
+src/checks/coverage/integrity.ts:55:60 ArrayDeclaration | export const DEFAULT_BASELINE_COMMENT: readonly string[] = [ => []
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\sas\s+[A
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s[A
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[
+src/checks/coverage/integrity.ts:117:3 Regex | /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+[" => /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[
+src/checks/hardwiring-node.ts:20:101 Regex | else if (/\.[cm]?[jt]sx?$/.test(file) && !/\.(?:test|spec)\./.test(file) && (declarations  => /\.d\.[cm]?ts/
+src/checks/hardwiring-node.ts:20:16 Regex | else if (/\.[cm]?[jt]sx?$/.test(file) && !/\.(?:test|spec)\./.test(file) && (declarations  => /\.[cm]?[jt]sx?/
+src/checks/hardwiring-node.ts:33:129 BooleanLiteral | const options: ts.CompilerOptions = { moduleResolution: c.ModuleResolutionKind.Bundler, mo => false
+src/checks/hardwiring-node.ts:33:154 BooleanLiteral | const options: ts.CompilerOptions = { moduleResolution: c.ModuleResolutionKind.Bundler, mo => false
+src/checks/hardwiring-node.ts:24:10 MethodExpression | return found.sort(); => found
+src/checks/hardwiring-node.ts:36:69 Regex | const host = runtime ? { ...c.sys, fileExists: (file: string) => !/\.d\.[cm]?ts$/.test(fil => /\.d\.[cm]?ts/
+src/checks/hardwiring-node.ts:36:69 Regex | const host = runtime ? { ...c.sys, fileExists: (file: string) => !/\.d\.[cm]?ts$/.test(fil => /\.d\.[^cm]?ts$/
+src/checks/hardwiring-node.ts:38:33 Regex | if (isBuiltin(specifier) || /\.(?:css|scss|sass|less|svg|png|jpg|woff2?|json)(?:\?|$)/.tes => /\.(?:css|scss|sass|less|svg|png|jpg|woff2|json)(?
+src/checks/hardwiring-node.ts:53:7 ConditionalExpression | if (!resolved.endsWith('.d.ts')) return resolved; => false
+src/checks/hardwiring-node.ts:62:70 ArrayDeclaration | export function displayGraphFile({ file, root, authoredDirectories = ['apps', 'content'] } => []
+src/checks/hardwiring-node.ts:65:7 MethodExpression | if (authoredDirectories.some(directory => file.startsWith(join(root, directory) + '/'))) r => authoredDirectories.every(directory => file.starts
+src/checks/hardwiring-node.ts:85:29 ArrayDeclaration | const targets: string[] = []; => ["Stryker was here"]
+src/checks/hardwiring-node.ts:100:9 ConditionalExpression | if (condition) select(record[condition]); => true
+src/checks/hardwiring-node.ts:106:11 ConditionalExpression | if (candidate !== undefined) select(candidate); => true
+src/checks/hardwiring-node.ts:107:16 LogicalOperator | } else if (value && typeof value === 'object') selectRecord(value as Record<string, unknow => value || typeof value === 'object'
+src/checks/hardwiring-node.ts:107:25 ConditionalExpression | } else if (value && typeof value === 'object') selectRecord(value as Record<string, unknow => true
+src/checks/hardwiring-node.ts:119:10 MethodExpression | return legacy.startsWith('./') ? legacy : './' + legacy; => legacy.endsWith('./')
+src/checks/hardwiring-node.ts:124:37 ArrayDeclaration | if (!existsSync(manifest)) return []; => ["Stryker was here"]
+src/checks/hardwiring-node.ts:126:51 ArrayDeclaration | if (!data.name?.startsWith('@jini-ai/')) return []; => ["Stryker was here"]
+src/checks/hardwiring-node.ts:144:9 ConditionalExpression | if (!(symbol.flags & c.SymbolFlags.Value)) return false; => false
+src/checks/hardwiring-node.ts:145:54 LogicalOperator | return checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration ?? tree).getCallS => symbol.valueDeclaration && tree
+src/checks/hardwiring-node.ts:157:44 ObjectLiteral | const program = c.createProgram(entries, { moduleResolution: c.ModuleResolutionKind.Bundle => {}
+src/checks/hardwiring-node.ts:157:134 BooleanLiteral | const program = c.createProgram(entries, { moduleResolution: c.ModuleResolutionKind.Bundle => false
+src/checks/hardwiring-node.ts:157:148 BooleanLiteral | const program = c.createProgram(entries, { moduleResolution: c.ModuleResolutionKind.Bundle => false
+src/checks/hardwiring-node.ts:157:168 BooleanLiteral | const program = c.createProgram(entries, { moduleResolution: c.ModuleResolutionKind.Bundle => false
+src/checks/hardwiring-node.ts:163:9 ConditionalExpression | if (tree) for (const name of callableExports(c, checker, tree)) found.add(name); => true
+src/checks/hardwiring-node.ts:178:76 MethodExpression | for (const rule of HARDWIRING_RULES) logger.log(`[hardwiring] ${rule}: ${violations.filter => violations
+src/checks/hardwiring-node.ts:178:99 ConditionalExpression | for (const rule of HARDWIRING_RULES) logger.log(`[hardwiring] ${rule}: ${violations.filter => true
+src/checks/hardwiring-node.ts:178:133 MethodExpression | for (const rule of HARDWIRING_RULES) logger.log(`[hardwiring] ${rule}: ${violations.filter => added
+src/checks/hardwiring-node.ts:178:151 ConditionalExpression | for (const rule of HARDWIRING_RULES) logger.log(`[hardwiring] ${rule}: ${violations.filter => true
+src/checks/hardwiring.ts:46:7 Regex | /\.[jt]sx$/.test(file) ? c.ScriptKind.TSX : /\.[cm]?js$/.test(file) ? c.ScriptKind.JS : c. => /\.[jt]sx/
+src/checks/hardwiring.ts:46:51 Regex | /\.[jt]sx$/.test(file) ? c.ScriptKind.TSX : /\.[cm]?js$/.test(file) ? c.ScriptKind.JS : c. => /\.[cm]?js/
+src/checks/hardwiring.ts:54:95 ConditionalExpression | (c.isElementAccessExpression(node) && c.isStringLiteralLike(node.argumentExpression) && no => true
+src/checks/hardwiring.ts:79:9 LogicalOperator | if (c.isExportDeclaration(node) && node.moduleSpecifier) return kept(node.moduleSpecifier, => c.isExportDeclaration(node) || node.moduleSpecifie
+src/checks/hardwiring.ts:109:11 ConditionalExpression | if (!c.isIdentifier(decl.name)) return []; => false
+src/checks/hardwiring.ts:122:96 ConditionalExpression | const exported = c.canHaveModifiers(statement) && c.getModifiers(statement)?.some((m) => m => true
+src/checks/hardwiring.ts:147:12 Regex | return /(?:^|\/)(?:adapters?|kernel|providers?)(?:\/|\.)|\.adapter\.[^.]+$/.test(file); => /(?:^|\/)(?:adapters?|kernel|providers?)(?:\/|\.)|
+src/checks/hardwiring.ts:155:12 Regex | return /^(?:better-sqlite3|pg|postgres|mysql2?|sqlite3|@electric-sql\/pglite|openai|@anthr => /(?:better-sqlite3|pg|postgres|mysql2?|sqlite3|@el
+src/checks/hardwiring.ts:155:12 Regex | return /^(?:better-sqlite3|pg|postgres|mysql2?|sqlite3|@electric-sql\/pglite|openai|@anthr => /^(?:better-sqlite3|pg|postgres|mysql2|sqlite3|@el
+src/checks/hardwiring.ts:156:7 Regex | /^@(?:aws-sdk|azure|google-cloud|ai-sdk|tavily|composio|e2b)\//.test(specifier) || => /@(?:aws-sdk|azure|google-cloud|ai-sdk|tavily|comp
+src/checks/hardwiring.ts:157:7 Regex | /^(?:node-pty|playwright(?:-core)?|puppeteer(?:-core)?)(?:$|\/)/.test(specifier) || => /(?:node-pty|playwright(?:-core)?|puppeteer(?:-cor
+src/checks/hardwiring.ts:157:7 Regex | /^(?:node-pty|playwright(?:-core)?|puppeteer(?:-core)?)(?:$|\/)/.test(specifier) || => /^(?:node-pty|playwright(?:-core)?|puppeteer(?:-co
+src/checks/hardwiring.ts:158:7 Regex | /^(?:@[^/]+\/(?:sdk|[^/]+-sdk)|[^@/]+-sdk)(?:$|\/)/.test(specifier); => /(?:@[^/]+\/(?:sdk|[^/]+-sdk)|[^@/]+-sdk)(?:$|\/)/
+src/checks/hardwiring.ts:171:12 MethodExpression | return name.elements.some((e) => c.isBindingElement(e) && bindsFetch(e.name)); => name.elements.every(e => c.isBindingElement(e) && 
+src/checks/hardwiring.ts:187:50 MethodExpression | if (c.isVariableStatement(statement)) return statement.declarationList.declarations.some(( => statement.declarationList.declarations.every(d => 
+src/checks/hardwiring.ts:190:27 LogicalOperator | const nativeAlias = value && member(value, 'fetch') && 'expression' in value && => value && member(value, 'fetch') || 'expression' in
+src/checks/hardwiring.ts:190:27 ConditionalExpression | const nativeAlias = value && member(value, 'fetch') && 'expression' in value && => true
+src/checks/hardwiring.ts:190:27 LogicalOperator | const nativeAlias = value && member(value, 'fetch') && 'expression' in value && => value || member(value, 'fetch')
+src/checks/hardwiring.ts:194:52 OptionalChaining | if (c.isFunctionDeclaration(statement)) return statement.name?.text === 'fetch'; => statement.name.text
+src/checks/hardwiring.ts:198:86 MethodExpression | return Boolean(clause.namedBindings && c.isNamedImports(clause.namedBindings) && clause.na => clause.namedBindings.elements.every(e => e.name.te
+src/checks/hardwiring.ts:206:65 ConditionalExpression | ((c.isParameter(parent) || c.isBindingElement(parent)) && parent.initializer === expressio => true
+src/checks/hardwiring.ts:213:30 ArrowFunction | return name.elements.map(element => c.isBindingElement(element) ? declarationIdentity(elem => () => undefined
+src/checks/hardwiring.ts:222:27 Regex | return !node.type || !/^Readonly(?:Map|Set)\s*</.test(node.type.getText(tree)); => /Readonly(?:Map|Set)\s*</
+src/checks/hardwiring.ts:222:27 Regex | return !node.type || !/^Readonly(?:Map|Set)\s*</.test(node.type.getText(tree)); => /^Readonly(?:Map|Set)\S*</
+src/checks/hardwiring.ts:228:9 LogicalOperator | if (!member(node.expression, 'fetch') || !('expression' in node.expression)) return false; => !member(node.expression, 'fetch') && !('expression
+src/checks/hardwiring.ts:237:36 Regex | (c.isIdentifier(fallback) && /^DEFAULT_.*PASSWORD$/.test(fallback.text)); => /DEFAULT_.*PASSWORD$/
+src/checks/hardwiring.ts:237:36 Regex | (c.isIdentifier(fallback) && /^DEFAULT_.*PASSWORD$/.test(fallback.text)); => /^DEFAULT_.*PASSWORD/
+src/checks/hardwiring.ts:273:23 Regex | const envExempt = /(?:^|\/)(?:bin|cli|testing)(?:\/|\.)/.test(input.file); => /(?:\/)(?:bin|cli|testing)(?:\/|\.)/
+src/checks/hardwiring.ts:296:11 ConditionalExpression | if (jsx) return; => false
+src/checks/hardwiring.ts:298:11 ConditionalExpression | if (!jsx) c.forEachChild(node, visit); => true
+src/checks/hardwiring.ts:305:57 Regex | return /^react(?:-dom)?(?:\/|$)/.test(specifier) || /(?:^|\/)node_modules\/react(?:-dom)?( => /(?:\/)node_modules\/react(?:-dom)?(?:\/|$)/
+src/checks/hardwiring.ts:305:57 Regex | return /^react(?:-dom)?(?:\/|$)/.test(specifier) || /(?:^|\/)node_modules\/react(?:-dom)?( => /(?:^|\/)node_modules\/react(?:-dom)(?:\/|$)/
+src/checks/hardwiring.ts:305:57 Regex | return /^react(?:-dom)?(?:\/|$)/.test(specifier) || /(?:^|\/)node_modules\/react(?:-dom)?( => /(?:^|\/)node_modules\/react(?:-dom)?(?:\/)/
+src/checks/node.ts:29:81 BooleanLiteral | removeDirectory: ({ path: dir }) => { rmSync(dir, { recursive: true, force: true }); }, => false
+src/checks/node.ts:39:85 ArithmeticOperator | export function createNodeProcessRunner(_args: Record<string, never>, { maxBuffer = 32 * 1 => 32 * 1024 / 1024
+src/checks/node.ts:39:85 ArithmeticOperator | export function createNodeProcessRunner(_args: Record<string, never>, { maxBuffer = 32 * 1 => 32 / 1024
+src/checks/published-types/index.ts:37:8 Regex | if (!/^@[a-z0-9][a-z0-9._-]*$/.test(scope)) throw new TypeError('scope must be an npm scop => /@[a-z0-9][a-z0-9._-]*$/
+src/checks/published-types/index.ts:37:8 Regex | if (!/^@[a-z0-9][a-z0-9._-]*$/.test(scope)) throw new TypeError('scope must be an npm scop => /^@[a-z0-9][a-z0-9._-]*/
+src/checks/published-types/index.ts:45:42 Regex | if (!name.startsWith(`${scope}/`) || /^(file:|workspace:|link:)/.test(spec)) continue; => /(file:|workspace:|link:)/
+src/checks/published-types/index.ts:57:9 Regex | if (/^\S.*\(\d+,\d+\): error TS\d+:/.test(line) || /^error TS\d+:/.test(line)) { => /^\S.*\(\d,\d+\): error TS\d+:/
+src/checks/published-types/index.ts:57:9 Regex | if (/^\S.*\(\d+,\d+\): error TS\d+:/.test(line) || /^error TS\d+:/.test(line)) { => /^\S.*\(\d+,\d\): error TS\d+:/
+src/checks/published-types/index.ts:58:39 MethodExpression | if (current.length) blocks.push(current.join('\n').trimEnd()); => current.join('\n').trimStart()
+src/checks/published-types/index.ts:67:87 ArrayDeclaration | return { projectKey, status, output, versions: {}, linkedPackages: [], diagnostics: [], ba => ["Stryker was here"]
+src/checks/published-types/index.ts:67:112 ArrayDeclaration | return { projectKey, status, output, versions: {}, linkedPackages: [], diagnostics: [], ba => ["Stryker was here"]
+src/checks/published-types/index.ts:70:66 Regex | function escapeRegex(text: string): string { return text.replace(/[.*+?^${}()|[\]\\]/g, '\ => /[^.*+?^${}()|[\]\\]/g
+src/checks/published-types/index.ts:119:39 ConditionalExpression | if (project.mode === 'published' || registry.exitCode === null || diagnostics.length === 0 => false
+src/checks/published-types/index.ts:166:86 ObjectLiteral | const baseline = project.mode === 'drift' ? await runner.run(project.compiler) : { exitCod => {}
+src/core/redirect-guard.ts:38:42 EqualityOperator | if (resp.type === 'opaqueredirect' || (resp.status >= 300 && resp.status < 400)) { => resp.status > 300
+src/core/redirect-guard.ts:38:64 EqualityOperator | if (resp.type === 'opaqueredirect' || (resp.status >= 300 && resp.status < 400)) { => resp.status <= 400
+src/core/redirect-guard.ts:41:7 ObjectLiteral | { status: 502 } => {}
+src/deploy/naming.ts:19:14 Regex | .replace(/^-+|-+$/g, '') => /^-|-+$/g
+src/deploy/naming.ts:19:14 Regex | .replace(/^-+|-+$/g, '') => /^-+|-$/g
+src/deploy/naming.ts:21:14 Regex | .replace(/-+$/g, ''); => /-$/g
+src/deploy/node.ts:9:10 ConditionalExpression | return value !== null && typeof value === 'object' && 'address' in value && => true
+src/deploy/node.ts:9:10 LogicalOperator | return value !== null && typeof value === 'object' && 'address' in value && => value !== null && typeof value === 'object' && 'ad
+src/deploy/node.ts:9:10 ConditionalExpression | return value !== null && typeof value === 'object' && 'address' in value && => true
+src/deploy/node.ts:9:10 ConditionalExpression | return value !== null && typeof value === 'object' && 'address' in value && => true
+src/deploy/node.ts:10:5 ConditionalExpression | typeof value.address === 'string' && 'family' in value && typeof value.family === 'number' => true
+src/deploy/node.ts:25:37 MethodExpression | if (Array.isArray(address) && address.every(isLookupAddress)) { callback(null, address, fa => address.some(isLookupAddress)
+src/deploy/node.ts:32:83 ObjectLiteral | return new Agent({ connect: { lookup: createReachabilityLookup({}, lookupImpl ? { lookupIm => {}
+src/deploy/node.ts:52:24 BlockStatement | close: async () => { if (!options.dispatcher) await dispatcher?.close(); }, => {}
+src/deploy/node.ts:52:30 ConditionalExpression | close: async () => { if (!options.dispatcher) await dispatcher?.close(); }, => false
+src/deploy/node.ts:52:57 OptionalChaining | close: async () => { if (!options.dispatcher) await dispatcher?.close(); }, => dispatcher.close
+src/deploy/node.ts:55:76 ObjectLiteral | dispatcher ??= createReachabilityDispatcher({}, options.lookupImpl ? { lookupImpl: options => {}
+src/deploy/node.ts:58:40 BooleanLiteral | value: dispatcher, enumerable: true, configurable: true, writable: true, => false
+src/deploy/node.ts:58:76 BooleanLiteral | value: dispatcher, enumerable: true, configurable: true, writable: true, => false
+src/deploy/node.ts:58:60 BooleanLiteral | value: dispatcher, enumerable: true, configurable: true, writable: true, => false
+src/deploy/reachability.ts:97:10 Regex | return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`; => /https?:\/\//i
+src/deploy/reachability.ts:149:7 ConditionalExpression | if (resp.status >= 200 && resp.status < 400) return { reachable: true, statusCode: resp.st => true
+src/deploy/reachability.ts:382:10 EqualityOperator | while (remainingBudget(ctx) > 0) { => remainingBudget(ctx) >= 0
+src/deploy/reachability.ts:408:74 BooleanLiteral | new Promise<false>((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); }), => true
+src/deploy/reachability.ts:410:13 BlockStatement | } finally { => {}
+src/deploy/tokens.ts:67:108 ObjectLiteral | throw new DeployError({ message: `Unknown deploy target: ${input.targetId}` }, { status: 4 => {}
+src/deploy/tool.ts:87:21 ConditionalExpression | if (!roles || roles.length === 0) return 'deny'; => false
+src/deploy/tool.ts:88:14 MethodExpression | return roles.some((role) => allowedRoles.includes(role)) ? 'allow' : 'deny'; => roles.every(role => allowedRoles.includes(role))
+src/deploy/tool.ts:149:51 ConditionalExpression | return publishDeploy({ ...input, targets }, metadata === undefined ? {} : { metadata }); => false
+src/dns/approval.ts:40:48 BlockStatement | function changeName(change: DnsChange): string { => {}
+src/dns/approval.ts:45:18 OptionalChaining | const types = [change.before?.type, change.after?.type]; => change.before.type
+src/dns/approval.ts:46:51 ObjectLiteral | return types.includes('MX') || normalizeDnsName({ name: changeName(change) }) === zone; => {}
+src/dns/approval.ts:64:33 ObjectLiteral | const zone = normalizeDnsName({ name: required.zone }); => {}
+src/dns/approval.ts:65:21 MethodExpression | const humanOnly = required.plan.changes.some(change => change.op === 'delete'); => required.plan.changes.every(change => change.op ==
+src/dns/approval.ts:72:35 MethodExpression | nonRememberable: humanOnly || required.plan.changes.some(change => touchesApexOrMail(chang => required.plan.changes.every(change => touchesApexO
+src/dns/delegation.ts:49:51 ArrayDeclaration | const empty = { zone, nameservers: [], missing: [], unexpected: [] }; => ["Stryker was here"]
+src/dns/delegation.ts:49:67 ArrayDeclaration | const empty = { zone, nameservers: [], missing: [], unexpected: [] }; => ["Stryker was here"]
+src/dns/manual.ts:57:7 ConditionalExpression | if (type === 'TXT' && new TextEncoder().encode(value).length > 255) return chunkTxt({ valu => true
+src/dns/manual.ts:57:25 EqualityOperator | if (type === 'TXT' && new TextEncoder().encode(value).length > 255) return chunkTxt({ valu => new TextEncoder().encode(value).length >= 255
+src/dns/manual.ts:91:7 ConditionalExpression | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => true
+src/dns/manual.ts:91:24 ConditionalExpression | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => true
+src/dns/manual.ts:91:24 LogicalOperator | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => row.host === '@' || row.type === 'CNAME' || row.ty
+src/dns/manual.ts:91:24 ConditionalExpression | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => true
+src/dns/manual.ts:91:45 ConditionalExpression | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => true
+src/dns/manual.ts:91:45 EqualityOperator | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => row.type !== 'CNAME'
+src/dns/manual.ts:91:69 ConditionalExpression | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => false
+src/dns/manual.ts:91:69 EqualityOperator | if (rows.some(row => row.host === '@' && (row.type === 'CNAME' || row.type === 'ALIAS')))  => row.type !== 'ALIAS'
+src/dns/manual.ts:94:7 ConditionalExpression | if (rows.some(row => row.action === 'change')) notes.push('"change" rows list the complete => true
+src/dns/manual.ts:94:24 ConditionalExpression | if (rows.some(row => row.action === 'change')) notes.push('"change" rows list the complete => true
+src/dns/manual.ts:94:24 EqualityOperator | if (rows.some(row => row.action === 'change')) notes.push('"change" rows list the complete => row.action !== 'change'
+src/dns/manual.ts:95:7 ConditionalExpression | if (plan.inventory !== 'complete') notes.push(`The existing records could not be read; fir => true
+src/dns/manual.ts:106:20 ConditionalExpression | const fallback = plan.inventory !== 'complete' && optional.requirements !== undefined; => true
+src/dns/manual.ts:113:81 ObjectLiteral | if (result.status === 'rejected' && result.error.code === 'not_found') return { kind: 'non => {}
+src/dns/manual.ts:119:35 ObjectLiteral | if (values.length === 0) return { kind: 'none' }; => {}
+src/dns/manual.ts:139:52 ArrayDeclaration | capabilities: { automatic: false, recordTypes: ['A', 'AAAA', 'CNAME', 'ALIAS', 'TXT', 'MX' => []
+src/dns/node/resolver.ts:80:18 OptionalChaining | const code = (error as { code?: unknown } | null)?.code; => (error as {
+  code?: unknown;
+} | null).code
+src/dns/node/resolver.ts:91:10 EqualityOperator | return dot < 0 ? undefined : name.slice(dot + 1); => dot <= 0
+src/dns/node/resolver.ts:107:46 ArrowFunction | const create = optional.createResolver ?? (resolverOptions => new Resolver(resolverOptions => () => undefined
+src/dns/node/resolver.ts:117:86 ArrayDeclaration | const [v4, v6] = await Promise.all([settle(() => bootstrap.resolve4(nameserver), []), sett => ["Stryker was here"]
+src/dns/node/resolver.ts:137:70 ObjectLiteral | if (reply.id !== id || reply.truncated) return providerUnknown({ code: 'network', message: => {}
+src/dns/node/resolver.ts:139:53 ObjectLiteral | if (reply.rcode !== 0) return providerUnknown({ code: 'network', message: `The parent name => {}
+src/dns/node/resolver.ts:141:13 BlockStatement | } catch { => {}
+src/dns/node/resolver.ts:142:30 ObjectLiteral | return providerUnknown({ code: 'network', message: 'The DNS query failed before an answer  => {}
+src/dns/node/resolver.ts:162:77 ArrayDeclaration | return parent === undefined ? settle(() => bootstrap.resolveNs(name), []) : delegation(nam => ["Stryker was here"]
+src/dns/node/udp.ts:28:42 ArrowFunction | const setTimer = optional.setTimer ?? ((callback: () => void, ms: number) => setTimeout(ca => () => undefined
+src/dns/node/udp.ts:29:46 ArrowFunction | const clearTimer = optional.clearTimer ?? (handle => clearTimeout(handle as ReturnType<typ => () => undefined
+src/dns/node/wire.ts:34:9 EqualityOperator | if (bytes.length > MAX_LABEL_BYTES) throw new RangeError(`The DNS label '${label}' is long => bytes.length >= MAX_LABEL_BYTES
+src/dns/node/wire.ts:42:7 ArithmeticOperator | if (offset + 2 > message.length) throw new RangeError('The DNS message is truncated.'); => offset - 2
+src/dns/node/wire.ts:56:23 EqualityOperator | for (let jumps = 0; jumps <= MAX_POINTER_JUMPS;) { => jumps < MAX_POINTER_JUMPS
+src/dns/node/wire.ts:63:16 ConditionalExpression | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => false
+src/dns/node/wire.ts:63:16 LogicalOperator | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => length > MAX_LABEL_BYTES && cursor + 1 + length > 
+src/dns/node/wire.ts:63:16 ConditionalExpression | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => false
+src/dns/node/wire.ts:63:16 EqualityOperator | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => length >= MAX_LABEL_BYTES
+src/dns/node/wire.ts:63:44 ConditionalExpression | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => false
+src/dns/node/wire.ts:63:44 EqualityOperator | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => cursor + 1 + length >= message.length
+src/dns/node/wire.ts:63:44 ArithmeticOperator | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => cursor + 1 - length
+src/dns/node/wire.ts:63:44 ArithmeticOperator | } else if (length > MAX_LABEL_BYTES || cursor + 1 + length > message.length) { => cursor - 1
+src/dns/node/wire.ts:90:9 ConditionalExpression | if (end > message.length) throw new RangeError('The DNS message is truncated.'); => false
+src/dns/plan.ts:110:24 MethodExpression | const existingHere = ctx.current.filter(record => record.name === name); => ctx.current
+src/dns/plan.ts:110:53 ConditionalExpression | const existingHere = ctx.current.filter(record => record.name === name); => true
+src/dns/plan.ts:111:24 MethodExpression | const wantsAddress = desiredHere.some(record => DNS_ADDRESS_TYPES.has(record.type)); => desiredHere.every(record => DNS_ADDRESS_TYPES.has(
+src/dns/plan.ts:118:22 MethodExpression | const others = [...desiredHere.filter(record => record.type !== 'CNAME'), ...existingHere. => desiredHere
+src/dns/plan.ts:118:51 ConditionalExpression | const others = [...desiredHere.filter(record => record.type !== 'CNAME'), ...existingHere. => true
+src/dns/plan.ts:118:80 MethodExpression | const others = [...desiredHere.filter(record => record.type !== 'CNAME'), ...existingHere. => existingHere
+src/dns/plan.ts:119:7 ConditionalExpression | if (others.length === 0) return undefined; => false
+src/dns/plan.ts:120:100 ArrayDeclaration | return { code: 'cname_coexistence', name, message: `A CNAME at ${name} cannot coexist with => []
+src/dns/plan.ts:120:123 ArrowFunction | return { code: 'cname_coexistence', name, message: `A CNAME at ${name} cannot coexist with => () => undefined
+src/dns/plan.ts:127:24 MethodExpression | .filter(record => !desired.some(want => want.type === record.type)) => desired.every(want => want.type === record.type)
+src/dns/plan.ts:133:16 ConditionalExpression | } else if (!sameValueSet({ left: have.values, right: want.values })) { => true
+src/dns/plan.ts:161:49 ConditionalExpression | const existing = ctx.current.filter(record => record.name === name && DNS_ADDRESS_TYPES.ha => true
+src/dns/plan.ts:184:40 ArrowFunction | const keys = new Set(have.values.map(value => dnsValueKey({ value }))); => () => undefined
+src/dns/plan.ts:185:40 MethodExpression | return { values: [...have.values, ...(want.values as readonly DnsRecordValue[]).filter(val => want.values as readonly DnsRecordValue[]
+src/dns/plan.ts:189:43 ConditionalExpression | const have = ctx.current.find(record => record.name === want.name && record.type === want. => true
+src/dns/plan.ts:193:98 ArrayDeclaration | if (sameValueSet({ left: have.values, right: merged.values })) return { changes: [], block => ["Stryker was here"]
+src/dns/plan.ts:199:20 LogicalOperator | const relevant = wildcard && wildcardIssuers.length > 0 ? wildcardIssuers : values.filter( => wildcard || wildcardIssuers.length > 0
+src/dns/plan.ts:199:32 ConditionalExpression | const relevant = wildcard && wildcardIssuers.length > 0 ? wildcardIssuers : values.filter( => true
+src/dns/plan.ts:199:32 EqualityOperator | const relevant = wildcard && wildcardIssuers.length > 0 ? wildcardIssuers : values.filter( => wildcardIssuers.length >= 0
+src/dns/plan.ts:201:58 MethodExpression | return relevant.length === 0 || relevant.some(value => (value.value.split(';')[0] as strin => value.value.split(';')[0] as string
+src/dns/plan.ts:206:37 Regex | for (let candidate = name.replace(/^\*\./, ''); candidate !== ''; candidate = candidate.in => /\*\./
+src/dns/plan.ts:207:20 MethodExpression | const values = [...ctx.current, ...ctx.desired].filter(record => record.name === candidate => [...ctx.current, ...ctx.desired]
+src/dns/plan.ts:207:70 ConditionalExpression | const values = [...ctx.current, ...ctx.desired].filter(record => record.name === candidate => true
+src/dns/plan.ts:207:70 LogicalOperator | const values = [...ctx.current, ...ctx.desired].filter(record => record.name === candidate => record.name === candidate || record.type === 'CAA'
+src/dns/plan.ts:207:70 ConditionalExpression | const values = [...ctx.current, ...ctx.desired].filter(record => record.name === candidate => true
+src/dns/plan.ts:217:20 MethodExpression | const issuer = requirement.caa.issuer.trim().toLowerCase(); => requirement.caa.issuer
+src/dns/plan.ts:276:99 ArrayDeclaration | const touched = new Set(changes.flatMap(change => (change.before ? [recordKey(change.befor => ["Stryker was here"]
+src/dns/records.ts:32:28 EqualityOperator | if (octets.some(octet => octet > 255)) return undefined; => octet >= 255
+src/dns/records.ts:49:19 ArithmeticOperator | const missing = 8 - head.length - tail.length; => 8 - head.length + tail.length
+src/dns/records.ts:56:41 ArrayDeclaration | const runs: Array<[number, number]> = []; => ["Stryker was here"]
+src/dns/records.ts:77:35 MethodExpression | const expanded = expandIpv4Tail(required.address.trim().toLowerCase()); => required.address
+src/dns/records.ts:98:17 Regex | const match = /^(\d+)\s+(\S+)$/.exec(required.text.trim()); => /(\d+)\s+(\S+)$/
+src/dns/records.ts:98:17 Regex | const match = /^(\d+)\s+(\S+)$/.exec(required.text.trim()); => /^(\d+)\s+(\S+)/
+src/dns/records.ts:98:17 Regex | const match = /^(\d+)\s+(\S+)$/.exec(required.text.trim()); => /^(\d+)\s(\S+)$/
+src/dns/records.ts:98:40 MethodExpression | const match = /^(\d+)\s+(\S+)$/.exec(required.text.trim()); => required.text
+src/dns/records.ts:104:17 Regex | const match = /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i.exec(required.text.trim() => /(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i
+src/dns/records.ts:104:17 Regex | const match = /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i.exec(required.text.trim() => /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?/i
+src/dns/records.ts:104:17 Regex | const match = /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i.exec(required.text.trim() => /^(\d+)\s(issue|issuewild|iodef)\s+"?([^"]*)"?$/i
+src/dns/records.ts:104:17 Regex | const match = /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i.exec(required.text.trim() => /^(\d+)\s+(issue|issuewild|iodef)\s"?([^"]*)"?$/i
+src/dns/records.ts:104:73 MethodExpression | const match = /^(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?$/i.exec(required.text.trim() => required.text
+src/dns/records.ts:119:10 ConditionalExpression | return required.type === 'AAAA' ? (canonicalIpv6({ address: text }) ?? text) : text; => true
+src/dns/records.ts:25:19 Regex | const IPV4_TAIL = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/; => /(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+src/dns/records.ts:25:19 Regex | const IPV4_TAIL = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/; => /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/
+src/dns/records.ts:25:19 Regex | const IPV4_TAIL = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/; => /^(.*:)(\d{1,3})\.(\d)\.(\d{1,3})\.(\d{1,3})$/
+src/dns/records.ts:25:19 Regex | const IPV4_TAIL = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/; => /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d)\.(\d{1,3})$/
+src/dns/records.ts:25:19 Regex | const IPV4_TAIL = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/; => /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d)$/
+src/dns/registry.ts:22:28 ConditionalExpression | return value !== null && typeof value === 'object'; => true
+src/dns/registry.ts:30:29 ConditionalExpression | return isObject(value) && typeof value.automatic === 'boolean' && isStringList(value.recor => true
+src/dns/registry.ts:31:8 ConditionalExpression | && typeof value.apexFlattening === 'boolean' && typeof value.proxy === 'boolean'; => true
+src/dns/registry.ts:31:53 ConditionalExpression | && typeof value.apexFlattening === 'boolean' && typeof value.proxy === 'boolean'; => true
+src/dns/registry.ts:40:16 ConditionalExpression | [provider => typeof provider.label === 'string' && provider.label.trim() !== '', 'label mu => true
+src/dns/registry.ts:43:59 ConditionalExpression | [provider => typeof provider.findZone === 'function' && typeof provider.listRecords === 'f => true
+src/dns/registry.ts:68:42 ObjectLiteral | const manual = createManualDnsProvider({ resolver: required.resolver }); => {}
+src/dns/spf.ts:11:10 Regex | return /^v=spf1(\s|$)/i.test(required.value.trim()); => /v=spf1(\s|$)/i
+src/dns/spf.ts:15:10 MethodExpression | return value.trim().split(/\s+/).slice(1); => value
+src/dns/spf.ts:15:29 Regex | return value.trim().split(/\s+/).slice(1); => /\s/
+src/dns/spf.ts:29:34 MethodExpression | if (!ALL_TERM.test(term) && !body.some(existing => existing.toLowerCase() === term.toLower => body.every(existing => existing.toLowerCase() === 
+src/dns/spf.ts:8:18 Regex | const ALL_TERM = /^[+\-~?]?all$/i; => /^[+\-~?]?all/i
+src/dns/spf.ts:8:18 Regex | const ALL_TERM = /^[+\-~?]?all$/i; => /[+\-~?]?all$/i
+src/dns/spf.ts:8:18 Regex | const ALL_TERM = /^[+\-~?]?all$/i; => /^[+\-~?]all$/i
+src/dns/verify.ts:62:83 ConditionalExpression | if (record.priority === undefined && isMxValue(have) && isMxValue(want)) return have.value => true
+src/dns/verify.ts:63:10 LogicalOperator | return typeof actual === 'string' && typeof expected === 'string' ? textMatches(actual, ex => typeof actual === 'string' || typeof expected === 
+src/dns/verify.ts:63:10 ConditionalExpression | return typeof actual === 'string' && typeof expected === 'string' ? textMatches(actual, ex => true
+src/dns/verify.ts:63:40 ConditionalExpression | return typeof actual === 'string' && typeof expected === 'string' ? textMatches(actual, ex => true
+src/dns/verify.ts:63:103 ConditionalExpression | return typeof actual === 'string' && typeof expected === 'string' ? textMatches(actual, ex => false
+src/dns/verify.ts:75:10 ConditionalExpression | return type === 'TXT' && typeof value === 'string' && isSpfValue({ value }); => true
+src/dns/verify.ts:75:10 LogicalOperator | return type === 'TXT' && typeof value === 'string' && isSpfValue({ value }); => type === 'TXT' || typeof value === 'string'
+src/dns/verify.ts:75:28 ConditionalExpression | return type === 'TXT' && typeof value === 'string' && isSpfValue({ value }); => true
+src/dns/verify.ts:75:10 ConditionalExpression | return type === 'TXT' && typeof value === 'string' && isSpfValue({ value }); => true
+src/dns/verify.ts:91:84 ArrayDeclaration | if (result.status === 'unknown') return { nameserver, state: 'unknown', answers: [] }; => ["Stryker was here"]
+src/dns/verify.ts:92:133 ArrayDeclaration | if (result.status === 'rejected') return { nameserver, state: result.error.code === 'not_f => ["Stryker was here"]
+src/dns/verify.ts:94:7 ConditionalExpression | if (!answers.some(answer => answerMatches({ record, answer }))) return { nameserver, state => false
+src/dns/verify.ts:101:10 MethodExpression | return records.filter(other => other.type === record.type && normalizeDnsName({ name: othe => records
+src/dns/verify.ts:101:34 ConditionalExpression | return records.filter(other => other.type === record.type && normalizeDnsName({ name: othe => true
+src/dns/verify.ts:101:34 LogicalOperator | return records.filter(other => other.type === record.type && normalizeDnsName({ name: othe => other.type === record.type || normalizeDnsName({
+ 
+src/dns/verify.ts:101:34 ConditionalExpression | return records.filter(other => other.type === record.type && normalizeDnsName({ name: othe => true
+src/dns/verify.ts:101:64 ConditionalExpression | return records.filter(other => other.type === record.type && normalizeDnsName({ name: othe => true
+src/dns/verify.ts:41:35 ArithmeticOperator | export const PROPAGATION_CAP_MS = 48 * 60 * 60 * 1000; => 48 * 60 / 60
+src/dns/verify.ts:41:35 ArithmeticOperator | export const PROPAGATION_CAP_MS = 48 * 60 * 60 * 1000; => 48 / 60
+src/local-dev/index.ts:35:34 EqualityOperator | if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('port must b => port <= 1
+src/local-dev/index.ts:35:46 ConditionalExpression | if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('port must b => false
+src/local-dev/index.ts:35:46 EqualityOperator | if (!Number.isInteger(port) || port < 1 || port > 65535) throw new RangeError('port must b => port >= 65535
+src/local-dev/index.ts:68:37 ConditionalExpression | try { server.listen({ port, ...(optional.host === undefined ? {} : { host: optional.host } => false
+src/local-dev/index.ts:90:71 ObjectLiteral | try { return await bindAndReport({ server, port: port + offset }, { host }); } => {}
+src/packaging/electron/archive.ts:39:53 OptionalChaining | for (const segment of prefix.split('/')) node = node?.files?.[segment]; => node.files
+src/packaging/electron/archive.ts:91:49 ObjectLiteral | const { files: headerFiles } = archive.header({ archivePath }); => {}
+src/packaging/electron/imports.ts:54:20 ConditionalExpression | const name = target === undefined ? undeclaredPackage({ specifier, declared }) : undefined => true
+src/packaging/electron/node.ts:19:175 ArithmeticOperator | stat: ({ path }) => { const info = lstatSync(path); return { kind: info.isFile() ? 'file'  => info.blocks / 512
+src/packaging/electron/node.ts:26:67 BooleanLiteral | cpSync(source, destination, { recursive: true, dereference: true, filter: full => full === => false
+src/packaging/electron/node.ts:26:89 ConditionalExpression | cpSync(source, destination, { recursive: true, dereference: true, filter: full => full === => false
+src/packaging/electron/node.ts:26:111 ConditionalExpression | cpSync(source, destination, { recursive: true, dereference: true, filter: full => full === => false
+src/packaging/electron/policies.ts:21:11 Regex | return !/\.(test|spec)\.[cm]?[jt]sx?$/.test(normalized); => /\.(test|spec)\.[cm]?[jt]sx?/
+src/packaging/electron/policies.ts:25:24 ConditionalExpression | if (builtAt === 0 || sourceAt === 0 || builtAt >= sourceAt) return null; => false
+src/packaging/electron/policies.ts:26:86 ArithmeticOperator | return `the built shell at ${shell.relative} is STALE — its ${shell.marker} is ${((sourceA => sourceAt + builtAt
+src/packaging/electron/policies.ts:31:35 Regex | return [...new Set(stdout.split(/\r?\n/).filter(line => line.startsWith(prefix)).map(line  => /\r\n/
+src/packaging/electron/policies.ts:37:7 ConditionalExpression | if (split <= 0) return undefined; => false
+src/packaging/electron/policies.ts:37:7 EqualityOperator | if (split <= 0) return undefined; => split < 0
+src/packaging/electron/policies.ts:57:7 Regex | if (/\.d\.[cm]?ts(\.map)?$/.test(name)) return 'declaration'; => /\.d\.[cm]?ts(\.map)?/
+src/packaging/electron/stability.ts:6:54 ObjectLiteral | const before = new Map(required.snapshots.snapshot({ roots: required.roots })); => {}
+src/packaging/electron/stability.ts:8:45 ObjectLiteral | const after = required.snapshots.snapshot({ roots: required.roots }); => {}
+src/packaging/electron/stability.ts:9:10 MethodExpression | return [...new Set([...before.keys(), ...after.keys()])].filter(file => before.get(file) ! => [...new Set([...before.keys(), ...after.keys()
+src/packaging/electron/stability.ts:9:75 ConditionalExpression | return [...new Set([...before.keys(), ...after.keys()])].filter(file => before.get(file) ! => true
+src/packaging/electron/staging.ts:12:76 ConditionalExpression | if (!/^(?:@[a-zA-Z0-9._-]+\/)?[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name) || name === '..') th => false
+src/packaging/electron/staging.ts:82:7 ConditionalExpression | if (!fs.exists({ path: modulesDir })) return []; => false
+src/packaging/electron/staging.ts:83:10 MethodExpression | return fs.entries({ path: modulesDir }).filter(entry => !entry.startsWith('.')).flatMap(en => fs.entries({
+  path: modulesDir
+})
+src/packaging/electron/staging.ts:83:60 MethodExpression | return fs.entries({ path: modulesDir }).filter(entry => !entry.startsWith('.')).flatMap(en => entry.endsWith('.')
+src/packaging/electron/staging.ts:141:7 ConditionalExpression | if (!fs.exists({ path: modulesDir })) return tally; => false
+src/packaging/electron/staging.ts:163:95 ConditionalExpression | return built.architectures.includes(target.arch) && (target.platform === built.platform || => true
+src/packaging/electron/staging.ts:173:42 MethodExpression | const foreign = known.filter(entry => !targets.some(target => serves(entry.built, target)) => targets.every(target => serves(entry.built, ta
+src/source-control/commit.ts:21:125 ObjectLiteral | return { ok: false, code: 'EXPORT_FAILED', message: `export failed before committing could => {}
+src/source-control/commit.ts:53:143 ObjectLiteral | catch (error) { return { ok: false, code: 'NO_CREDENTIALS_CONFIGURED', message: `credentia => {}
+src/source-control/commit.ts:66:93 ObjectLiteral | } catch (error) { return { ok: false, code: 'PROVIDER_ERROR', message: args.describeError( => {}
+src/source-control/registry.ts:4:94 ConditionalExpression | function object(value: unknown): value is Record<string, unknown> { return value !== null  => true
+src/source-control/registry.ts:11:7 ConditionalExpression | if (typeof value !== 'string') return false; => false
+src/source-control/registry.ts:12:103 BlockStatement | try { const url = new URL(value); return url.protocol === 'https:' && url.origin === value => {}
+src/source-control/registry.ts:27:10 ConditionalExpression | return typeof value === 'string' && value.length <= 64 && !/\s/.test(value) && /^[a-z0-9]+ => true
+src/source-control/registry.ts:27:82 Regex | return typeof value === 'string' && value.length <= 64 && !/\s/.test(value) && /^[a-z0-9]+ => /^[a-z0-9]+(?:-[a-z0-9])*$/
+src/source-control/registry.ts:27:82 Regex | return typeof value === 'string' && value.length <= 64 && !/\s/.test(value) && /^[a-z0-9]+ => /^[a-z0-9]+(?:-[^a-z0-9]+)*$/
+src/source-control/registry.ts:33:34 ConditionalExpression | return value === undefined || (typeof value === 'number' && Number.isSafeInteger(value) && => true
+src/source-control/registry.ts:88:10 ConditionalExpression | return a.pluginId > b.pluginId ? 1 : 0; => true
+src/source-control/registry.ts:88:10 ConditionalExpression | return a.pluginId > b.pluginId ? 1 : 0; => false
+src/source-control/registry.ts:88:10 EqualityOperator | return a.pluginId > b.pluginId ? 1 : 0; => a.pluginId >= b.pluginId
+src/source-control/registry.ts:88:10 EqualityOperator | return a.pluginId > b.pluginId ? 1 : 0; => a.pluginId <= b.pluginId
+src/source-control/registry.ts:127:32 MethodExpression | const frozen = Object.freeze(into.providers.slice()); => into.providers
+src/source-control/registry.ts:128:145 MethodExpression | return { list: () => frozen, get: ({ providerId }) => frozen.find(provider => provider.des => into.refusals
+src/source-control/registry.ts:160:40 ObjectLiteral | const registry = await required.load({ workspaceId: required.workspaceId }); => {}
+src/source-control/registry.ts:172:40 ObjectLiteral | const registry = await required.load({ workspaceId: required.workspaceId }); => {}
+src/source-control/registry.ts:173:213 ObjectLiteral | return { providers: registry.list({}).map(loaded => buildLoadedSourceControlProvider<Kit,  => {}
+src/source-control/registry.ts:179:7 ConditionalExpression | if (picked.ok) return picked; => false
+src/source-control/registry.ts:185:51 ConditionalExpression | return optional.reservedPaths?.find(reserved => lower === reserved.toLowerCase() || lower. => false
+src/source-control/registry.ts:185:61 MethodExpression | return optional.reservedPaths?.find(reserved => lower === reserved.toLowerCase() || lower. => reserved.toUpperCase()
+src/source-control/registry.ts:189:10 MethodExpression | return optional.workflowPaths?.some(folder => required.filePath.startsWith(`${folder}/`))  => optional.workflowPaths?.every(folder => required.
+src/source-control/registry.ts:193:54 BlockStatement | try { return new URL(required.url).origin; } catch { return undefined; } => {}
+src/source-control/repository-target.ts:22:7 ConditionalExpression | if (optional.branch !== undefined && (!BRANCH_PATTERN.test(optional.branch) || /[\s\x00-\x => true
+src/static-export/node-adapters.ts:12:49 BlockStatement | try { await mkdir(directory); } catch (error) { if ((error as NodeJS.ErrnoException).code  => {}
+src/static-export/node-adapters.ts:12:55 ConditionalExpression | try { await mkdir(directory); } catch (error) { if ((error as NodeJS.ErrnoException).code  => false
+src/static-export/node-adapters.ts:29:25 MethodExpression | for (const segment of resolved.slice(root.length).split(path.sep).filter(Boolean)) { => resolved.slice(root.length).split(path.sep)
+src/static-export/node-adapters.ts:29:25 MethodExpression | for (const segment of resolved.slice(root.length).split(path.sep).filter(Boolean)) { => resolved
+src/static-export/node-adapters.ts:46:136 BooleanLiteral | if (options.clean) for (const entry of await readdir(outputDir)) await rm(path.join(output => false
+src/static-export/node-adapters.ts:50:72 ObjectLiteral | await ensureDirectory({ directory: outputDir, label: 'Output' }, { create: true }); => {}
+src/static-export/node-adapters.ts:50:82 BooleanLiteral | await ensureDirectory({ directory: outputDir, label: 'Output' }, { create: true }); => false
+src/static-export/node-adapters.ts:62:17 BlockStatement | } finally { await handle.close(); } => {}
+src/static-export/node-adapters.ts:72:11 ConditionalExpression | if (closed) return; => false
+src/static-export/node-adapters.ts:73:16 BooleanLiteral | closed = true; => false
+src/static-export/node-adapters.ts:96:118 MethodExpression | return { async listThemeFiles({ theme }) { await ensureDirectory({ directory: theme.dir, l => await list(theme.dir, '')
+src/static-export/runner.ts:20:118 ConditionalExpression | const decision = redirectOutcomeFor({ status: response.status, locationHeader: response.he => true
+src/static-export/runner.ts:20:118 ConditionalExpression | const decision = redirectOutcomeFor({ status: response.status, locationHeader: response.he => false
+src/static-export/runner.ts:20:118 EqualityOperator | const decision = redirectOutcomeFor({ status: response.status, locationHeader: response.he => route.redirectTarget === undefined
+src/static-export/runner.ts:20:155 ObjectLiteral | const decision = redirectOutcomeFor({ status: response.status, locationHeader: response.he => {}
+src/static-export/runner.ts:40:11 OptionalChaining | await response.body?.cancel(); => response.body.cancel
+src/static-export/runner.ts:45:37 Regex | if (route.kind === 'not-found' || /^text\/html\b/i.test(contentType ?? '')) body = ctx.arg => /text\/html\b/i
+src/static-export/runner.ts:57:129 ConditionalExpression | return { route: { path: route.path, kind: route.kind, outputFile, data: outcome.body, cont => true
+src/static-export/runner.ts:97:29 OptionalChaining | if (!response.ok) { await response.body?.cancel(); return { reason: `GET ${url} -> ${respo => response.body.cancel
+src/static-export/runner.ts:111:46 ConditionalExpression | return error instanceof ExportPathError && ctx.args.assetPathFailureReason !== undefined ? => true
+src/static-export/runner.ts:133:47 ObjectLiteral | const layout = ctx.args.themeLayout.resolve({ theme }); => {}
+src/static-export/runner.ts:138:9 ConditionalExpression | if (pathname.startsWith(layout.assetUrlPrefix)) accounted.add(pathname.slice(layout.assetU => true
+src/static-export/runner.ts:140:56 ObjectLiteral | return [...await ctx.args.assetSource.listThemeFiles({ theme })].filter(file => !accounted => {}
+src/static-export/runner.ts:146:64 Regex | return url => new URL(url, required.origin).pathname.replace(/\/+$/, '') || '/'; => /\/$/
+src/static-export/runner.ts:155:9 ConditionalExpression | if (file.endsWith('/index.html')) written.add(normalize(file.slice(0, -10))); => true
+src/static-export/runner.ts:157:35 ConditionalExpression | for (const route of routes) if (route.kind !== 'not-found') written.add(normalize(route.pa => false
+src/static-export/runner.ts:162:10 Regex | return /^text\/html\b/i.test(route.contentType ?? '') || route.outputFile.endsWith('.html' => /text\/html\b/i
+src/static-export/runner.ts:162:32 LogicalOperator | return /^text\/html\b/i.test(route.contentType ?? '') || route.outputFile.endsWith('.html' => route.contentType && ''
+src/static-export/runner.ts:167:11 ConditionalExpression | return ((!value || value.startsWith('?')) && attribute !== 'action') || value.startsWith(' => false
+src/static-export/runner.ts:167:12 LogicalOperator | return ((!value || value.startsWith('?')) && attribute !== 'action') || value.startsWith(' => !value && value.startsWith('?')
+src/static-export/runner.ts:167:22 MethodExpression | return ((!value || value.startsWith('?')) && attribute !== 'action') || value.startsWith(' => value.endsWith('?')
+src/static-export/runner.ts:183:17 MethodExpression | const value = reference.url.trim(); => reference.url
+src/static-export/transforms.ts:11:31 Regex | if (href.startsWith('#') || /^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return h => /https?:\/\//i
+src/static-export/transforms.ts:11:61 Regex | if (href.startsWith('#') || /^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return h => /mailto:/i
+src/static-export/transforms.ts:14:130 BlockStatement | try { if (new URL(href, 'http://export-safehref.invalid/').origin === 'http://export-safeh => {}
+src/static-export/transforms.ts:21:25 ConditionalExpression | if (trimmed === '' || trimmed === '/') return ''; => false
+src/static-export/transforms.ts:22:50 MethodExpression | if (/[\\\x00-\x20\x7f?#"'<>]/.test(trimmed) || trimmed.startsWith('//')) throw new ExportP => trimmed.endsWith('//')
+src/static-export/transforms.ts:44:12 ConditionalExpression | while (end > start && value[end - 1] === ',') end--; => true
+src/static-export/transforms.ts:44:12 EqualityOperator | while (end > start && value[end - 1] === ',') end--; => end >= start
+src/static-export/transforms.ts:57:10 Regex | return /\.json$/i.test(path.split(/[?#]/)[0]!); => /\.json/i
+src/static-export/transforms.ts:63:59 ConditionalExpression | return JSON.stringify(parsed, (key, value: unknown) => (typeof value === 'string' && (key  => true
+src/static-export/transforms.ts:63:124 ConditionalExpression | return JSON.stringify(parsed, (key, value: unknown) => (typeof value === 'string' && (key  => false
+src/static-export/transforms.ts:67:9 ConditionalExpression | if (attr !== 'srcset') return `${attr}=${quote}${prefix(value, basePath)}${quote}`; => false
+src/static-export/transforms.ts:77:51 Regex | if (path === '/robots.txt') return body.replace(/^Sitemap: (.*)$/gm, (_match, value: strin => /Sitemap: (.*)$/gm
+src/static-export/transforms.ts:77:51 Regex | if (path === '/robots.txt') return body.replace(/^Sitemap: (.*)$/gm, (_match, value: strin => /^Sitemap: (.*)/gm
+src/static-export/transforms.ts:84:7 EqualityOperator | if (required.status < 300 || required.status >= 400) return { kind: 'failed', reason: `exp => required.status <= 300
+src/static-export/transforms.ts:109:32 ArrayDeclaration | const candidates: string[] = []; => ["Stryker was here"]
+src/static-export/transforms.ts:122:17 MethodExpression | if (!ref || ref.startsWith('data:')) continue; => ref.endsWith('data:')
+src/static-export/transforms.ts:128:9 MethodExpression | if (required.prefixes.some(prefix => resolved.pathname.startsWith(prefix))) found.add(reso => required.prefixes.every(prefix => resolved.pathna
+src/static-export/transforms.ts:135:53 MethodExpression | if (!value || /[\\\x00-\x1f\x7f:]/.test(value) || value.startsWith('/')) throw new ExportP => value.endsWith('/')
+src/static-export/transforms.ts:144:36 Regex | const relative = decoded.replace(/^\//, '').replace(/\/+$/, ''); => /\//
+src/static-export/transforms.ts:144:55 Regex | const relative = decoded.replace(/^\//, '').replace(/\/+$/, ''); => /\/$/
+src/static-export/transforms.ts:145:7 ConditionalExpression | if (relative) safeRelativeOutputFile({ value: relative }); => false
+src/packaging/electron/typescript.ts:7:88 BooleanLiteral | const tree = compiler.createSourceFile(file, source, compiler.ScriptTarget.Latest, false,  => true

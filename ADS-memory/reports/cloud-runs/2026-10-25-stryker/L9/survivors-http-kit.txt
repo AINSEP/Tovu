@@ -1,0 +1,77 @@
+src/adapter.ts:120:77 ObjectLiteral | if (spec.ports?.authenticate) context = await spec.ports.authenticate({ raw, res, deps }); => {}
+src/adapter.ts:129:14 OptionalChaining | if (!spec.ports?.authorize) throw new Error('JSON route authorizer is required'); => spec.ports.authorize
+src/api-security-middleware.ts:166:64 OptionalChaining | if (trustLoopbackPeers && isLoopbackPeerAddress({ address: req.socket?.remoteAddress }) && => req.socket.remoteAddress
+src/api-security-middleware.ts:171:9 ConditionalExpression | if (presented === null || !timingSafeTokenMatch({ presented, expected: apiToken })) { => false
+src/api-security-middleware.ts:239:54 ArrayDeclaration | const exempt = new Set(optionalArgs.exemptPaths ?? []); => ["Stryker was here"]
+src/api-security-middleware.ts:260:9 ConditionalExpression | if (presented === null || !timingSafeTokenMatch({ presented, expected })) { => false
+src/api-security-middleware.ts:261:28 ObjectLiteral | res.status(401).json({ => {}
+src/api-security-middleware.ts:262:16 ObjectLiteral | error: { code: 'API_TOKEN_REQUIRED', message: `Authorization: Bearer <${tokenEnvVar}> requ => {}
+src/api-security-middleware.ts:287:10 Regex | return /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])$/.test(origin); => /https?:\/\/(127\.0\.0\.1|localhost|\[::1\])$/
+src/api-security-middleware.ts:287:10 Regex | return /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])$/.test(origin); => /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])/
+src/api-security-middleware.ts:307:59 ArrayDeclaration | const extraAllowedOrigins = deps.extraAllowedOrigins ?? []; => ["Stryker was here"]
+src/api-security-middleware.ts:311:27 ConditionalExpression | if (origin == null || origin === '') { => false
+src/api-security-middleware.ts:47:30 Regex | const BEARER_TOKEN_PATTERN = /^Bearer\s+(\S+)\s*$/i; => /Bearer\s+(\S+)\s*$/i
+src/api-security-middleware.ts:47:30 Regex | const BEARER_TOKEN_PATTERN = /^Bearer\s+(\S+)\s*$/i; => /^Bearer\s+(\S+)\s*/i
+src/local-daemon-request.ts:37:19 MethodExpression | const trimmed = value.trim(); => value
+src/local-daemon-request.ts:60:22 MethodExpression | const normalized = address.trim().toLowerCase().replace(/^\[|\]$/g, ''); => address
+src/local-daemon-request.ts:60:59 Regex | const normalized = address.trim().toLowerCase().replace(/^\[|\]$/g, ''); => /\[|\]$/g
+src/local-daemon-request.ts:60:59 Regex | const normalized = address.trim().toLowerCase().replace(/^\[|\]$/g, ''); => /^\[|\]/g
+src/local-daemon-request.ts:61:7 ConditionalExpression | if (!normalized) return false; => false
+src/local-daemon-request.ts:63:31 ConditionalExpression | if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true; => false
+src/local-daemon-request.ts:64:7 ConditionalExpression | if (net.isIP(normalized) === 4) return normalized === '127.0.0.1' || normalized.startsWith => true
+src/local-daemon-request.ts:64:42 ConditionalExpression | if (net.isIP(normalized) === 4) return normalized === '127.0.0.1' || normalized.startsWith => false
+src/local-daemon-request.ts:64:42 LogicalOperator | if (net.isIP(normalized) === 4) return normalized === '127.0.0.1' || normalized.startsWith => normalized === '127.0.0.1' && normalized.startsWit
+src/local-daemon-request.ts:64:72 MethodExpression | if (net.isIP(normalized) === 4) return normalized === '127.0.0.1' || normalized.startsWith => normalized.endsWith('127.')
+src/local-daemon-request.ts:77:19 MethodExpression | const trimmed = value.trim(); => value
+src/local-daemon-request.ts:78:7 ConditionalExpression | if (!trimmed || trimmed === 'null' || trimmed.includes(',')) return null; => false
+src/local-daemon-request.ts:78:7 LogicalOperator | if (!trimmed || trimmed === 'null' || trimmed.includes(',')) return null; => (!trimmed || trimmed === 'null') && trimmed.includ
+src/local-daemon-request.ts:78:7 ConditionalExpression | if (!trimmed || trimmed === 'null' || trimmed.includes(',')) return null; => false
+src/local-daemon-request.ts:78:7 LogicalOperator | if (!trimmed || trimmed === 'null' || trimmed.includes(',')) return null; => !trimmed && trimmed === 'null'
+src/local-daemon-request.ts:78:19 ConditionalExpression | if (!trimmed || trimmed === 'null' || trimmed.includes(',')) return null; => false
+src/local-daemon-request.ts:101:41 OptionalChaining | if (!isLoopbackPeerAddress({ address: req.socket?.remoteAddress })) { => req.socket.remoteAddress
+src/local-daemon-request.ts:147:7 ConditionalExpression | if (validation.origin) { => true
+src/observability.ts:16:26 ConditionalExpression | const logSlowRequest = slowRequestMs !== undefined && Number.isFinite(slowRequestMs) => true
+src/observability.ts:16:26 LogicalOperator | const logSlowRequest = slowRequestMs !== undefined && Number.isFinite(slowRequestMs) => slowRequestMs !== undefined || Number.isFinite(slo
+src/observability.ts:16:26 ConditionalExpression | const logSlowRequest = slowRequestMs !== undefined && Number.isFinite(slowRequestMs) => true
+src/observability.ts:22:28 ObjectLiteral | else createConsoleLogger({ prefix: '' }).info({ message }); => {}
+src/origin.ts:36:15 ObjectLiteral | return ok({ value: undefined }); => {}
+src/rate-limit.ts:100:22 ConditionalExpression | if (!existing || nowMs - existing.windowStartMs >= windowMs) { => false
+src/rate-limit.ts:100:22 EqualityOperator | if (!existing || nowMs - existing.windowStartMs >= windowMs) { => nowMs - existing.windowStartMs > windowMs
+src/rate-limit.ts:155:22 OptionalChaining | const socketPeer = source.socket?.remoteAddress ?? policy.unknownAddress; => source.socket.remoteAddress
+src/rate-limit.ts:159:22 OptionalChaining | const firstHop = value?.split(',')[0]?.trim(); => value?.split(',')[0].trim
+src/raw-sse.ts:83:9 ConditionalExpression | if (closed) return; => false
+src/raw-sse.ts:96:3 OptionalChaining | keepAliveTimer.unref?.(); => keepAliveTimer.unref()
+src/route-registration-guard.ts:42:7 ConditionalExpression | if (typeof path !== 'string') return null; => false
+src/sse.ts:147:9 ConditionalExpression | if (closed) return; => false
+src/sse.ts:183:9 ConditionalExpression | if (closed) return; => false
+src/sse.ts:215:9 ConditionalExpression | if (closed) { => true
+src/sse.ts:238:17 ConditionalExpression | if (header && header.length > 0) return header; => true
+src/sse.ts:238:17 EqualityOperator | if (header && header.length > 0) return header; => header.length >= 0
+src/verified-origin/configured-origin.ts:33:11 BlockStatement | } catch { => {}
+src/verified-origin/configured-origin.ts:42:7 LogicalOperator | if (url.username !== "" || url.password !== "") return "it carries a userinfo component"; => url.username !== "" && url.password !== ""
+src/verified-origin/configured-origin.ts:42:7 ConditionalExpression | if (url.username !== "" || url.password !== "") return "it carries a userinfo component"; => false
+src/verified-origin/configured-origin.ts:42:30 ConditionalExpression | if (url.username !== "" || url.password !== "") return "it carries a userinfo component"; => false
+src/verified-origin/configured-origin.ts:61:41 Regex | const basePath = url.pathname.replace(/\/+$/, ""); => /\/$/
+src/verified-origin/configured-origin.ts:13:23 Regex | const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; => /127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
+src/verified-origin/configured-origin.ts:13:23 Regex | const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; => /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}/
+src/verified-origin/configured-origin.ts:13:23 Regex | const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; => /^127\.\d\.\d{1,3}\.\d{1,3}$/
+src/verified-origin/configured-origin.ts:13:23 Regex | const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; => /^127\.\d{1,3}\.\d\.\d{1,3}$/
+src/verified-origin/configured-origin.ts:13:23 Regex | const LOOPBACK_IPV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; => /^127\.\d{1,3}\.\d{1,3}\.\d$/
+src/verified-origin/origin.ts:30:7 ConditionalExpression | if (typeof rawUrl !== "string" || rawUrl.length === 0) return null; => false
+src/verified-origin/origin.ts:30:7 LogicalOperator | if (typeof rawUrl !== "string" || rawUrl.length === 0) return null; => typeof rawUrl !== "string" && rawUrl.length === 0
+src/verified-origin/origin.ts:30:7 ConditionalExpression | if (typeof rawUrl !== "string" || rawUrl.length === 0) return null; => false
+src/verified-origin/origin.ts:30:37 ConditionalExpression | if (typeof rawUrl !== "string" || rawUrl.length === 0) return null; => false
+src/verified-origin/origin.ts:34:11 BlockStatement | } catch { => {}
+src/verified-origin/origin.ts:41:7 ConditionalExpression | if (parsed.protocol === "http:") return "http"; => true
+src/verified-origin/origin.ts:68:7 ConditionalExpression | if (!scheme) return null; => false
+src/verified-origin/origin.ts:98:7 ConditionalExpression | if (canonical.scheme !== target.scheme) return false; => false
+src/verified-origin/origin.ts:125:40 ObjectLiteral | throw new OriginNotVerifiedError({ message: `no verified origin registered for workspace ' => {}
+src/verified-origin/origin.ts:154:11 ConditionalExpression | if (!target) return false; => false
+src/verified-origin/origin.ts:156:88 ConditionalExpression | const canonical = await this.canonicalOrigin({ workspaceId: ctx.workspaceId, ...(ctx.siteI => false
+src/verified-origin/origin.ts:165:73 MethodExpression | const allowSet = new Set(allowlist.map((host) => stripTrailingDot(host.trim().toLowerCase( => host
+src/verified-origin/site-path.ts:71:23 EqualityOperator | for (let index = 0; index < value.length; index += 1) { => index <= value.length
+src/verified-origin/site-path.ts:98:27 ConditionalExpression | if (segment === "" || segment === ".") continue; => false
+src/verified-origin/site-path.ts:207:7 ConditionalExpression | if (parsed.origin !== PROBE_ORIGIN || reparsed.origin !== SECOND_PROBE_ORIGIN) return { ki => false
+src/verified-origin/types.ts:38:41 ObjectLiteral | throw new InsecureOriginSourceError({ => {}
+src/verified-origin/repo.memory.ts:52:20 ArrayDeclaration | return (hosts ?? []).map((host) => host.trim().toLowerCase()); => ["Stryker was here"]
+src/verified-origin/repo.memory.ts:52:38 MethodExpression | return (hosts ?? []).map((host) => host.trim().toLowerCase()); => host

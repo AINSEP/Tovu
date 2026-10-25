@@ -1,0 +1,22 @@
+file|mut|killed|surv|nocov|timeout|score
+src/verified-origin/configured-origin.ts|81|71|10|0|0|87.7
+src/local-daemon-request.ts|148|129|18|0|1|87.8
+src/observability.ts|36|32|4|0|0|88.9
+src/origin.ts|9|8|1|0|0|88.9
+src/verified-origin/repo.memory.ts|18|16|2|0|0|88.9
+src/verified-origin/origin.ts|118|106|12|0|0|89.8
+src/api-security-middleware.ts|134|122|12|0|0|91.0
+src/verified-origin/types.ts|13|12|1|0|0|92.3
+src/sse.ts|82|76|5|0|1|93.9
+src/raw-sse.ts|42|36|2|0|4|95.2
+src/rate-limit.ts|85|81|4|0|0|95.3
+src/verified-origin/site-path.ts|69|65|3|0|1|95.7
+src/route-registration-guard.ts|28|27|1|0|0|96.4
+src/adapter.ts|85|83|2|0|0|97.6
+src/middleware.ts|9|9|0|0|0|100.0
+src/request.ts|11|11|0|0|0|100.0
+src/compat.ts|5|5|0|0|0|100.0
+src/pack-http.ts|4|4|0|0|0|100.0
+src/response.ts|6|6|0|0|0|100.0
+src/types.ts|6|6|0|0|0|100.0
+TOTAL 989 {"Ignored":172,"Killed":905,"Survived":77,"Timeout":7} 92.21

@@ -1,0 +1,234 @@
+src/core/page-executor.ts:341:5 NOCOV ConditionalExpression | default: => /* c8 ignore next 2 -- unreachable: the id was mat
+src/core/page-executor.ts:103:7 ConditionalExpression | if (typeof value !== 'string' || !isValidElementHandle({ handle: value })) { => false
+src/core/page-executor.ts:113:7 ConditionalExpression | if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return DEFAULT_HIG => false
+src/core/page-executor.ts:118:10 ConditionalExpression | return typeof value === 'string' && (AGENT_ELEMENT_ROLES as readonly string[]).includes(va => true
+src/core/page-executor.ts:118:10 LogicalOperator | return typeof value === 'string' && (AGENT_ELEMENT_ROLES as readonly string[]).includes(va => typeof value === 'string' || (AGENT_ELEMENT_ROLES 
+src/core/page-executor.ts:118:10 ConditionalExpression | return typeof value === 'string' && (AGENT_ELEMENT_ROLES as readonly string[]).includes(va => true
+src/core/page-executor.ts:148:20 ConditionalExpression | textTruncated: withheldText === undefined ? text.truncated : false, => true
+src/core/page-executor.ts:149:9 ConditionalExpression | ...(withheldText !== undefined ? { textWithheld: withheldText } : {}), => true
+src/core/page-executor.ts:167:9 ConditionalExpression | : refusal !== null ? describeFieldReadRefusal({ refusal }) : undefined; => true
+src/core/page-executor.ts:175:9 ConditionalExpression | ...(raw.checked !== undefined && refusal === null ? { checked: raw.checked } : {}), => true
+src/core/page-executor.ts:176:9 ConditionalExpression | ...(raw.disabled !== undefined ? { disabled: raw.disabled } : {}), => true
+src/core/page-executor.ts:177:9 ConditionalExpression | ...(raw.visible !== undefined ? { visible: raw.visible } : {}), => true
+src/core/page-executor.ts:211:10 ConditionalExpression | return a.text === b.text => true
+src/core/page-executor.ts:211:10 LogicalOperator | return a.text === b.text => a.text === b.text
+// Compared for the same reason 
+src/core/page-executor.ts:211:10 ConditionalExpression | return a.text === b.text => true
+src/core/page-executor.ts:216:8 ConditionalExpression | && a.textWithheld === b.textWithheld => true
+src/core/page-executor.ts:218:8 ConditionalExpression | && a.valueWithheld === b.valueWithheld => true
+src/core/page-executor.ts:220:8 ConditionalExpression | && a.disabled === b.disabled => true
+src/core/page-executor.ts:221:8 ConditionalExpression | && a.visible === b.visible; => true
+src/core/page-executor.ts:249:9 ConditionalExpression | ...(before !== undefined ? { before } : {}), => true
+src/core/page-executor.ts:250:9 ConditionalExpression | ...(after !== undefined ? { after } : {}), => true
+src/core/page-executor.ts:251:9 ConditionalExpression | ...(before !== undefined && after !== undefined => true
+src/core/page-executor.ts:275:38 ConditionalExpression | page: elements.find((element) => element.page !== undefined)?.page, => true
+src/core/page-executor.ts:378:9 ConditionalExpression | ...(typeof input['query'] === 'string' ? { query: input['query'] } : {}), => true
+src/core/page-executor.ts:395:12 ConditionalExpression | return state === undefined ? base : { ...base, state }; => false
+src/core/page-executor.ts:412:22 EqualityOperator | ...(observing && found.length > MAX_STATEFUL_ELEMENTS ? { stateTruncated: true } : {}), => found.length >= MAX_STATEFUL_ELEMENTS
+src/core/a2ui/agent-to-renderer.ts:142:22 ConditionalExpression | .refine((v) => ('value' in v) !== ('error' in v), 'exactly one of value/error is required' => true
+src/core/a2ui/agent-to-renderer.ts:38:11 ObjectLiteral | .object({ => {}
+src/core/a2ui/catalog.ts:336:61 ArrayDeclaration | const values = Array.isArray(args.values) ? args.values : []; => ["Stryker was here"]
+src/core/a2ui/catalog.ts:337:31 MethodExpression | return values.length > 0 && values.every((v) => v === true); => values.some(v => v === true)
+src/core/a2ui/catalog.ts:337:51 ConditionalExpression | return values.length > 0 && values.every((v) => v === true); => true
+src/core/a2ui/catalog.ts:340:61 ArrayDeclaration | const values = Array.isArray(args.values) ? args.values : []; => ["Stryker was here"]
+src/core/a2ui/catalog.ts:301:18 Regex | const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/; => /\d{4}-\d{2}-\d{2}$/
+src/core/a2ui/catalog.ts:301:18 Regex | const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/; => /^\d{4}-\d{2}-\d{2}/
+src/core/a2ui/catalog.ts:302:18 Regex | const ISO_TIME = /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2})?$/; => /\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2}
+src/core/a2ui/catalog.ts:302:18 Regex | const ISO_TIME = /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2})?$/; => /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2
+src/core/a2ui/catalog.ts:302:18 Regex | const ISO_TIME = /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2})?$/; => /^\d{2}:\d{2}(:\d{2}(\.\d)?)?([Zz]|[+-]\d{2}:\d{2}
+src/core/a2ui/catalog.ts:302:18 Regex | const ISO_TIME = /^\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}:\d{2})?$/; => /^\d{2}:\d{2}(:\d{2}(\.\D+)?)?([Zz]|[+-]\d{2}:\d{2
+src/core/a2ui/catalog.ts:303:23 Regex | const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}: => /\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(:\d{2}(\.\d+)?)
+src/core/a2ui/catalog.ts:303:23 Regex | const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?([Zz]|[+-]\d{2}: => /^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(:\d{2}(\.\d+)?
+src/core/a2ui/common-types.ts:103:11 ObjectLiteral | .object({ => {}
+src/core/a2ui/common-types.ts:105:20 ObjectLiteral | args: z.object({ offset: DynamicNumberSchema.optional() }).strict().optional(), => {}
+src/core/a2ui/common-types.ts:120:47 ObjectLiteral | export const ComponentCommonSchema = z.object({ => {}
+src/core/a2ui/common-types.ts:151:41 ObjectLiteral | export const CheckableSchema = z.object({ checks: z.array(CheckRuleSchema).optional() }); => {}
+src/core/a2ui/interpreter.ts:113:7 ConditionalExpression | if (typeof raw !== 'object' || raw === null) return undefined; => false
+src/core/a2ui/interpreter.ts:115:35 ConditionalExpression | if (typeof body !== 'object' || body === null) return undefined; => false
+src/core/a2ui/interpreter.ts:117:10 ConditionalExpression | return typeof surfaceId === 'string' ? surfaceId : undefined; => true
+src/core/a2ui/interpreter.ts:135:8 ConditionalExpression | || parsed.code === 'NO_MESSAGE_KEY' => false
+src/core/a2ui/interpreter.ts:246:22 LogicalOperator | sendDataModel: message.createSurface.sendDataModel ?? false, => message.createSurface.sendDataModel && false
+src/core/a2ui/interpreter.ts:246:61 BooleanLiteral | sendDataModel: message.createSurface.sendDataModel ?? false, => true
+src/core/a2ui/interpreter.ts:306:11 ConditionalExpression | if ('value' in actionResponse && pending.responsePath) { => true
+src/core/a2ui/interpreter.ts:306:11 LogicalOperator | if ('value' in actionResponse && pending.responsePath) { => 'value' in actionResponse || pending.responsePath
+src/core/a2ui/interpreter.ts:309:14 ArrayDeclaration | return []; => ["Stryker was here"]
+src/core/a2ui/interpreter.ts:343:12 OptionalChaining | return surfaces.get(surfaceId)?.components.get('root'); => surfaces.get(surfaceId).components
+src/core/a2ui/interpreter.ts:349:59 OptionalChaining | return resolveDynamicValue({ value, ctx: { dataModel: surface?.dataModel, catalog, side: ' => surface.dataModel
+src/core/a2ui/interpreter.ts:385:9 ConditionalExpression | if (actionId) { => true
+src/core/a2ui/interpreter.ts:394:11 ConditionalExpression | ...(wantResponse !== undefined ? { wantResponse } : {}), => true
+src/core/a2ui/interpreter.ts:394:11 ConditionalExpression | ...(wantResponse !== undefined ? { wantResponse } : {}), => false
+src/core/a2ui/interpreter.ts:394:11 EqualityOperator | ...(wantResponse !== undefined ? { wantResponse } : {}), => wantResponse === undefined
+src/core/a2ui/interpreter.ts:394:40 ObjectLiteral | ...(wantResponse !== undefined ? { wantResponse } : {}), => {}
+src/core/a2ui/json-pointer.ts:50:59 BooleanLiteral | Object.defineProperty(record, token, { value, writable: true, enumerable: true, configurab => false
+src/core/a2ui/json-pointer.ts:50:97 BooleanLiteral | Object.defineProperty(record, token, { value, writable: true, enumerable: true, configurab => false
+src/core/a2ui/json-pointer.ts:108:12 ConditionalExpression | return index !== undefined && index < current.length ? { found: true, value: current[index => true
+src/core/a2ui/json-pointer.ts:179:16 MethodExpression | const next = array.slice(); => array
+src/core/a2ui/json-pointer.ts:180:27 ConditionalExpression | next[index] = writePath(index < next.length ? next[index] : {}, rest, leaf); => true
+src/core/a2ui/json-pointer.ts:180:27 EqualityOperator | next[index] = writePath(index < next.length ? next[index] : {}, rest, leaf); => index <= next.length
+src/core/a2ui/renderer-to-agent.ts:122:7 ConditionalExpression | if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) { => false
+src/core/a2ui/renderer-to-agent.ts:126:41 BlockStatement | if (obj.version !== PROTOCOL_VERSION) { => {}
+src/core/a2ui/renderer-to-agent.ts:126:7 ConditionalExpression | if (obj.version !== PROTOCOL_VERSION) { => false
+src/core/a2ui/renderer-to-agent.ts:130:33 BlockStatement | if (presentKeys.length !== 1) { => {}
+src/core/a2ui/renderer-to-agent.ts:130:7 ConditionalExpression | if (presentKeys.length !== 1) { => false
+src/core/a2ui/renderer-to-agent.ts:43:44 ObjectLiteral | .refine((payload) => 'value' in payload, { => {}
+src/core/a2ui/renderer-to-agent.ts:45:11 ArrayDeclaration | path: ['value'], => []
+src/core/a2ui/resolve.ts:69:10 ConditionalExpression | return typeof value === 'object' => true
+src/core/a2ui/resolve.ts:70:8 ConditionalExpression | && value !== null => true
+src/core/a2ui/resolve.ts:74:8 ConditionalExpression | && Object.keys(value).length === 1; => true
+src/core/a2ui/resolve.ts:77:10 LogicalOperator | return typeof value === 'object' && value !== null && !Array.isArray(value) && 'call' in v => typeof value === 'object' && value !== null && !Ar
+src/core/a2ui/resolve.ts:77:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value) && 'call' in v => true
+src/core/a2ui/resolve.ts:77:39 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value) && 'call' in v => true
+src/core/a2ui/resolve.ts:77:101 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value) && 'call' in v => true
+src/core/a2ui/resolve.ts:106:24 ConditionalExpression | const offsetResult = offsetArg === undefined ? { ok: true as const, value: 0 } : resolveVa => false
+src/core/a2ui/resolve.ts:205:44 ConditionalExpression | return resolveValue(value, { ...ctx, ...(itemScope === undefined ? {} : { itemScope }) }); => false
+src/core/a2ui/surface-properties.ts:30:7 ConditionalExpression | if (!isRecord(message)) return undefined; => false
+src/core/a2ui/surface-properties.ts:33:27 ConditionalExpression | if (isRecord(body) && typeof body.surfaceId === 'string') return body.surfaceId; => true
+src/core/a2ui/surface-properties.ts:47:26 ConditionalExpression | if (!isRecord(body) || typeof body.surfaceId !== 'string') return undefined; => false
+src/core/dom/dom-page-driver.ts:45:10 ConditionalExpression | return value !== null && (AGENT_ELEMENT_ROLES as readonly string[]).includes(value); => true
+src/core/dom/dom-page-driver.ts:54:7 ConditionalExpression | if (!(element instanceof HTMLElement)) return false; => false
+src/core/dom/dom-page-driver.ts:75:21 OptionalChaining | const trimmed = text?.trim(); => text.trim
+src/core/dom/dom-page-driver.ts:76:9 ConditionalExpression | if (trimmed) texts.push(trimmed); => true
+src/core/dom/dom-page-driver.ts:80:83 ArrayDeclaration | ? Array.from((control as { labels?: NodeListOf<HTMLLabelElement> }).labels ?? []) => ["Stryker was here"]
+src/core/dom/dom-page-driver.ts:81:7 ArrayDeclaration | : []; => ["Stryker was here"]
+src/core/dom/dom-page-driver.ts:112:5 MethodExpression | control.getAttribute('aria-label')?.trim(), => control.getAttribute('aria-label')
+src/core/dom/dom-page-driver.ts:113:5 MethodExpression | control.getAttribute('placeholder')?.trim(), => control.getAttribute('placeholder')
+src/core/dom/dom-page-driver.ts:206:9 ConditionalExpression | ...(disabledOf(control) !== undefined ? { disabled: disabledOf(control) } : {}), => true
+src/core/dom/dom-page-driver.ts:212:29 MethodExpression | .map((entry) => entry.text.trim()) => entry.text
+src/core/dom/dom-page-driver.ts:273:57 BlockStatement | if (element.querySelector(PRIVATE_SELECTOR) === null) { => {}
+src/core/dom/dom-page-driver.ts:273:7 ConditionalExpression | if (element.querySelector(PRIVATE_SELECTOR) === null) { => false
+src/core/dom/dom-page-driver.ts:316:41 MethodExpression | const match = options.find((entry) => entry.text.trim() === option) => entry.text
+src/core/dom/dom-page-driver.ts:328:73 MethodExpression | const available = options.map((entry) => normalizeAgentLabel({ raw: entry.text.trim() }).t => entry.text
+src/core/dom/dom-page-driver.ts:415:32 ArrowFunction | const ambiguousHandleError = (handle: string, count: number): Error => new Error( => () => undefined
+src/core/dom/dom-page-driver.ts:446:9 ConditionalExpression | if (element.matches('input, textarea, select, button, a')) return element; => false
+src/core/dom/dom-page-driver.ts:525:15 ConditionalExpression | if (timer !== undefined) clearTimeout(timer); => true
+src/core/dom/dom-page-driver.ts:553:30 ObjectLiteral | element.scrollIntoView({ behavior: 'smooth', block: 'center' }); => {}
+src/core/dom/dom-page-driver.ts:591:22 OptionalChaining | const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set; => Object.getOwnPropertyDescriptor(prototype, 'value'
+src/core/dom/dom-page-driver.ts:592:11 ConditionalExpression | if (setter) setter.call(control, text); => false
+src/core/dom/dom-page-driver.ts:594:48 ObjectLiteral | control.dispatchEvent(new Event('input', { bubbles: true })); => {}
+src/core/dom/dom-page-driver.ts:594:59 BooleanLiteral | control.dispatchEvent(new Event('input', { bubbles: true })); => false
+src/core/dom/dom-page-driver.ts:595:49 ObjectLiteral | control.dispatchEvent(new Event('change', { bubbles: true })); => {}
+src/core/dom/dom-page-driver.ts:595:60 BooleanLiteral | control.dispatchEvent(new Event('change', { bubbles: true })); => false
+src/core/dom/dom-page-driver.ts:638:13 ConditionalExpression | if (setter) setter.call(control, match.value); => false
+src/core/dom/dom-page-driver.ts:691:21 OptionalChaining | const selection = globalThis.getSelection?.(); => globalThis.getSelection()
+src/core/dom/dom-page-driver.ts:692:7 ConditionalExpression | if (selection) { => true
+src/core/dom/dom-page-driver.ts:708:44 ObjectLiteral | control.dispatchEvent(new Event('input', { bubbles: true })); => {}
+src/core/dom/dom-page-driver.ts:708:55 BooleanLiteral | control.dispatchEvent(new Event('input', { bubbles: true })); => false
+src/core/element-handles.ts:56:10 ConditionalExpression | return handle.length > 0 && handle.length <= MAX_HANDLE_LENGTH && HANDLE_PATTERN.test(hand => true
+src/core/element-handles.ts:56:10 EqualityOperator | return handle.length > 0 && handle.length <= MAX_HANDLE_LENGTH && HANDLE_PATTERN.test(hand => handle.length >= 0
+src/core/element-handles.ts:56:31 EqualityOperator | return handle.length > 0 && handle.length <= MAX_HANDLE_LENGTH && HANDLE_PATTERN.test(hand => handle.length < MAX_HANDLE_LENGTH
+src/core/element-handles.ts:69:34 MethodExpression | `invalid element handle "${handle.slice(0, MAX_HANDLE_LENGTH)}": ` => handle
+src/core/guards.ts:132:7 ConditionalExpression | if (type !== undefined && DENIED_TYPES.has(type)) return 'denied-type'; => true
+src/core/guards.ts:150:44 Regex | for (const token of autocomplete.split(/[\s,]+/)) { => /[\s,]/
+src/core/guards.ts:172:35 ArrayDeclaration | || (field.accessibleLabels ?? []).some((label) => SUSPICIOUS_NAME.test(squashSeparators(la => ["Stryker was here"]
+src/core/guards.ts:192:7 ConditionalExpression | if (type !== undefined && NON_TEXT_TYPES.has(type)) return 'not-text'; => true
+src/core/guards.ts:256:7 EqualityOperator | if (collapsed.length <= maxLength) return { text: collapsed, truncated: false }; => collapsed.length < maxLength
+src/core/handle.ts:58:34 MethodExpression | `invalid element handle "${handle.slice(0, 128)}": ` => handle
+src/core/handle.ts:63:7 ConditionalExpression | if (options.role !== undefined) props[AGENT_ROLE_ATTRIBUTE] = options.role; => true
+src/core/handle.ts:64:7 ConditionalExpression | if (options.label !== undefined) props[AGENT_LABEL_ATTRIBUTE] = options.label; => true
+src/core/handle.ts:65:7 ConditionalExpression | if (options.page !== undefined) props[AGENT_PAGE_ATTRIBUTE] = options.page; => true
+src/core/handle.ts:80:73 Regex | if (value.length <= 40 && isValidElementHandle({ handle: value }) && !/^h-[0-9a-f]{16}$/.t => /h-[0-9a-f]{16}$/
+src/core/handle.ts:80:73 Regex | if (value.length <= 40 && isValidElementHandle({ handle: value }) && !/^h-[0-9a-f]{16}$/.t => /^h-[0-9a-f]{16}/
+src/core/list-handles.ts:46:43 Regex | const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); => /[^a-z0-9]/g
+src/core/list-handles.ts:46:71 Regex | const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); => /^-|-+$/g
+src/core/list-handles.ts:46:71 Regex | const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); => /^-+|-$/g
+src/core/list-handles.ts:52:7 AssignmentOperator | suffix += 1; => suffix -= 1
+src/core/mcp-ui-apps.ts:261:10 ConditionalExpression | return typeof value['method'] === 'string' => true
+src/core/messages.ts:3:39 ObjectLiteral | export const defaultAgenticMessages = { => {}
+src/core/page-capabilities.ts:78:17 ArrayDeclaration | required: ['handle'], => []
+src/core/page-capabilities.ts:147:17 ArrayDeclaration | required: ['page'], => []
+src/core/site-guide/site-guide.ts:22:13 BlockStatement | } finally { if (timer !== undefined) clearTimeout(timer); } => {}
+src/core/site-guide/site-guide.ts:22:19 ConditionalExpression | } finally { if (timer !== undefined) clearTimeout(timer); } => true
+src/core/site-guide/site-guide.ts:22:19 ConditionalExpression | } finally { if (timer !== undefined) clearTimeout(timer); } => false
+src/core/site-guide/site-guide.ts:22:19 EqualityOperator | } finally { if (timer !== undefined) clearTimeout(timer); } => timer === undefined
+src/core/site-guide/site-guide.ts:91:69 ObjectLiteral | const loaded = await boundedRead(() => ports.loadContributions!({ caller }), timeoutMs); => {}
+src/core/site-guide/site-guide.ts:92:114 ObjectLiteral | if (loaded.items.reduce((count, item) => count + item.topics.length, 0) > 256) throw new S => {}
+src/core/site-guide/site-guide.ts:104:94 ArrowFunction | decision = boundedRead(() => ports.authorize({ caller, permission }), timeoutMs).catch(()  => () => undefined
+src/core/site-guide/site-guide.ts:6:30 ArrayDeclaration | permissions: [], pointers: [], workflows: [], => ["Stryker was here"]
+src/core/site-guide/site-guide.ts:6:45 ArrayDeclaration | permissions: [], pointers: [], workflows: [], => ["Stryker was here"]
+src/core/site-guide/topic-schema.ts:5:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/core/site-guide/topic-schema.ts:5:10 LogicalOperator | return typeof value === 'object' && value !== null && !Array.isArray(value); => typeof value === 'object' && value !== null || !Ar
+src/core/site-guide/topic-schema.ts:5:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/core/site-guide/topic-schema.ts:5:10 LogicalOperator | return typeof value === 'object' && value !== null && !Array.isArray(value); => typeof value === 'object' || value !== null
+src/core/site-guide/topic-schema.ts:5:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/core/site-guide/topic-schema.ts:5:39 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/core/site-guide/topic-schema.ts:8:10 ConditionalExpression | return typeof value === 'string' && value.length > 0 && value.length <= maximum; => true
+src/core/site-guide/topic-schema.ts:8:59 EqualityOperator | return typeof value === 'string' && value.length > 0 && value.length <= maximum; => value.length < maximum
+src/core/site-guide/topic-schema.ts:14:34 EqualityOperator | return Array.isArray(value) && value.length <= maximum && value.every(guard); => value.length < maximum
+src/core/site-guide/topic-schema.ts:32:10 ConditionalExpression | return text(value.title) && permissions(value.permissions) && list(value.steps, 16, step)  => true
+src/core/site-guide/topic-schema.ts:32:10 LogicalOperator | return text(value.title) && permissions(value.permissions) && list(value.steps, 16, step)  => text(value.title) || permissions(value.permiss
+src/core/site-guide/topic-schema.ts:36:31 Regex | if (!text(value.id, 64) || !/^[a-z][a-z0-9-]*$/.test(value.id)) return false; => /^[a-z][a-z0-9-]*/
+src/core/site-guide/topic-schema.ts:37:10 ConditionalExpression | return text(value.title, 128) && text(value.summary, 1_000) && text(value.explanation) &&  => true
+src/core/site-guide/topic-schema.ts:37:10 LogicalOperator | return text(value.title, 128) && text(value.summary, 1_000) && text(value.explanation) &&  => text(value.title, 128) && text(value.summary, 
+src/core/site-guide/topic-schema.ts:37:10 ConditionalExpression | return text(value.title, 128) && text(value.summary, 1_000) && text(value.explanation) &&  => true
+src/core/site-guide/topic-schema.ts:37:10 LogicalOperator | return text(value.title, 128) && text(value.summary, 1_000) && text(value.explanation) &&  => text(value.title, 128) || text(value.summary, 
+src/core/site-guide/topic-schema.ts:48:7 EqualityOperator | if (raw.length > 262_144 || new TextEncoder().encode(raw).byteLength > 262_144) return { o => raw.length >= 262_144
+src/core/site-guide/topic-schema.ts:48:7 ConditionalExpression | if (raw.length > 262_144 || new TextEncoder().encode(raw).byteLength > 262_144) return { o => false
+src/core/site-guide/topic-schema.ts:48:31 EqualityOperator | if (raw.length > 262_144 || new TextEncoder().encode(raw).byteLength > 262_144) return { o => new TextEncoder().encode(raw).byteLength >= 2
+src/core/site-guide/topic-schema.ts:55:40 ArrowFunction | const ids = new Set(value.topics.map(item => item.id)); => () => undefined
+src/core/webmcp.ts:158:7 ConditionalExpression | reason === 'declined' => true
+src/core/webmcp.ts:235:15 ConditionalExpression | ? { ...(signal !== undefined ? { signal } : {}), ...(exposedTo !== undefined ? { exposedTo => true
+src/core/webmcp.ts:235:60 ConditionalExpression | ? { ...(signal !== undefined ? { signal } : {}), ...(exposedTo !== undefined ? { exposedTo => true
+src/core/webmcp.ts:257:53 ObjectLiteral | throw new WebMcpConfirmationRequiredError({ capabilityId: capability.id, reason: 'no-handl => {}
+src/skills/install/github.ts:33:7 ConditionalExpression | if (typeof commit !== "string" || !SHA_PATTERN.test(commit)) throw new SkillInputError({ m => false
+src/skills/install/github.ts:49:34 Regex | const repo = parts[1]!.replace(/\.git$/, ""); => /\.git/
+src/skills/install/github.ts:51:69 EqualityOperator | return { owner: parts[0]!, repo, ref: parts[3] ?? "HEAD", prefix: parts.length > 4 ? parts => parts.length >= 4
+src/skills/install/github.ts:62:65 ConditionalExpression | return shapeOk && parts.every(p => SEGMENT_PATTERN.test(p) && p !== "." && p !== ".."); => true
+src/skills/install/github.ts:62:78 ConditionalExpression | return shapeOk && parts.every(p => SEGMENT_PATTERN.test(p) && p !== "." && p !== ".."); => true
+src/skills/install/github.ts:120:90 ConditionalExpression | if (typeof row.size !== "number" || row.size < 0 || row.size > MAX_SKILL_FILE_BYTES || typ => false
+src/skills/install/github.ts:130:7 EqualityOperator | if (budget.actual > MAX_SKILL_BYTES) throw new SkillInputError({ message: "GitHub skill ex => budget.actual >= MAX_SKILL_BYTES
+src/skills/install/github.ts:17:21 Regex | const SHA_PATTERN = /^[a-f0-9]{40}$/; => /[a-f0-9]{40}$/
+src/skills/install/github.ts:17:21 Regex | const SHA_PATTERN = /^[a-f0-9]{40}$/; => /^[a-f0-9]{40}/
+src/skills/install/github.ts:19:28 Regex | const SKILL_FILE_PATTERN = /^(SKILL\.md|README\.md|LICENSE|(?:references|scripts|assets)\/ => /(SKILL\.md|README\.md|LICENSE|(?:references|scrip
+src/skills/install/github.ts:19:28 Regex | const SKILL_FILE_PATTERN = /^(SKILL\.md|README\.md|LICENSE|(?:references|scripts|assets)\/ => /^(SKILL\.md|README\.md|LICENSE|(?:references|scri
+src/skills/install/install-service.ts:42:9 ConditionalExpression | if (!result.source || typeof result.source !== "object" || Array.isArray(result.source) || => false
+src/skills/install/install-service.ts:42:9 LogicalOperator | if (!result.source || typeof result.source !== "object" || Array.isArray(result.source) || => (!result.source || typeof result.source !== "
+src/skills/install/install-service.ts:42:9 ConditionalExpression | if (!result.source || typeof result.source !== "object" || Array.isArray(result.source) || => false
+src/skills/install/install-service.ts:42:9 LogicalOperator | if (!result.source || typeof result.source !== "object" || Array.isArray(result.source) || => !result.source && typeof result.source !== "o
+src/skills/install/install-service.ts:42:27 ConditionalExpression | if (!result.source || typeof result.source !== "object" || Array.isArray(result.source) || => false
+src/skills/install/install-service.ts:76:13 BlockStatement | finally { if (queues.get(key) === result) queues.delete(key); } => {}
+src/skills/install/install-service.ts:76:19 ConditionalExpression | finally { if (queues.get(key) === result) queues.delete(key); } => true
+src/skills/install/install-service.ts:76:19 EqualityOperator | finally { if (queues.get(key) === result) queues.delete(key); } => queues.get(key) !== result
+src/skills/install/install-service.ts:76:19 ConditionalExpression | finally { if (queues.get(key) === result) queues.delete(key); } => false
+src/skills/install/install-service.ts:80:64 ObjectLiteral | const sources = await deps.toolSourceLoader.load(required, { includeDisabled: true }); => {}
+src/skills/install/install-service.ts:80:83 BooleanLiteral | const sources = await deps.toolSourceLoader.load(required, { includeDisabled: true }); => false
+src/skills/install/install-service.ts:88:92 ObjectLiteral | const skill = (await deps.toolSourceLoader.load({ workspaceId: required.workspaceId }, { i => {}
+src/skills/install/install-service.ts:88:111 BooleanLiteral | const skill = (await deps.toolSourceLoader.load({ workspaceId: required.workspaceId }, { i => false
+src/skills/install/install-service.ts:94:95 ObjectLiteral | const changed = async (workspaceId: string, toolId: string) => { await optional.onChanged? => {}
+src/skills/install/install-service.ts:106:60 ConditionalExpression | if ((await listManagedSkills(input)).some(skill => skill.toolId === toolId)) throw new Ski => true
+src/skills/install/install-service.ts:114:79 BooleanLiteral | await deps.filesystem.writeFile({ path: target, bytes, exclusive: true, mode: 0o600 }); => false
+src/skills/install/install-service.ts:116:167 BooleanLiteral | await deps.filesystem.writeFile({ path: path.join(staging, layout.stateFileName), bytes: B => false
+src/skills/install/install-service.ts:120:19 BlockStatement | } finally { await deps.filesystem.remove({ path: staging }, { recursive: true, force: true => {}
+src/skills/install/install-service.ts:120:82 BooleanLiteral | } finally { await deps.filesystem.remove({ path: staging }, { recursive: true, force: true => false
+src/skills/install/install-service.ts:134:147 BooleanLiteral | await deps.filesystem.writeFile({ path: temporary, bytes: Buffer.from(JSON.stringify({ ... => false
+src/skills/install/layout.ts:36:8 Regex | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(workspaceDirectory)) throw new Error('Invalid wo => /^[a-z0-9]+(?:[-.][a-z0-9]+)*/
+src/skills/install/layout.ts:36:8 Regex | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(workspaceDirectory)) throw new Error('Invalid wo => /^[a-z0-9]+(?:[^-.][a-z0-9]+)*$/
+src/skills/install/layout.ts:36:8 Regex | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(workspaceDirectory)) throw new Error('Invalid wo => /^[a-z0-9]+(?:[-.][a-z0-9])*$/
+src/skills/install/layout.ts:36:8 Regex | if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(workspaceDirectory)) throw new Error('Invalid wo => /^[a-z0-9]+(?:[-.][^a-z0-9]+)*$/
+src/skills/install/layout.ts:43:9 EqualityOperator | if (normalized.length > MAX_ID_SEGMENT_LENGTH || !SAFE_ID_SEGMENT_PATTERN.test(normalized) => normalized.length >= MAX_ID_SEGMENT_LENGTH
+src/skills/install/live-registration.ts:67:65 OptionalChaining | if (await required.registry.refreshInstalledSkills?.({})) optional.onChanged?.({}); => optional.onChanged({})
+src/skills/install/node-filesystem.ts:18:13 LogicalOperator | if (!stat.isFile() || stat.size > maxBytes) throw new Error('Invalid skill installation re => !stat.isFile() && stat.size > maxBytes
+src/skills/install/node-filesystem.ts:18:31 ConditionalExpression | if (!stat.isFile() || stat.size > maxBytes) throw new Error('Invalid skill installation re => false
+src/skills/install/node-filesystem.ts:22:38 MethodExpression | const chunk = Buffer.alloc(Math.min(4096, maxBytes + 1 - size)); => Math.max(4096, maxBytes + 1 - size)
+src/skills/install/node-filesystem.ts:22:53 ArithmeticOperator | const chunk = Buffer.alloc(Math.min(4096, maxBytes + 1 - size)); => maxBytes + 1 + size
+src/skills/install/node-filesystem.ts:30:17 BlockStatement | } finally { await handle.close(); } => {}
+src/skills/install/state.ts:18:9 EqualityOperator | if (bytes.length > MAX_STATE_BYTES) throw new Error(INVALID_STATE); => bytes.length >= MAX_STATE_BYTES
+src/skills/install/validation.ts:27:36 ConditionalExpression | if (typeof value !== "string" || value.length > Math.ceil(maxBytes / 3) * 4) throw new Ski => false
+src/skills/install/validation.ts:27:61 ArithmeticOperator | if (typeof value !== "string" || value.length > Math.ceil(maxBytes / 3) * 4) throw new Ski => maxBytes * 3
+src/skills/install/validation.ts:28:7 ConditionalExpression | if (value.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{ => false
+src/skills/install/validation.ts:28:34 Regex | if (value.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{ => /^(?:[A-Za-z0-9+/])*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0
+src/skills/install/validation.ts:35:7 LogicalOperator | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => (typeof filePath !== "string" || filePath.length =
+src/skills/install/validation.ts:35:7 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:7 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:7 LogicalOperator | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => typeof filePath !== "string" && filePath.length ==
+src/skills/install/validation.ts:35:7 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:39 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:64 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:64 EqualityOperator | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => filePath.length >= 240
+src/skills/install/validation.ts:35:199 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:35:212 ConditionalExpression | if (typeof filePath !== "string" || filePath.length === 0 || filePath.length > 240 || /[\\ => false
+src/skills/install/validation.ts:44:31 MethodExpression | return { name, description: description.replace(/\s+/g, " ").trim() }; => description.replace(/\s+/g, " ")
+src/skills/install/validation.ts:49:38 Regex | const frontmatter = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/); => /---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
+src/skills/install/validation.ts:77:9 ConditionalExpression | if (skillFiles.length > 1 && new Set(skillFiles.map(f => f.path)).size === 1) throw new Sk => true
+src/skills/install/validation.ts:77:9 EqualityOperator | if (skillFiles.length > 1 && new Set(skillFiles.map(f => f.path)).size === 1) throw new Sk => skillFiles.length >= 1
+src/skills/install/validation.ts:121:37 ConditionalExpression | if (extension === ".webp") return bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toStri => true
+src/skills/install/validation.ts:122:10 ConditionalExpression | return bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255; => true

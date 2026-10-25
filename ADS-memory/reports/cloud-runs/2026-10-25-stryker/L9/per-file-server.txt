@@ -1,0 +1,15 @@
+file|mut|killed|surv|nocov|timeout|score
+src/create-local-node-daemon.typecheck.ts|22|0|0|22|0|0.0
+src/feature.ts|21|7|14|0|0|33.3
+src/builtin-features.ts|414|345|69|0|0|83.3
+src/host-bootstrap.ts|62|52|10|0|0|83.9
+src/storage/legacy/sqlite.ts|28|24|4|0|0|85.7
+src/kernel-base.ts|81|70|11|0|0|86.4
+src/create-local-node-daemon.ts|163|146|17|0|0|89.6
+src/compose-jini-kernel.ts|125|117|8|0|0|93.6
+src/lifecycle/boot-lifecycle.ts|61|59|2|0|0|96.7
+src/store/projects/sqlite.ts|92|90|2|0|0|97.8
+src/feature-activation.ts|106|104|2|0|0|98.1
+src/storage/backend-config.ts|50|50|0|0|0|100.0
+src/lifecycle/readiness-state.ts|13|13|0|0|0|100.0
+TOTAL 1238 {"NoCoverage":22,"Ignored":219,"Killed":1077,"Survived":139} 87.00

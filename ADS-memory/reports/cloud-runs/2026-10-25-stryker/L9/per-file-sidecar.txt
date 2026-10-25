@@ -1,0 +1,13 @@
+file|mut|killed|surv|nocov|timeout|score
+src/json-ipc.ts|224|133|89|2|0|59.4
+src/port.ts|73|57|16|0|0|78.1
+src/supervisor.ts|202|166|36|0|0|82.2
+src/daemon-registry.ts|120|103|17|0|0|85.8
+src/bootstrap.ts|36|32|4|0|0|88.9
+src/json-file.ts|20|18|2|0|0|90.0
+src/net.ts|14|13|1|0|0|92.9
+src/respawn-policy.ts|75|72|3|0|0|96.0
+src/ipc-path.ts|26|25|1|0|0|96.2
+src/supervisor-node.ts|98|96|2|0|0|98.0
+src/paths.ts|62|61|1|0|0|98.4
+TOTAL 950 {"NoCoverage":2,"Ignored":163,"Killed":776,"Survived":172} 81.68

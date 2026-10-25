@@ -1,0 +1,10 @@
+file|mut|killed|surv|nocov|timeout|score
+src/e2b/categorize-e2b-error.ts|7|6|1|0|0|85.7
+src/node-worker.ts|141|121|19|1|0|85.8
+src/e2b/provider.ts|67|63|4|0|0|94.0
+src/e2b/wrap-e2b-sandbox.ts|212|202|10|0|0|95.3
+src/core/errors.ts|1|1|0|0|0|100.0
+src/e2b/default-vite-react-template.ts|9|9|0|0|0|100.0
+src/e2b/shell-quote.ts|1|1|0|0|0|100.0
+src/e2b/to-array-buffer.ts|1|1|0|0|0|100.0
+TOTAL 439 {"NoCoverage":1,"Ignored":111,"Killed":404,"Survived":34} 92.03

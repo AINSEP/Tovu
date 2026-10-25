@@ -1,0 +1,63 @@
+src/delegated-result.ts:13:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/delegated-result.ts:13:10 LogicalOperator | return typeof value === 'object' && value !== null && !Array.isArray(value); => typeof value === 'object' && value !== null || !Ar
+src/delegated-result.ts:13:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/delegated-result.ts:13:10 LogicalOperator | return typeof value === 'object' && value !== null && !Array.isArray(value); => typeof value === 'object' || value !== null
+src/delegated-result.ts:13:10 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/delegated-result.ts:13:39 ConditionalExpression | return typeof value === 'object' && value !== null && !Array.isArray(value); => true
+src/delegated-result.ts:17:7 ConditionalExpression | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => false
+src/delegated-result.ts:17:7 LogicalOperator | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => (!isRecord(block) || block.type !== 'text') && typ
+src/delegated-result.ts:17:7 ConditionalExpression | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => false
+src/delegated-result.ts:17:7 LogicalOperator | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => !isRecord(block) && block.type !== 'text'
+src/delegated-result.ts:17:27 ConditionalExpression | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => false
+src/delegated-result.ts:17:52 ConditionalExpression | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => false
+src/delegated-result.ts:17:86 ConditionalExpression | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => false
+src/delegated-result.ts:17:86 EqualityOperator | if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string' || block.t => block.text.length >= 1024
+src/delegated-result.ts:22:10 ConditionalExpression | return typeof value === 'string' && value.length > 0 && value.length <= 256 ? value : unde => true
+src/delegated-result.ts:22:59 ConditionalExpression | return typeof value === 'string' && value.length > 0 && value.length <= 256 ? value : unde => true
+src/delegated-result.ts:22:59 EqualityOperator | return typeof value === 'string' && value.length > 0 && value.length <= 256 ? value : unde => value.length < 256
+src/delegated-result.ts:28:7 ConditionalExpression | if (text === undefined) return undefined; => false
+src/delegated-result.ts:31:9 ConditionalExpression | if (!isRecord(value) || Object.keys(value).length !== 1) return undefined; => false
+src/delegated-result.ts:31:9 LogicalOperator | if (!isRecord(value) || Object.keys(value).length !== 1) return undefined; => !isRecord(value) && Object.keys(value).length !== 
+src/delegated-result.ts:31:29 ConditionalExpression | if (!isRecord(value) || Object.keys(value).length !== 1) return undefined; => false
+src/delegated-result.ts:36:11 BlockStatement | } catch { => {}
+src/registry.ts:180:61 ArrayDeclaration | context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: 'Verification meta => []
+src/registry.ts:17:11 ObjectLiteral | .object({ => {}
+src/registry.ts:18:18 ArrayDeclaration | type: z.enum(['github-release', 'https-archive', 'local-archive', 'database']).optional(), => []
+src/registry.ts:19:14 MethodExpression | archive: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:20:16 MethodExpression | integrity: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:21:21 MethodExpression | manifestDigest: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:27:11 ObjectLiteral | .object({ => {}
+src/registry.ts:29:11 MethodExpression | name: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:28:9 MethodExpression | id: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:30:13 MethodExpression | github: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:31:10 MethodExpression | url: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:38:11 ObjectLiteral | .object({ => {}
+src/registry.ts:49:11 ObjectLiteral | .object({ => {}
+src/registry.ts:54:18 MethodExpression | certificate: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:61:11 ObjectLiteral | .object({ => {}
+src/registry.ts:64:10 MethodExpression | ref: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:66:16 MethodExpression | integrity: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:67:21 MethodExpression | manifestDigest: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:68:25 ArrayDeclaration | deprecated: z.union([z.boolean(), z.string()]).optional(), => []
+src/registry.ts:79:28 Regex | name: z.string().regex(/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/), => /[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/
+src/registry.ts:79:28 Regex | name: z.string().regex(/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/), => /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*/
+src/registry.ts:82:10 MethodExpression | ref: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:90:16 MethodExpression | integrity: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:91:21 MethodExpression | manifestDigest: z.string().min(1).optional(), => z.string().max(1)
+src/registry.ts:95:25 ArrayDeclaration | deprecated: z.union([z.boolean(), z.string()]).optional(), => []
+src/registry.ts:123:11 ObjectLiteral | .object({ => {}
+src/registry.ts:132:51 ObjectLiteral | export const RegistrySearchQuerySchema = z.object({ => {}
+src/registry.ts:135:10 MethodExpression | limit: z.number().int().positive().max(500).optional(), => z.number().int().positive().min(500)
+src/registry.ts:140:52 ObjectLiteral | export const RegistrySearchResultSchema = z.object({ => {}
+src/registry.ts:186:54 ObjectLiteral | export const RegistryPublishRequestSchema = z.object({ => {}
+src/registry.ts:199:45 ArrayDeclaration | changedFiles: z.array(z.string()).default([]), => ["Stryker was here"]
+src/registry.ts:200:41 ArrayDeclaration | warnings: z.array(z.string()).default([]), => ["Stryker was here"]
+src/registry.ts:204:51 ObjectLiteral | export const RegistryDoctorIssueSchema = z.object({ => {}
+src/registry.ts:205:20 ArrayDeclaration | severity: z.enum(['error', 'warning', 'info']), => []
+src/registry.ts:206:9 MethodExpression | code: z.string().min(1), => z.string().max(1)
+src/registry.ts:207:12 MethodExpression | message: z.string().min(1), => z.string().max(1)
+src/registry.ts:212:52 ObjectLiteral | export const RegistryDoctorReportSchema = z.object({ => {}
+src/registry.ts:214:14 MethodExpression | backendId: z.string().min(1), => z.string().max(1)
+src/run-context.ts:56:11 BlockStatement | } catch { => {}
+src/run-context.ts:64:9 ConditionalExpression | ...(prompt === undefined ? {} : { prompt: prompt as string }), => false
+src/run-context.ts:65:9 ConditionalExpression | ...(history === undefined ? {} : { history: history as readonly JsonValue[] }), => false

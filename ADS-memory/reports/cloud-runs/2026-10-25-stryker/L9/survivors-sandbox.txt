@@ -1,0 +1,35 @@
+src/node-worker.ts:168:92 NOCOV ObjectLiteral | else if (input.event === "error") worker.once("error", (error) => input.listener({ error } => {}
+src/node-worker.ts:52:34 Regex | if (rawValue === undefined || !/^\d+$/.test(rawValue.trim())) return defaultTimeoutMs; => /\d+$/
+src/node-worker.ts:52:34 Regex | if (rawValue === undefined || !/^\d+$/.test(rawValue.trim())) return defaultTimeoutMs; => /^\d+/
+src/node-worker.ts:53:25 MethodExpression | const parsed = Number(rawValue.trim()); => rawValue
+src/node-worker.ts:71:61 EqualityOperator | if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2147483647) { => timeoutMs >= 2147483647
+src/node-worker.ts:108:31 ConditionalExpression | if (message === null || typeof message !== "object") throw new Error("invalid worker rende => false
+src/node-worker.ts:110:11 ConditionalExpression | if (reply.ok === true && "html" in reply && typeof reply.html === "string") return reply.h => true
+src/node-worker.ts:110:11 LogicalOperator | if (reply.ok === true && "html" in reply && typeof reply.html === "string") return reply.h => reply.ok === true || "html" in reply
+src/node-worker.ts:110:11 ConditionalExpression | if (reply.ok === true && "html" in reply && typeof reply.html === "string") return reply.h => true
+src/node-worker.ts:111:11 LogicalOperator | if (reply.ok === false && "error" in reply && typeof reply.error === "string") throw new E => reply.ok === false && "error" in reply || typeof r
+src/node-worker.ts:111:11 LogicalOperator | if (reply.ok === false && "error" in reply && typeof reply.error === "string") throw new E => reply.ok === false || "error" in reply
+src/node-worker.ts:111:11 ConditionalExpression | if (reply.ok === false && "error" in reply && typeof reply.error === "string") throw new E => true
+src/node-worker.ts:111:11 ConditionalExpression | if (reply.ok === false && "error" in reply && typeof reply.error === "string") throw new E => true
+src/node-worker.ts:111:53 ConditionalExpression | if (reply.ok === false && "error" in reply && typeof reply.error === "string") throw new E => true
+src/node-worker.ts:136:25 ObjectLiteral | const workerEnv = { ...env }; => {}
+src/node-worker.ts:138:72 ArrayDeclaration | workerData: payload, resourceLimits, env: workerEnv, execArgv: [], => ["Stryker was here"]
+src/node-worker.ts:168:66 ArrowFunction | else if (input.event === "error") worker.once("error", (error) => input.listener({ error } => () => undefined
+src/node-worker.ts:171:20 ArrowFunction | terminate: () => worker.terminate(), => () => undefined
+src/node-worker.ts:184:44 BlockStatement | return { schedule: ({ delayMs, run }) => { const timer = setTimeout(run, delayMs); return  => {}
+src/node-worker.ts:184:93 ArrowFunction | return { schedule: ({ delayMs, run }) => { const timer = setTimeout(run, delayMs); return  => () => undefined
+src/e2b/categorize-e2b-error.ts:40:7 ConditionalExpression | if (name === undefined) return 'unknown'; => false
+src/e2b/provider.ts:106:13 ConditionalExpression | ...(config.apiKey !== undefined ? { apiKey: config.apiKey } : {}), => true
+src/e2b/provider.ts:107:13 ConditionalExpression | ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}), => true
+src/e2b/provider.ts:119:51 ObjectLiteral | return wrapE2bSandbox({ handle: toE2bHandle({ sandbox }), config: resolveSessionConfig({ c => {}
+src/e2b/provider.ts:120:9 ConditionalExpression | config.fetchImpl === undefined ? {} : { fetchImpl: config.fetchImpl }); => false
+src/e2b/wrap-e2b-sandbox.ts:93:20 OptionalChaining | const onOutput = options?.onOutput; => options.onOutput
+src/e2b/wrap-e2b-sandbox.ts:149:56 ConditionalExpression | if (path.includes('\0') || posix.isAbsolute(path) || relative === '..' || relative.startsW => false
+src/e2b/wrap-e2b-sandbox.ts:198:41 ConditionalExpression | if (mountingPaths.has(path) && (event.type === 'create' || event.type === 'write')) return => true
+src/e2b/wrap-e2b-sandbox.ts:198:41 ConditionalExpression | if (mountingPaths.has(path) && (event.type === 'create' || event.type === 'write')) return => false
+src/e2b/wrap-e2b-sandbox.ts:198:41 EqualityOperator | if (mountingPaths.has(path) && (event.type === 'create' || event.type === 'write')) return => event.type !== 'create'
+src/e2b/wrap-e2b-sandbox.ts:275:65 LogicalOperator | throw wrapE2bError(error, `Failed to list files under ${directory ?? '.'}`); => directory && '.'
+src/e2b/wrap-e2b-sandbox.ts:298:21 ConditionalExpression | packages && packages.length > 0 => true
+src/e2b/wrap-e2b-sandbox.ts:298:21 EqualityOperator | packages && packages.length > 0 => packages.length >= 0
+src/e2b/wrap-e2b-sandbox.ts:312:46 ArrayDeclaration | async startProcess({ command }, { args = [] } = {}): Promise<ProcessHandle> { => ["Stryker was here"]
+src/e2b/wrap-e2b-sandbox.ts:355:17 BlockStatement | } finally { => {}

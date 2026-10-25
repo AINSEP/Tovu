@@ -1,0 +1,7 @@
+file|mut|killed|surv|nocov|timeout|score
+src/registry.ts|79|41|38|0|0|51.9
+src/delegated-result.ts|87|65|22|0|0|74.7
+src/run-context.ts|45|42|3|0|0|93.3
+src/errors.ts|54|54|0|0|0|100.0
+src/run.ts|2|2|0|0|0|100.0
+TOTAL 267 {"Ignored":41,"Killed":204,"Survived":63} 76.40

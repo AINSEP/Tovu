@@ -1,0 +1,161 @@
+src/create-local-node-daemon.typecheck.ts:19:53 NOCOV ObjectLiteral | const GreeterToken = token<Greeter, 'test.greeter'>({ id: 'test.greeter' }); => {}
+src/create-local-node-daemon.typecheck.ts:21:30 NOCOV ObjectLiteral | const greetPack = definePack({ => {}
+src/create-local-node-daemon.typecheck.ts:23:9 NOCOV ArrayDeclaration | deps: [GreeterToken], => []
+src/create-local-node-daemon.typecheck.ts:24:13 NOCOV ArrowFunction | services: (c) => ({ say: () => c.get({ token: GreeterToken }).greeting }), => () => undefined
+src/create-local-node-daemon.typecheck.ts:24:21 NOCOV ObjectLiteral | services: (c) => ({ say: () => c.get({ token: GreeterToken }).greeting }), => {}
+src/create-local-node-daemon.typecheck.ts:24:28 NOCOV ArrowFunction | services: (c) => ({ say: () => c.get({ token: GreeterToken }).greeting }), => () => undefined
+src/create-local-node-daemon.typecheck.ts:24:40 NOCOV ObjectLiteral | services: (c) => ({ say: () => c.get({ token: GreeterToken }).greeting }), => {}
+src/create-local-node-daemon.typecheck.ts:29:28 NOCOV ObjectLiteral | void createLocalNodeDaemon({ => {}
+src/create-local-node-daemon.typecheck.ts:32:10 NOCOV ArrayDeclaration | packs: [greetPack], => []
+src/create-local-node-daemon.typecheck.ts:38:28 NOCOV ObjectLiteral | void createLocalNodeDaemon({ => {}
+src/create-local-node-daemon.typecheck.ts:41:10 NOCOV ArrayDeclaration | packs: [greetPack], => []
+src/create-local-node-daemon.typecheck.ts:42:13 NOCOV ArrowFunction | bindings: (b) => b, => () => undefined
+src/create-local-node-daemon.typecheck.ts:46:28 NOCOV ObjectLiteral | void createLocalNodeDaemon({ => {}
+src/create-local-node-daemon.typecheck.ts:49:10 NOCOV ArrayDeclaration | packs: [greetPack], => []
+src/create-local-node-daemon.typecheck.ts:50:13 NOCOV ArrowFunction | bindings: (b) => b.bind({ token: GreeterToken, impl: { greeting: 'hi' } }), => () => undefined
+src/create-local-node-daemon.typecheck.ts:50:27 NOCOV ObjectLiteral | bindings: (b) => b.bind({ token: GreeterToken, impl: { greeting: 'hi' } }), => {}
+src/create-local-node-daemon.typecheck.ts:50:56 NOCOV ObjectLiteral | bindings: (b) => b.bind({ token: GreeterToken, impl: { greeting: 'hi' } }), => {}
+src/create-local-node-daemon.typecheck.ts:55:31 NOCOV ObjectLiteral | const noDepsPack = definePack({ name: 'noDeps', deps: [], services: () => ({}) }); => {}
+src/create-local-node-daemon.typecheck.ts:55:55 NOCOV ArrayDeclaration | const noDepsPack = definePack({ name: 'noDeps', deps: [], services: () => ({}) }); => ["Stryker was here"]
+src/create-local-node-daemon.typecheck.ts:55:69 NOCOV ArrowFunction | const noDepsPack = definePack({ name: 'noDeps', deps: [], services: () => ({}) }); => () => undefined
+src/create-local-node-daemon.typecheck.ts:56:28 NOCOV ObjectLiteral | void createLocalNodeDaemon({ => {}
+src/create-local-node-daemon.typecheck.ts:59:10 NOCOV ArrayDeclaration | packs: [noDepsPack], => []
+src/builtin-features.ts:157:25 MethodExpression | reclaimedBytes: Math.max(0, beforeBytes - afterBytes), => Math.min(0, beforeBytes - afterBytes)
+src/builtin-features.ts:157:37 ArithmeticOperator | reclaimedBytes: Math.max(0, beforeBytes - afterBytes), => beforeBytes + afterBytes
+src/builtin-features.ts:158:20 ArithmeticOperator | elapsedMs: Date.now() - startedAt, => Date.now() + startedAt
+src/builtin-features.ts:205:9 ConditionalExpression | ...(agent.version !== undefined ? { version: agent.version } : {}), => true
+src/builtin-features.ts:205:9 ConditionalExpression | ...(agent.version !== undefined ? { version: agent.version } : {}), => false
+src/builtin-features.ts:205:9 EqualityOperator | ...(agent.version !== undefined ? { version: agent.version } : {}), => agent.version === undefined
+src/builtin-features.ts:205:39 ObjectLiteral | ...(agent.version !== undefined ? { version: agent.version } : {}), => {}
+src/builtin-features.ts:206:9 ConditionalExpression | ...(agent.authStatus !== undefined ? { authStatus: agent.authStatus } : {}), => true
+src/builtin-features.ts:206:9 ConditionalExpression | ...(agent.authStatus !== undefined ? { authStatus: agent.authStatus } : {}), => false
+src/builtin-features.ts:206:9 EqualityOperator | ...(agent.authStatus !== undefined ? { authStatus: agent.authStatus } : {}), => agent.authStatus === undefined
+src/builtin-features.ts:206:42 ObjectLiteral | ...(agent.authStatus !== undefined ? { authStatus: agent.authStatus } : {}), => {}
+src/builtin-features.ts:207:108 ObjectLiteral | models: agent.models.map(({ id, label, identityKind, resolvedId }) => ({ id, label, ...(id => {}
+src/builtin-features.ts:207:149 ObjectLiteral | models: agent.models.map(({ id, label, identityKind, resolvedId }) => ({ id, label, ...(id => {}
+src/builtin-features.ts:208:30 ObjectLiteral | ...(agent.modelCatalog ? { modelCatalog: agent.modelCatalog } : {}), => {}
+src/builtin-features.ts:209:40 ObjectLiteral | ...(agent.defaultModelResolution ? { defaultModelResolution: agent.defaultModelResolution  => {}
+src/builtin-features.ts:210:9 ConditionalExpression | ...(agent.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: => true
+src/builtin-features.ts:210:9 ConditionalExpression | ...(agent.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: => false
+src/builtin-features.ts:210:9 EqualityOperator | ...(agent.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: => agent.supportsConcreteModelSelection === undefined
+src/builtin-features.ts:210:62 ObjectLiteral | ...(agent.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: => {}
+src/builtin-features.ts:215:9 ConditionalExpression | ...(agent.supportsCustomModel !== undefined ? { supportsCustomModel: agent.supportsCustomM => true
+src/builtin-features.ts:215:9 ConditionalExpression | ...(agent.supportsCustomModel !== undefined ? { supportsCustomModel: agent.supportsCustomM => false
+src/builtin-features.ts:215:9 EqualityOperator | ...(agent.supportsCustomModel !== undefined ? { supportsCustomModel: agent.supportsCustomM => agent.supportsCustomModel === undefined
+src/builtin-features.ts:215:51 ObjectLiteral | ...(agent.supportsCustomModel !== undefined ? { supportsCustomModel: agent.supportsCustomM => {}
+src/builtin-features.ts:236:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:241:69 ArrowFunction | const isShuttingDown = options.health?.isShuttingDown ?? (() => false); => () => undefined
+src/builtin-features.ts:252:80 BooleanLiteral | dbOk = verifySqliteIntegrity({ db: sqlite.connection, quick: true }).ok; => false
+src/builtin-features.ts:282:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:288:21 ConditionalExpression | ...(onStarted === undefined ? {} : { onStarted }), => false
+src/builtin-features.ts:305:118 ObjectLiteral | const detector = options.agents?.detector ?? ((force: boolean) => context.kernel.agentRunt => {}
+src/builtin-features.ts:309:22 ConditionalExpression | if (force || Date.now() >= expiresAt) scan = null; => false
+src/builtin-features.ts:309:22 EqualityOperator | if (force || Date.now() >= expiresAt) scan = null; => Date.now() > expiresAt
+src/builtin-features.ts:331:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:349:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:367:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:381:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:400:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:407:45 ObjectLiteral | createTerminalToolRegistrations({ manager: services.manager }).create, => {}
+src/builtin-features.ts:427:61 ObjectLiteral | const registrations = createDaemonDbToolRegistrations({ => {}
+src/builtin-features.ts:433:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:455:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:475:19 ConditionalExpression | ...(descriptor.inputSchema === undefined ? {} : { inputSchema: descriptor.inputSchema }), => false
+src/builtin-features.ts:490:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:515:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:517:10 ObjectLiteral | }, { => {}
+src/builtin-features.ts:518:15 ArrowFunction | http: ({ app, services }) => registerConnectorsRoutes({ app: app as Express, deps: {}, ada => () => undefined
+src/builtin-features.ts:529:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:531:10 ObjectLiteral | }, { => {}
+src/builtin-features.ts:532:15 ArrowFunction | http: ({ app, services }) => registerResearchRoutes({ app: app as Express, deps: {}, adapt => () => undefined
+src/builtin-features.ts:545:55 ObjectLiteral | const listenerRef = options.xai?.listenerRef ?? { current: null as OAuthCallbackListener | => {}
+src/builtin-features.ts:549:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:552:17 ArrowFunction | http: ({ app, services }) => => () => undefined
+src/builtin-features.ts:553:60 ObjectLiteral | registerXaiRoutes({ app: app as Express, deps: { dataDir: sqlite.dataDir, listenerRef: ser => {}
+src/builtin-features.ts:558:17 ConditionalExpression | if (listener) await listener.stop(); => true
+src/builtin-features.ts:574:15 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:598:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:600:12 ObjectLiteral | }, { => {}
+src/builtin-features.ts:601:17 ArrowFunction | http: ({ app, services }) => registerMemoryRoutes({ app: app as Express, deps, adapter: se => () => undefined
+src/builtin-features.ts:615:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:617:12 ObjectLiteral | }, { => {}
+src/builtin-features.ts:618:17 ArrowFunction | http: ({ app, services }) => registerRoutineRoutes({ app: app as Express, deps, adapter: s => () => undefined
+src/builtin-features.ts:632:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:634:12 ObjectLiteral | }, { => {}
+src/builtin-features.ts:635:17 ArrowFunction | http: ({ app, services }) => registerMediaRoutes({ app: app as Express, deps, adapter: ser => () => undefined
+src/builtin-features.ts:649:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:651:12 ObjectLiteral | }, { => {}
+src/builtin-features.ts:652:17 ArrowFunction | http: ({ app, services }) => registerFrontendSessionRoutes({ app: app as Express, deps, ad => () => undefined
+src/builtin-features.ts:675:17 ArrayDeclaration | deps: [], => ["Stryker was here"]
+src/builtin-features.ts:52:50 ObjectLiteral | export const LOCAL_DAEMON_PRINCIPAL: Principal = { id: 'local-daemon' }; => {}
+src/builtin-features.ts:59:57 ObjectLiteral | export const ANONYMOUS_DELEGATED_PRINCIPAL: Principal = { id: 'anonymous-delegated' }; => {}
+src/compose-jini-kernel.ts:231:9 ConditionalExpression | ...(config.capabilities === undefined ? {} : { capabilities: config.capabilities }), => false
+src/compose-jini-kernel.ts:232:9 ConditionalExpression | ...(config.features === undefined ? {} : { featureOverrides: config.features }), => false
+src/compose-jini-kernel.ts:257:11 ConditionalExpression | ...(composition.afterTools === undefined ? {} : { afterTools: composition.afterTools }), => false
+src/compose-jini-kernel.ts:299:10 ConditionalExpression | }, security.exemptPaths !== undefined ? { exemptPaths: security.exemptPaths } : {}), => true
+src/compose-jini-kernel.ts:317:24 LogicalOperator | disableEnvVar: security.apiToken?.disableEnvVar ?? 'JINI_DISABLE_API_AUTH', => security.apiToken?.disableEnvVar && 'JINI_DISABLE_
+src/compose-jini-kernel.ts:347:56 LogicalOperator | agentExecutor: { ...config.agentExecutor, hostEnv: config.agentExecutor?.hostEnv ?? env }, => config.agentExecutor?.hostEnv && env
+src/compose-jini-kernel.ts:351:51 ObjectLiteral | let featureDaemon: Daemon<readonly AnyPack[]> = { services: {} }; => {}
+src/compose-jini-kernel.ts:352:50 ObjectLiteral | let callerDaemon: Daemon<readonly AnyPack[]> = { services: {} }; => {}
+src/create-local-node-daemon.ts:75:26 ConditionalExpression | if (address == null || typeof address === 'string') return null; => false
+src/create-local-node-daemon.ts:250:9 ConditionalExpression | ...(config.bindings === undefined ? {} : { bindings: config.bindings }), => false
+src/create-local-node-daemon.ts:283:13 ObjectLiteral | health: { getVersion: () => packageVersion, isShuttingDown }, => {}
+src/create-local-node-daemon.ts:285:11 ConditionalExpression | ...(config.onRunStarted === undefined ? {} : { onRunStarted: config.onRunStarted }), => false
+src/create-local-node-daemon.ts:286:11 ConditionalExpression | ...(config.resolveRunInput === undefined ? {} : { resolveRunInput: config.resolveRunInput  => false
+src/create-local-node-daemon.ts:290:11 ConditionalExpression | ...(config.resolveWorkspaceRoot === undefined ? {} : { resolveWorkspaceRoot: config.resolv => false
+src/create-local-node-daemon.ts:293:11 ConditionalExpression | ...(config.resolveWorkspaceRoot === undefined ? {} : { resolveWorkspaceRoot: config.resolv => false
+src/create-local-node-daemon.ts:298:10 ObjectLiteral | xai: { listenerRef: xaiListenerRef }, => {}
+src/create-local-node-daemon.ts:355:5 ConditionalExpression | config.discoveryFile === false ? null : (config.discoveryFile ?? resolveDaemonRegistryPath => false
+src/create-local-node-daemon.ts:355:30 BooleanLiteral | config.discoveryFile === false ? null : (config.discoveryFile ?? resolveDaemonRegistryPath => true
+src/create-local-node-daemon.ts:362:27 ObjectLiteral | const resolvedPortRef = { current: requestedPort }; => {}
+src/create-local-node-daemon.ts:374:69 ObjectLiteral | const xaiListenerRef: { current: OAuthCallbackListener | null } = { current: null }; => {}
+src/create-local-node-daemon.ts:406:39 ObjectLiteral | registerExtension(mountedApp, { adapter, lifecycle: base.lifecycle, dataDir: config.dataDi => {}
+src/create-local-node-daemon.ts:413:20 BooleanLiteral | shuttingDown = true; => false
+src/create-local-node-daemon.ts:414:9 ConditionalExpression | if (!stopPromise) { => true
+src/create-local-node-daemon.ts:432:15 ConditionalExpression | if (registryPath !== null) { => true
+src/create-local-node-daemon.ts:499:15 ConditionalExpression | if (registryPath !== null) { => true
+src/feature-activation.ts:121:21 MethodExpression | const known = [...CAPABILITY_IDS].sort().join(', '); => [...CAPABILITY_IDS]
+src/feature-activation.ts:121:21 ArrayDeclaration | const known = [...CAPABILITY_IDS].sort().join(', '); => []
+src/feature.ts:77:20 BooleanLiteral | 'run:transport': true, => false
+src/feature.ts:78:17 BooleanLiteral | 'run:inject': true, => false
+src/feature.ts:79:22 BooleanLiteral | 'agent:discovery': true, => false
+src/feature.ts:80:21 BooleanLiteral | 'tool:delegated': true, => false
+src/feature.ts:81:19 BooleanLiteral | 'tool:catalog': true, => false
+src/feature.ts:82:16 BooleanLiteral | 'host:read': true, => false
+src/feature.ts:83:16 BooleanLiteral | 'host:exec': true, => false
+src/feature.ts:85:17 BooleanLiteral | 'net:egress': true, => false
+src/feature.ts:84:15 BooleanLiteral | 'db:admin': true, => false
+src/feature.ts:86:21 BooleanLiteral | 'daemon:control': true, => false
+src/feature.ts:88:24 BooleanLiteral | 'routines:schedule': true, => false
+src/feature.ts:87:19 BooleanLiteral | 'memory:store': true, => false
+src/feature.ts:89:21 BooleanLiteral | 'media:generate': true, => false
+src/feature.ts:90:17 BooleanLiteral | 'ui:session': true, => false
+src/host-bootstrap.ts:63:11 ConditionalExpression | if (resolved) return; => false
+src/host-bootstrap.ts:64:18 BooleanLiteral | resolved = true; => false
+src/host-bootstrap.ts:70:11 ConditionalExpression | if (resolved) return; => false
+src/host-bootstrap.ts:71:18 BooleanLiteral | resolved = true; => false
+src/host-bootstrap.ts:77:7 OptionalChaining | server.closeIdleConnections?.(); => server.closeIdleConnections()
+src/host-bootstrap.ts:80:7 OptionalChaining | server.closeAllConnections?.(); => server.closeAllConnections()
+src/host-bootstrap.ts:83:5 OptionalChaining | idleTimer.unref?.(); => idleTimer.unref()
+src/host-bootstrap.ts:84:5 OptionalChaining | hardTimer.unref?.(); => hardTimer.unref()
+src/host-bootstrap.ts:87:5 OptionalChaining | server.closeIdleConnections?.(); => server.closeIdleConnections()
+src/host-bootstrap.ts:173:5 OptionalChaining | timer.unref?.(); => timer.unref()
+src/kernel-base.ts:92:5 ConditionalExpression | context.sideEffects === undefined ? {} : { sideEffects: context.sideEffects }); => false
+src/kernel-base.ts:100:9 OptionalChaining | try { featureConnection?.close(); } catch { /* Keep the boot failure. */ } => featureConnection.close
+src/kernel-base.ts:101:48 OptionalChaining | await Promise.allSettled(opened.map((log) => log.close?.({}))); => log.close({})
+src/kernel-base.ts:124:25 ConditionalExpression | const sqliteStorage = options.storage.kind === 'sqlite' ? options.storage : null; => true
+src/kernel-base.ts:135:38 ArrayDeclaration | const opened: ClosableEventLog[] = []; => ["Stryker was here"]
+src/kernel-base.ts:160:9 LogicalOperator | if (sqliteStorage && eventsDbPath !== null && dataDir !== null) { => sqliteStorage && eventsDbPath !== null || dataDir 
+src/kernel-base.ts:160:9 ConditionalExpression | if (sqliteStorage && eventsDbPath !== null && dataDir !== null) { => true
+src/kernel-base.ts:160:9 LogicalOperator | if (sqliteStorage && eventsDbPath !== null && dataDir !== null) { => sqliteStorage || eventsDbPath !== null
+src/kernel-base.ts:160:26 ConditionalExpression | if (sqliteStorage && eventsDbPath !== null && dataDir !== null) { => true
+src/kernel-base.ts:160:51 ConditionalExpression | if (sqliteStorage && eventsDbPath !== null && dataDir !== null) { => true
+src/kernel-base.ts:170:36 ObjectLiteral | journal = createRunByteJournal({ eventLog: journalEventLog }); => {}
+src/lifecycle/boot-lifecycle.ts:61:35 ArrayDeclaration | const completed: BootModule[] = []; => ["Stryker was here"]
+src/lifecycle/boot-lifecycle.ts:114:9 OptionalChaining | try { optional.reporter?.report({ result }); } catch { /* Best-effort reporting. */ } => optional.reporter.report
+src/storage/legacy/sqlite.ts:51:8 OptionalChaining | try {db?.close();} catch { /* Keep the original bootstrap failure. */ } => db.close
+src/storage/legacy/sqlite.ts:48:118 ObjectLiteral | db = openSqliteConnection({filePath:file, open({ filePath },settings) { db=open(filePath,s => {}
+src/storage/legacy/sqlite.ts:48:128 ArrayDeclaration | db = openSqliteConnection({filePath:file, open({ filePath },settings) { db=open(filePath,s => []
+src/storage/legacy/sqlite.ts:26:116 BlockStatement | export function createLegacySqliteStorage(_required: Record<string, never>, _optional: Rec => {}
+src/store/projects/sqlite.ts:308:7 ConditionalExpression | if (!existing) return null; => false
+src/store/projects/sqlite.ts:350:13 BlockStatement | } catch { => {}
