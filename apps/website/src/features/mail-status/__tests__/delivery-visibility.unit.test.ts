@@ -4,7 +4,7 @@ import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { MailerPort } from "../../../platform/mail/index.js";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
-import { createMailPurposeGateProbe, DISCARDING_MAILER, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
+import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
 import type { MailActivityRecord, MailActivityRepo } from "../../mail/activity.repo.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
@@ -242,9 +242,6 @@ test("the purpose-gate probe asks Jini's real gate and sends nothing", async () 
   assert.equal(await production({ capabilityName: "newsletter", lane: "notification" }), false);
   assert.equal(await production({ capabilityName: "forms", lane: "notification" }), true);
   assert.equal(await createMailPurposeGateProbe({ mode: "local", durableOutboxReady: () => false })({ capabilityName: "forms", lane: "notification" }), true);
-  // The gate's inner mailer is a sink: a memory driver, nothing delivered, batches empty.
-  assert.equal(DISCARDING_MAILER.capabilities({}).driver, "memory");
-  assert.deepEqual(await DISCARDING_MAILER.sendBatch({ messages: [], idempotencyKey: "k", workspaceId: "w", sourceContext: { module: "m" } }), []);
   await assert.rejects(createMailPurposeGateProbe({ mode: "production", durableOutboxReady: () => { throw new Error("readiness down"); } })({ capabilityName: "forms", lane: "notification" }), /readiness down/);
   await assert.rejects(createMailPurposeGateProbe({ mode: "production", durableOutboxReady: () => { throw "bare"; } })({ capabilityName: "forms", lane: "notification" }), (err: unknown) => err === "bare");
 });

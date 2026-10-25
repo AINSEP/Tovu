@@ -1,3 +1,5 @@
+import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
 import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
@@ -1182,7 +1184,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     after: Promise.all([siteTitleReady, identity.identityReady]).then(() => undefined),
     systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
   });
+  const pluginExports = createPluginExportRuntime({ workspaceId: seededWorkspace.id, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: async () => [] });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
+    pluginExports,
     assistantAgentInventory: createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) }),
     workspaceId: seededWorkspace.id,
     trash,
@@ -1271,7 +1275,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `revisions:` field to wire here (S1, fix plan 2026-09-24 row 14) — unlike the sqlite store,
     // this double's `deps.repo` is already the full `postRepo`, so its own `appendRevision` calls
     // use that same instance unconditionally; see `html-document-store.memory.ts`'s header.
-    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox }),
+    pagesHtmlStore: (scope, options: { allowedKinds?: ReadonlySet<import("#src/features/post/index").PostKind> } = {}) => new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo: postRepo, clock, entryRefsRepo, outbox, validatePluginEmbeds: pluginExports.validateHtml }),
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because
     // it mirrors `postRepo` rather than maintaining an index; chat history has no such alternate

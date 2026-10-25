@@ -1,3 +1,4 @@
+import type { PluginEmbedDiagnostic } from "../agent-plugins/exports/diagnostics.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Kysely, Selectable, Updateable } from "kysely";
 
@@ -85,6 +86,7 @@ export class PageKindMismatchError extends Error {}
 export class PageConcurrentEditError extends Error {}
 
 export interface PagesHtmlDocumentStoreDeps {
+  validatePluginEmbeds?: (input: { workspaceId: string; html: string }) => Promise<readonly PluginEmbedDiagnostic[]>;
   /** The content database: one Kysely query body for every dialect (storage plan §4, ADR-066). */
   kernel: ContentKernel;
   /** Each surface selects its own kinds; Pages defaults to page only. */
@@ -182,6 +184,8 @@ export interface PagesHtmlDocumentStoreScope {
  * pure edits over that body without another store read.
  */
 export interface PagesHtmlDocumentStorePort {
+  /** Safe warnings from the last validated write, for authenticated authoring surfaces. */
+  embedWarnings?(): readonly PluginEmbedDiagnostic[];
   /** Births an `"html"`-format Page, or no-ops if the row already is one. */
   ensureHtmlFormat(seedHtml: string): Promise<void>;
   read(): Promise<string>;
@@ -231,6 +235,13 @@ export type PagesHtmlDocumentStoreFactory = (
  */
 export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
   private lastReadVersion: number | null = null;
+  private pluginWarnings: readonly PluginEmbedDiagnostic[] = [];
+
+  embedWarnings(): readonly PluginEmbedDiagnostic[] { return this.pluginWarnings; }
+
+  private async validatePluginEmbeds(input: { html: string }, _options = {}): Promise<void> {
+    this.pluginWarnings = await this.deps.validatePluginEmbeds?.({ workspaceId: this.scope.workspaceId, html: input.html }) ?? [];
+  }
   private readonly allowedKinds: ReadonlySet<PostKind>;
 
   private readonly scope: PagesHtmlDocumentStoreScope;
@@ -392,6 +403,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       return;
     }
 
+    await this.validatePluginEmbeds({ html: seedHtml });
     const nextVersion = row.version + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 
@@ -542,6 +554,8 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }
     const expectedVersion = this.lastReadVersion;
+    // Preserve this call's read basis across asynchronous plugin validation (CIC-1).
+    await this.validatePluginEmbeds({ html });
     const nextVersion = expectedVersion + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 

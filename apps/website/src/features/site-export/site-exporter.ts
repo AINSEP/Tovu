@@ -529,7 +529,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
       pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,
       assetUrlPrefix: `/theme-assets/${theme.id}/`,
     }) },
-    assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/"],
+    assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/"],
     requestHeaders: { "x-tovu-static-export": "1" },
     security: { transformHtml: ({ html }) => withSecurityMeta(html) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
