@@ -52,3 +52,14 @@ test("dispose releases open traces: a run ending afterwards records nothing more
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(sink.events.map((event) => event.kind), ["run_started"]);
 });
+
+test("without a warn sink, a non-Error sink failure is reported to the console by its type", async (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  const sink = { record: () => { throw "plain string"; } };
+  const { lifecycle: served, dispose } = traceRunLifecycle({ lifecycle: lifecycle(), sink });
+  const { run } = await served.start({ contextRef: "chat-4" });
+  for (let i = 0; i < 20 && warn.mock.callCount() === 0; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(warn.mock.calls[0]?.arguments[0], "[agent-daemon] AI trace sink failed: string");
+  await served.finish({ runId: run.id, ...success });
+  dispose();
+});

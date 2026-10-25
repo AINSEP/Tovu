@@ -90,3 +90,12 @@ test("observability-status: a configured provider port reports enabled under the
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { enabled: true, serviceName: "tovu" });
 });
+
+test("observability-status: an authorization failure answers a generic 500", async (t) => {
+  const deps = { ...createRouteDeps(), authorize: async () => { throw new Error("policy store down"); } };
+  t.mock.method(console, "error", () => {});
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
